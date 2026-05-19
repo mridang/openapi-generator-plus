@@ -207,6 +207,31 @@ class ObjectSerializer
             'bool', 'boolean', 'mixed', 'void', 'byte',
         ];
         if (in_array($class, $primitives, true)) {
+            /* For int-typed fields use JSON_BIGINT_AS_STRING so json_decode
+             * preserves large integer precision as a string (default PHP
+             * json_decode silently coerces ints above PHP_INT_MAX to float,
+             * losing the low bits). Then validate the parsed string fits
+             * within PHP_INT_MIN..PHP_INT_MAX before casting — the str→int
+             * →str round-trip equality is a bcmath-free overflow check.
+             * Other primitive types preserve the original (non-BIGINT) path
+             * so floats and bools deserialise as before. */
+            if ($class === 'int' || $class === 'integer') {
+                if (is_string($data)) {
+                    $data = json_decode($data, true, 512, JSON_BIGINT_AS_STRING);
+                }
+                if (is_string($data) && preg_match('/^-?\d+$/', $data)) {
+                    $casted = (int) $data;
+                    if ((string) $casted !== $data) {
+                        throw new \OverflowException(
+                            "Value '$data' overflows PHP int range "
+                            . '(PHP_INT_MIN..PHP_INT_MAX)'
+                        );
+                    }
+                    return $casted;
+                }
+                settype($data, 'int');
+                return $data;
+            }
             $data = is_string($data) ? json_decode($data, true) : $data;
             settype($data, $class);
             return $data;

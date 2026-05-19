@@ -415,4 +415,23 @@ class ObjectSerializerTest extends TestCase
     {
         $this->assertNull(ObjectSerializer::deserialize(null, Category::class));
     }
+
+    public function testDeserializeRoundtripsInt64MaxExactly(): void
+    {
+        /* PHP_INT_MAX on 64-bit (9223372036854775807) survives via
+         * JSON_BIGINT_AS_STRING; the str→int→str round-trip equality
+         * check accepts it because it fits PHP's int range. */
+        $result = ObjectSerializer::deserialize((string) PHP_INT_MAX, 'int');
+        $this->assertSame(PHP_INT_MAX, $result);
+    }
+
+    public function testDeserializeThrowsOnIntOverflow(): void
+    {
+        /* Int64 max + 1 (9223372036854775808) exceeds PHP_INT_MAX on every
+         * supported platform. Without the overflow check, json_decode would
+         * silently return a float and settype would truncate to PHP_INT_MAX
+         * — wrong data, no error. With the check, deserialize throws. */
+        $this->expectException(\OverflowException::class);
+        ObjectSerializer::deserialize('9223372036854775808', 'int');
+    }
 }
