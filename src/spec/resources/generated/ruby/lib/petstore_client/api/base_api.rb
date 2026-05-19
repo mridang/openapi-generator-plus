@@ -42,7 +42,13 @@ module PetstoreClient
         url = if path.start_with?('http://', 'https://')
                 path
               else
-                "#{@config.base_url}#{path}"
+                # Strip trailing slash from baseUrl when path starts with
+                # `/` so baseUrl='https://x/' + path='/y' produces
+                # 'https://x/y', not 'https://x//y' which most servers
+                # route to 404. Matches Java/C#/Go/Swift/Dart/Kotlin
+                # which collapse via URI parsers.
+                base = path.start_with?('/') ? @config.base_url.sub(%r{/+\z}, '') : @config.base_url
+                "#{base}#{path}"
               end
 
         effective_auth = auth || @authenticator

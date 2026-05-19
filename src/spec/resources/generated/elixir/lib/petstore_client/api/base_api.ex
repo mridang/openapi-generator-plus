@@ -91,7 +91,18 @@ defmodule PetstoreClient.Api.BaseApi do
       if String.starts_with?(path, "http://") or String.starts_with?(path, "https://") do
         path
       else
-        state.config.base_url <> path
+        # Strip trailing slash from baseUrl when path starts with `/` so
+        # baseUrl='https://x/' + path='/y' produces 'https://x/y', not
+        # 'https://x//y' which most servers route to 404. Matches
+        # Java/C#/Go/Swift/Dart/Kotlin which collapse via URI parsers.
+        base =
+          if String.starts_with?(path, "/") do
+            String.replace(state.config.base_url, ~r{/+$}, "")
+          else
+            state.config.base_url
+          end
+
+        base <> path
       end
 
     effective_auth = auth || Map.get(state, :authenticator)
