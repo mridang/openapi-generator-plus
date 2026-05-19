@@ -1,4 +1,5 @@
 <?php
+
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -22,12 +23,12 @@ class AddPetPhotosOptions
     /** @var \SplFileObject[] */
     public array $files;
 
-    public \PetstoreClient\Models\PhotoMetadata $metadata;
+    public PhotoMetadata $metadata;
 
     /**
      * @param \SplFileObject[] $files
      */
-    public function __construct(array $files, \PetstoreClient\Models\PhotoMetadata $metadata)
+    public function __construct(array $files, PhotoMetadata $metadata)
     {
         $this->files = $files;
         $this->metadata = $metadata;

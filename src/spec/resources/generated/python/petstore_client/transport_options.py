@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Dict, Mapping, Optional
 
+
 @dataclass(frozen=True)
 class TransportOptions:
     """Immutable HTTP transport configuration for :class:`DefaultApiClient`.
@@ -112,6 +113,7 @@ class TransportOptions:
         """
         return TransportOptionsBuilder()
 
+
 class TransportOptionsBuilder:
     """Builder for creating immutable :class:`TransportOptions` instances.
 
@@ -180,11 +182,12 @@ class TransportOptionsBuilder:
         """
         if proxy is not None:
             from urllib.parse import urlparse
+
             parsed = urlparse(proxy)
             if parsed.scheme not in ('http', 'https'):
-                raise ValueError(f"Invalid proxy URL (must use http or https scheme): {proxy}")
+                raise ValueError(f'Invalid proxy URL (must use http or https scheme): {proxy}')
             if not parsed.hostname:
-                raise ValueError(f"Invalid proxy URL (missing host): {proxy}")
+                raise ValueError(f'Invalid proxy URL (missing host): {proxy}')
         self._proxy = proxy
         return self
 
@@ -249,7 +252,7 @@ class TransportOptionsBuilder:
         self._default_headers[name] = value
         return self
 
-    deffault_headers(self, headers: Dict[str, str]) -> 'TransportOptionsBuilder':
+    def default_headers(self, headers: Dict[str, str]) -> 'TransportOptionsBuilder':
         """Add multiple transport-level default headers.
 
         Args:
