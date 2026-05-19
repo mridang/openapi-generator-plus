@@ -52,7 +52,6 @@ module {{moduleName}}
     def initialize(transport_options = nil)
       super()
       @transport_options = transport_options || TransportOptions.builder.build
-      @connection = build_connection
     end
 
     # Send an HTTP request with transport-level settings applied.
@@ -84,7 +83,7 @@ module {{moduleName}}
       merged['Accept-Encoding'] ||= self.class.supported_encodings
 
       begin
-        response = @connection.run_request(method.downcase.to_sym, url, serialized_body, merged)
+        response = connection.run_request(method.downcase.to_sym, url, serialized_body, merged)
       rescue Faraday::ConnectionFailed, Faraday::TimeoutError, Faraday::SSLError => e
         raise ApiError, e.message
       end
@@ -177,6 +176,14 @@ module {{moduleName}}
       end
     end
     # rubocop:enable Metrics/CyclomaticComplexity,Metrics/MethodLength
+
+    # Returns the cached Faraday connection, building it on first use.
+    # The connection is built once per ApiClient instance to preserve the
+    # underlying socket pool / keepalive across requests; the build step is
+    # delegated to {#build_connection} so tests can stub it per-instance.
+    def connection
+      @connection ||= build_connection
+    end
 
     def build_connection # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
       Faraday.new do |f|
