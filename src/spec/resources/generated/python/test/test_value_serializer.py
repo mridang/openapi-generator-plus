@@ -1,3 +1,5 @@
+import pytest
+
 from petstore_client.value_serializer import ValueSerializer
 
 
@@ -312,3 +314,10 @@ class TestPathEncodingParity:
 
     def test_query_location_not_path_encoded(self) -> None:
         assert ValueSerializer.serialize_styled('color', 'a b', 'query', 'string', None, 'form', False) == 'a b'
+
+    def test_empty_string_path_param_raises(self) -> None:
+        # Gap W — empty-string path values silently produce malformed
+        # URLs like `/pet//details`; reject at serialization time so
+        # callers see the real error rather than a downstream 404.
+        with pytest.raises(ValueError):
+            ValueSerializer.serialize_styled('id', '', 'path', 'string', None, 'simple', False)

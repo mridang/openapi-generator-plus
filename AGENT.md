@@ -298,32 +298,20 @@ not silent data loss, not a security issue. If we wanted it, it'd be a
 TransportOptions flag plus per-lang retry logic; we don't. Don't
 re-audit.
 
-### Non-ASCII header value handling (3-way split, needs owner decision)
+### Non-ASCII header value handling (FIXED in API-key authenticators)
 
-When a caller passes a header value with non-ASCII characters (e.g.
-`Authorization: "Bearer ñoño"` or `X-User-Name: "日本語"`), the 12 SDKs
-split three ways:
+RESOLVED for ApiKeyAuthenticator in all 12 SDKs (commit eb6a1f56).
+The HEADER location now rejects any value outside RFC 7230 §3.2.6's
+HTAB + printable-ASCII range, raising an idiomatic error per language
+(IllegalArgumentException / ArgumentException / ValueError / panic /
+preconditionFailure / etc.). The Gap N CRLF check was extended to
+cover the full non-ASCII range in the same loop.
 
-- **Reject with error (3)**: Go, Swift, Rust — the underlying HTTP
-  lib validates header values and throws immediately. Safest; caller
-  knows the value is illegal before any wire traffic.
-- **Send raw UTF-8 (7)**: Java, C#, Python, Ruby, Node, Dart, Elixir
-  — the lib sends whatever bytes were passed, often UTF-8. RFC 7230
-  §3.2.4 forbids non-ASCII in field-values; servers may reject or
-  silently mangle. Auth failures with no clear cause.
-- **Percent-encode (2)**: Kotlin (Ktor), PHP (Symfony) — the lib
-  silently URL-encodes non-ASCII characters. Defensive but non-
-  standard; if the server doesn't decode, the header value reads as
-  garbage.
+Query and Cookie locations remain permissive — both have downstream
+URL-encoding pipelines that handle non-ASCII safely.
 
-This is a real cross-language divergence with security impact
-(authentication-relevant). Fix would standardise on reject-with-error
-across all 12, matching Go/Swift/Rust. That's a small extension to the
-existing Gap N CRLF check (already lives in each SDK's API-key
-authenticator and base header-merge path).
-
-Not fixed yet because forcing strict-ASCII may break callers that
-today rely on the permissive UTF-8 path and have servers that accept
-it. Needs owner decision: tighten and risk breaking permissive
-consumers, or document as caller-beware. Logged so future agents
-don't re-audit the same dimension cold.
+Custom `headerParams` passed directly to `invokeApi()` are NOT
+validated by this layer — that's a caller-level concern out of scope
+for the API-key authenticator. If a user wants strict validation on
+arbitrary custom headers, that needs a separate hook in the base
+header-merge path. Not done; not auditing.

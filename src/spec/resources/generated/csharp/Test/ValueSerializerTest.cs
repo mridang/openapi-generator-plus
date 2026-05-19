@@ -740,4 +740,15 @@ public class ValueSerializerTest
             ValueSerializer.SerializeStyled("color", "a b", "query", "string", null, "form", false)
         );
     }
+
+    [Fact]
+    public void EmptyStringPathParamThrows()
+    {
+        // Gap W — empty-string path values silently produce malformed
+        // URLs like `/pet//details`; reject at serialization time so
+        // callers see the real error rather than a downstream 404.
+        Assert.Throws<ArgumentException>(
+            () => ValueSerializer.SerializeStyled("id", "", "path", "string", null, "simple", false)
+        );
+    }
 }

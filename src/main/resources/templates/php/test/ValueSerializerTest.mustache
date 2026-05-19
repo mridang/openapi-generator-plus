@@ -471,4 +471,13 @@ class ValueSerializerTest extends TestCase
     {
         $this->assertSame('a b', ValueSerializer::serializeStyled('color', 'a b', 'query', 'string', null, 'form', false));
     }
+
+    public function testEmptyStringPathParamThrows(): void
+    {
+        // Gap W — empty-string path values silently produce malformed
+        // URLs like `/pet//details`; reject at serialization time so
+        // callers see the real error rather than a downstream 404.
+        $this->expectException(\InvalidArgumentException::class);
+        ValueSerializer::serializeStyled('id', '', 'path', 'string', null, 'simple', false);
+    }
 }

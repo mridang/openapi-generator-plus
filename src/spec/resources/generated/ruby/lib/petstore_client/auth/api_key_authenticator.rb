@@ -26,7 +26,7 @@ module PetstoreClient
         # HTTP libs encode differently per language.
         if location == ApiKeyLocation::HEADER && api_key.match?(/[^\t\x20-\x7E]/)
           raise ArgumentError,
-            "API key for header '#{key_param_name}' must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+                "API key for header '#{key_param_name}' must contain only printable ASCII characters (RFC 7230 §3.2.6)"
         end
         @host = host
         @key_param_name = key_param_name

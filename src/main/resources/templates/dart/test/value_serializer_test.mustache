@@ -492,6 +492,16 @@ void main() {
         expect(stringify('2024-01-15'), equals('2024-01-15'));
       });
     });
+
+    test('empty string path param throws ArgumentError', () {
+      // Gap W — empty-string path values silently produce malformed
+      // URLs like `/pet//details`; reject at serialization time so
+      // callers see the real error rather than a downstream 404.
+      expect(
+        () => serializeStyled('id', '', 'path', 'string', '', 'simple', false),
+        throwsArgumentError,
+      );
+    });
   });
 }
 {{/generateTests}}

@@ -393,8 +393,7 @@ describe PetstoreClient::ValueSerializer do
     end
 
     it 'simple style array encodes each item' do
-      result = PetstoreClient::ValueSerializer.serialize_styled('color', ['a b', 'c?d'], :path, 'array', nil, 'simple',
-        false)
+      result = PetstoreClient::ValueSerializer.serialize_styled('color', ['a b', 'c?d'], :path, 'array', nil, 'simple', false)
       _(result).must_equal('a%20b,c%3Fd')
     end
 
@@ -411,6 +410,15 @@ describe PetstoreClient::ValueSerializer do
     it 'query location is not path-encoded' do
       result = PetstoreClient::ValueSerializer.serialize_styled('color', 'a b', :query, 'string', nil, 'form', false)
       _(result).must_equal('a b')
+    end
+
+    it 'empty string path param raises ArgumentError' do
+      # Gap W — empty-string path values silently produce malformed
+      # URLs like `/pet//details`; reject at serialization time so
+      # callers see the real error rather than a downstream 404.
+      _(-> {
+        PetstoreClient::ValueSerializer.serialize_styled('id', '', :path, 'string', nil, 'simple', false)
+      }).must_raise ArgumentError
     end
   end
 end

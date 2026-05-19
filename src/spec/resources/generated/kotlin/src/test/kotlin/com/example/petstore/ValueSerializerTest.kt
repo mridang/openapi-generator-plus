@@ -581,5 +581,17 @@ class ValueSerializerTest {
         fun emptyStyleFallsBack() {
             assertEquals("5", ValueSerializer.serializeStyled("id", "5", "path", "string", null, "", false))
         }
+
+        @Test
+        @DisplayName("empty string path param throws IllegalArgumentException")
+        fun emptyStringPathParamThrows() {
+            // Gap W — empty-string path values silently produce
+            // malformed URLs like `/pet//details`; reject at
+            // serialization time so callers see the real error rather
+            // than a downstream 404.
+            assertThrows(IllegalArgumentException::class.java) {
+                ValueSerializer.serializeStyled("id", "", "path", "string", null, "simple", false)
+            }
+        }
     }
 }

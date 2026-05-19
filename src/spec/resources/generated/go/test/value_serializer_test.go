@@ -613,3 +613,15 @@ func TestPathEncodingParity_QueryLocationNotPathEncoded(t *testing.T) {
 		t.Errorf("expected 'a b' (not path-encoded), got %v", result)
 	}
 }
+
+func TestEmptyStringPathParamPanics(t *testing.T) {
+	// Gap W — empty-string path values silently produce malformed
+	// URLs like `/pet//details`; reject at serialization time so
+	// callers see the real error rather than a downstream 404.
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected panic for empty-string path param")
+		}
+	}()
+	_ = petstore.SerializeStyled("id", "", "path", "string", "", "simple", false)
+}

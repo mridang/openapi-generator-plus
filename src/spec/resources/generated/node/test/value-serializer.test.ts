@@ -391,5 +391,12 @@ describe('ValueSerializer', () => {
     test('query location is not path-encoded', () => {
       expect(ValueSerializer.serializeStyled('color', 'a b', 'query', 'string', null, 'form', false)).toBe('a b');
     });
+
+    test('empty string path param throws', () => {
+      // Gap W — empty-string path values silently produce malformed
+      // URLs like `/pet//details`; reject at serialization time so
+      // callers see the real error rather than a downstream 404.
+      expect(() => ValueSerializer.serializeStyled('id', '', 'path', 'string', null, 'simple', false)).toThrow();
+    });
   });
 });

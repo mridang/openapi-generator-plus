@@ -137,7 +137,7 @@ module PetstoreClient
       def add_pet(auth, pet)
         if pet.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet' when calling PetApi.add_pet"
+                "Missing the required parameter 'pet' when calling PetApi.add_pet"
         end
 
         add_pet_with_http_info(auth, pet).data
@@ -148,7 +148,7 @@ module PetstoreClient
       def add_pet_with_http_info(auth, pet)
         if pet.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet' when calling PetApi.add_pet"
+                "Missing the required parameter 'pet' when calling PetApi.add_pet"
         end
 
         path = '/pet'
@@ -178,7 +178,7 @@ module PetstoreClient
       def add_pet_photos(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.add_pet_photos"
+                "Missing the required parameter 'pet_id' when calling PetApi.add_pet_photos"
         end
 
         add_pet_photos_with_http_info(pet_id, options).data
@@ -189,7 +189,7 @@ module PetstoreClient
       def add_pet_photos_with_http_info(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.add_pet_photos"
+                "Missing the required parameter 'pet_id' when calling PetApi.add_pet_photos"
         end
 
         path = '/pet/{petId}/photos'
@@ -222,12 +222,12 @@ module PetstoreClient
       def add_pet_treatment(auth, pet_id, pet_treatment)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.add_pet_treatment"
+                "Missing the required parameter 'pet_id' when calling PetApi.add_pet_treatment"
         end
 
         if pet_treatment.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_treatment' when calling PetApi.add_pet_treatment"
+                "Missing the required parameter 'pet_treatment' when calling PetApi.add_pet_treatment"
         end
 
         add_pet_treatment_with_http_info(auth, pet_id, pet_treatment).data
@@ -238,12 +238,12 @@ module PetstoreClient
       def add_pet_treatment_with_http_info(auth, pet_id, pet_treatment)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.add_pet_treatment"
+                "Missing the required parameter 'pet_id' when calling PetApi.add_pet_treatment"
         end
 
         if pet_treatment.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_treatment' when calling PetApi.add_pet_treatment"
+                "Missing the required parameter 'pet_treatment' when calling PetApi.add_pet_treatment"
         end
 
         path = '/pet/{petId}/treatment'
@@ -274,7 +274,7 @@ module PetstoreClient
       def delete_pet(auth, pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.delete_pet"
+                "Missing the required parameter 'pet_id' when calling PetApi.delete_pet"
         end
 
         delete_pet_with_http_info(auth, pet_id, options).data
@@ -285,7 +285,7 @@ module PetstoreClient
       def delete_pet_with_http_info(auth, pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.delete_pet"
+                "Missing the required parameter 'pet_id' when calling PetApi.delete_pet"
         end
 
         path = '/pet/{petId}'
@@ -318,12 +318,12 @@ module PetstoreClient
       def download_pet_document(pet_id, document_id)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.download_pet_document"
+                "Missing the required parameter 'pet_id' when calling PetApi.download_pet_document"
         end
 
         if document_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'document_id' when calling PetApi.download_pet_document"
+                "Missing the required parameter 'document_id' when calling PetApi.download_pet_document"
         end
 
         download_pet_document_with_http_info(pet_id, document_id).data
@@ -334,12 +334,12 @@ module PetstoreClient
       def download_pet_document_with_http_info(pet_id, document_id)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.download_pet_document"
+                "Missing the required parameter 'pet_id' when calling PetApi.download_pet_document"
         end
 
         if document_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'document_id' when calling PetApi.download_pet_document"
+                "Missing the required parameter 'document_id' when calling PetApi.download_pet_document"
         end
 
         path = '/pet/{petId}/documents/{documentId}'
@@ -408,7 +408,7 @@ module PetstoreClient
       def get_external_pet_info(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_external_pet_info"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_external_pet_info"
         end
 
         get_external_pet_info_with_http_info(pet_id, server: server).data
@@ -419,7 +419,7 @@ module PetstoreClient
       def get_external_pet_info_with_http_info(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_external_pet_info"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_external_pet_info"
         end
 
         path = '/pet/{petId}/external'
@@ -451,7 +451,7 @@ module PetstoreClient
       def get_multi_server_pet_info(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_multi_server_pet_info"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_multi_server_pet_info"
         end
 
         get_multi_server_pet_info_with_http_info(pet_id, server: server).data
@@ -462,7 +462,7 @@ module PetstoreClient
       def get_multi_server_pet_info_with_http_info(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_multi_server_pet_info"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_multi_server_pet_info"
         end
 
         path = '/pet/{petId}/multi'
@@ -495,7 +495,7 @@ module PetstoreClient
       def get_pet_avatar(pet_id)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar"
         end
 
         get_pet_avatar_with_http_info(pet_id).data
@@ -506,7 +506,7 @@ module PetstoreClient
       def get_pet_avatar_with_http_info(pet_id)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar"
         end
 
         path = '/pet/{petId}/avatar'
@@ -535,7 +535,7 @@ module PetstoreClient
       def get_pet_avatar_thumbnail(pet_id)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar_thumbnail"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar_thumbnail"
         end
 
         get_pet_avatar_thumbnail_with_http_info(pet_id).data
@@ -546,7 +546,7 @@ module PetstoreClient
       def get_pet_avatar_thumbnail_with_http_info(pet_id)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar_thumbnail"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar_thumbnail"
         end
 
         path = '/pet/{petId}/avatar/thumbnail'
@@ -576,7 +576,7 @@ module PetstoreClient
       def get_pet_by_id(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_by_id"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_by_id"
         end
 
         get_pet_by_id_with_http_info(pet_id, server: server).data
@@ -587,7 +587,7 @@ module PetstoreClient
       def get_pet_by_id_with_http_info(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_by_id"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_by_id"
         end
 
         path = '/pet/{petId}'
@@ -620,7 +620,7 @@ module PetstoreClient
       def get_pet_passport(pet_id)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_passport"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_passport"
         end
 
         get_pet_passport_with_http_info(pet_id).data
@@ -631,7 +631,7 @@ module PetstoreClient
       def get_pet_passport_with_http_info(pet_id)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_passport"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_passport"
         end
 
         path = '/pet/{petId}/passport'
@@ -661,12 +661,12 @@ module PetstoreClient
       def get_pet_photo(pet_id, photo_id)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_photo"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_photo"
         end
 
         if photo_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'photo_id' when calling PetApi.get_pet_photo"
+                "Missing the required parameter 'photo_id' when calling PetApi.get_pet_photo"
         end
 
         get_pet_photo_with_http_info(pet_id, photo_id).data
@@ -677,12 +677,12 @@ module PetstoreClient
       def get_pet_photo_with_http_info(pet_id, photo_id)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_photo"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_photo"
         end
 
         if photo_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'photo_id' when calling PetApi.get_pet_photo"
+                "Missing the required parameter 'photo_id' when calling PetApi.get_pet_photo"
         end
 
         path = '/pet/{petId}/photos/{photoId}'
@@ -714,12 +714,12 @@ module PetstoreClient
       def get_pet_tag(pet_id, tag_name, options = nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_tag"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_tag"
         end
 
         if tag_name.nil?
           raise ArgumentError,
-            "Missing the required parameter 'tag_name' when calling PetApi.get_pet_tag"
+                "Missing the required parameter 'tag_name' when calling PetApi.get_pet_tag"
         end
 
         get_pet_tag_with_http_info(pet_id, tag_name, options).data
@@ -730,12 +730,12 @@ module PetstoreClient
       def get_pet_tag_with_http_info(pet_id, tag_name, options = nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_tag"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_tag"
         end
 
         if tag_name.nil?
           raise ArgumentError,
-            "Missing the required parameter 'tag_name' when calling PetApi.get_pet_tag"
+                "Missing the required parameter 'tag_name' when calling PetApi.get_pet_tag"
         end
 
         path = '/pet/{petId}/tag/{tagName}'
@@ -780,7 +780,7 @@ module PetstoreClient
       def get_staging_pet_info(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_staging_pet_info"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_staging_pet_info"
         end
 
         get_staging_pet_info_with_http_info(pet_id, server: server).data
@@ -791,7 +791,7 @@ module PetstoreClient
       def get_staging_pet_info_with_http_info(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_staging_pet_info"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_staging_pet_info"
         end
 
         path = '/pet/{petId}/staging'
@@ -825,12 +825,12 @@ module PetstoreClient
       def set_pet_avatar(pet_id, body)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar"
+                "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar"
         end
 
         if body.nil?
           raise ArgumentError,
-            "Missing the required parameter 'body' when calling PetApi.set_pet_avatar"
+                "Missing the required parameter 'body' when calling PetApi.set_pet_avatar"
         end
 
         set_pet_avatar_with_http_info(pet_id, body).data
@@ -841,12 +841,12 @@ module PetstoreClient
       def set_pet_avatar_with_http_info(pet_id, body)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar"
+                "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar"
         end
 
         if body.nil?
           raise ArgumentError,
-            "Missing the required parameter 'body' when calling PetApi.set_pet_avatar"
+                "Missing the required parameter 'body' when calling PetApi.set_pet_avatar"
         end
 
         path = '/pet/{petId}/avatar'
@@ -876,12 +876,12 @@ module PetstoreClient
       def set_pet_avatar_thumbnail(pet_id, set_pet_avatar_thumbnail_request)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar_thumbnail"
+                "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar_thumbnail"
         end
 
         if set_pet_avatar_thumbnail_request.nil?
           raise ArgumentError,
-            "Missing the required parameter 'set_pet_avatar_thumbnail_request' when calling PetApi.set_pet_avatar_thumbnail"
+                "Missing the required parameter 'set_pet_avatar_thumbnail_request' when calling PetApi.set_pet_avatar_thumbnail"
         end
 
         set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request).data
@@ -892,12 +892,12 @@ module PetstoreClient
       def set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar_thumbnail"
+                "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar_thumbnail"
         end
 
         if set_pet_avatar_thumbnail_request.nil?
           raise ArgumentError,
-            "Missing the required parameter 'set_pet_avatar_thumbnail_request' when calling PetApi.set_pet_avatar_thumbnail"
+                "Missing the required parameter 'set_pet_avatar_thumbnail_request' when calling PetApi.set_pet_avatar_thumbnail"
         end
 
         path = '/pet/{petId}/avatar/thumbnail'
@@ -926,12 +926,12 @@ module PetstoreClient
       def update_pet(pet_id, pet)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.update_pet"
+                "Missing the required parameter 'pet_id' when calling PetApi.update_pet"
         end
 
         if pet.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet' when calling PetApi.update_pet"
+                "Missing the required parameter 'pet' when calling PetApi.update_pet"
         end
 
         update_pet_with_http_info(pet_id, pet).data
@@ -942,12 +942,12 @@ module PetstoreClient
       def update_pet_with_http_info(pet_id, pet)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.update_pet"
+                "Missing the required parameter 'pet_id' when calling PetApi.update_pet"
         end
 
         if pet.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet' when calling PetApi.update_pet"
+                "Missing the required parameter 'pet' when calling PetApi.update_pet"
         end
 
         path = '/pet/{petId}'
@@ -978,7 +978,7 @@ module PetstoreClient
       def upload_pet_certificate(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_certificate"
+                "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_certificate"
         end
 
         upload_pet_certificate_with_http_info(pet_id, options).data
@@ -989,7 +989,7 @@ module PetstoreClient
       def upload_pet_certificate_with_http_info(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_certificate"
+                "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_certificate"
         end
 
         path = '/pet/{petId}/certificate'
@@ -1022,7 +1022,7 @@ module PetstoreClient
       def upload_pet_document(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"
+                "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"
         end
 
         upload_pet_document_with_http_info(pet_id, options).data
@@ -1033,7 +1033,7 @@ module PetstoreClient
       def upload_pet_document_with_http_info(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"
+                "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"
         end
 
         path = '/pet/{petId}/documents'
@@ -1064,11 +1064,11 @@ module PetstoreClient
       # matrix/label/simple styles use as structural separators.
       def encode_path_segment(value)
         CGI.escape(value.to_s)
-          .gsub('+', '%20')
-          .gsub('%3B', ';').gsub('%3D', '=').gsub('%2C', ',').gsub('%3A', ':')
-          .gsub('%40', '@').gsub('%21', '!').gsub('%24', '$').gsub('%26', '&')
-          .gsub('%27', "'").gsub('%28', '(').gsub('%29', ')').gsub('%2A', '*')
-          .gsub('%2B', '+')
+           .gsub('+', '%20')
+           .gsub('%3B', ';').gsub('%3D', '=').gsub('%2C', ',').gsub('%3A', ':')
+           .gsub('%40', '@').gsub('%21', '!').gsub('%24', '$').gsub('%26', '&')
+           .gsub('%27', "'").gsub('%28', '(').gsub('%29', ')').gsub('%2A', '*')
+           .gsub('%2B', '+')
       end
     end
   end

@@ -420,5 +420,14 @@ defmodule PetstoreClient.ValueSerializerTest do
       result = PetstoreClient.ValueSerializer.serialize_styled("color", "a b", :query, "string", nil, "form", false)
       assert result == "a b"
     end
+
+    test "empty string path param raises ArgumentError" do
+      # Gap W — empty-string path values silently produce malformed
+      # URLs like `/pet//details`; reject at serialization time so
+      # callers see the real error rather than a downstream 404.
+      assert_raise ArgumentError, fn ->
+        PetstoreClient.ValueSerializer.serialize_styled("id", "", :path, "string", nil, "simple", false)
+      end
+    end
   end
 end
