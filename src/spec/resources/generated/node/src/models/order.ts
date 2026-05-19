@@ -35,7 +35,10 @@ export class Order {
     if (this.status != null) {
       const statusValues = Object.values(OrderStatusEnum);
       if (!(statusValues as readonly unknown[]).includes(this.status)) {
-        this.status = statusValues[statusValues.length - 1] as (typeof statusValues)[number];
+        throw new Error(
+          `Unknown enum value for status: ${JSON.stringify(this.status)}. ` +
+            `Expected one of [${statusValues.map((v) => JSON.stringify(v)).join(', ')}].`
+        );
       }
     }
   }
