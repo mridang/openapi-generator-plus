@@ -249,7 +249,6 @@ public final class DefaultApiClient implements ApiClient {
               || (!"http".equalsIgnoreCase(redirectScheme)
                   && !"https".equalsIgnoreCase(redirectScheme))) {
             throw new ApiException(
-                response.statusCode(),
                 "Refusing to follow redirect to non-HTTP(S) URL: " + redirectUri);
           }
           boolean sameOrigin =
