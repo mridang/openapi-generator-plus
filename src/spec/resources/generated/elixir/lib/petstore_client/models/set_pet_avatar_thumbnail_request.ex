@@ -20,17 +20,31 @@ defmodule PetstoreClient.Models.SetPetAvatarThumbnailRequest do
   @doc "Build the appropriate type from data."
   @spec build(term()) :: term()
   def build(data) do
-    Enum.reduce_while(openapi_one_of(), nil, fn type_name, _acc ->
-      if type_name == :AnyType do
-        {:cont, nil}
-      else
-        try do
-          result = PetstoreClient.ObjectSerializer.convert_to_type(data, to_string(type_name))
-          {:halt, result}
-        rescue
-          _ -> {:cont, nil}
+    result =
+      Enum.reduce_while(openapi_one_of(), nil, fn type_name, _acc ->
+        if type_name == :AnyType do
+          {:cont, nil}
+        else
+          try do
+            r = PetstoreClient.ObjectSerializer.convert_to_type(data, to_string(type_name))
+            {:halt, r}
+          rescue
+            _ -> {:cont, nil}
+          end
         end
-      end
-    end) || if(:AnyType in openapi_one_of(), do: data, else: nil)
+      end)
+
+    cond do
+      not is_nil(result) ->
+        result
+
+      :AnyType in openapi_one_of() ->
+        data
+
+      true ->
+        # Raise on union no-match (see comment above).
+        raise ArgumentError,
+              "JSON did not match any schema in the SetPetAvatarThumbnailRequest oneOf union"
+    end
   end
 end

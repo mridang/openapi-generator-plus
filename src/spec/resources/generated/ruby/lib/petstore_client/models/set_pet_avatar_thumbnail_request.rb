@@ -52,7 +52,11 @@ module PetstoreClient
             next
           end
 
-          openapi_one_of.include?(:AnyType) ? data : nil
+          return data if openapi_one_of.include?(:AnyType)
+
+          # Raise on union no-match (see comment above for cross-lang
+          # rationale). Avoids silent nil that masks data-shape bugs.
+          raise ArgumentError, "JSON did not match any schema in the SetPetAvatarThumbnailRequest oneOf union"
         end
       end
     end

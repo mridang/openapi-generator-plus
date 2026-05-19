@@ -87,7 +87,8 @@ public abstract class {{classname}}
                     {{#mappedModels}}
                     "{{mappingName}}" => JsonSerializer.Deserialize<{{modelName}}>(raw, options),
                     {{/mappedModels}}
-                    _ => null
+                    _ => throw new JsonException(
+                        $"Unknown discriminator value for {{classname}}: '{discValue}'")
                 };
             }
             throw new JsonException("Missing discriminator property '{{discriminator.propertyBaseName}}'");
@@ -155,7 +156,13 @@ public class {{classname}}(object value)
             try { return new {{classname}}(JsonSerializer.Deserialize<{{{.}}}>(raw, options)!); }
             catch (JsonException) { }
             {{/anyOf}}
-            return new {{classname}}(JsonDocument.Parse(raw).RootElement.Clone());
+            /* No schema in the union matched — throw rather than silently
+             * fall back to a raw JsonElement. Five SDKs throw on no-match
+             * (Python, Swift, Dart, Go, Rust); we align the other seven
+             * (C# here, plus Java/Kotlin/PHP/Ruby/Node/Elixir) so data-
+             * shape bugs surface loudly. */
+            throw new JsonException(
+                $"JSON did not match any schema in the {{classname}} union: {raw}");
         }
 
         public override void Write(Utf8JsonWriter writer, {{classname}} value, JsonSerializerOptions options)

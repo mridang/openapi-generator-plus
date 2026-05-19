@@ -427,7 +427,12 @@ class ObjectSerializer
      * @param mixed               $data       the data to match
      * @param array<callable>     $candidates list of deserializer closures
      *
-     * @return mixed the first successfully deserialized value, or null if none match
+     * @return mixed the first successfully deserialized value
+     *
+     * @throws \UnexpectedValueException when the data matches none of the
+     *         candidate schemas. Throws rather than returning null so that
+     *         shape-mismatch bugs surface loudly — aligns with Python,
+     *         Swift, Dart, Go, Rust (5 of 12 already throw).
      */
     public static function resolveOneOf(mixed $data, array $candidates): mixed
     {
@@ -438,7 +443,9 @@ class ObjectSerializer
                 continue;
             }
         }
-        return null;
+        throw new \UnexpectedValueException(
+            'JSON did not match any schema in the oneOf/anyOf union'
+        );
     }
 
     /**

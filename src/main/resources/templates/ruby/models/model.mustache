@@ -106,12 +106,16 @@ module {{moduleName}}
         def build(data)
         {{#discriminator}}
           discriminator_value = data[openapi_discriminator_name]
-          return nil if discriminator_value.nil?
+          # Raise on missing/unknown discriminator instead of silently
+          # returning nil. Aligns with Swift / Dart / Go / Rust / Python
+          # which throw on union no-match (5 of 12 SDKs already strict;
+          # we promote the other 7 here).
+          raise ArgumentError, "Missing discriminator '#{openapi_discriminator_name}' for {{classname}}" if discriminator_value.nil?
         {{#mappedModels}}
         {{#-first}}
 
           klass_name = openapi_discriminator_mapping[discriminator_value.to_s]
-          return nil unless klass_name
+          raise ArgumentError, "Unknown discriminator value for {{classname}}: '#{discriminator_value}'" unless klass_name
 
           {{moduleName}}::ObjectSerializer.convert_to_type(data, klass_name.to_s)
         {{/-first}}
@@ -130,7 +134,11 @@ module {{moduleName}}
             next
           end
 
-          openapi_one_of.include?(:AnyType) ? data : nil
+          return data if openapi_one_of.include?(:AnyType)
+
+          # Raise on union no-match (see comment above for cross-lang
+          # rationale). Avoids silent nil that masks data-shape bugs.
+          raise ArgumentError, "JSON did not match any schema in the {{classname}} oneOf union"
         {{/discriminator}}
         end
       end
@@ -180,7 +188,13 @@ module {{moduleName}}
             next
           end
 
-          openapi_any_of.include?(:AnyType) ? data : nil
+          return data if openapi_any_of.include?(:AnyType)
+
+          # Raise on union no-match instead of returning nil. See the
+          # oneOf branch for the cross-lang rationale (5 of 12 SDKs
+          # already throw; we promote the rest to the same strict
+          # behaviour).
+          raise ArgumentError, "JSON did not match any schema in the {{classname}} anyOf union"
         end
       end
     end

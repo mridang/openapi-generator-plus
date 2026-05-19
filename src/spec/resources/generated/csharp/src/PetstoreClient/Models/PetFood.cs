@@ -44,7 +44,9 @@ public abstract class PetFood
                 {
                     "dry" => JsonSerializer.Deserialize<DryFood>(raw, options),
                     "wet" => JsonSerializer.Deserialize<WetFood>(raw, options),
-                    _ => null,
+                    _ => throw new JsonException(
+                        $"Unknown discriminator value for PetFood: '{discValue}'"
+                    ),
                 };
             }
             throw new JsonException("Missing discriminator property 'foodType'");

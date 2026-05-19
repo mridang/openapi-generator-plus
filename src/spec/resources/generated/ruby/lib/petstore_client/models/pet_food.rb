@@ -57,10 +57,15 @@ module PetstoreClient
         # @return [Object] Returns the model or the data itself
         def build(data)
           discriminator_value = data[openapi_discriminator_name]
-          return nil if discriminator_value.nil?
+          # Raise on missing/unknown discriminator instead of silently
+          # returning nil. Aligns with Swift / Dart / Go / Rust / Python
+          # which throw on union no-match (5 of 12 SDKs already strict;
+          # we promote the other 7 here).
+          raise ArgumentError,
+            "Missing discriminator '#{openapi_discriminator_name}' for PetFood" if discriminator_value.nil?
 
           klass_name = openapi_discriminator_mapping[discriminator_value.to_s]
-          return nil unless klass_name
+          raise ArgumentError, "Unknown discriminator value for PetFood: '#{discriminator_value}'" unless klass_name
 
           PetstoreClient::ObjectSerializer.convert_to_type(data, klass_name.to_s)
         end

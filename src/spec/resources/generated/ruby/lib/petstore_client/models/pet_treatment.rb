@@ -52,7 +52,13 @@ module PetstoreClient
             next
           end
 
-          openapi_any_of.include?(:AnyType) ? data : nil
+          return data if openapi_any_of.include?(:AnyType)
+
+          # Raise on union no-match instead of returning nil. See the
+          # oneOf branch for the cross-lang rationale (5 of 12 SDKs
+          # already throw; we promote the rest to the same strict
+          # behaviour).
+          raise ArgumentError, "JSON did not match any schema in the PetTreatment anyOf union"
         end
       end
     end

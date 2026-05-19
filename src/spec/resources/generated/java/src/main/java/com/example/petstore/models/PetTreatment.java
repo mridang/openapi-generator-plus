@@ -44,7 +44,15 @@ public class PetTreatment {
         } catch (Exception ignored) {
         }
       }
-      return new PetTreatment(ctxt.readTreeAsValue(node, Object.class));
+      /* No schema in the union matched — throw rather than silently
+       * fall back to a raw Object. Five SDKs throw (Python, Swift,
+       * Dart, Go, Rust); we align the other seven (Java here, plus
+       * Kotlin/C#/PHP/Ruby/Node/Elixir) to the same strict behaviour
+       * so data-shape bugs surface loudly. */
+      throw com.fasterxml.jackson.databind.exc.MismatchedInputException.from(
+          p,
+          PetTreatment.class,
+          "JSON did not match any schema in the PetTreatment union: " + node);
     }
   }
 }

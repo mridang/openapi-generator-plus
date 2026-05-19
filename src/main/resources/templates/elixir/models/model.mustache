@@ -80,21 +80,40 @@ defmodule {{moduleName}}.Models.{{classname}} do
   def build(data) do
   {{#discriminator}}
     discriminator_value = data[to_string(openapi_discriminator_name())]
-    if is_nil(discriminator_value), do: nil, else: do_build_discriminated(data, discriminator_value)
+    # Raise on missing/unknown discriminator instead of silently
+    # returning nil. Aligns with Python, Swift, Dart, Go, Rust
+    # which throw on union no-match (5 of 12 SDKs already strict;
+    # we promote Elixir to the same behaviour here).
+    if is_nil(discriminator_value) do
+      raise ArgumentError,
+            "Missing discriminator '#{openapi_discriminator_name()}' for {{classname}}"
+    end
+
+    do_build_discriminated(data, discriminator_value)
   {{/discriminator}}
   {{^discriminator}}
-    Enum.reduce_while(openapi_one_of(), nil, fn type_name, _acc ->
-      if type_name == :AnyType do
-        {:cont, nil}
-      else
-        try do
-          result = {{moduleName}}.ObjectSerializer.convert_to_type(data, to_string(type_name))
-          {:halt, result}
-        rescue
-          _ -> {:cont, nil}
+    result =
+      Enum.reduce_while(openapi_one_of(), nil, fn type_name, _acc ->
+        if type_name == :AnyType do
+          {:cont, nil}
+        else
+          try do
+            r = {{moduleName}}.ObjectSerializer.convert_to_type(data, to_string(type_name))
+            {:halt, r}
+          rescue
+            _ -> {:cont, nil}
+          end
         end
-      end
-    end) || if(:AnyType in openapi_one_of(), do: data, else: nil)
+      end)
+
+    cond do
+      not is_nil(result) -> result
+      :AnyType in openapi_one_of() -> data
+      true ->
+        # Raise on union no-match (see comment above).
+        raise ArgumentError,
+              "JSON did not match any schema in the {{classname}} oneOf union"
+    end
   {{/discriminator}}
   end
 
@@ -103,7 +122,13 @@ defmodule {{moduleName}}.Models.{{classname}} do
     {{#mappedModels}}
     {{#-first}}
     klass_name = Map.get(openapi_discriminator_mapping(), to_string(discriminator_value))
-    if is_nil(klass_name), do: nil, else: {{moduleName}}.ObjectSerializer.convert_to_type(data, to_string(klass_name))
+
+    if is_nil(klass_name) do
+      raise ArgumentError,
+            "Unknown discriminator value for {{classname}}: '#{discriminator_value}'"
+    end
+
+    {{moduleName}}.ObjectSerializer.convert_to_type(data, to_string(klass_name))
     {{/-first}}
     {{/mappedModels}}
     {{^mappedModels}}
@@ -150,7 +175,16 @@ defmodule {{moduleName}}.Models.{{classname}} do
       end)
 
     result = {{moduleName}}.ObjectSerializer.resolve_any_of(data, candidates)
-    result || if("AnyType" in openapi_any_of(), do: data, else: nil)
+
+    cond do
+      not is_nil(result) -> result
+      "AnyType" in openapi_any_of() -> data
+      true ->
+        # Raise on union no-match instead of returning nil — aligns with
+        # the 5 SDKs that already throw (Python/Swift/Dart/Go/Rust).
+        raise ArgumentError,
+              "JSON did not match any schema in the {{classname}} anyOf union"
+    end
   end
 end
 {{/-first}}

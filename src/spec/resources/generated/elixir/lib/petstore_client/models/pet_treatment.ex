@@ -28,6 +28,19 @@ defmodule PetstoreClient.Models.PetTreatment do
       end)
 
     result = PetstoreClient.ObjectSerializer.resolve_any_of(data, candidates)
-    result || if("AnyType" in openapi_any_of(), do: data, else: nil)
+
+    cond do
+      not is_nil(result) ->
+        result
+
+      "AnyType" in openapi_any_of() ->
+        data
+
+      true ->
+        # Raise on union no-match instead of returning nil — aligns with
+        # the 5 SDKs that already throw (Python/Swift/Dart/Go/Rust).
+        raise ArgumentError,
+              "JSON did not match any schema in the PetTreatment anyOf union"
+    end
   end
 end

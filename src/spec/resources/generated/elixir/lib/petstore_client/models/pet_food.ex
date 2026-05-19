@@ -32,11 +32,26 @@ defmodule PetstoreClient.Models.PetFood do
   @spec build(term()) :: term()
   def build(data) do
     discriminator_value = data[to_string(openapi_discriminator_name())]
-    if is_nil(discriminator_value), do: nil, else: do_build_discriminated(data, discriminator_value)
+    # Raise on missing/unknown discriminator instead of silently
+    # returning nil. Aligns with Python, Swift, Dart, Go, Rust
+    # which throw on union no-match (5 of 12 SDKs already strict;
+    # we promote Elixir to the same behaviour here).
+    if is_nil(discriminator_value) do
+      raise ArgumentError,
+            "Missing discriminator '#{openapi_discriminator_name()}' for PetFood"
+    end
+
+    do_build_discriminated(data, discriminator_value)
   end
 
   defp do_build_discriminated(data, discriminator_value) do
     klass_name = Map.get(openapi_discriminator_mapping(), to_string(discriminator_value))
-    if is_nil(klass_name), do: nil, else: PetstoreClient.ObjectSerializer.convert_to_type(data, to_string(klass_name))
+
+    if is_nil(klass_name) do
+      raise ArgumentError,
+            "Unknown discriminator value for PetFood: '#{discriminator_value}'"
+    end
+
+    PetstoreClient.ObjectSerializer.convert_to_type(data, to_string(klass_name))
   end
 end

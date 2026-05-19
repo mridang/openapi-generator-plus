@@ -49,7 +49,14 @@ public class PetTreatment(object value)
                 return new PetTreatment(JsonSerializer.Deserialize<Surgery>(raw, options)!);
             }
             catch (JsonException) { }
-            return new PetTreatment(JsonDocument.Parse(raw).RootElement.Clone());
+            /* No schema in the union matched — throw rather than silently
+             * fall back to a raw JsonElement. Five SDKs throw on no-match
+             * (Python, Swift, Dart, Go, Rust); we align the other seven
+             * (C# here, plus Java/Kotlin/PHP/Ruby/Node/Elixir) so data-
+             * shape bugs surface loudly. */
+            throw new JsonException(
+                $"JSON did not match any schema in the PetTreatment union: {raw}"
+            );
         }
 
         public override void Write(
