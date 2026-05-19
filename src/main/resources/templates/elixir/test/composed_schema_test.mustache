@@ -19,11 +19,15 @@ defmodule {{moduleName}}.ComposedSchemaTest do
       assert %{{moduleName}}.Models.WetFood{} = result
     end
 
-    test "returns nil for unknown discriminator value" do
+    test "raises ArgumentError for unknown discriminator value" do
+      # Gap L: union deserialise with an unmapped discriminator now
+      # raises instead of silently returning nil. Aligns Elixir with
+      # Python / Swift / Dart / Go / Rust.
       json = ~s({"foodType":"raw","calories":300})
 
-      result = {{moduleName}}.ObjectSerializer.deserialize(json, "PetFood")
-      assert is_nil(result)
+      assert_raise ArgumentError, fn ->
+        {{moduleName}}.ObjectSerializer.deserialize(json, "PetFood")
+      end
     end
 
     test "serializes DryFood back to JSON" do
