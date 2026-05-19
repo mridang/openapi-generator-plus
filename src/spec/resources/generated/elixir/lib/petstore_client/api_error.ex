@@ -16,10 +16,11 @@ defmodule PetstoreClient.ApiError do
           status_code: integer() | nil,
           response_headers: %{optional(String.t()) => String.t()} | nil,
           response_body: String.t() | nil,
-          error_body: term() | nil
+          error_body: term() | nil,
+          cause: Exception.t() | nil
         }
 
-  defexception [:message, :status_code, :response_headers, :response_body, :error_body]
+  defexception [:message, :status_code, :response_headers, :response_body, :error_body, :cause]
 
   @impl true
   def exception(opts) when is_map(opts) do
@@ -30,7 +31,8 @@ defmodule PetstoreClient.ApiError do
       status_code: Map.get(opts, :status_code),
       response_headers: Map.get(opts, :response_headers),
       response_body: Map.get(opts, :response_body),
-      error_body: Map.get(opts, :error_body)
+      error_body: Map.get(opts, :error_body),
+      cause: Map.get(opts, :cause)
     }
   end
 
@@ -42,7 +44,8 @@ defmodule PetstoreClient.ApiError do
       status_code: Keyword.get(opts, :status_code),
       response_headers: Keyword.get(opts, :response_headers),
       response_body: Keyword.get(opts, :response_body),
-      error_body: Keyword.get(opts, :error_body)
+      error_body: Keyword.get(opts, :error_body),
+      cause: Keyword.get(opts, :cause)
     }
   end
 

@@ -19,12 +19,18 @@ class ApiError implements Exception {
   /// The parsed response body, if JSON.
   final Object? errorBody;
 
+  /// The underlying transport error, if any. Set when wrapping a
+  /// SocketException or other lower-level failure so callers can drill
+  /// down via `underlyingError`.
+  final Object? underlyingError;
+
   const ApiError({
     required this.statusCode,
     required this.message,
     this.responseBody = '',
     this.responseHeaders = const {},
     this.errorBody,
+    this.underlyingError,
   });
 
   @override

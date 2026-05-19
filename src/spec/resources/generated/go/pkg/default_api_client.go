@@ -27,6 +27,8 @@ import (
 	"github.com/andybalholm/brotli"
 	"github.com/google/uuid"
 	"github.com/klauspost/compress/zstd"
+
+	errors_pkg "petstore/pkg/errors"
 )
 
 // DefaultApiClient is the default HTTP client implementation backed by net/http.
@@ -112,7 +114,15 @@ func (c *DefaultApiClient) SendRequest(method, url string, headers map[string]st
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
+		// Wrap as ApiError so callers see a uniform error type whether the
+		// failure was at the transport layer or in the HTTP response. The
+		// underlying lib error is preserved on .Cause and surfaced via
+		// errors.Unwrap.
+		return nil, &errors_pkg.ApiError{
+			StatusCode: 0,
+			Msg:        fmt.Sprintf("request failed: %s", err.Error()),
+			Cause:      err,
+		}
 	}
 	defer resp.Body.Close()
 

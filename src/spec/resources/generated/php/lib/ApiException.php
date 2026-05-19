@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace PetstoreClient;
 
 use Exception;
+use Throwable;
 
 /**
  * Represents an error response from the API.
@@ -50,9 +51,13 @@ class ApiException extends Exception
         int $statusCode = 0,
         ?array $responseHeaders = [],
         ?string $responseBody = null,
-        mixed $errorBody = null
+        mixed $errorBody = null,
+        ?Throwable $previous = null
     ) {
-        parent::__construct($message, $statusCode);
+        // Pass $previous to the parent so callers can drill down via
+        // getPrevious() — preserves the original network/IO exception's
+        // stack trace and message.
+        parent::__construct($message, $statusCode, $previous);
         $this->statusCode = $statusCode;
         $this->responseHeaders = $responseHeaders;
         $this->responseBody = $responseBody;

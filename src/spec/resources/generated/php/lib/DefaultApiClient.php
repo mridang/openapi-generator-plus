@@ -212,7 +212,10 @@ class DefaultApiClient implements ApiClient
             throw new ApiException(
                 "API Request failed: {$e->getMessage()}",
                 0,
-                null
+                null,
+                null,
+                null,
+                $e
             );
         }
     }

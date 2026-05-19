@@ -101,7 +101,7 @@ defmodule PetstoreClient.DefaultApiClient do
           body: serialized_body
         )
       rescue
-        e -> raise PetstoreClient.ApiError, message: Exception.message(e), status_code: 0
+        e -> raise PetstoreClient.ApiError, message: Exception.message(e), status_code: 0, cause: e
       end
 
     headers = normalize_headers(response.headers)

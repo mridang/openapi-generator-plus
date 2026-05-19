@@ -149,7 +149,14 @@ export class DefaultApiClient implements ApiClient {
     try {
       response = await fetch(url, fetchOptions as RequestInit);
     } catch (error) {
-      throw new ApiError(0, error instanceof Error ? error.message : String(error));
+      throw new ApiError(
+        0,
+        error instanceof Error ? error.message : String(error),
+        {},
+        null,
+        null,
+        { cause: error }
+      );
     }
 
     const responseBytes = Buffer.from(await response.arrayBuffer());

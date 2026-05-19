@@ -168,13 +168,17 @@ class DefaultApiClient implements ApiClient {
               .timeout(Duration(milliseconds: _transportOptions.timeout!))
           : await pendingResponse;
     } on SocketException catch (e) {
-      throw ApiError(statusCode: 0, message: e.message);
+      throw ApiError(statusCode: 0, message: e.message, underlyingError: e);
     } on HandshakeException catch (e) {
-      throw ApiError(statusCode: 0, message: e.message);
+      throw ApiError(statusCode: 0, message: e.message, underlyingError: e);
     } on HttpException catch (e) {
-      throw ApiError(statusCode: 0, message: e.message);
+      throw ApiError(statusCode: 0, message: e.message, underlyingError: e);
     } on TimeoutException catch (e) {
-      throw ApiError(statusCode: 0, message: e.message ?? 'Request timed out');
+      throw ApiError(
+        statusCode: 0,
+        message: e.message ?? 'Request timed out',
+        underlyingError: e,
+      );
     }
     final rawBytes = await streamedResponse.stream.toBytes();
     final contentEncoding = (streamedResponse.headers['content-encoding'] ?? '')

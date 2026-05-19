@@ -30,9 +30,13 @@ export class ApiError<T = unknown> extends Error {
     message: string,
     responseHeaders: Record<string, string> = {},
     responseBody: string | null = null,
-    errorBody: T | null = null
+    errorBody: T | null = null,
+    options?: { cause?: unknown }
   ) {
-    super(message);
+    /* ES2022 cause option preserves the underlying network/IO error so
+     * callers can drill down via `err.cause` instead of losing the
+     * original stack trace. */
+    super(message, options);
     this.name = 'ApiError';
     this.statusCode = statusCode;
     this.responseHeaders = responseHeaders;

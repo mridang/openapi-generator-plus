@@ -25,18 +25,25 @@ public class ApiError: Error, LocalizedError, @unchecked Sendable {
   /// The parsed response body, if JSON.
   public let errorBody: Any?
 
+  /// The underlying error that caused this ApiError, if any. Set when
+  /// wrapping a URLError or other transport-layer failure so callers can
+  /// drill down to the root cause via `underlyingError`.
+  public let underlyingError: Error?
+
   public init(
     statusCode: Int = 0,
     message: String = "",
     responseBody: String? = nil,
     responseHeaders: [String: String]? = nil,
-    errorBody: Any? = nil
+    errorBody: Any? = nil,
+    underlyingError: Error? = nil
   ) {
     self.statusCode = statusCode
     self.message = message
     self.responseBody = responseBody
     self.responseHeaders = responseHeaders
     self.errorBody = errorBody
+    self.underlyingError = underlyingError
   }
 
   public var errorDescription: String? {

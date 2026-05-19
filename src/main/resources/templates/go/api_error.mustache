@@ -23,6 +23,18 @@ type ApiError struct {
 
 	/* ErrorBody is the parsed response body, if JSON. */
 	ErrorBody interface{}
+
+	/* Cause is the underlying transport error, if any. Set when wrapping
+	 * a network failure so callers can drill down via errors.Unwrap or
+	 * errors.Is. */
+	Cause error
+}
+
+// Unwrap returns the underlying cause, enabling errors.Is / errors.As
+// to traverse the chain. Returns nil when ApiError was produced from a
+// non-wrapped failure (e.g. a non-2xx HTTP response).
+func (e *ApiError) Unwrap() error {
+	return e.Cause
 }
 
 // Error implements the error interface.

@@ -23,6 +23,13 @@ open class ApiException : Exception {
         this.errorBody = null
     }
 
+    constructor(message: String, cause: Throwable) : super(message, cause) {
+        this.statusCode = 0
+        this.responseHeaders = null
+        this.responseBody = null
+        this.errorBody = null
+    }
+
     constructor(
         statusCode: Int,
         message: String,

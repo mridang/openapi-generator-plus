@@ -104,7 +104,11 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     do {
       (data, response) = try await session.data(for: request)
     } catch let urlError as URLError {
-      throw ApiError(statusCode: 0, message: urlError.localizedDescription)
+      throw ApiError(
+        statusCode: 0,
+        message: urlError.localizedDescription,
+        underlyingError: urlError
+      )
     }
 
     guard let httpResponse = response as? HTTPURLResponse else {

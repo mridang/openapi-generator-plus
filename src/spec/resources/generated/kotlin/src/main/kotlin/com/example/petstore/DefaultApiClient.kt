@@ -94,7 +94,7 @@ class DefaultApiClient internal constructor(
                     buildRequestBody(this, method, body, mergedHeaders)
                 }
             } catch (e: Exception) {
-                throw ApiException(e.toString())
+                throw ApiException(e.toString(), e)
             }
 
         // Manual redirect loop for the maxRedirects case: strips sensitive headers
@@ -150,7 +150,7 @@ class DefaultApiClient internal constructor(
                             }
                         }
                     } catch (e: Exception) {
-                        throw ApiException(e.toString())
+                        throw ApiException(e.toString(), e)
                     }
                 redirectsRemaining--
             }
