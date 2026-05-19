@@ -234,3 +234,31 @@ the affected `models/model.mustache` plus possibly the language's
 ObjectSerializer. Defer until a real consumer hits the issue, since
 petstore CI's Metadata tests currently assert only the fixed-field
 round-trip (extras assertions are weak in the affected langs).
+
+### HTTP/2 negotiation divergence (don't audit)
+
+Some SDK underlying HTTP clients negotiate HTTP/2 by default
+(java.net.http.HttpClient, Go w/ TLS, Swift URLSession), others HTTP/1.1
+(Node undici, Python urllib3, Rust reqwest unless feature-flagged,
+Kotlin Ktor CIO). The divergence is purely on-the-wire protocol version;
+servers respond identically to either, callers see the same response
+bytes. Not a bug, not a parity gap worth tracking. Don't re-audit.
+
+### Chunked transfer encoding (don't audit)
+
+Servers may send `Transfer-Encoding: chunked` to stream a response in
+pieces. Every HTTP library in every one of the 12 langs reassembles the
+chunks transparently before handing the body to our SDK code — this is
+table-stakes HTTP/1.1 behaviour that's been correct since the libs were
+written. Auditing this dimension was never going to find a bug. Don't
+re-audit.
+
+### Rate-limit auto-retry on 429 (don't audit)
+
+When a server returns `429 Too Many Requests` with a `Retry-After`
+header, no SDK in the 12 implements automatic backoff and retry. This
+is a net-new *feature*, not a bug — callers can read the header off the
+exception themselves and retry as their app sees fit. Not a parity gap,
+not silent data loss, not a security issue. If we wanted it, it'd be a
+TransportOptions flag plus per-lang retry logic; we don't. Don't
+re-audit.
