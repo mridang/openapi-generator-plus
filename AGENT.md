@@ -297,3 +297,33 @@ exception themselves and retry as their app sees fit. Not a parity gap,
 not silent data loss, not a security issue. If we wanted it, it'd be a
 TransportOptions flag plus per-lang retry logic; we don't. Don't
 re-audit.
+
+### Non-ASCII header value handling (3-way split, needs owner decision)
+
+When a caller passes a header value with non-ASCII characters (e.g.
+`Authorization: "Bearer ñoño"` or `X-User-Name: "日本語"`), the 12 SDKs
+split three ways:
+
+- **Reject with error (3)**: Go, Swift, Rust — the underlying HTTP
+  lib validates header values and throws immediately. Safest; caller
+  knows the value is illegal before any wire traffic.
+- **Send raw UTF-8 (7)**: Java, C#, Python, Ruby, Node, Dart, Elixir
+  — the lib sends whatever bytes were passed, often UTF-8. RFC 7230
+  §3.2.4 forbids non-ASCII in field-values; servers may reject or
+  silently mangle. Auth failures with no clear cause.
+- **Percent-encode (2)**: Kotlin (Ktor), PHP (Symfony) — the lib
+  silently URL-encodes non-ASCII characters. Defensive but non-
+  standard; if the server doesn't decode, the header value reads as
+  garbage.
+
+This is a real cross-language divergence with security impact
+(authentication-relevant). Fix would standardise on reject-with-error
+across all 12, matching Go/Swift/Rust. That's a small extension to the
+existing Gap N CRLF check (already lives in each SDK's API-key
+authenticator and base header-merge path).
+
+Not fixed yet because forcing strict-ASCII may break callers that
+today rely on the permissive UTF-8 path and have servers that accept
+it. Needs owner decision: tighten and risk breaking permissive
+consumers, or document as caller-beware. Logged so future agents
+don't re-audit the same dimension cold.
