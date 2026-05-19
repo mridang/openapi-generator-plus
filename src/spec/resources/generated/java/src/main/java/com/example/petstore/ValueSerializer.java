@@ -182,6 +182,16 @@ public final class ValueSerializer {
       @Nullable String style,
       boolean explode) {
 
+    /* Path parameters are required components of the URL — accepting an
+     * empty string would silently produce a malformed URL like
+     * `/pet//details`, which most servers route to 404 instead of
+     * surfacing the bug at the call site. The required-non-null check
+     * lives in the operation method; here we just catch the empty-string
+     * case that slips through it. */
+    if ("path".equals(location) && value instanceof String && ((String) value).isEmpty()) {
+      throw new IllegalArgumentException("Path parameter '" + paramName + "' must not be empty");
+    }
+
     if (value == null) {
       if ("query".equals(location)) {
         return null;
