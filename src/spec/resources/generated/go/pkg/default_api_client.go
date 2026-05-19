@@ -279,9 +279,58 @@ func decodeBodyByCharset(body []byte, contentType string) string {
 		return string(runes)
 	case "windows-1252", "cp1252":
 		return decodeWindows1252(body)
+	case "utf-16", "utf16", "utf-16le", "utf16le":
+		return decodeUtf16(body, false)
+	case "utf-16be", "utf16be":
+		return decodeUtf16(body, true)
 	default:
 		return string(body)
 	}
+}
+
+// decodeUtf16 decodes UTF-16 byte sequences (with optional BOM) to a UTF-8
+// string. Handles surrogate pairs per Unicode 15. bigEndian selects byte
+// order when no BOM is present. Aligns Go with Java/Kotlin/Swift/etc which
+// decode UTF-16 via native charset support — previously Go silently
+// reinterpreted UTF-16 bytes as UTF-8, mangling all non-ASCII data.
+func decodeUtf16(body []byte, bigEndian bool) string {
+	if len(body) < 2 {
+		return string(body)
+	}
+	// Honour BOM if present.
+	if body[0] == 0xFF && body[1] == 0xFE {
+		bigEndian = false
+		body = body[2:]
+	} else if body[0] == 0xFE && body[1] == 0xFF {
+		bigEndian = true
+		body = body[2:]
+	}
+	if len(body)%2 != 0 {
+		body = body[:len(body)-1]
+	}
+	units := make([]uint16, 0, len(body)/2)
+	for i := 0; i+1 < len(body); i += 2 {
+		if bigEndian {
+			units = append(units, uint16(body[i])<<8|uint16(body[i+1]))
+		} else {
+			units = append(units, uint16(body[i+1])<<8|uint16(body[i]))
+		}
+	}
+	runes := make([]rune, 0, len(units))
+	for i := 0; i < len(units); i++ {
+		u := units[i]
+		if u >= 0xD800 && u <= 0xDBFF && i+1 < len(units) {
+			low := units[i+1]
+			if low >= 0xDC00 && low <= 0xDFFF {
+				r := 0x10000 + (rune(u-0xD800) << 10) + rune(low-0xDC00)
+				runes = append(runes, r)
+				i++
+				continue
+			}
+		}
+		runes = append(runes, rune(u))
+	}
+	return string(runes)
 }
 
 // windows1252Overrides maps the 0x80–0x9F range from Windows-1252 to their

@@ -21,6 +21,17 @@ public class BearerAuthenticator(string host, string token) : BaseAuthenticator
     /// <inheritdoc/>
     public override Dictionary<string, string> GetAuthHeaders()
     {
+        /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
+         * Reject anything outside printable ASCII + TAB so callers see a
+         * clear error rather than HTTP header injection from CR/LF or
+         * silently-mangled non-ASCII bytes. */
+        if (token != null && token.Any(c => c != '\t' && (c < 0x20 || c >= 0x7F)))
+        {
+            throw new ArgumentException(
+                "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+                nameof(token)
+            );
+        }
         return new() { ["Authorization"] = "Bearer " + token };
     }
 }

@@ -18,6 +18,14 @@ class BearerAuthenticator(BaseAuthenticator):
     host: str
     token: str
 
+    def __post_init__(self) -> None:
+        # RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
+        # Reject anything outside printable ASCII + TAB so callers see a
+        # clear error rather than HTTP header injection from CR/LF or
+        # silently-mangled non-ASCII bytes.
+        if any(c != '\t' and (ord(c) < 0x20 or ord(c) >= 0x7F) for c in self.token):
+            raise ValueError('Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)')
+
     def get_host(self) -> str:
         return self.host
 

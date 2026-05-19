@@ -80,10 +80,24 @@ func Serialize(object interface{}) ([]byte, error) {
 	return data, nil
 }
 
+// MaxJSONDepth caps how deeply a response JSON document can be nested.
+// Go's encoding/json has no built-in depth limit and recurses through the
+// host call stack, so a malicious server can crash the process with a
+// 100k-deep `{"a":{"a":...}}` payload (stack overflow → DoS). Matches
+// Java/Kotlin Jackson (~1000), Python json (1000). C# is stricter (64).
+const MaxJSONDepth = 1000
+
 // Deserialize parses a JSON byte slice into the target value.
 func Deserialize(data []byte, target interface{}) error {
 	if len(data) == 0 {
 		return nil
+	}
+
+	if depth := jsonMaxDepth(data); depth > MaxJSONDepth {
+		return &SerializationError{
+			Message: fmt.Sprintf("JSON nesting depth %d exceeds limit %d", depth, MaxJSONDepth),
+			Cause:   nil,
+		}
 	}
 
 	if err := json.Unmarshal(data, target); err != nil {
@@ -93,6 +107,43 @@ func Deserialize(data []byte, target interface{}) error {
 		}
 	}
 	return nil
+}
+
+// jsonMaxDepth returns the maximum nesting depth of `{`/`[` containers in
+// the JSON byte slice, skipping characters inside strings. Cheap pre-flight
+// check that prevents stack overflow before encoding/json's recursive
+// unmarshaller is invoked.
+func jsonMaxDepth(data []byte) int {
+	depth := 0
+	max := 0
+	inString := false
+	escaped := false
+	for _, b := range data {
+		if inString {
+			if escaped {
+				escaped = false
+			} else if b == '\\' {
+				escaped = true
+			} else if b == '"' {
+				inString = false
+			}
+			continue
+		}
+		switch b {
+		case '"':
+			inString = true
+		case '{', '[':
+			depth++
+			if depth > max {
+				max = depth
+			}
+		case '}', ']':
+			if depth > 0 {
+				depth--
+			}
+		}
+	}
+	return max
 }
 
 // formatFloat formats a float64 such that whole-number values keep their

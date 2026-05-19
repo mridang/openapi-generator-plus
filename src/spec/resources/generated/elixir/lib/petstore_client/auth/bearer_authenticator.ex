@@ -30,6 +30,15 @@ defmodule PetstoreClient.Auth.BearerAuthenticator do
   """
   @spec new(String.t(), String.t()) :: t()
   def new(host, token) do
+    # RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
+    # Reject anything outside printable ASCII + TAB so callers see a
+    # clear error rather than HTTP header injection from CR/LF or
+    # silently-mangled non-ASCII bytes.
+    if token =~ ~r/[^\t\x20-\x7E]/ do
+      raise ArgumentError,
+            "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+    end
+
     %__MODULE__{
       host: host,
       token: token

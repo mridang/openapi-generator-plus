@@ -23,6 +23,15 @@ class BearerAuthenticator extends BaseAuthenticator
 
     public function __construct(string $host, string $token)
     {
+        /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
+         * Reject anything outside printable ASCII + TAB so callers see a
+         * clear error rather than HTTP header injection from CR/LF or
+         * silently-mangled non-ASCII bytes. */
+        if (preg_match('/[^\t\x20-\x7E]/', $token) === 1) {
+            throw new \InvalidArgumentException(
+                'Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)'
+            );
+        }
         $this->host = $host;
         $this->token = $token;
     }

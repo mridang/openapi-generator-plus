@@ -7,6 +7,8 @@
 
 package auth
 
+import "fmt"
+
 // BearerAuthenticator provides HTTP Bearer token authentication.
 type BearerAuthenticator struct {
 	BaseAuthenticator
@@ -15,7 +17,20 @@ type BearerAuthenticator struct {
 }
 
 // NewBearerAuthenticator creates a new Bearer authenticator.
+//
+// RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text. Panics on
+// any value outside printable ASCII + TAB so callers see a clear error
+// rather than HTTP header injection from CR/LF or silently-mangled
+// non-ASCII bytes. panic is appropriate because this is a programmer
+// error, not a recoverable runtime condition.
 func NewBearerAuthenticator(host, token string) *BearerAuthenticator {
+	for _, c := range token {
+		if c != '\t' && (c < 0x20 || c >= 0x7F) {
+			panic(fmt.Sprintf(
+				"Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+			))
+		}
+	}
 	return &BearerAuthenticator{
 		host:  host,
 		token: token,

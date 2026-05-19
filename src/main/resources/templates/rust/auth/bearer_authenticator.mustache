@@ -14,7 +14,19 @@ pub struct BearerAuthenticator {
 
 impl BearerAuthenticator {
     /// Creates a new Bearer authenticator.
+    ///
+    /// # Panics
+    ///
+    /// RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text. Panics
+    /// on any value outside printable ASCII + TAB so callers see a clear
+    /// error rather than HTTP header injection from CR/LF or silently-
+    /// mangled non-ASCII bytes.
     pub fn new(host: &str, token: &str) -> Self {
+        if token.chars().any(|c| c != '\t' && ((c as u32) < 0x20 || (c as u32) >= 0x7F)) {
+            panic!(
+                "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+            );
+        }
         Self {
             host: host.to_string(),
             token: token.to_string(),
