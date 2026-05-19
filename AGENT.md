@@ -315,3 +315,56 @@ validated by this layer — that's a caller-level concern out of scope
 for the API-key authenticator. If a user wants strict validation on
 arbitrary custom headers, that needs a separate hook in the base
 header-merge path. Not done; not auditing.
+
+### Gap-fix cycle 16-17 (parallel agent sweep, 2026-05-19) — landed
+
+- **Gap AA (FIXED)**: Swift no-Content-Type silently returned nil
+  instead of JSON-parsing. Other 11 default to JSON when CT missing.
+  Now matches. commit `aeab1276`.
+- **Gap AC (FIXED)**: Bearer authenticators in all 12 SDKs now reject
+  non-ASCII / CR-LF tokens (RFC 7230 §3.2.6). Same lazy printable-ASCII
+  check as ApiKey. Tests in 11 langs (Swift skipped — preconditionFailure).
+  commits `aeab1276` + `4934f4dc`.
+- **Gap AD (FIXED)**: Go's encoding/json had no recursion-depth limit;
+  malicious 100k-deep payload crashed via stack overflow. Added
+  jsonMaxDepth pre-flight scan with MaxJSONDepth=1000. commit `aeab1276`.
+- **Gap AE (FIXED)**: Go's decodeBodyByCharset silently reinterpreted
+  UTF-16 bytes as UTF-8. Added utf-16/utf-16le/utf-16be branches with
+  BOM detection + surrogate pair handling. commit `aeab1276`.
+- **Gap AG (FIXED)**: 10 of 12 SDKs threw on JSON responses with
+  UTF-8 BOM prefix (RFC 8259 §8.1 forbids it but Windows producers
+  emit it). Java Jackson + C# System.Text.Json strip silently; the
+  other 10 (Python, Ruby, Node, Go, Rust, Swift, Dart, PHP, Kotlin,
+  Elixir) now do too via single-line check at deserialize entry.
+  commit `2bbefb50`.
+
+### Still open from this cycle
+
+- **Gap AF**: Empty response body when return type declared — Node,
+  Swift, Rust throw parse errors; the other 9 return null/None/nil
+  cleanly. Needs lenient empty-body short-circuit in those 3.
+- **Gap AI**: Cookie request header URL-encodes the value, breaking
+  JWT cookies (where `=` padding gets encoded to `%3D`). Uniform
+  across all 12 SDKs — a bug, not a divergence. Per RFC 6265 SHOULD
+  validate forbidden chars but NOT URL-encode arbitrary values. Fix
+  spans 12 langs. Defer to a focused commit.
+- **Gap AJ**: JSON null on required field — Go silently zero-inits
+  ({"name": null} → name=""), Python Pydantic accepts, Kotlin
+  explicitNulls=false accepts. Other 9 throw. Needs validation pass
+  in those 3.
+- **Gap AK**: Java's java.net.http.HttpClient silently drops userinfo
+  from proxy URL (`http://user:pass@proxy:3128`), so proxy-auth fails
+  in Java only. Other 11 either auto-extract via library or use the
+  C# manual extraction pattern. Needs Java-only proxy-auth pre-flight.
+- **Gap AL**: Content-Encoding header lie (server claims gzip, sends
+  plain text). Dart crashes unconditionally; C#/Kotlin/Node/Swift/
+  Elixir silently pass corrupted bytes; Java/Python/Ruby/Go/PHP/Rust
+  surface a decompression error. Standardise on error.
+- **Gap AM (security)**: TLS verifySsl=false has divergent semantics
+  — some langs disable both chain + hostname verification, others
+  keep hostname check. Document or standardise.
+- **Gap AN**: Bearer / Basic / ApiKey validation asymmetry — Bearer
+  now validates (Gap AC), ApiKey validates (Gap N), but Basic
+  silently base64-encodes whatever bytes were passed including raw
+  newlines. Lower severity (base64 absorbs the issue) but still an
+  inconsistency.
