@@ -291,3 +291,33 @@ class TestDeserialize:
 
     def test_returns_none_for_none_input(self) -> None:
         assert ObjectSerializer().deserialize(None, 'Category') is None
+
+
+class TestNanInfinityRejection:
+    """Gap V — RFC 8259 §6 forbids NaN/Infinity/-Infinity in JSON.
+
+    Python's default json module accepts them; ObjectSerializer must
+    override that to align with Java/Go/Node/etc which reject."""
+
+    def test_serialize_nan_raises(self) -> None:
+        import math
+        with pytest.raises(SerializationError):
+            ObjectSerializer().serialize({'val': math.nan})
+
+    def test_serialize_infinity_raises(self) -> None:
+        import math
+        with pytest.raises(SerializationError):
+            ObjectSerializer().serialize({'val': math.inf})
+
+    def test_serialize_negative_infinity_raises(self) -> None:
+        import math
+        with pytest.raises(SerializationError):
+            ObjectSerializer().serialize({'val': -math.inf})
+
+    def test_deserialize_nan_raises(self) -> None:
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize('{"val": NaN}', 'object')
+
+    def test_deserialize_infinity_raises(self) -> None:
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize('{"val": Infinity}', 'object')

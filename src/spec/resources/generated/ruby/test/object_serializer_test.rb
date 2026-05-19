@@ -403,4 +403,39 @@ describe PetstoreClient::ObjectSerializer do
       _(category.respond_to?(:unexpected)).must_equal false
     end
   end
+
+  # ── Gap V — NaN/Infinity rejection (RFC 8259 §6) ──
+
+  describe 'NaN/Infinity rejection' do
+    it 'serialize raises on NaN' do
+      # ObjectSerializer wraps JSON::GeneratorError as SerializationError.
+      assert_raises(PetstoreClient::SerializationError) do
+        PetstoreClient::ObjectSerializer.serialize({ 'val' => Float::NAN })
+      end
+    end
+
+    it 'serialize raises on +Infinity' do
+      assert_raises(PetstoreClient::SerializationError) do
+        PetstoreClient::ObjectSerializer.serialize({ 'val' => Float::INFINITY })
+      end
+    end
+
+    it 'serialize raises on -Infinity' do
+      assert_raises(PetstoreClient::SerializationError) do
+        PetstoreClient::ObjectSerializer.serialize({ 'val' => -Float::INFINITY })
+      end
+    end
+
+    it 'deserialize raises on NaN literal' do
+      assert_raises(PetstoreClient::SerializationError) do
+        PetstoreClient::ObjectSerializer.deserialize('{"val": NaN}', 'Object')
+      end
+    end
+
+    it 'deserialize raises on Infinity literal' do
+      assert_raises(PetstoreClient::SerializationError) do
+        PetstoreClient::ObjectSerializer.deserialize('{"val": Infinity}', 'Object')
+      end
+    end
+  end
 end
