@@ -154,7 +154,12 @@ export abstract class BaseApi {
       if (!isJson) {
         data = response.body as unknown as T;
       } else {
-        const json = JSON.parse(response.body);
+        /* RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text,
+         * but Windows-generated payloads often include one and JSON.parse
+         * rejects it. Strip silently for parity with Java Jackson / C#
+         * System.Text.Json which strip transparently. */
+        const cleaned = response.body.charCodeAt(0) === 0xfeff ? response.body.slice(1) : response.body;
+        const json = JSON.parse(cleaned);
         data = returnType(json);
       }
     }

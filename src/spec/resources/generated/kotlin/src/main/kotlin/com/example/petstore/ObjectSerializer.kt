@@ -80,7 +80,12 @@ class ObjectSerializer(
 
     inline fun <reified T> deserialize(jsonString: String?): T? {
         if (jsonString.isNullOrEmpty()) return null
-        return json.decodeFromString<T>(jsonString)
+        // RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text,
+        // but Windows-generated payloads often include one and kotlinx-
+        // serialization rejects it. Strip silently for parity with Java
+        // Jackson / C# System.Text.Json which strip transparently.
+        val stripped = if (jsonString[0].code == 0xFEFF) jsonString.substring(1) else jsonString
+        return json.decodeFromString<T>(stripped)
     }
 
     fun stringify(value: Any?): String {

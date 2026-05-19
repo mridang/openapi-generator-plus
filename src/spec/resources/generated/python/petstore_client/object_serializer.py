@@ -95,6 +95,13 @@ class ObjectSerializer:
             if json_string is None or json_string == '':
                 return None
 
+            # RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text,
+            # but Windows-generated payloads often include one and Python's
+            # json.loads rejects it. Strip silently for parity with Java
+            # Jackson / C# System.Text.Json which strip transparently.
+            if json_string.startswith('﻿'):
+                json_string = json_string[1:]
+
             data = json.loads(
                 json_string,
                 parse_constant=ObjectSerializer._reject_nonfinite_constant,

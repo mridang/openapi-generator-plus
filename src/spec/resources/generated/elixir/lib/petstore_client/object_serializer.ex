@@ -51,7 +51,17 @@ defmodule PetstoreClient.ObjectSerializer do
   def deserialize("", _target_type), do: nil
 
   def deserialize(json_string, target_type) when is_binary(json_string) do
-    case Jason.decode(json_string) do
+    # RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text, but
+    # Windows-generated payloads often include one and Jason rejects it.
+    # Strip silently for parity with Java Jackson / C# System.Text.Json
+    # which strip transparently.
+    stripped =
+      case json_string do
+        <<0xEF, 0xBB, 0xBF, rest::binary>> -> rest
+        other -> other
+      end
+
+    case Jason.decode(stripped) do
       {:ok, data} -> convert_to_type(data, target_type)
       {:error, reason} -> raise PetstoreClient.SerializationError, message: "Failed to parse JSON: #{inspect(reason)}"
     end

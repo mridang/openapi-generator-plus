@@ -99,6 +99,14 @@ func Deserialize(data []byte, target interface{}) error {
 		return nil
 	}
 
+	// RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text, but
+	// Windows-generated payloads often include one and encoding/json
+	// rejects it. Strip silently for parity with Java Jackson / C#
+	// System.Text.Json which strip transparently.
+	if len(data) >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF {
+		data = data[3:]
+	}
+
 	if depth := jsonMaxDepth(data); depth > MaxJSONDepth {
 		return &SerializationError{
 			Message: fmt.Sprintf("JSON nesting depth %d exceeds limit %d", depth, MaxJSONDepth),

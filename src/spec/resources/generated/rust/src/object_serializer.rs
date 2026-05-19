@@ -47,7 +47,17 @@ pub fn deserialize<T: DeserializeOwned>(data: &[u8]) -> Result<Option<T>, Serial
     if data.is_empty() {
         return Ok(None);
     }
-    serde_json::from_slice(data)
+    // RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text, but
+    // Windows-generated payloads often include one and serde_json rejects
+    // it. Strip silently for parity with Java Jackson / C# System.Text.Json
+    // which strip transparently.
+    let stripped: &[u8] =
+        if data.len() >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF {
+            &data[3..]
+        } else {
+            data
+        };
+    serde_json::from_slice(stripped)
         .map(Some)
         .map_err(|e| SerializationError {
             message: format!("failed to deserialize JSON: {}", e),

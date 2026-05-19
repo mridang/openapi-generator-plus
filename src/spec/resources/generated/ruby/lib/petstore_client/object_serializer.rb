@@ -56,6 +56,14 @@ module PetstoreClient
     def self.deserialize(json_string, target_type)
       return nil if json_string.nil? || (json_string.is_a?(String) && json_string.empty?)
 
+      # RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text,
+      # but Windows-generated payloads often include one and Ruby's
+      # JSON.parse rejects it. Strip silently for parity with Java
+      # Jackson / C# System.Text.Json which strip transparently.
+      if json_string.is_a?(String) && json_string.start_with?("﻿")
+        json_string = json_string.sub(/\A﻿/, '')
+      end
+
       data = if json_string.is_a?(String)
                JSON.parse(json_string, symbolize_names: true, allow_nan: false)
              else

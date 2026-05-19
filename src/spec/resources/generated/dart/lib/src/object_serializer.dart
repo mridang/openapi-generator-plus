@@ -32,9 +32,17 @@ String serialize(Object object) {
   }
 }
 
+/// Strips a leading UTF-8 BOM (U+FEFF) from a JSON string. RFC 8259 §8.1
+/// forbids it, but Windows-generated payloads often include one and
+/// jsonDecode rejects it. Strip silently for parity with Java Jackson /
+/// C# System.Text.Json which strip transparently.
+String _stripBom(String data) =>
+    data.startsWith('﻿') ? data.substring(1) : data;
+
 /// Parses a JSON string into a dynamic value.
 /// Returns null if data is empty.
 T? deserialize<T>(String data, T Function(Map<String, dynamic>) fromJson) {
+  data = _stripBom(data);
   if (data.isEmpty) {
     return null;
   }
@@ -56,6 +64,7 @@ T? deserialize<T>(String data, T Function(Map<String, dynamic>) fromJson) {
 /// Returns null if data is empty.
 List<T>? deserializeList<T>(
     String data, T Function(Map<String, dynamic>) fromJson) {
+  data = _stripBom(data);
   if (data.isEmpty) {
     return null;
   }
@@ -76,6 +85,7 @@ List<T>? deserializeList<T>(
 
 /// Parses a JSON string into a raw dynamic value.
 dynamic deserializeRaw(String data) {
+  data = _stripBom(data);
   if (data.isEmpty) return null;
   try {
     return jsonDecode(data);

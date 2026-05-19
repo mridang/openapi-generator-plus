@@ -181,6 +181,15 @@ class ObjectSerializer
             return null;
         }
 
+        /* RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text,
+         * but Windows-generated payloads often include one and PHP's
+         * json_decode silently returns null on BOM. Strip silently for
+         * parity with Java Jackson / C# System.Text.Json which strip
+         * transparently. */
+        if (is_string($data) && str_starts_with($data, "\xEF\xBB\xBF")) {
+            $data = substr($data, 3);
+        }
+
         $class = ltrim($class, '\\');
 
         if (str_ends_with($class, '[]')) {
