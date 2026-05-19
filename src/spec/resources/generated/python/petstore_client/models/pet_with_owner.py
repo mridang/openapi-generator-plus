@@ -40,15 +40,16 @@ class PetWithOwner(BaseModel):
     owner_email: Optional[str] = Field(default=None, alias='ownerEmail')
     additional_properties: Dict[str, Any] = {}
 
-    # strict=True rejects "42"-for-int, "true"-for-bool, etc. (Pydantic's
-    # default is lenient.) Aligns Python with the 6 strict SDKs (Java,
-    # Kotlin, C#, Go, Swift, Rust) so server type-mismatches surface as
-    # ValidationError instead of being silently coerced.
+    # Pydantic default mode (lenient) is kept here. strict=True was tried
+    # for Gap S but it rejects legitimate JSON-to-Python coercions like
+    # list-to-Set (JSON has no Set type) and string-to-Enum (JSON encodes
+    # enums as their string value). Surfacing wire-type bugs would
+    # require per-field validators on int/bool/float specifically —
+    # tracked in AGENT.md as a deferred sub-gap.
     model_config = ConfigDict(
         populate_by_name=True,
         validate_assignment=True,
         protected_namespaces=(),
-        strict=True,
     )
 
 
