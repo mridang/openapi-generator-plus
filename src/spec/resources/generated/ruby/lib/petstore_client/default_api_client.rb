@@ -57,6 +57,7 @@ module PetstoreClient
     def initialize(transport_options = nil)
       super()
       @transport_options = transport_options || TransportOptions.builder.build
+      @connection = build_connection
     end
 
     # Send an HTTP request with transport-level settings applied.
@@ -88,7 +89,7 @@ module PetstoreClient
       merged['Accept-Encoding'] ||= self.class.supported_encodings
 
       begin
-        response = build_connection.run_request(method.downcase.to_sym, url, serialized_body, merged)
+        response = @connection.run_request(method.downcase.to_sym, url, serialized_body, merged)
       rescue Faraday::ConnectionFailed, Faraday::TimeoutError, Faraday::SSLError => e
         raise ApiError, e.message
       end
