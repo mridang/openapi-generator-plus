@@ -24,10 +24,15 @@ class Photo(BaseModel):
     url: Optional[str] = Field(default=None, alias='url')
     additional_properties: Dict[str, Any] = {}
 
+    # strict=True rejects "42"-for-int, "true"-for-bool, etc. (Pydantic's
+    # default is lenient.) Aligns Python with the 6 strict SDKs (Java,
+    # Kotlin, C#, Go, Swift, Rust) so server type-mismatches surface as
+    # ValidationError instead of being silently coerced.
     model_config = ConfigDict(
         populate_by_name=True,
         validate_assignment=True,
         protected_namespaces=(),
+        strict=True,
     )
 
 

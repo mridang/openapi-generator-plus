@@ -195,15 +195,27 @@ module {{moduleName}}
     def self.convert_to_type(data, return_type)
       return nil if data.nil?
 
+      # Strict type-check primitives before coercing. Default Ruby
+      # behaviour was lenient ("42".to_i => 42, "true" == true => false
+      # silently). Aligns Ruby with Java/Kotlin/C#/Go/Swift/Rust which
+      # throw on type mismatch — surfaces server-side bugs loudly.
       case return_type
       when 'String'
-        data.to_s
+        raise ArgumentError, "Expected String, got #{data.class}: #{data.inspect}" unless data.is_a?(String)
+
+        data
       when 'Integer'
-        data.to_i
+        raise ArgumentError, "Expected Integer, got #{data.class}: #{data.inspect}" unless data.is_a?(Integer)
+
+        data
       when 'Float'
+        raise ArgumentError, "Expected Float, got #{data.class}: #{data.inspect}" unless data.is_a?(Numeric)
+
         data.to_f
       when 'Boolean'
-        data == true
+        raise ArgumentError, "Expected Boolean, got #{data.class}: #{data.inspect}" unless [true, false].include?(data)
+
+        data
       when 'Time'
         Time.parse(data.to_s)
       when 'Date'

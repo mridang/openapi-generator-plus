@@ -189,13 +189,30 @@ defmodule PetstoreClient.ObjectSerializer do
   @spec convert_to_type(term(), String.t()) :: term()
   def convert_to_type(nil, _return_type), do: nil
 
-  def convert_to_type(data, "String"), do: to_string(data)
+  # Strict primitive type-check. Aligns Elixir with Java/Kotlin/C#/Go/
+  # Swift/Rust which throw on type mismatch — server bugs surface as
+  # ArgumentError instead of being silently coerced ("42" -> 42 etc).
+  def convert_to_type(data, "String") when is_binary(data), do: data
+
+  def convert_to_type(data, "String"),
+    do: raise(ArgumentError, "Expected String, got #{inspect(data)}")
+
   def convert_to_type(data, "Integer") when is_integer(data), do: data
-  def convert_to_type(data, "Integer"), do: String.to_integer(to_string(data))
+
+  def convert_to_type(data, "Integer"),
+    do: raise(ArgumentError, "Expected Integer, got #{inspect(data)}")
+
   def convert_to_type(data, "Float") when is_float(data), do: data
   def convert_to_type(data, "Float") when is_integer(data), do: data / 1
-  def convert_to_type(data, "Float"), do: String.to_float(to_string(data))
-  def convert_to_type(data, "Boolean"), do: data == true
+
+  def convert_to_type(data, "Float"),
+    do: raise(ArgumentError, "Expected Float/Integer, got #{inspect(data)}")
+
+  def convert_to_type(data, "Boolean") when is_boolean(data), do: data
+
+  def convert_to_type(data, "Boolean"),
+    do: raise(ArgumentError, "Expected Boolean, got #{inspect(data)}")
+
   def convert_to_type(data, "Object"), do: data
 
   def convert_to_type(data, "DateTime") do

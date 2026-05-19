@@ -22,9 +22,14 @@ class SetPetAvatarThumbnailRequest(BaseModel):
     actual_instance: Optional[Union[List[bytes], bytes]] = None
     one_of_schemas: ClassVar[Set[str]] = {'List[bytes]', 'bytes'}
 
+    # strict=True rejects "42"-for-int, "true"-for-bool, etc. (Pydantic's
+    # default is lenient.) Aligns Python with the 6 strict SDKs (Java,
+    # Kotlin, C#, Go, Swift, Rust) so server type-mismatches surface as
+    # ValidationError instead of being silently coerced.
     model_config = ConfigDict(
         validate_assignment=True,
         protected_namespaces=(),
+        strict=True,
     )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
