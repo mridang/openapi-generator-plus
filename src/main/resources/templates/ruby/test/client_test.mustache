@@ -28,6 +28,19 @@ describe {{moduleName}}::{{clientClassName}} do
     _(client).wont_be_nil
   end
 
+  it 'BearerAuthenticator rejects CR/LF and non-ASCII' do
+    # RFC 7230 §3.2.6 — Bearer tokens commonly arrive with trailing
+    # newlines from .env / file reads, which would CRLF-inject the
+    # Authorization header. Also reject non-ASCII.
+    _(-> {
+      {{moduleName}}::Auth::BearerAuthenticator.new('{{{basePath}}}', "tok\r\nInjected: yes")
+    }).must_raise ArgumentError
+
+    _(-> {
+      {{moduleName}}::Auth::BearerAuthenticator.new('{{{basePath}}}', 'ñoño')
+    }).must_raise ArgumentError
+  end
+
   it 'ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII' do
     # RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
     # The HEADER location must reject anything outside printable ASCII

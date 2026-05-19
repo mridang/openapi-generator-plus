@@ -267,10 +267,8 @@ class ObjectSerializerTest extends TestCase
         $result = ObjectSerializer::stringify($dt);
         $this->assertStringContainsString('2024-01-01', $result);
         $this->assertStringContainsString('12:30:45', $result);
-        $this->assertTrue(
-            str_contains($result, '+00:00') || str_ends_with($result, 'Z'),
-            "should contain UTC offset: $result"
-        );
+        $this->assertTrue(str_contains($result, '+00:00') || str_ends_with($result, 'Z'),
+            "should contain UTC offset: $result");
     }
 
     public function testPositiveOffsetPreservedInSerializedString(): void

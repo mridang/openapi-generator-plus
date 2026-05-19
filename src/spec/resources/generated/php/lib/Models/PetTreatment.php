@@ -1,5 +1,4 @@
 <?php
-
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -13,8 +12,6 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Models;
 
-use PetstoreClient\ObjectSerializer;
-
 /**
  * A treatment that can match a medication, a surgery, or both
  */
@@ -24,8 +21,8 @@ class PetTreatment
     private static function anyOfCandidates(): array
     {
         return [
-            fn(mixed $d): mixed => ObjectSerializer::deserialize($d, ObjectSerializer::qualifySchemaName('Medication')),
-            fn(mixed $d): mixed => ObjectSerializer::deserialize($d, ObjectSerializer::qualifySchemaName('Surgery')),
+            fn(mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize($d, \PetstoreClient\ObjectSerializer::qualifySchemaName('Medication')),
+            fn(mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize($d, \PetstoreClient\ObjectSerializer::qualifySchemaName('Surgery')),
         ];
     }
 
@@ -43,6 +40,6 @@ class PetTreatment
 
     public static function build(mixed $data): self
     {
-        return new self(ObjectSerializer::resolveAnyOf($data, self::anyOfCandidates()));
+        return new self(\PetstoreClient\ObjectSerializer::resolveAnyOf($data, self::anyOfCandidates()));
     }
 }

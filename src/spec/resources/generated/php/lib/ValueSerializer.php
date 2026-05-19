@@ -1,5 +1,4 @@
 <?php
-
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -42,7 +41,8 @@ final class ValueSerializer
         string $location,
         string $schemaType,
         ?string $collectionFormat = null,
-    ): string|array|null {
+    ): string|array|null
+    {
         if ($value === null) {
             if ($location === 'query') {
                 return null;

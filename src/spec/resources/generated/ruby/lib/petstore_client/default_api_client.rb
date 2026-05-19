@@ -275,7 +275,7 @@ module PetstoreClient
       fname = filename.to_s
       if fname.match?(/[\r\n\0]/)
         raise ArgumentError,
-          "multipart filename must not contain CR, LF, or NUL bytes: #{fname.inspect}"
+              "multipart filename must not contain CR, LF, or NUL bytes: #{fname.inspect}"
       end
 
       ascii_safe = fname.dup.force_encoding(Encoding::UTF_8)

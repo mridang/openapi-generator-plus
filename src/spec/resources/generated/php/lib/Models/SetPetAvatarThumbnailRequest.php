@@ -1,5 +1,4 @@
 <?php
-
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -13,16 +12,14 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Models;
 
-use PetstoreClient\ObjectSerializer;
-
 class SetPetAvatarThumbnailRequest
 {
     /** @return array<callable> */
     private static function oneOfCandidates(): array
     {
         return [
-            fn(mixed $d): mixed => ObjectSerializer::deserialize($d, ObjectSerializer::qualifySchemaName('string')),
-            fn(mixed $d): mixed => ObjectSerializer::deserialize($d, ObjectSerializer::qualifySchemaName('string[]')),
+            fn(mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize($d, \PetstoreClient\ObjectSerializer::qualifySchemaName('string')),
+            fn(mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize($d, \PetstoreClient\ObjectSerializer::qualifySchemaName('string[]')),
         ];
     }
 
@@ -40,6 +37,6 @@ class SetPetAvatarThumbnailRequest
 
     public static function build(mixed $data): self
     {
-        return new self(ObjectSerializer::resolveOneOf($data, self::oneOfCandidates()));
+        return new self(\PetstoreClient\ObjectSerializer::resolveOneOf($data, self::oneOfCandidates()));
     }
 }

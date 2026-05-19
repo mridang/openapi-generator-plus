@@ -1,5 +1,4 @@
 <?php
-
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -23,7 +22,6 @@ use Symfony\Component\Serializer\Normalizer\BackedEnumNormalizer;
 use Symfony\Component\Serializer\Normalizer\DateTimeNormalizer;
 use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
 use Symfony\Component\Serializer\Serializer;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * Handles JSON serialization and deserialization for API requests and responses.
@@ -85,7 +83,7 @@ class ObjectSerializer
             return $data->format(self::DATE_TIME_FORMAT);
         }
 
-        if ($data instanceof Uuid) {
+        if ($data instanceof \Symfony\Component\Uid\Uuid) {
             return $data->toRfc4122();
         }
 
@@ -130,7 +128,7 @@ class ObjectSerializer
             return $value->format(self::DATE_TIME_FORMAT);
         }
 
-        if ($value instanceof Uuid) {
+        if ($value instanceof \Symfony\Component\Uid\Uuid) {
             return $value->toRfc4122();
         }
 
@@ -286,7 +284,7 @@ class ObjectSerializer
                 }
             }
             if (is_string($data) && $data !== '') {
-                return Uuid::fromString($data);
+                return \Symfony\Component\Uid\Uuid::fromString($data);
             }
             return null;
         }

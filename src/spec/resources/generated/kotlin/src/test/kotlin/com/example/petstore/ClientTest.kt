@@ -36,6 +36,17 @@ class ClientTest {
     }
 
     @Test
+    @DisplayName("Bearer rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)")
+    fun bearerRejectsCrlfAndNonAscii() {
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("/api/v3", "tok\r\nInjected: yes")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("/api/v3", "ñoño")
+        }
+    }
+
+    @Test
     @DisplayName("ApiKey header rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)")
     fun apiKeyHeaderRejectsCrlfAndNonAscii() {
         // ApiKeyAuthenticator's HEADER location must reject any value

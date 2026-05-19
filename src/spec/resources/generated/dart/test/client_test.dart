@@ -40,6 +40,19 @@ void main() {
       expect(client, isNotNull);
     });
 
+    test('BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)',
+        () {
+      expect(
+        () =>
+            BearerAuthenticator(host: '/api/v3', token: 'tok\r\nInjected: yes'),
+        throwsArgumentError,
+      );
+      expect(
+        () => BearerAuthenticator(host: '/api/v3', token: 'ñoño'),
+        throwsArgumentError,
+      );
+    });
+
     test(
         'ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)',
         () {

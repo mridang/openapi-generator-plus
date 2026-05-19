@@ -30,6 +30,17 @@ void main() {
       expect(client, isNotNull);
     });
 
+    test('BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () {
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: 'tok\r\nInjected: yes'),
+        throwsArgumentError,
+      );
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: 'ñoño'),
+        throwsArgumentError,
+      );
+    });
+
     test('ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () {
       // HEADER location must reject anything outside printable ASCII +
       // TAB to prevent header injection (\r\n) and silent UTF-8

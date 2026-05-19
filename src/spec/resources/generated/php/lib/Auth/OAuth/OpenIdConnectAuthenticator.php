@@ -1,5 +1,4 @@
 <?php
-
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -108,10 +107,8 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
      */
     private function getDelegate(): OAuth2AuthorizationCodeAuthenticator
     {
-        if (
-            $this->delegate instanceof OAuth2AuthorizationCodeAuthenticator
-            && time() < $this->discoveryExpiry
-        ) {
+        if ($this->delegate instanceof OAuth2AuthorizationCodeAuthenticator
+            && time() < $this->discoveryExpiry) {
             return $this->delegate;
         }
 

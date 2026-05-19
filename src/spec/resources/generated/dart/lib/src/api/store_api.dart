@@ -31,7 +31,7 @@ class StoreApi extends BaseApi {
       {Authenticator? auth}) async {
     var path = '/store/order/{orderId}';
     path = path.replaceAll(
-        '{' 'orderId' '}',
+        '{' 'orderId' ',
         _encodePathSegment(serializeStyled(
                 'orderId', orderId, 'path', 'int', '', 'simple', false)
             .toString()));
@@ -97,7 +97,7 @@ class StoreApi extends BaseApi {
       {Authenticator? auth}) async {
     var path = '/store/order/{orderId}';
     path = path.replaceAll(
-        '{' 'orderId' '}',
+        '{' 'orderId' '}
         _encodePathSegment(serializeStyled(
                 'orderId', orderId, 'path', 'int', '', 'simple', false)
             .toString()));

@@ -8,6 +8,14 @@ from petstore_client.transport_options import TransportOptions
 
 
 class TestClient:
+    def test_bearer_rejects_crlf(self) -> None:
+        with pytest.raises(ValueError):
+            BearerAuthenticator('/api/v3', 'tok\r\nInjected: yes')
+
+    def test_bearer_rejects_non_ascii(self) -> None:
+        with pytest.raises(ValueError):
+            BearerAuthenticator('/api/v3', 'ñoño')
+
     def test_api_key_header_rejects_crlf(self) -> None:
         # RFC 7230 §3.2.6 — HEADER location must reject anything outside
         # printable ASCII + TAB to prevent header injection (\r\n) and

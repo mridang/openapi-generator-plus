@@ -26,6 +26,16 @@ defmodule PetstoreClient.ClientTest do
     assert %PetstoreClient.Client{} = client
   end
 
+  test "BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)" do
+    assert_raise ArgumentError, fn ->
+      PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "tok\r\nInjected: yes")
+    end
+
+    assert_raise ArgumentError, fn ->
+      PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "ñoño")
+    end
+  end
+
   test "ApiKeyAuthenticator :header rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)" do
     # HEADER location must reject anything outside printable ASCII + TAB
     # to prevent header injection (\r\n) and silent UTF-8 mangling that

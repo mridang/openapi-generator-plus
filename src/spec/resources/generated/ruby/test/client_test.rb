@@ -28,6 +28,19 @@ describe PetstoreClient::Client do
     _(client).wont_be_nil
   end
 
+  it 'BearerAuthenticator rejects CR/LF and non-ASCII' do
+    # RFC 7230 §3.2.6 — Bearer tokens commonly arrive with trailing
+    # newlines from .env / file reads, which would CRLF-inject the
+    # Authorization header. Also reject non-ASCII.
+    _(-> {
+      PetstoreClient::Auth::BearerAuthenticator.new('/api/v3', "tok\r\nInjected: yes")
+    }).must_raise ArgumentError
+
+    _(-> {
+      PetstoreClient::Auth::BearerAuthenticator.new('/api/v3', 'ñoño')
+    }).must_raise ArgumentError
+  end
+
   it 'ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII' do
     # RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
     # The HEADER location must reject anything outside printable ASCII
@@ -35,12 +48,12 @@ describe PetstoreClient::Client do
     # mangling that varies per HTTP lib.
     _(-> {
       PetstoreClient::Auth::ApiKeyAuthenticator.new('/api/v3', 'X-Api-Key', "abc\r\nInjected: yes",
-        PetstoreClient::Auth::ApiKeyLocation::HEADER)
+                                                    PetstoreClient::Auth::ApiKeyLocation::HEADER)
     }).must_raise ArgumentError
 
     _(-> {
       PetstoreClient::Auth::ApiKeyAuthenticator.new('/api/v3', 'X-Api-Key', 'kéy',
-        PetstoreClient::Auth::ApiKeyLocation::HEADER)
+                                                    PetstoreClient::Auth::ApiKeyLocation::HEADER)
     }).must_raise ArgumentError
 
     # Non-header locations accept arbitrary chars.

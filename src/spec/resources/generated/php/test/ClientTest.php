@@ -36,6 +36,18 @@ class ClientTest extends TestCase
         $this->assertInstanceOf(Client::class, $client);
     }
 
+    public function testBearerRejectsCrlf(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new BearerAuthenticator('/api/v3', "tok\r\nInjected: yes");
+    }
+
+    public function testBearerRejectsNonAscii(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new BearerAuthenticator('/api/v3', 'ñoño');
+    }
+
     public function testApiKeyHeaderRejectsCrlfAndNonAscii(): void
     {
         // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.

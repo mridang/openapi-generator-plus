@@ -23,6 +23,11 @@ describe('{{clientClassName}}', () => {
     expect(client).toBeDefined();
   });
 
+  test('BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () => {
+    expect(() => new BearerAuthenticator('{{{basePath}}}', 'tok\r\nInjected: yes')).toThrow();
+    expect(() => new BearerAuthenticator('{{{basePath}}}', 'ñoño')).toThrow();
+  });
+
   test('ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () => {
     // HEADER location must reject anything outside printable ASCII +
     // TAB to prevent header injection (\r\n) and silent UTF-8 mangling.

@@ -47,6 +47,17 @@ public class ClientTest : IDisposable
     }
 
     [Fact]
+    public void BearerRejectsCrlfAndNonAscii()
+    {
+        Assert.Throws<ArgumentException>(
+            () => new BearerAuthenticator("/api/v3", "tok\r\nInjected: yes").GetAuthHeaders()
+        );
+        Assert.Throws<ArgumentException>(
+            () => new BearerAuthenticator("/api/v3", "ñoño").GetAuthHeaders()
+        );
+    }
+
+    [Fact]
     public void ApiKeyHeaderRejectsCrlfAndNonAscii()
     {
         // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.

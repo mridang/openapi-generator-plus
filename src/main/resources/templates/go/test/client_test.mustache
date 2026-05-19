@@ -29,6 +29,22 @@ func TestClient_ConstructWithAuthenticatorAndTransportOptions(t *testing.T) {
 	}
 }
 
+func TestClient_BearerRejectsCrlfAndNonAscii(t *testing.T) {
+	// RFC 7230 §3.2.6 — Bearer tokens commonly arrive with trailing
+	// newlines from .env / file reads; CRLF would inject the
+	// Authorization header. The check panics on invalid input.
+	for _, bad := range []string{"tok\r\nInjected: yes", "ñoño"} {
+		func(val string) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Fatalf("expected panic for invalid bearer token %q", val)
+				}
+			}()
+			_ = auth.NewBearerAuthenticator("{{{basePath}}}", val)
+		}(bad)
+	}
+}
+
 func TestClient_ApiKeyHeaderRejectsCrlfAndNonAscii(t *testing.T) {
 	// RFC 7230 §3.2.6 — ApiKeyAuthenticator's Header location must
 	// reject anything outside printable ASCII + TAB to prevent header

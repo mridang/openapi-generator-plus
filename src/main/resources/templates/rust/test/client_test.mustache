@@ -29,6 +29,20 @@ fn test_client_construct_with_transport_options() {
 
 #[test]
 #[should_panic(expected = "printable ASCII")]
+fn test_client_bearer_rejects_crlf() {
+    // Gap AC — Bearer tokens with CR/LF would CRLF-inject the
+    // Authorization header.
+    let _ = BearerAuthenticator::new("{{{basePath}}}", "tok\r\nInjected: yes");
+}
+
+#[test]
+#[should_panic(expected = "printable ASCII")]
+fn test_client_bearer_rejects_non_ascii() {
+    let _ = BearerAuthenticator::new("{{{basePath}}}", "ñoño");
+}
+
+#[test]
+#[should_panic(expected = "printable ASCII")]
 fn test_client_api_key_header_rejects_crlf() {
     // RFC 7230 §3.2.6 — ApiKeyAuthenticator's Header location must
     // reject anything outside printable ASCII + TAB to prevent header
