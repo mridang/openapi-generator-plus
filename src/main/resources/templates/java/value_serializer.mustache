@@ -186,9 +186,7 @@ public final class ValueSerializer {
          * surfacing the bug at the call site. The required-non-null check
          * lives in the operation method; here we just catch the empty-string
          * case that slips through it. */
-        if ("path".equals(location)
-                && value instanceof String
-                && ((String) value).isEmpty()) {
+        if ("path".equals(location) && value instanceof String stringValue && stringValue.isEmpty()) {
             throw new IllegalArgumentException(
                     "Path parameter '" + paramName + "' must not be empty");
         }

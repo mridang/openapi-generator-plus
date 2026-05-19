@@ -41,7 +41,7 @@ public class Photo {
    * Error Prone's PatternMatchingInstanceof rule and avoids the
    * EqualsGetClass warning that plain getClass() comparison triggers. */
   @Override
-  public boolean equals(@javax.annotation.Nullable Object o) {
+  public boolean equals(Object o) {
     if (this == o) {
       return true;
     }

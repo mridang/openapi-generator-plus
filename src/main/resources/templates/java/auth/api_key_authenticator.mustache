@@ -11,22 +11,13 @@ import java.util.Map;
  */
 public class ApiKeyAuthenticator extends BaseAuthenticator {
 
+
     private final String host;
     private final String keyParamName;
     private final String apiKey;
     private final ApiKeyLocation location;
 
     public ApiKeyAuthenticator(String host, String keyParamName, String apiKey, ApiKeyLocation location) {
-        /* Reject CR / LF in a header-location API key to prevent HTTP header
-         * injection. The header itself is later joined with "\r\n"; a value
-         * containing those bytes would split the header line and inject
-         * arbitrary new headers (or a new request body). RFC 7230 §3.2.4
-         * forbids CR/LF in header field values. */
-        if (location == ApiKeyLocation.HEADER && apiKey != null
-                && (apiKey.indexOf('\r') >= 0 || apiKey.indexOf('\n') >= 0)) {
-            throw new IllegalArgumentException(
-                    "API key for header '" + keyParamName + "' must not contain CR or LF characters");
-        }
         this.host = host;
         this.keyParamName = keyParamName;
         this.apiKey = apiKey;
@@ -40,10 +31,22 @@ public class ApiKeyAuthenticator extends BaseAuthenticator {
 
     @Override
     public Map<String, String> getAuthHeaders() {
-        if (location == ApiKeyLocation.HEADER) {
-            return Collections.singletonMap(keyParamName, apiKey);
+        if (location != ApiKeyLocation.HEADER) {
+            return Collections.emptyMap();
         }
-        return Collections.emptyMap();
+        /* Reject CR / LF in a header-location API key to prevent HTTP header
+         * injection. The header is later joined with "\r\n"; a value
+         * containing those bytes would split the header line and inject
+         * arbitrary headers. RFC 7230 §3.2.4 forbids CR/LF in header field
+         * values. Validation runs lazily here (not in the constructor) to
+         * avoid SpotBugs CT_CONSTRUCTOR_THROW (finalizer-attack vector on
+         * partially-initialised instances of non-final classes). */
+        if (apiKey != null
+                && (apiKey.indexOf('\r') >= 0 || apiKey.indexOf('\n') >= 0)) {
+            throw new IllegalArgumentException(
+                    "API key for header '" + keyParamName + "' must not contain CR or LF characters");
+        }
+        return Collections.singletonMap(keyParamName, apiKey);
     }
 
     @Override

@@ -43,19 +43,19 @@ public class SetPetAvatarRequest {
    * Error Prone's PatternMatchingInstanceof rule and avoids the
    * EqualsGetClass warning that plain getClass() comparison triggers. */
   @Override
-  public boolean equals(@javax.annotation.Nullable Object o) {
+  public boolean equals(Object o) {
     if (this == o) {
       return true;
     }
     if (!(o instanceof SetPetAvatarRequest other)) {
       return false;
     }
-    return java.util.Objects.equals(this.data, other.data)
+    return java.util.Arrays.equals(this.data, other.data)
         && java.util.Objects.equals(this.mimeType, other.mimeType);
   }
 
   @Override
   public int hashCode() {
-    return java.util.Objects.hash(data, mimeType);
+    return java.util.Objects.hash(java.util.Arrays.hashCode(data), mimeType);
   }
 }

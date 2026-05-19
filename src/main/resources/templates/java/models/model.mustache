@@ -381,21 +381,21 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
    * Error Prone's PatternMatchingInstanceof rule and avoids the
    * EqualsGetClass warning that plain getClass() comparison triggers. */
   @Override
-  public boolean equals(@javax.annotation.Nullable Object o) {
+  public boolean equals(Object o) {
     if (this == o) {
       return true;
     }
     if (!(o instanceof {{classname}} other)) {
       return false;
     }
-    return {{^vars}}true{{/vars}}{{#vars}}java.util.Objects.equals(this.{{name}}, other.{{name}}){{^-last}}
+    return {{^vars}}true{{/vars}}{{#vars}}{{#isByteArray}}java.util.Arrays.equals(this.{{name}}, other.{{name}}){{/isByteArray}}{{^isByteArray}}java.util.Objects.equals(this.{{name}}, other.{{name}}){{/isByteArray}}{{^-last}}
         && {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}
         && java.util.Objects.equals(this.additionalProperties, other.additionalProperties){{/isAdditionalPropertiesTrue}};
   }
 
   @Override
   public int hashCode() {
-    return java.util.Objects.hash({{#vars}}{{name}}{{^-last}}, {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties{{/isAdditionalPropertiesTrue}});
+    return java.util.Objects.hash({{#vars}}{{#isByteArray}}java.util.Arrays.hashCode({{name}}){{/isByteArray}}{{^isByteArray}}{{name}}{{/isByteArray}}{{^-last}}, {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties{{/isAdditionalPropertiesTrue}});
   }
 }
 {{/anyOf}}

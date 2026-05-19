@@ -33,11 +33,14 @@ public class ComposedSchemaTest
     }
 
     [Fact]
-    public void OneOfUnknownDiscriminatorReturnsNull()
+    public void OneOfUnknownDiscriminatorThrows()
     {
+        /* Gap L: union with an unmapped discriminator value now throws
+         * instead of silently returning null. Aligns C# with Python /
+         * Swift / Dart / Go / Rust — surfaces data-shape bugs loudly
+         * rather than letting them mask as null. */
         var json = "{\"foodType\":\"raw\",\"calories\":300}";
-        var result = _serializer.Deserialize<PetFood>(json);
-        Assert.Null(result);
+        Assert.Throws<System.Text.Json.JsonException>(() => _serializer.Deserialize<PetFood>(json));
     }
 
     [Fact]

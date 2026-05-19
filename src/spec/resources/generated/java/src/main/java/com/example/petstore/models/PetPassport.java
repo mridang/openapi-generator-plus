@@ -48,7 +48,7 @@ public class PetPassport {
    * Error Prone's PatternMatchingInstanceof rule and avoids the
    * EqualsGetClass warning that plain getClass() comparison triggers. */
   @Override
-  public boolean equals(@javax.annotation.Nullable Object o) {
+  public boolean equals(Object o) {
     if (this == o) {
       return true;
     }
@@ -56,13 +56,13 @@ public class PetPassport {
       return false;
     }
     return java.util.Objects.equals(this.pet, other.pet)
-        && java.util.Objects.equals(this.thumbnail, other.thumbnail)
+        && java.util.Arrays.equals(this.thumbnail, other.thumbnail)
         && java.util.Objects.equals(this.scans, other.scans)
         && java.util.Objects.equals(this.issuedAt, other.issuedAt);
   }
 
   @Override
   public int hashCode() {
-    return java.util.Objects.hash(pet, thumbnail, scans, issuedAt);
+    return java.util.Objects.hash(pet, java.util.Arrays.hashCode(thumbnail), scans, issuedAt);
   }
 }
