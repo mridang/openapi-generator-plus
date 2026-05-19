@@ -31,18 +31,19 @@ public class Metadata : IEquatable<Metadata>
     /// (including the AdditionalProperties dictionary).</summary>
     public bool Equals(Metadata? other)
     {
-        if (other is null)
-        {
-            return false;
-        }
-        if (ReferenceEquals(this, other))
-        {
-            return true;
-        }
-        return EqualityComparer<DateTimeOffset?>.Default.Equals(this.CreatedAt, other.CreatedAt)
-            && EqualityComparer<Dictionary<string, object>?>.Default.Equals(
-                this.AdditionalProperties,
-                other.AdditionalProperties
+        return other is not null
+            && (
+                ReferenceEquals(this, other)
+                || (
+                    EqualityComparer<DateTimeOffset?>.Default.Equals(
+                        this.CreatedAt,
+                        other.CreatedAt
+                    )
+                    && EqualityComparer<Dictionary<string, object>?>.Default.Equals(
+                        this.AdditionalProperties,
+                        other.AdditionalProperties
+                    )
+                )
             );
     }
 

@@ -42,16 +42,14 @@ public class SetPetAvatarRequest(byte[] data, string mimeType) : IEquatable<SetP
     /// test assertions.</summary>
     public bool Equals(SetPetAvatarRequest? other)
     {
-        if (other is null)
-        {
-            return false;
-        }
-        if (ReferenceEquals(this, other))
-        {
-            return true;
-        }
-        return EqualityComparer<byte[]>.Default.Equals(this.Data, other.Data)
-            && EqualityComparer<string>.Default.Equals(this.MimeType, other.MimeType);
+        return other is not null
+            && (
+                ReferenceEquals(this, other)
+                || (
+                    EqualityComparer<byte[]>.Default.Equals(this.Data, other.Data)
+                    && EqualityComparer<string>.Default.Equals(this.MimeType, other.MimeType)
+                )
+            );
     }
 
     public override bool Equals(object? obj)

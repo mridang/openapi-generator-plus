@@ -39,18 +39,16 @@ public class Photo : IEquatable<Photo>
     /// <summary>Value-equality based on all declared fields.</summary>
     public bool Equals(Photo? other)
     {
-        if (other is null)
-        {
-            return false;
-        }
-        if (ReferenceEquals(this, other))
-        {
-            return true;
-        }
-        return EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
-            && EqualityComparer<string?>.Default.Equals(this.Caption, other.Caption)
-            && EqualityComparer<bool?>.Default.Equals(this.IsPrimary, other.IsPrimary)
-            && EqualityComparer<string?>.Default.Equals(this.Url, other.Url);
+        return other is not null
+            && (
+                ReferenceEquals(this, other)
+                || (
+                    EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
+                    && EqualityComparer<string?>.Default.Equals(this.Caption, other.Caption)
+                    && EqualityComparer<bool?>.Default.Equals(this.IsPrimary, other.IsPrimary)
+                    && EqualityComparer<string?>.Default.Equals(this.Url, other.Url)
+                )
+            );
     }
 
     public override bool Equals(object? obj)

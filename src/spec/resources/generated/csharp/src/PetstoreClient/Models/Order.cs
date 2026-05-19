@@ -63,20 +63,21 @@ public class Order : IEquatable<Order>
     /// <summary>Value-equality based on all declared fields.</summary>
     public bool Equals(Order? other)
     {
-        if (other is null)
-        {
-            return false;
-        }
-        if (ReferenceEquals(this, other))
-        {
-            return true;
-        }
-        return EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
-            && EqualityComparer<long?>.Default.Equals(this.PetId, other.PetId)
-            && EqualityComparer<int?>.Default.Equals(this.Quantity, other.Quantity)
-            && EqualityComparer<DateTimeOffset?>.Default.Equals(this.ShipDate, other.ShipDate)
-            && EqualityComparer<StatusEnum?>.Default.Equals(this.Status, other.Status)
-            && EqualityComparer<bool?>.Default.Equals(this.Complete, other.Complete);
+        return other is not null
+            && (
+                ReferenceEquals(this, other)
+                || (
+                    EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
+                    && EqualityComparer<long?>.Default.Equals(this.PetId, other.PetId)
+                    && EqualityComparer<int?>.Default.Equals(this.Quantity, other.Quantity)
+                    && EqualityComparer<DateTimeOffset?>.Default.Equals(
+                        this.ShipDate,
+                        other.ShipDate
+                    )
+                    && EqualityComparer<StatusEnum?>.Default.Equals(this.Status, other.Status)
+                    && EqualityComparer<bool?>.Default.Equals(this.Complete, other.Complete)
+                )
+            );
     }
 
     public override bool Equals(object? obj)

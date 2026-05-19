@@ -36,16 +36,14 @@ public class Tag : IEquatable<Tag>
     /// <summary>Value-equality based on all declared fields.</summary>
     public bool Equals(Tag? other)
     {
-        if (other is null)
-        {
-            return false;
-        }
-        if (ReferenceEquals(this, other))
-        {
-            return true;
-        }
-        return EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
-            && EqualityComparer<string?>.Default.Equals(this.Name, other.Name);
+        return other is not null
+            && (
+                ReferenceEquals(this, other)
+                || (
+                    EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
+                    && EqualityComparer<string?>.Default.Equals(this.Name, other.Name)
+                )
+            );
     }
 
     public override bool Equals(object? obj)

@@ -245,17 +245,11 @@ public class {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/
     /// test assertions.</summary>
     public bool Equals({{classname}}? other)
     {
-        if (other is null)
-        {
-            return false;
-        }
-        if (ReferenceEquals(this, other))
-        {
-            return true;
-        }
-        return {{^vars}}true{{/vars}}{{#vars}}EqualityComparer<{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}>.Default.Equals(this.{{name}}, other.{{name}}){{^-last}}
-            && {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}
-            && EqualityComparer<Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}>?>.Default.Equals(this.AdditionalProperties, other.AdditionalProperties){{/isAdditionalPropertiesTrue}};
+        return other is not null
+            && (ReferenceEquals(this, other)
+                || ({{^vars}}true{{/vars}}{{#vars}}EqualityComparer<{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}>.Default.Equals(this.{{name}}, other.{{name}}){{^-last}}
+                    && {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}
+                    && EqualityComparer<Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}>?>.Default.Equals(this.AdditionalProperties, other.AdditionalProperties){{/isAdditionalPropertiesTrue}}));
     }
 
     public override bool Equals(object? obj)
@@ -339,17 +333,11 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
     /// (including the AdditionalProperties dictionary){{/isAdditionalPropertiesTrue}}.</summary>
     public bool Equals({{classname}}? other)
     {
-        if (other is null)
-        {
-            return false;
-        }
-        if (ReferenceEquals(this, other))
-        {
-            return true;
-        }
-        return {{^vars}}true{{/vars}}{{#vars}}EqualityComparer<{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}>.Default.Equals(this.{{name}}, other.{{name}}){{^-last}}
-            && {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}
-            && EqualityComparer<Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}>?>.Default.Equals(this.AdditionalProperties, other.AdditionalProperties){{/isAdditionalPropertiesTrue}};
+        return other is not null
+            && (ReferenceEquals(this, other)
+                || ({{^vars}}true{{/vars}}{{#vars}}EqualityComparer<{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}>.Default.Equals(this.{{name}}, other.{{name}}){{^-last}}
+                    && {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}
+                    && EqualityComparer<Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}>?>.Default.Equals(this.AdditionalProperties, other.AdditionalProperties){{/isAdditionalPropertiesTrue}}));
     }
 
     public override bool Equals(object? obj)

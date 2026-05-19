@@ -37,16 +37,14 @@ public class DryFood(double weightKg) : PetFood, IEquatable<DryFood>
     /// test assertions.</summary>
     public bool Equals(DryFood? other)
     {
-        if (other is null)
-        {
-            return false;
-        }
-        if (ReferenceEquals(this, other))
-        {
-            return true;
-        }
-        return EqualityComparer<string>.Default.Equals(this.FoodType, other.FoodType)
-            && EqualityComparer<double>.Default.Equals(this.WeightKg, other.WeightKg);
+        return other is not null
+            && (
+                ReferenceEquals(this, other)
+                || (
+                    EqualityComparer<string>.Default.Equals(this.FoodType, other.FoodType)
+                    && EqualityComparer<double>.Default.Equals(this.WeightKg, other.WeightKg)
+                )
+            );
     }
 
     public override bool Equals(object? obj)

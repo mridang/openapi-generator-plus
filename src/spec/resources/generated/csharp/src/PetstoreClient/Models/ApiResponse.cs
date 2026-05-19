@@ -35,17 +35,15 @@ public class ApiResponse : IEquatable<ApiResponse>
     /// <summary>Value-equality based on all declared fields.</summary>
     public bool Equals(ApiResponse? other)
     {
-        if (other is null)
-        {
-            return false;
-        }
-        if (ReferenceEquals(this, other))
-        {
-            return true;
-        }
-        return EqualityComparer<int?>.Default.Equals(this.Code, other.Code)
-            && EqualityComparer<string?>.Default.Equals(this.Type, other.Type)
-            && EqualityComparer<string?>.Default.Equals(this.Message, other.Message);
+        return other is not null
+            && (
+                ReferenceEquals(this, other)
+                || (
+                    EqualityComparer<int?>.Default.Equals(this.Code, other.Code)
+                    && EqualityComparer<string?>.Default.Equals(this.Type, other.Type)
+                    && EqualityComparer<string?>.Default.Equals(this.Message, other.Message)
+                )
+            );
     }
 
     public override bool Equals(object? obj)

@@ -37,16 +37,14 @@ public class WetFood(int volumeMl) : PetFood, IEquatable<WetFood>
     /// test assertions.</summary>
     public bool Equals(WetFood? other)
     {
-        if (other is null)
-        {
-            return false;
-        }
-        if (ReferenceEquals(this, other))
-        {
-            return true;
-        }
-        return EqualityComparer<string>.Default.Equals(this.FoodType, other.FoodType)
-            && EqualityComparer<int>.Default.Equals(this.VolumeMl, other.VolumeMl);
+        return other is not null
+            && (
+                ReferenceEquals(this, other)
+                || (
+                    EqualityComparer<string>.Default.Equals(this.FoodType, other.FoodType)
+                    && EqualityComparer<int>.Default.Equals(this.VolumeMl, other.VolumeMl)
+                )
+            );
     }
 
     public override bool Equals(object? obj)

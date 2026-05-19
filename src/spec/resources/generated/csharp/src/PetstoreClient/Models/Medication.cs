@@ -38,16 +38,14 @@ public class Medication(string drugName) : IEquatable<Medication>
     /// test assertions.</summary>
     public bool Equals(Medication? other)
     {
-        if (other is null)
-        {
-            return false;
-        }
-        if (ReferenceEquals(this, other))
-        {
-            return true;
-        }
-        return EqualityComparer<string>.Default.Equals(this.DrugName, other.DrugName)
-            && EqualityComparer<string?>.Default.Equals(this.Dosage, other.Dosage);
+        return other is not null
+            && (
+                ReferenceEquals(this, other)
+                || (
+                    EqualityComparer<string>.Default.Equals(this.DrugName, other.DrugName)
+                    && EqualityComparer<string?>.Default.Equals(this.Dosage, other.Dosage)
+                )
+            );
     }
 
     public override bool Equals(object? obj)

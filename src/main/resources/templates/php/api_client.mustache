@@ -18,11 +18,4 @@ interface ApiClient
      * @param mixed                $body    Request body
      */
     public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse;
-
-    /**
-     * Release any resources held by this client (connection pool, sockets).
-     * Implementations that don't own pooled state may treat this as a no-op.
-     * After calling, the client must not be reused.
-     */
-    public function close(): void;
 }

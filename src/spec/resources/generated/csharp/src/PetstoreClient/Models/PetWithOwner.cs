@@ -91,22 +91,23 @@ public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerNa
     /// test assertions.</summary>
     public bool Equals(PetWithOwner? other)
     {
-        if (other is null)
-        {
-            return false;
-        }
-        if (ReferenceEquals(this, other))
-        {
-            return true;
-        }
-        return EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
-            && EqualityComparer<string>.Default.Equals(this.Name, other.Name)
-            && EqualityComparer<Category?>.Default.Equals(this.Category, other.Category)
-            && EqualityComparer<HashSet<string>>.Default.Equals(this.PhotoUrls, other.PhotoUrls)
-            && EqualityComparer<List<Tag>?>.Default.Equals(this.Tags, other.Tags)
-            && EqualityComparer<StatusEnum?>.Default.Equals(this.Status, other.Status)
-            && EqualityComparer<string>.Default.Equals(this.OwnerName, other.OwnerName)
-            && EqualityComparer<string?>.Default.Equals(this.OwnerEmail, other.OwnerEmail);
+        return other is not null
+            && (
+                ReferenceEquals(this, other)
+                || (
+                    EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
+                    && EqualityComparer<string>.Default.Equals(this.Name, other.Name)
+                    && EqualityComparer<Category?>.Default.Equals(this.Category, other.Category)
+                    && EqualityComparer<HashSet<string>>.Default.Equals(
+                        this.PhotoUrls,
+                        other.PhotoUrls
+                    )
+                    && EqualityComparer<List<Tag>?>.Default.Equals(this.Tags, other.Tags)
+                    && EqualityComparer<StatusEnum?>.Default.Equals(this.Status, other.Status)
+                    && EqualityComparer<string>.Default.Equals(this.OwnerName, other.OwnerName)
+                    && EqualityComparer<string?>.Default.Equals(this.OwnerEmail, other.OwnerEmail)
+                )
+            );
     }
 
     public override bool Equals(object? obj)

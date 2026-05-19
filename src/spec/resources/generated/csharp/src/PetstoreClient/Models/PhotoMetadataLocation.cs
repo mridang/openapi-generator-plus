@@ -31,16 +31,14 @@ public class PhotoMetadataLocation : IEquatable<PhotoMetadataLocation>
     /// <summary>Value-equality based on all declared fields.</summary>
     public bool Equals(PhotoMetadataLocation? other)
     {
-        if (other is null)
-        {
-            return false;
-        }
-        if (ReferenceEquals(this, other))
-        {
-            return true;
-        }
-        return EqualityComparer<double?>.Default.Equals(this.Lat, other.Lat)
-            && EqualityComparer<double?>.Default.Equals(this.Lng, other.Lng);
+        return other is not null
+            && (
+                ReferenceEquals(this, other)
+                || (
+                    EqualityComparer<double?>.Default.Equals(this.Lat, other.Lat)
+                    && EqualityComparer<double?>.Default.Equals(this.Lng, other.Lng)
+                )
+            );
     }
 
     public override bool Equals(object? obj)

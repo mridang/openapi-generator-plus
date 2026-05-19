@@ -35,13 +35,16 @@ public class Metadata {
 
   /* Value-equality based on all declared fields (including
    * the additionalProperties map). Generated so model
-   * instances work correctly as Set/Map keys and in test assertions. */
+   * instances work correctly as Set/Map keys and in test assertions.
+   * Uses `instanceof` rather than `getClass()` comparison so Error Prone's
+   * EqualsGetClass check passes (instanceof correctly handles subclass
+   * symmetry in this generated code: subclasses get their own equals). */
   @Override
   public boolean equals(@javax.annotation.Nullable Object o) {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof Metadata)) {
       return false;
     }
     Metadata other = (Metadata) o;
