@@ -79,7 +79,9 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec delete_order_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def delete_order_with_http_info(%__MODULE__{} = api, order_id, opts \\ []) do
-    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
 
     if is_nil(order_id) do
       raise ArgumentError,
@@ -166,7 +168,9 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_inventory_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_inventory_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
     path = "/store/inventory"
     server = Keyword.get(opts, :server)
 
@@ -238,7 +242,9 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_order_by_id_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_order_by_id_with_http_info(%__MODULE__{} = api, order_id, opts \\ []) do
-    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
 
     if is_nil(order_id) do
       raise ArgumentError,
@@ -326,7 +332,9 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec place_order_with_http_info(t(), Order | nil, keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def place_order_with_http_info(%__MODULE__{} = api, order \\ nil, opts \\ []) do
-    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
     path = "/store/order"
     server = Keyword.get(opts, :server)
 

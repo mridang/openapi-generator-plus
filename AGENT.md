@@ -348,6 +348,26 @@ header-merge path. Not done; not auditing.
 - **Gap AI (FIXED)**: Cookie request header URL-encoded values,
   breaking JWT cookies. All 12 SDKs now validate per RFC 6265 and
   send raw. commit `b649dcb3`.
+- **Gap AS (FIXED)**: Swift buildQueryString used `.urlQueryAllowed`
+  which doesn't encode `&`, `=`, `+` — query values containing those
+  chars would split the URL. Now uses RFC 3986 unreserved-only set.
+  commit `f18dd54f`.
+- **Gap AT (FIXED)**: Rust OAuth2 build_authorization_url didn't
+  URL-encode client_id / redirect_uri / scopes / state. Attacker-
+  controlled state could corrupt the URL. Now routed through a
+  url_query_encode helper. commit `f18dd54f`.
+
+### Gap-fix cycle 18 — additional pending divergences
+
+- **Gap AU**: Unknown discriminator value in oneOf — Go silently
+  returns nil; C#/Swift/Ruby/Elixir throw. Also: missing discriminator
+  field — Python/PHP wrap raw dict in union container; others throw.
+  Already partially covered by Gap L decisions but Go behavior diverges.
+- **Gap AV**: OpenAPI `security: []` operation (explicit no-auth)
+  — Java/Go/Python/Ruby/PHP/C#/Swift/Rust/Kotlin skip authenticator;
+  Dart/Elixir apply default authenticator anyway. Caller-visible
+  spurious auth headers on no-auth endpoints; servers may reject
+  pre-auth tokens or just waste cycles. Two-lang template fix.
 - **Gap AJ**: JSON null on required field — Go silently zero-inits
   ({"name": null} → name=""), Python Pydantic accepts, Kotlin
   explicitNulls=false accepts. Other 9 throw. Needs validation pass

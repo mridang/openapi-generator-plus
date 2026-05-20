@@ -155,7 +155,14 @@ defmodule {{moduleName}}.Api.{{classname}} do
   @spec {{operationId}}_with_http_info(t(){{#pathParams}}, {{{dataType}}}{{/pathParams}}{{#bodyParam}}, {{{dataType}}}{{^required}} | nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}, keyword()) ::
           {:ok, {{moduleName}}.ApiResult.t()} | {:error, term()}
   def {{operationId}}_with_http_info(%__MODULE__{} = api{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{^required}} \\ nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}, opts \\ []) do
+{{#hasAuthMethods}}
     auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+{{/hasAuthMethods}}
+{{^hasAuthMethods}}
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
+{{/hasAuthMethods}}
 {{#pathParams}}
 {{#required}}
     if is_nil({{paramName}}) do

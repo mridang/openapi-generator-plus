@@ -275,7 +275,9 @@ defmodule PetstoreClient.Api.PetApi do
   @spec add_pet_photos_with_http_info(t(), integer(), Options.t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def add_pet_photos_with_http_info(%__MODULE__{} = api, pet_id, options, opts \\ []) do
-    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -567,7 +569,9 @@ defmodule PetstoreClient.Api.PetApi do
   @spec download_pet_document_with_http_info(t(), integer(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def download_pet_document_with_http_info(%__MODULE__{} = api, pet_id, document_id, opts \\ []) do
-    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -681,7 +685,9 @@ defmodule PetstoreClient.Api.PetApi do
   @spec find_pets_by_status_with_http_info(t(), Options.t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def find_pets_by_status_with_http_info(%__MODULE__{} = api, options, opts \\ []) do
-    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
     path = "/pet/findByStatus"
     server = Keyword.get(opts, :server)
 
@@ -784,7 +790,9 @@ defmodule PetstoreClient.Api.PetApi do
   @spec get_external_pet_info_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_external_pet_info_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
-    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -872,7 +880,9 @@ defmodule PetstoreClient.Api.PetApi do
   @spec get_multi_server_pet_info_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_multi_server_pet_info_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
-    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -962,7 +972,9 @@ defmodule PetstoreClient.Api.PetApi do
   @spec get_pet_avatar_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_pet_avatar_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
-    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -1052,7 +1064,9 @@ defmodule PetstoreClient.Api.PetApi do
   @spec get_pet_avatar_thumbnail_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_pet_avatar_thumbnail_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
-    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -1145,7 +1159,9 @@ defmodule PetstoreClient.Api.PetApi do
   @spec get_pet_by_id_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_pet_by_id_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
-    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -1235,7 +1251,9 @@ defmodule PetstoreClient.Api.PetApi do
   @spec get_pet_passport_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_pet_passport_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
-    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -1326,7 +1344,9 @@ defmodule PetstoreClient.Api.PetApi do
   @spec get_pet_photo_with_http_info(t(), integer(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_pet_photo_with_http_info(%__MODULE__{} = api, pet_id, photo_id, opts \\ []) do
-    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -1431,7 +1451,9 @@ defmodule PetstoreClient.Api.PetApi do
   @spec get_pet_tag_with_http_info(t(), integer(), String.t(), Options.t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_pet_tag_with_http_info(%__MODULE__{} = api, pet_id, tag_name, options, opts \\ []) do
-    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -1595,7 +1617,9 @@ defmodule PetstoreClient.Api.PetApi do
   @spec get_staging_pet_info_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_staging_pet_info_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
-    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -1686,7 +1710,9 @@ defmodule PetstoreClient.Api.PetApi do
   @spec set_pet_avatar_with_http_info(t(), integer(), binary(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def set_pet_avatar_with_http_info(%__MODULE__{} = api, pet_id, body, opts \\ []) do
-    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -1782,7 +1808,9 @@ defmodule PetstoreClient.Api.PetApi do
   @spec set_pet_avatar_thumbnail_with_http_info(t(), integer(), SetPetAvatarThumbnailRequest, keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def set_pet_avatar_thumbnail_with_http_info(%__MODULE__{} = api, pet_id, set_pet_avatar_thumbnail_request, opts \\ []) do
-    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -1876,7 +1904,9 @@ defmodule PetstoreClient.Api.PetApi do
   @spec update_pet_with_http_info(t(), integer(), Pet, keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def update_pet_with_http_info(%__MODULE__{} = api, pet_id, pet, opts \\ []) do
-    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -1973,7 +2003,9 @@ defmodule PetstoreClient.Api.PetApi do
   @spec upload_pet_certificate_with_http_info(t(), integer(), Options.t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def upload_pet_certificate_with_http_info(%__MODULE__{} = api, pet_id, options, opts \\ []) do
-    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -2066,7 +2098,9 @@ defmodule PetstoreClient.Api.PetApi do
   @spec upload_pet_document_with_http_info(t(), integer(), Options.t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def upload_pet_document_with_http_info(%__MODULE__{} = api, pet_id, options, opts \\ []) do
-    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
 
     if is_nil(pet_id) do
       raise ArgumentError,
