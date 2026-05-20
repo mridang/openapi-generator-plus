@@ -7,18 +7,9 @@
 
 package com.example.petstore.api;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-
 import com.example.petstore.Configuration;
 import com.example.petstore.DefaultApiClient;
 import com.example.petstore.PrismContainer;
-import com.example.petstore.api.options.AddPetPhotosOptions;
-import com.example.petstore.api.options.FindPetsByStatusOptions;
-import com.example.petstore.api.options.GetPetTagOptions;
-import com.example.petstore.api.options.UploadPetCertificateOptions;
-import com.example.petstore.api.options.UploadPetDocumentOptions;
 import com.example.petstore.auth.AdminBasicAuthenticator;
 import com.example.petstore.auth.PetStoreBearerAuthenticator;
 import com.example.petstore.models.ApiResponse;
@@ -27,245 +18,242 @@ import com.example.petstore.models.PetPassport;
 import com.example.petstore.models.Photo;
 import com.example.petstore.models.PhotoMetadata;
 import com.example.petstore.models.SetPetAvatarThumbnailRequest;
-import com.sun.net.httpserver.HttpServer;
+import com.example.petstore.api.options.FindPetsByStatusOptions;
+import com.example.petstore.api.options.UploadPetCertificateOptions;
+import com.example.petstore.api.options.UploadPetDocumentOptions;
+import com.example.petstore.api.options.AddPetPhotosOptions;
+import com.example.petstore.api.options.GetPetTagOptions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 
-/** Integration tests for the Pet API endpoints. */
+import com.sun.net.httpserver.HttpServer;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+/**
+ * Integration tests for the Pet API endpoints.
+ */
 @SuppressWarnings("deprecation")
 class PetApiTest {
 
-  private PetApi api;
-  private PetStoreBearerAuthenticator bearerAuth;
-  private AdminBasicAuthenticator basicAuth;
+    private PetApi api;
+    private PetStoreBearerAuthenticator bearerAuth;
+    private AdminBasicAuthenticator basicAuth;
 
-  @BeforeEach
-  void setUp() {
-    String baseUrl = PrismContainer.getBaseUrl();
-    Configuration config =
-        Configuration.builder()
-            .baseUrl(baseUrl)
-            .defaultHeader("Authorization", "Bearer test-token")
-            .build();
-    api = new PetApi(new DefaultApiClient(), config);
-    bearerAuth = new PetStoreBearerAuthenticator(baseUrl, "test-token");
-    basicAuth = new AdminBasicAuthenticator(baseUrl, "admin", "password");
-  }
+    @BeforeEach
+    void setUp() {
+        String baseUrl = PrismContainer.getBaseUrl();
+        Configuration config = Configuration.builder()
+                .baseUrl(baseUrl)
+                .defaultHeader("Authorization", "Bearer test-token")
+                .build();
+        api = new PetApi(new DefaultApiClient(), config);
+        bearerAuth = new PetStoreBearerAuthenticator(baseUrl, "test-token");
+        basicAuth = new AdminBasicAuthenticator(baseUrl, "admin", "password");
+    }
 
-  @Test
-  void testAddPet() throws Exception {
-    Pet pet = new Pet();
-    pet.id = 12345L;
-    pet.name = "TestDog";
-    pet.photoUrls = Set.of("http://example.com/photo.jpg");
-    pet.status = Pet.StatusEnum.AVAILABLE;
+    @Test
+    void testAddPet() throws Exception {
+        Pet pet = new Pet();
+        pet.id = 12345L;
+        pet.name = "TestDog";
+        pet.photoUrls = Set.of("http://example.com/photo.jpg");
+        pet.status = Pet.StatusEnum.AVAILABLE;
 
-    Pet result = api.addPet(bearerAuth, pet);
-    assertNotNull(result);
+        Pet result = api.addPet(bearerAuth, pet);
+        assertNotNull(result);
 
-    assertThat(result.name).isNotNull();
-  }
+        assertThat(result.name).isNotNull();
+    }
 
-  @Test
-  void testFindPetsByStatus() throws Exception {
-    List<Pet> result = api.findPetsByStatus(new FindPetsByStatusOptions().status("available"));
-    assertNotNull(result);
+    @Test
+    void testFindPetsByStatus() throws Exception {
+        List<Pet> result = api.findPetsByStatus(new FindPetsByStatusOptions().status("available"));
+        assertNotNull(result);
 
-    assertThat(result).isNotEmpty();
-    assertThat(result.get(0)).isInstanceOf(Pet.class);
-  }
+        assertThat(result).isNotEmpty();
+        assertThat(result.get(0)).isInstanceOf(Pet.class);
+    }
 
-  @Test
-  void testGetPetById() throws Exception {
-    Pet result = api.getPetById(1L);
-    assertNotNull(result);
+    @Test
+    void testGetPetById() throws Exception {
+        Pet result = api.getPetById(1L);
+        assertNotNull(result);
 
-    assertThat(result.id).isNotNull();
-    assertThat(result.name).isNotNull();
-  }
+        assertThat(result.id).isNotNull();
+        assertThat(result.name).isNotNull();
+    }
 
-  @Test
-  void testUpdatePet() throws Exception {
-    Pet pet = new Pet();
-    pet.id = 1L;
-    pet.name = "UpdatedDog";
-    pet.photoUrls = Set.of("http://example.com/updated.jpg");
-    pet.status = Pet.StatusEnum.PENDING;
+    @Test
+    void testUpdatePet() throws Exception {
+        Pet pet = new Pet();
+        pet.id = 1L;
+        pet.name = "UpdatedDog";
+        pet.photoUrls = Set.of("http://example.com/updated.jpg");
+        pet.status = Pet.StatusEnum.PENDING;
 
-    Pet result = api.updatePet(1L, pet);
-    assertNotNull(result);
-  }
+        Pet result = api.updatePet(1L, pet);
+        assertNotNull(result);
+    }
 
-  @Test
-  void testDeletePet() throws Exception {
-    api.deletePet(basicAuth, 1L, null);
+    @Test
+    void testDeletePet() throws Exception {
+        api.deletePet(basicAuth, 1L, null);
 
-    assertThat(true).isTrue();
-  }
+        assertThat(true).isTrue();
+    }
 
-  @Test
-  void testSetPetAvatar() throws Exception {
-    InputStream fakeImageData =
-        new ByteArrayInputStream("fake-image-data".getBytes(StandardCharsets.UTF_8));
-    api.setPetAvatar(1L, fakeImageData);
+    @Test
+    void testSetPetAvatar() throws Exception {
+        InputStream fakeImageData = new ByteArrayInputStream("fake-image-data".getBytes(StandardCharsets.UTF_8));
+        api.setPetAvatar(1L, fakeImageData);
 
-    assertThat(true).isTrue();
-  }
+        assertThat(true).isTrue();
+    }
 
-  @Test
-  void testGetPetAvatar() throws Exception {
-    InputStream result = api.getPetAvatar(1L);
-    assertNotNull(result);
-  }
+    @Test
+    void testGetPetAvatar() throws Exception {
+        InputStream result = api.getPetAvatar(1L);
+        assertNotNull(result);
+    }
 
-  @Test
-  void testGetPetAvatarThumbnail() throws Exception {
-    byte[] result = api.getPetAvatarThumbnail(1L);
-    assertNotNull(result);
-  }
+    @Test
+    void testGetPetAvatarThumbnail() throws Exception {
+        byte[] result = api.getPetAvatarThumbnail(1L);
+        assertNotNull(result);
+    }
 
-  @Test
-  void testSetPetAvatarThumbnail() throws Exception {
-    byte[] thumbnailData = new byte[] {0x01, 0x02, 0x03, 0x04};
-    SetPetAvatarThumbnailRequest request = new SetPetAvatarThumbnailRequest(thumbnailData);
+    @Test
+    void testSetPetAvatarThumbnail() throws Exception {
+        byte[] thumbnailData = new byte[]{0x01, 0x02, 0x03, 0x04};
+        SetPetAvatarThumbnailRequest request = new SetPetAvatarThumbnailRequest(thumbnailData);
 
-    api.setPetAvatarThumbnail(1L, request);
+        api.setPetAvatarThumbnail(1L, request);
 
-    assertThat(true).isTrue();
-  }
+        assertThat(true).isTrue();
+    }
 
-  @Test
-  void testUploadPetCertificate() throws Exception {
-    InputStream fakeFile =
-        new ByteArrayInputStream("fake-pdf-data".getBytes(StandardCharsets.UTF_8));
-    ApiResponse result = api.uploadPetCertificate(1L, new UploadPetCertificateOptions(fakeFile));
-    assertNotNull(result);
-  }
+    @Test
+    void testUploadPetCertificate() throws Exception {
+        InputStream fakeFile = new ByteArrayInputStream("fake-pdf-data".getBytes(StandardCharsets.UTF_8));
+        ApiResponse result = api.uploadPetCertificate(1L, new UploadPetCertificateOptions(fakeFile));
+        assertNotNull(result);
+    }
 
-  @Test
-  void testUploadPetDocument() throws Exception {
-    InputStream fakeDoc =
-        new ByteArrayInputStream("fake-doc-data".getBytes(StandardCharsets.UTF_8));
-    ApiResponse result =
-        api.uploadPetDocument(
-            1L,
-            new UploadPetDocumentOptions(fakeDoc)
-                .documentType("vaccination_record")
-                .notes("Annual checkup"));
-    assertNotNull(result);
-  }
+    @Test
+    void testUploadPetDocument() throws Exception {
+        InputStream fakeDoc = new ByteArrayInputStream("fake-doc-data".getBytes(StandardCharsets.UTF_8));
+        ApiResponse result = api.uploadPetDocument(
+                1L, new UploadPetDocumentOptions(fakeDoc).documentType("vaccination_record").notes("Annual checkup"));
+        assertNotNull(result);
+    }
 
-  @Test
-  @org.junit.jupiter.api.Disabled("Prism does not validate multipart array fields correctly")
-  void testAddPetPhotos() throws Exception {
-    PhotoMetadata metadata = new PhotoMetadata();
-    metadata.caption = "Test photo";
-    metadata.isPrimary = true;
+    @Test
+    @org.junit.jupiter.api.Disabled("Prism does not validate multipart array fields correctly")
+    void testAddPetPhotos() throws Exception {
+        PhotoMetadata metadata = new PhotoMetadata();
+        metadata.caption = "Test photo";
+        metadata.isPrimary = true;
 
-    List<InputStream> files =
-        List.of(new ByteArrayInputStream("fake-image-data".getBytes(StandardCharsets.UTF_8)));
-    List<Photo> result = api.addPetPhotos(1L, new AddPetPhotosOptions(files, metadata));
-    assertNotNull(result);
-  }
+        List<InputStream> files = List.of(new ByteArrayInputStream("fake-image-data".getBytes(StandardCharsets.UTF_8)));
+        List<Photo> result = api.addPetPhotos(
+                1L, new AddPetPhotosOptions(files, metadata));
+        assertNotNull(result);
+    }
 
-  @Test
-  void testDownloadPetDocument() throws Exception {
-    InputStream result = api.downloadPetDocument(1L, 1L);
-    assertNotNull(result);
-  }
+    @Test
+    void testDownloadPetDocument() throws Exception {
+        InputStream result = api.downloadPetDocument(1L, 1L);
+        assertNotNull(result);
+    }
 
-  @Test
-  @org.junit.jupiter.api.Disabled("Prism returns JSON for image content type")
-  void testGetPetPhoto() throws Exception {
-    InputStream result = api.getPetPhoto(1L, 1L);
-    assertNotNull(result);
-  }
+    @Test
+    @org.junit.jupiter.api.Disabled("Prism returns JSON for image content type")
+    void testGetPetPhoto() throws Exception {
+        InputStream result = api.getPetPhoto(1L, 1L);
+        assertNotNull(result);
+    }
 
-  @Test
-  @org.junit.jupiter.api.Disabled("Prism does not support matrix/label style parameters")
-  void testGetPetTag() throws Exception {
-    Pet result =
-        api.getPetTag(
-            5L,
-            "cute",
-            new GetPetTagOptions().colors(List.of("blue", "black")).sizes(List.of("S", "M")));
-    assertNotNull(result);
-  }
+    @Test
+    @org.junit.jupiter.api.Disabled("Prism does not support matrix/label style parameters")
+    void testGetPetTag() throws Exception {
+        Pet result = api.getPetTag(5L, "cute",
+                new GetPetTagOptions().colors(List.of("blue", "black")).sizes(List.of("S", "M")));
+        assertNotNull(result);
+    }
 
-  @Test
-  @org.junit.jupiter.api.Disabled("Per-operation server URL points to external host")
-  void testGetExternalPetInfo() throws Exception {
-    Pet result = api.getExternalPetInfo(1L);
-    assertNotNull(result);
-  }
+    @Test
+    @org.junit.jupiter.api.Disabled("Per-operation server URL points to external host")
+    void testGetExternalPetInfo() throws Exception {
+        Pet result = api.getExternalPetInfo(1L);
+        assertNotNull(result);
+    }
 
-  @Test
-  void testGetPetPassport() throws Exception {
-    PetPassport result = api.getPetPassport(1L);
-    assertNotNull(result);
+    @Test
+    void testGetPetPassport() throws Exception {
+        PetPassport result = api.getPetPassport(1L);
+        assertNotNull(result);
 
-    assertThat(result.pet).isNotNull();
-    assertThat(result.thumbnail).isNotNull();
-    assertThat(result.scans).isNotNull();
-    assertThat(result.issuedAt).isNotNull();
-  }
+        assertThat(result.pet).isNotNull();
+        assertThat(result.thumbnail).isNotNull();
+        assertThat(result.scans).isNotNull();
+        assertThat(result.issuedAt).isNotNull();
+    }
 
-  private PetApi newPetApiForMock(int status, String contentType, String body) throws Exception {
-    HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
-    server.createContext(
-        "/",
-        exchange -> {
-          byte[] responseBytes = body.getBytes(StandardCharsets.UTF_8);
-          exchange.getResponseHeaders().set("Content-Type", contentType);
-          exchange.sendResponseHeaders(status, responseBytes.length);
-          exchange.getResponseBody().write(responseBytes);
-          exchange.getResponseBody().close();
+    private PetApi newPetApiForMock(int status, String contentType, String body) throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/", exchange -> {
+            byte[] responseBytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", contentType);
+            exchange.sendResponseHeaders(status, responseBytes.length);
+            exchange.getResponseBody().write(responseBytes);
+            exchange.getResponseBody().close();
         });
-    server.start();
-    String baseUrl = "http://localhost:" + server.getAddress().getPort();
-    Configuration config = Configuration.builder().baseUrl(baseUrl).build();
-    return new PetApi(new DefaultApiClient(), config);
-  }
+        server.start();
+        String baseUrl = "http://localhost:" + server.getAddress().getPort();
+        Configuration config = Configuration.builder().baseUrl(baseUrl).build();
+        return new PetApi(new DefaultApiClient(), config);
+    }
 
-  @Test
-  void testErrorHandlingNotFound() throws Exception {
-    PetApi mockApi = newPetApiForMock(404, "application/json", "{\"message\":\"Pet not found\"}");
+    @Test
+    void testErrorHandlingNotFound() throws Exception {
+        PetApi mockApi = newPetApiForMock(404, "application/json", "{\"message\":\"Pet not found\"}");
 
-    assertThatThrownBy(() -> mockApi.getPetById(99999L)).isInstanceOf(Exception.class);
-  }
+        assertThatThrownBy(() -> mockApi.getPetById(99999L))
+                .isInstanceOf(Exception.class);
+    }
 
-  @Test
-  void testErrorHandlingServerError() throws Exception {
-    PetApi mockApi =
-        newPetApiForMock(500, "application/json", "{\"message\":\"Internal server error\"}");
+    @Test
+    void testErrorHandlingServerError() throws Exception {
+        PetApi mockApi = newPetApiForMock(500, "application/json", "{\"message\":\"Internal server error\"}");
 
-    assertThatThrownBy(() -> mockApi.getPetById(1L)).isInstanceOf(Exception.class);
-  }
+        assertThatThrownBy(() -> mockApi.getPetById(1L))
+                .isInstanceOf(Exception.class);
+    }
 
-  @Test
-  void testDownloadBinaryMock() throws Exception {
-    PetApi mockApi = newPetApiForMock(200, "application/octet-stream", "FAKE_BINARY_DATA");
+    @Test
+    void testDownloadBinaryMock() throws Exception {
+        PetApi mockApi = newPetApiForMock(200, "application/octet-stream", "FAKE_BINARY_DATA");
 
-    InputStream result = mockApi.getPetAvatar(1L);
-    assertNotNull(result);
-  }
+        InputStream result = mockApi.getPetAvatar(1L);
+        assertNotNull(result);
+    }
 
-  @Test
-  void testUploadMultipartMock() throws Exception {
-    PetApi mockApi =
-        newPetApiForMock(
-            200, "application/json", "{\"code\":200,\"type\":\"\",\"message\":\"success\"}");
+    @Test
+    void testUploadMultipartMock() throws Exception {
+        PetApi mockApi = newPetApiForMock(200, "application/json", "{\"code\":200,\"type\":\"\",\"message\":\"success\"}");
 
-    InputStream fakeFile =
-        new ByteArrayInputStream("fake-cert-data".getBytes(StandardCharsets.UTF_8));
-    ApiResponse result =
-        mockApi.uploadPetCertificate(1L, new UploadPetCertificateOptions(fakeFile));
-    assertNotNull(result);
-  }
+        InputStream fakeFile = new ByteArrayInputStream("fake-cert-data".getBytes(StandardCharsets.UTF_8));
+        ApiResponse result = mockApi.uploadPetCertificate(1L, new UploadPetCertificateOptions(fakeFile));
+        assertNotNull(result);
+    }
 }

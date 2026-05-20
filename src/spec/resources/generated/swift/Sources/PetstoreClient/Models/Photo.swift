@@ -9,54 +9,53 @@ import Foundation
 
 /// Photo is a model class generated from the OpenAPI schema.
 public struct Photo: Codable, Sendable {
-  /// Example: `null`
-  public var id: Int64?
-  /// Example: `null`
-  public var caption: String?
-  /// Example: `null`
-  public var isPrimary: Bool?
-  /// Example: `null`
-  public var url: String?
+    /// Example: `null`
+    public var id: Int64?
+    /// Example: `null`
+    public var caption: String?
+    /// Example: `null`
+    public var isPrimary: Bool?
+    /// Example: `null`
+    public var url: String?
 
-  enum CodingKeys: String, CodingKey {
-    case id = "id"
-    case caption = "caption"
-    case isPrimary = "isPrimary"
-    case url = "url"
-  }
+    enum CodingKeys: String, CodingKey {
+        case id = "id"
+        case caption = "caption"
+        case isPrimary = "isPrimary"
+        case url = "url"
+    }
 
-  /// Creates a new Photo instance.
-  public init(id: Int64? = nil, caption: String? = nil, isPrimary: Bool? = nil, url: String? = nil)
-  {
-    self.id = id
-    self.caption = caption
-    self.isPrimary = isPrimary
-    self.url = url
-  }
+    /// Creates a new Photo instance.
+    public init(id: Int64? = nil, caption: String? = nil, isPrimary: Bool? = nil, url: String? = nil) {
+        self.id = id
+        self.caption = caption
+        self.isPrimary = isPrimary
+        self.url = url
+    }
 
-  /// Decodes this instance from the given decoder.
-  ///
-  /// Required fields use `decode(_:forKey:)`; optional fields use
-  /// `decodeIfPresent(_:forKey:)`. Unknown JSON keys are silently ignored
-  /// — matching the cross-language "discard extras on deserialise" expectation.
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.id = try container.decodeIfPresent(Int64.self, forKey: .id)
-    self.caption = try container.decodeIfPresent(String.self, forKey: .caption)
-    self.isPrimary = try container.decodeIfPresent(Bool.self, forKey: .isPrimary)
-    self.url = try container.decodeIfPresent(String.self, forKey: .url)
-  }
+    /// Decodes this instance from the given decoder.
+    ///
+    /// Required fields use `decode(_:forKey:)`; optional fields use
+    /// `decodeIfPresent(_:forKey:)`. Unknown JSON keys are silently ignored
+    /// — matching the cross-language "discard extras on deserialise" expectation.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decodeIfPresent(Int64.self, forKey: .id)
+        self.caption = try container.decodeIfPresent(String.self, forKey: .caption)
+        self.isPrimary = try container.decodeIfPresent(Bool.self, forKey: .isPrimary)
+        self.url = try container.decodeIfPresent(String.self, forKey: .url)
+    }
 
-  /// Encodes this instance, omitting nil optional fields from the JSON output.
-  ///
-  /// Uses `encodeIfPresent` for every optional property so that unset values
-  /// are dropped from the wire payload rather than emitted as `null` — matching
-  /// the cross-language "discard nulls on serialise" expectation.
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(id, forKey: .id)
-    try container.encodeIfPresent(caption, forKey: .caption)
-    try container.encodeIfPresent(isPrimary, forKey: .isPrimary)
-    try container.encodeIfPresent(url, forKey: .url)
-  }
+    /// Encodes this instance, omitting nil optional fields from the JSON output.
+    ///
+    /// Uses `encodeIfPresent` for every optional property so that unset values
+    /// are dropped from the wire payload rather than emitted as `null` — matching
+    /// the cross-language "discard nulls on serialise" expectation.
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(id, forKey: .id)
+        try container.encodeIfPresent(caption, forKey: .caption)
+        try container.encodeIfPresent(isPrimary, forKey: .isPrimary)
+        try container.encodeIfPresent(url, forKey: .url)
+    }
 }

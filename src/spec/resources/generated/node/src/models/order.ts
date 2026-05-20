@@ -37,7 +37,7 @@ export class Order {
       if (!(statusValues as readonly unknown[]).includes(this.status)) {
         throw new Error(
           `Unknown enum value for status: ${JSON.stringify(this.status)}. ` +
-            `Expected one of [${statusValues.map((v) => JSON.stringify(v)).join(', ')}].`
+            `Expected one of [${ statusValues.map((v) => JSON.stringify(v)).join(', ')}].`
         );
       }
     }
@@ -51,5 +51,5 @@ export enum OrderStatusEnum {
   Placed = 'placed',
   Approved = 'approved',
   Delivered = 'delivered',
-  UnknownDefaultOpenApi = '11184809'
+  UnknownDefaultOpenApi = '11184809',
 }

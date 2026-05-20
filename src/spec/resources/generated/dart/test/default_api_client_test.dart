@@ -7,8 +7,8 @@
 
 import 'dart:convert';
 
-import 'package:test/test.dart';
 import 'package:petstore_client/petstore_client.dart';
+import 'package:test/test.dart';
 
 import 'testcontainers_helper.dart';
 
@@ -23,9 +23,7 @@ void main() {
 
   group('DefaultApiClient', () {
     test('makes HTTPS request with verifySsl=false', () async {
-      final transport = TransportOptionsBuilder()
-          .verifySSL(false)
-          .build();
+      final transport = TransportOptionsBuilder().verifySSL(false).build();
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
         'GET',
@@ -54,9 +52,7 @@ void main() {
     });
 
     test('makes HTTP request through proxy', () async {
-      final transport = TransportOptionsBuilder()
-          .proxy(proxyUrl)
-          .build();
+      final transport = TransportOptionsBuilder().proxy(proxyUrl).build();
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
         'GET',
@@ -69,10 +65,8 @@ void main() {
     });
 
     test('makes HTTPS request through proxy with verifySsl=false', () async {
-      final transport = TransportOptionsBuilder()
-          .proxy(proxyUrl)
-          .verifySSL(false)
-          .build();
+      final transport =
+          TransportOptionsBuilder().proxy(proxyUrl).verifySSL(false).build();
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
         'GET',
@@ -85,9 +79,7 @@ void main() {
     });
 
     test('times out on slow endpoint', () async {
-      final transport = TransportOptionsBuilder()
-          .timeout(1000)
-          .build();
+      final transport = TransportOptionsBuilder().timeout(1000).build();
       final client = DefaultApiClient(transportOptions: transport);
       expect(
         () => client.sendRequest(
@@ -101,9 +93,8 @@ void main() {
     });
 
     test('injects custom User-Agent header', () async {
-      final transport = TransportOptionsBuilder()
-          .userAgent('MyApp/1.0')
-          .build();
+      final transport =
+          TransportOptionsBuilder().userAgent('MyApp/1.0').build();
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
         'GET',
@@ -117,9 +108,7 @@ void main() {
     });
 
     test('injects X-Request-ID header with UUID format', () async {
-      final transport = TransportOptionsBuilder()
-          .injectRequestId(true)
-          .build();
+      final transport = TransportOptionsBuilder().injectRequestId(true).build();
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
         'GET',
@@ -131,14 +120,13 @@ void main() {
       final requestId = parsed['x-request-id'] as String?;
       expect(requestId, isNotNull);
       expect(requestId, isNotEmpty);
-      final uuidPattern = RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$');
+      final uuidPattern = RegExp(
+          r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$');
       expect(uuidPattern.hasMatch(requestId!), isTrue);
     });
 
     test('generates unique X-Request-ID per request', () async {
-      final transport = TransportOptionsBuilder()
-          .injectRequestId(true)
-          .build();
+      final transport = TransportOptionsBuilder().injectRequestId(true).build();
       final client = DefaultApiClient(transportOptions: transport);
 
       final resp1 = await client.sendRequest(
@@ -192,9 +180,7 @@ void main() {
     });
 
     test('follows redirects when enabled', () async {
-      final transport = TransportOptionsBuilder()
-          .followRedirects(true)
-          .build();
+      final transport = TransportOptionsBuilder().followRedirects(true).build();
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
         'GET',
@@ -207,9 +193,8 @@ void main() {
     });
 
     test('returns redirect response when disabled', () async {
-      final transport = TransportOptionsBuilder()
-          .followRedirects(false)
-          .build();
+      final transport =
+          TransportOptionsBuilder().followRedirects(false).build();
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
         'GET',
@@ -235,7 +220,7 @@ void main() {
       final headers = {
         'Content-Type': 'multipart/form-data; boundary=test-boundary',
       };
-      final body =
+      const body =
           '--test-boundary\r\nContent-Disposition: form-data; name="description"\r\n\r\nA test file\r\n--test-boundary--\r\n';
       final resp = await client.sendRequest(
         'POST',

@@ -10,41 +10,43 @@ package com.example.petstore.auth;
 import java.util.Collections;
 import java.util.Map;
 
-/** Authenticator for HTTP Bearer token authentication. */
+/**
+ * Authenticator for HTTP Bearer token authentication.
+ */
 public class BearerAuthenticator extends BaseAuthenticator {
 
-  private final String host;
-  private final String token;
+    private final String host;
+    private final String token;
 
-  public BearerAuthenticator(String host, String token) {
-    this.host = host;
-    this.token = token;
-  }
-
-  @Override
-  public String getHost() {
-    return host;
-  }
-
-  @Override
-  public Map<String, String> getAuthHeaders() {
-    /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
-     * Reject anything outside printable ASCII + TAB at use time so
-     * callers see a clear error rather than (a) HTTP header injection
-     * from a CR/LF (common when reading tokens from .env / files with
-     * trailing newlines), or (b) silently-mangled non-ASCII bytes that
-     * different HTTP libs encode differently per language. Validation
-     * is lazy (not in the constructor) to avoid SpotBugs
-     * CT_CONSTRUCTOR_THROW on a non-final class. */
-    if (token != null) {
-      for (int i = 0; i < token.length(); i++) {
-        char c = token.charAt(i);
-        if (c != '\t' && (c < 0x20 || c >= 0x7F)) {
-          throw new IllegalArgumentException(
-              "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)");
-        }
-      }
+    public BearerAuthenticator(String host, String token) {
+        this.host = host;
+        this.token = token;
     }
-    return Collections.singletonMap("Authorization", "Bearer " + token);
-  }
+
+    @Override
+    public String getHost() {
+        return host;
+    }
+
+    @Override
+    public Map<String, String> getAuthHeaders() {
+        /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
+         * Reject anything outside printable ASCII + TAB at use time so
+         * callers see a clear error rather than (a) HTTP header injection
+         * from a CR/LF (common when reading tokens from .env / files with
+         * trailing newlines), or (b) silently-mangled non-ASCII bytes that
+         * different HTTP libs encode differently per language. Validation
+         * is lazy (not in the constructor) to avoid SpotBugs
+         * CT_CONSTRUCTOR_THROW on a non-final class. */
+        if (token != null) {
+            for (int i = 0; i < token.length(); i++) {
+                char c = token.charAt(i);
+                if (c != '\t' && (c < 0x20 || c >= 0x7F)) {
+                    throw new IllegalArgumentException(
+                            "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)");
+                }
+            }
+        }
+        return Collections.singletonMap("Authorization", "Bearer " + token);
+    }
 }

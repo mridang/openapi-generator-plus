@@ -18,197 +18,187 @@ import Foundation
 /// callers await the same result. This avoids the thundering-herd pattern that
 /// otherwise overloads the OP and consumes refresh-token rotations.
 public final class OAuth2TokenManager: @unchecked Sendable {
-  /// Safety margin (in seconds) applied to token expiry checks so that we
-  /// refresh slightly before the token actually expires, avoiding a race
-  /// against the server clock.
-  private static let expirySafetyMargin: TimeInterval = 60
+    /// Safety margin (in seconds) applied to token expiry checks so that we
+    /// refresh slightly before the token actually expires, avoiding a race
+    /// against the server clock.
+    private static let expirySafetyMargin: TimeInterval = 60
 
-  private let lock = NSLock()
-  private var apiClient: ApiClient?
-  private var accessToken: String = ""
-  private var _refreshToken: String = ""
-  private var tokenExpiry: Date = .distantPast
-  /// In-flight refresh task, if any. While non-nil, concurrent callers await
-  /// its result instead of starting another refresh.
-  private var inflightRefresh: Task<String, Error>?
+    private let lock = NSLock()
+    private var apiClient: ApiClient?
+    private var accessToken: String = ""
+    private var _refreshToken: String = ""
+    private var tokenExpiry: Date = .distantPast
+    /// In-flight refresh task, if any. While non-nil, concurrent callers await
+    /// its result instead of starting another refresh.
+    private var inflightRefresh: Task<String, Error>?
 
-  /// Creates a new token manager.
-  ///
-  /// The ``ApiClient`` must be injected via ``setApiClient(_:)`` before any token requests
-  /// are made.
-  public init() {}
+    /// Creates a new token manager.
+    ///
+    /// The ``ApiClient`` must be injected via ``setApiClient(_:)`` before any token requests
+    /// are made.
+    public init() {}
 
-  /// Injects the shared ``ApiClient`` for making token requests.
-  public func setApiClient(_ client: ApiClient) {
-    lock.withLock {
-      self.apiClient = client
+    /// Injects the shared ``ApiClient`` for making token requests.
+    public func setApiClient(_ client: ApiClient) {
+        lock.withLock {
+            self.apiClient = client
+        }
     }
-  }
 
-  /// Returns the current refresh token, if any.
-  public var refreshToken: String {
-    lock.withLock {
-      return _refreshToken
+    /// Returns the current refresh token, if any.
+    public var refreshToken: String {
+        lock.withLock {
+            return _refreshToken
+        }
     }
-  }
 
-  /// Returns a valid access token, fetching or refreshing as necessary.
-  ///
-  /// Concurrent callers that arrive while a refresh is in flight all await the
-  /// same ``Task``, so the token endpoint is hit exactly once per refresh
-  /// regardless of caller concurrency.
-  public func getAccessToken(
-    tokenURL: String, params: [String: String], extraHeaders: [String: String] = [:]
-  ) async throws -> String {
-    /* Fast path under the lock: return the cached token if still fresh, or
+    /// Returns a valid access token, fetching or refreshing as necessary.
+    ///
+    /// Concurrent callers that arrive while a refresh is in flight all await the
+    /// same ``Task``, so the token endpoint is hit exactly once per refresh
+    /// regardless of caller concurrency.
+    public func getAccessToken(tokenURL: String, params: [String: String], extraHeaders: [String: String] = [:]) async throws -> String {
+        /* Fast path under the lock: return the cached token if still fresh, or
          * piggy-back on an already-running refresh task. */
-    lock.lock()
-    if !accessToken.isEmpty && Date() < tokenExpiry.addingTimeInterval(-Self.expirySafetyMargin) {
-      let cached = accessToken
-      lock.unlock()
-      return cached
-    }
-    if let existing = inflightRefresh {
-      lock.unlock()
-      return try await existing.value
-    }
+        lock.lock()
+        if !accessToken.isEmpty && Date() < tokenExpiry.addingTimeInterval(-Self.expirySafetyMargin) {
+            let cached = accessToken
+            lock.unlock()
+            return cached
+        }
+        if let existing = inflightRefresh {
+            lock.unlock()
+            return try await existing.value
+        }
 
-    /* No fresh token and no in-flight refresh -- start one and publish the
+        /* No fresh token and no in-flight refresh -- start one and publish the
          * Task to the instance so concurrent callers find it. */
-    let currentRefreshToken = _refreshToken
-    let task = Task<String, Error> { [self] in
-      try await performRefresh(
-        tokenURL: tokenURL,
-        params: params,
-        extraHeaders: extraHeaders,
-        currentRefreshToken: currentRefreshToken
-      )
-    }
-    inflightRefresh = task
-    lock.unlock()
+        let currentRefreshToken = _refreshToken
+        let task = Task<String, Error> { [self] in
+            try await performRefresh(
+                tokenURL: tokenURL,
+                params: params,
+                extraHeaders: extraHeaders,
+                currentRefreshToken: currentRefreshToken
+            )
+        }
+        inflightRefresh = task
+        lock.unlock()
 
-    /* performRefresh always clears inflightRefresh via defer, so we don't
+        /* performRefresh always clears inflightRefresh via defer, so we don't
          * need to clear it here -- doing so could accidentally clear a newer
          * refresh task that started after ours completed. */
-    return try await task.value
-  }
-
-  /// Performs the actual token fetch (refresh first if a refresh token is
-  /// available, falling back to the original grant on failure). Always clears
-  /// ``inflightRefresh`` before returning so the next call is unblocked.
-  private func performRefresh(
-    tokenURL: String,
-    params: [String: String],
-    extraHeaders: [String: String],
-    currentRefreshToken: String
-  ) async throws -> String {
-    defer {
-      lock.withLock { inflightRefresh = nil }
+        return try await task.value
     }
 
-    if !currentRefreshToken.isEmpty {
-      var refreshParams: [String: String] = [
-        "grant_type": "refresh_token",
-        "refresh_token": currentRefreshToken,
-      ]
-      if let clientId = params["client_id"] {
-        refreshParams["client_id"] = clientId
-      }
-      if let clientSecret = params["client_secret"] {
-        refreshParams["client_secret"] = clientSecret
-      }
-      do {
-        try await fetchToken(tokenURL: tokenURL, params: refreshParams, extraHeaders: extraHeaders)
-        let refreshed: String = lock.withLock { accessToken }
-        if !refreshed.isEmpty {
-          return refreshed
+    /// Performs the actual token fetch (refresh first if a refresh token is
+    /// available, falling back to the original grant on failure). Always clears
+    /// ``inflightRefresh`` before returning so the next call is unblocked.
+    private func performRefresh(
+        tokenURL: String,
+        params: [String: String],
+        extraHeaders: [String: String],
+        currentRefreshToken: String
+    ) async throws -> String {
+        defer {
+            lock.withLock { inflightRefresh = nil }
         }
-      } catch {
-        /* Refresh failed (e.g. refresh token revoked or expired).
+
+        if !currentRefreshToken.isEmpty {
+            var refreshParams: [String: String] = [
+                "grant_type": "refresh_token",
+                "refresh_token": currentRefreshToken,
+            ]
+            if let clientId = params["client_id"] {
+                refreshParams["client_id"] = clientId
+            }
+            if let clientSecret = params["client_secret"] {
+                refreshParams["client_secret"] = clientSecret
+            }
+            do {
+                try await fetchToken(tokenURL: tokenURL, params: refreshParams, extraHeaders: extraHeaders)
+                let refreshed: String = lock.withLock { accessToken }
+                if !refreshed.isEmpty {
+                    return refreshed
+                }
+            } catch {
+                /* Refresh failed (e.g. refresh token revoked or expired).
                  * Fall back to re-running the original grant below. */
-      }
+            }
+        }
+
+        try await fetchToken(tokenURL: tokenURL, params: params, extraHeaders: extraHeaders)
+        return lock.withLock { accessToken }
     }
 
-    try await fetchToken(tokenURL: tokenURL, params: params, extraHeaders: extraHeaders)
-    return lock.withLock { accessToken }
-  }
-
-  /// Manually sets an access token, bypassing the token endpoint.
-  public func setAccessToken(_ token: String) {
-    lock.withLock {
-      self.accessToken = token
-      self.tokenExpiry = .distantFuture
-    }
-  }
-
-  private func fetchToken(
-    tokenURL: String, params: [String: String], extraHeaders: [String: String] = [:]
-  ) async throws {
-    let client: ApiClient = try lock.withLock {
-      guard let client = apiClient else {
-        throw NSError(
-          domain: "OAuth2TokenManager", code: -1,
-          userInfo: [
-            NSLocalizedDescriptionKey: "ApiClient has not been injected. "
-              + "Ensure the Client constructor calls setApiClient "
-              + "on HttpAwareAuthenticator before making API requests"
-          ])
-      }
-      return client
+    /// Manually sets an access token, bypassing the token endpoint.
+    public func setAccessToken(_ token: String) {
+        lock.withLock {
+            self.accessToken = token
+            self.tokenExpiry = .distantFuture
+        }
     }
 
-    /* Percent-encode both key and value per RFC 6749 §B / RFC 3986
+    private func fetchToken(tokenURL: String, params: [String: String], extraHeaders: [String: String] = [:]) async throws {
+        let client: ApiClient = try lock.withLock {
+            guard let client = apiClient else {
+                throw NSError(domain: "OAuth2TokenManager", code: -1, userInfo: [
+                    NSLocalizedDescriptionKey: "ApiClient has not been injected. " +
+                        "Ensure the Client constructor calls setApiClient " +
+                        "on HttpAwareAuthenticator before making API requests"
+                ])
+            }
+            return client
+        }
+
+        /* Percent-encode both key and value per RFC 6749 §B / RFC 3986
          * (form-urlencoded body). Raw concatenation would corrupt the
          * request when client_secret, username, or password contains any
          * of `=`, `&`, `+`, `%`, or space. */
-    let unreserved = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
-    let body = params.map { entry -> String in
-      let key = entry.key.addingPercentEncoding(withAllowedCharacters: unreserved) ?? entry.key
-      let value =
-        entry.value.addingPercentEncoding(withAllowedCharacters: unreserved) ?? entry.value
-      return "\(key)=\(value)"
-    }.joined(separator: "&")
-    let bodyData = body.data(using: .utf8)
+        let unreserved = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+        let body = params.map { entry -> String in
+            let key = entry.key.addingPercentEncoding(withAllowedCharacters: unreserved) ?? entry.key
+            let value = entry.value.addingPercentEncoding(withAllowedCharacters: unreserved) ?? entry.value
+            return "\(key)=\(value)"
+        }.joined(separator: "&")
+        let bodyData = body.data(using: .utf8)
 
-    var headers = ["Content-Type": "application/x-www-form-urlencoded"]
-    for (key, value) in extraHeaders {
-      headers[key] = value
-    }
-    let response = try await client.sendRequest(
-      method: "POST", url: tokenURL, headers: headers, body: bodyData)
-
-    guard response.statusCode >= 200 && response.statusCode < 300 else {
-      throw NSError(
-        domain: "OAuth2TokenManager", code: response.statusCode,
-        userInfo: [
-          NSLocalizedDescriptionKey: "Token request failed with status \(response.statusCode)"
-        ])
-    }
-
-    guard let data = response.body.data(using: .utf8) else {
-      throw URLError(.badServerResponse)
-    }
-
-    struct TokenResponse: Decodable {
-      let access_token: String
-      let refresh_token: String?
-      let expires_in: Int?
-    }
-
-    let parsed = try JSONDecoder().decode(TokenResponse.self, from: data)
-
-    lock.withLock {
-      self.accessToken = parsed.access_token
-      if let refreshToken = parsed.refresh_token, !refreshToken.isEmpty {
-        self._refreshToken = refreshToken
-      }
-      if let expiresIn = parsed.expires_in {
-        if expiresIn > 30 {
-          self.tokenExpiry = Date().addingTimeInterval(TimeInterval(expiresIn - 30))
-        } else {
-          self.tokenExpiry = Date()
+        var headers = ["Content-Type": "application/x-www-form-urlencoded"]
+        for (key, value) in extraHeaders {
+            headers[key] = value
         }
-      }
+        let response = try await client.sendRequest(method: "POST", url: tokenURL, headers: headers, body: bodyData)
+
+        guard response.statusCode >= 200 && response.statusCode < 300 else {
+            throw NSError(domain: "OAuth2TokenManager", code: response.statusCode, userInfo: [
+                NSLocalizedDescriptionKey: "Token request failed with status \(response.statusCode)"
+            ])
+        }
+
+        guard let data = response.body.data(using: .utf8) else {
+            throw URLError(.badServerResponse)
+        }
+
+        struct TokenResponse: Decodable {
+            let access_token: String
+            let refresh_token: String?
+            let expires_in: Int?
+        }
+
+        let parsed = try JSONDecoder().decode(TokenResponse.self, from: data)
+
+        lock.withLock {
+            self.accessToken = parsed.access_token
+            if let refreshToken = parsed.refresh_token, !refreshToken.isEmpty {
+                self._refreshToken = refreshToken
+            }
+            if let expiresIn = parsed.expires_in {
+                if expiresIn > 30 {
+                    self.tokenExpiry = Date().addingTimeInterval(TimeInterval(expiresIn - 30))
+                } else {
+                    self.tokenExpiry = Date()
+                }
+            }
+        }
     }
-  }
 }

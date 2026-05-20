@@ -12,8 +12,9 @@ package com.example.petstore.auth
  */
 open class BearerAuthenticator(
     private val host: String,
-    private val token: String,
+    private val token: String
 ) : BaseAuthenticator() {
+
     init {
         // RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
         // Reject anything outside printable ASCII + TAB so callers see a
@@ -23,12 +24,13 @@ open class BearerAuthenticator(
         // different HTTP libs encode differently per language.
         if (token.any { c -> c != '\t' && (c.code < 0x20 || c.code >= 0x7F) }) {
             throw IllegalArgumentException(
-                "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+                "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
             )
         }
     }
 
     override fun getHost(): String = host
 
-    override suspend fun getAuthHeaders(): Map<String, String> = mapOf("Authorization" to "Bearer $token")
+    override suspend fun getAuthHeaders(): Map<String, String> =
+        mapOf("Authorization" to "Bearer $token")
 }

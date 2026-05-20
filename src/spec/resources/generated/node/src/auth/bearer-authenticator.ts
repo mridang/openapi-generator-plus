@@ -21,7 +21,9 @@ export class BearerAuthenticator extends BaseAuthenticator {
      * clear error rather than HTTP header injection from CR/LF or
      * silently-mangled non-ASCII bytes. */
     if (/[^\t\x20-\x7E]/.test(token)) {
-      throw new Error('Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)');
+      throw new Error(
+        'Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)'
+      );
     }
     this.host = host;
     this.token = token;

@@ -11,9 +11,12 @@
 package com.example.petstore.models
 
 import com.example.petstore.Base64ByteArraySerializer
+import kotlinx.serialization.Contextual
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
+import kotlinx.serialization.json.JsonClassDiscriminator
 
 /**
  * Tags are deprecated, use categories instead
@@ -23,10 +26,11 @@ import kotlinx.serialization.UseSerializers
 @Deprecated("This schema is deprecated.")
 @Serializable
 data class Tag(
-    /** Example: `null` */
-    @SerialName("id")
-    val id: Long? = null,
-    /** Example: `null` */
-    @SerialName("name")
-    val name: String? = null,
-)
+  /** Example: `null` */
+  @SerialName("id")
+  val id: Long? = null,
+  /** Example: `null` */
+  @SerialName("name")
+  val name: String? = null
+) {
+}

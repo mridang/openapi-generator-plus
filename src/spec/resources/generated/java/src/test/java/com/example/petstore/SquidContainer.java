@@ -7,22 +7,24 @@
 
 package com.example.petstore;
 
-import java.nio.file.Path;
-import java.time.Duration;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.utility.MountableFile;
 
-/** Singleton Squid proxy container shared across all test classes. */
+import java.nio.file.Path;
+import java.time.Duration;
+
+/**
+ * Singleton Squid proxy container shared across all test classes.
+ */
 public final class SquidContainer {
 
-  private static final GenericContainer<?> INSTANCE;
+    private static final GenericContainer<?> INSTANCE;
 
-  static {
-    // Force WireMockContainer class initialization so the shared network is created first.
-    String ignored = WireMockContainer.getHttpUrl();
+    static {
+        // Force WireMockContainer class initialization so the shared network is created first.
+        String ignored = WireMockContainer.getHttpUrl();
 
-    INSTANCE =
-        new GenericContainer<>("ubuntu/squid:5.2-22.04_beta")
+        INSTANCE = new GenericContainer<>("ubuntu/squid:5.2-22.04_beta")
             .withExposedPorts(3128)
             .withCopyFileToContainer(
                 MountableFile.forHostPath(Path.of("/app/src/test/resources/proxy/squid.conf")),
@@ -30,25 +32,22 @@ public final class SquidContainer {
             .withNetwork(WireMockContainer.PROXY_NETWORK)
             .withStartupTimeout(Duration.ofMinutes(2))
             .withLabel("com.mridang.openapi.testcontainer", "true");
-    INSTANCE.start();
-    Runtime.getRuntime()
-        .addShutdownHook(
-            new Thread(
-                () -> {
-                  if (INSTANCE != null && INSTANCE.isRunning()) {
-                    INSTANCE.stop();
-                  }
-                }));
-    try {
-      Thread.sleep(3000);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
+        INSTANCE.start();
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            if (INSTANCE != null && INSTANCE.isRunning()) {
+                INSTANCE.stop();
+            }
+        }));
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
-  }
 
-  private SquidContainer() {}
+    private SquidContainer() {}
 
-  public static String getProxyUrl() {
-    return "http://" + INSTANCE.getHost() + ":" + INSTANCE.getMappedPort(3128);
-  }
+    public static String getProxyUrl() {
+        return "http://" + INSTANCE.getHost() + ":" + INSTANCE.getMappedPort(3128);
+    }
 }

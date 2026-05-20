@@ -10,7 +10,9 @@ import 'dart:math';
 /// HeaderSelector selects Accept and Content-Type headers for API requests
 /// based on the MIME types declared in the OpenAPI specification.
 class HeaderSelector {
-  static final _jsonMIMEPattern = RegExp(r'^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)', caseSensitive: false);
+  static final _jsonMIMEPattern = RegExp(
+      r'^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)',
+      caseSensitive: false);
   static final _weightPattern = RegExp(r'(.*)\s*;\s*q=(1(?:\.0+)?|0\.\d+)$');
 
   /// Selects the Accept and Content-Type headers for an API request.
@@ -34,7 +36,8 @@ class HeaderSelector {
     }
 
     if (!isMultipart) {
-      headers['Content-Type'] = contentType.isEmpty ? 'application/json' : contentType;
+      headers['Content-Type'] =
+          contentType.isEmpty ? 'application/json' : contentType;
     }
 
     return headers;
@@ -89,7 +92,8 @@ class HeaderSelector {
 
     for (final group in [withApplicationJSON, withJSON, withoutJSON]) {
       if (group.isNotEmpty) {
-        final adjusted = _adjustWeight(group, currentWeight, hasMoreThan28Headers);
+        final adjusted =
+            _adjustWeight(group, currentWeight, hasMoreThan28Headers);
         acceptHeaders.addAll(adjusted);
       }
     }
@@ -116,9 +120,11 @@ class HeaderSelector {
     final acceptHeaders = <String>[];
     for (var i = 0; i < headers.length; i++) {
       if (i > 0 && headers[i - 1].weight > headers[i].weight) {
-        currentWeight[0] = getNextWeight(currentWeight[0], hasMoreThan28Headers);
+        currentWeight[0] =
+            getNextWeight(currentWeight[0], hasMoreThan28Headers);
       }
-      acceptHeaders.add(_buildAcceptHeader(headers[i].header, currentWeight[0]));
+      acceptHeaders
+          .add(_buildAcceptHeader(headers[i].header, currentWeight[0]));
     }
 
     currentWeight[0] = getNextWeight(currentWeight[0], hasMoreThan28Headers);

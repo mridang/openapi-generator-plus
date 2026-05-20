@@ -53,7 +53,8 @@ class OAuth2TokenManager {
   ]) async {
     if (_accessToken.isNotEmpty &&
         (_tokenExpiry == null ||
-            DateTime.now().isBefore(_tokenExpiry!.subtract(_expirySafetyMargin)))) {
+            DateTime.now()
+                .isBefore(_tokenExpiry!.subtract(_expirySafetyMargin)))) {
       return _accessToken;
     }
 

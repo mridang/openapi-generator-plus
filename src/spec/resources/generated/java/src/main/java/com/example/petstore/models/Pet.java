@@ -7,14 +7,19 @@
 
 package com.example.petstore.models;
 
+import com.example.petstore.models.Category;
+import com.example.petstore.models.Tag;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nullable;
 
 /**
@@ -60,6 +65,7 @@ public class Pet {
 
   /** Example: {@code doggie} */
   @JsonProperty("name")
+  
   public String name;
 
   /** Example: {@code null} */
@@ -69,6 +75,7 @@ public class Pet {
 
   /** Example: {@code null} */
   @JsonProperty("photoUrls")
+  
   public Set<String> photoUrls = new LinkedHashSet<>();
 
   /** Example: {@code null} */
@@ -92,9 +99,7 @@ public class Pet {
   public Pet() {}
 
   @com.fasterxml.jackson.annotation.JsonCreator
-  public Pet(
-      @JsonProperty(value = "name", required = true) String name,
-      @JsonProperty(value = "photoUrls", required = true) Set<String> photoUrls) {
+  public Pet(@JsonProperty(value = "name", required = true) String name, @JsonProperty(value = "photoUrls", required = true) Set<String> photoUrls) {
     this.name = java.util.Objects.requireNonNull(name, "name is required");
     this.photoUrls = java.util.Objects.requireNonNull(photoUrls, "photoUrls is required");
   }

@@ -11,261 +11,264 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.Locale;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
-/** HeaderSelector */
+/**
+ * HeaderSelector
+ */
 public final class HeaderSelector {
 
-  private static final Pattern JSON_MIME_PATTERN =
-      Pattern.compile(
-          "^application/(json|[\\w!#$&.+\\-^_]+\\+json)\\s*(;|$)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern JSON_MIME_PATTERN =
+            Pattern.compile(
+                    "^application/(json|[\\w!#$&.+\\-^_]+\\+json)\\s*(;|$)",
+                    Pattern.CASE_INSENSITIVE);
 
-  private static final Pattern WEIGHT_PATTERN =
-      Pattern.compile("(.*)\\s*;\\s*q=(1(?:\\.0+)?|0\\.\\d+)$");
+    private static final Pattern WEIGHT_PATTERN =
+            Pattern.compile("(.*)\\s*;\\s*q=(1(?:\\.0+)?|0\\.\\d+)$");
 
-  /**
-   * Select headers for an API request.
-   *
-   * @param accept array of acceptable MIME types for the response
-   * @param contentType the Content-Type for the request body
-   * @param isMultipart whether this is a multipart request
-   * @return map of header names to values
-   */
-  public Map<String, String> selectHeaders(
-      @Nullable String[] accept, @Nullable String contentType, boolean isMultipart) {
-    Map<String, String> headers = new HashMap<>();
+    /**
+     * Select headers for an API request.
+     *
+     * @param accept       array of acceptable MIME types for the response
+     * @param contentType  the Content-Type for the request body
+     * @param isMultipart  whether this is a multipart request
+     * @return map of header names to values
+     */
+    public Map<String, String> selectHeaders(
+            @Nullable String[] accept, @Nullable String contentType, boolean isMultipart) {
+        Map<String, String> headers = new HashMap<>();
 
-    String acceptHeader = selectAcceptHeader(accept);
-    if (acceptHeader != null) {
-      headers.put("Accept", acceptHeader);
+        String acceptHeader = selectAcceptHeader(accept);
+        if (acceptHeader != null) {
+            headers.put("Accept", acceptHeader);
+        }
+
+        if (!isMultipart) {
+            if (contentType == null || contentType.isEmpty()) {
+                contentType = "application/json";
+            }
+            headers.put("Content-Type", contentType);
+        }
+
+        return headers;
     }
 
-    if (!isMultipart) {
-      if (contentType == null || contentType.isEmpty()) {
-        contentType = "application/json";
-      }
-      headers.put("Content-Type", contentType);
+    /**
+     * Return the header 'Accept' based on an array of Accept provided.
+     *
+     * @param accept Array of header
+     * @return Accept (e.g. application/json)
+     */
+    @Nullable
+    private String selectAcceptHeader(@Nullable String[] accept) {
+        if (accept == null) {
+            return null;
+        }
+
+        List<String> filteredAccept =
+                Arrays.stream(accept)
+                        .filter(s -> s != null && !s.isEmpty())
+                        .collect(Collectors.toList());
+
+        if (filteredAccept.isEmpty()) {
+            return null;
+        }
+
+        if (filteredAccept.size() == 1) {
+            return filteredAccept.get(0);
+        }
+
+        List<String> headersWithJson = selectJsonMimeList(filteredAccept);
+        if (headersWithJson.isEmpty()) {
+            return String.join(",", filteredAccept);
+        }
+
+        return getAcceptHeaderWithAdjustedWeight(filteredAccept, headersWithJson);
     }
 
-    return headers;
-  }
-
-  /**
-   * Return the header 'Accept' based on an array of Accept provided.
-   *
-   * @param accept Array of header
-   * @return Accept (e.g. application/json)
-   */
-  @Nullable
-  private String selectAcceptHeader(@Nullable String[] accept) {
-    if (accept == null) {
-      return null;
+    /**
+     * Detects whether a string contains a valid JSON mime type.
+     *
+     * @param searchString the MIME type string to check
+     * @return true if the string represents a JSON MIME type
+     */
+    public boolean isJsonMime(@Nullable String searchString) {
+        if (searchString == null) {
+            return false;
+        }
+        return JSON_MIME_PATTERN.matcher(searchString).find();
     }
 
-    List<String> filteredAccept =
-        Arrays.stream(accept).filter(s -> s != null && !s.isEmpty()).collect(Collectors.toList());
-
-    if (filteredAccept.isEmpty()) {
-      return null;
+    /**
+     * Select all items from a list containing a JSON mime type.
+     *
+     * @param mimeList list of MIME types to filter
+     * @return list containing only JSON MIME types
+     */
+    private List<String> selectJsonMimeList(List<String> mimeList) {
+        return mimeList.stream().filter(this::isJsonMime).collect(Collectors.toList());
     }
 
-    if (filteredAccept.size() == 1) {
-      return filteredAccept.get(0);
+    /**
+     * Create an Accept header string from the given "Accept" headers array, recalculating all weights.
+     *
+     * @param accept          Array of Accept Headers
+     * @param headersWithJson Array of Accept Headers of type "json"
+     * @return "Accept" Header (e.g. "application/json, text/html; q=0.9")
+     */
+    private String getAcceptHeaderWithAdjustedWeight(
+            List<String> accept, List<String> headersWithJson) {
+        List<HeaderData> withApplicationJson = new ArrayList<>();
+        List<HeaderData> withJson = new ArrayList<>();
+        List<HeaderData> withoutJson = new ArrayList<>();
+
+        for (String header : accept) {
+            HeaderData headerData = getHeaderAndWeight(header);
+
+            if (headerData.header.toLowerCase(Locale.ROOT).startsWith("application/json")) {
+                withApplicationJson.add(headerData);
+            } else if (headersWithJson.contains(header)) {
+                withJson.add(headerData);
+            } else {
+                withoutJson.add(headerData);
+            }
+        }
+
+        List<String> acceptHeaders = new ArrayList<>();
+        int[] currentWeight = {1000};
+
+        boolean hasMoreThan28Headers = accept.size() > 28;
+
+        if (!withApplicationJson.isEmpty()) {
+            acceptHeaders.addAll(
+                    adjustWeight(withApplicationJson, currentWeight, hasMoreThan28Headers));
+        }
+        if (!withJson.isEmpty()) {
+            acceptHeaders.addAll(adjustWeight(withJson, currentWeight, hasMoreThan28Headers));
+        }
+        if (!withoutJson.isEmpty()) {
+            acceptHeaders.addAll(adjustWeight(withoutJson, currentWeight, hasMoreThan28Headers));
+        }
+
+        return String.join(",", acceptHeaders);
     }
 
-    List<String> headersWithJson = selectJsonMimeList(filteredAccept);
-    if (headersWithJson.isEmpty()) {
-      return String.join(",", filteredAccept);
+    /**
+     * Given an Accept header, returns the header and its weight.
+     *
+     * @param header "Accept" Header
+     * @return HeaderData with the header and its weight
+     */
+    private HeaderData getHeaderAndWeight(String header) {
+        Matcher matcher = WEIGHT_PATTERN.matcher(header);
+        if (matcher.matches()) {
+            String headerValue = matcher.group(1);
+            double weight = Double.parseDouble(matcher.group(2));
+            return new HeaderData(headerValue, (int) (weight * 1000));
+        } else {
+            return new HeaderData(header.trim(), 1000);
+        }
     }
 
-    return getAcceptHeaderWithAdjustedWeight(filteredAccept, headersWithJson);
-  }
+    /**
+     * Adjust weights for a group of headers.
+     *
+     * @param headers             list of headers to process
+     * @param currentWeight       array containing current weight (modified in place)
+     * @param hasMoreThan28Headers whether there are more than 28 total headers
+     * @return array of adjusted "Accept" headers
+     */
+    private List<String> adjustWeight(
+            List<HeaderData> headers, int[] currentWeight, boolean hasMoreThan28Headers) {
+        headers.sort((a, b) -> b.weight - a.weight);
 
-  /**
-   * Detects whether a string contains a valid JSON mime type.
-   *
-   * @param searchString the MIME type string to check
-   * @return true if the string represents a JSON MIME type
-   */
-  public boolean isJsonMime(@Nullable String searchString) {
-    if (searchString == null) {
-      return false;
-    }
-    return JSON_MIME_PATTERN.matcher(searchString).find();
-  }
+        List<String> acceptHeaders = new ArrayList<>();
+        for (int index = 0; index < headers.size(); index++) {
+            HeaderData header = headers.get(index);
 
-  /**
-   * Select all items from a list containing a JSON mime type.
-   *
-   * @param mimeList list of MIME types to filter
-   * @return list containing only JSON MIME types
-   */
-  private List<String> selectJsonMimeList(List<String> mimeList) {
-    return mimeList.stream().filter(this::isJsonMime).collect(Collectors.toList());
-  }
+            if (index > 0 && headers.get(index - 1).weight > header.weight) {
+                currentWeight[0] = getNextWeight(currentWeight[0], hasMoreThan28Headers);
+            }
 
-  /**
-   * Create an Accept header string from the given "Accept" headers array, recalculating all
-   * weights.
-   *
-   * @param accept Array of Accept Headers
-   * @param headersWithJson Array of Accept Headers of type "json"
-   * @return "Accept" Header (e.g. "application/json, text/html; q=0.9")
-   */
-  private String getAcceptHeaderWithAdjustedWeight(
-      List<String> accept, List<String> headersWithJson) {
-    List<HeaderData> withApplicationJson = new ArrayList<>();
-    List<HeaderData> withJson = new ArrayList<>();
-    List<HeaderData> withoutJson = new ArrayList<>();
+            int weight = currentWeight[0];
+            acceptHeaders.add(buildAcceptHeader(header.header, weight));
+        }
 
-    for (String header : accept) {
-      HeaderData headerData = getHeaderAndWeight(header);
-
-      if (headerData.header.toLowerCase(Locale.ROOT).startsWith("application/json")) {
-        withApplicationJson.add(headerData);
-      } else if (headersWithJson.contains(header)) {
-        withJson.add(headerData);
-      } else {
-        withoutJson.add(headerData);
-      }
-    }
-
-    List<String> acceptHeaders = new ArrayList<>();
-    int[] currentWeight = {1000};
-
-    boolean hasMoreThan28Headers = accept.size() > 28;
-
-    if (!withApplicationJson.isEmpty()) {
-      acceptHeaders.addAll(adjustWeight(withApplicationJson, currentWeight, hasMoreThan28Headers));
-    }
-    if (!withJson.isEmpty()) {
-      acceptHeaders.addAll(adjustWeight(withJson, currentWeight, hasMoreThan28Headers));
-    }
-    if (!withoutJson.isEmpty()) {
-      acceptHeaders.addAll(adjustWeight(withoutJson, currentWeight, hasMoreThan28Headers));
-    }
-
-    return String.join(",", acceptHeaders);
-  }
-
-  /**
-   * Given an Accept header, returns the header and its weight.
-   *
-   * @param header "Accept" Header
-   * @return HeaderData with the header and its weight
-   */
-  private HeaderData getHeaderAndWeight(String header) {
-    Matcher matcher = WEIGHT_PATTERN.matcher(header);
-    if (matcher.matches()) {
-      String headerValue = matcher.group(1);
-      double weight = Double.parseDouble(matcher.group(2));
-      return new HeaderData(headerValue, (int) (weight * 1000));
-    } else {
-      return new HeaderData(header.trim(), 1000);
-    }
-  }
-
-  /**
-   * Adjust weights for a group of headers.
-   *
-   * @param headers list of headers to process
-   * @param currentWeight array containing current weight (modified in place)
-   * @param hasMoreThan28Headers whether there are more than 28 total headers
-   * @return array of adjusted "Accept" headers
-   */
-  private List<String> adjustWeight(
-      List<HeaderData> headers, int[] currentWeight, boolean hasMoreThan28Headers) {
-    headers.sort((a, b) -> b.weight - a.weight);
-
-    List<String> acceptHeaders = new ArrayList<>();
-    for (int index = 0; index < headers.size(); index++) {
-      HeaderData header = headers.get(index);
-
-      if (index > 0 && headers.get(index - 1).weight > header.weight) {
         currentWeight[0] = getNextWeight(currentWeight[0], hasMoreThan28Headers);
-      }
 
-      int weight = currentWeight[0];
-      acceptHeaders.add(buildAcceptHeader(header.header, weight));
+        return acceptHeaders;
     }
 
-    currentWeight[0] = getNextWeight(currentWeight[0], hasMoreThan28Headers);
+    /**
+     * Build a single Accept header string with optional quality weight.
+     *
+     * @param header the MIME type
+     * @param weight the quality weight (scaled by 1000)
+     * @return formatted header string
+     */
+    private String buildAcceptHeader(String header, int weight) {
+        if (weight == 1000) {
+            return header;
+        }
 
-    return acceptHeaders;
-  }
+        String cleanHeader = header.replaceAll("[;\\s]+$", "");
+        String weightStr = String.format("%.3f", weight / 1000.0).replaceAll("0+$", "");
+        if (weightStr.endsWith(".")) {
+            weightStr = weightStr.substring(0, weightStr.length() - 1);
+        }
 
-  /**
-   * Build a single Accept header string with optional quality weight.
-   *
-   * @param header the MIME type
-   * @param weight the quality weight (scaled by 1000)
-   * @return formatted header string
-   */
-  private String buildAcceptHeader(String header, int weight) {
-    if (weight == 1000) {
-      return header;
+        return cleanHeader + ";q=" + weightStr;
     }
 
-    String cleanHeader = header.replaceAll("[;\\s]+$", "");
-    String weightStr = String.format("%.3f", weight / 1000.0).replaceAll("0+$", "");
-    if (weightStr.endsWith(".")) {
-      weightStr = weightStr.substring(0, weightStr.length() - 1);
+    /**
+     * Calculate the next weight, based on the current one.
+     *
+     * If there are less than 28 "Accept" headers, the weights will be decreased by 1 on its highest significant digit, using the
+     * following formula:
+     *
+     *    next weight = current weight - 10 ^ (floor(log(current weight - 1)))
+     *
+     *    ( current weight minus ( 10 raised to the power of ( floor of (log to the base 10 of ( current weight minus 1 ) ) ) ) )
+     *
+     * Starting from 1000, this generates the following series:
+     *
+     * 1000, 900, 800, 700, 600, 500, 400, 300, 200, 100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
+     *
+     * The resulting quality codes are closer to the average "normal" usage of them (like "q=0.9", "q=0.8" and so on), but it only works
+     * if there is a maximum of 28 "Accept" headers. If we have more than that (which is extremely unlikely), then we fall back to a 1-by-1
+     * decrement rule, which will result in quality codes like "q=0.999", "q=0.998" etc.
+     *
+     * @param currentWeight varying from 1 to 1000 (will be divided by 1000 to build the quality value)
+     * @param hasMoreThan28Headers whether there are more than 28 headers
+     * @return the next weight
+     */
+    public int getNextWeight(int currentWeight, boolean hasMoreThan28Headers) {
+        if (currentWeight <= 1) {
+            return 1;
+        }
+
+        if (hasMoreThan28Headers) {
+            return currentWeight - 1;
+        }
+
+        return currentWeight - (int) Math.pow(10, Math.floor(Math.log10(currentWeight - 1)));
     }
 
-    return cleanHeader + ";q=" + weightStr;
-  }
+    /**
+     * Internal class to hold header data with its weight.
+     */
+    private static class HeaderData {
+        final String header;
+        final int weight;
 
-  /**
-   * Calculate the next weight, based on the current one.
-   *
-   * <p>If there are less than 28 "Accept" headers, the weights will be decreased by 1 on its
-   * highest significant digit, using the following formula:
-   *
-   * <p>next weight = current weight - 10 ^ (floor(log(current weight - 1)))
-   *
-   * <p>( current weight minus ( 10 raised to the power of ( floor of (log to the base 10 of (
-   * current weight minus 1 ) ) ) ) )
-   *
-   * <p>Starting from 1000, this generates the following series:
-   *
-   * <p>1000, 900, 800, 700, 600, 500, 400, 300, 200, 100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 9, 8,
-   * 7, 6, 5, 4, 3, 2, 1
-   *
-   * <p>The resulting quality codes are closer to the average "normal" usage of them (like "q=0.9",
-   * "q=0.8" and so on), but it only works if there is a maximum of 28 "Accept" headers. If we have
-   * more than that (which is extremely unlikely), then we fall back to a 1-by-1 decrement rule,
-   * which will result in quality codes like "q=0.999", "q=0.998" etc.
-   *
-   * @param currentWeight varying from 1 to 1000 (will be divided by 1000 to build the quality
-   *     value)
-   * @param hasMoreThan28Headers whether there are more than 28 headers
-   * @return the next weight
-   */
-  public int getNextWeight(int currentWeight, boolean hasMoreThan28Headers) {
-    if (currentWeight <= 1) {
-      return 1;
+        HeaderData(String header, int weight) {
+            this.header = header;
+            this.weight = weight;
+        }
     }
-
-    if (hasMoreThan28Headers) {
-      return currentWeight - 1;
-    }
-
-    return currentWeight - (int) Math.pow(10, Math.floor(Math.log10(currentWeight - 1)));
-  }
-
-  /** Internal class to hold header data with its weight. */
-  private static class HeaderData {
-    final String header;
-    final int weight;
-
-    HeaderData(String header, int weight) {
-      this.header = header;
-      this.weight = weight;
-    }
-  }
 }

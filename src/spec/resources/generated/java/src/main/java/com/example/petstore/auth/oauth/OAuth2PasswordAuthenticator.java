@@ -19,167 +19,129 @@ import javax.annotation.Nullable;
 /**
  * Authenticator for the OAuth2 Resource Owner Password flow.
  *
- * <p>Implements {@link HttpAwareAuthenticator} so that token exchange requests use the shared
- * {@link ApiClient} with the same transport configuration (proxy, TLS, timeouts) as regular API
- * calls.
+ * <p>Implements {@link HttpAwareAuthenticator} so that token exchange requests
+ * use the shared {@link ApiClient} with the same transport configuration
+ * (proxy, TLS, timeouts) as regular API calls.
  */
 public class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
 
-  private final String host;
-  private final String clientId;
-  private final String clientSecret;
-  private final String refreshUrl;
-  private final String username;
-  private final String password;
-  private final List<String> scopes;
-  private final ClientAuthMethod clientAuthMethod;
-  private final OAuth2TokenManager tokenManager;
+    private final String             host;
+    private final String             clientId;
+    private final String             clientSecret;
+    private final String             refreshUrl;
+    private final String             username;
+    private final String             password;
+    private final List<String>       scopes;
+    private final ClientAuthMethod   clientAuthMethod;
+    private final OAuth2TokenManager tokenManager;
 
-  /**
-   * Create a new password authenticator.
-   *
-   * @param host API base URL
-   * @param clientId OAuth2 client ID
-   * @param clientSecret OAuth2 client secret
-   * @param tokenUrl token endpoint URL
-   * @param username resource owner username
-   * @param password resource owner password
-   * @param scopes requested scopes
-   */
-  public OAuth2PasswordAuthenticator(
-      String host,
-      String clientId,
-      String clientSecret,
-      String tokenUrl,
-      String username,
-      String password,
-      List<String> scopes) {
-    this(
-        host,
-        clientId,
-        clientSecret,
-        tokenUrl,
-        null,
-        username,
-        password,
-        scopes,
-        ClientAuthMethod.BODY);
-  }
-
-  /**
-   * Create a new password authenticator with a refresh URL.
-   *
-   * @param host API base URL
-   * @param clientId OAuth2 client ID
-   * @param clientSecret OAuth2 client secret
-   * @param tokenUrl token endpoint URL
-   * @param refreshUrl refresh token endpoint URL (falls back to tokenUrl if null)
-   * @param username resource owner username
-   * @param password resource owner password
-   * @param scopes requested scopes
-   */
-  public OAuth2PasswordAuthenticator(
-      String host,
-      String clientId,
-      String clientSecret,
-      String tokenUrl,
-      @Nullable String refreshUrl,
-      String username,
-      String password,
-      List<String> scopes) {
-    this(
-        host,
-        clientId,
-        clientSecret,
-        tokenUrl,
-        refreshUrl,
-        username,
-        password,
-        scopes,
-        ClientAuthMethod.BODY);
-  }
-
-  /**
-   * Create a new password authenticator with a refresh URL and explicit client authentication
-   * method.
-   *
-   * @param host API base URL
-   * @param clientId OAuth2 client ID
-   * @param clientSecret OAuth2 client secret
-   * @param tokenUrl token endpoint URL
-   * @param refreshUrl refresh token endpoint URL (falls back to tokenUrl if null)
-   * @param username resource owner username
-   * @param password resource owner password
-   * @param scopes requested scopes
-   * @param clientAuthMethod how to transmit the client credentials
-   */
-  public OAuth2PasswordAuthenticator(
-      String host,
-      String clientId,
-      String clientSecret,
-      String tokenUrl,
-      @Nullable String refreshUrl,
-      String username,
-      String password,
-      List<String> scopes,
-      ClientAuthMethod clientAuthMethod) {
-    this.host = host;
-    this.clientId = clientId;
-    this.clientSecret = clientSecret;
-    this.refreshUrl = refreshUrl != null ? refreshUrl : tokenUrl;
-    this.username = username;
-    this.password = password;
-    this.scopes = List.copyOf(scopes);
-    this.clientAuthMethod = clientAuthMethod;
-    this.tokenManager = new OAuth2TokenManager();
-  }
-
-  @Override
-  public void setApiClient(ApiClient apiClient) {
-    tokenManager.setApiClient(apiClient);
-  }
-
-  @Override
-  public String getHost() {
-    return host;
-  }
-
-  @Override
-  public Map<String, String> getAuthHeaders() {
-    Map<String, String> params = new HashMap<>();
-    String currentRefreshToken = tokenManager.getRefreshToken();
-    if (currentRefreshToken != null) {
-      params.put("grant_type", "refresh_token");
-      params.put("refresh_token", currentRefreshToken);
-    } else {
-      params.put("grant_type", "password");
-      params.put("username", username);
-      params.put("password", password);
-      if (!scopes.isEmpty()) {
-        params.put("scope", String.join(" ", scopes));
-      }
+    /**
+     * Create a new password authenticator.
+     *
+     * @param host         API base URL
+     * @param clientId     OAuth2 client ID
+     * @param clientSecret OAuth2 client secret
+     * @param tokenUrl     token endpoint URL
+     * @param username     resource owner username
+     * @param password     resource owner password
+     * @param scopes       requested scopes
+     */
+    public OAuth2PasswordAuthenticator(String host, String clientId,
+            String clientSecret, String tokenUrl, String username,
+            String password, List<String> scopes) {
+        this(host, clientId, clientSecret, tokenUrl, null, username, password, scopes,
+                ClientAuthMethod.BODY);
     }
-    Map<String, String> extraHeaders = new HashMap<>();
-    if (clientAuthMethod == ClientAuthMethod.BASIC) {
-      /* RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
-       * separately before joining with ':' and base64-encoding. Without
-       * this, a credential containing ':' or any reserved char would
-       * corrupt the Basic header and fail against strict OPs. */
-      String encodedId =
-          java.net.URLEncoder.encode(clientId, java.nio.charset.StandardCharsets.UTF_8);
-      String encodedSecret =
-          java.net.URLEncoder.encode(clientSecret, java.nio.charset.StandardCharsets.UTF_8);
-      String credentials =
-          Base64.getEncoder()
-              .encodeToString(
-                  (encodedId + ":" + encodedSecret)
-                      .getBytes(java.nio.charset.StandardCharsets.UTF_8));
-      extraHeaders.put("Authorization", "Basic " + credentials);
-    } else {
-      params.put("client_id", clientId);
-      params.put("client_secret", clientSecret);
+
+    /**
+     * Create a new password authenticator with a refresh URL.
+     *
+     * @param host         API base URL
+     * @param clientId     OAuth2 client ID
+     * @param clientSecret OAuth2 client secret
+     * @param tokenUrl     token endpoint URL
+     * @param refreshUrl   refresh token endpoint URL (falls back to tokenUrl if null)
+     * @param username     resource owner username
+     * @param password     resource owner password
+     * @param scopes       requested scopes
+     */
+    public OAuth2PasswordAuthenticator(String host, String clientId,
+            String clientSecret, String tokenUrl, @Nullable String refreshUrl,
+            String username, String password, List<String> scopes) {
+        this(host, clientId, clientSecret, tokenUrl, refreshUrl, username, password, scopes,
+                ClientAuthMethod.BODY);
     }
-    String token = tokenManager.getAccessToken(refreshUrl, params, extraHeaders);
-    return Collections.singletonMap("Authorization", "Bearer " + token);
-  }
+
+    /**
+     * Create a new password authenticator with a refresh URL and explicit
+     * client authentication method.
+     *
+     * @param host             API base URL
+     * @param clientId         OAuth2 client ID
+     * @param clientSecret     OAuth2 client secret
+     * @param tokenUrl         token endpoint URL
+     * @param refreshUrl       refresh token endpoint URL (falls back to tokenUrl if null)
+     * @param username         resource owner username
+     * @param password         resource owner password
+     * @param scopes           requested scopes
+     * @param clientAuthMethod how to transmit the client credentials
+     */
+    public OAuth2PasswordAuthenticator(String host, String clientId,
+            String clientSecret, String tokenUrl, @Nullable String refreshUrl,
+            String username, String password, List<String> scopes,
+            ClientAuthMethod clientAuthMethod) {
+        this.host             = host;
+        this.clientId         = clientId;
+        this.clientSecret     = clientSecret;
+        this.refreshUrl       = refreshUrl != null ? refreshUrl : tokenUrl;
+        this.username         = username;
+        this.password         = password;
+        this.scopes           = List.copyOf(scopes);
+        this.clientAuthMethod = clientAuthMethod;
+        this.tokenManager     = new OAuth2TokenManager();
+    }
+
+    @Override
+    public void setApiClient(ApiClient apiClient) {
+        tokenManager.setApiClient(apiClient);
+    }
+
+    @Override
+    public String getHost() {
+        return host;
+    }
+
+    @Override
+    public Map<String, String> getAuthHeaders() {
+        Map<String, String> params = new HashMap<>();
+        String currentRefreshToken = tokenManager.getRefreshToken();
+        if (currentRefreshToken != null) {
+            params.put("grant_type", "refresh_token");
+            params.put("refresh_token", currentRefreshToken);
+        } else {
+            params.put("grant_type", "password");
+            params.put("username", username);
+            params.put("password", password);
+            if (!scopes.isEmpty()) {
+                params.put("scope", String.join(" ", scopes));
+            }
+        }
+        Map<String, String> extraHeaders = new HashMap<>();
+        if (clientAuthMethod == ClientAuthMethod.BASIC) {
+            /* RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
+             * separately before joining with ':' and base64-encoding. Without
+             * this, a credential containing ':' or any reserved char would
+             * corrupt the Basic header and fail against strict OPs. */
+            String encodedId = java.net.URLEncoder.encode(clientId, java.nio.charset.StandardCharsets.UTF_8);
+            String encodedSecret = java.net.URLEncoder.encode(clientSecret, java.nio.charset.StandardCharsets.UTF_8);
+            String credentials = Base64.getEncoder().encodeToString(
+                    (encodedId + ":" + encodedSecret).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            extraHeaders.put("Authorization", "Basic " + credentials);
+        } else {
+            params.put("client_id", clientId);
+            params.put("client_secret", clientSecret);
+        }
+        String token = tokenManager.getAccessToken(refreshUrl, params, extraHeaders);
+        return Collections.singletonMap("Authorization", "Bearer " + token);
+    }
 }

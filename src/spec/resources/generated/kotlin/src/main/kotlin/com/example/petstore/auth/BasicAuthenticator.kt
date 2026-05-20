@@ -15,8 +15,9 @@ import java.util.Base64
 open class BasicAuthenticator(
     private val host: String,
     private val username: String,
-    private val password: String,
+    private val password: String
 ) : BaseAuthenticator() {
+
     override fun getHost(): String = host
 
     override suspend fun getAuthHeaders(): Map<String, String> {

@@ -14,5 +14,5 @@ data class ApiResult<T>(
     val statusCode: Int,
     val data: T?,
     val rawBody: String?,
-    val headers: Map<String, String>,
+    val headers: Map<String, String>
 )

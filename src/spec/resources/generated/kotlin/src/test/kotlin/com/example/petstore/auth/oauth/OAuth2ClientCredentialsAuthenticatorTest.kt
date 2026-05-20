@@ -7,6 +7,7 @@
 
 package com.example.petstore
 
+import com.example.petstore.auth.oauth.ClientAuthMethod
 import com.example.petstore.auth.oauth.OAuth2ClientCredentialsAuthenticator
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
@@ -14,17 +15,17 @@ import org.junit.jupiter.api.Test
 import java.util.LinkedList
 
 class OAuth2ClientCredentialsAuthenticatorTest {
+
     private class FakeApiClient : ApiClient {
         private val responses = LinkedList<ApiResponse>()
         var lastBody: String? = null
             private set
         var lastUrl: String? = null
             private set
+        var lastHeaders: Map<String, String> = emptyMap()
+            private set
 
-        fun enqueue(
-            body: String,
-            statusCode: Int = 200,
-        ) {
+        fun enqueue(body: String, statusCode: Int = 200) {
             responses.add(ApiResponse(statusCode, body, emptyMap()))
         }
 
@@ -32,22 +33,24 @@ class OAuth2ClientCredentialsAuthenticatorTest {
             method: String,
             url: String,
             headers: Map<String, String>,
-            body: Any?,
+            body: Any?
         ): ApiResponse {
             lastUrl = url
+            lastHeaders = headers
             lastBody = body?.toString()
             return responses.poll() ?: throw IllegalStateException("No responses queued")
         }
     }
 
-    private fun createAuthenticator(): OAuth2ClientCredentialsAuthenticator =
-        OAuth2ClientCredentialsAuthenticator(
+    private fun createAuthenticator(): OAuth2ClientCredentialsAuthenticator {
+        return OAuth2ClientCredentialsAuthenticator(
             host = "https://api.example.com",
             clientId = "my-client-id",
             clientSecret = "my-client-secret",
             tokenUrl = "https://auth.example.com/token",
-            scopes = listOf("read", "write"),
+            scopes = listOf("read", "write")
         )
+    }
 
     @Test
     fun sendsClientCredentialsGrantType() {
@@ -87,11 +90,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
 
         runBlocking { auth.getAuthHeaders() }
 
-        assertTrue(
-            client.lastBody!!.contains("scope=read+write") ||
-                client.lastBody!!.contains("scope=read%20write") ||
-                client.lastBody!!.contains("scope=read write"),
-        )
+        assertTrue(client.lastBody!!.contains("scope=read+write") || client.lastBody!!.contains("scope=read%20write") || client.lastBody!!.contains("scope=read write"))
     }
 
     @Test
@@ -125,5 +124,38 @@ class OAuth2ClientCredentialsAuthenticatorTest {
         val auth = createAuthenticator()
 
         assertEquals("https://api.example.com", auth.getHost())
+    }
+
+    @Test
+    fun basicAuthUrlEncodesClientIdAndSecret() {
+        // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
+        // client_id and client_secret MUST be application/x-www-form-
+        // urlencoded BEFORE being joined with ':' and base64-encoded.
+        // Verifies a client_id with `+` and a secret with `&` are encoded
+        // (not raw) before the colon-join + base64.
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"at","expires_in":3600}""")
+
+        val auth = OAuth2ClientCredentialsAuthenticator(
+            host = "https://api.example.com",
+            clientId = "id+with/special",
+            clientSecret = "secret&with=stuff",
+            tokenUrl = "https://auth.example.com/token",
+            scopes = listOf("read"),
+            clientAuthMethod = ClientAuthMethod.BASIC
+        )
+        auth.setApiClient(client)
+
+        runBlocking { auth.getAuthHeaders() }
+
+        val authHeader = client.lastHeaders["Authorization"]
+        assertNotNull(authHeader)
+        assertTrue(authHeader!!.startsWith("Basic "))
+        val decoded = String(
+            java.util.Base64.getDecoder().decode(authHeader.substring("Basic ".length)),
+            Charsets.UTF_8
+        )
+        // Expected: form-urlencoded id ':' form-urlencoded secret
+        assertEquals("id%2Bwith%2Fspecial:secret%26with%3Dstuff", decoded)
     }
 }

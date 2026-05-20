@@ -153,7 +153,10 @@ describe('OAuth2PasswordAuthenticator', () => {
     const authHeader = basicClient.lastHeaders['Authorization'];
     expect(authHeader).toBeDefined();
     expect(authHeader.startsWith('Basic ')).toBe(true);
-    const decoded = Buffer.from(authHeader.substring('Basic '.length), 'base64').toString('utf-8');
+    const decoded = Buffer.from(
+      authHeader.substring('Basic '.length),
+      'base64'
+    ).toString('utf-8');
     expect(decoded).toBe('id%2Bwith%2Fspecial:secret%26with%3Dstuff');
   });
 });

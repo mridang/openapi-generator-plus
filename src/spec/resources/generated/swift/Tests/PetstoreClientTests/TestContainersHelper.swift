@@ -24,123 +24,123 @@ nonisolated(unsafe) private var sharedNetwork: Network?
 /// Serialization guard so multiple parallel @Suite inits race-free.
 /// First caller runs `_setUpContainers()`; later callers wait, then see globals already set.
 private actor ContainerSetupGuard {
-  static let shared = ContainerSetupGuard()
-  private var ready = false
+    static let shared = ContainerSetupGuard()
+    private var ready = false
 
-  func ensureReady() async throws {
-    if ready { return }
-    try await _setUpContainers()
-    ready = true
-  }
+    func ensureReady() async throws {
+        if ready { return }
+        try await _setUpContainers()
+        ready = true
+    }
 }
 
 func setUpContainers() async throws {
-  try await ContainerSetupGuard.shared.ensureReady()
+    try await ContainerSetupGuard.shared.ensureReady()
 }
 
 private func _setUpContainers() async throws {
-  let fixturesPath = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-    .appendingPathComponent("Tests/Fixtures")
+    let fixturesPath = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        .appendingPathComponent("Tests/Fixtures")
 
-  let network = Network()
-  try await network.create()
-  sharedNetwork = network
+    let network = Network()
+    try await network.create()
+    sharedNetwork = network
 
-  let keystorePath = fixturesPath.appendingPathComponent("certs/server-keystore.p12")
-  let mappingsPath = fixturesPath.appendingPathComponent("wiremock/mappings")
+    let keystorePath = fixturesPath.appendingPathComponent("certs/server-keystore.p12")
+    let mappingsPath = fixturesPath.appendingPathComponent("wiremock/mappings")
 
-  let wiremock = DockerContainer("wiremock/wiremock:3.13.0")
-    .withExposedPorts([8080, 8443])
-    .withCopyIntoContainer(
-      .path(keystorePath),
-      "/tmp/keystore.p12"
-    )
-    .withCopyIntoContainer(
-      .path(mappingsPath),
-      "/home/wiremock/mappings"
-    )
-    .withCommand([
-      "--port", "8080",
-      "--https-port", "8443",
-      "--https-keystore", "/tmp/keystore.p12",
-      "--keystore-type", "PKCS12",
-      "--keystore-password", "changeit",
-      "--key-manager-password", "changeit",
-      "--verbose",
-    ])
-    .withNetwork(network)
-    .withNetworkAliases(["wiremock"])
-    .waitingFor(LogMessageWaitStrategy("port:"))
+    let wiremock = DockerContainer("wiremock/wiremock:3.13.0")
+        .withExposedPorts([8080, 8443])
+        .withCopyIntoContainer(
+            .path(keystorePath),
+            "/tmp/keystore.p12"
+        )
+        .withCopyIntoContainer(
+            .path(mappingsPath),
+            "/home/wiremock/mappings"
+        )
+        .withCommand([
+            "--port", "8080",
+            "--https-port", "8443",
+            "--https-keystore", "/tmp/keystore.p12",
+            "--keystore-type", "PKCS12",
+            "--keystore-password", "changeit",
+            "--key-manager-password", "changeit",
+            "--verbose"
+        ])
+        .withNetwork(network)
+        .withNetworkAliases(["wiremock"])
+        .waitingFor(LogMessageWaitStrategy("port:"))
 
-  try await wiremock.start()
-  wiremockContainer = wiremock
+    try await wiremock.start()
+    wiremockContainer = wiremock
 
-  let wiremockHost = try await wiremock.containerHostIp()
-  let wiremockHttpPort = try await wiremock.exposedPort(8080)
-  let wiremockHttpsPort = try await wiremock.exposedPort(8443)
-  wiremockHttpUrl = "http://\(wiremockHost):\(wiremockHttpPort)"
-  wiremockHttpsUrl = "https://\(wiremockHost):\(wiremockHttpsPort)"
-  wiremockInternalHttpUrl = "http://wiremock:8080"
-  wiremockInternalHttpsUrl = "https://wiremock:8443"
+    let wiremockHost = try await wiremock.containerHostIp()
+    let wiremockHttpPort = try await wiremock.exposedPort(8080)
+    let wiremockHttpsPort = try await wiremock.exposedPort(8443)
+    wiremockHttpUrl = "http://\(wiremockHost):\(wiremockHttpPort)"
+    wiremockHttpsUrl = "https://\(wiremockHost):\(wiremockHttpsPort)"
+    wiremockInternalHttpUrl = "http://wiremock:8080"
+    wiremockInternalHttpsUrl = "https://wiremock:8443"
 
-  caCertPath = fixturesPath.appendingPathComponent("certs/ca.pem").path
+    caCertPath = fixturesPath.appendingPathComponent("certs/ca.pem").path
 
-  let squidConfPath = fixturesPath.appendingPathComponent("proxy/squid.conf")
+    let squidConfPath = fixturesPath.appendingPathComponent("proxy/squid.conf")
 
-  let squid = DockerContainer("ubuntu/squid:5.2-22.04_beta")
-    .withExposedPorts([3128])
-    .withCopyIntoContainer(
-      .path(squidConfPath),
-      "/etc/squid/squid.conf"
-    )
-    .withNetwork(network)
+    let squid = DockerContainer("ubuntu/squid:5.2-22.04_beta")
+        .withExposedPorts([3128])
+        .withCopyIntoContainer(
+            .path(squidConfPath),
+            "/etc/squid/squid.conf"
+        )
+        .withNetwork(network)
 
-  try await squid.start()
-  squidContainer = squid
-  try await Task.sleep(for: .seconds(3))
+    try await squid.start()
+    squidContainer = squid
+    try await Task.sleep(for: .seconds(3))
 
-  let squidHost = try await squid.containerHostIp()
-  let squidPort = try await squid.exposedPort(3128)
-  proxyUrl = "http://\(squidHost):\(squidPort)"
+    let squidHost = try await squid.containerHostIp()
+    let squidPort = try await squid.exposedPort(3128)
+    proxyUrl = "http://\(squidHost):\(squidPort)"
 
-  let specPath = fixturesPath.appendingPathComponent("openapi.yaml")
+    let specPath = fixturesPath.appendingPathComponent("openapi.yaml")
 
-  let prism = DockerContainer("stoplight/prism:5")
-    .withExposedPorts([4010])
-    .withCopyIntoContainer(
-      .path(specPath),
-      "/tmp/openapi.yaml"
-    )
-    .withCommand([
-      "mock", "-m", "false", "-h", "0.0.0.0", "/tmp/openapi.yaml",
-    ])
-    .waitingFor(LogMessageWaitStrategy("Prism is listening"))
+    let prism = DockerContainer("stoplight/prism:5")
+        .withExposedPorts([4010])
+        .withCopyIntoContainer(
+            .path(specPath),
+            "/tmp/openapi.yaml"
+        )
+        .withCommand([
+            "mock", "-m", "false", "-h", "0.0.0.0", "/tmp/openapi.yaml"
+        ])
+        .waitingFor(LogMessageWaitStrategy("Prism is listening"))
 
-  try await prism.start()
-  prismContainer = prism
+    try await prism.start()
+    prismContainer = prism
 
-  let prismHost = try await prism.containerHostIp()
-  let prismPort = try await prism.exposedPort(4010)
-  prismUrl = "http://\(prismHost):\(prismPort)"
+    let prismHost = try await prism.containerHostIp()
+    let prismPort = try await prism.exposedPort(4010)
+    prismUrl = "http://\(prismHost):\(prismPort)"
 
-  setenv("API_BASE_URL", prismUrl, 1)
-  setenv("WIREMOCK_HTTP_URL", wiremockHttpUrl, 1)
-  setenv("WIREMOCK_HTTPS_URL", wiremockHttpsUrl, 1)
-  setenv("CA_CERT_PATH", caCertPath, 1)
-  setenv("PROXY_URL", proxyUrl, 1)
+    setenv("API_BASE_URL", prismUrl, 1)
+    setenv("WIREMOCK_HTTP_URL", wiremockHttpUrl, 1)
+    setenv("WIREMOCK_HTTPS_URL", wiremockHttpsUrl, 1)
+    setenv("CA_CERT_PATH", caCertPath, 1)
+    setenv("PROXY_URL", proxyUrl, 1)
 }
 
 func tearDownContainers() async throws {
-  if let prism = prismContainer {
-    try await prism.stop()
-  }
-  if let squid = squidContainer {
-    try await squid.stop()
-  }
-  if let wiremock = wiremockContainer {
-    try await wiremock.stop()
-  }
-  if let network = sharedNetwork {
-    try await network.remove()
-  }
+    if let prism = prismContainer {
+        try await prism.stop()
+    }
+    if let squid = squidContainer {
+        try await squid.stop()
+    }
+    if let wiremock = wiremockContainer {
+        try await wiremock.stop()
+    }
+    if let network = sharedNetwork {
+        try await network.remove()
+    }
 }

@@ -10,20 +10,25 @@
 
 package com.example.petstore.models
 
+import java.time.OffsetDateTime
+import kotlin.collections.HashMap
+import kotlin.collections.Map
 import com.example.petstore.Base64ByteArraySerializer
 import kotlinx.serialization.Contextual
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
-import java.time.OffsetDateTime
+import kotlinx.serialization.json.JsonClassDiscriminator
 
 @Serializable
 data class Metadata(
-    /** Example: `null` */
-    @SerialName("createdAt")
-    @Contextual
-    val createdAt: OffsetDateTime? = null,
+  /** Example: `null` */
+  @SerialName("createdAt")
+  @Contextual
+  val createdAt: OffsetDateTime? = null
 ) {
-    @kotlinx.serialization.Transient
-    val additionalProperties: MutableMap<String, @Contextual Any?> = mutableMapOf()
+
+  @kotlinx.serialization.Transient
+  val additionalProperties: MutableMap<String, @Contextual Any?> = mutableMapOf()
 }

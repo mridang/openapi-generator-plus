@@ -8,6 +8,7 @@
 package com.example.petstore.models;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.example.petstore.ObjectSerializer;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -18,140 +19,138 @@ import org.junit.jupiter.api.Test;
 
 class ComposedSchemaTest {
 
-  private static final TypeReference<PetWithOwner> PET_WITH_OWNER_TYPE = new TypeReference<>() {};
-  private static final TypeReference<PetFood> PET_FOOD_TYPE = new TypeReference<>() {};
-  private static final TypeReference<PetTreatment> PET_TREATMENT_TYPE = new TypeReference<>() {};
-  private final ObjectSerializer serializer = new ObjectSerializer();
+    private static final TypeReference<PetWithOwner> PET_WITH_OWNER_TYPE = new TypeReference<>() {};
+    private static final TypeReference<PetFood> PET_FOOD_TYPE = new TypeReference<>() {};
+    private static final TypeReference<PetTreatment> PET_TREATMENT_TYPE = new TypeReference<>() {};
+    private final ObjectSerializer serializer = new ObjectSerializer();
 
-  @Nested
-  @DisplayName("oneOf with discriminator: PetFood")
-  class PetFoodTests {
+    @Nested
+    @DisplayName("oneOf with discriminator: PetFood")
+    class PetFoodTests {
 
-    @Test
-    @DisplayName("deserializes DryFood via discriminator")
-    void testDeserializeDryFood() {
-      String json = "{\"foodType\":\"dry\",\"weightKg\":2.5}";
-      Object result = Objects.requireNonNull(serializer.deserialize(json, PET_FOOD_TYPE));
+        @Test
+        @DisplayName("deserializes DryFood via discriminator")
+        void testDeserializeDryFood() {
+            String json = "{\"foodType\":\"dry\",\"weightKg\":2.5}";
+            Object result = Objects.requireNonNull(serializer.deserialize(json, PET_FOOD_TYPE));
 
-      assertThat(result).isInstanceOf(DryFood.class);
-      assertThat(((DryFood) result).foodType).isEqualTo("dry");
+            assertThat(result).isInstanceOf(DryFood.class);
+            assertThat(((DryFood) result).foodType).isEqualTo("dry");
+        }
+
+        @Test
+        @DisplayName("deserializes WetFood via discriminator")
+        void testDeserializeWetFood() {
+            String json = "{\"foodType\":\"wet\",\"volumeMl\":400}";
+            Object result = Objects.requireNonNull(serializer.deserialize(json, PET_FOOD_TYPE));
+
+            assertThat(result).isInstanceOf(WetFood.class);
+            assertThat(((WetFood) result).foodType).isEqualTo("wet");
+        }
+
+        @Test
+        @DisplayName("returns null for unknown discriminator value")
+        void testUnknownDiscriminator() {
+            String json = "{\"foodType\":\"raw\",\"calories\":300}";
+            Object result = serializer.deserialize(json, PET_FOOD_TYPE);
+            assertThat(result).isNull();
+        }
+
+        @Test
+        @DisplayName("serializes DryFood back to JSON")
+        void testSerializeDryFood() {
+            String json = "{\"foodType\":\"dry\",\"weightKg\":2.5}";
+            Object result = Objects.requireNonNull(serializer.deserialize(json, PET_FOOD_TYPE));
+
+            String serialized = serializer.serialize(result);
+
+            assertThat(serialized).contains("dry");
+            assertThat(serialized).contains("2.5");
+        }
     }
 
-    @Test
-    @DisplayName("deserializes WetFood via discriminator")
-    void testDeserializeWetFood() {
-      String json = "{\"foodType\":\"wet\",\"volumeMl\":400}";
-      Object result = Objects.requireNonNull(serializer.deserialize(json, PET_FOOD_TYPE));
+    @Nested
+    @DisplayName("anyOf without discriminator: PetTreatment")
+    class PetTreatmentTests {
 
-      assertThat(result).isInstanceOf(WetFood.class);
-      assertThat(((WetFood) result).foodType).isEqualTo("wet");
+        @Test
+        @DisplayName("deserializes Medication from anyOf")
+        void testDeserializeMedication() {
+            String json = "{\"drugName\":\"Amoxicillin\",\"dosage\":\"500mg\"}";
+            PetTreatment result =
+                    Objects.requireNonNull(serializer.deserialize(json, PET_TREATMENT_TYPE));
+
+            assertThat(result.getActualInstance()).isInstanceOf(Medication.class);
+            assertThat(((Medication) result.getActualInstance()).drugName).isEqualTo("Amoxicillin");
+        }
+
+        @Test
+        @DisplayName("deserializes Surgery from anyOf")
+        void testDeserializeSurgery() {
+            String json = "{\"procedureName\":\"Spay\",\"durationMinutes\":45}";
+            PetTreatment result =
+                    Objects.requireNonNull(serializer.deserialize(json, PET_TREATMENT_TYPE));
+
+            assertThat(result.getActualInstance()).isInstanceOf(Surgery.class);
+        }
+
+        @Test
+        @DisplayName("serializes round-trip for anyOf")
+        void testSerializeRoundTrip() {
+            String json = "{\"drugName\":\"Amoxicillin\",\"dosage\":\"500mg\"}";
+            PetTreatment result =
+                    Objects.requireNonNull(serializer.deserialize(json, PET_TREATMENT_TYPE));
+
+            String serialized = serializer.serialize(result);
+            assertThat(serialized).isNotEmpty();
+        }
     }
 
-    @Test
-    @DisplayName("returns null for unknown discriminator value")
-    void testUnknownDiscriminator() {
-      String json = "{\"foodType\":\"raw\",\"calories\":300}";
-      Object result = serializer.deserialize(json, PET_FOOD_TYPE);
-      assertThat(result).isNull();
+    @Nested
+    @DisplayName("allOf: PetWithOwner")
+    class PetWithOwnerTests {
+
+        @Test
+        @DisplayName("deserializes all properties from allOf composition")
+        void testDeserialize() {
+            String json =
+                    "{\"name\":\"doggie\",\"photoUrls\":[\"http://example.com/photo.jpg\"],\"ownerName\":\"John\",\"ownerEmail\":\"john@example.com\"}";
+            PetWithOwner result =
+                    Objects.requireNonNull(serializer.deserialize(json, PET_WITH_OWNER_TYPE));
+
+            assertThat(result.name).isEqualTo("doggie");
+            assertThat(result.ownerName).isEqualTo("John");
+            assertThat(result.ownerEmail).isEqualTo("john@example.com");
+        }
+
+        @Test
+        @DisplayName("serializes PetWithOwner to JSON")
+        void testSerialize() {
+            String json =
+                    "{\"name\":\"Fido\",\"photoUrls\":[\"http://example.com/fido.jpg\"],\"ownerName\":\"John Doe\"}";
+            PetWithOwner result =
+                    Objects.requireNonNull(serializer.deserialize(json, PET_WITH_OWNER_TYPE));
+
+            String serialized = serializer.serialize(result);
+
+            assertThat(serialized).contains("Fido");
+            assertThat(serialized).contains("John Doe");
+        }
+
+        @Test
+        @DisplayName("round-trip preserves all fields")
+        void testRoundTrip() {
+            String json =
+                    "{\"name\":\"Buddy\",\"photoUrls\":[\"http://example.com/buddy.jpg\"],\"ownerName\":\"Jane Smith\"}";
+            PetWithOwner original =
+                    Objects.requireNonNull(serializer.deserialize(json, PET_WITH_OWNER_TYPE));
+
+            String serialized = serializer.serialize(original);
+            PetWithOwner restored =
+                    Objects.requireNonNull(serializer.deserialize(serialized, PET_WITH_OWNER_TYPE));
+
+            assertThat(restored.name).isEqualTo(original.name);
+            assertThat(restored.ownerName).isEqualTo(original.ownerName);
+        }
     }
-
-    @Test
-    @DisplayName("serializes DryFood back to JSON")
-    void testSerializeDryFood() {
-      String json = "{\"foodType\":\"dry\",\"weightKg\":2.5}";
-      Object result = Objects.requireNonNull(serializer.deserialize(json, PET_FOOD_TYPE));
-
-      String serialized = serializer.serialize(result);
-
-      assertThat(serialized).contains("dry");
-      assertThat(serialized).contains("2.5");
-    }
-  }
-
-  @Nested
-  @DisplayName("anyOf without discriminator: PetTreatment")
-  class PetTreatmentTests {
-
-    @Test
-    @DisplayName("deserializes Medication from anyOf")
-    void testDeserializeMedication() {
-      String json = "{\"drugName\":\"Amoxicillin\",\"dosage\":\"500mg\"}";
-      PetTreatment result =
-          Objects.requireNonNull(serializer.deserialize(json, PET_TREATMENT_TYPE));
-
-      assertThat(result.getActualInstance()).isInstanceOf(Medication.class);
-      assertThat(((Medication) result.getActualInstance()).drugName).isEqualTo("Amoxicillin");
-    }
-
-    @Test
-    @DisplayName("deserializes Surgery from anyOf")
-    void testDeserializeSurgery() {
-      String json = "{\"procedureName\":\"Spay\",\"durationMinutes\":45}";
-      PetTreatment result =
-          Objects.requireNonNull(serializer.deserialize(json, PET_TREATMENT_TYPE));
-
-      assertThat(result.getActualInstance()).isInstanceOf(Surgery.class);
-    }
-
-    @Test
-    @DisplayName("serializes round-trip for anyOf")
-    void testSerializeRoundTrip() {
-      String json = "{\"drugName\":\"Amoxicillin\",\"dosage\":\"500mg\"}";
-      PetTreatment result =
-          Objects.requireNonNull(serializer.deserialize(json, PET_TREATMENT_TYPE));
-
-      String serialized = serializer.serialize(result);
-      assertThat(serialized).isNotEmpty();
-    }
-  }
-
-  @Nested
-  @DisplayName("allOf: PetWithOwner")
-  class PetWithOwnerTests {
-
-    @Test
-    @DisplayName("deserializes all properties from allOf composition")
-    void testDeserialize() {
-      String json =
-          "{\"name\":\"doggie\",\"photoUrls\":[\"http://example.com/photo.jpg\"],\"ownerName\":\"John\",\"ownerEmail\":\"john@example.com\"}";
-      PetWithOwner result =
-          Objects.requireNonNull(serializer.deserialize(json, PET_WITH_OWNER_TYPE));
-
-      assertThat(result.name).isEqualTo("doggie");
-      assertThat(result.ownerName).isEqualTo("John");
-      assertThat(result.ownerEmail).isEqualTo("john@example.com");
-    }
-
-    @Test
-    @DisplayName("serializes PetWithOwner to JSON")
-    void testSerialize() {
-      String json =
-          "{\"name\":\"Fido\",\"photoUrls\":[\"http://example.com/fido.jpg\"],\"ownerName\":\"John"
-              + " Doe\"}";
-      PetWithOwner result =
-          Objects.requireNonNull(serializer.deserialize(json, PET_WITH_OWNER_TYPE));
-
-      String serialized = serializer.serialize(result);
-
-      assertThat(serialized).contains("Fido");
-      assertThat(serialized).contains("John Doe");
-    }
-
-    @Test
-    @DisplayName("round-trip preserves all fields")
-    void testRoundTrip() {
-      String json =
-          "{\"name\":\"Buddy\",\"photoUrls\":[\"http://example.com/buddy.jpg\"],\"ownerName\":\"Jane"
-              + " Smith\"}";
-      PetWithOwner original =
-          Objects.requireNonNull(serializer.deserialize(json, PET_WITH_OWNER_TYPE));
-
-      String serialized = serializer.serialize(original);
-      PetWithOwner restored =
-          Objects.requireNonNull(serializer.deserialize(serialized, PET_WITH_OWNER_TYPE));
-
-      assertThat(restored.name).isEqualTo(original.name);
-      assertThat(restored.ownerName).isEqualTo(original.ownerName);
-    }
-  }
 }

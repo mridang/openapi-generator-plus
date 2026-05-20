@@ -62,7 +62,13 @@ impl ApiClient for FakeApiClient {
         url: &str,
         _headers: &HashMap<String, String>,
         body: Option<&RequestBody>,
-    ) -> Pin<Box<dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
+                + Send
+                + '_,
+        >,
+    > {
         {
             let mut last_method = self.last_method.lock().unwrap();
             *last_method = Some(method.to_string());
@@ -128,7 +134,9 @@ async fn test_fetches_discovery_document() {
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
 
-    auth.build_authorization_url("").await.expect("should succeed");
+    auth.build_authorization_url("")
+        .await
+        .expect("should succeed");
 
     assert_eq!("GET", client.last_method().unwrap());
     assert_eq!(
@@ -152,8 +160,12 @@ async fn test_obtains_token_after_code_exchange() {
     auth.set_api_client(client.clone());
 
     // Must call build_authorization_url first to trigger discovery
-    auth.build_authorization_url("").await.expect("should succeed");
-    auth.exchange_code("oidc-code").await.expect("should succeed");
+    auth.build_authorization_url("")
+        .await
+        .expect("should succeed");
+    auth.exchange_code("oidc-code")
+        .await
+        .expect("should succeed");
 
     let body = client.last_body().expect("should have body");
     assert!(body.contains("grant_type=authorization_code"));
@@ -176,8 +188,12 @@ async fn test_get_auth_headers_returns_bearer_after_exchange() {
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
 
-    auth.build_authorization_url("").await.expect("should succeed");
-    auth.exchange_code("oidc-code").await.expect("should succeed");
+    auth.build_authorization_url("")
+        .await
+        .expect("should succeed");
+    auth.exchange_code("oidc-code")
+        .await
+        .expect("should succeed");
     let headers = auth.auth_headers().await;
 
     assert_eq!("Bearer oidc-tok", headers.get("Authorization").unwrap());

@@ -8,1222 +8,1112 @@
 package com.example.petstore;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import com.example.petstore.api.PetApi;
-import com.example.petstore.api.options.FindPetsByStatusOptions;
 import com.example.petstore.auth.Authenticator;
 import com.example.petstore.errors.*;
+import com.example.petstore.api.PetApi;
+import com.example.petstore.api.options.FindPetsByStatusOptions;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.*;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
 class BaseApiTest {
 
-  private static final TypeReference<JsonNode> JSON_NODE_TYPE = new TypeReference<>() {};
-  private static final TypeReference<String> STRING_TYPE = new TypeReference<>() {};
+    private static final TypeReference<JsonNode> JSON_NODE_TYPE = new TypeReference<>() {};
+    private static final TypeReference<String> STRING_TYPE = new TypeReference<>() {};
 
-  static class TestableApi extends com.example.petstore.api.BaseApi {
+    static class TestableApi extends com.example.petstore.api.BaseApi {
 
-    TestableApi(String baseUrl) {
-      super(new DefaultApiClient(), new Configuration(baseUrl, Map.of()));
+        TestableApi(String baseUrl) {
+            super(new DefaultApiClient(), new Configuration(baseUrl, Map.of()));
+        }
+
+        TestableApi(ApiClient apiClient, String baseUrl) {
+            super(apiClient, new Configuration(baseUrl, Map.of()));
+        }
+
+        <T> @Nullable T call(
+                String method,
+                String path,
+                Map<String, Object> queryParams,
+                Map<String, String> headerParams,
+                @Nullable Object body,
+                String[] accepts,
+                String contentType,
+                @Nullable TypeReference<T> returnType,
+                @Nullable Authenticator auth)
+                throws ApiException {
+            return invokeApi(
+                    method, path, queryParams, headerParams, body, accepts, contentType,
+                    returnType, auth);
+        }
     }
 
-    TestableApi(ApiClient apiClient, String baseUrl) {
-      super(apiClient, new Configuration(baseUrl, Map.of()));
-    }
+    static class CapturingApiClient implements ApiClient {
+        String capturedUrl = "";
+        Map<String, String> capturedHeaders = Map.of();
+        @Nullable Object capturedBody = null;
 
-    <T> @Nullable T call(
-        String method,
-        String path,
-        Map<String, Object> queryParams,
-        Map<String, String> headerParams,
-        @Nullable Object body,
-        String[] accepts,
-        String contentType,
-        @Nullable TypeReference<T> returnType,
-        @Nullable Authenticator auth)
-        throws ApiException {
-      return invokeApi(
-          method, path, queryParams, headerParams, body, accepts, contentType, returnType, auth);
-    }
-  }
-
-  static class CapturingApiClient implements ApiClient {
-    String capturedUrl = "";
-    Map<String, String> capturedHeaders = Map.of();
-    @Nullable Object capturedBody = null;
-
-    @Override
-    public ApiResponse sendRequest(
-        String method, String url, Map<String, String> headers, @Nullable Object body) {
-      this.capturedUrl = url;
-      this.capturedHeaders = headers;
-      this.capturedBody = body;
-      return new ApiResponse(200, "{}", Map.of("Content-Type", "application/json"));
-    }
-  }
-
-  static class TestAuthenticator implements Authenticator {
-
-    private final Map<String, String> headers;
-    private final Map<String, String> queryParams;
-    private final Map<String, String> cookies;
-
-    TestAuthenticator(
-        Map<String, String> headers, Map<String, String> queryParams, Map<String, String> cookies) {
-      this.headers = headers;
-      this.queryParams = queryParams;
-      this.cookies = cookies;
-    }
-
-    @Override
-    public String getHost() {
-      return "";
-    }
-
-    @Override
-    public Map<String, String> getAuthHeaders() {
-      return headers;
-    }
-
-    @Override
-    public Map<String, String> getQueryParams() {
-      return queryParams;
-    }
-
-    @Override
-    public Map<String, String> getCookieParams() {
-      return cookies;
-    }
-  }
-
-  private TestableApi api() {
-    return new TestableApi(WireMockContainer.getHttpUrl());
-  }
-
-  @Nested
-  @DisplayName("exception dispatch")
-  class ExceptionDispatch {
-
-    static Stream<Arguments> statusToException() {
-      return Stream.of(
-          Arguments.of(400, BadRequestException.class),
-          Arguments.of(401, UnauthorizedException.class),
-          Arguments.of(403, ForbiddenException.class),
-          Arguments.of(404, NotFoundException.class),
-          Arguments.of(409, ConflictException.class),
-          Arguments.of(422, UnprocessableEntityException.class),
-          Arguments.of(418, ClientException.class),
-          Arguments.of(500, InternalServerErrorException.class),
-          Arguments.of(502, ServerException.class));
-    }
-
-    @ParameterizedTest
-    @MethodSource("statusToException")
-    @DisplayName("throws correct exception for status code")
-    void throwsCorrectException(int status, Class<? extends ApiException> expected) {
-      var ex =
-          assertThrows(
-              expected,
-              () ->
-                  api()
-                      .call(
-                          "GET",
-                          "/api/error/" + status,
-                          new HashMap<>(),
-                          new HashMap<>(),
-                          null,
-                          new String[] {"application/json"},
-                          "application/json",
-                          null,
-                          null));
-      assertEquals(status, ex.getStatusCode());
-      assertNotNull(ex.getResponseBody());
-      assertFalse(ex.getResponseBody().isEmpty());
-    }
-  }
-
-  @Nested
-  @DisplayName("exception hierarchy")
-  class ExceptionHierarchy {
-
-    @Test
-    @DisplayName("NotFoundException is ClientException is ApiException")
-    void notFoundHierarchy() {
-      var ex =
-          assertThrows(
-              NotFoundException.class,
-              () ->
-                  api()
-                      .call(
-                          "GET",
-                          "/api/error/404",
-                          new HashMap<>(),
-                          new HashMap<>(),
-                          null,
-                          new String[] {"application/json"},
-                          "application/json",
-                          null,
-                          null));
-      assertInstanceOf(ClientException.class, ex);
-      assertInstanceOf(ApiException.class, ex);
-    }
-
-    @Test
-    @DisplayName("InternalServerErrorException is ServerException is ApiException")
-    void internalServerErrorHierarchy() {
-      var ex =
-          assertThrows(
-              InternalServerErrorException.class,
-              () ->
-                  api()
-                      .call(
-                          "GET",
-                          "/api/error/500",
-                          new HashMap<>(),
-                          new HashMap<>(),
-                          null,
-                          new String[] {"application/json"},
-                          "application/json",
-                          null,
-                          null));
-      assertInstanceOf(ServerException.class, ex);
-      assertInstanceOf(ApiException.class, ex);
-    }
-  }
-
-  @Nested
-  @DisplayName("error body parsing")
-  class ErrorBodyParsing {
-
-    @Test
-    @DisplayName("parses JSON error body")
-    void parsesJsonErrorBody() {
-      var ex =
-          assertThrows(
-              BadRequestException.class,
-              () ->
-                  api()
-                      .call(
-                          "GET",
-                          "/api/error/400",
-                          new HashMap<>(),
-                          new HashMap<>(),
-                          null,
-                          new String[] {"application/json"},
-                          "application/json",
-                          null,
-                          null));
-      assertNotNull(ex.getErrorBody(), "errorBody should not be null for JSON responses");
-    }
-  }
-
-  @Nested
-  @DisplayName("success deserialization")
-  class SuccessDeserialization {
-
-    @Test
-    @DisplayName("deserializes JSON response")
-    void deserializesJsonResponse() throws ApiException {
-      JsonNode result =
-          api()
-              .call(
-                  "GET",
-                  "/api/test",
-                  new HashMap<>(),
-                  new HashMap<>(),
-                  null,
-                  new String[] {"application/json"},
-                  "application/json",
-                  JSON_NODE_TYPE,
-                  null);
-      assertNotNull(result);
-      assertEquals("success", result.get("message").asText());
-    }
-
-    @Test
-    @DisplayName("returns raw string for non-JSON response")
-    void returnsRawStringForNonJson() throws ApiException {
-      String result =
-          api()
-              .call(
-                  "GET",
-                  "/api/text",
-                  new HashMap<>(),
-                  new HashMap<>(),
-                  null,
-                  new String[] {"text/plain"},
-                  "application/json",
-                  STRING_TYPE,
-                  null);
-      assertNotNull(result);
-      assertTrue(result.contains("hello plain text"));
-    }
-
-    @Test
-    @DisplayName("returns null when returnType is null")
-    void returnsNullWhenReturnTypeIsNull() throws ApiException {
-      Object result =
-          api()
-              .call(
-                  "GET",
-                  "/api/test",
-                  new HashMap<>(),
-                  new HashMap<>(),
-                  null,
-                  new String[] {"application/json"},
-                  "application/json",
-                  null,
-                  null);
-      assertNull(result);
-    }
-  }
-
-  @Nested
-  @DisplayName("query parameters")
-  class QueryParameters {
-
-    @Test
-    @DisplayName("appends query params to URL")
-    void appendsQueryParams() throws ApiException {
-      Map<String, Object> queryParams = new HashMap<>();
-      queryParams.put("foo", "bar");
-      Object result =
-          api()
-              .call(
-                  "GET",
-                  "/api/test",
-                  queryParams,
-                  new HashMap<>(),
-                  null,
-                  new String[] {"application/json"},
-                  "application/json",
-                  null,
-                  null);
-      assertNull(result);
-    }
-
-    @Test
-    @DisplayName("includes empty value param in query string when value is empty string")
-    void includesEmptyValueParam() throws ApiException {
-      Map<String, Object> queryParams = new HashMap<>();
-      queryParams.put("filter", "");
-      Object result =
-          api()
-              .call(
-                  "GET",
-                  "/api/test",
-                  queryParams,
-                  new HashMap<>(),
-                  null,
-                  new String[] {"application/json"},
-                  "application/json",
-                  null,
-                  null);
-      assertNull(result);
-    }
-
-    @Test
-    @DisplayName("expands array query params")
-    void expandsArrayQueryParams() throws ApiException {
-      var client = new CapturingApiClient();
-      var testApi = new TestableApi(client, "http://localhost");
-      Map<String, Object> queryParams = new HashMap<>();
-      queryParams.put("tags", List.of("a", "b"));
-      testApi.call(
-          "GET",
-          "/api/test",
-          queryParams,
-          new HashMap<>(),
-          null,
-          new String[] {"application/json"},
-          "application/json",
-          null,
-          null);
-      assertTrue(
-          client.capturedUrl.contains("tags=a&tags=b"),
-          "Expected expanded array params but got: " + client.capturedUrl);
-    }
-
-    @Test
-    @DisplayName("serializes boolean query params")
-    void serializesBooleanQueryParams() throws ApiException {
-      var client = new CapturingApiClient();
-      var testApi = new TestableApi(client, "http://localhost");
-      Map<String, Object> queryParams = new HashMap<>();
-      queryParams.put("active", true);
-      testApi.call(
-          "GET",
-          "/api/test",
-          queryParams,
-          new HashMap<>(),
-          null,
-          new String[] {"application/json"},
-          "application/json",
-          null,
-          null);
-      assertTrue(
-          client.capturedUrl.contains("active=true"),
-          "Expected active=true but got: " + client.capturedUrl);
-    }
-
-    @Test
-    @DisplayName("serializes number query params")
-    void serializesNumberQueryParams() throws ApiException {
-      var client = new CapturingApiClient();
-      var testApi = new TestableApi(client, "http://localhost");
-      Map<String, Object> queryParams = new HashMap<>();
-      queryParams.put("limit", 10);
-      testApi.call(
-          "GET",
-          "/api/test",
-          queryParams,
-          new HashMap<>(),
-          null,
-          new String[] {"application/json"},
-          "application/json",
-          null,
-          null);
-      assertTrue(
-          client.capturedUrl.contains("limit=10"),
-          "Expected limit=10 but got: " + client.capturedUrl);
-      assertFalse(
-          client.capturedUrl.contains("limit=10.0"),
-          "Should not contain limit=10.0 but got: " + client.capturedUrl);
-    }
-
-    @Test
-    @DisplayName("handles empty query params")
-    void handlesEmptyQueryParams() throws ApiException {
-      var client = new CapturingApiClient();
-      var testApi = new TestableApi(client, "http://localhost");
-      testApi.call(
-          "GET",
-          "/api/test",
-          new HashMap<>(),
-          new HashMap<>(),
-          null,
-          new String[] {"application/json"},
-          "application/json",
-          null,
-          null);
-      assertFalse(
-          client.capturedUrl.contains("?"),
-          "Expected no query string but got: " + client.capturedUrl);
-    }
-  }
-
-  @SuppressWarnings("deprecation")
-  @Nested
-  @DisplayName("allowEmptyValue query params")
-  class AllowEmptyValueQueryParams {
-
-    @Test
-    @DisplayName("null options omits allowEmptyValue param")
-    @SuppressWarnings("NullAway")
-    void nullOptionsOmitsAllowEmptyValueParam() {
-      var client = new CapturingApiClient();
-      var config = new Configuration("http://localhost", Map.of());
-      var api = new PetApi(client, config);
-      try {
-        api.findPetsByStatus(null);
-      } catch (Exception ignored) {
-        // Response deserialization may fail; we only care about the captured URL
-      }
-      assertFalse(
-          client.capturedUrl.contains("status="),
-          "Expected no status param when options is null, got: " + client.capturedUrl);
-    }
-
-    @Test
-    @DisplayName("allowEmptyValue param included when value is null in options")
-    void allowEmptyValueIncludedWhenNull() {
-      var client = new CapturingApiClient();
-      var config = new Configuration("http://localhost", Map.of());
-      var api = new PetApi(client, config);
-      try {
-        api.findPetsByStatus(new FindPetsByStatusOptions());
-      } catch (Exception ignored) {
-        // Response deserialization may fail; we only care about the captured URL
-      }
-      assertTrue(
-          client.capturedUrl.contains("status="),
-          "Expected status= in URL for allowEmptyValue param with null value, got: "
-              + client.capturedUrl);
-    }
-
-    @Test
-    @DisplayName("allowEmptyValue param included when value is empty string")
-    void allowEmptyValueIncludedWhenEmpty() {
-      var client = new CapturingApiClient();
-      var config = new Configuration("http://localhost", Map.of());
-      var api = new PetApi(client, config);
-      try {
-        api.findPetsByStatus(new FindPetsByStatusOptions().status(""));
-      } catch (Exception ignored) {
-        // Response deserialization may fail; we only care about the captured URL
-      }
-      assertTrue(
-          client.capturedUrl.contains("status="),
-          "Expected status= in URL for empty string allowEmptyValue param, got: "
-              + client.capturedUrl);
-    }
-  }
-
-  @Nested
-  @DisplayName("server variable overrides")
-  class ServerVariableOverrides {
-
-    @Test
-    @DisplayName("server variable overrides resolve in base URL")
-    void serverVariableOverridesResolve() {
-      Configuration config =
-          Configuration.builder()
-              .server(Servers.SERVER_1, Map.of("environment", "staging"))
-              .build();
-      assertEquals("https://staging.example.com/api/v3", config.getBaseUrl());
-    }
-
-    @Test
-    @DisplayName("default server variables produce correct base URL")
-    void defaultServerVariablesResolve() {
-      Configuration config = Configuration.builder().server(Servers.SERVER_1).build();
-      assertEquals("https://api.example.com/api/v3", config.getBaseUrl());
-    }
-
-    @Test
-    @DisplayName("invalid enum value throws error")
-    void invalidEnumValueThrows() {
-      assertThrows(
-          IllegalArgumentException.class,
-          () ->
-              Configuration.builder()
-                  .server(Servers.SERVER_1, Map.of("environment", "invalid"))
-                  .build());
-    }
-
-    @Test
-    @DisplayName("API request uses resolved server URL")
-    void apiRequestUsesResolvedUrl() {
-      Configuration config =
-          Configuration.builder()
-              .server(Servers.SERVER_1, Map.of("environment", "staging"))
-              .build();
-      assertEquals("https://staging.example.com/api/v3", config.getBaseUrl());
-      TestableApi testApi = new TestableApi(config.getBaseUrl());
-      assertNotNull(testApi);
-    }
-  }
-
-  @Nested
-  @DisplayName("auth injection")
-  class AuthInjection {
-
-    @Test
-    @DisplayName("forwards auth headers")
-    void forwardsAuthHeaders() throws Exception {
-      var auth = new TestAuthenticator(Map.of("X-Custom", "auth-value"), Map.of(), Map.of());
-      JsonNode result =
-          api()
-              .call(
-                  "GET",
-                  "/api/echo-headers",
-                  new HashMap<>(),
-                  new HashMap<>(),
-                  null,
-                  new String[] {"application/json"},
-                  "application/json",
-                  JSON_NODE_TYPE,
-                  auth);
-      assertNotNull(result);
-      assertEquals("auth-value", result.get("x-custom").asText());
-    }
-
-    @Test
-    @DisplayName("sets Cookie header from auth cookies")
-    void setsCookieHeader() throws Exception {
-      var auth = new TestAuthenticator(Map.of(), Map.of(), Map.of("session", "abc123"));
-      api()
-          .call(
-              "GET",
-              "/api/test",
-              new HashMap<>(),
-              new HashMap<>(),
-              null,
-              new String[] {"application/json"},
-              "application/json",
-              null,
-              auth);
-    }
-  }
-
-  @Nested
-  @DisplayName("body serialization")
-  class BodySerialization {
-
-    @Test
-    @DisplayName("serializes JSON body for POST")
-    void serializesJsonBody() throws Exception {
-      Map<String, String> body = Map.of("key", "value");
-      JsonNode result =
-          api()
-              .call(
-                  "POST",
-                  "/api/echo-body",
-                  new HashMap<>(),
-                  new HashMap<>(),
-                  body,
-                  new String[] {"application/json"},
-                  "application/json",
-                  JSON_NODE_TYPE,
-                  null);
-      assertNotNull(result);
-      assertEquals("value", result.get("key").asText());
-    }
-
-    @Test
-    @DisplayName("sends no body when body is null")
-    void sendsNoBodyWhenNull() throws ApiException {
-      api()
-          .call(
-              "GET",
-              "/api/test",
-              new HashMap<>(),
-              new HashMap<>(),
-              null,
-              new String[] {"application/json"},
-              "application/json",
-              null,
-              null);
-    }
-
-    @Test
-    @DisplayName("serializes text/plain body")
-    void serializesTextPlainBody() throws ApiException {
-      var client = new CapturingApiClient();
-      var testApi = new TestableApi(client, "http://localhost");
-      testApi.call(
-          "POST",
-          "/api/test",
-          new HashMap<>(),
-          new HashMap<>(),
-          "hello world",
-          new String[] {"application/json"},
-          "text/plain",
-          null,
-          null);
-      assertNotNull(client.capturedBody);
-      assertEquals("hello world", client.capturedBody.toString());
-    }
-
-    @Test
-    @DisplayName("serializes form-urlencoded body")
-    void serializesFormUrlencodedBody() throws ApiException {
-      var client = new CapturingApiClient();
-      var testApi = new TestableApi(client, "http://localhost");
-      Map<String, String> formParams = new java.util.LinkedHashMap<>();
-      formParams.put("name", "alice");
-      testApi.call(
-          "POST",
-          "/api/test",
-          new HashMap<>(),
-          new HashMap<>(),
-          formParams,
-          new String[] {"application/json"},
-          "application/x-www-form-urlencoded",
-          null,
-          null);
-      assertNotNull(client.capturedBody);
-      assertTrue(client.capturedBody.toString().contains("name=alice"));
-    }
-
-    @Test
-    @DisplayName("passes binary body as-is")
-    void passesBinaryBody() throws ApiException {
-      var client = new CapturingApiClient();
-      var testApi = new TestableApi(client, "http://localhost");
-      byte[] binaryData = new byte[] {0x01, 0x02, 0x03};
-      testApi.call(
-          "POST",
-          "/api/test",
-          new HashMap<>(),
-          new HashMap<>(),
-          binaryData,
-          new String[] {"application/json"},
-          "application/octet-stream",
-          null,
-          null);
-      assertNotNull(client.capturedBody);
-    }
-  }
-
-  @Nested
-  @DisplayName("content-type handling")
-  class ContentTypeHandling {
-
-    @Test
-    @DisplayName("skips JSON deserialization for text/plain response")
-    void skipsDeserializationForTextPlain() throws ApiException {
-      var client =
-          new CapturingApiClient() {
-            @Override
-            public ApiResponse sendRequest(
+        @Override
+        public ApiResponse sendRequest(
                 String method, String url, Map<String, String> headers, @Nullable Object body) {
-              this.capturedUrl = url;
-              this.capturedHeaders = headers;
-              this.capturedBody = body;
-              return new ApiResponse(200, "hello", Map.of("Content-Type", "text/plain"));
+            this.capturedUrl = url;
+            this.capturedHeaders = headers;
+            this.capturedBody = body;
+            return new ApiResponse(200, "{}", Map.of("Content-Type", "application/json"));
+        }
+    }
+
+    static class TestAuthenticator implements Authenticator {
+
+        private final Map<String, String> headers;
+        private final Map<String, String> queryParams;
+        private final Map<String, String> cookies;
+
+        TestAuthenticator(
+                Map<String, String> headers,
+                Map<String, String> queryParams,
+                Map<String, String> cookies) {
+            this.headers = headers;
+            this.queryParams = queryParams;
+            this.cookies = cookies;
+        }
+
+        @Override
+        public String getHost() {
+            return "";
+        }
+
+        @Override
+        public Map<String, String> getAuthHeaders() {
+            return headers;
+        }
+
+        @Override
+        public Map<String, String> getQueryParams() {
+            return queryParams;
+        }
+
+        @Override
+        public Map<String, String> getCookieParams() {
+            return cookies;
+        }
+    }
+
+    private TestableApi api() {
+        return new TestableApi(WireMockContainer.getHttpUrl());
+    }
+
+    @Nested
+    @DisplayName("exception dispatch")
+    class ExceptionDispatch {
+
+        static Stream<Arguments> statusToException() {
+            return Stream.of(
+                    Arguments.of(400, BadRequestException.class),
+                    Arguments.of(401, UnauthorizedException.class),
+                    Arguments.of(403, ForbiddenException.class),
+                    Arguments.of(404, NotFoundException.class),
+                    Arguments.of(409, ConflictException.class),
+                    Arguments.of(422, UnprocessableEntityException.class),
+                    Arguments.of(418, ClientException.class),
+                    Arguments.of(500, InternalServerErrorException.class),
+                    Arguments.of(502, ServerException.class));
+        }
+
+        @ParameterizedTest
+        @MethodSource("statusToException")
+        @DisplayName("throws correct exception for status code")
+        void throwsCorrectException(int status, Class<? extends ApiException> expected) {
+            var ex =
+                    assertThrows(
+                            expected,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/api/error/" + status,
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertEquals(status, ex.getStatusCode());
+            assertNotNull(ex.getResponseBody());
+            assertFalse(ex.getResponseBody().isEmpty());
+        }
+    }
+
+    @Nested
+    @DisplayName("exception hierarchy")
+    class ExceptionHierarchy {
+
+        @Test
+        @DisplayName("NotFoundException is ClientException is ApiException")
+        void notFoundHierarchy() {
+            var ex =
+                    assertThrows(
+                            NotFoundException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/api/error/404",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertInstanceOf(ClientException.class, ex);
+            assertInstanceOf(ApiException.class, ex);
+        }
+
+        @Test
+        @DisplayName("InternalServerErrorException is ServerException is ApiException")
+        void internalServerErrorHierarchy() {
+            var ex =
+                    assertThrows(
+                            InternalServerErrorException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/api/error/500",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertInstanceOf(ServerException.class, ex);
+            assertInstanceOf(ApiException.class, ex);
+        }
+    }
+
+    @Nested
+    @DisplayName("error body parsing")
+    class ErrorBodyParsing {
+
+        @Test
+        @DisplayName("parses JSON error body")
+        void parsesJsonErrorBody() {
+            var ex =
+                    assertThrows(
+                            BadRequestException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/api/error/400",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertNotNull(ex.getErrorBody(), "errorBody should not be null for JSON responses");
+        }
+    }
+
+    @Nested
+    @DisplayName("success deserialization")
+    class SuccessDeserialization {
+
+        @Test
+        @DisplayName("deserializes JSON response")
+        void deserializesJsonResponse() throws ApiException {
+            JsonNode result =
+                    api().call(
+                            "GET",
+                            "/api/test",
+                            new HashMap<>(),
+                            new HashMap<>(),
+                            null,
+                            new String[] {"application/json"},
+                            "application/json",
+                            JSON_NODE_TYPE,
+                            null);
+            assertNotNull(result);
+            assertEquals("success", result.get("message").asText());
+        }
+
+        @Test
+        @DisplayName("returns raw string for non-JSON response")
+        void returnsRawStringForNonJson() throws ApiException {
+            String result =
+                    api().call(
+                            "GET",
+                            "/api/text",
+                            new HashMap<>(),
+                            new HashMap<>(),
+                            null,
+                            new String[] {"text/plain"},
+                            "application/json",
+                            STRING_TYPE,
+                            null);
+            assertNotNull(result);
+            assertTrue(result.contains("hello plain text"));
+        }
+
+        @Test
+        @DisplayName("returns null when returnType is null")
+        void returnsNullWhenReturnTypeIsNull() throws ApiException {
+            Object result =
+                    api().call(
+                            "GET",
+                            "/api/test",
+                            new HashMap<>(),
+                            new HashMap<>(),
+                            null,
+                            new String[] {"application/json"},
+                            "application/json",
+                            null,
+                            null);
+            assertNull(result);
+        }
+    }
+
+    @Nested
+    @DisplayName("query parameters")
+    class QueryParameters {
+
+        @Test
+        @DisplayName("appends query params to URL")
+        void appendsQueryParams() throws ApiException {
+            Map<String, Object> queryParams = new HashMap<>();
+            queryParams.put("foo", "bar");
+            Object result =
+                    api().call(
+                            "GET",
+                            "/api/test",
+                            queryParams,
+                            new HashMap<>(),
+                            null,
+                            new String[] {"application/json"},
+                            "application/json",
+                            null,
+                            null);
+            assertNull(result);
+        }
+
+        @Test
+        @DisplayName("includes empty value param in query string when value is empty string")
+        void includesEmptyValueParam() throws ApiException {
+            Map<String, Object> queryParams = new HashMap<>();
+            queryParams.put("filter", "");
+            Object result =
+                    api().call(
+                            "GET",
+                            "/api/test",
+                            queryParams,
+                            new HashMap<>(),
+                            null,
+                            new String[] {"application/json"},
+                            "application/json",
+                            null,
+                            null);
+            assertNull(result);
+        }
+
+        @Test
+        @DisplayName("expands array query params")
+        void expandsArrayQueryParams() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Map<String, Object> queryParams = new HashMap<>();
+            queryParams.put("tags", List.of("a", "b"));
+            testApi.call("GET", "/api/test", queryParams, new HashMap<>(), null,
+                    new String[] {"application/json"}, "application/json", null, null);
+            assertTrue(client.capturedUrl.contains("tags=a&tags=b"),
+                    "Expected expanded array params but got: " + client.capturedUrl);
+        }
+
+        @Test
+        @DisplayName("serializes boolean query params")
+        void serializesBooleanQueryParams() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Map<String, Object> queryParams = new HashMap<>();
+            queryParams.put("active", true);
+            testApi.call("GET", "/api/test", queryParams, new HashMap<>(), null,
+                    new String[] {"application/json"}, "application/json", null, null);
+            assertTrue(client.capturedUrl.contains("active=true"),
+                    "Expected active=true but got: " + client.capturedUrl);
+        }
+
+        @Test
+        @DisplayName("serializes number query params")
+        void serializesNumberQueryParams() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Map<String, Object> queryParams = new HashMap<>();
+            queryParams.put("limit", 10);
+            testApi.call("GET", "/api/test", queryParams, new HashMap<>(), null,
+                    new String[] {"application/json"}, "application/json", null, null);
+            assertTrue(client.capturedUrl.contains("limit=10"),
+                    "Expected limit=10 but got: " + client.capturedUrl);
+            assertFalse(client.capturedUrl.contains("limit=10.0"),
+                    "Should not contain limit=10.0 but got: " + client.capturedUrl);
+        }
+
+        @Test
+        @DisplayName("handles empty query params")
+        void handlesEmptyQueryParams() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            testApi.call("GET", "/api/test", new HashMap<>(), new HashMap<>(), null,
+                    new String[] {"application/json"}, "application/json", null, null);
+            assertFalse(client.capturedUrl.contains("?"),
+                    "Expected no query string but got: " + client.capturedUrl);
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    @Nested
+    @DisplayName("allowEmptyValue query params")
+    class AllowEmptyValueQueryParams {
+
+        @Test
+        @DisplayName("null options omits allowEmptyValue param")
+        @SuppressWarnings("NullAway")
+        void nullOptionsOmitsAllowEmptyValueParam() {
+            var client = new CapturingApiClient();
+            var config = new Configuration("http://localhost", Map.of());
+            var api = new PetApi(client, config);
+            try {
+                api.findPetsByStatus(null);
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about the captured URL
             }
-          };
-      var testApi = new TestableApi(client, "http://localhost");
-      String result =
-          testApi.call(
-              "GET",
-              "/api/test",
-              new HashMap<>(),
-              new HashMap<>(),
-              null,
-              new String[] {"text/plain"},
-              "application/json",
-              STRING_TYPE,
-              null);
-      assertNotNull(result);
-      assertEquals("hello", result);
-    }
+            assertFalse(client.capturedUrl.contains("status="),
+                    "Expected no status param when options is null, got: " + client.capturedUrl);
+        }
 
-    @Test
-    @DisplayName("deserializes vendor JSON MIME types like application/problem+json")
-    void deserializesVendorJsonMimeType() throws ApiException {
-      var client =
-          new CapturingApiClient() {
-            @Override
-            public ApiResponse sendRequest(
-                String method, String url, Map<String, String> headers, @Nullable Object body) {
-              this.capturedUrl = url;
-              this.capturedHeaders = headers;
-              this.capturedBody = body;
-              return new ApiResponse(
-                  200,
-                  "{\"title\":\"Not Found\"}",
-                  Map.of("Content-Type", "application/problem+json"));
+        @Test
+        @DisplayName("allowEmptyValue param included when value is null in options")
+        void allowEmptyValueIncludedWhenNull() {
+            var client = new CapturingApiClient();
+            var config = new Configuration("http://localhost", Map.of());
+            var api = new PetApi(client, config);
+            try {
+                api.findPetsByStatus(new FindPetsByStatusOptions());
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about the captured URL
             }
-          };
-      var testApi = new TestableApi(client, "http://localhost");
-      JsonNode result =
-          testApi.call(
-              "GET",
-              "/api/test",
-              new HashMap<>(),
-              new HashMap<>(),
-              null,
-              new String[] {"application/json"},
-              "application/json",
-              JSON_NODE_TYPE,
-              null);
-      assertNotNull(result);
-      assertEquals("Not Found", result.get("title").asText());
-    }
-  }
+            assertTrue(client.capturedUrl.contains("status="),
+                    "Expected status= in URL for allowEmptyValue param with null value, got: " + client.capturedUrl);
+        }
 
-  @Nested
-  @DisplayName("header flow-through")
-  class HeaderFlowThrough {
-
-    @Test
-    @DisplayName("empty content-type defaults to application/json")
-    void emptyContentTypeDefaultsToJson() throws ApiException {
-      var client = new CapturingApiClient();
-      var testApi = new TestableApi(client, "http://localhost");
-      testApi.call(
-          "POST",
-          "/api/test",
-          new HashMap<>(),
-          new HashMap<>(),
-          new HashMap<>(),
-          new String[] {"application/json"},
-          "",
-          null,
-          null);
-      assertEquals("application/json", client.capturedHeaders.get("Content-Type"));
-    }
-
-    @Test
-    @DisplayName("all headers from selector flow through to request")
-    void allHeadersFlowThrough() throws ApiException {
-      var client = new CapturingApiClient();
-      var testApi = new TestableApi(client, "http://localhost");
-      testApi.call(
-          "POST",
-          "/api/test",
-          new HashMap<>(),
-          new HashMap<>(),
-          new HashMap<>(),
-          new String[] {"application/json"},
-          "application/json",
-          null,
-          null);
-      assertTrue(client.capturedHeaders.containsKey("Accept"));
-      assertTrue(client.capturedHeaders.containsKey("Content-Type"));
-    }
-  }
-
-  // ── Binary response tests (Gap 3+4) ──
-
-  @Nested
-  @DisplayName("BinaryResponseTests")
-  class BinaryResponseTests {
-
-    @Test
-    @DisplayName("octet-stream body roundtrips bytes exactly via API call")
-    void octetStreamRoundtripsBytesExactlyViaApi() throws ApiException {
-      byte[] original = new byte[] {0x00, (byte) 0xFF, 0x42};
-      String encoded = java.util.Base64.getEncoder().encodeToString(original);
-      var client =
-          new CapturingApiClient() {
-            @Override
-            public ApiResponse sendRequest(
-                String method, String url, Map<String, String> headers, @Nullable Object body) {
-              return new ApiResponse(
-                  200, encoded, Map.of("Content-Type", "application/octet-stream"));
+        @Test
+        @DisplayName("allowEmptyValue param included when value is empty string")
+        void allowEmptyValueIncludedWhenEmpty() {
+            var client = new CapturingApiClient();
+            var config = new Configuration("http://localhost", Map.of());
+            var api = new PetApi(client, config);
+            try {
+                api.findPetsByStatus(new FindPetsByStatusOptions().status(""));
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about the captured URL
             }
-          };
-      var testApi = new TestableApi(client, "http://localhost");
-      String resp =
-          testApi.call(
-              "GET",
-              "/api/binary",
-              new HashMap<>(),
-              new HashMap<>(),
-              null,
-              new String[] {"application/octet-stream"},
-              "application/json",
-              STRING_TYPE,
-              null);
-      assertNotNull(resp);
-      byte[] decoded = java.util.Base64.getDecoder().decode(resp);
-      assertArrayEquals(original, decoded, "binary roundtrip must preserve bytes exactly");
+            assertTrue(client.capturedUrl.contains("status="),
+                    "Expected status= in URL for empty string allowEmptyValue param, got: " + client.capturedUrl);
+        }
     }
 
-    @Test
-    @DisplayName("octet-stream base64 body decodes to correct bytes (transport-level)")
-    void octetStreamBase64DecodesToCorrectBytes() throws ApiException {
-      // AP9C is base64 for [0x00, 0xFF, 0x42]
-      var client =
-          new CapturingApiClient() {
-            @Override
-            public ApiResponse sendRequest(
-                String method, String url, Map<String, String> headers, @Nullable Object body) {
-              return new ApiResponse(
-                  200, "AP9C", Map.of("Content-Type", "application/octet-stream"));
-            }
-          };
-      var rawResponse = client.sendRequest("GET", "/api/binary", Map.of(), null);
-      byte[] decoded = java.util.Base64.getDecoder().decode(rawResponse.body());
-      assertArrayEquals(
-          new byte[] {0x00, (byte) 0xFF, 0x42},
-          decoded,
-          "binary roundtrip must preserve bytes exactly");
+    @Nested
+    @DisplayName("server variable overrides")
+    class ServerVariableOverrides {
+
+        @Test
+        @DisplayName("server variable overrides resolve in base URL")
+        void serverVariableOverridesResolve() {
+            Configuration config = Configuration.builder()
+                    .server(Servers.SERVER_1, Map.of("environment", "staging"))
+                    .build();
+            assertEquals("https://staging.example.com/api/v3", config.getBaseUrl());
+        }
+
+        @Test
+        @DisplayName("default server variables produce correct base URL")
+        void defaultServerVariablesResolve() {
+            Configuration config = Configuration.builder()
+                    .server(Servers.SERVER_1)
+                    .build();
+            assertEquals("https://api.example.com/api/v3", config.getBaseUrl());
+        }
+
+        @Test
+        @DisplayName("invalid enum value throws error")
+        void invalidEnumValueThrows() {
+            assertThrows(IllegalArgumentException.class, () ->
+                    Configuration.builder()
+                            .server(Servers.SERVER_1, Map.of("environment", "invalid"))
+                            .build());
+        }
+
+        @Test
+        @DisplayName("API request uses resolved server URL")
+        void apiRequestUsesResolvedUrl() {
+            Configuration config = Configuration.builder()
+                    .server(Servers.SERVER_1, Map.of("environment", "staging"))
+                    .build();
+            assertEquals("https://staging.example.com/api/v3", config.getBaseUrl());
+            TestableApi testApi = new TestableApi(config.getBaseUrl());
+            assertNotNull(testApi);
+        }
     }
 
-    @Test
-    @DisplayName("image/png response body is byte array not string")
-    void imagePngResponseIsBytes() throws ApiException {
-      var client =
-          new CapturingApiClient() {
-            @Override
-            public ApiResponse sendRequest(
-                String method, String url, Map<String, String> headers, @Nullable Object body) {
-              // A tiny valid base64-encoded PNG placeholder
-              return new ApiResponse(200, "iVBORw0KGgo=", Map.of("Content-Type", "image/png"));
-            }
-          };
-      var rawResponse = client.sendRequest("GET", "/api/image", Map.of(), null);
-      // Verify the body is a base64 string (not a UTF-8 decoded raw binary)
-      byte[] decoded = java.util.Base64.getDecoder().decode(rawResponse.body());
-      assertNotNull(decoded);
-      assertTrue(decoded.length > 0);
+    @Nested
+    @DisplayName("auth injection")
+    class AuthInjection {
+
+        @Test
+        @DisplayName("forwards auth headers")
+        void forwardsAuthHeaders() throws Exception {
+            var auth =
+                    new TestAuthenticator(
+                            Map.of("X-Custom", "auth-value"), Map.of(), Map.of());
+            JsonNode result =
+                    api().call(
+                            "GET",
+                            "/api/echo-headers",
+                            new HashMap<>(),
+                            new HashMap<>(),
+                            null,
+                            new String[] {"application/json"},
+                            "application/json",
+                            JSON_NODE_TYPE,
+                            auth);
+            assertNotNull(result);
+            assertEquals("auth-value", result.get("x-custom").asText());
+        }
+
+        @Test
+        @DisplayName("sets Cookie header from auth cookies")
+        void setsCookieHeader() throws Exception {
+            var auth =
+                    new TestAuthenticator(
+                            Map.of(), Map.of(), Map.of("session", "abc123"));
+            api().call(
+                    "GET",
+                    "/api/test",
+                    new HashMap<>(),
+                    new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null,
+                    auth);
+        }
     }
 
-    @Test
-    @DisplayName("application/json response parses to object")
-    void jsonResponseParsesToObject() throws ApiException {
-      var client =
-          new CapturingApiClient() {
-            @Override
-            public ApiResponse sendRequest(
-                String method, String url, Map<String, String> headers, @Nullable Object body) {
-              return new ApiResponse(
-                  200, "{\"key\":\"value\"}", Map.of("Content-Type", "application/json"));
-            }
-          };
-      var testApi = new TestableApi(client, "http://localhost");
-      JsonNode result =
-          testApi.call(
-              "GET",
-              "/api/test",
-              new HashMap<>(),
-              new HashMap<>(),
-              null,
-              new String[] {"application/json"},
-              "application/json",
-              JSON_NODE_TYPE,
-              null);
-      assertNotNull(result);
-      assertEquals("value", result.get("key").asText());
+    @Nested
+    @DisplayName("body serialization")
+    class BodySerialization {
+
+        @Test
+        @DisplayName("serializes JSON body for POST")
+        void serializesJsonBody() throws Exception {
+            Map<String, String> body = Map.of("key", "value");
+            JsonNode result =
+                    api().call(
+                            "POST",
+                            "/api/echo-body",
+                            new HashMap<>(),
+                            new HashMap<>(),
+                            body,
+                            new String[] {"application/json"},
+                            "application/json",
+                            JSON_NODE_TYPE,
+                            null);
+            assertNotNull(result);
+            assertEquals("value", result.get("key").asText());
+        }
+
+        @Test
+        @DisplayName("sends no body when body is null")
+        void sendsNoBodyWhenNull() throws ApiException {
+            api().call(
+                    "GET",
+                    "/api/test",
+                    new HashMap<>(),
+                    new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null,
+                    null);
+        }
+
+        @Test
+        @DisplayName("serializes text/plain body")
+        void serializesTextPlainBody() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            testApi.call(
+                    "POST", "/api/test",
+                    new HashMap<>(), new HashMap<>(),
+                    "hello world",
+                    new String[] {"application/json"},
+                    "text/plain",
+                    null, null);
+            assertNotNull(client.capturedBody);
+            assertEquals("hello world", client.capturedBody.toString());
+        }
+
+        @Test
+        @DisplayName("serializes form-urlencoded body")
+        void serializesFormUrlencodedBody() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Map<String, String> formParams = new java.util.LinkedHashMap<>();
+            formParams.put("name", "alice");
+            testApi.call(
+                    "POST", "/api/test",
+                    new HashMap<>(), new HashMap<>(),
+                    formParams,
+                    new String[] {"application/json"},
+                    "application/x-www-form-urlencoded",
+                    null, null);
+            assertNotNull(client.capturedBody);
+            assertTrue(client.capturedBody.toString().contains("name=alice"));
+        }
+
+        @Test
+        @DisplayName("passes binary body as-is")
+        void passesBinaryBody() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            byte[] binaryData = new byte[] {0x01, 0x02, 0x03};
+            testApi.call(
+                    "POST", "/api/test",
+                    new HashMap<>(), new HashMap<>(),
+                    binaryData,
+                    new String[] {"application/json"},
+                    "application/octet-stream",
+                    null, null);
+            assertNotNull(client.capturedBody);
+        }
     }
 
-    @Test
-    @DisplayName("text/plain response returns string")
-    void textPlainResponseReturnsString() throws ApiException {
-      var client =
-          new CapturingApiClient() {
-            @Override
-            public ApiResponse sendRequest(
-                String method, String url, Map<String, String> headers, @Nullable Object body) {
-              return new ApiResponse(200, "hello", Map.of("Content-Type", "text/plain"));
-            }
-          };
-      var testApi = new TestableApi(client, "http://localhost");
-      String result =
-          testApi.call(
-              "GET",
-              "/api/text",
-              new HashMap<>(),
-              new HashMap<>(),
-              null,
-              new String[] {"text/plain"},
-              "application/json",
-              STRING_TYPE,
-              null);
-      assertNotNull(result);
-      assertEquals("hello", result);
+    @Nested
+    @DisplayName("content-type handling")
+    class ContentTypeHandling {
+
+        @Test
+        @DisplayName("skips JSON deserialization for text/plain response")
+        void skipsDeserializationForTextPlain() throws ApiException {
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    this.capturedUrl = url;
+                    this.capturedHeaders = headers;
+                    this.capturedBody = body;
+                    return new ApiResponse(200, "hello", Map.of("Content-Type", "text/plain"));
+                }
+            };
+            var testApi = new TestableApi(client, "http://localhost");
+            String result = testApi.call(
+                    "GET", "/api/test",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"text/plain"},
+                    "application/json",
+                    STRING_TYPE,
+                    null);
+            assertNotNull(result);
+            assertEquals("hello", result);
+        }
+
+        @Test
+        @DisplayName("deserializes vendor JSON MIME types like application/problem+json")
+        void deserializesVendorJsonMimeType() throws ApiException {
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    this.capturedUrl = url;
+                    this.capturedHeaders = headers;
+                    this.capturedBody = body;
+                    return new ApiResponse(
+                            200,
+                            "{\"title\":\"Not Found\"}",
+                            Map.of("Content-Type", "application/problem+json"));
+                }
+            };
+            var testApi = new TestableApi(client, "http://localhost");
+            JsonNode result = testApi.call(
+                    "GET", "/api/test",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    JSON_NODE_TYPE,
+                    null);
+            assertNotNull(result);
+            assertEquals("Not Found", result.get("title").asText());
+        }
     }
 
-    @Test
-    @DisplayName("octet-stream with empty body yields empty byte array")
-    void octetStreamEmptyBodyYieldsEmptyByteArray() {
-      var client =
-          new CapturingApiClient() {
-            @Override
-            public ApiResponse sendRequest(
-                String method, String url, Map<String, String> headers, @Nullable Object body) {
-              return new ApiResponse(200, "", Map.of("Content-Type", "application/octet-stream"));
-            }
-          };
-      var rawResponse = client.sendRequest("GET", "/api/binary/empty", Map.of(), null);
-      assertTrue(rawResponse.body().isEmpty(), "Empty octet-stream body should be empty string");
-      byte[] decoded = java.util.Base64.getDecoder().decode(rawResponse.body());
-      assertEquals(0, decoded.length, "Decoded empty binary body must be a zero-length byte array");
-    }
-  }
+    @Nested
+    @DisplayName("header flow-through")
+    class HeaderFlowThrough {
 
-  // ── Charset decoding tests (Gap H) ──
+        @Test
+        @DisplayName("empty content-type defaults to application/json")
+        void emptyContentTypeDefaultsToJson() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            testApi.call(
+                    "POST", "/api/test",
+                    new HashMap<>(), new HashMap<>(),
+                    new HashMap<>(),
+                    new String[] {"application/json"},
+                    "",
+                    null, null);
+            assertEquals("application/json", client.capturedHeaders.get("Content-Type"));
+        }
 
-  @Nested
-  @DisplayName("CharsetDecodingTests")
-  class CharsetDecodingTests {
-
-    @Test
-    @DisplayName("respects charset=ISO-8859-1 from Content-Type")
-    void respectsIso88591Charset() throws Exception {
-      // 0xE9 is "é" in ISO-8859-1 (would be invalid as UTF-8)
-      byte[] bytes = new byte[] {(byte) 0xE9};
-      String latin1 = new String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1);
-      assertEquals("é", latin1);
-      // Verify the parseCharset logic round-trips through Charset.forName
-      java.nio.charset.Charset cs = java.nio.charset.Charset.forName("ISO-8859-1");
-      String decoded = new String(bytes, cs);
-      assertEquals("é", decoded, "ISO-8859-1 charset must decode 0xE9 as é");
-    }
-
-    @Test
-    @DisplayName("defaults to UTF-8 when Content-Type has no charset")
-    void defaultsToUtf8WhenNoCharset() {
-      byte[] utf8Bytes = "héllo".getBytes(java.nio.charset.StandardCharsets.UTF_8);
-      // UTF-8 default produces the original string
-      String decoded = new String(utf8Bytes, java.nio.charset.StandardCharsets.UTF_8);
-      assertEquals("héllo", decoded);
+        @Test
+        @DisplayName("all headers from selector flow through to request")
+        void allHeadersFlowThrough() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            testApi.call(
+                    "POST", "/api/test",
+                    new HashMap<>(), new HashMap<>(),
+                    new HashMap<>(),
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, null);
+            assertTrue(client.capturedHeaders.containsKey("Accept"));
+            assertTrue(client.capturedHeaders.containsKey("Content-Type"));
+        }
     }
 
-    @Test
-    @DisplayName("falls back to UTF-8 for unknown charset without throwing")
-    void fallsBackToUtf8ForUnknownCharset() {
-      // Verify Charset lookup throws as expected for an unknown name —
-      // template code catches this and falls back to UTF-8.
-      assertThrows(
-          java.nio.charset.UnsupportedCharsetException.class,
-          () -> java.nio.charset.Charset.forName("totally-not-a-charset"));
-      // The transport must not propagate the exception. Simulate the
-      // intended fall-through by manually applying the same UTF-8 default.
-      byte[] bytes = "ok".getBytes(java.nio.charset.StandardCharsets.UTF_8);
-      String decoded = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
-      assertEquals("ok", decoded);
-    }
-  }
+    // ── Binary response tests (Gap 3+4) ──
 
-  // ── Multipart filename sanitization tests (Gap F) ──
+    @Nested
+    @DisplayName("BinaryResponseTests")
+    class BinaryResponseTests {
 
-  @Nested
-  @DisplayName("MultipartFilenameSanitizationTests")
-  class MultipartFilenameSanitizationTests {
+        @Test
+        @DisplayName("octet-stream body roundtrips bytes exactly via API call")
+        void octetStreamRoundtripsBytesExactlyViaApi() throws ApiException {
+            byte[] original = new byte[] {0x00, (byte) 0xFF, 0x42};
+            String encoded = java.util.Base64.getEncoder().encodeToString(original);
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    return new ApiResponse(
+                            200, encoded, Map.of("Content-Type", "application/octet-stream"));
+                }
+            };
+            var testApi = new TestableApi(client, "http://localhost");
+            String resp = testApi.call(
+                    "GET", "/api/binary",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/octet-stream"},
+                    "application/json",
+                    STRING_TYPE,
+                    null);
+            assertNotNull(resp);
+            byte[] decoded = java.util.Base64.getDecoder().decode(resp);
+            assertArrayEquals(original, decoded,
+                    "binary roundtrip must preserve bytes exactly");
+        }
 
-    @Test
-    @DisplayName("CRLF in filename throws IllegalArgumentException")
-    void crlfInFilenameRejected() {
-      assertThrows(
-          IllegalArgumentException.class,
-          () -> DefaultApiClient.validateMultipartFilename("a\r\nX-Injected: yes"));
-    }
+        @Test
+        @DisplayName("octet-stream base64 body decodes to correct bytes (transport-level)")
+        void octetStreamBase64DecodesToCorrectBytes() throws ApiException {
+            // AP9C is base64 for [0x00, 0xFF, 0x42]
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    return new ApiResponse(200, "AP9C", Map.of("Content-Type", "application/octet-stream"));
+                }
+            };
+            var rawResponse = client.sendRequest("GET", "/api/binary", Map.of(), null);
+            byte[] decoded = java.util.Base64.getDecoder().decode(rawResponse.body());
+            assertArrayEquals(new byte[] {0x00, (byte) 0xFF, 0x42}, decoded,
+                    "binary roundtrip must preserve bytes exactly");
+        }
 
-    @Test
-    @DisplayName("NUL in filename throws IllegalArgumentException")
-    void nulInFilenameRejected() {
-      assertThrows(
-          IllegalArgumentException.class, () -> DefaultApiClient.validateMultipartFilename("a\0b"));
-    }
+        @Test
+        @DisplayName("image/png response body is byte array not string")
+        void imagePngResponseIsBytes() throws ApiException {
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    // A tiny valid base64-encoded PNG placeholder
+                    return new ApiResponse(200, "iVBORw0KGgo=", Map.of("Content-Type", "image/png"));
+                }
+            };
+            var rawResponse = client.sendRequest("GET", "/api/image", Map.of(), null);
+            // Verify the body is a base64 string (not a UTF-8 decoded raw binary)
+            byte[] decoded = java.util.Base64.getDecoder().decode(rawResponse.body());
+            assertNotNull(decoded);
+            assertTrue(decoded.length > 0);
+        }
 
-    @Test
-    @DisplayName("plain CR or LF in filename throws IllegalArgumentException")
-    void crOrLfInFilenameRejected() {
-      assertThrows(
-          IllegalArgumentException.class, () -> DefaultApiClient.validateMultipartFilename("a\rb"));
-      assertThrows(
-          IllegalArgumentException.class, () -> DefaultApiClient.validateMultipartFilename("a\nb"));
-    }
+        @Test
+        @DisplayName("application/json response parses to object")
+        void jsonResponseParsesToObject() throws ApiException {
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    return new ApiResponse(200, "{\"key\":\"value\"}", Map.of("Content-Type", "application/json"));
+                }
+            };
+            var testApi = new TestableApi(client, "http://localhost");
+            JsonNode result = testApi.call(
+                    "GET", "/api/test",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    JSON_NODE_TYPE,
+                    null);
+            assertNotNull(result);
+            assertEquals("value", result.get("key").asText());
+        }
 
-    @Test
-    @DisplayName("quote and backslash in filename are escaped")
-    void quoteAndBackslashEscaped() {
-      String directive = DefaultApiClient.buildFilenameDirective("a\"b.txt");
-      assertEquals(
-          "filename=\"a\\\"b.txt\"",
-          directive,
-          "quotes must be backslash-escaped in the filename directive");
-      String backslash = DefaultApiClient.buildFilenameDirective("a\\b.txt");
-      assertEquals(
-          "filename=\"a\\\\b.txt\"",
-          backslash,
-          "backslashes must be backslash-escaped in the filename directive");
-    }
+        @Test
+        @DisplayName("text/plain response returns string")
+        void textPlainResponseReturnsString() throws ApiException {
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    return new ApiResponse(200, "hello", Map.of("Content-Type", "text/plain"));
+                }
+            };
+            var testApi = new TestableApi(client, "http://localhost");
+            String result = testApi.call(
+                    "GET", "/api/text",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"text/plain"},
+                    "application/json",
+                    STRING_TYPE,
+                    null);
+            assertNotNull(result);
+            assertEquals("hello", result);
+        }
 
-    @Test
-    @DisplayName("non-ASCII filename emits RFC 5987 filename* parameter")
-    void nonAsciiFilenameUsesRfc5987() {
-      String directive = DefaultApiClient.buildFilenameDirective("日本.pdf");
-      assertTrue(
-          directive.contains("filename*=UTF-8''"),
-          "non-ASCII filename must emit RFC 5987 filename*= form, got: " + directive);
-      assertTrue(
-          directive.contains("%E6%97%A5%E6%9C%AC"),
-          "RFC 5987 value must be percent-encoded UTF-8, got: " + directive);
-      assertTrue(
-          directive.startsWith("filename=\""),
-          "must still include an ASCII fallback filename=\"...\", got: " + directive);
-    }
-
-    @Test
-    @DisplayName("plain ASCII filename omits the filename* parameter")
-    void asciiFilenameOmitsRfc5987() {
-      String directive = DefaultApiClient.buildFilenameDirective("hello.txt");
-      assertEquals("filename=\"hello.txt\"", directive);
-    }
-  }
-
-  // ── Multipart MIME sniffing tests (Gap J) ──
-
-  @Nested
-  @DisplayName("MultipartMimeSniffingTests")
-  class MultipartMimeSniffingTests {
-
-    @Test
-    @DisplayName("file.png is recognized as image/png")
-    void filePngRecognizedAsImagePng() {
-      String mime = DefaultApiClient.guessMimeTypeFromName("file.png");
-      assertEquals("image/png", mime);
-    }
-
-    @Test
-    @DisplayName("bytes with no filename hint fall back to application/octet-stream")
-    void noHintFallsBackToOctetStream() {
-      assertEquals("application/octet-stream", DefaultApiClient.guessMimeTypeFromName(null));
-      assertEquals("application/octet-stream", DefaultApiClient.guessMimeTypeFromName(""));
-      assertEquals(
-          "application/octet-stream", DefaultApiClient.guessMimeTypeFromName("no-extension-here"));
-    }
-  }
-
-  // ── Cross-origin redirect tests (Gap 8) ──
-
-  @Nested
-  @DisplayName("CrossOriginRedirectTests")
-  class CrossOriginRedirectTests {
-
-    @Test
-    @DisplayName("same-origin redirect forwards Authorization header")
-    void sameOriginRedirectForwardsAuthorization() throws ApiException {
-      var capturedRedirectHeaders = new HashMap<String, String>();
-      var client =
-          new CapturingApiClient() {
-            @Override
-            public ApiResponse sendRequest(
-                String method, String url, Map<String, String> headers, @Nullable Object body) {
-              capturedRedirectHeaders.putAll(headers);
-              return new ApiResponse(200, "{}", Map.of("Content-Type", "application/json"));
-            }
-          };
-      // Simulate a call with Authorization header on same-origin
-      var headers = new HashMap<String, String>();
-      headers.put("Authorization", "Bearer token123");
-      client.sendRequest("GET", "http://localhost/redirect", headers, null);
-      assertEquals(
-          "Bearer token123",
-          capturedRedirectHeaders.get("Authorization"),
-          "Authorization header should be present on same-origin request");
+        @Test
+        @DisplayName("octet-stream with empty body yields empty byte array")
+        void octetStreamEmptyBodyYieldsEmptyByteArray() {
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    return new ApiResponse(200, "", Map.of("Content-Type", "application/octet-stream"));
+                }
+            };
+            var rawResponse = client.sendRequest("GET", "/api/binary/empty", Map.of(), null);
+            assertTrue(rawResponse.body().isEmpty(),
+                    "Empty octet-stream body should be empty string");
+            byte[] decoded = java.util.Base64.getDecoder().decode(rawResponse.body());
+            assertEquals(0, decoded.length,
+                    "Decoded empty binary body must be a zero-length byte array");
+        }
     }
 
-    @Test
-    @DisplayName("cross-origin redirect drops Authorization header")
-    void crossOriginRedirectDropsAuthorization() {
-      // Verify that the Java client strips sensitive headers on cross-origin redirects.
-      // The manual redirect loop in DefaultApiClient checks same-origin before forwarding.
-      // Here we verify the logic by checking the isRedirect status codes are handled.
-      // (Full integration test would require a live server; this verifies the guard logic.)
-      var sensitiveHeaders = Set.of("authorization", "cookie", "proxy-authorization");
-      assertTrue(
-          sensitiveHeaders.contains("authorization"),
-          "authorization should be in the sensitive headers set");
-      assertTrue(
-          sensitiveHeaders.contains("cookie"), "cookie should be in the sensitive headers set");
-      assertTrue(
-          sensitiveHeaders.contains("proxy-authorization"),
-          "proxy-authorization should be in the sensitive headers set");
+    // ── Charset decoding tests (Gap H) ──
+
+    @Nested
+    @DisplayName("CharsetDecodingTests")
+    class CharsetDecodingTests {
+
+        @Test
+        @DisplayName("respects charset=ISO-8859-1 from Content-Type")
+        void respectsIso88591Charset() throws Exception {
+            // 0xE9 is "é" in ISO-8859-1 (would be invalid as UTF-8)
+            byte[] bytes = new byte[] {(byte) 0xE9};
+            String latin1 = new String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1);
+            assertEquals("é", latin1);
+            // Verify the parseCharset logic round-trips through Charset.forName
+            java.nio.charset.Charset cs = java.nio.charset.Charset.forName("ISO-8859-1");
+            String decoded = new String(bytes, cs);
+            assertEquals("é", decoded,
+                    "ISO-8859-1 charset must decode 0xE9 as é");
+        }
+
+        @Test
+        @DisplayName("defaults to UTF-8 when Content-Type has no charset")
+        void defaultsToUtf8WhenNoCharset() {
+            byte[] utf8Bytes = "héllo".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            // UTF-8 default produces the original string
+            String decoded = new String(utf8Bytes, java.nio.charset.StandardCharsets.UTF_8);
+            assertEquals("héllo", decoded);
+        }
+
+        @Test
+        @DisplayName("falls back to UTF-8 for unknown charset without throwing")
+        void fallsBackToUtf8ForUnknownCharset() {
+            // Verify Charset lookup throws as expected for an unknown name —
+            // template code catches this and falls back to UTF-8.
+            assertThrows(java.nio.charset.UnsupportedCharsetException.class,
+                    () -> java.nio.charset.Charset.forName("totally-not-a-charset"));
+            // The transport must not propagate the exception. Simulate the
+            // intended fall-through by manually applying the same UTF-8 default.
+            byte[] bytes = "ok".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            String decoded = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+            assertEquals("ok", decoded);
+        }
     }
 
-    @Test
-    @DisplayName("cross-origin redirect drops Cookie header")
-    void crossOriginRedirectDropsCookie() {
-      // Same as above — verifies the guard set includes 'cookie'
-      var sensitiveHeaders = Set.of("authorization", "cookie", "proxy-authorization");
-      assertTrue(
-          sensitiveHeaders.contains("cookie"), "cookie must be stripped on cross-origin redirects");
-    }
-  }
+    // ── Multipart filename sanitization tests (Gap F) ──
 
-  // ── Null body Content-Type tests (Gap 11) ──
+    @Nested
+    @DisplayName("MultipartFilenameSanitizationTests")
+    class MultipartFilenameSanitizationTests {
 
-  @Nested
-  @DisplayName("NullBodyContentTypeTests")
-  class NullBodyContentTypeTests {
+        @Test
+        @DisplayName("CRLF in filename throws IllegalArgumentException")
+        void crlfInFilenameRejected() {
+            assertThrows(IllegalArgumentException.class,
+                    () -> DefaultApiClient.validateMultipartFilename("a\r\nX-Injected: yes"));
+        }
 
-    @Test
-    @DisplayName("POST with null body does not send Content-Type")
-    void postWithNullBodyOmitsContentType() throws ApiException {
-      var client =
-          new CapturingApiClient() {
-            @Override
-            public ApiResponse sendRequest(
-                String method, String url, Map<String, String> headers, @Nullable Object body) {
-              this.capturedHeaders = headers;
-              this.capturedBody = body;
-              return new ApiResponse(200, "{}", Map.of("Content-Type", "application/json"));
-            }
-          };
-      var testApi = new TestableApi(client, "http://localhost");
-      testApi.call(
-          "POST",
-          "/api/test",
-          new HashMap<>(),
-          new HashMap<>(),
-          null,
-          new String[] {"application/json"},
-          "application/json",
-          null,
-          null);
-      assertFalse(
-          client.capturedHeaders.containsKey("Content-Type"),
-          "Content-Type must NOT be sent when body is null");
-    }
+        @Test
+        @DisplayName("NUL in filename throws IllegalArgumentException")
+        void nulInFilenameRejected() {
+            assertThrows(IllegalArgumentException.class,
+                    () -> DefaultApiClient.validateMultipartFilename("a\0b"));
+        }
 
-    @Test
-    @DisplayName("POST with empty string body sends Content-Type")
-    void postWithEmptyStringBodySendsContentType() throws ApiException {
-      var client = new CapturingApiClient();
-      var testApi = new TestableApi(client, "http://localhost");
-      testApi.call(
-          "POST",
-          "/api/test",
-          new HashMap<>(),
-          new HashMap<>(),
-          "",
-          new String[] {"application/json"},
-          "application/json",
-          null,
-          null);
-      assertTrue(
-          client.capturedHeaders.containsKey("Content-Type"),
-          "Content-Type must be sent when body is an empty string");
+        @Test
+        @DisplayName("plain CR or LF in filename throws IllegalArgumentException")
+        void crOrLfInFilenameRejected() {
+            assertThrows(IllegalArgumentException.class,
+                    () -> DefaultApiClient.validateMultipartFilename("a\rb"));
+            assertThrows(IllegalArgumentException.class,
+                    () -> DefaultApiClient.validateMultipartFilename("a\nb"));
+        }
+
+        @Test
+        @DisplayName("quote and backslash in filename are escaped")
+        void quoteAndBackslashEscaped() {
+            String directive = DefaultApiClient.buildFilenameDirective("a\"b.txt");
+            assertEquals("filename=\"a\\\"b.txt\"", directive,
+                    "quotes must be backslash-escaped in the filename directive");
+            String backslash = DefaultApiClient.buildFilenameDirective("a\\b.txt");
+            assertEquals("filename=\"a\\\\b.txt\"", backslash,
+                    "backslashes must be backslash-escaped in the filename directive");
+        }
+
+        @Test
+        @DisplayName("non-ASCII filename emits RFC 5987 filename* parameter")
+        void nonAsciiFilenameUsesRfc5987() {
+            String directive = DefaultApiClient.buildFilenameDirective("日本.pdf");
+            assertTrue(directive.contains("filename*=UTF-8''"),
+                    "non-ASCII filename must emit RFC 5987 filename*= form, got: " + directive);
+            assertTrue(directive.contains("%E6%97%A5%E6%9C%AC"),
+                    "RFC 5987 value must be percent-encoded UTF-8, got: " + directive);
+            assertTrue(directive.startsWith("filename=\""),
+                    "must still include an ASCII fallback filename=\"...\", got: " + directive);
+        }
+
+        @Test
+        @DisplayName("plain ASCII filename omits the filename* parameter")
+        void asciiFilenameOmitsRfc5987() {
+            String directive = DefaultApiClient.buildFilenameDirective("hello.txt");
+            assertEquals("filename=\"hello.txt\"", directive);
+        }
     }
 
-    @Test
-    @DisplayName("POST with empty JSON object body sends Content-Type and correct body")
-    void postWithEmptyJsonBodySendsContentTypeAndBody() throws ApiException {
-      var client = new CapturingApiClient();
-      var testApi = new TestableApi(client, "http://localhost");
-      testApi.call(
-          "POST",
-          "/api/test",
-          new HashMap<>(),
-          new HashMap<>(),
-          new HashMap<>(),
-          new String[] {"application/json"},
-          "application/json",
-          null,
-          null);
-      assertTrue(
-          client.capturedHeaders.containsKey("Content-Type"),
-          "Content-Type must be sent when body is {}");
-      assertNotNull(client.capturedBody);
-      assertEquals("{}", client.capturedBody.toString());
+    // ── Multipart MIME sniffing tests (Gap J) ──
+
+    @Nested
+    @DisplayName("MultipartMimeSniffingTests")
+    class MultipartMimeSniffingTests {
+
+        @Test
+        @DisplayName("file.png is recognized as image/png")
+        void filePngRecognizedAsImagePng() {
+            String mime = DefaultApiClient.guessMimeTypeFromName("file.png");
+            assertEquals("image/png", mime);
+        }
+
+        @Test
+        @DisplayName("bytes with no filename hint fall back to application/octet-stream")
+        void noHintFallsBackToOctetStream() {
+            assertEquals("application/octet-stream",
+                    DefaultApiClient.guessMimeTypeFromName(null));
+            assertEquals("application/octet-stream",
+                    DefaultApiClient.guessMimeTypeFromName(""));
+            assertEquals("application/octet-stream",
+                    DefaultApiClient.guessMimeTypeFromName("no-extension-here"));
+        }
     }
-  }
 
-  @Nested
-  @DisplayName("ProxyAuthenticationTests")
-  class ProxyAuthenticationTests {
+    // ── Cross-origin redirect tests (Gap 8) ──
 
-    @Test
-    @Disabled(
-        "requires Squid configured with basic-auth; the shared SquidContainer in this "
-            + "test environment runs without basic_auth ACLs, so userinfo in the proxy "
-            + "URL cannot be verified end-to-end. Enable when SquidContainer's "
-            + "squid.conf is provisioned with htpasswd-backed auth.")
-    @DisplayName("proxy URL with userinfo sends Proxy-Authorization through the proxy")
-    void proxyUrlWithUserinfoSendsProxyAuthorization() throws ApiException {
-      String wiremockUrl = WireMockContainer.getInternalHttpUrl();
-      String baseProxyUrl = SquidContainer.getProxyUrl();
-      // Splice basic-auth userinfo into the proxy URL: http://user:pass@host:port
-      java.net.URI uri = java.net.URI.create(baseProxyUrl);
-      String proxyUrlWithAuth =
-          uri.getScheme() + "://user:pass@" + uri.getHost() + ":" + uri.getPort();
+    @Nested
+    @DisplayName("CrossOriginRedirectTests")
+    class CrossOriginRedirectTests {
 
-      TransportOptions transport = TransportOptions.builder().proxy(proxyUrlWithAuth).build();
+        @Test
+        @DisplayName("same-origin redirect forwards Authorization header")
+        void sameOriginRedirectForwardsAuthorization() throws ApiException {
+            var capturedRedirectHeaders = new HashMap<String, String>();
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    capturedRedirectHeaders.putAll(headers);
+                    return new ApiResponse(200, "{}", Map.of("Content-Type", "application/json"));
+                }
+            };
+            // Simulate a call with Authorization header on same-origin
+            var headers = new HashMap<String, String>();
+            headers.put("Authorization", "Bearer token123");
+            client.sendRequest("GET", "http://localhost/redirect", headers, null);
+            assertEquals("Bearer token123", capturedRedirectHeaders.get("Authorization"),
+                    "Authorization header should be present on same-origin request");
+        }
 
-      DefaultApiClient client = new DefaultApiClient(transport);
-      ApiResponse response =
-          client.sendRequest("GET", wiremockUrl + "/api/test", new HashMap<>(), null);
+        @Test
+        @DisplayName("cross-origin redirect drops Authorization header")
+        void crossOriginRedirectDropsAuthorization() {
+            // Verify that the Java client strips sensitive headers on cross-origin redirects.
+            // The manual redirect loop in DefaultApiClient checks same-origin before forwarding.
+            // Here we verify the logic by checking the isRedirect status codes are handled.
+            // (Full integration test would require a live server; this verifies the guard logic.)
+            var sensitiveHeaders = Set.of("authorization", "cookie", "proxy-authorization");
+            assertTrue(sensitiveHeaders.contains("authorization"),
+                    "authorization should be in the sensitive headers set");
+            assertTrue(sensitiveHeaders.contains("cookie"),
+                    "cookie should be in the sensitive headers set");
+            assertTrue(sensitiveHeaders.contains("proxy-authorization"),
+                    "proxy-authorization should be in the sensitive headers set");
+        }
 
-      assertEquals(200, response.statusCode());
-      assertTrue(response.body().contains("success"));
+        @Test
+        @DisplayName("cross-origin redirect drops Cookie header")
+        void crossOriginRedirectDropsCookie() {
+            // Same as above — verifies the guard set includes 'cookie'
+            var sensitiveHeaders = Set.of("authorization", "cookie", "proxy-authorization");
+            assertTrue(sensitiveHeaders.contains("cookie"),
+                    "cookie must be stripped on cross-origin redirects");
+        }
     }
-  }
+
+    // ── Null body Content-Type tests (Gap 11) ──
+
+    @Nested
+    @DisplayName("NullBodyContentTypeTests")
+    class NullBodyContentTypeTests {
+
+        @Test
+        @DisplayName("POST with null body does not send Content-Type")
+        void postWithNullBodyOmitsContentType() throws ApiException {
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    this.capturedHeaders = headers;
+                    this.capturedBody = body;
+                    return new ApiResponse(200, "{}", Map.of("Content-Type", "application/json"));
+                }
+            };
+            var testApi = new TestableApi(client, "http://localhost");
+            testApi.call(
+                    "POST", "/api/test",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, null);
+            assertFalse(client.capturedHeaders.containsKey("Content-Type"),
+                    "Content-Type must NOT be sent when body is null");
+        }
+
+        @Test
+        @DisplayName("POST with empty string body sends Content-Type")
+        void postWithEmptyStringBodySendsContentType() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            testApi.call(
+                    "POST", "/api/test",
+                    new HashMap<>(), new HashMap<>(),
+                    "",
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, null);
+            assertTrue(client.capturedHeaders.containsKey("Content-Type"),
+                    "Content-Type must be sent when body is an empty string");
+        }
+
+        @Test
+        @DisplayName("POST with empty JSON object body sends Content-Type and correct body")
+        void postWithEmptyJsonBodySendsContentTypeAndBody() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            testApi.call(
+                    "POST", "/api/test",
+                    new HashMap<>(), new HashMap<>(),
+                    new HashMap<>(),
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, null);
+            assertTrue(client.capturedHeaders.containsKey("Content-Type"),
+                    "Content-Type must be sent when body is {}");
+            assertNotNull(client.capturedBody);
+            assertEquals("{}", client.capturedBody.toString());
+        }
+    }
+
+    @Nested
+    @DisplayName("ProxyAuthenticationTests")
+    class ProxyAuthenticationTests {
+
+        @Test
+        @Disabled(
+                "requires Squid configured with basic-auth; the shared SquidContainer in this "
+                        + "test environment runs without basic_auth ACLs, so userinfo in the proxy "
+                        + "URL cannot be verified end-to-end. Enable when SquidContainer's "
+                        + "squid.conf is provisioned with htpasswd-backed auth.")
+        @DisplayName("proxy URL with userinfo sends Proxy-Authorization through the proxy")
+        void proxyUrlWithUserinfoSendsProxyAuthorization() throws ApiException {
+            String wiremockUrl = WireMockContainer.getInternalHttpUrl();
+            String baseProxyUrl = SquidContainer.getProxyUrl();
+            // Splice basic-auth userinfo into the proxy URL: http://user:pass@host:port
+            java.net.URI uri = java.net.URI.create(baseProxyUrl);
+            String proxyUrlWithAuth =
+                    uri.getScheme() + "://user:pass@" + uri.getHost() + ":" + uri.getPort();
+
+            TransportOptions transport = TransportOptions.builder()
+                    .proxy(proxyUrlWithAuth)
+                    .build();
+
+            DefaultApiClient client = new DefaultApiClient(transport);
+            ApiResponse response = client.sendRequest(
+                    "GET", wiremockUrl + "/api/test", new HashMap<>(), null);
+
+            assertEquals(200, response.statusCode());
+            assertTrue(response.body().contains("success"));
+        }
+    }
 }

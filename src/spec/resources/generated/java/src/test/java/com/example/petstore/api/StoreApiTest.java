@@ -7,122 +7,122 @@
 
 package com.example.petstore.api;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-
 import com.example.petstore.Configuration;
 import com.example.petstore.DefaultApiClient;
 import com.example.petstore.PrismContainer;
 import com.example.petstore.models.Order;
-import com.sun.net.httpserver.HttpServer;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Map;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 
-/** Integration tests for the Store API endpoints. */
+import com.sun.net.httpserver.HttpServer;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+/**
+ * Integration tests for the Store API endpoints.
+ */
 class StoreApiTest {
 
-  private StoreApi api;
+    private StoreApi api;
 
-  @BeforeEach
-  void setUp() {
-    String baseUrl = PrismContainer.getBaseUrl();
-    Configuration config =
-        Configuration.builder()
-            .baseUrl(baseUrl)
-            .defaultHeader("Authorization", "Bearer test-token")
-            .build();
-    api = new StoreApi(new DefaultApiClient(), config);
-  }
+    @BeforeEach
+    void setUp() {
+        String baseUrl = PrismContainer.getBaseUrl();
+        Configuration config = Configuration.builder()
+                .baseUrl(baseUrl)
+                .defaultHeader("Authorization", "Bearer test-token")
+                .build();
+        api = new StoreApi(new DefaultApiClient(), config);
+    }
 
-  @Test
-  void testGetInventory() throws Exception {
-    Map<String, Integer> result = api.getInventory();
-    assertNotNull(result);
-  }
+    @Test
+    void testGetInventory() throws Exception {
+        Map<String, Integer> result = api.getInventory();
+        assertNotNull(result);
+    }
 
-  @Test
-  void testPlaceOrder() throws Exception {
-    Order order = new Order();
-    order.id = 1L;
-    order.petId = 12345L;
-    order.quantity = 1;
-    order.shipDate = OffsetDateTime.now(ZoneOffset.UTC);
-    order.status = Order.StatusEnum.PLACED;
-    order.complete = false;
+    @Test
+    void testPlaceOrder() throws Exception {
+        Order order = new Order();
+        order.id = 1L;
+        order.petId = 12345L;
+        order.quantity = 1;
+        order.shipDate = OffsetDateTime.now(ZoneOffset.UTC);
+        order.status = Order.StatusEnum.PLACED;
+        order.complete = false;
 
-    Order result = api.placeOrder(order);
-    assertNotNull(result);
+        Order result = api.placeOrder(order);
+        assertNotNull(result);
 
-    assertThat(result.id).isNotNull();
-  }
+        assertThat(result.id).isNotNull();
+    }
 
-  @Test
-  void testGetOrderById() throws Exception {
-    Order result = api.getOrderById(1L);
-    assertNotNull(result);
+    @Test
+    void testGetOrderById() throws Exception {
+        Order result = api.getOrderById(1L);
+        assertNotNull(result);
 
-    assertThat(result.id).isNotNull();
-  }
+        assertThat(result.id).isNotNull();
+    }
 
-  @Test
-  void testDeleteOrder() throws Exception {
-    api.deleteOrder(1L);
+    @Test
+    void testDeleteOrder() throws Exception {
+        api.deleteOrder(1L);
 
-    assertThat(true).isTrue();
-  }
+        assertThat(true).isTrue();
+    }
 
-  private StoreApi newStoreApiForMock(int status, String contentType, String body)
-      throws Exception {
-    HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
-    server.createContext(
-        "/",
-        exchange -> {
-          byte[] responseBytes = body.getBytes(StandardCharsets.UTF_8);
-          exchange.getResponseHeaders().set("Content-Type", contentType);
-          exchange.sendResponseHeaders(status, responseBytes.length);
-          exchange.getResponseBody().write(responseBytes);
-          exchange.getResponseBody().close();
+    private StoreApi newStoreApiForMock(int status, String contentType, String body) throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/", exchange -> {
+            byte[] responseBytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", contentType);
+            exchange.sendResponseHeaders(status, responseBytes.length);
+            exchange.getResponseBody().write(responseBytes);
+            exchange.getResponseBody().close();
         });
-    server.start();
-    String baseUrl = "http://localhost:" + server.getAddress().getPort();
-    Configuration config = Configuration.builder().baseUrl(baseUrl).build();
-    return new StoreApi(new DefaultApiClient(), config);
-  }
+        server.start();
+        String baseUrl = "http://localhost:" + server.getAddress().getPort();
+        Configuration config = Configuration.builder().baseUrl(baseUrl).build();
+        return new StoreApi(new DefaultApiClient(), config);
+    }
 
-  @Test
-  void testGetOrderNotFound() throws Exception {
-    StoreApi mockApi =
-        newStoreApiForMock(404, "application/json", "{\"message\":\"Order not found\"}");
+    @Test
+    void testGetOrderNotFound() throws Exception {
+        StoreApi mockApi = newStoreApiForMock(404, "application/json", "{\"message\":\"Order not found\"}");
 
-    assertThatThrownBy(() -> mockApi.getOrderById(99999L)).isInstanceOf(Exception.class);
-  }
+        assertThatThrownBy(() -> mockApi.getOrderById(99999L))
+                .isInstanceOf(Exception.class);
+    }
 
-  @Test
-  void testPlaceOrderServerError() throws Exception {
-    StoreApi mockApi =
-        newStoreApiForMock(500, "application/json", "{\"message\":\"Internal server error\"}");
+    @Test
+    void testPlaceOrderServerError() throws Exception {
+        StoreApi mockApi = newStoreApiForMock(500, "application/json", "{\"message\":\"Internal server error\"}");
 
-    Order order = new Order();
-    order.id = 1L;
-    order.petId = 12345L;
-    order.quantity = 1;
-    order.status = Order.StatusEnum.PLACED;
-    order.complete = false;
+        Order order = new Order();
+        order.id = 1L;
+        order.petId = 12345L;
+        order.quantity = 1;
+        order.status = Order.StatusEnum.PLACED;
+        order.complete = false;
 
-    assertThatThrownBy(() -> mockApi.placeOrder(order)).isInstanceOf(Exception.class);
-  }
+        assertThatThrownBy(() -> mockApi.placeOrder(order))
+                .isInstanceOf(Exception.class);
+    }
 
-  @Test
-  void testDeleteOrderNotFound() throws Exception {
-    StoreApi mockApi =
-        newStoreApiForMock(404, "application/json", "{\"message\":\"Order not found\"}");
+    @Test
+    void testDeleteOrderNotFound() throws Exception {
+        StoreApi mockApi = newStoreApiForMock(404, "application/json", "{\"message\":\"Order not found\"}");
 
-    assertThatThrownBy(() -> mockApi.deleteOrder(99999L)).isInstanceOf(Exception.class);
-  }
+        assertThatThrownBy(() -> mockApi.deleteOrder(99999L))
+                .isInstanceOf(Exception.class);
+    }
 }

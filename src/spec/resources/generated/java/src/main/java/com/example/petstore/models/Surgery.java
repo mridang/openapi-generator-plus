@@ -7,7 +7,9 @@
 
 package com.example.petstore.models;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nullable;
 
@@ -17,6 +19,7 @@ public class Surgery {
 
   /** Example: {@code null} */
   @JsonProperty("procedureName")
+  
   public String procedureName;
 
   /** Example: {@code null} */
@@ -29,8 +32,7 @@ public class Surgery {
 
   @com.fasterxml.jackson.annotation.JsonCreator
   public Surgery(@JsonProperty(value = "procedureName", required = true) String procedureName) {
-    this.procedureName =
-        java.util.Objects.requireNonNull(procedureName, "procedureName is required");
+    this.procedureName = java.util.Objects.requireNonNull(procedureName, "procedureName is required");
   }
 
   /* Value-equality based on all declared fields. Generated so model

@@ -1,0 +1,29 @@
+current directory: /app/vendor/bundle/ruby/3.4.0/gems/brotli-0.8.0/ext/brotli
+/usr/local/bin/ruby extconf.rb
+checking for rb_gc_mark_movable()... yes
+checking for brotli/decode.h... yes
+checking for brotli/encode.h... yes
+checking for pkg-config for libbrotlicommon... [" ", "", "-lbrotlicommon"]
+checking for pkg-config for libbrotlidec... [" ", "", "-lbrotlidec"]
+checking for pkg-config for libbrotlienc... [" ", "", "-lbrotlienc"]
+checking for brotli/shared_dictionary.h... yes
+checking for BrotliEncoderPrepareDictionary() in brotli/encode.h... yes
+checking for BrotliEncoderAttachPreparedDictionary() in brotli/encode.h... yes
+checking for BrotliDecoderAttachDictionary() in brotli/decode.h... yes
+creating Makefile
+
+current directory: /app/vendor/bundle/ruby/3.4.0/gems/brotli-0.8.0/ext/brotli
+make DESTDIR\= sitearchdir\=./.gem.20260520-8-hqe6qq sitelibdir\=./.gem.20260520-8-hqe6qq clean
+
+current directory: /app/vendor/bundle/ruby/3.4.0/gems/brotli-0.8.0/ext/brotli
+make DESTDIR\= sitearchdir\=./.gem.20260520-8-hqe6qq sitelibdir\=./.gem.20260520-8-hqe6qq
+compiling brotli.c
+compiling buffer.c
+linking shared-object brotli/brotli.so
+
+current directory: /app/vendor/bundle/ruby/3.4.0/gems/brotli-0.8.0/ext/brotli
+make DESTDIR\= sitearchdir\=./.gem.20260520-8-hqe6qq sitelibdir\=./.gem.20260520-8-hqe6qq install
+/usr/bin/install -c -m 0755 brotli.so ./.gem.20260520-8-hqe6qq/brotli
+
+current directory: /app/vendor/bundle/ruby/3.4.0/gems/brotli-0.8.0/ext/brotli
+make DESTDIR\= sitearchdir\=./.gem.20260520-8-hqe6qq sitelibdir\=./.gem.20260520-8-hqe6qq clean

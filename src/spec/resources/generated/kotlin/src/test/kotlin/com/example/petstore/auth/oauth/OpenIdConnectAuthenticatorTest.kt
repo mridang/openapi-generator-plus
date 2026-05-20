@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test
 import java.util.LinkedList
 
 class OpenIdConnectAuthenticatorTest {
+
     private class FakeApiClient : ApiClient {
         private val responses = LinkedList<ApiResponse>()
         var lastBody: String? = null
@@ -23,10 +24,7 @@ class OpenIdConnectAuthenticatorTest {
         var lastMethod: String? = null
             private set
 
-        fun enqueue(
-            body: String,
-            statusCode: Int = 200,
-        ) {
+        fun enqueue(body: String, statusCode: Int = 200) {
             responses.add(ApiResponse(statusCode, body, emptyMap()))
         }
 
@@ -34,7 +32,7 @@ class OpenIdConnectAuthenticatorTest {
             method: String,
             url: String,
             headers: Map<String, String>,
-            body: Any?,
+            body: Any?
         ): ApiResponse {
             lastMethod = method
             lastUrl = url
@@ -43,21 +41,22 @@ class OpenIdConnectAuthenticatorTest {
         }
     }
 
-    private fun createAuthenticator(): OpenIdConnectAuthenticator =
-        OpenIdConnectAuthenticator(
+    private fun createAuthenticator(): OpenIdConnectAuthenticator {
+        return OpenIdConnectAuthenticator(
             host = "https://api.example.com",
             discoveryUrl = "https://auth.example.com/.well-known/openid-configuration",
             clientId = "my-client-id",
             clientSecret = "my-client-secret",
             redirectUri = "https://app.example.com/callback",
-            scopes = listOf("openid", "profile"),
+            scopes = listOf("openid", "profile")
         )
+    }
 
     @Test
     fun buildsAuthorizationUrlFromDiscovery() {
         val client = FakeApiClient()
         client.enqueue(
-            """{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
+            """{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"""
         )
 
         val auth = createAuthenticator()
@@ -75,7 +74,7 @@ class OpenIdConnectAuthenticatorTest {
     fun fetchesDiscoveryDocument() {
         val client = FakeApiClient()
         client.enqueue(
-            """{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
+            """{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"""
         )
 
         val auth = createAuthenticator()
@@ -92,7 +91,7 @@ class OpenIdConnectAuthenticatorTest {
         val client = FakeApiClient()
         // Discovery document
         client.enqueue(
-            """{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
+            """{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"""
         )
         // Token response
         client.enqueue("""{"access_token":"oidc-tok","expires_in":3600}""")
@@ -111,7 +110,7 @@ class OpenIdConnectAuthenticatorTest {
         val client = FakeApiClient()
         // Discovery document
         client.enqueue(
-            """{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
+            """{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"""
         )
         // Token response
         client.enqueue("""{"access_token":"oidc-tok","expires_in":3600}""")

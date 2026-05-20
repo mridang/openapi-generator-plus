@@ -150,7 +150,7 @@ export class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
     }
     const params: Record<string, string> = {
       grant_type: 'refresh_token',
-      refresh_token: this.tokenManager.getRefreshToken() ?? ''
+      refresh_token: this.tokenManager.getRefreshToken() ?? '',
     };
     const token = await this.tokenManager.getAccessToken(this.refreshUrl, params);
     return { Authorization: `Bearer ${token}` };

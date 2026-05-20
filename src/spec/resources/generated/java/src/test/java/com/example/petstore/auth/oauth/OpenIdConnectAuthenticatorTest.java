@@ -18,126 +18,116 @@ import org.junit.jupiter.api.Test;
 
 class OpenIdConnectAuthenticatorTest {
 
-  private static final String DISCOVERY_RESPONSE =
-      "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
-          + "\"token_endpoint\":\"https://auth.example.com/token\"}";
+    private static final String DISCOVERY_RESPONSE =
+            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+            + "\"token_endpoint\":\"https://auth.example.com/token\"}";
 
-  private static OpenIdConnectAuthenticator createAuthenticator() {
-    return new OpenIdConnectAuthenticator(
-        "https://api.example.com",
-        "https://auth.example.com/.well-known/openid-configuration",
-        "my-client-id",
-        "my-client-secret",
-        "https://app.example.com/callback",
-        List.of("openid", "profile"));
-  }
+    private static OpenIdConnectAuthenticator createAuthenticator() {
+        return new OpenIdConnectAuthenticator(
+                "https://api.example.com",
+                "https://auth.example.com/.well-known/openid-configuration",
+                "my-client-id",
+                "my-client-secret",
+                "https://app.example.com/callback",
+                List.of("openid", "profile"));
+    }
 
-  @Test
-  void buildsAuthorizationUrlFromDiscovery() {
-    AtomicReference<String> capturedUrl = new AtomicReference<>();
-    ApiClient client =
-        (method, url, headers, body) -> {
-          capturedUrl.set(url);
-          return new ApiResponse(200, DISCOVERY_RESPONSE, Map.of());
-        };
-
-    OpenIdConnectAuthenticator auth = createAuthenticator();
-    auth.setApiClient(client);
-
-    String url = auth.buildAuthorizationUrl("csrf-state");
-
-    assertEquals("https://auth.example.com/.well-known/openid-configuration", capturedUrl.get());
-    assertTrue(url.startsWith("https://auth.example.com/authorize?"));
-    assertTrue(url.contains("response_type=code"));
-    assertTrue(url.contains("client_id=my-client-id"));
-    assertTrue(url.contains("state=csrf-state"));
-  }
-
-  @Test
-  void fetchesDiscoveryDocument() {
-    AtomicReference<String> capturedMethod = new AtomicReference<>();
-    AtomicReference<String> capturedUrl = new AtomicReference<>();
-    ApiClient client =
-        (method, url, headers, body) -> {
-          capturedMethod.set(method);
-          capturedUrl.set(url);
-          return new ApiResponse(200, DISCOVERY_RESPONSE, Map.of());
-        };
-
-    OpenIdConnectAuthenticator auth = createAuthenticator();
-    auth.setApiClient(client);
-
-    auth.buildAuthorizationUrl(null);
-
-    assertEquals("GET", capturedMethod.get());
-    assertEquals("https://auth.example.com/.well-known/openid-configuration", capturedUrl.get());
-  }
-
-  @Test
-  void obtainsTokenAfterCodeExchange() {
-    AtomicReference<String> capturedBody = new AtomicReference<>();
-    var calls =
-        new Object() {
-          int count = 0;
-        };
-    ApiClient client =
-        (method, url, headers, body) -> {
-          calls.count++;
-          capturedBody.set(body != null ? body.toString() : "");
-          if (calls.count == 1) {
+    @Test
+    void buildsAuthorizationUrlFromDiscovery() {
+        AtomicReference<String> capturedUrl = new AtomicReference<>();
+        ApiClient client = (method, url, headers, body) -> {
+            capturedUrl.set(url);
             return new ApiResponse(200, DISCOVERY_RESPONSE, Map.of());
-          }
-          return new ApiResponse(
-              200, "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}", Map.of());
         };
 
-    OpenIdConnectAuthenticator auth = createAuthenticator();
-    auth.setApiClient(client);
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
 
-    auth.exchangeCode("oidc-code");
+        String url = auth.buildAuthorizationUrl("csrf-state");
 
-    String body = capturedBody.get();
-    assertNotNull(body);
-    assertTrue(body.contains("grant_type=authorization_code"));
-    assertTrue(body.contains("code=oidc-code"));
-  }
+        assertEquals("https://auth.example.com/.well-known/openid-configuration", capturedUrl.get());
+        assertTrue(url.startsWith("https://auth.example.com/authorize?"));
+        assertTrue(url.contains("response_type=code"));
+        assertTrue(url.contains("client_id=my-client-id"));
+        assertTrue(url.contains("state=csrf-state"));
+    }
 
-  @Test
-  void getAuthHeadersReturnsBearerAfterExchange() {
-    var calls =
-        new Object() {
-          int count = 0;
-        };
-    ApiClient client =
-        (method, url, headers, body) -> {
-          calls.count++;
-          if (calls.count == 1) {
+    @Test
+    void fetchesDiscoveryDocument() {
+        AtomicReference<String> capturedMethod = new AtomicReference<>();
+        AtomicReference<String> capturedUrl = new AtomicReference<>();
+        ApiClient client = (method, url, headers, body) -> {
+            capturedMethod.set(method);
+            capturedUrl.set(url);
             return new ApiResponse(200, DISCOVERY_RESPONSE, Map.of());
-          }
-          return new ApiResponse(
-              200, "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}", Map.of());
         };
 
-    OpenIdConnectAuthenticator auth = createAuthenticator();
-    auth.setApiClient(client);
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
 
-    auth.exchangeCode("oidc-code");
-    Map<String, String> headers = auth.getAuthHeaders();
+        auth.buildAuthorizationUrl(null);
 
-    assertEquals("Bearer oidc-tok", headers.get("Authorization"));
-  }
+        assertEquals("GET", capturedMethod.get());
+        assertEquals("https://auth.example.com/.well-known/openid-configuration", capturedUrl.get());
+    }
 
-  @Test
-  void throwsWhenNoApiClientInjected() {
-    OpenIdConnectAuthenticator auth = createAuthenticator();
+    @Test
+    void obtainsTokenAfterCodeExchange() {
+        AtomicReference<String> capturedBody = new AtomicReference<>();
+        var calls = new Object() { int count = 0; };
+        ApiClient client = (method, url, headers, body) -> {
+            calls.count++;
+            capturedBody.set(body != null ? body.toString() : "");
+            if (calls.count == 1) {
+                return new ApiResponse(200, DISCOVERY_RESPONSE, Map.of());
+            }
+            return new ApiResponse(200,
+                    "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}", Map.of());
+        };
 
-    assertThrows(IllegalStateException.class, () -> auth.buildAuthorizationUrl(null));
-  }
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
 
-  @Test
-  void getHostReturnsConfiguredHost() {
-    OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.exchangeCode("oidc-code");
 
-    assertEquals("https://api.example.com", auth.getHost());
-  }
+        String body = capturedBody.get();
+        assertNotNull(body);
+        assertTrue(body.contains("grant_type=authorization_code"));
+        assertTrue(body.contains("code=oidc-code"));
+    }
+
+    @Test
+    void getAuthHeadersReturnsBearerAfterExchange() {
+        var calls = new Object() { int count = 0; };
+        ApiClient client = (method, url, headers, body) -> {
+            calls.count++;
+            if (calls.count == 1) {
+                return new ApiResponse(200, DISCOVERY_RESPONSE, Map.of());
+            }
+            return new ApiResponse(200,
+                    "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}", Map.of());
+        };
+
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
+
+        auth.exchangeCode("oidc-code");
+        Map<String, String> headers = auth.getAuthHeaders();
+
+        assertEquals("Bearer oidc-tok", headers.get("Authorization"));
+    }
+
+    @Test
+    void throwsWhenNoApiClientInjected() {
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+
+        assertThrows(IllegalStateException.class, () -> auth.buildAuthorizationUrl(null));
+    }
+
+    @Test
+    void getHostReturnsConfiguredHost() {
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+
+        assertEquals("https://api.example.com", auth.getHost());
+    }
 }

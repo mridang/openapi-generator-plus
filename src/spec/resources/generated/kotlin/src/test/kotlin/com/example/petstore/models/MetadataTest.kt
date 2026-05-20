@@ -8,20 +8,20 @@
 package com.example.petstore.models
 
 import com.example.petstore.models.Metadata
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 class MetadataTest {
-    private val json =
-        Json {
-            ignoreUnknownKeys = true
-            encodeDefaults = false
-            isLenient = true
-            coerceInputValues = true
-        }
+
+    private val json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = false
+        isLenient = true
+        coerceInputValues = true
+    }
 
     @Test
     @DisplayName("serialize Metadata without contextual fields")

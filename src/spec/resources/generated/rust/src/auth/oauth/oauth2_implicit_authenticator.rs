@@ -36,12 +36,7 @@ pub struct OAuth2ImplicitAuthenticator {
 
 impl OAuth2ImplicitAuthenticator {
     /// Creates a new implicit flow authenticator.
-    pub fn new(
-        host: &str,
-        client_id: &str,
-        authorization_url: &str,
-        scopes: Vec<String>,
-    ) -> Self {
+    pub fn new(host: &str, client_id: &str, authorization_url: &str, scopes: Vec<String>) -> Self {
         Self {
             host: host.to_string(),
             client_id: client_id.to_string(),

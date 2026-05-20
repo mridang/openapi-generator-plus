@@ -7,8 +7,8 @@
 
 use std::sync::Arc;
 
-use crate::api_client::ApiClient;
 use super::Authenticator;
+use crate::api_client::ApiClient;
 
 /// HttpAwareAuthenticator extends Authenticator for authentication schemes
 /// that require making HTTP requests (e.g. OAuth2 token exchange, OpenID

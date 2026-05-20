@@ -23,11 +23,11 @@ import Foundation
 /// Only OAuth2 and OpenID Connect authenticators conform to this protocol.
 /// Simple authenticators (Basic, Bearer, API Key) do not need HTTP access.
 public protocol HttpAwareAuthenticator: Authenticator {
-  /// Injects the shared ``ApiClient`` for making HTTP requests.
-  ///
-  /// Called by the ``Client`` constructor after the ``ApiClient`` has been
-  /// created with the user's TransportOptions. Implementations should store
-  /// this reference and use it for all outbound HTTP calls (token exchange,
-  /// discovery, etc.).
-  func setApiClient(_ client: ApiClient)
+    /// Injects the shared ``ApiClient`` for making HTTP requests.
+    ///
+    /// Called by the ``Client`` constructor after the ``ApiClient`` has been
+    /// created with the user's TransportOptions. Implementations should store
+    /// this reference and use it for all outbound HTTP calls (token exchange,
+    /// discovery, etc.).
+    func setApiClient(_ client: ApiClient)
 }

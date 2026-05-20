@@ -334,7 +334,7 @@ describe('ObjectSerializer', () => {
         id: 7,
         name: 'Cats',
         unknownField: 'should-be-dropped',
-        anotherExtra: 99
+        anotherExtra: 99,
       };
       const category = ObjectSerializer.deserialize(json, Category);
       expect(category).toBeDefined();

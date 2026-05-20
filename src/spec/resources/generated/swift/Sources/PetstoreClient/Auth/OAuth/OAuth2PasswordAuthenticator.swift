@@ -12,103 +12,96 @@ import Foundation
 /// Conforms to ``HttpAwareAuthenticator`` so that token exchange requests use the
 /// shared ``ApiClient`` with the same transport configuration (proxy, TLS, timeouts)
 /// as regular API calls.
-public class OAuth2PasswordAuthenticator: BaseAuthenticator, HttpAwareAuthenticator, @unchecked
-  Sendable
-{
-  private let _host: String
-  private let clientID: String
-  private let clientSecret: String
-  private let tokenURL: String
-  private let refreshURL: String
-  private let username: String
-  private let password: String
-  private let scopes: [String]
-  private let clientAuthMethod: ClientAuthMethod
-  private let tokenManager: OAuth2TokenManager
+public class OAuth2PasswordAuthenticator: BaseAuthenticator, HttpAwareAuthenticator, @unchecked Sendable {
+    private let _host: String
+    private let clientID: String
+    private let clientSecret: String
+    private let tokenURL: String
+    private let refreshURL: String
+    private let username: String
+    private let password: String
+    private let scopes: [String]
+    private let clientAuthMethod: ClientAuthMethod
+    private let tokenManager: OAuth2TokenManager
 
-  /// Creates a new password authenticator.
-  ///
-  /// If refreshURL is empty, the tokenURL is used for refresh requests.
-  public init(
-    host: String,
-    clientID: String,
-    clientSecret: String,
-    tokenURL: String,
-    username: String,
-    password: String,
-    scopes: [String] = [],
-    refreshURL: String = "",
-    clientAuthMethod: ClientAuthMethod = .body
-  ) {
-    self._host = host
-    self.clientID = clientID
-    self.clientSecret = clientSecret
-    self.tokenURL = tokenURL
-    self.refreshURL = refreshURL.isEmpty ? tokenURL : refreshURL
-    self.username = username
-    self.password = password
-    self.scopes = scopes
-    self.clientAuthMethod = clientAuthMethod
-    self.tokenManager = OAuth2TokenManager()
-    super.init()
-  }
+    /// Creates a new password authenticator.
+    ///
+    /// If refreshURL is empty, the tokenURL is used for refresh requests.
+    public init(
+        host: String,
+        clientID: String,
+        clientSecret: String,
+        tokenURL: String,
+        username: String,
+        password: String,
+        scopes: [String] = [],
+        refreshURL: String = "",
+        clientAuthMethod: ClientAuthMethod = .body
+    ) {
+        self._host = host
+        self.clientID = clientID
+        self.clientSecret = clientSecret
+        self.tokenURL = tokenURL
+        self.refreshURL = refreshURL.isEmpty ? tokenURL : refreshURL
+        self.username = username
+        self.password = password
+        self.scopes = scopes
+        self.clientAuthMethod = clientAuthMethod
+        self.tokenManager = OAuth2TokenManager()
+        super.init()
+    }
 
-  /// Returns the API base URL.
-  override public func host() -> String {
-    return _host
-  }
+    /// Returns the API base URL.
+    override public func host() -> String {
+        return _host
+    }
 
-  /// Injects the shared ``ApiClient`` for making token requests.
-  public func setApiClient(_ client: ApiClient) {
-    tokenManager.setApiClient(client)
-  }
+    /// Injects the shared ``ApiClient`` for making token requests.
+    public func setApiClient(_ client: ApiClient) {
+        tokenManager.setApiClient(client)
+    }
 
-  /// Returns the Bearer authentication header with a valid access token.
-  override public func authHeaders() async -> [String: String] {
-    var params: [String: String]
-    var url: String
-    var extraHeaders: [String: String] = [:]
-    if clientAuthMethod == .basic {
-      /* RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
+    /// Returns the Bearer authentication header with a valid access token.
+    override public func authHeaders() async -> [String: String] {
+        var params: [String: String]
+        var url: String
+        var extraHeaders: [String: String] = [:]
+        if clientAuthMethod == .basic {
+            /* RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
              * separately before joining with ':' and base64-encoding. */
-      let unreserved = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
-      let encodedID = clientID.addingPercentEncoding(withAllowedCharacters: unreserved) ?? clientID
-      let encodedSecret =
-        clientSecret.addingPercentEncoding(withAllowedCharacters: unreserved) ?? clientSecret
-      let credentials =
-        "\(encodedID):\(encodedSecret)".data(using: .utf8)?.base64EncodedString() ?? ""
-      extraHeaders["Authorization"] = "Basic \(credentials)"
-    }
+            let unreserved = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+            let encodedID = clientID.addingPercentEncoding(withAllowedCharacters: unreserved) ?? clientID
+            let encodedSecret = clientSecret.addingPercentEncoding(withAllowedCharacters: unreserved) ?? clientSecret
+            let credentials = "\(encodedID):\(encodedSecret)".data(using: .utf8)?.base64EncodedString() ?? ""
+            extraHeaders["Authorization"] = "Basic \(credentials)"
+        }
 
-    let refreshToken = tokenManager.refreshToken
-    if !refreshToken.isEmpty {
-      params = [
-        "grant_type": "refresh_token",
-        "refresh_token": refreshToken,
-      ]
-      url = refreshURL
-    } else {
-      params = [
-        "grant_type": "password",
-        "username": username,
-        "password": password,
-      ]
-      if clientAuthMethod != .basic {
-        params["client_id"] = clientID
-        params["client_secret"] = clientSecret
-      }
-      if !scopes.isEmpty {
-        params["scope"] = scopes.joined(separator: " ")
-      }
-      url = tokenURL
-    }
+        let refreshToken = tokenManager.refreshToken
+        if !refreshToken.isEmpty {
+            params = [
+                "grant_type": "refresh_token",
+                "refresh_token": refreshToken
+            ]
+            url = refreshURL
+        } else {
+            params = [
+                "grant_type": "password",
+                "username": username,
+                "password": password
+            ]
+            if clientAuthMethod != .basic {
+                params["client_id"] = clientID
+                params["client_secret"] = clientSecret
+            }
+            if !scopes.isEmpty {
+                params["scope"] = scopes.joined(separator: " ")
+            }
+            url = tokenURL
+        }
 
-    guard
-      let accessToken = try? await tokenManager.getAccessToken(
-        tokenURL: url, params: params, extraHeaders: extraHeaders)
-    else {
-      return [:]
+        guard let accessToken = try? await tokenManager.getAccessToken(tokenURL: url, params: params, extraHeaders: extraHeaders) else {
+            return [:]
+        }
+        return ["Authorization": "Bearer \(accessToken)"]
     }
-    return ["Authorization": "Bearer \(accessToken)"]
-  }
 }

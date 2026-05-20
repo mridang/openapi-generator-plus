@@ -47,12 +47,7 @@ const client = new Client(authenticator);
 import { ApiKeyAuthenticator } from './src/auth/api-key-authenticator';
 import { ApiKeyLocation } from './src/auth/api-key-location';
 
-const authenticator = new ApiKeyAuthenticator(
-  'https://api.example.com',
-  'key-name',
-  'key-value',
-  ApiKeyLocation.Header
-);
+const authenticator = new ApiKeyAuthenticator('https://api.example.com', 'key-name', 'key-value', ApiKeyLocation.Header);
 const client = new Client(authenticator);
 ```
 
@@ -62,11 +57,7 @@ const client = new Client(authenticator);
 import { OAuth2ClientCredentialsAuthenticator } from './src/auth/oauth/oauth2-client-credentials-authenticator';
 
 const authenticator = new OAuth2ClientCredentialsAuthenticator(
-  'https://api.example.com',
-  'client-id',
-  'client-secret',
-  'https://auth.example.com/token'
-);
+  'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token');
 const client = new Client(authenticator);
 ```
 
@@ -76,13 +67,8 @@ const client = new Client(authenticator);
 import { OAuth2AuthCodeAuthenticator } from './src/auth/oauth/oauth2-auth-code-authenticator';
 
 const authenticator = new OAuth2AuthCodeAuthenticator(
-  'https://api.example.com',
-  'client-id',
-  'client-secret',
-  'https://auth.example.com/token',
-  'authorization-code',
-  'https://app.example.com/callback'
-);
+  'https://api.example.com', 'client-id', 'client-secret',
+  'https://auth.example.com/token', 'authorization-code', 'https://app.example.com/callback');
 const client = new Client(authenticator);
 ```
 
@@ -92,13 +78,8 @@ const client = new Client(authenticator);
 import { OAuth2PasswordAuthenticator } from './src/auth/oauth/oauth2-password-authenticator';
 
 const authenticator = new OAuth2PasswordAuthenticator(
-  'https://api.example.com',
-  'client-id',
-  'client-secret',
-  'https://auth.example.com/token',
-  'username',
-  'password'
-);
+  'https://api.example.com', 'client-id', 'client-secret',
+  'https://auth.example.com/token', 'username', 'password');
 const client = new Client(authenticator);
 ```
 
@@ -119,11 +100,8 @@ const client = new Client(authenticator);
 import { OpenIdConnectAuthenticator } from './src/auth/oauth/openid-connect-authenticator';
 
 const authenticator = new OpenIdConnectAuthenticator(
-  'https://api.example.com',
-  'client-id',
-  'client-secret',
-  'https://auth.example.com/.well-known/openid-configuration'
-);
+  'https://api.example.com', 'client-id', 'client-secret',
+  'https://auth.example.com/.well-known/openid-configuration');
 const client = new Client(authenticator);
 ```
 
@@ -155,13 +133,8 @@ import { ClientAuthMethod } from './src/auth/oauth/client-auth-method';
 import { OAuth2ClientCredentialsAuthenticator } from './src/auth/oauth/oauth2-client-credentials-authenticator';
 
 const authenticator = new OAuth2ClientCredentialsAuthenticator(
-  'https://api.example.com',
-  'client-id',
-  'client-secret',
-  'https://auth.example.com/token',
-  [],
-  ClientAuthMethod.Basic
-);
+  'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token',
+  [], ClientAuthMethod.Basic);
 ```
 
 ## Servers
@@ -183,9 +156,7 @@ const fake = {
   async getAuthHeaders(_req: RequestContext): Promise<Record<string, string>> {
     return { Authorization: 'Bearer test-token' };
   },
-  getHost(): string {
-    return 'https://api.example.com';
-  }
+  getHost(): string { return 'https://api.example.com'; },
 };
 
 const client = new Client(fake);
@@ -231,7 +202,10 @@ try {
 ```typescript
 import { TransportOptions } from './src/transport-options';
 
-const transport = TransportOptions.builder().proxy('http://proxy:3128').timeout(5000).build();
+const transport = TransportOptions.builder()
+  .proxy('http://proxy:3128')
+  .timeout(5000)
+  .build();
 
 const client = new Client(authenticator, transport);
 ```

@@ -9,35 +9,35 @@ import Foundation
 
 /// BearerAuthenticator provides HTTP Bearer token authentication.
 public class BearerAuthenticator: BaseAuthenticator, @unchecked Sendable {
-  private let _host: String
-  private let token: String
+    private let _host: String
+    private let token: String
 
-  /// Creates a new Bearer authenticator.
-  public init(host: String, token: String) {
-    /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
+    /// Creates a new Bearer authenticator.
+    public init(host: String, token: String) {
+        /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
          * Reject anything outside printable ASCII + TAB so callers see
          * a clear error rather than HTTP header injection from CR/LF or
          * silently-mangled non-ASCII bytes. preconditionFailure is
          * appropriate because this is a programmer error. */
-    if token.unicodeScalars.contains(where: { s in
-      s.value != 0x09 && (s.value < 0x20 || s.value >= 0x7F)
-    }) {
-      preconditionFailure(
-        "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
-      )
+        if token.unicodeScalars.contains(where: { s in
+            s.value != 0x09 && (s.value < 0x20 || s.value >= 0x7F)
+        }) {
+            preconditionFailure(
+                "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+            )
+        }
+        self._host = host
+        self.token = token
+        super.init()
     }
-    self._host = host
-    self.token = token
-    super.init()
-  }
 
-  /// Returns the API base URL.
-  override public func host() -> String {
-    return _host
-  }
+    /// Returns the API base URL.
+    override public func host() -> String {
+        return _host
+    }
 
-  /// Returns the Bearer authentication header.
-  override public func authHeaders() async -> [String: String] {
-    return ["Authorization": "Bearer \(token)"]
-  }
+    /// Returns the Bearer authentication header.
+    override public func authHeaders() async -> [String: String] {
+        return ["Authorization": "Bearer \(token)"]
+    }
 }

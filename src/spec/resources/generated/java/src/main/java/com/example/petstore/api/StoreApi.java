@@ -13,162 +13,169 @@ import com.example.petstore.ApiResult;
 import com.example.petstore.Configuration;
 import com.example.petstore.ValueSerializer;
 import com.example.petstore.auth.Authenticator;
+import java.util.Map;
 import com.example.petstore.models.Order;
 import com.fasterxml.jackson.core.type.TypeReference;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 
-/** StoreApi provides methods for the Store API group. Access to Petstore orders */
+/**
+ * StoreApi provides methods for the Store API group.
+ * Access to Petstore orders
+ */
 @SuppressWarnings("deprecation")
 public class StoreApi extends BaseApi {
 
-  private static final TypeReference<Map<String, Integer>> getInventoryTypeRef =
-      new TypeReference<>() {};
+    private static final TypeReference<Map<String, Integer>> getInventoryTypeRef =
+            new TypeReference<>() {};
 
-  private static final TypeReference<Order> getOrderByIdTypeRef = new TypeReference<>() {};
+    private static final TypeReference<Order> getOrderByIdTypeRef =
+            new TypeReference<>() {};
 
-  private static final TypeReference<Order> placeOrderTypeRef = new TypeReference<>() {};
+    private static final TypeReference<Order> placeOrderTypeRef =
+            new TypeReference<>() {};
 
-  public StoreApi() {
-    super();
-  }
-
-  public StoreApi(ApiClient apiClient, Configuration config) {
-    super(apiClient, config);
-  }
-
-  public StoreApi(
-      ApiClient apiClient, Configuration config, @Nullable Authenticator authenticator) {
-    super(apiClient, config, authenticator);
-  }
-
-  /**
-   * Delete purchase order by ID
-   *
-   * @param orderId ID of the order to delete (required)
-   * @throws ApiException if fails to make API call
-   */
-  public void deleteOrder(Long orderId) throws ApiException {
-    deleteOrderWithHttpInfo(orderId);
-  }
-
-  public ApiResult<Void> deleteOrderWithHttpInfo(Long orderId) throws ApiException {
-    if (orderId == null) {
-      throw new IllegalArgumentException(
-          "Missing the required parameter 'orderId' when calling deleteOrder");
+    public StoreApi() {
+        super();
     }
-    String path =
-        "/store/order/{orderId}"
-            .replace(
-                "{" + "orderId" + "}",
-                (String)
-                    ValueSerializer.serializeStyled(
-                        "orderId", orderId, "path", "Long", null, "simple", false));
-    Map<String, Object> queryParams = new HashMap<>();
-    Map<String, String> headerParams = new HashMap<>();
-    return invokeApiForResult(
-        "DELETE",
-        path,
-        queryParams,
-        headerParams,
-        null,
-        new String[] {},
-        "application/json",
-        null,
-        null);
-  }
 
-  /**
-   * Returns pet inventories by status
-   *
-   * @return Map<String, Integer>
-   * @throws ApiException if fails to make API call
-   */
-  @Nullable
-  public Map<String, Integer> getInventory() throws ApiException {
-    return getInventoryWithHttpInfo().data();
-  }
-
-  public ApiResult<Map<String, Integer>> getInventoryWithHttpInfo() throws ApiException {
-    String path = "/store/inventory";
-    Map<String, Object> queryParams = new HashMap<>();
-    Map<String, String> headerParams = new HashMap<>();
-    return invokeApiForResult(
-        "GET",
-        path,
-        queryParams,
-        headerParams,
-        null,
-        new String[] {"application/json"},
-        "application/json",
-        getInventoryTypeRef,
-        null);
-  }
-
-  /**
-   * Find purchase order by ID
-   *
-   * @param orderId ID of order to return (required)
-   * @return Order
-   * @throws ApiException if fails to make API call
-   */
-  @Nullable
-  public Order getOrderById(Long orderId) throws ApiException {
-    return getOrderByIdWithHttpInfo(orderId).data();
-  }
-
-  public ApiResult<Order> getOrderByIdWithHttpInfo(Long orderId) throws ApiException {
-    if (orderId == null) {
-      throw new IllegalArgumentException(
-          "Missing the required parameter 'orderId' when calling getOrderById");
+    public StoreApi(ApiClient apiClient, Configuration config) {
+        super(apiClient, config);
     }
-    String path =
-        "/store/order/{orderId}"
-            .replace(
-                "{" + "orderId" + "}",
-                (String)
-                    ValueSerializer.serializeStyled(
-                        "orderId", orderId, "path", "Long", null, "simple", false));
-    Map<String, Object> queryParams = new HashMap<>();
-    Map<String, String> headerParams = new HashMap<>();
-    return invokeApiForResult(
-        "GET",
-        path,
-        queryParams,
-        headerParams,
-        null,
-        new String[] {"application/json"},
-        "application/json",
-        getOrderByIdTypeRef,
-        null);
-  }
 
-  /**
-   * Place an order for a pet
-   *
-   * @param order (optional)
-   * @return Order
-   * @throws ApiException if fails to make API call
-   */
-  @Nullable
-  public Order placeOrder(@Nullable Order order) throws ApiException {
-    return placeOrderWithHttpInfo(order).data();
-  }
+    public StoreApi(ApiClient apiClient, Configuration config, @Nullable Authenticator authenticator) {
+        super(apiClient, config, authenticator);
+    }
 
-  public ApiResult<Order> placeOrderWithHttpInfo(@Nullable Order order) throws ApiException {
-    String path = "/store/order";
-    Map<String, Object> queryParams = new HashMap<>();
-    Map<String, String> headerParams = new HashMap<>();
-    return invokeApiForResult(
-        "POST",
-        path,
-        queryParams,
-        headerParams,
-        order,
-        new String[] {"application/json"},
-        "application/json",
-        placeOrderTypeRef,
-        null);
-  }
+    /**
+     * Delete purchase order by ID
+     * @param orderId ID of the order to delete (required)
+
+     * @throws ApiException if fails to make API call
+     */
+
+    public void deleteOrder(Long orderId) throws ApiException {
+        deleteOrderWithHttpInfo(orderId);
+    }
+
+    public ApiResult<Void> deleteOrderWithHttpInfo(Long orderId) throws ApiException {
+        if (orderId == null) {
+            throw new IllegalArgumentException(
+                    "Missing the required parameter 'orderId' when calling deleteOrder");
+        }
+        String path =
+                "/store/order/{orderId}"
+                        .replace(
+                                "{" + "orderId" + "}",
+                                (String) ValueSerializer.serializeStyled("orderId", orderId, "path", "Long", null, "simple", false));
+        Map<String, Object> queryParams = new HashMap<>();
+        Map<String, String> headerParams = new HashMap<>();
+        return invokeApiForResult(
+                "DELETE",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                new String[] { },
+                "application/json",
+                null,
+                null);
+    }
+
+    /**
+     * Returns pet inventories by status
+
+     * @return Map<String, Integer>
+     * @throws ApiException if fails to make API call
+     */
+
+    @Nullable
+    public Map<String, Integer> getInventory() throws ApiException {
+        return getInventoryWithHttpInfo().data();
+    }
+
+    public ApiResult<Map<String, Integer>> getInventoryWithHttpInfo() throws ApiException {
+        String path = "/store/inventory";
+        Map<String, Object> queryParams = new HashMap<>();
+        Map<String, String> headerParams = new HashMap<>();
+        return invokeApiForResult(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                new String[] { "application/json"},
+                "application/json",
+                getInventoryTypeRef,
+                null);
+    }
+
+    /**
+     * Find purchase order by ID
+     * @param orderId ID of order to return (required)
+
+     * @return Order
+     * @throws ApiException if fails to make API call
+     */
+
+    @Nullable
+    public Order getOrderById(Long orderId) throws ApiException {
+        return getOrderByIdWithHttpInfo(orderId).data();
+    }
+
+    public ApiResult<Order> getOrderByIdWithHttpInfo(Long orderId) throws ApiException {
+        if (orderId == null) {
+            throw new IllegalArgumentException(
+                    "Missing the required parameter 'orderId' when calling getOrderById");
+        }
+        String path =
+                "/store/order/{orderId}"
+                        .replace(
+                                "{" + "orderId" + "}",
+                                (String) ValueSerializer.serializeStyled("orderId", orderId, "path", "Long", null, "simple", false));
+        Map<String, Object> queryParams = new HashMap<>();
+        Map<String, String> headerParams = new HashMap<>();
+        return invokeApiForResult(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                new String[] { "application/json"},
+                "application/json",
+                getOrderByIdTypeRef,
+                null);
+    }
+
+    /**
+     * Place an order for a pet
+     * @param order  (optional)
+
+     * @return Order
+     * @throws ApiException if fails to make API call
+     */
+
+    @Nullable
+    public Order placeOrder(@Nullable Order order) throws ApiException {
+        return placeOrderWithHttpInfo(order).data();
+    }
+
+    public ApiResult<Order> placeOrderWithHttpInfo(@Nullable Order order) throws ApiException {
+        String path = "/store/order";
+        Map<String, Object> queryParams = new HashMap<>();
+        Map<String, String> headerParams = new HashMap<>();
+        return invokeApiForResult(
+                "POST",
+                path,
+                queryParams,
+                headerParams,
+                order,
+                new String[] { "application/json"},
+                "application/json",
+                placeOrderTypeRef,
+                null);
+    }
 }

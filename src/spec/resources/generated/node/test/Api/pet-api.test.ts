@@ -12,7 +12,10 @@ import { Configuration } from '../../src/configuration.js';
 import { Pet, PetStatusEnum, PhotoMetadata, SetPetAvatarThumbnailRequest } from '../../src/models/index.js';
 
 const baseUrl = process.env.API_BASE_URL || 'http://localhost:4010';
-const config = Configuration.builder().baseUrl(baseUrl).defaultHeader('Authorization', 'Bearer test-token').build();
+const config = Configuration.builder()
+  .baseUrl(baseUrl)
+  .defaultHeader('Authorization', 'Bearer test-token')
+  .build();
 const api = new PetApi(undefined, config);
 const auth = new BearerAuthenticator(baseUrl, 'test-token');
 
@@ -23,7 +26,7 @@ describe('PetApi', () => {
         await fetch(baseUrl, { method: 'GET' });
         return;
       } catch {
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
   });
@@ -33,7 +36,7 @@ describe('PetApi', () => {
       id: 12345,
       name: 'TestDog',
       photoUrls: new Set(['http://example.com/photo.jpg']),
-      status: PetStatusEnum.Available
+      status: PetStatusEnum.Available,
     };
 
     const result = await api.addPet(auth, pet);
@@ -62,7 +65,7 @@ describe('PetApi', () => {
       id: 1,
       name: 'UpdatedDog',
       photoUrls: new Set(['http://example.com/updated.jpg']),
-      status: PetStatusEnum.Pending
+      status: PetStatusEnum.Pending,
     };
 
     const result = await api.updatePet(1, pet);
@@ -75,7 +78,7 @@ describe('PetApi', () => {
   });
 
   test('setPetAvatar', async () => {
-    const body = Buffer.from([0xff, 0xd8, 0xff]);
+    const body = Buffer.from([0xFF, 0xD8, 0xFF]);
 
     await api.setPetAvatar(1, body);
   });
@@ -109,21 +112,19 @@ describe('PetApi', () => {
   test('uploadPetDocument', async () => {
     const file = Buffer.from([0x25, 0x50, 0x44, 0x46]);
 
-    const result = await api.uploadPetDocument(1, {
-      file,
-      documentType: UploadPetDocumentDocumentTypeEnum.HealthCertificate,
-      notes: 'Annual checkup document'
-    });
+    const result = await api.uploadPetDocument(1, { file, documentType: UploadPetDocumentDocumentTypeEnum.HealthCertificate, notes: 'Annual checkup document' });
 
     expect(result).toBeDefined();
   });
 
   // Prism does not validate multipart array fields correctly
   test.skip('addPetPhotos', async () => {
-    const files = [Buffer.from([0xff, 0xd8, 0xff])];
+    const files = [
+      Buffer.from([0xFF, 0xD8, 0xFF]),
+    ];
     const metadata = new PhotoMetadata({
       caption: 'Test photo',
-      isPrimary: true
+      isPrimary: true,
     });
 
     const result = await api.addPetPhotos(1, { files, metadata });
@@ -167,11 +168,7 @@ describe('PetApi', () => {
   });
 });
 
-function createMockServer(
-  status: number,
-  contentType: string,
-  body: string
-): Promise<{ api: PetApi; server: http.Server; close: () => void }> {
+function createMockServer(status: number, contentType: string, body: string): Promise<{ api: PetApi; server: http.Server; close: () => void }> {
   return new Promise((resolve) => {
     const server = http.createServer((_req, res) => {
       res.writeHead(status, { 'Content-Type': contentType });
@@ -179,7 +176,9 @@ function createMockServer(
     });
     server.listen(0, '127.0.0.1', () => {
       const addr = server.address() as { port: number };
-      const mockConfig = Configuration.builder().baseUrl(`http://127.0.0.1:${addr.port}`).build();
+      const mockConfig = Configuration.builder()
+        .baseUrl(`http://127.0.0.1:${addr.port}`)
+        .build();
       const mockApi = new PetApi(undefined, mockConfig);
       resolve({ api: mockApi, server, close: () => server.close() });
     });
@@ -197,11 +196,7 @@ describe('PetApi error handling', () => {
   });
 
   test('500 response throws error', async () => {
-    const { api: mockApi, close } = await createMockServer(
-      500,
-      'application/json',
-      '{"message":"Internal server error"}'
-    );
+    const { api: mockApi, close } = await createMockServer(500, 'application/json', '{"message":"Internal server error"}');
     try {
       await expect(mockApi.getPetById(1)).rejects.toThrow();
     } finally {
@@ -220,11 +215,7 @@ describe('PetApi error handling', () => {
   });
 
   test('upload multipart from mock', async () => {
-    const { api: mockApi, close } = await createMockServer(
-      200,
-      'application/json',
-      '{"code":200,"type":"","message":"success"}'
-    );
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', '{"code":200,"type":"","message":"success"}');
     try {
       const file = Buffer.from([0x25, 0x50, 0x44, 0x46]);
       const result = await mockApi.uploadPetCertificate(1, { file });

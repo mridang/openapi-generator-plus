@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets
  * Serializes parameter values for HTTP requests based on their location and format.
  */
 object ValueSerializer {
+
     private val serializer = ObjectSerializer()
 
     @JvmStatic
@@ -21,7 +22,7 @@ object ValueSerializer {
         value: Any?,
         location: String,
         schemaType: String?,
-        collectionFormat: String?,
+        collectionFormat: String?
     ): Any? {
         if (value == null) {
             return if ("query" == location) null else ""
@@ -32,13 +33,12 @@ object ValueSerializer {
 
             if ("query" == location) {
                 if ("multi" == collectionFormat) return items
-                val separator =
-                    when (collectionFormat) {
-                        "ssv" -> " "
-                        "tsv" -> "\t"
-                        "pipes" -> "|"
-                        else -> ","
-                    }
+                val separator = when (collectionFormat) {
+                    "ssv" -> " "
+                    "tsv" -> "\t"
+                    "pipes" -> "|"
+                    else -> ","
+                }
                 return items.joinToString(separator)
             }
 
@@ -67,8 +67,7 @@ object ValueSerializer {
     @JvmStatic
     fun encodePathSegment(value: String): String {
         if (value.isEmpty()) return value
-        return URLEncoder
-            .encode(value, StandardCharsets.UTF_8)
+        return URLEncoder.encode(value, StandardCharsets.UTF_8)
             .replace("+", "%20")
             .replace("%3B", ";")
             .replace("%3D", "=")
@@ -86,10 +85,7 @@ object ValueSerializer {
     }
 
     @JvmStatic
-    fun serializeDeepObject(
-        paramName: String,
-        value: Map<*, *>?,
-    ): Map<String, String> {
+    fun serializeDeepObject(paramName: String, value: Map<*, *>?): Map<String, String> {
         val result = linkedMapOf<String, String>()
         if (value == null) return result
         for ((key, v) in value) {
@@ -106,7 +102,7 @@ object ValueSerializer {
         schemaType: String?,
         collectionFormat: String?,
         style: String?,
-        explode: Boolean,
+        explode: Boolean
     ): Any? {
         // Path parameters are required components of the URL — accepting an
         // empty string would silently produce a malformed URL like
@@ -116,7 +112,7 @@ object ValueSerializer {
         // case that slips through it.
         if ("path" == location && value is String && value.isEmpty()) {
             throw IllegalArgumentException(
-                "Path parameter '$paramName' must not be empty",
+                "Path parameter '$paramName' must not be empty"
             )
         }
 
@@ -139,25 +135,22 @@ object ValueSerializer {
         }
 
         return when (style) {
-            "matrix" ->
-                if (explode) {
-                    items.joinToString("") { ";$paramName=$it" }
-                } else {
-                    ";$paramName=${items.joinToString(",")}"
-                }
-            "label" ->
-                if (explode) {
-                    ".${items.joinToString(".")}"
-                } else {
-                    ".${items.joinToString(",")}"
-                }
+            "matrix" -> if (explode) {
+                items.joinToString("") { ";$paramName=$it" }
+            } else {
+                ";$paramName=${items.joinToString(",")}"
+            }
+            "label" -> if (explode) {
+                ".${items.joinToString(".")}"
+            } else {
+                ".${items.joinToString(",")}"
+            }
             "simple" -> items.joinToString(",")
-            "form" ->
-                if (explode && value is Collection<*>) {
-                    ArrayList(items)
-                } else {
-                    items.joinToString(",")
-                }
+            "form" -> if (explode && value is Collection<*>) {
+                ArrayList(items)
+            } else {
+                items.joinToString(",")
+            }
             "spaceDelimited" -> items.joinToString(" ")
             "pipeDelimited" -> items.joinToString("|")
             else -> serialize(value, location, schemaType, collectionFormat)

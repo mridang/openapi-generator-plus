@@ -7,17 +7,11 @@
 
 package com.example.petstore.auth.oauth;
 
+import com.example.petstore.auth.Authenticator;
 import java.util.List;
 
-public final class MachineAuthClientCredentialsAuthenticator
-    extends OAuth2ClientCredentialsAuthenticator {
-  public MachineAuthClientCredentialsAuthenticator(
-      String host, String clientId, String clientSecret) {
-    super(
-        host,
-        clientId,
-        clientSecret,
-        "https://auth.example.com/oauth/token",
-        List.of("pets:write", "pets:read"));
-  }
+public final class MachineAuthClientCredentialsAuthenticator extends OAuth2ClientCredentialsAuthenticator {
+    public MachineAuthClientCredentialsAuthenticator(String host, String clientId, String clientSecret) {
+        super(host, clientId, clientSecret, "https://auth.example.com/oauth/token", List.of("pets:write", "pets:read"));
+    }
 }

@@ -132,10 +132,14 @@ export abstract class BaseApi {
         const cookieStr = cookieEntries
           .map(([k, v]) => {
             if (!/^[A-Za-z0-9!#$%&'*+\-.^_`|~]+$/.test(k)) {
-              throw new Error(`Cookie name '${k}' contains characters forbidden by RFC 6265`);
+              throw new Error(
+                `Cookie name '${k}' contains characters forbidden by RFC 6265`
+              );
             }
             if (!/^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$/.test(v)) {
-              throw new Error(`Cookie value for '${k}' contains characters forbidden by RFC 6265`);
+              throw new Error(
+                `Cookie value for '${k}' contains characters forbidden by RFC 6265`
+              );
             }
             return `${k}=${v}`;
           })
@@ -172,7 +176,9 @@ export abstract class BaseApi {
          * but Windows-generated payloads often include one and JSON.parse
          * rejects it. Strip silently for parity with Java Jackson / C#
          * System.Text.Json which strip transparently. */
-        const cleaned = response.body.charCodeAt(0) === 0xfeff ? response.body.slice(1) : response.body;
+        const cleaned = response.body.charCodeAt(0) === 0xFEFF
+          ? response.body.slice(1)
+          : response.body;
         const json = JSON.parse(cleaned);
         data = returnType(json);
       }

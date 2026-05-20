@@ -43,8 +43,8 @@ export class Servers {
     'https://{environment}.example.com/api/{version}',
     'Main API server with variables',
     {
-      environment: new ServerVariable('api', 'API environment', ['api', 'staging', 'sandbox']),
-      version: new ServerVariable('v3', 'API version', ['v2', 'v3'])
+      'environment': new ServerVariable('api', 'API environment', ['api', 'staging', 'sandbox']),
+      'version': new ServerVariable('v3', 'API version', ['v2', 'v3'])
     }
   );
 

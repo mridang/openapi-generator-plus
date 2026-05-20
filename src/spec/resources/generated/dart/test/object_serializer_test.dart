@@ -7,8 +7,8 @@
 
 import 'dart:convert';
 
-import 'package:test/test.dart';
 import 'package:petstore_client/petstore_client.dart';
+import 'package:test/test.dart';
 
 void main() {
   group('ObjectSerializer', () {
@@ -23,7 +23,7 @@ void main() {
     });
 
     test('deserializeRaw JSON to map', () {
-      final input = '{"name":"Fido","age":3}';
+      const input = '{"name":"Fido","age":3}';
 
       final result = deserializeRaw(input) as Map<String, dynamic>;
       expect(result['name'], equals('Fido'));
@@ -196,7 +196,8 @@ void main() {
     });
 
     test('negative timezone offset does not lose the offset', () {
-      final utcDt = DateTime.utc(2024, 1, 1, 20, 30, 45); // 12:30:45-08:00 = 20:30:45 UTC
+      final utcDt =
+          DateTime.utc(2024, 1, 1, 20, 30, 45); // 12:30:45-08:00 = 20:30:45 UTC
       final result = stringify(utcDt);
       expect(result, isNotEmpty);
     });
@@ -216,15 +217,19 @@ void main() {
     test('serialized datetime ends with an offset or Z', () {
       final dt = DateTime.utc(2024, 1, 1, 12, 30, 45);
       final result = stringify(dt);
-      expect(result.endsWith('Z') || result.contains('+') || result.contains('-'),
-          isTrue, reason: 'should end with offset: $result');
+      expect(
+          result.endsWith('Z') || result.contains('+') || result.contains('-'),
+          isTrue,
+          reason: 'should end with offset: $result');
     });
 
-    test('round-trip: serialize then deserialize yields equivalent instant', () {
+    test('round-trip: serialize then deserialize yields equivalent instant',
+        () {
       final dt = DateTime.utc(2024, 1, 1, 12, 30, 45);
       final result = stringify(dt);
       final parsed = DateTime.parse(result);
-      expect(parsed.toUtc().millisecondsSinceEpoch, equals(dt.millisecondsSinceEpoch));
+      expect(parsed.toUtc().millisecondsSinceEpoch,
+          equals(dt.millisecondsSinceEpoch));
     });
 
     // NonAsciiSerializationTests
@@ -260,7 +265,8 @@ void main() {
       );
     });
 
-    test('thrown SerializationError has a cause referencing original error', () {
+    test('thrown SerializationError has a cause referencing original error',
+        () {
       try {
         deserializeRaw('{');
         fail('Expected SerializationError');
@@ -272,27 +278,30 @@ void main() {
     });
 
     test('serialize includes fields set to default values', () {
-      final category = Category(id: 0, name: '');
+      const category = Category(id: 0, name: '');
       final json = serialize(category);
       final parsed = jsonDecode(json) as Map<String, dynamic>;
-      expect(parsed.containsKey('id'), isTrue, reason: 'serialized JSON should include id field');
+      expect(parsed.containsKey('id'), isTrue,
+          reason: 'serialized JSON should include id field');
       expect(parsed['id'], equals(0));
-      expect(parsed.containsKey('name'), isTrue, reason: 'serialized JSON should include name field');
+      expect(parsed.containsKey('name'), isTrue,
+          reason: 'serialized JSON should include name field');
       expect(parsed['name'], equals(''));
     });
 
     // Gap K — discriminator auto-emitted on subtype serialise.
 
     test('subtype serialise auto-emits discriminator value', () {
-      final dry = DryFood(weightKg: 2.5);
+      const dry = DryFood(weightKg: 2.5);
       final json = serialize(dry);
       final parsed = jsonDecode(json) as Map<String, dynamic>;
       expect(parsed['foodType'], equals('dry'));
       expect(parsed['weightKg'], equals(2.5));
     });
 
-    test('subtype round-trip via parent discriminator routes back to subtype', () {
-      final dry = DryFood(weightKg: 1.25);
+    test('subtype round-trip via parent discriminator routes back to subtype',
+        () {
+      const dry = DryFood(weightKg: 1.25);
       final json = serialize(dry);
       final food = PetFood.fromJson(jsonDecode(json) as Map<String, dynamic>);
       expect(food.value, isA<DryFood>());
@@ -304,12 +313,15 @@ void main() {
     // keys from the toJson() map entirely (no `"id": null` slots). Required
     // fields and explicit defaults must still appear.
     test('toJson omits optional fields left null', () {
-      final pet = Pet(name: 'Fido', photoUrls: <String>{'http://x/y.jpg'});
+      const pet = Pet(name: 'Fido', photoUrls: <String>{'http://x/y.jpg'});
       final json = pet.toJson();
-      expect(json.containsKey('name'), isTrue, reason: 'required field name present');
-      expect(json.containsKey('photoUrls'), isTrue, reason: 'required field photoUrls present');
+      expect(json.containsKey('name'), isTrue,
+          reason: 'required field name present');
+      expect(json.containsKey('photoUrls'), isTrue,
+          reason: 'required field photoUrls present');
       expect(json.containsKey('id'), isFalse,
-          reason: 'optional id left unset must be omitted, not emitted as null');
+          reason:
+              'optional id left unset must be omitted, not emitted as null');
       expect(json.containsKey('category'), isFalse,
           reason: 'optional category left unset must be omitted');
       expect(json.containsKey('tags'), isFalse,
@@ -317,7 +329,7 @@ void main() {
     });
 
     test('toJson includes optional fields when explicitly set', () {
-      final pet = Pet(
+      const pet = Pet(
         id: 7,
         name: 'Fido',
         photoUrls: <String>{'http://x/y.jpg'},
@@ -359,7 +371,8 @@ void main() {
       final pet = Pet.fromJson(input);
       final round = pet.toJson();
       expect(round.containsKey('unknownLeak'), isFalse,
-          reason: 'unknown fields read by fromJson must NOT be re-emitted by toJson');
+          reason:
+              'unknown fields read by fromJson must NOT be re-emitted by toJson');
     });
   });
 }

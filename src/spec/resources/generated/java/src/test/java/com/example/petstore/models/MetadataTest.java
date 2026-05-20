@@ -16,54 +16,54 @@ import org.junit.jupiter.api.Test;
 
 class MetadataTest {
 
-  private static final TypeReference<Metadata> METADATA_TYPE = new TypeReference<>() {};
-  private final ObjectSerializer serializer = new ObjectSerializer();
+    private static final TypeReference<Metadata> METADATA_TYPE = new TypeReference<>() {};
+    private final ObjectSerializer serializer = new ObjectSerializer();
 
-  @Test
-  void testSerializeEmptyMetadata() {
-    Metadata metadata = new Metadata();
+    @Test
+    void testSerializeEmptyMetadata() {
+        Metadata metadata = new Metadata();
 
-    String json = serializer.serialize(metadata);
+        String json = serializer.serialize(metadata);
 
-    assertThat(json).isNotNull();
-  }
+        assertThat(json).isNotNull();
+    }
 
-  @Test
-  void testDeserializeEmptyObject() {
-    String json = "{}";
+    @Test
+    void testDeserializeEmptyObject() {
+        String json = "{}";
 
-    Metadata metadata = serializer.deserialize(json, METADATA_TYPE);
+        Metadata metadata = serializer.deserialize(json, METADATA_TYPE);
 
-    assertThat(metadata).isNotNull();
-  }
+        assertThat(metadata).isNotNull();
+    }
 
-  @Test
-  void testDeserializesAdditionalStringProperties() {
-    String json = "{\"createdAt\":\"2024-01-01T00:00:00Z\",\"customField\":\"hello\"}";
-    Metadata metadata = Objects.requireNonNull(serializer.deserialize(json, METADATA_TYPE));
+    @Test
+    void testDeserializesAdditionalStringProperties() {
+        String json = "{\"createdAt\":\"2024-01-01T00:00:00Z\",\"customField\":\"hello\"}";
+        Metadata metadata = Objects.requireNonNull(serializer.deserialize(json, METADATA_TYPE));
 
-    assertThat(metadata.getAdditionalProperties().get("customField")).isEqualTo("hello");
-  }
+        assertThat(metadata.getAdditionalProperties().get("customField")).isEqualTo("hello");
+    }
 
-  @Test
-  void testRoundTripPreservesAdditionalProperties() {
-    Metadata metadata = new Metadata();
-    metadata.setAdditionalProperty("customField", "hello");
-    metadata.setAdditionalProperty("anotherField", "world");
+    @Test
+    void testRoundTripPreservesAdditionalProperties() {
+        Metadata metadata = new Metadata();
+        metadata.setAdditionalProperty("customField", "hello");
+        metadata.setAdditionalProperty("anotherField", "world");
 
-    String json = serializer.serialize(metadata);
-    Metadata deserialized = Objects.requireNonNull(serializer.deserialize(json, METADATA_TYPE));
+        String json = serializer.serialize(metadata);
+        Metadata deserialized = Objects.requireNonNull(serializer.deserialize(json, METADATA_TYPE));
 
-    assertThat(deserialized.getAdditionalProperties().get("customField")).isEqualTo("hello");
-    assertThat(deserialized.getAdditionalProperties().get("anotherField")).isEqualTo("world");
-  }
+        assertThat(deserialized.getAdditionalProperties().get("customField")).isEqualTo("hello");
+        assertThat(deserialized.getAdditionalProperties().get("anotherField")).isEqualTo("world");
+    }
 
-  @Test
-  void testAdditionalPropertiesAreTypedAsString() {
-    Metadata metadata = new Metadata();
-    metadata.setAdditionalProperty("key", "value");
+    @Test
+    void testAdditionalPropertiesAreTypedAsString() {
+        Metadata metadata = new Metadata();
+        metadata.setAdditionalProperty("key", "value");
 
-    java.util.Map<String, Object> additionalProps = metadata.getAdditionalProperties();
-    assertThat(additionalProps).containsEntry("key", "value");
-  }
+        java.util.Map<String, Object> additionalProps = metadata.getAdditionalProperties();
+        assertThat(additionalProps).containsEntry("key", "value");
+    }
 }

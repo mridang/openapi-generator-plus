@@ -25,162 +25,164 @@ import javax.annotation.Nullable;
 /**
  * Manages OAuth2 token lifecycle including fetching, caching, and refreshing tokens.
  *
- * <p>Uses the shared {@link ApiClient} instance so that token exchange requests honour the same
- * transport configuration (proxy, TLS, timeouts) as regular API calls.
+ * <p>Uses the shared {@link ApiClient} instance so that token exchange requests
+ * honour the same transport configuration (proxy, TLS, timeouts) as regular
+ * API calls.
  */
 public class OAuth2TokenManager {
 
-  /**
-   * Safety margin (in seconds) applied to token expiry checks so that we refresh slightly before
-   * the token actually expires, avoiding a race against the server clock.
-   */
-  private static final long EXPIRY_SAFETY_MARGIN_SECONDS = 60L;
+    /**
+     * Safety margin (in seconds) applied to token expiry checks so that we
+     * refresh slightly before the token actually expires, avoiding a race
+     * against the server clock.
+     */
+    private static final long EXPIRY_SAFETY_MARGIN_SECONDS = 60L;
 
-  private final ObjectMapper objectMapper;
-  @Nullable private ApiClient apiClient;
-  @Nullable private String accessToken;
-  @Nullable private Instant tokenExpiry;
-  @Nullable private String refreshToken;
+    private final ObjectMapper objectMapper;
+    @Nullable private ApiClient apiClient;
+    @Nullable private String    accessToken;
+    @Nullable private Instant   tokenExpiry;
+    @Nullable private String    refreshToken;
 
-  /**
-   * Create a new token manager.
-   *
-   * <p>The {@link ApiClient} must be injected via {@link #setApiClient(ApiClient)} before any token
-   * requests are made.
-   */
-  public OAuth2TokenManager() {
-    this.objectMapper = new ObjectMapper();
-  }
-
-  /**
-   * Inject the shared API client for making token requests.
-   *
-   * @param apiClient the shared API client instance
-   */
-  public void setApiClient(ApiClient apiClient) {
-    this.apiClient = apiClient;
-  }
-
-  /**
-   * Get a valid access token, fetching or refreshing as necessary.
-   *
-   * <p>This method is synchronized to prevent concurrent token requests.
-   *
-   * @param tokenUrl the OAuth2 token endpoint URL
-   * @param params the token request parameters (grant_type, client_id, etc.)
-   * @return a valid access token
-   * @throws IllegalStateException if no API client has been injected or token fetch fails
-   */
-  public synchronized String getAccessToken(String tokenUrl, Map<String, String> params) {
-    return getAccessToken(tokenUrl, params, Collections.emptyMap());
-  }
-
-  /**
-   * Get a valid access token, fetching or refreshing as necessary.
-   *
-   * <p>This overload accepts additional HTTP headers (e.g. an {@code Authorization} header for HTTP
-   * Basic client authentication per RFC 6749 §2.3.1).
-   *
-   * @param tokenUrl the OAuth2 token endpoint URL
-   * @param params the token request parameters (grant_type, etc.)
-   * @param extraHeaders additional headers to include on the token request
-   * @return a valid access token
-   */
-  public synchronized String getAccessToken(
-      String tokenUrl, Map<String, String> params, Map<String, String> extraHeaders) {
-    if (accessToken != null
-        && (tokenExpiry == null
-            || Instant.now().isBefore(tokenExpiry.minusSeconds(EXPIRY_SAFETY_MARGIN_SECONDS)))) {
-      return accessToken;
+    /**
+     * Create a new token manager.
+     *
+     * <p>The {@link ApiClient} must be injected via {@link #setApiClient(ApiClient)}
+     * before any token requests are made.
+     */
+    public OAuth2TokenManager() {
+        this.objectMapper = new ObjectMapper();
     }
-    if (refreshToken != null && !refreshToken.isEmpty()) {
-      Map<String, String> refreshParams = new HashMap<>();
-      refreshParams.put("grant_type", "refresh_token");
-      refreshParams.put("refresh_token", refreshToken);
-      if (params.containsKey("client_id")) {
-        refreshParams.put("client_id", params.get("client_id"));
-      }
-      if (params.containsKey("client_secret")) {
-        refreshParams.put("client_secret", params.get("client_secret"));
-      }
-      try {
-        fetchToken(tokenUrl, refreshParams, extraHeaders);
-        if (accessToken != null) {
-          return accessToken;
+
+    /**
+     * Inject the shared API client for making token requests.
+     *
+     * @param apiClient the shared API client instance
+     */
+    public void setApiClient(ApiClient apiClient) {
+        this.apiClient = apiClient;
+    }
+
+    /**
+     * Get a valid access token, fetching or refreshing as necessary.
+     *
+     * <p>This method is synchronized to prevent concurrent token requests.
+     *
+     * @param tokenUrl the OAuth2 token endpoint URL
+     * @param params   the token request parameters (grant_type, client_id, etc.)
+     * @return a valid access token
+     * @throws IllegalStateException if no API client has been injected or token fetch fails
+     */
+    public synchronized String getAccessToken(String tokenUrl, Map<String, String> params) {
+        return getAccessToken(tokenUrl, params, Collections.emptyMap());
+    }
+
+    /**
+     * Get a valid access token, fetching or refreshing as necessary.
+     *
+     * <p>This overload accepts additional HTTP headers (e.g. an
+     * {@code Authorization} header for HTTP Basic client authentication per
+     * RFC 6749 §2.3.1).
+     *
+     * @param tokenUrl     the OAuth2 token endpoint URL
+     * @param params       the token request parameters (grant_type, etc.)
+     * @param extraHeaders additional headers to include on the token request
+     * @return a valid access token
+     */
+    public synchronized String getAccessToken(String tokenUrl, Map<String, String> params,
+            Map<String, String> extraHeaders) {
+        if (accessToken != null
+                && (tokenExpiry == null
+                        || Instant.now().isBefore(tokenExpiry.minusSeconds(EXPIRY_SAFETY_MARGIN_SECONDS)))) {
+            return accessToken;
         }
-      } catch (RuntimeException ignored) {
-        /* Refresh failed (e.g. refresh token revoked or expired). Fall
-         * back to re-running the original grant below. */
-      }
-    }
-    fetchToken(tokenUrl, params, extraHeaders);
-    if (accessToken == null) {
-      throw new IllegalStateException("Token fetch did not return an access token");
-    }
-    return accessToken;
-  }
-
-  /**
-   * Manually set an access token, bypassing the token endpoint.
-   *
-   * @param token the access token to use
-   */
-  public synchronized void setAccessToken(String token) {
-    this.accessToken = token;
-    this.tokenExpiry = null;
-  }
-
-  /**
-   * Get the refresh token, if one was returned by the token endpoint.
-   *
-   * @return the refresh token, or null if not available
-   */
-  public synchronized @Nullable String getRefreshToken() {
-    return refreshToken;
-  }
-
-  private void fetchToken(
-      String tokenUrl, Map<String, String> params, Map<String, String> extraHeaders) {
-    if (apiClient == null) {
-      throw new IllegalStateException(
-          "ApiClient has not been injected. "
-              + "Ensure the Client constructor calls setApiClient() "
-              + "on HttpAwareAuthenticator before making API requests.");
-    }
-
-    StringJoiner body = new StringJoiner("&");
-    for (Map.Entry<String, String> entry : params.entrySet()) {
-      body.add(
-          URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8)
-              + "="
-              + URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8));
-    }
-
-    Map<String, String> headers = new HashMap<>();
-    headers.put("Content-Type", "application/x-www-form-urlencoded");
-    headers.putAll(extraHeaders);
-
-    try {
-      ApiResponse response = apiClient.sendRequest("POST", tokenUrl, headers, body.toString());
-      if (response.statusCode() < 200 || response.statusCode() >= 300) {
-        throw new RuntimeException(
-            "Token request failed with status " + response.statusCode() + ": " + response.body());
-      }
-      JsonNode json = objectMapper.readTree(response.body());
-      this.accessToken = json.get("access_token").asText();
-      if (json.has("refresh_token")) {
-        this.refreshToken = json.get("refresh_token").asText();
-      }
-      if (json.has("expires_in")) {
-        long expiresIn = json.get("expires_in").asLong();
-        if (expiresIn > 30) {
-          this.tokenExpiry = Instant.now().plusSeconds(expiresIn - 30);
-        } else {
-          this.tokenExpiry = Instant.now();
+        if (refreshToken != null && !refreshToken.isEmpty()) {
+            Map<String, String> refreshParams = new HashMap<>();
+            refreshParams.put("grant_type", "refresh_token");
+            refreshParams.put("refresh_token", refreshToken);
+            if (params.containsKey("client_id")) {
+                refreshParams.put("client_id", params.get("client_id"));
+            }
+            if (params.containsKey("client_secret")) {
+                refreshParams.put("client_secret", params.get("client_secret"));
+            }
+            try {
+                fetchToken(tokenUrl, refreshParams, extraHeaders);
+                if (accessToken != null) {
+                    return accessToken;
+                }
+            } catch (RuntimeException ignored) {
+                /* Refresh failed (e.g. refresh token revoked or expired). Fall
+                 * back to re-running the original grant below. */
+            }
         }
-      }
-    } catch (ApiException | IOException e) {
-      throw new RuntimeException("Failed to fetch OAuth2 token", e);
+        fetchToken(tokenUrl, params, extraHeaders);
+        if (accessToken == null) {
+            throw new IllegalStateException("Token fetch did not return an access token");
+        }
+        return accessToken;
     }
-  }
+
+    /**
+     * Manually set an access token, bypassing the token endpoint.
+     *
+     * @param token the access token to use
+     */
+    public synchronized void setAccessToken(String token) {
+        this.accessToken = token;
+        this.tokenExpiry = null;
+    }
+
+    /**
+     * Get the refresh token, if one was returned by the token endpoint.
+     *
+     * @return the refresh token, or null if not available
+     */
+    public synchronized @Nullable String getRefreshToken() {
+        return refreshToken;
+    }
+
+    private void fetchToken(String tokenUrl, Map<String, String> params,
+            Map<String, String> extraHeaders) {
+        if (apiClient == null) {
+            throw new IllegalStateException(
+                    "ApiClient has not been injected. "
+                            + "Ensure the Client constructor calls setApiClient() "
+                            + "on HttpAwareAuthenticator before making API requests.");
+        }
+
+        StringJoiner body = new StringJoiner("&");
+        for (Map.Entry<String, String> entry : params.entrySet()) {
+            body.add(URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8) + "="
+                    + URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8));
+        }
+
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Content-Type", "application/x-www-form-urlencoded");
+        headers.putAll(extraHeaders);
+
+        try {
+            ApiResponse response = apiClient.sendRequest(
+                    "POST", tokenUrl, headers, body.toString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new RuntimeException("Token request failed with status " + response.statusCode()
+                        + ": " + response.body());
+            }
+            JsonNode json = objectMapper.readTree(response.body());
+            this.accessToken = json.get("access_token").asText();
+            if (json.has("refresh_token")) {
+                this.refreshToken = json.get("refresh_token").asText();
+            }
+            if (json.has("expires_in")) {
+                long expiresIn = json.get("expires_in").asLong();
+                if (expiresIn > 30) {
+                    this.tokenExpiry = Instant.now().plusSeconds(expiresIn - 30);
+                } else {
+                    this.tokenExpiry = Instant.now();
+                }
+            }
+        } catch (ApiException | IOException e) {
+            throw new RuntimeException("Failed to fetch OAuth2 token", e);
+        }
+    }
 }

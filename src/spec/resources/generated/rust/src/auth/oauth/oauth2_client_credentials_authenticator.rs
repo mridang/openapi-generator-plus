@@ -80,9 +80,8 @@ impl Authenticator for OAuth2ClientCredentialsAuthenticator {
                 // separately before joining with ':' and base64-encoding.
                 let encoded_id = form_url_encode(&self.client_id);
                 let encoded_secret = form_url_encode(&self.client_secret);
-                let credentials = BASE64_STANDARD.encode(
-                    format!("{}:{}", encoded_id, encoded_secret).as_bytes(),
-                );
+                let credentials =
+                    BASE64_STANDARD.encode(format!("{}:{}", encoded_id, encoded_secret).as_bytes());
                 extra_headers.insert(
                     "Authorization".to_string(),
                     format!("Basic {}", credentials),
@@ -102,10 +101,7 @@ impl Authenticator for OAuth2ClientCredentialsAuthenticator {
             {
                 Ok(token) => {
                     let mut headers = HashMap::new();
-                    headers.insert(
-                        "Authorization".to_string(),
-                        format!("Bearer {}", token),
-                    );
+                    headers.insert("Authorization".to_string(), format!("Bearer {}", token));
                     headers
                 }
                 Err(_) => HashMap::new(),

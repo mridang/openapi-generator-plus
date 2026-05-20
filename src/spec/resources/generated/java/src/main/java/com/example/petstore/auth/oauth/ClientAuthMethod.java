@@ -8,14 +8,14 @@
 package com.example.petstore.auth.oauth;
 
 /**
- * How OAuth2 client credentials (client_id / client_secret) are transmitted to the token endpoint
- * per RFC 6749 §2.3.1.
+ * How OAuth2 client credentials (client_id / client_secret) are transmitted
+ * to the token endpoint per RFC 6749 §2.3.1.
  */
 public enum ClientAuthMethod {
 
-  /** Send credentials as form parameters in the request body (default). */
-  BODY,
+    /** Send credentials as form parameters in the request body (default). */
+    BODY,
 
-  /** Send credentials via HTTP Basic Authorization header. */
-  BASIC
+    /** Send credentials via HTTP Basic Authorization header. */
+    BASIC
 }

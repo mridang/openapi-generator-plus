@@ -7,56 +7,53 @@
 
 import Foundation
 import Testing
-
 @testable import PetstoreClient
 
 @Suite final class MetadataTests {
 
-  @Test func testSerializeDeserialize() throws {
-    let original = Metadata()
+    @Test func testSerializeDeserialize() throws {
+        let original = Metadata()
 
-    let data = try JSONEncoder().encode(original)
-    #expect(!(data.isEmpty))
+        let data = try JSONEncoder().encode(original)
+        #expect(!(data.isEmpty))
 
-    let restored = try JSONDecoder().decode(Metadata.self, from: data)
-    #expect(restored != nil)
-  }
+        let restored = try JSONDecoder().decode(Metadata.self, from: data)
+        #expect(restored != nil)
+    }
 
-  @Test func testDeserializeFromJSON() throws {
-    // Use ObjectSerializer.deserialize which has the correct ISO-8601 date strategy
-    let jsonData = Data("{\"createdAt\":\"2024-01-15T10:30:00+00:00\"}".utf8)
+    @Test func testDeserializeFromJSON() throws {
+        // Use ObjectSerializer.deserialize which has the correct ISO-8601 date strategy
+        let jsonData = Data("{\"createdAt\":\"2024-01-15T10:30:00+00:00\"}".utf8)
 
-    let metadata = try ObjectSerializer.deserialize(jsonData, as: Metadata.self)
-    #expect(metadata != nil)
-  }
+        let metadata = try ObjectSerializer.deserialize(jsonData, as: Metadata.self)
+        #expect(metadata != nil)
+    }
 
-  @Test func testDeserializeEmptyObject() throws {
-    let jsonData = Data("{}".utf8)
+    @Test func testDeserializeEmptyObject() throws {
+        let jsonData = Data("{}".utf8)
 
-    let metadata = try ObjectSerializer.deserialize(jsonData, as: Metadata.self)
-    #expect(metadata != nil)
-  }
+        let metadata = try ObjectSerializer.deserialize(jsonData, as: Metadata.self)
+        #expect(metadata != nil)
+    }
 
-  @Test func testDeserializeWithAdditionalProperties() throws {
-    // Metadata may contain additional properties beyond the defined schema fields.
-    // This test verifies that unknown fields are handled gracefully during
-    // deserialization (either ignored or captured depending on schema config).
-    let jsonData = Data(
-      "{\"createdAt\":\"2024-01-15T10:30:00+00:00\",\"customField\":\"customValue\",\"count\":42}"
-        .utf8)
+    @Test func testDeserializeWithAdditionalProperties() throws {
+        // Metadata may contain additional properties beyond the defined schema fields.
+        // This test verifies that unknown fields are handled gracefully during
+        // deserialization (either ignored or captured depending on schema config).
+        let jsonData = Data("{\"createdAt\":\"2024-01-15T10:30:00+00:00\",\"customField\":\"customValue\",\"count\":42}".utf8)
 
-    // Use ObjectSerializer which silently ignores unknown keys via AnyCodable
-    let metadata = try ObjectSerializer.deserialize(jsonData, as: Metadata.self)
-    #expect(metadata != nil)
-  }
+        // Use ObjectSerializer which silently ignores unknown keys via AnyCodable
+        let metadata = try ObjectSerializer.deserialize(jsonData, as: Metadata.self)
+        #expect(metadata != nil)
+    }
 
-  @Test func testRoundTrip() throws {
-    // Use ObjectSerializer for consistent date encoding/decoding
-    let jsonData = Data("{\"createdAt\":\"2024-01-15T10:30:00+00:00\"}".utf8)
+    @Test func testRoundTrip() throws {
+        // Use ObjectSerializer for consistent date encoding/decoding
+        let jsonData = Data("{\"createdAt\":\"2024-01-15T10:30:00+00:00\"}".utf8)
 
-    let metadata = try ObjectSerializer.deserialize(jsonData, as: Metadata.self)
+        let metadata = try ObjectSerializer.deserialize(jsonData, as: Metadata.self)
 
-    let data = try JSONEncoder().encode(metadata)
-    #expect(!(data.isEmpty))
-  }
+        let data = try JSONEncoder().encode(metadata)
+        #expect(!(data.isEmpty))
+    }
 }

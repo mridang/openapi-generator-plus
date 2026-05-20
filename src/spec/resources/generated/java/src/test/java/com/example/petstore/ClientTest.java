@@ -16,70 +16,63 @@ import org.junit.jupiter.api.Test;
 
 class ClientTest {
 
-  private final BearerAuthenticator authenticator =
-      new BearerAuthenticator("/api/v3", "test-token");
+    private final BearerAuthenticator authenticator =
+            new BearerAuthenticator("/api/v3", "test-token");
 
-  @Test
-  void constructWithAuthenticatorOnly() {
-    Client client = new Client(authenticator);
+    @Test
+    void constructWithAuthenticatorOnly() {
+        Client client = new Client(authenticator);
 
-    assertNotNull(client);
-  }
+        assertNotNull(client);
+    }
 
-  @Test
-  void constructWithAuthenticatorAndTransportOptions() {
-    TransportOptions transport = TransportOptions.builder().build();
+    @Test
+    void constructWithAuthenticatorAndTransportOptions() {
+        TransportOptions transport = TransportOptions.builder().build();
 
-    Client client = new Client(authenticator, transport);
+        Client client = new Client(authenticator, transport);
 
-    assertNotNull(client);
-  }
+        assertNotNull(client);
+    }
 
-  @Test
-  void bearerRejectsCrlfAndNonAscii() {
-    // RFC 7230 §3.2.6 — Bearer tokens commonly arrive with trailing
-    // newlines from .env / file reads, which would CRLF-inject the
-    // Authorization header. Also reject non-ASCII to avoid silent
-    // UTF-8 mangling that varies per HTTP lib.
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> new BearerAuthenticator("/api/v3", "tok\r\nInjected: yes").getAuthHeaders());
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> new BearerAuthenticator("/api/v3", "ñoño").getAuthHeaders());
-  }
+    @Test
+    void bearerRejectsCrlfAndNonAscii() {
+        // RFC 7230 §3.2.6 — Bearer tokens commonly arrive with trailing
+        // newlines from .env / file reads, which would CRLF-inject the
+        // Authorization header. Also reject non-ASCII to avoid silent
+        // UTF-8 mangling that varies per HTTP lib.
+        assertThrows(IllegalArgumentException.class,
+                () -> new BearerAuthenticator("/api/v3", "tok\r\nInjected: yes").getAuthHeaders());
+        assertThrows(IllegalArgumentException.class,
+                () -> new BearerAuthenticator("/api/v3", "ñoño").getAuthHeaders());
+    }
 
-  @Test
-  void apiKeyHeaderRejectsCrlfAndNonAscii() {
-    // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
-    // ApiKeyAuthenticator's HEADER location must reject any value
-    // outside printable ASCII + TAB to prevent both header injection
-    // (\r\n) and silent UTF-8 mangling that varies per HTTP lib.
-    // Query / Cookie locations are URL-encoded by the transport so
-    // they are not subject to the same restriction.
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            new ApiKeyAuthenticator(
-                    "/api/v3", "X-Api-Key", "abc\r\nInjected: yes", ApiKeyLocation.HEADER)
+    @Test
+    void apiKeyHeaderRejectsCrlfAndNonAscii() {
+        // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
+        // ApiKeyAuthenticator's HEADER location must reject any value
+        // outside printable ASCII + TAB to prevent both header injection
+        // (\r\n) and silent UTF-8 mangling that varies per HTTP lib.
+        // Query / Cookie locations are URL-encoded by the transport so
+        // they are not subject to the same restriction.
+        assertThrows(IllegalArgumentException.class, () -> new ApiKeyAuthenticator(
+                "/api/v3", "X-Api-Key", "abc\r\nInjected: yes", ApiKeyLocation.HEADER)
                 .getAuthHeaders());
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            new ApiKeyAuthenticator("/api/v3", "X-Api-Key", "kéy", ApiKeyLocation.HEADER)
+        assertThrows(IllegalArgumentException.class, () -> new ApiKeyAuthenticator(
+                "/api/v3", "X-Api-Key", "kéy", ApiKeyLocation.HEADER)
                 .getAuthHeaders());
-    // Non-header locations accept arbitrary chars (they go through
-    // their own URL-encoding pipeline downstream).
-    assertNotNull(
-        new ApiKeyAuthenticator("/api/v3", "api_key", "kéy", ApiKeyLocation.QUERY)
-            .getQueryParams());
-  }
+        // Non-header locations accept arbitrary chars (they go through
+        // their own URL-encoding pipeline downstream).
+        assertNotNull(new ApiKeyAuthenticator(
+                "/api/v3", "api_key", "kéy", ApiKeyLocation.QUERY)
+                .getQueryParams());
+    }
 
-  @Test
-  void apiGroupsAreAccessible() {
-    Client client = new Client(authenticator);
+    @Test
+    void apiGroupsAreAccessible() {
+        Client client = new Client(authenticator);
 
-    assertNotNull(client.pet);
-    assertNotNull(client.store);
-  }
+        assertNotNull(client.pet);
+        assertNotNull(client.store);
+    }
 }

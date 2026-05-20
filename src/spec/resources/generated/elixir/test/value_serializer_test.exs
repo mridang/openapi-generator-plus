@@ -430,4 +430,21 @@ defmodule PetstoreClient.ValueSerializerTest do
       end
     end
   end
+
+  # N3/W3 parity: `format: date` path parameters must emit a date-only
+  # string (YYYY-MM-DD), not a full ISO datetime. Elixir models
+  # `format: date` as `Date`, whose `Date.to_iso8601/1` already produces
+  # YYYY-MM-DD.
+  describe "format:date path parameter emits YYYY-MM-DD" do
+    test "Date in path returns YYYY-MM-DD" do
+      date = ~D[2024-01-15]
+      assert PetstoreClient.ValueSerializer.serialize(date, :path, "string") == "2024-01-15"
+    end
+
+    test "Date via serialize_styled simple returns YYYY-MM-DD" do
+      date = ~D[2024-01-15]
+      result = PetstoreClient.ValueSerializer.serialize_styled("since", date, :path, "string", nil, "simple", false)
+      assert result == "2024-01-15"
+    end
+  end
 end

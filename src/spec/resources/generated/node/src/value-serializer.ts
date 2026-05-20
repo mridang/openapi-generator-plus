@@ -106,7 +106,8 @@ export class ValueSerializer {
       );
     }
 
-    const encodeIfPath = (s: string) => (location === 'path' ? ValueSerializer.encodePathSegment(s) : s);
+    const encodeIfPath = (s: string) =>
+      location === 'path' ? ValueSerializer.encodePathSegment(s) : s;
 
     switch (style) {
       case 'matrix': {
@@ -231,4 +232,5 @@ export class ValueSerializer {
     }
     return result;
   }
+
 }

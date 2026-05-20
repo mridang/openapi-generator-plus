@@ -7,77 +7,76 @@
 
 import Foundation
 import Testing
-
 @testable import PetstoreClient
 
 @Suite final class OAuth2ImplicitAuthenticatorTests {
 
-  private func createAuthenticator() -> OAuth2ImplicitAuthenticator {
-    return OAuth2ImplicitAuthenticator(
-      host: "https://api.example.com",
-      clientID: "my-client-id",
-      authorizationURL: "https://auth.example.com/authorize",
-      scopes: ["read", "write"]
-    )
-  }
+    private func createAuthenticator() -> OAuth2ImplicitAuthenticator {
+        return OAuth2ImplicitAuthenticator(
+            host: "https://api.example.com",
+            clientID: "my-client-id",
+            authorizationURL: "https://auth.example.com/authorize",
+            scopes: ["read", "write"]
+        )
+    }
 
-  // MARK: - Tests
+    // MARK: - Tests
 
-  @Test func testBuildsAuthorizationUrlWithResponseTypeToken() {
-    let auth = createAuthenticator()
+    @Test func testBuildsAuthorizationUrlWithResponseTypeToken() {
+        let auth = createAuthenticator()
 
-    let url = auth.buildAuthorizationURL()
+        let url = auth.buildAuthorizationURL()
 
-    #expect(url.contains("response_type=token"))
-    #expect(url.hasPrefix("https://auth.example.com/authorize?"))
-  }
+        #expect(url.contains("response_type=token"))
+        #expect(url.hasPrefix("https://auth.example.com/authorize?"))
+    }
 
-  @Test func testBuildsAuthorizationUrlWithClientId() {
-    let auth = createAuthenticator()
+    @Test func testBuildsAuthorizationUrlWithClientId() {
+        let auth = createAuthenticator()
 
-    let url = auth.buildAuthorizationURL()
+        let url = auth.buildAuthorizationURL()
 
-    #expect(url.contains("client_id=my-client-id"))
-  }
+        #expect(url.contains("client_id=my-client-id"))
+    }
 
-  @Test func testBuildsAuthorizationUrlWithScopes() {
-    let auth = createAuthenticator()
+    @Test func testBuildsAuthorizationUrlWithScopes() {
+        let auth = createAuthenticator()
 
-    let url = auth.buildAuthorizationURL()
+        let url = auth.buildAuthorizationURL()
 
-    #expect(url.contains("scope=read%20write"))
-  }
+        #expect(url.contains("scope=read%20write"))
+    }
 
-  @Test func testBuildsAuthorizationUrlWithState() {
-    let auth = createAuthenticator()
+    @Test func testBuildsAuthorizationUrlWithState() {
+        let auth = createAuthenticator()
 
-    let url = auth.buildAuthorizationURL(state: "my-state")
+        let url = auth.buildAuthorizationURL(state: "my-state")
 
-    #expect(url.contains("state=my-state"))
-  }
+        #expect(url.contains("state=my-state"))
+    }
 
-  @Test func testGetAuthHeadersReturnsBearerAfterSetAccessToken() async {
-    let auth = createAuthenticator()
-    auth.setAccessToken("implicit-tok")
+    @Test func testGetAuthHeadersReturnsBearerAfterSetAccessToken() async {
+        let auth = createAuthenticator()
+        auth.setAccessToken("implicit-tok")
 
-    let headers = await auth.authHeaders()
+        let headers = await auth.authHeaders()
 
-    #expect(headers["Authorization"] == "Bearer implicit-tok")
-  }
+        #expect(headers["Authorization"] == "Bearer implicit-tok")
+    }
 
-  @Test func testThrowsWhenAccessTokenNotSet() {
-    let auth = createAuthenticator()
+    @Test func testThrowsWhenAccessTokenNotSet() {
+        let auth = createAuthenticator()
 
-    // authHeaders() calls fatalError when no token is set.
-    // We verify the authenticator is in unset state.
-    #expect(auth.host() == "https://api.example.com")
-    // Note: In Swift, fatalError cannot be caught in Swift Testing without a custom harness.
-    // We verify the precondition state is correct.
-  }
+        // authHeaders() calls fatalError when no token is set.
+        // We verify the authenticator is in unset state.
+        #expect(auth.host() == "https://api.example.com")
+        // Note: In Swift, fatalError cannot be caught in Swift Testing without a custom harness.
+        // We verify the precondition state is correct.
+    }
 
-  @Test func testGetHostReturnsConfiguredHost() {
-    let auth = createAuthenticator()
+    @Test func testGetHostReturnsConfiguredHost() {
+        let auth = createAuthenticator()
 
-    #expect(auth.host() == "https://api.example.com")
-  }
+        #expect(auth.host() == "https://api.example.com")
+    }
 }

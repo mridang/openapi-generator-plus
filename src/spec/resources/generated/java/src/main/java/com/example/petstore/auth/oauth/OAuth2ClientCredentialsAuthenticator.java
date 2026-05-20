@@ -18,99 +18,90 @@ import java.util.Map;
 /**
  * Authenticator for the OAuth2 Client Credentials flow.
  *
- * <p>Implements {@link HttpAwareAuthenticator} so that token exchange requests use the shared
- * {@link ApiClient} with the same transport configuration (proxy, TLS, timeouts) as regular API
- * calls.
+ * <p>Implements {@link HttpAwareAuthenticator} so that token exchange requests
+ * use the shared {@link ApiClient} with the same transport configuration
+ * (proxy, TLS, timeouts) as regular API calls.
  */
 public class OAuth2ClientCredentialsAuthenticator implements HttpAwareAuthenticator {
 
-  private final String host;
-  private final String clientId;
-  private final String clientSecret;
-  private final String tokenUrl;
-  private final List<String> scopes;
-  private final ClientAuthMethod clientAuthMethod;
-  private final OAuth2TokenManager tokenManager;
+    private final String             host;
+    private final String             clientId;
+    private final String             clientSecret;
+    private final String             tokenUrl;
+    private final List<String>       scopes;
+    private final ClientAuthMethod   clientAuthMethod;
+    private final OAuth2TokenManager tokenManager;
 
-  /**
-   * Create a new client credentials authenticator using the default {@link ClientAuthMethod#BODY}
-   * client authentication method.
-   *
-   * @param host API base URL
-   * @param clientId OAuth2 client ID
-   * @param clientSecret OAuth2 client secret
-   * @param tokenUrl token endpoint URL
-   * @param scopes requested scopes
-   */
-  public OAuth2ClientCredentialsAuthenticator(
-      String host, String clientId, String clientSecret, String tokenUrl, List<String> scopes) {
-    this(host, clientId, clientSecret, tokenUrl, scopes, ClientAuthMethod.BODY);
-  }
-
-  /**
-   * Create a new client credentials authenticator.
-   *
-   * @param host API base URL
-   * @param clientId OAuth2 client ID
-   * @param clientSecret OAuth2 client secret
-   * @param tokenUrl token endpoint URL
-   * @param scopes requested scopes
-   * @param clientAuthMethod how to transmit the client credentials
-   */
-  public OAuth2ClientCredentialsAuthenticator(
-      String host,
-      String clientId,
-      String clientSecret,
-      String tokenUrl,
-      List<String> scopes,
-      ClientAuthMethod clientAuthMethod) {
-    this.host = host;
-    this.clientId = clientId;
-    this.clientSecret = clientSecret;
-    this.tokenUrl = tokenUrl;
-    this.scopes = List.copyOf(scopes);
-    this.clientAuthMethod = clientAuthMethod;
-    this.tokenManager = new OAuth2TokenManager();
-  }
-
-  @Override
-  public void setApiClient(ApiClient apiClient) {
-    tokenManager.setApiClient(apiClient);
-  }
-
-  @Override
-  public String getHost() {
-    return host;
-  }
-
-  @Override
-  public Map<String, String> getAuthHeaders() {
-    Map<String, String> params = new HashMap<>();
-    params.put("grant_type", "client_credentials");
-    Map<String, String> extraHeaders = new HashMap<>();
-    if (clientAuthMethod == ClientAuthMethod.BASIC) {
-      /* RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
-       * separately before joining with ':' and base64-encoding. Without
-       * this, a credential containing ':' or any reserved char would
-       * corrupt the Basic header and fail against strict OPs. */
-      String encodedId =
-          java.net.URLEncoder.encode(clientId, java.nio.charset.StandardCharsets.UTF_8);
-      String encodedSecret =
-          java.net.URLEncoder.encode(clientSecret, java.nio.charset.StandardCharsets.UTF_8);
-      String credentials =
-          Base64.getEncoder()
-              .encodeToString(
-                  (encodedId + ":" + encodedSecret)
-                      .getBytes(java.nio.charset.StandardCharsets.UTF_8));
-      extraHeaders.put("Authorization", "Basic " + credentials);
-    } else {
-      params.put("client_id", clientId);
-      params.put("client_secret", clientSecret);
+    /**
+     * Create a new client credentials authenticator using the default
+     * {@link ClientAuthMethod#BODY} client authentication method.
+     *
+     * @param host         API base URL
+     * @param clientId     OAuth2 client ID
+     * @param clientSecret OAuth2 client secret
+     * @param tokenUrl     token endpoint URL
+     * @param scopes       requested scopes
+     */
+    public OAuth2ClientCredentialsAuthenticator(String host, String clientId,
+            String clientSecret, String tokenUrl, List<String> scopes) {
+        this(host, clientId, clientSecret, tokenUrl, scopes, ClientAuthMethod.BODY);
     }
-    if (!scopes.isEmpty()) {
-      params.put("scope", String.join(" ", scopes));
+
+    /**
+     * Create a new client credentials authenticator.
+     *
+     * @param host             API base URL
+     * @param clientId         OAuth2 client ID
+     * @param clientSecret     OAuth2 client secret
+     * @param tokenUrl         token endpoint URL
+     * @param scopes           requested scopes
+     * @param clientAuthMethod how to transmit the client credentials
+     */
+    public OAuth2ClientCredentialsAuthenticator(String host, String clientId,
+            String clientSecret, String tokenUrl, List<String> scopes,
+            ClientAuthMethod clientAuthMethod) {
+        this.host             = host;
+        this.clientId         = clientId;
+        this.clientSecret     = clientSecret;
+        this.tokenUrl         = tokenUrl;
+        this.scopes           = List.copyOf(scopes);
+        this.clientAuthMethod = clientAuthMethod;
+        this.tokenManager     = new OAuth2TokenManager();
     }
-    String token = tokenManager.getAccessToken(tokenUrl, params, extraHeaders);
-    return Collections.singletonMap("Authorization", "Bearer " + token);
-  }
+
+    @Override
+    public void setApiClient(ApiClient apiClient) {
+        tokenManager.setApiClient(apiClient);
+    }
+
+    @Override
+    public String getHost() {
+        return host;
+    }
+
+    @Override
+    public Map<String, String> getAuthHeaders() {
+        Map<String, String> params = new HashMap<>();
+        params.put("grant_type", "client_credentials");
+        Map<String, String> extraHeaders = new HashMap<>();
+        if (clientAuthMethod == ClientAuthMethod.BASIC) {
+            /* RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
+             * separately before joining with ':' and base64-encoding. Without
+             * this, a credential containing ':' or any reserved char would
+             * corrupt the Basic header and fail against strict OPs. */
+            String encodedId = java.net.URLEncoder.encode(clientId, java.nio.charset.StandardCharsets.UTF_8);
+            String encodedSecret = java.net.URLEncoder.encode(clientSecret, java.nio.charset.StandardCharsets.UTF_8);
+            String credentials = Base64.getEncoder().encodeToString(
+                    (encodedId + ":" + encodedSecret).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            extraHeaders.put("Authorization", "Basic " + credentials);
+        } else {
+            params.put("client_id", clientId);
+            params.put("client_secret", clientSecret);
+        }
+        if (!scopes.isEmpty()) {
+            params.put("scope", String.join(" ", scopes));
+        }
+        String token = tokenManager.getAccessToken(tokenUrl, params, extraHeaders);
+        return Collections.singletonMap("Authorization", "Bearer " + token);
+    }
 }

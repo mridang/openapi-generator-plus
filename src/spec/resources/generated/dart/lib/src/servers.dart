@@ -29,7 +29,7 @@ import 'server_configuration.dart';
 
 /// Server configuration for: /api/v3
 /// Relative URL (no variables)
-final server0 = ServerConfiguration(
+const server0 = ServerConfiguration(
   urlTemplate: '/api/v3',
   description: 'Relative URL (no variables)',
   variables: {},
@@ -37,7 +37,7 @@ final server0 = ServerConfiguration(
 
 /// Server configuration for: https://{environment}.example.com/api/{version}
 /// Main API server with variables
-final server1 = ServerConfiguration(
+const server1 = ServerConfiguration(
   urlTemplate: 'https://{environment}.example.com/api/{version}',
   description: 'Main API server with variables',
   variables: {

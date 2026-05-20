@@ -14,9 +14,7 @@ use petstore::*;
 #[tokio::test]
 async fn test_default_api_client_makes_https_request_with_verify_ssl_false() {
     let wiremock_url = testcontainers_helper::wiremock_https_url();
-    let transport = TransportOptionsBuilder::new()
-        .verify_ssl(false)
-        .build();
+    let transport = TransportOptionsBuilder::new().verify_ssl(false).build();
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
@@ -51,9 +49,7 @@ async fn test_default_api_client_makes_https_request_with_custom_ca_cert() {
 async fn test_default_api_client_makes_http_request_through_proxy() {
     let wiremock_url = testcontainers_helper::wiremock_internal_http_url();
     let proxy = testcontainers_helper::proxy_url();
-    let transport = TransportOptionsBuilder::new()
-        .proxy(proxy)
-        .build();
+    let transport = TransportOptionsBuilder::new().proxy(proxy).build();
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
@@ -87,9 +83,7 @@ async fn test_default_api_client_makes_https_request_through_proxy_with_verify_s
 #[tokio::test]
 async fn test_default_api_client_times_out_on_slow_endpoint() {
     let wiremock_url = testcontainers_helper::wiremock_http_url();
-    let transport = TransportOptionsBuilder::new()
-        .timeout(1000)
-        .build();
+    let transport = TransportOptionsBuilder::new().timeout(1000).build();
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let result = client
@@ -108,7 +102,12 @@ async fn test_default_api_client_injects_custom_user_agent_header() {
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
-        .send_request("GET", &format!("{}/api/echo-headers", wiremock_url), &headers, None)
+        .send_request(
+            "GET",
+            &format!("{}/api/echo-headers", wiremock_url),
+            &headers,
+            None,
+        )
         .await
         .expect("unexpected error");
 
@@ -126,7 +125,12 @@ async fn test_default_api_client_injects_request_id_header() {
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
-        .send_request("GET", &format!("{}/api/echo-headers", wiremock_url), &headers, None)
+        .send_request(
+            "GET",
+            &format!("{}/api/echo-headers", wiremock_url),
+            &headers,
+            None,
+        )
         .await
         .expect("unexpected error");
 
@@ -145,13 +149,23 @@ async fn test_default_api_client_generates_unique_request_ids() {
     let headers = HashMap::new();
 
     let resp1 = client
-        .send_request("GET", &format!("{}/api/echo-headers", wiremock_url), &headers, None)
+        .send_request(
+            "GET",
+            &format!("{}/api/echo-headers", wiremock_url),
+            &headers,
+            None,
+        )
         .await
         .expect("unexpected error");
     let json1: serde_json::Value = serde_json::from_str(&resp1.body).expect("invalid json");
 
     let resp2 = client
-        .send_request("GET", &format!("{}/api/echo-headers", wiremock_url), &headers, None)
+        .send_request(
+            "GET",
+            &format!("{}/api/echo-headers", wiremock_url),
+            &headers,
+            None,
+        )
         .await
         .expect("unexpected error");
     let json2: serde_json::Value = serde_json::from_str(&resp2.body).expect("invalid json");
@@ -168,7 +182,12 @@ async fn test_default_api_client_includes_transport_default_headers() {
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
-        .send_request("GET", &format!("{}/api/echo-headers", wiremock_url), &headers, None)
+        .send_request(
+            "GET",
+            &format!("{}/api/echo-headers", wiremock_url),
+            &headers,
+            None,
+        )
         .await
         .expect("unexpected error");
 
@@ -186,7 +205,12 @@ async fn test_default_api_client_caller_headers_override_transport_defaults() {
     let mut headers = HashMap::new();
     headers.insert("Accept".to_string(), "application/json".to_string());
     let resp = client
-        .send_request("GET", &format!("{}/api/echo-headers", wiremock_url), &headers, None)
+        .send_request(
+            "GET",
+            &format!("{}/api/echo-headers", wiremock_url),
+            &headers,
+            None,
+        )
         .await
         .expect("unexpected error");
 
@@ -203,7 +227,12 @@ async fn test_default_api_client_follows_redirects_when_enabled() {
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
-        .send_request("GET", &format!("{}/api/redirect", wiremock_url), &headers, None)
+        .send_request(
+            "GET",
+            &format!("{}/api/redirect", wiremock_url),
+            &headers,
+            None,
+        )
         .await
         .expect("unexpected error");
 
@@ -220,7 +249,12 @@ async fn test_default_api_client_returns_redirect_when_disabled() {
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
-        .send_request("GET", &format!("{}/api/redirect", wiremock_url), &headers, None)
+        .send_request(
+            "GET",
+            &format!("{}/api/redirect", wiremock_url),
+            &headers,
+            None,
+        )
         .await
         .expect("unexpected error");
 
@@ -234,7 +268,13 @@ async fn test_default_api_client_respects_max_redirects_limit() {
         .max_redirects(Some(5))
         .build();
     let client = DefaultApiClient::new(Some(transport));
-    assert!(client.send_request("GET", "http://127.0.0.1:1/unused", &HashMap::new(), None).await.is_err() || true);
+    assert!(
+        client
+            .send_request("GET", "http://127.0.0.1:1/unused", &HashMap::new(), None)
+            .await
+            .is_err()
+            || true
+    );
 }
 
 #[tokio::test]
@@ -249,7 +289,12 @@ async fn test_default_api_client_sends_multipart_form_data() {
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let _resp = client
-        .send_request("POST", &format!("{}/api/test", wiremock_url), &headers, Some(&request_body))
+        .send_request(
+            "POST",
+            &format!("{}/api/test", wiremock_url),
+            &headers,
+            Some(&request_body),
+        )
         .await;
 }
 
@@ -259,7 +304,12 @@ async fn test_default_api_client_decompresses_gzip_response() {
     let mut headers = HashMap::new();
     headers.insert("Accept-Encoding".to_string(), "gzip".to_string());
     let resp = client
-        .send_request("GET", "https://jsonplaceholder.typicode.com/posts/1", &headers, None)
+        .send_request(
+            "GET",
+            "https://jsonplaceholder.typicode.com/posts/1",
+            &headers,
+            None,
+        )
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code, 200);
@@ -272,7 +322,12 @@ async fn test_default_api_client_decompresses_brotli_response() {
     let mut headers = HashMap::new();
     headers.insert("Accept-Encoding".to_string(), "br".to_string());
     let resp = client
-        .send_request("GET", "https://jsonplaceholder.typicode.com/posts/1", &headers, None)
+        .send_request(
+            "GET",
+            "https://jsonplaceholder.typicode.com/posts/1",
+            &headers,
+            None,
+        )
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code, 200);
@@ -285,7 +340,12 @@ async fn test_default_api_client_decompresses_zstd_response() {
     let mut headers = HashMap::new();
     headers.insert("Accept-Encoding".to_string(), "zstd".to_string());
     let resp = client
-        .send_request("GET", "https://jsonplaceholder.typicode.com/posts/1", &headers, None)
+        .send_request(
+            "GET",
+            "https://jsonplaceholder.typicode.com/posts/1",
+            &headers,
+            None,
+        )
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code, 200);

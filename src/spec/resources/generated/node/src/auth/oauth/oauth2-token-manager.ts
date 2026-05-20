@@ -52,7 +52,8 @@ export class OAuth2TokenManager {
   ): Promise<string> {
     if (
       this.accessToken &&
-      (this.tokenExpiry === null || Date.now() < this.tokenExpiry - OAuth2TokenManager.EXPIRY_SAFETY_MARGIN_MS)
+      (this.tokenExpiry === null ||
+        Date.now() < this.tokenExpiry - OAuth2TokenManager.EXPIRY_SAFETY_MARGIN_MS)
     ) {
       return this.accessToken;
     }
@@ -64,7 +65,7 @@ export class OAuth2TokenManager {
         if (this.refreshToken) {
           const refreshParams: Record<string, string> = {
             grant_type: 'refresh_token',
-            refresh_token: this.refreshToken
+            refresh_token: this.refreshToken,
           };
           if (params.client_id !== undefined) {
             refreshParams.client_id = params.client_id;

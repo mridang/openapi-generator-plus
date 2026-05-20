@@ -31,6 +31,7 @@ class DefaultApiClient internal constructor(
     private val httpClient: HttpClient,
     private val transportOptions: TransportOptions,
 ) : ApiClient {
+
     /**
      * Create a client with a pre-configured Ktor [HttpClient].
      *
@@ -118,40 +119,35 @@ class DefaultApiClient internal constructor(
                 // a local-file or scripting URL.
                 val redirectScheme = redirectUri.scheme
                 if (redirectScheme == null ||
-                    (
-                        !redirectScheme.equals("http", ignoreCase = true) &&
-                            !redirectScheme.equals("https", ignoreCase = true)
-                    )
+                    (!redirectScheme.equals("http", ignoreCase = true) &&
+                        !redirectScheme.equals("https", ignoreCase = true))
                 ) {
                     throw ApiException("Refusing to follow redirect to non-HTTP(S) URL: $redirectUri")
                 }
-                val sameOrigin =
-                    redirectUri.host != null &&
-                        redirectUri.host.equals(originalUri.host, ignoreCase = true) &&
-                        redirectUri.port == originalUri.port
+                val sameOrigin = redirectUri.host != null &&
+                    redirectUri.host.equals(originalUri.host, ignoreCase = true) &&
+                    redirectUri.port == originalUri.port
 
                 val redirectHeaders = currentHeaders.toMutableMap()
                 if (!sameOrigin) {
-                    val keysToRemove =
-                        redirectHeaders.keys
-                            .filter { sensitiveHeaders.contains(it.lowercase()) }
+                    val keysToRemove = redirectHeaders.keys
+                        .filter { sensitiveHeaders.contains(it.lowercase()) }
                     keysToRemove.forEach { redirectHeaders.remove(it) }
                 }
 
                 currentUrl = redirectUri.toString()
                 currentHeaders = redirectHeaders
 
-                response =
-                    try {
-                        httpClient.request(currentUrl) {
-                            this.method = HttpMethod.Get
-                            for ((key, value) in redirectHeaders) {
-                                header(key, value)
-                            }
+                response = try {
+                    httpClient.request(currentUrl) {
+                        this.method = HttpMethod.Get
+                        for ((key, value) in redirectHeaders) {
+                            header(key, value)
                         }
-                    } catch (e: Exception) {
-                        throw ApiException(e.toString(), e)
                     }
+                } catch (e: Exception) {
+                    throw ApiException(e.toString(), e)
+                }
                 redirectsRemaining--
             }
         }
@@ -164,18 +160,14 @@ class DefaultApiClient internal constructor(
         val rawBytes = response.bodyAsBytes()
         // Ktor's Headers are case-insensitive but we copy them into a plain Map<String, String>
         // that preserves the server's original casing. Look up Content-Type without assuming case.
-        val contentType =
-            responseHeaders.entries
-                .firstOrNull { it.key.equals("Content-Type", ignoreCase = true) }
-                ?.value ?: ""
-        val responseBody =
-            if (isTextContentType(contentType)) {
-                rawBytes.toString(charsetFor(contentType))
-            } else {
-                java.util.Base64
-                    .getEncoder()
-                    .encodeToString(rawBytes)
-            }
+        val contentType = responseHeaders.entries
+            .firstOrNull { it.key.equals("Content-Type", ignoreCase = true) }
+            ?.value ?: ""
+        val responseBody = if (isTextContentType(contentType)) {
+            rawBytes.toString(charsetFor(contentType))
+        } else {
+            java.util.Base64.getEncoder().encodeToString(rawBytes)
+        }
         return ApiResponse(
             statusCode = response.status.value,
             body = responseBody,
@@ -244,24 +236,19 @@ class DefaultApiClient internal constructor(
             null -> {}
             is String, is Number, is Boolean -> append(fieldName, value.toString())
             else -> {
-                val json =
-                    try {
-                        kotlinx.serialization.json.Json.encodeToString(
-                            kotlinx.serialization.serializer(value::class.java),
-                            value,
-                        )
-                    } catch (_: Exception) {
-                        value.toString()
-                    }
+                val json = try {
+                    kotlinx.serialization.json.Json.encodeToString(
+                        kotlinx.serialization.serializer(value::class.java),
+                        value,
+                    )
+                } catch (_: Exception) {
+                    value.toString()
+                }
                 append(
                     fieldName,
                     json,
                     io.ktor.http.Headers.build {
-                        append(
-                            io.ktor.http.HttpHeaders.ContentType,
-                            io.ktor.http.ContentType.Application.Json
-                                .toString(),
-                        )
+                        append(io.ktor.http.HttpHeaders.ContentType, io.ktor.http.ContentType.Application.Json.toString())
                     },
                 )
             }
@@ -281,7 +268,6 @@ class DefaultApiClient internal constructor(
 /** Generates a UUID v4 string without JVM-specific APIs. */
 internal fun generateRequestId(): String {
     val rand = kotlin.random.Random.Default
-
     fun hex(n: Int) = n.toString(16).padStart(2, '0')
     val b = Array(16) { rand.nextInt(256) }
     b[6] = (b[6] and 0x0f) or 0x40
@@ -302,15 +288,14 @@ internal fun generateRequestId(): String {
 internal fun contentTypeForFilename(filename: String): ContentType {
     val dot = filename.lastIndexOf('.')
     if (dot < 0 || dot == filename.length - 1) return ContentType.Application.OctetStream
-    val mime =
-        when (filename.substring(dot + 1).lowercase()) {
-            "png" -> "image/png"
-            "jpg", "jpeg" -> "image/jpeg"
-            "gif" -> "image/gif"
-            "pdf" -> "application/pdf"
-            "json" -> "application/json"
-            else -> null
-        } ?: return ContentType.Application.OctetStream
+    val mime = when (filename.substring(dot + 1).lowercase()) {
+        "png" -> "image/png"
+        "jpg", "jpeg" -> "image/jpeg"
+        "gif" -> "image/gif"
+        "pdf" -> "application/pdf"
+        "json" -> "application/json"
+        else -> null
+    } ?: return ContentType.Application.OctetStream
     return try {
         ContentType.parse(mime)
     } catch (_: Exception) {
@@ -330,8 +315,7 @@ internal fun charsetFor(contentType: String?): java.nio.charset.Charset {
     val name = afterEquals.substringBefore(";").trim().trim('"', '\'')
     if (name.isEmpty()) return Charsets.UTF_8
     return try {
-        java.nio.charset.Charset
-            .forName(name)
+        java.nio.charset.Charset.forName(name)
     } catch (_: Exception) {
         Charsets.UTF_8
     }
@@ -339,12 +323,7 @@ internal fun charsetFor(contentType: String?): java.nio.charset.Charset {
 
 /** Returns true if the content type represents text that can be decoded as UTF-8. */
 internal fun isTextContentType(contentType: String): Boolean {
-    val mediaType =
-        contentType
-            .split(';')
-            .first()
-            .trim()
-            .lowercase()
+    val mediaType = contentType.split(';').first().trim().lowercase()
     if (mediaType.isEmpty()) return true
     if (mediaType.startsWith("text/")) return true
     return mediaType == "application/json" ||

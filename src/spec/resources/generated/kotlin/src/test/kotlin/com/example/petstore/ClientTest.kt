@@ -15,6 +15,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 class ClientTest {
+
     private val authenticator = BearerAuthenticator("/api/v3", "test-token")
 
     @Test
@@ -60,7 +61,7 @@ class ClientTest {
         }
         // Non-header locations accept arbitrary chars.
         assertNotNull(
-            ApiKeyAuthenticator("/api/v3", "api_key", "kéy", ApiKeyLocation.QUERY).getQueryParams(),
+            ApiKeyAuthenticator("/api/v3", "api_key", "kéy", ApiKeyLocation.QUERY).getQueryParams()
         )
     }
 

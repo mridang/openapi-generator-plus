@@ -37,380 +37,389 @@ import java.util.StringJoiner;
 import javax.annotation.Nullable;
 
 /**
- * Base class for all API classes. Provides the {@code invokeApi} method that handles URL
- * construction, header selection, body serialization, request dispatch, and response
- * deserialization.
+ * Base class for all API classes. Provides the {@code invokeApi} method that
+ * handles URL construction, header selection, body serialization, request
+ * dispatch, and response deserialization.
  */
 public abstract class BaseApi {
 
-  private static final TypeReference<Object> OBJECT_TYPE_REF = new TypeReference<>() {};
+    private static final TypeReference<Object> OBJECT_TYPE_REF = new TypeReference<>() {};
 
-  /** The HTTP transport client used for sending requests. */
-  protected final ApiClient apiClient;
+    /** The HTTP transport client used for sending requests. */
+    protected final ApiClient apiClient;
 
-  /** API-level configuration (base URL and default headers). */
-  protected final Configuration config;
+    /** API-level configuration (base URL and default headers). */
+    protected final Configuration config;
 
-  /** Serializer for request/response body conversion. */
-  protected final ObjectSerializer objectSerializer;
+    /** Serializer for request/response body conversion. */
+    protected final ObjectSerializer objectSerializer;
 
-  /** Content negotiation logic for Accept and Content-Type headers. */
-  protected final HeaderSelector headerSelector;
+    /** Content negotiation logic for Accept and Content-Type headers. */
+    protected final HeaderSelector headerSelector;
 
-  /** Default authenticator used when no per-operation auth is provided. */
-  @Nullable protected final Authenticator authenticator;
+    /** Default authenticator used when no per-operation auth is provided. */
+    @Nullable
+    protected final Authenticator authenticator;
 
-  /** Create an API instance with the default configuration and default transport. */
-  public BaseApi() {
-    this(Configuration.getDefault());
-  }
-
-  /**
-   * Create an API instance with the given configuration and default transport.
-   *
-   * @param config API-level configuration (base URL and default headers)
-   */
-  public BaseApi(Configuration config) {
-    this(new DefaultApiClient(), config);
-  }
-
-  /**
-   * Create an API instance with a custom API client and configuration.
-   *
-   * @param apiClient the HTTP transport client
-   * @param config API-level configuration (base URL and default headers)
-   */
-  public BaseApi(ApiClient apiClient, Configuration config) {
-    this(apiClient, config, null);
-  }
-
-  /**
-   * Create an API instance with a custom API client, configuration, and authenticator.
-   *
-   * @param apiClient the HTTP transport client
-   * @param config API-level configuration (base URL and default headers)
-   * @param authenticator default authenticator for operations without explicit auth
-   */
-  public BaseApi(ApiClient apiClient, Configuration config, @Nullable Authenticator authenticator) {
-    this.apiClient = apiClient;
-    this.config = config;
-    this.objectSerializer = new ObjectSerializer();
-    this.headerSelector = new HeaderSelector();
-    this.authenticator = authenticator;
-  }
-
-  /**
-   * Invoke an API operation and return the full result including status code, headers, and raw body
-   * alongside the deserialized data.
-   *
-   * @param <T> the return type
-   * @param method HTTP method (GET, POST, PUT, DELETE, etc.)
-   * @param path URL path (with path params already substituted)
-   * @param queryParams query parameters
-   * @param headerParams custom header parameters
-   * @param body request body (model object or null)
-   * @param accepts acceptable response content types
-   * @param contentType request content type
-   * @param returnType return type for deserialization (null for void)
-   * @param auth optional authenticator for operation-specific auth
-   * @return ApiResult containing deserialized data, status code, raw body, and headers
-   * @throws ApiException if the API call fails
-   */
-  protected <T> ApiResult<T> invokeApiForResult(
-      String method,
-      String path,
-      Map<String, Object> queryParams,
-      Map<String, String> headerParams,
-      @Nullable Object body,
-      String[] accepts,
-      String contentType,
-      @Nullable TypeReference<T> returnType,
-      @Nullable Authenticator auth)
-      throws ApiException {
-
-    String url;
-    if (path.startsWith("http://") || path.startsWith("https://")) {
-      url = path;
-    } else {
-      url = config.getBaseUrl() + path;
+    /**
+     * Create an API instance with the default configuration and default transport.
+     */
+    public BaseApi() {
+        this(Configuration.getDefault());
     }
 
-    Authenticator effectiveAuth = (auth != null) ? auth : this.authenticator;
-    if (effectiveAuth != null) {
-      for (Map.Entry<String, String> entry : effectiveAuth.getQueryParams().entrySet()) {
-        queryParams.put(entry.getKey(), entry.getValue());
-      }
+    /**
+     * Create an API instance with the given configuration and default transport.
+     *
+     * @param config API-level configuration (base URL and default headers)
+     */
+    public BaseApi(Configuration config) {
+        this(new DefaultApiClient(), config);
     }
 
-    String query = buildQueryString(queryParams);
-    if (!query.isEmpty()) {
-      url += "?" + query;
+    /**
+     * Create an API instance with a custom API client and configuration.
+     *
+     * @param apiClient the HTTP transport client
+     * @param config    API-level configuration (base URL and default headers)
+     */
+    public BaseApi(ApiClient apiClient, Configuration config) {
+        this(apiClient, config, null);
     }
 
-    boolean isMultipart = "multipart/form-data".equals(contentType);
-    Map<String, String> headers = headerSelector.selectHeaders(accepts, contentType, isMultipart);
-    headers.putAll(config.getDefaultHeaders());
-    if (headerParams != null) {
-      headers.putAll(headerParams);
+    /**
+     * Create an API instance with a custom API client, configuration, and authenticator.
+     *
+     * @param apiClient     the HTTP transport client
+     * @param config        API-level configuration (base URL and default headers)
+     * @param authenticator default authenticator for operations without explicit auth
+     */
+    public BaseApi(ApiClient apiClient, Configuration config, @Nullable Authenticator authenticator) {
+        this.apiClient        = apiClient;
+        this.config           = config;
+        this.objectSerializer = new ObjectSerializer();
+        this.headerSelector   = new HeaderSelector();
+        this.authenticator    = authenticator;
     }
-    if (effectiveAuth != null) {
-      headers.putAll(effectiveAuth.getAuthHeaders());
-      Map<String, String> cookies = effectiveAuth.getCookieParams();
-      if (!cookies.isEmpty()) {
-        /* RFC 6265 — cookie name is a token (RFC 7230 §3.2.6); cookie
-         * value is *cookie-octet (US-ASCII excluding whitespace, DQUOTE,
-         * comma, semicolon, backslash, controls). DO NOT URL-encode here:
-         * most cookie parsers do not URL-decode, so `=` (base64 padding)
-         * would arrive as literal `%3D` and break JWT/session cookies.
-         * Validate and pass through raw instead. */
-        StringJoiner cookieJoiner = new StringJoiner("; ");
-        for (Map.Entry<String, String> entry : cookies.entrySet()) {
-          String name = entry.getKey();
-          String value = entry.getValue();
-          if (!isValidCookieName(name)) {
-            throw new IllegalArgumentException(
-                "Cookie name '" + name + "' contains characters forbidden by RFC 6265");
-          }
-          if (!isValidCookieValue(value)) {
-            throw new IllegalArgumentException(
-                "Cookie value for '" + name + "' contains characters forbidden by RFC 6265");
-          }
-          cookieJoiner.add(name + "=" + value);
-        }
-        String existing = headers.get("Cookie");
-        if (existing != null && !existing.isEmpty()) {
-          headers.put("Cookie", existing + "; " + cookieJoiner);
+
+    /**
+     * Invoke an API operation and return the full result including status code,
+     * headers, and raw body alongside the deserialized data.
+     *
+     * @param <T>         the return type
+     * @param method      HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param path        URL path (with path params already substituted)
+     * @param queryParams query parameters
+     * @param headerParams custom header parameters
+     * @param body        request body (model object or null)
+     * @param accepts     acceptable response content types
+     * @param contentType request content type
+     * @param returnType  return type for deserialization (null for void)
+     * @param auth        optional authenticator for operation-specific auth
+     * @return ApiResult containing deserialized data, status code, raw body, and headers
+     * @throws ApiException if the API call fails
+     */
+    protected <T> ApiResult<T> invokeApiForResult(
+            String method,
+            String path,
+            Map<String, Object> queryParams,
+            Map<String, String> headerParams,
+            @Nullable Object body,
+            String[] accepts,
+            String contentType,
+            @Nullable TypeReference<T> returnType,
+            @Nullable Authenticator auth)
+            throws ApiException {
+
+        String url;
+        if (path.startsWith("http://") || path.startsWith("https://")) {
+            url = path;
         } else {
-          headers.put("Cookie", cookieJoiner.toString());
+            url = config.getBaseUrl() + path;
         }
-      }
-    }
-    TraceContextUtil.injectTraceContext(headers);
 
-    Object requestBody = null;
-    if (body != null) {
-      if (body instanceof byte[]
-          || contentType.startsWith("image/")
-          || "application/octet-stream".equals(contentType)) {
-        requestBody = body;
-      } else if ("multipart/form-data".equals(contentType) && body instanceof Map) {
-        requestBody = body;
-      } else if ("text/plain".equals(contentType)) {
-        requestBody = body.toString();
-      } else if ("application/x-www-form-urlencoded".equals(contentType) && body instanceof Map) {
-        @SuppressWarnings("unchecked")
-        Map<String, Object> formParams = (Map<String, Object>) body;
+        Authenticator effectiveAuth = (auth != null) ? auth : this.authenticator;
+        if (effectiveAuth != null) {
+            for (Map.Entry<String, String> entry : effectiveAuth.getQueryParams().entrySet()) {
+                queryParams.put(entry.getKey(), entry.getValue());
+            }
+        }
+
+        String query = buildQueryString(queryParams);
+        if (!query.isEmpty()) {
+            url += "?" + query;
+        }
+
+        boolean isMultipart = "multipart/form-data".equals(contentType);
+        Map<String, String> headers =
+                headerSelector.selectHeaders(accepts, contentType, isMultipart);
+        headers.putAll(config.getDefaultHeaders());
+        if (headerParams != null) {
+            headers.putAll(headerParams);
+        }
+        if (effectiveAuth != null) {
+            headers.putAll(effectiveAuth.getAuthHeaders());
+            Map<String, String> cookies = effectiveAuth.getCookieParams();
+            if (!cookies.isEmpty()) {
+                /* RFC 6265 — cookie name is a token (RFC 7230 §3.2.6); cookie
+                 * value is *cookie-octet (US-ASCII excluding whitespace, DQUOTE,
+                 * comma, semicolon, backslash, controls). DO NOT URL-encode here:
+                 * most cookie parsers do not URL-decode, so `=` (base64 padding)
+                 * would arrive as literal `%3D` and break JWT/session cookies.
+                 * Validate and pass through raw instead. */
+                StringJoiner cookieJoiner = new StringJoiner("; ");
+                for (Map.Entry<String, String> entry : cookies.entrySet()) {
+                    String name = entry.getKey();
+                    String value = entry.getValue();
+                    if (!isValidCookieName(name)) {
+                        throw new IllegalArgumentException(
+                                "Cookie name '" + name + "' contains characters forbidden by RFC 6265");
+                    }
+                    if (!isValidCookieValue(value)) {
+                        throw new IllegalArgumentException(
+                                "Cookie value for '" + name + "' contains characters forbidden by RFC 6265");
+                    }
+                    cookieJoiner.add(name + "=" + value);
+                }
+                String existing = headers.get("Cookie");
+                if (existing != null && !existing.isEmpty()) {
+                    headers.put("Cookie", existing + "; " + cookieJoiner);
+                } else {
+                    headers.put("Cookie", cookieJoiner.toString());
+                }
+            }
+        }
+        TraceContextUtil.injectTraceContext(headers);
+
+        Object requestBody = null;
+        if (body != null) {
+            if (body instanceof byte[]
+                    || contentType.startsWith("image/")
+                    || "application/octet-stream".equals(contentType)) {
+                requestBody = body;
+            } else if ("multipart/form-data".equals(contentType) && body instanceof Map) {
+                requestBody = body;
+            } else if ("text/plain".equals(contentType)) {
+                requestBody = body.toString();
+            } else if ("application/x-www-form-urlencoded".equals(contentType)
+                    && body instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> formParams = (Map<String, Object>) body;
+                StringJoiner joiner = new StringJoiner("&");
+                for (Map.Entry<String, Object> entry : formParams.entrySet()) {
+                    joiner.add(
+                            URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8)
+                                    + "="
+                                    + URLEncoder.encode(
+                                            String.valueOf(entry.getValue()),
+                                            StandardCharsets.UTF_8));
+                }
+                requestBody = joiner.toString();
+            } else {
+                requestBody = objectSerializer.serialize(body);
+            }
+        }
+
+        if (requestBody == null) {
+            headers.remove("Content-Type");
+        }
+
+        ApiResponse response = apiClient.sendRequest(method, url, headers, requestBody);
+
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            throwApiException(response);
+        }
+
+        T data = null;
+        if (returnType != null && response.body() != null && !response.body().isEmpty()) {
+            String responseContentType = "";
+            if (response.headers() != null) {
+                for (Map.Entry<String, String> entry : response.headers().entrySet()) {
+                    if (entry.getKey().equalsIgnoreCase("content-type")) {
+                        responseContentType = entry.getValue();
+                        break;
+                    }
+                }
+            }
+            if (!responseContentType.isEmpty()
+                    && !headerSelector.isJsonMime(responseContentType)) {
+                if (returnType.getType() == InputStream.class) {
+                    @SuppressWarnings("unchecked")
+                    T streamBody =
+                            (T)
+                                    new ByteArrayInputStream(
+                                            response.body()
+                                                    .getBytes(StandardCharsets.UTF_8));
+                    data = streamBody;
+                } else {
+                    @SuppressWarnings("unchecked")
+                    T rawBody = (T) response.body();
+                    data = rawBody;
+                }
+            } else {
+                data = objectSerializer.deserialize(response.body(), returnType);
+            }
+        }
+        return new ApiResult<>(
+                response.statusCode(),
+                data,
+                response.body(),
+                response.headers() != null ? response.headers() : Map.of());
+    }
+
+    /**
+     * Invoke an API operation.
+     *
+     * @param <T>         the return type
+     * @param method      HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param path        URL path (with path params already substituted)
+     * @param queryParams query parameters
+     * @param headerParams custom header parameters
+     * @param body        request body (model object or null)
+     * @param accepts     acceptable response content types
+     * @param contentType request content type
+     * @param returnType  return type for deserialization (null for void)
+     * @param auth        optional authenticator for operation-specific auth
+     * @return deserialized response or null
+     * @throws ApiException if the API call fails
+     */
+    @Nullable
+    protected <T> T invokeApi(
+            String method,
+            String path,
+            Map<String, Object> queryParams,
+            Map<String, String> headerParams,
+            @Nullable Object body,
+            String[] accepts,
+            String contentType,
+            @Nullable TypeReference<T> returnType,
+            @Nullable Authenticator auth)
+            throws ApiException {
+        return invokeApiForResult(
+                method, path, queryParams, headerParams, body, accepts,
+                contentType, returnType, auth).data();
+    }
+
+    /**
+     * Throw the appropriate exception subclass for the given error response.
+     *
+     * <p>Attempts to deserialize the response body as JSON so that structured
+     * error data (e.g. from a {@code default} response schema) is available
+     * via {@link ApiException#getErrorBody()}.
+     *
+     * @param response the API response with a non-2xx status code
+     * @throws ApiException always
+     */
+    private void throwApiException(ApiResponse response) throws ApiException {
+        int code = response.statusCode();
+        String message = "API returned status code " + code;
+        String body = response.body();
+        Map<String, String> headers = response.headers();
+
+        Object errorBody = null;
+        if (body != null && !body.isEmpty()) {
+            try {
+                errorBody = objectSerializer.deserialize(body, OBJECT_TYPE_REF);
+            } catch (Exception e) {
+                errorBody = null;
+            }
+        }
+
+        if (code >= 400 && code < 500) {
+            throw switch (code) {
+                case 400 -> new BadRequestException(message, headers, body, errorBody);
+                case 401 -> new UnauthorizedException(message, headers, body, errorBody);
+                case 403 -> new ForbiddenException(message, headers, body, errorBody);
+                case 404 -> new NotFoundException(message, headers, body, errorBody);
+                case 409 -> new ConflictException(message, headers, body, errorBody);
+                case 422 -> new UnprocessableEntityException(message, headers, body, errorBody);
+                default  -> new ClientException(code, message, headers, body, errorBody);
+            };
+        }
+        if (code >= 500) {
+            throw switch (code) {
+                case 500 -> new InternalServerErrorException(message, headers, body, errorBody);
+                default  -> new ServerException(code, message, headers, body, errorBody);
+            };
+        }
+        throw new ApiException(code, message, headers, body, errorBody);
+    }
+
+    /**
+     * Build a query string from query parameters.
+     *
+     * @param queryParams the query parameters
+     * @return encoded query string
+     */
+    /**
+     * Returns true if the value is a valid RFC 6265 cookie name (token).
+     * Allowed chars: ALPHA / DIGIT / "!#$%&'*+-.^_`|~".
+     */
+    private static boolean isValidCookieName(String name) {
+        if (name == null || name.isEmpty()) {
+            return false;
+        }
+        for (int i = 0; i < name.length(); i++) {
+            char c = name.charAt(i);
+            boolean ok = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
+                    || "!#$%&'*+-.^_`|~".indexOf(c) >= 0;
+            if (!ok) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Returns true if the value is a valid RFC 6265 cookie value (cookie-octet*).
+     * Allowed: %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E.
+     * Excludes whitespace, DQUOTE, comma, semicolon, backslash, controls.
+     * Empty value is allowed.
+     */
+    private static boolean isValidCookieValue(String value) {
+        if (value == null) {
+            return false;
+        }
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            boolean ok = c == 0x21
+                    || (c >= 0x23 && c <= 0x2B)
+                    || (c >= 0x2D && c <= 0x3A)
+                    || (c >= 0x3C && c <= 0x5B)
+                    || (c >= 0x5D && c <= 0x7E);
+            if (!ok) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private String buildQueryString(Map<String, Object> queryParams) {
+        if (queryParams == null || queryParams.isEmpty()) {
+            return "";
+        }
         StringJoiner joiner = new StringJoiner("&");
-        for (Map.Entry<String, Object> entry : formParams.entrySet()) {
-          joiner.add(
-              URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8)
-                  + "="
-                  + URLEncoder.encode(String.valueOf(entry.getValue()), StandardCharsets.UTF_8));
+        for (Map.Entry<String, Object> entry : queryParams.entrySet()) {
+            if (entry.getValue() != null) {
+                if (entry.getValue() instanceof List<?> list) {
+                    for (Object item : list) {
+                        joiner.add(encode(entry.getKey()) + "=" + encode(String.valueOf(item)));
+                    }
+                } else {
+                    joiner.add(encode(entry.getKey()) + "=" + encode(String.valueOf(entry.getValue())));
+                }
+            }
         }
-        requestBody = joiner.toString();
-      } else {
-        requestBody = objectSerializer.serialize(body);
-      }
+        return joiner.toString();
     }
 
-    if (requestBody == null) {
-      headers.remove("Content-Type");
+    /**
+     * URL-encode a string.
+     *
+     * @param value the string to encode
+     * @return URL-encoded string
+     */
+    String encode(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
-
-    ApiResponse response = apiClient.sendRequest(method, url, headers, requestBody);
-
-    if (response.statusCode() < 200 || response.statusCode() >= 300) {
-      throwApiException(response);
-    }
-
-    T data = null;
-    if (returnType != null && response.body() != null && !response.body().isEmpty()) {
-      String responseContentType = "";
-      if (response.headers() != null) {
-        for (Map.Entry<String, String> entry : response.headers().entrySet()) {
-          if (entry.getKey().equalsIgnoreCase("content-type")) {
-            responseContentType = entry.getValue();
-            break;
-          }
-        }
-      }
-      if (!responseContentType.isEmpty() && !headerSelector.isJsonMime(responseContentType)) {
-        if (returnType.getType() == InputStream.class) {
-          @SuppressWarnings("unchecked")
-          T streamBody =
-              (T) new ByteArrayInputStream(response.body().getBytes(StandardCharsets.UTF_8));
-          data = streamBody;
-        } else {
-          @SuppressWarnings("unchecked")
-          T rawBody = (T) response.body();
-          data = rawBody;
-        }
-      } else {
-        data = objectSerializer.deserialize(response.body(), returnType);
-      }
-    }
-    return new ApiResult<>(
-        response.statusCode(),
-        data,
-        response.body(),
-        response.headers() != null ? response.headers() : Map.of());
-  }
-
-  /**
-   * Invoke an API operation.
-   *
-   * @param <T> the return type
-   * @param method HTTP method (GET, POST, PUT, DELETE, etc.)
-   * @param path URL path (with path params already substituted)
-   * @param queryParams query parameters
-   * @param headerParams custom header parameters
-   * @param body request body (model object or null)
-   * @param accepts acceptable response content types
-   * @param contentType request content type
-   * @param returnType return type for deserialization (null for void)
-   * @param auth optional authenticator for operation-specific auth
-   * @return deserialized response or null
-   * @throws ApiException if the API call fails
-   */
-  @Nullable
-  protected <T> T invokeApi(
-      String method,
-      String path,
-      Map<String, Object> queryParams,
-      Map<String, String> headerParams,
-      @Nullable Object body,
-      String[] accepts,
-      String contentType,
-      @Nullable TypeReference<T> returnType,
-      @Nullable Authenticator auth)
-      throws ApiException {
-    return invokeApiForResult(
-            method, path, queryParams, headerParams, body, accepts, contentType, returnType, auth)
-        .data();
-  }
-
-  /**
-   * Throw the appropriate exception subclass for the given error response.
-   *
-   * <p>Attempts to deserialize the response body as JSON so that structured error data (e.g. from a
-   * {@code default} response schema) is available via {@link ApiException#getErrorBody()}.
-   *
-   * @param response the API response with a non-2xx status code
-   * @throws ApiException always
-   */
-  private void throwApiException(ApiResponse response) throws ApiException {
-    int code = response.statusCode();
-    String message = "API returned status code " + code;
-    String body = response.body();
-    Map<String, String> headers = response.headers();
-
-    Object errorBody = null;
-    if (body != null && !body.isEmpty()) {
-      try {
-        errorBody = objectSerializer.deserialize(body, OBJECT_TYPE_REF);
-      } catch (Exception e) {
-        errorBody = null;
-      }
-    }
-
-    if (code >= 400 && code < 500) {
-      throw switch (code) {
-        case 400 -> new BadRequestException(message, headers, body, errorBody);
-        case 401 -> new UnauthorizedException(message, headers, body, errorBody);
-        case 403 -> new ForbiddenException(message, headers, body, errorBody);
-        case 404 -> new NotFoundException(message, headers, body, errorBody);
-        case 409 -> new ConflictException(message, headers, body, errorBody);
-        case 422 -> new UnprocessableEntityException(message, headers, body, errorBody);
-        default -> new ClientException(code, message, headers, body, errorBody);
-      };
-    }
-    if (code >= 500) {
-      throw switch (code) {
-        case 500 -> new InternalServerErrorException(message, headers, body, errorBody);
-        default -> new ServerException(code, message, headers, body, errorBody);
-      };
-    }
-    throw new ApiException(code, message, headers, body, errorBody);
-  }
-
-  /**
-   * Build a query string from query parameters.
-   *
-   * @param queryParams the query parameters
-   * @return encoded query string
-   */
-  /**
-   * Returns true if the value is a valid RFC 6265 cookie name (token). Allowed chars: ALPHA / DIGIT
-   * / "!#$%&'*+-.^_`|~".
-   */
-  private static boolean isValidCookieName(String name) {
-    if (name == null || name.isEmpty()) {
-      return false;
-    }
-    for (int i = 0; i < name.length(); i++) {
-      char c = name.charAt(i);
-      boolean ok =
-          (c >= 'A' && c <= 'Z')
-              || (c >= 'a' && c <= 'z')
-              || (c >= '0' && c <= '9')
-              || "!#$%&'*+-.^_`|~".indexOf(c) >= 0;
-      if (!ok) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  /**
-   * Returns true if the value is a valid RFC 6265 cookie value (cookie-octet*). Allowed: %x21 /
-   * %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E. Excludes whitespace, DQUOTE, comma, semicolon,
-   * backslash, controls. Empty value is allowed.
-   */
-  private static boolean isValidCookieValue(String value) {
-    if (value == null) {
-      return false;
-    }
-    for (int i = 0; i < value.length(); i++) {
-      char c = value.charAt(i);
-      boolean ok =
-          c == 0x21
-              || (c >= 0x23 && c <= 0x2B)
-              || (c >= 0x2D && c <= 0x3A)
-              || (c >= 0x3C && c <= 0x5B)
-              || (c >= 0x5D && c <= 0x7E);
-      if (!ok) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  private String buildQueryString(Map<String, Object> queryParams) {
-    if (queryParams == null || queryParams.isEmpty()) {
-      return "";
-    }
-    StringJoiner joiner = new StringJoiner("&");
-    for (Map.Entry<String, Object> entry : queryParams.entrySet()) {
-      if (entry.getValue() != null) {
-        if (entry.getValue() instanceof List<?> list) {
-          for (Object item : list) {
-            joiner.add(encode(entry.getKey()) + "=" + encode(String.valueOf(item)));
-          }
-        } else {
-          joiner.add(encode(entry.getKey()) + "=" + encode(String.valueOf(entry.getValue())));
-        }
-      }
-    }
-    return joiner.toString();
-  }
-
-  /**
-   * URL-encode a string.
-   *
-   * @param value the string to encode
-   * @return URL-encoded string
-   */
-  String encode(String value) {
-    return URLEncoder.encode(value, StandardCharsets.UTF_8);
-  }
 }

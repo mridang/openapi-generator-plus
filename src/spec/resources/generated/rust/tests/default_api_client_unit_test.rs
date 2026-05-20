@@ -11,8 +11,8 @@ use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use petstore::*;
 use petstore::api_client::RequestBody;
+use petstore::*;
 
 /// Starts a minimal HTTP server that captures request headers and responds
 /// with a 200. Returns the base URL.
@@ -57,7 +57,10 @@ fn start_request_id_capture_server(n_requests: usize) -> (String, Arc<Mutex<Vec<
             let text = String::from_utf8_lossy(&buf[..n_read]);
             for line in text.lines() {
                 if line.to_lowercase().starts_with("x-request-id:") {
-                    captured_clone.lock().unwrap().push(line[13..].trim().to_string());
+                    captured_clone
+                        .lock()
+                        .unwrap()
+                        .push(line[13..].trim().to_string());
                 }
             }
             let response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
@@ -234,7 +237,9 @@ fn start_method_echo_server() -> String {
             let n = stream.read(&mut buf).unwrap_or(0);
             let text = String::from_utf8_lossy(&buf[..n]);
 
-            let method = text.lines().next()
+            let method = text
+                .lines()
+                .next()
                 .and_then(|l| l.split_whitespace().next())
                 .unwrap_or("GET")
                 .to_string();
@@ -352,7 +357,11 @@ async fn test_default_api_client_sends_get_request_and_returns_response() {
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code, 200);
-    assert!(resp.body.contains("GET"), "expected body to contain GET, got: {}", resp.body);
+    assert!(
+        resp.body.contains("GET"),
+        "expected body to contain GET, got: {}",
+        resp.body
+    );
 }
 
 #[tokio::test]
@@ -367,8 +376,16 @@ async fn test_default_api_client_sends_post_with_json_body() {
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code, 200);
-    assert!(resp.body.contains("POST"), "expected body to contain POST, got: {}", resp.body);
-    assert!(resp.body.contains("key"), "expected body to contain key, got: {}", resp.body);
+    assert!(
+        resp.body.contains("POST"),
+        "expected body to contain POST, got: {}",
+        resp.body
+    );
+    assert!(
+        resp.body.contains("key"),
+        "expected body to contain key, got: {}",
+        resp.body
+    );
 }
 
 #[tokio::test]
@@ -381,10 +398,15 @@ async fn test_default_api_client_returns_response_headers() {
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code, 200);
-    let found = resp.headers.iter().any(|(k, v)| {
-        k.to_lowercase() == "x-test-header" && v == "test-value"
-    });
-    assert!(found, "expected X-Test-Header: test-value in response headers, got: {:?}", resp.headers);
+    let found = resp
+        .headers
+        .iter()
+        .any(|(k, v)| k.to_lowercase() == "x-test-header" && v == "test-value");
+    assert!(
+        found,
+        "expected X-Test-Header: test-value in response headers, got: {:?}",
+        resp.headers
+    );
 }
 
 #[tokio::test]
@@ -411,7 +433,11 @@ async fn test_default_api_client_sends_put_request() {
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code, 200);
-    assert!(resp.body.contains("PUT"), "expected body to contain PUT, got: {}", resp.body);
+    assert!(
+        resp.body.contains("PUT"),
+        "expected body to contain PUT, got: {}",
+        resp.body
+    );
 }
 
 #[tokio::test]
@@ -424,7 +450,11 @@ async fn test_default_api_client_sends_delete_request() {
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code, 200);
-    assert!(resp.body.contains("DELETE"), "expected body to contain DELETE, got: {}", resp.body);
+    assert!(
+        resp.body.contains("DELETE"),
+        "expected body to contain DELETE, got: {}",
+        resp.body
+    );
 }
 
 #[tokio::test]
@@ -437,7 +467,11 @@ async fn test_default_api_client_returns_json_body_for_vendor_json_content_type(
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code, 200);
-    assert!(resp.body.contains("vendor"), "expected body to contain vendor, got: {}", resp.body);
+    assert!(
+        resp.body.contains("vendor"),
+        "expected body to contain vendor, got: {}",
+        resp.body
+    );
 }
 
 #[tokio::test]
@@ -450,10 +484,15 @@ async fn test_default_api_client_joins_multi_value_response_headers() {
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code, 200);
-    let value = resp.headers.iter()
+    let value = resp
+        .headers
+        .iter()
         .find(|(k, _)| k.to_lowercase() == "x-custom-value")
         .map(|(_, v)| v.as_str());
-    assert!(value.is_some(), "expected X-Custom-Value header to be present");
+    assert!(
+        value.is_some(),
+        "expected X-Custom-Value header to be present"
+    );
     let val = value.unwrap();
     assert!(
         val.contains("val1") || val.contains("val2"),

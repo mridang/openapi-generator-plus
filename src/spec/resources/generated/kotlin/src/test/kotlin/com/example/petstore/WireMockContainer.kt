@@ -18,55 +18,49 @@ import java.time.Duration
  * Singleton WireMock container with HTTPS support, shared across all test classes.
  */
 object WireMockContainer {
+
     /** Shared Docker network so Squid can reach WireMock via container alias. */
     val PROXY_NETWORK: Network = Network.newNetwork()
 
     private val INSTANCE: GenericContainer<*>
 
     init {
-        INSTANCE =
-            GenericContainer("wiremock/wiremock:3.13.0")
-                .withExposedPorts(8080, 8443)
-                .withCopyFileToContainer(
-                    MountableFile.forHostPath(Path.of("/app/src/test/resources/certs/server-keystore.p12")),
-                    "/tmp/keystore.p12",
-                ).withCopyFileToContainer(
-                    MountableFile.forHostPath(Path.of("/app/src/test/resources/wiremock/mappings")),
-                    "/home/wiremock/mappings/",
-                ).withCommand(
-                    "--port",
-                    "8080",
-                    "--https-port",
-                    "8443",
-                    "--https-keystore",
-                    "/tmp/keystore.p12",
-                    "--keystore-type",
-                    "PKCS12",
-                    "--keystore-password",
-                    "changeit",
-                    "--key-manager-password",
-                    "changeit",
-                    "--verbose",
-                ).withNetwork(PROXY_NETWORK)
-                .withNetworkAliases("wiremock")
-                .waitingFor(Wait.forListeningPort())
-                .withStartupTimeout(Duration.ofSeconds(120))
-                .withLabel("com.mridang.openapi.testcontainer", "true")
+        INSTANCE = GenericContainer("wiremock/wiremock:3.13.0")
+            .withExposedPorts(8080, 8443)
+            .withCopyFileToContainer(
+                MountableFile.forHostPath(Path.of("/app/src/test/resources/certs/server-keystore.p12")),
+                "/tmp/keystore.p12"
+            )
+            .withCopyFileToContainer(
+                MountableFile.forHostPath(Path.of("/app/src/test/resources/wiremock/mappings")),
+                "/home/wiremock/mappings/"
+            )
+            .withCommand(
+                "--port", "8080",
+                "--https-port", "8443",
+                "--https-keystore", "/tmp/keystore.p12",
+                "--keystore-type", "PKCS12",
+                "--keystore-password", "changeit",
+                "--key-manager-password", "changeit",
+                "--verbose"
+            )
+            .withNetwork(PROXY_NETWORK)
+            .withNetworkAliases("wiremock")
+            .waitingFor(Wait.forListeningPort())
+            .withStartupTimeout(Duration.ofSeconds(120))
+            .withLabel("com.mridang.openapi.testcontainer", "true")
         INSTANCE.start()
-        Runtime.getRuntime().addShutdownHook(
-            Thread {
-                if (INSTANCE.isRunning) INSTANCE.stop()
-                try {
-                    PROXY_NETWORK.close()
-                } catch (_: Exception) {
-                }
-            },
-        )
+        Runtime.getRuntime().addShutdownHook(Thread {
+            if (INSTANCE.isRunning) INSTANCE.stop()
+            try { PROXY_NETWORK.close() } catch (_: Exception) {}
+        })
     }
 
-    fun getHttpsUrl(): String = "https://${INSTANCE.host}:${INSTANCE.getMappedPort(8443)}"
+    fun getHttpsUrl(): String =
+        "https://${INSTANCE.host}:${INSTANCE.getMappedPort(8443)}"
 
-    fun getHttpUrl(): String = "http://${INSTANCE.host}:${INSTANCE.getMappedPort(8080)}"
+    fun getHttpUrl(): String =
+        "http://${INSTANCE.host}:${INSTANCE.getMappedPort(8080)}"
 
     fun getInternalHttpUrl(): String = "http://wiremock:8080"
 

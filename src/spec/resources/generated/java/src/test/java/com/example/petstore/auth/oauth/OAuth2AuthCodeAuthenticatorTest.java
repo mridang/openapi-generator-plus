@@ -18,108 +18,103 @@ import org.junit.jupiter.api.Test;
 
 class OAuth2AuthCodeAuthenticatorTest {
 
-  private static OAuth2AuthorizationCodeAuthenticator createAuthenticator() {
-    return new OAuth2AuthorizationCodeAuthenticator(
-        "https://api.example.com",
-        "my-client-id",
-        "my-client-secret",
-        "https://auth.example.com/authorize",
-        "https://auth.example.com/token",
-        "https://app.example.com/callback",
-        List.of("read", "write"));
-  }
+    private static OAuth2AuthorizationCodeAuthenticator createAuthenticator() {
+        return new OAuth2AuthorizationCodeAuthenticator(
+                "https://api.example.com",
+                "my-client-id",
+                "my-client-secret",
+                "https://auth.example.com/authorize",
+                "https://auth.example.com/token",
+                "https://app.example.com/callback",
+                List.of("read", "write"));
+    }
 
-  @Test
-  void buildsAuthorizationUrlWithRequiredParams() {
-    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+    @Test
+    void buildsAuthorizationUrlWithRequiredParams() {
+        OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
 
-    String url = auth.buildAuthorizationUrl(null);
+        String url = auth.buildAuthorizationUrl(null);
 
-    assertTrue(url.startsWith("https://auth.example.com/authorize?"));
-    assertTrue(url.contains("response_type=code"));
-    assertTrue(url.contains("client_id=my-client-id"));
-    assertTrue(url.contains("redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback"));
-    assertTrue(url.contains("scope=read+write") || url.contains("scope=read%20write"));
-  }
+        assertTrue(url.startsWith("https://auth.example.com/authorize?"));
+        assertTrue(url.contains("response_type=code"));
+        assertTrue(url.contains("client_id=my-client-id"));
+        assertTrue(url.contains("redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback"));
+        assertTrue(url.contains("scope=read+write") || url.contains("scope=read%20write"));
+    }
 
-  @Test
-  void buildsAuthorizationUrlWithState() {
-    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+    @Test
+    void buildsAuthorizationUrlWithState() {
+        OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
 
-    String url = auth.buildAuthorizationUrl("csrf-state-123");
+        String url = auth.buildAuthorizationUrl("csrf-state-123");
 
-    assertTrue(url.contains("state=csrf-state-123"));
-  }
+        assertTrue(url.contains("state=csrf-state-123"));
+    }
 
-  @Test
-  void exchangesCodeWithCorrectGrantType() {
-    AtomicReference<String> capturedBody = new AtomicReference<>();
-    ApiClient client =
-        (method, url, headers, body) -> {
-          capturedBody.set(body != null ? body.toString() : "");
-          return new ApiResponse(
-              200,
-              "{\"access_token\":\"at\",\"refresh_token\":\"rt\",\"expires_in\":3600}",
-              Map.of());
+    @Test
+    void exchangesCodeWithCorrectGrantType() {
+        AtomicReference<String> capturedBody = new AtomicReference<>();
+        ApiClient client = (method, url, headers, body) -> {
+            capturedBody.set(body != null ? body.toString() : "");
+            return new ApiResponse(200,
+                    "{\"access_token\":\"at\",\"refresh_token\":\"rt\",\"expires_in\":3600}",
+                    Map.of());
         };
 
-    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
-    auth.setApiClient(client);
+        OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
 
-    auth.exchangeCode("auth-code-123");
+        auth.exchangeCode("auth-code-123");
 
-    String body = capturedBody.get();
-    assertNotNull(body);
-    assertTrue(body.contains("grant_type=authorization_code"));
-    assertTrue(body.contains("code=auth-code-123"));
-    assertTrue(body.contains("client_id=my-client-id"));
-    assertTrue(body.contains("client_secret=my-client-secret"));
-  }
+        String body = capturedBody.get();
+        assertNotNull(body);
+        assertTrue(body.contains("grant_type=authorization_code"));
+        assertTrue(body.contains("code=auth-code-123"));
+        assertTrue(body.contains("client_id=my-client-id"));
+        assertTrue(body.contains("client_secret=my-client-secret"));
+    }
 
-  @Test
-  void includesRefreshTokenOnRefresh() {
-    AtomicReference<String> capturedBody = new AtomicReference<>();
-    var calls =
-        new Object() {
-          int count = 0;
-        };
-    ApiClient client =
-        (method, url, headers, body) -> {
-          calls.count++;
-          capturedBody.set(body != null ? body.toString() : "");
-          if (calls.count == 1) {
-            return new ApiResponse(
-                200,
-                "{\"access_token\":\"at\",\"refresh_token\":\"rt\",\"expires_in\":0}",
-                Map.of());
-          }
-          return new ApiResponse(200, "{\"access_token\":\"at2\",\"expires_in\":3600}", Map.of());
+    @Test
+    void includesRefreshTokenOnRefresh() {
+        AtomicReference<String> capturedBody = new AtomicReference<>();
+        var calls = new Object() { int count = 0; };
+        ApiClient client = (method, url, headers, body) -> {
+            calls.count++;
+            capturedBody.set(body != null ? body.toString() : "");
+            if (calls.count == 1) {
+                return new ApiResponse(200,
+                        "{\"access_token\":\"at\",\"refresh_token\":\"rt\",\"expires_in\":0}",
+                        Map.of());
+            }
+            return new ApiResponse(200,
+                    "{\"access_token\":\"at2\",\"expires_in\":3600}",
+                    Map.of());
         };
 
-    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
-    auth.setApiClient(client);
+        OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
 
-    auth.exchangeCode("auth-code-123");
-    Map<String, String> headers = auth.getAuthHeaders();
+        auth.exchangeCode("auth-code-123");
+        Map<String, String> headers = auth.getAuthHeaders();
 
-    String body = capturedBody.get();
-    assertNotNull(body);
-    assertTrue(body.contains("grant_type=refresh_token"));
-    assertTrue(body.contains("refresh_token=rt"));
-    assertEquals("Bearer at2", headers.get("Authorization"));
-  }
+        String body = capturedBody.get();
+        assertNotNull(body);
+        assertTrue(body.contains("grant_type=refresh_token"));
+        assertTrue(body.contains("refresh_token=rt"));
+        assertEquals("Bearer at2", headers.get("Authorization"));
+    }
 
-  @Test
-  void throwsBeforeExchangeCodeCalled() {
-    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+    @Test
+    void throwsBeforeExchangeCodeCalled() {
+        OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
 
-    assertThrows(IllegalStateException.class, () -> auth.getAuthHeaders());
-  }
+        assertThrows(IllegalStateException.class, () -> auth.getAuthHeaders());
+    }
 
-  @Test
-  void getHostReturnsConfiguredHost() {
-    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+    @Test
+    void getHostReturnsConfiguredHost() {
+        OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
 
-    assertEquals("https://api.example.com", auth.getHost());
-  }
+        assertEquals("https://api.example.com", auth.getHost());
+    }
 }
