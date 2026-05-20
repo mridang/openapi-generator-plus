@@ -9,7 +9,6 @@ from typing import Any, Optional
 
 from petstore_client.errors.client_exception import ClientException
 
-
 class ConflictException(ClientException):
     """Exception for HTTP 409 Conflict."""
 
@@ -20,10 +19,4 @@ class ConflictException(ClientException):
         response_body: Optional[str] = None,
         error_body: Optional[Any] = None,
     ) -> None:
-        super().__init__(
-            status_code=409,
-            message=message,
-            response_headers=response_headers,
-            response_body=response_body,
-            error_body=error_body,
-        )
+        super().__init__(status_code=409, message=message, response_headers=response_headers, response_body=response_body, error_body=error_body)

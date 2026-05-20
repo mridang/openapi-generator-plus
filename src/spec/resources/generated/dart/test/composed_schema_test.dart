@@ -7,8 +7,8 @@
 
 import 'dart:convert';
 
-import 'package:petstore_client/petstore_client.dart';
 import 'package:test/test.dart';
+import 'package:petstore_client/petstore_client.dart';
 
 void main() {
   group('Composed schemas', () {

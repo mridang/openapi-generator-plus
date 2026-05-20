@@ -2,12 +2,43 @@
 
 package {{invokerPackage}}
 
+import java.time.LocalDate
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
 class ValueSerializerTest {
+
+    /**
+     * N3/W3 parity: `format: date` path parameters must emit a date-only
+     * string (YYYY-MM-DD), not a full ISO datetime. Kotlin models
+     * `format: date` as [LocalDate], which `stringify` formats with
+     * [java.time.format.DateTimeFormatter.ISO_LOCAL_DATE].
+     */
+    @Nested
+    @DisplayName("format:date path parameter emits YYYY-MM-DD")
+    inner class FormatDatePathParamTests {
+
+        @Test
+        @DisplayName("LocalDate in path returns YYYY-MM-DD")
+        fun localDateInPathReturnsDateOnly() {
+            val date = LocalDate.of(2024, 1, 15)
+            assertEquals("2024-01-15", ValueSerializer.serialize(date, "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("LocalDate via serializeStyled simple path returns YYYY-MM-DD")
+        fun localDateViaSerializeStyledReturnsDateOnly() {
+            val date = LocalDate.of(2024, 1, 15)
+            assertEquals(
+                "2024-01-15",
+                ValueSerializer.serializeStyled(
+                    "since", date, "path", "string", null, "simple", false
+                )
+            )
+        }
+    }
 
     /**
      * Cross-language parity tests for path-segment percent-encoding.

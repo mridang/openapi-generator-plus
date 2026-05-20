@@ -11,7 +11,6 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
 from typing_extensions import Self  # noqa: F401
 
-
 class PetFood(BaseModel):
     """
     Food for pets, discriminated by foodType
@@ -41,6 +40,37 @@ class PetFood(BaseModel):
     }
 
     _discriminator_property_name: ClassVar[str] = 'foodType'
+
+    @classmethod
+    def get_discriminator_value(cls, obj: Dict[str, Any]) -> Optional[str]:
+        """Returns the discriminator value (object type) of the data.
+
+        Gap AU: raises ValueError when the discriminator field is missing,
+        empty, or unknown. Previously the ObjectSerializer fell back to
+        wrapping the raw dict in `actual_instance`, producing a stitched
+        `PetFood` object that looked valid but couldn't be
+        `isinstance(..., DryFood)`-checked. The other 10 SDKs throw —
+        Python now matches.
+        """
+        if cls._discriminator_property_name not in obj:
+            raise ValueError(
+                f"Missing discriminator field '{cls._discriminator_property_name}' "
+                f"in PetFood payload"
+            )
+        discriminator_value = obj[cls._discriminator_property_name]
+        if discriminator_value:
+            mapped = cls.discriminator_value_class_map.get(discriminator_value)
+            if mapped is None:
+                raise ValueError(
+                    f"Unknown discriminator value '{discriminator_value}' "
+                    f"for PetFood"
+                )
+            return mapped
+        else:
+            raise ValueError(
+                f"Empty discriminator value for '{cls._discriminator_property_name}' "
+                f"in PetFood payload"
+            )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         if args:
@@ -77,7 +107,6 @@ class PetFood(BaseModel):
             )
         else:
             return v
-
 
 from petstore_client.models.dry_food import DryFood
 from petstore_client.models.wet_food import WetFood

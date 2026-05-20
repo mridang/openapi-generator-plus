@@ -7,7 +7,6 @@
 
 from .bearer_authenticator import BearerAuthenticator
 
-
 class PetStoreBearerAuthenticator(BearerAuthenticator):
     def __init__(self, host: str, token: str):
         super().__init__(host, token)

@@ -9,6 +9,7 @@ package com.example.petstore;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -646,6 +647,32 @@ class ValueSerializerTest {
     void emptyStyleFallsBack() {
       assertEquals(
           "5", ValueSerializer.serializeStyled("id", "5", "path", "string", null, "", false));
+    }
+  }
+
+  /**
+   * N3/W3 parity: {@code format: date} path parameters must emit a date-only string (YYYY-MM-DD),
+   * not a full ISO datetime. Java models {@code format: date} as {@link LocalDate}, which {@code
+   * stringify} already formats with {@link java.time.format.DateTimeFormatter#ISO_LOCAL_DATE}.
+   */
+  @Nested
+  @DisplayName("format:date path parameter emits YYYY-MM-DD")
+  class FormatDatePathParamTests {
+
+    @Test
+    @DisplayName("LocalDate in path returns YYYY-MM-DD")
+    void localDateInPathReturnsDateOnly() {
+      LocalDate date = LocalDate.of(2024, 1, 15);
+      assertEquals("2024-01-15", ValueSerializer.serialize(date, "path", "string", null));
+    }
+
+    @Test
+    @DisplayName("LocalDate via serializeStyled simple path returns YYYY-MM-DD")
+    void localDateViaSerializeStyledReturnsDateOnly() {
+      LocalDate date = LocalDate.of(2024, 1, 15);
+      assertEquals(
+          "2024-01-15",
+          ValueSerializer.serializeStyled("since", date, "path", "string", null, "simple", false));
     }
   }
 

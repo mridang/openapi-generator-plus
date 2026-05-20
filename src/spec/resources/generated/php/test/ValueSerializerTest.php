@@ -1,0 +1,483 @@
+<?php
+
+declare(strict_types=1);
+
+/* phpcs:disable Generic.Files.LineLength.TooLong */
+
+namespace PetstoreClient\Test;
+
+use PHPUnit\Framework\TestCase;
+use PetstoreClient\ValueSerializer;
+
+class ValueSerializerTest extends TestCase
+{
+    // -- path location --
+
+    public function testPathNullReturnsEmptyString(): void
+    {
+        $this->assertSame('', ValueSerializer::serialize(null, 'path', 'string'));
+    }
+
+    public function testPathStringReturnsUrlEncodedValue(): void
+    {
+        $this->assertSame('hello', ValueSerializer::serialize('hello', 'path', 'string'));
+    }
+
+    public function testPathStringWithSpacesIsUrlEncoded(): void
+    {
+        $this->assertSame('hello%20world', ValueSerializer::serialize('hello world', 'path', 'string'));
+    }
+
+    public function testPathStringWithSlashIsUrlEncoded(): void
+    {
+        $this->assertSame('a%2Fb', ValueSerializer::serialize('a/b', 'path', 'string'));
+    }
+
+    public function testPathIntegerReturnsString(): void
+    {
+        $this->assertSame('42', ValueSerializer::serialize(42, 'path', 'integer'));
+    }
+
+    public function testPathBooleanTrueReturnsTrue(): void
+    {
+        $this->assertSame('true', ValueSerializer::serialize(true, 'path', 'boolean'));
+    }
+
+    public function testPathBooleanFalseReturnsFalse(): void
+    {
+        $this->assertSame('false', ValueSerializer::serialize(false, 'path', 'boolean'));
+    }
+
+    public function testPathDateOnlyEmitsYyyyMmDd(): void
+    {
+        // Per W3/N3: format: date in path emits YYYY-MM-DD (no time).
+        $dt = new \DateTime('2024-01-15T10:30:45+00:00');
+        $this->assertSame('2024-01-15', ValueSerializer::serialize($dt, 'path', '\\DateTime|date'));
+    }
+
+    public function testPathDateOnlyStyledSimpleEmitsYyyyMmDd(): void
+    {
+        $dt = new \DateTime('2024-01-15T10:30:45+00:00');
+        $this->assertSame('2024-01-15', ValueSerializer::serializeStyled('d', $dt, 'path', '\\DateTime|date', null, 'simple', false));
+    }
+
+    public function testPathDateTimeWithoutDateMarkerKeepsFullIso(): void
+    {
+        $dt = new \DateTime('2024-01-15T10:30:45+00:00');
+        $result = ValueSerializer::serialize($dt, 'path', '\\DateTime');
+        $this->assertIsString($result);
+        $this->assertStringContainsString('2024-01-15', $result);
+        $this->assertStringContainsString('10', $result);
+    }
+
+    // -- query location --
+
+    public function testQueryNullReturnsNull(): void
+    {
+        $this->assertNull(ValueSerializer::serialize(null, 'query', 'string'));
+    }
+
+    public function testQueryStringReturnsAsIs(): void
+    {
+        $this->assertSame('hello', ValueSerializer::serialize('hello', 'query', 'string'));
+    }
+
+    public function testQueryIntegerReturnsString(): void
+    {
+        $this->assertSame('42', ValueSerializer::serialize(42, 'query', 'integer'));
+    }
+
+    public function testQueryBooleanTrueReturnsTrue(): void
+    {
+        $this->assertSame('true', ValueSerializer::serialize(true, 'query', 'boolean'));
+    }
+
+    public function testQueryBooleanFalseReturnsFalse(): void
+    {
+        $this->assertSame('false', ValueSerializer::serialize(false, 'query', 'boolean'));
+    }
+
+    public function testQueryArrayJoinsWithCommaByDefault(): void
+    {
+        $this->assertSame('a,b,c', ValueSerializer::serialize(['a', 'b', 'c'], 'query', 'array'));
+    }
+
+    public function testQueryArrayJoinsWithCommaForCsv(): void
+    {
+        $this->assertSame('a,b,c', ValueSerializer::serialize(['a', 'b', 'c'], 'query', 'array', 'csv'));
+    }
+
+    public function testQueryArrayJoinsWithSpaceForSsv(): void
+    {
+        $this->assertSame('a b c', ValueSerializer::serialize(['a', 'b', 'c'], 'query', 'array', 'ssv'));
+    }
+
+    public function testQueryArrayJoinsWithTabForTsv(): void
+    {
+        $this->assertSame("a\tb\tc", ValueSerializer::serialize(['a', 'b', 'c'], 'query', 'array', 'tsv'));
+    }
+
+    public function testQueryArrayJoinsWithPipeForPipes(): void
+    {
+        $this->assertSame('a|b|c', ValueSerializer::serialize(['a', 'b', 'c'], 'query', 'array', 'pipes'));
+    }
+
+    public function testQueryArrayReturnsListForMulti(): void
+    {
+        $this->assertSame(['a', 'b', 'c'], ValueSerializer::serialize(['a', 'b', 'c'], 'query', 'array', 'multi'));
+    }
+
+    public function testQueryEmptyArrayReturnsEmptyStringForCsv(): void
+    {
+        $this->assertSame('', ValueSerializer::serialize([], 'query', 'array'));
+    }
+
+    public function testQueryEmptyArrayReturnsEmptyListForMulti(): void
+    {
+        $this->assertSame([], ValueSerializer::serialize([], 'query', 'array', 'multi'));
+    }
+
+    public function testQuerySingleElementArrayReturnsSingleValue(): void
+    {
+        $this->assertSame('a', ValueSerializer::serialize(['a'], 'query', 'array'));
+    }
+
+    public function testQueryArrayCsvKeepsSlotForNullElement(): void
+    {
+        // Per W1/N1: a null element in a csv array becomes an empty slot, not skipped.
+        $this->assertSame('1,,3', ValueSerializer::serialize([1, null, 3], 'query', 'array'));
+    }
+
+    public function testQueryArrayCsvExplicitKeepsSlotForNullElement(): void
+    {
+        $this->assertSame('1,,3', ValueSerializer::serialize([1, null, 3], 'query', 'array', 'csv'));
+    }
+
+    public function testQueryArrayMultiKeepsEmptyStringForNullElement(): void
+    {
+        $this->assertSame(['1', '', '3'], ValueSerializer::serialize([1, null, 3], 'query', 'array', 'multi'));
+    }
+
+    public function testQueryArrayOfIntegersStringifiesElements(): void
+    {
+        $this->assertSame('1,2,3', ValueSerializer::serialize([1, 2, 3], 'query', 'array'));
+    }
+
+    public function testQueryArrayOfBooleansStringifiesElements(): void
+    {
+        $this->assertSame('true,false', ValueSerializer::serialize([true, false], 'query', 'array'));
+    }
+
+    // -- header location --
+
+    public function testHeaderNullReturnsEmptyString(): void
+    {
+        $this->assertSame('', ValueSerializer::serialize(null, 'header', 'string'));
+    }
+
+    public function testHeaderStringReturnsAsIs(): void
+    {
+        $this->assertSame('hello', ValueSerializer::serialize('hello', 'header', 'string'));
+    }
+
+    public function testHeaderIntegerReturnsString(): void
+    {
+        $this->assertSame('42', ValueSerializer::serialize(42, 'header', 'integer'));
+    }
+
+    public function testHeaderBooleanTrueReturnsTrue(): void
+    {
+        $this->assertSame('true', ValueSerializer::serialize(true, 'header', 'boolean'));
+    }
+
+    public function testHeaderArrayJoinsWithComma(): void
+    {
+        $this->assertSame('a,b,c', ValueSerializer::serialize(['a', 'b', 'c'], 'header', 'array'));
+    }
+
+    public function testHeaderEmptyArrayJoinsToEmptyString(): void
+    {
+        $this->assertSame('', ValueSerializer::serialize([], 'header', 'array'));
+    }
+
+    public function testHeaderArrayOfIntegersStringifiesAndJoins(): void
+    {
+        $this->assertSame('1,2,3', ValueSerializer::serialize([1, 2, 3], 'header', 'array'));
+    }
+
+    // -- cookie location --
+
+    public function testCookieStringReturnsAsIs(): void
+    {
+        $this->assertSame('hello', ValueSerializer::serialize('hello', 'cookie', 'string'));
+    }
+
+    public function testCookieNullReturnsEmptyString(): void
+    {
+        $this->assertSame('', ValueSerializer::serialize(null, 'cookie', 'string'));
+    }
+
+    // -- form location --
+
+    public function testFormNullReturnsEmptyString(): void
+    {
+        $this->assertSame('', ValueSerializer::serialize(null, 'form', 'string'));
+    }
+
+    public function testFormStringReturnsAsIs(): void
+    {
+        $this->assertSame('hello', ValueSerializer::serialize('hello', 'form', 'string'));
+    }
+
+    public function testFormIntegerReturnsString(): void
+    {
+        $this->assertSame('42', ValueSerializer::serialize(42, 'form', 'integer'));
+    }
+
+    public function testFormBooleanTrueReturnsTrue(): void
+    {
+        $this->assertSame('true', ValueSerializer::serialize(true, 'form', 'boolean'));
+    }
+
+    public function testFormBooleanFalseReturnsFalse(): void
+    {
+        $this->assertSame('false', ValueSerializer::serialize(false, 'form', 'boolean'));
+    }
+
+    // -- serializeStyled: matrix style --
+
+    public function testMatrixScalarReturnsSemicolonPrefixedNameValue(): void
+    {
+        $this->assertSame(';color=blue', ValueSerializer::serializeStyled('color', 'blue', 'path', 'string', null, 'matrix', true));
+    }
+
+    public function testMatrixArrayWithExplodeFalseJoinsWithComma(): void
+    {
+        $this->assertSame(';color=blue,black', ValueSerializer::serializeStyled('color', ['blue', 'black'], 'path', 'array', null, 'matrix', false));
+    }
+
+    public function testMatrixArrayWithExplodeTrueRepeatsName(): void
+    {
+        $this->assertSame(';color=blue;color=black', ValueSerializer::serializeStyled('color', ['blue', 'black'], 'path', 'array', null, 'matrix', true));
+    }
+
+    public function testMatrixNullReturnsEmptyString(): void
+    {
+        $this->assertSame('', ValueSerializer::serializeStyled('color', null, 'path', 'string', null, 'matrix', true));
+    }
+
+    // -- serializeStyled: label style --
+
+    public function testLabelScalarReturnsDotPrefixedValue(): void
+    {
+        $this->assertSame('.blue', ValueSerializer::serializeStyled('color', 'blue', 'path', 'string', null, 'label', true));
+    }
+
+    public function testLabelArrayWithExplodeFalseJoinsWithComma(): void
+    {
+        $this->assertSame('.blue,black', ValueSerializer::serializeStyled('color', ['blue', 'black'], 'path', 'array', null, 'label', false));
+    }
+
+    public function testLabelArrayWithExplodeTrueJoinsWithDot(): void
+    {
+        $this->assertSame('.blue.black', ValueSerializer::serializeStyled('color', ['blue', 'black'], 'path', 'array', null, 'label', true));
+    }
+
+    public function testLabelNullReturnsEmptyString(): void
+    {
+        $this->assertSame('', ValueSerializer::serializeStyled('color', null, 'path', 'string', null, 'label', true));
+    }
+
+    // -- serializeStyled: spaceDelimited style --
+
+    public function testSpaceDelimitedArrayJoinsWithSpace(): void
+    {
+        $this->assertSame('blue black', ValueSerializer::serializeStyled('color', ['blue', 'black'], 'query', 'array', null, 'spaceDelimited', false));
+    }
+
+    public function testSpaceDelimitedScalarReturnsStringifiedValue(): void
+    {
+        $this->assertSame('blue', ValueSerializer::serializeStyled('color', 'blue', 'query', 'string', null, 'spaceDelimited', false));
+    }
+
+    // -- serializeStyled: pipeDelimited style --
+
+    public function testPipeDelimitedArrayJoinsWithPipe(): void
+    {
+        $this->assertSame('blue|black', ValueSerializer::serializeStyled('color', ['blue', 'black'], 'query', 'array', null, 'pipeDelimited', false));
+    }
+
+    public function testPipeDelimitedScalarReturnsStringifiedValue(): void
+    {
+        $this->assertSame('blue', ValueSerializer::serializeStyled('color', 'blue', 'query', 'string', null, 'pipeDelimited', false));
+    }
+
+    // -- serializeStyled: form style with explode --
+
+    public function testFormStyleArrayWithExplodeFalseJoinsWithComma(): void
+    {
+        $this->assertSame('blue,black', ValueSerializer::serializeStyled('color', ['blue', 'black'], 'query', 'array', null, 'form', false));
+    }
+
+    public function testFormStyleArrayWithExplodeTrueReturnsList(): void
+    {
+        $this->assertSame(['blue', 'black'], ValueSerializer::serializeStyled('color', ['blue', 'black'], 'query', 'array', null, 'form', true));
+    }
+
+    public function testFormStyleScalarWithExplodeTrueReturnsStringNotList(): void
+    {
+        $this->assertSame('blue', ValueSerializer::serializeStyled('color', 'blue', 'query', 'string', null, 'form', true));
+    }
+
+    public function testFormStyleSingleElementArrayWithExplodeTrueReturnsList(): void
+    {
+        $this->assertSame(['blue'], ValueSerializer::serializeStyled('color', ['blue'], 'query', 'array', null, 'form', true));
+    }
+
+    public function testFormStyleNullReturnsNullForQuery(): void
+    {
+        $this->assertNull(ValueSerializer::serializeStyled('color', null, 'query', 'string', null, 'form', true));
+    }
+
+    // -- serializeStyled: simple style backward compatibility --
+
+    public function testSimpleScalarReturnsStringifiedValue(): void
+    {
+        $this->assertSame('5', ValueSerializer::serializeStyled('id', '5', 'path', 'string', null, 'simple', false));
+    }
+
+    public function testSimpleArrayJoinsWithComma(): void
+    {
+        $this->assertSame('3,4,5', ValueSerializer::serializeStyled('id', ['3', '4', '5'], 'path', 'array', null, 'simple', false));
+    }
+
+    public function testSimpleNullReturnsEmptyString(): void
+    {
+        $this->assertSame('', ValueSerializer::serializeStyled('id', null, 'path', 'string', null, 'simple', true));
+    }
+
+    public function testSimpleScalarDoesNotUrlEncode(): void
+    {
+        $this->assertSame('hello world', ValueSerializer::serializeStyled('id', 'hello world', 'path', 'string', null, 'simple', false));
+    }
+
+    // -- serializeStyled: null style falls back to location default --
+
+    public function testNullStyleBehavesLikeSimpleForPath(): void
+    {
+        $this->assertSame('5', ValueSerializer::serializeStyled('id', '5', 'path', 'string', null, null, false));
+    }
+
+    public function testEmptyStyleFallsBack(): void
+    {
+        $this->assertSame('5', ValueSerializer::serializeStyled('id', '5', 'path', 'string', null, '', false));
+    }
+
+    // -- serializeDeepObject --
+
+    public function testDeepObjectBasicMapReturnsBracketedKeys(): void
+    {
+        $result = ValueSerializer::serializeDeepObject('filter', ['color' => 'blue', 'size' => 'large']);
+        $this->assertSame('blue', $result['filter[color]']);
+        $this->assertSame('large', $result['filter[size]']);
+    }
+
+    public function testDeepObjectNullReturnsEmptyArray(): void
+    {
+        $result = ValueSerializer::serializeDeepObject('filter', null);
+        $this->assertSame([], $result);
+    }
+
+    // -- path encoding parity --
+    // Cross-language parity tests for path-segment percent-encoding.
+    // Every SDK must produce identical encoded strings for these inputs.
+
+    public function testPathEncodingParityAsciiSafePassThrough(): void
+    {
+        $this->assertSame('abc123', ValueSerializer::serialize('abc123', 'path', 'string'));
+    }
+
+    public function testPathEncodingParitySpaceEncoded(): void
+    {
+        $this->assertSame('a%20b', ValueSerializer::serialize('a b', 'path', 'string'));
+    }
+
+    public function testPathEncodingParitySlashEncoded(): void
+    {
+        $this->assertSame('a%2Fb', ValueSerializer::serialize('a/b', 'path', 'string'));
+    }
+
+    public function testPathEncodingParityQuestionMarkEncoded(): void
+    {
+        $this->assertSame('a%3Fb', ValueSerializer::serialize('a?b', 'path', 'string'));
+    }
+
+    public function testPathEncodingParityHashEncoded(): void
+    {
+        $this->assertSame('a%23b', ValueSerializer::serialize('a#b', 'path', 'string'));
+    }
+
+    public function testPathEncodingParityCommaPreserved(): void
+    {
+        $this->assertSame('a,b', ValueSerializer::serialize('a,b', 'path', 'string'));
+    }
+
+    public function testPathEncodingParityColonPreserved(): void
+    {
+        $this->assertSame('a:b', ValueSerializer::serialize('a:b', 'path', 'string'));
+    }
+
+    public function testPathEncodingParityPlusPreserved(): void
+    {
+        $this->assertSame('a+b', ValueSerializer::serialize('a+b', 'path', 'string'));
+    }
+
+    public function testPathEncodingParityUnicodeEncoded(): void
+    {
+        $this->assertSame('%E6%97%A5%E6%9C%AC', ValueSerializer::serialize('日本', 'path', 'string'));
+    }
+
+    public function testPathEncodingParityEmptyStringPreserved(): void
+    {
+        $this->assertSame('', ValueSerializer::serialize('', 'path', 'string'));
+    }
+
+    public function testPathEncodingParityNullReturnsEmpty(): void
+    {
+        $this->assertSame('', ValueSerializer::serialize(null, 'path', 'string'));
+    }
+
+    public function testPathEncodingParitySimpleStyleEncodesValue(): void
+    {
+        $this->assertSame('a%20b', ValueSerializer::serializeStyled('color', 'a b', 'path', 'string', null, 'simple', false));
+    }
+
+    public function testPathEncodingParitySimpleStyleArrayEncodesEachItem(): void
+    {
+        $this->assertSame('a%20b,c%3Fd', ValueSerializer::serializeStyled('color', ['a b', 'c?d'], 'path', 'array', null, 'simple', false));
+    }
+
+    public function testPathEncodingParityMatrixStyleEncodesValue(): void
+    {
+        $this->assertSame(';color=a%20b', ValueSerializer::serializeStyled('color', 'a b', 'path', 'string', null, 'matrix', false));
+    }
+
+    public function testPathEncodingParityLabelStyleEncodesValue(): void
+    {
+        $this->assertSame('.a%20b', ValueSerializer::serializeStyled('color', 'a b', 'path', 'string', null, 'label', false));
+    }
+
+    public function testPathEncodingParityQueryLocationNotPathEncoded(): void
+    {
+        $this->assertSame('a b', ValueSerializer::serializeStyled('color', 'a b', 'query', 'string', null, 'form', false));
+    }
+
+    public function testEmptyStringPathParamThrows(): void
+    {
+        // Gap W — empty-string path values silently produce malformed
+        // URLs like `/pet//details`; reject at serialization time so
+        // callers see the real error rather than a downstream 404.
+        $this->expectException(\InvalidArgumentException::class);
+        ValueSerializer::serializeStyled('id', '', 'path', 'string', null, 'simple', false);
+    }
+}

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="test/bootstrap.php"
+         colors="true"
+         failOnWarning="true"
+         failOnRisky="true"
+         cacheResult="false">
+    <testsuites>
+        <testsuite name="Unit Tests">
+            <file>test/DefaultApiClientUnitTest.php</file>
+            <file>test/TransportOptionsTest.php</file>
+            <file>test/HeaderSelectorTest.php</file>
+            <file>test/ObjectSerializerTest.php</file>
+            <file>test/TraceContextUtilTest.php</file>
+        </testsuite>
+        <testsuite name="Integration Tests">
+            <file>test/DefaultApiClientTest.php</file>
+        </testsuite>
+        <testsuite name="API Tests">
+            <directory>test/Api</directory>
+        </testsuite>
+        <testsuite name="Spec Tests">
+            <directory suffix="Spec.php">spec</directory>
+        </testsuite>
+    </testsuites>
+    <coverage>
+        <include>
+            <directory suffix=".php">lib</directory>
+        </include>
+        <report>
+            <cobertura outputFile=".out/coverage.xml"/>
+        </report>
+    </coverage>
+    <logging>
+        <junit outputFile=".out/reports/junit.xml"/>
+    </logging>
+</phpunit>

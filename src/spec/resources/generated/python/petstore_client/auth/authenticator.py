@@ -8,7 +8,6 @@
 from abc import ABC, abstractmethod
 from typing import Dict
 
-
 class Authenticator(ABC):
     """Base class for providing authentication credentials to the API client.
 

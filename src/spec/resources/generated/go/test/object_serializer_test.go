@@ -629,6 +629,34 @@ func TestSerialize_OmitsNilFields(t *testing.T) {
 	}
 }
 
+// ── Gap AJ: required non-nullable fields reject null/missing on deserialize ──
+
+func TestDeserialize_RequiredFieldNullThrows(t *testing.T) {
+	raw := []byte(`{"name":null,"photoUrls":["x"]}`)
+	var pet models.Pet
+	err := petstore.Deserialize(raw, &pet)
+	if err == nil {
+		t.Fatal("expected error when required non-nullable field 'name' is null")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "must not be null") && !strings.Contains(msg, "missing") {
+		t.Errorf("expected error to mention null/missing for 'name', got: %v", err)
+	}
+}
+
+func TestDeserialize_RequiredFieldMissingThrows(t *testing.T) {
+	raw := []byte(`{"photoUrls":["x"]}`)
+	var pet models.Pet
+	err := petstore.Deserialize(raw, &pet)
+	if err == nil {
+		t.Fatal("expected error when required non-nullable field 'name' is missing")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "missing") && !strings.Contains(msg, "must not be null") {
+		t.Errorf("expected error to mention missing 'name', got: %v", err)
+	}
+}
+
 // ── #14 Deserializer ignores unknown fields ──
 
 func TestDeserialize_IgnoresUnknownFields(t *testing.T) {

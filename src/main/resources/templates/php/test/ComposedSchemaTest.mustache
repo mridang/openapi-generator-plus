@@ -34,11 +34,30 @@ class ComposedSchemaTest extends TestCase
         $this->assertSame('wet', $result->getActualInstance()->foodType);
     }
 
-    public function testOneOfUnknownDiscriminatorReturnsNull(): void
+    public function testOneOfMissingDiscriminatorThrows(): void
     {
+        // Gap AU: missing discriminator field must throw, not silently wrap.
+        $data = ['weightKg' => 2.5];
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/Missing discriminator/');
+        PetFood::build($data);
+    }
+
+    public function testOneOfEmptyDiscriminatorThrows(): void
+    {
+        // Gap AU: empty discriminator value must throw.
+        $data = ['foodType' => '', 'weightKg' => 2.5];
+        $this->expectException(\InvalidArgumentException::class);
+        PetFood::build($data);
+    }
+
+    public function testOneOfUnknownDiscriminatorThrows(): void
+    {
+        // Gap AU: unknown discriminator value must throw.
         $data = ['foodType' => 'raw', 'calories' => 300];
-        $result = PetFood::build($data);
-        $this->assertNull($result->getActualInstance());
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/Unknown discriminator/');
+        PetFood::build($data);
     }
 
     public function testOneOfSerializesDryFood(): void

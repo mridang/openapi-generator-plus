@@ -420,3 +420,60 @@ This is a uniform behavior (no divergence), and adding a
 case-insensitive `getHeader(name)` accessor across 12 SDKs is a
 non-trivial API surface change. Documented; not in scope for the
 divergence-fix cycles. Don't re-audit.
+
+### OAS 3.1 / JSON Schema 2020-12 feature gaps (uniform — all 12 SDKs)
+
+Audit wave 4 (2026-05-20) confirmed the following OAS 3.1 features are
+uniformly unsupported across all 12 SDKs (no divergence — consistent
+absence). All require codegen-core upgrades or substantial template
+work to address. Documented as known limitations.
+
+- **Gap AW** — `dependentRequired` / `dependentSchemas`: conditional-
+  required validation silently dropped. Specs that say "if credit_card
+  is set, billing_address is required" generate without that
+  constraint. Affects: 12.
+- **Gap AX** — `if` / `then` / `else` schema composition + `unevaluated
+  Properties` / `unevaluatedItems`: conditional schemas silently
+  dropped. Strict-property enforcement (`unevaluatedProperties:
+  false`) ignored — extra fields accepted everywhere. Affects: 12.
+- **Gap AY** — `const` keyword: swagger-core has `getConst()` but
+  upstream `DefaultCodegen` doesn't translate it (literal warning in
+  upstream code: "Maybe it's a const (not yet supported) in openapi
+  v3.1 spec."). A `const: "v1"` field generates as a regular settable
+  string. Affects: 12.
+- **Gap AZ** — `prefixItems` (tuple arrays): always degraded to
+  homogeneous `List<Object>` / `[]interface{}` / etc. Positional type
+  safety lost — caller must downcast each index. Affects: 12.
+- **Gap BA** — `type: ["string", "null"]` 3.1 syntax: relies entirely
+  on swagger-parser auto-converting to `nullable: true`. If the
+  conversion is broken upstream, all 12 SDKs fail together (nullable
+  not emitted on the field). Needs an upstream verification test.
+- **Gap BB** — `contentEncoding` / `contentMediaType`: 3.1 string-with-
+  embedded-binary annotation silently ignored. SDKs continue to use
+  the 3.0 `format: byte`/`binary` pattern (which DOES work). Specs
+  using only the new keywords get plain `String` fields with no
+  base64 auto-decode. Affects: 12.
+- **Gap BC** — `webhooks` (top-level, 3.1) and `callbacks` (per-op,
+  3.0): `AbstractBetterCodegen` explicitly marks `Callbacks` as "not
+  implemented". No handler interfaces, no payload models, nothing
+  generated. Affects: 12.
+- **Gap BD** — `examples` (plural, named with summary/description):
+  only the singular `example` propagates into docstrings; the plural
+  `examples` object is dropped. Multiple named scenarios in spec
+  ("Happy Path", "Error Case") never reach generated code. Affects: 12.
+- **Gap BE** — Numeric/string constraint validation (`minLength`,
+  `maxLength`, `minimum`, `maximum`, `exclusiveMinimum/Maximum`,
+  `minItems`, `maxItems`, `uniqueItems`, `minProperties`, `maxProperties`,
+  `multipleOf`): 11 of 12 SDKs silently skip. Python enforces only
+  `pattern` via `@field_validator`. Specs declaring `maxLength: 50`
+  accept overstretched inputs everywhere. Real divergence-ish (Python
+  partial vs other 11 nothing) but functionally everyone fails the
+  contract. Affects: 12 (with Python doing 5% of what's needed).
+
+### Dart oneOf primitive filtering (idiomatic minor divergence)
+
+`BetterDartCodegen.filtersOneOfAnyOfPrimitives() = true` removes primitive
+variants from `oneOf: [Pet, string]` unions, while the other 11 keep
+both. Petstore spec doesn't exercise this. Documented as idiomatic for
+Dart's type system (mixing class types with primitives in a union is
+awkward in Dart). Not auditing again.

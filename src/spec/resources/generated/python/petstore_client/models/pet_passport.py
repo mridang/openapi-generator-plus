@@ -12,17 +12,14 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
 from typing_extensions import Self  # noqa: F401
 
-
 class PetPassport(BaseModel):
     """
     PetPassport
     """
 
     pet: Optional[Pet] = Field(default=None, alias='pet')
-    thumbnail: Optional[bytes] = Field(default=None, alias='thumbnail', description='Base64-encoded primary thumbnail')
-    scans: Optional[List[bytes]] = Field(
-        default=None, alias='scans', description='Base64-encoded scans of each passport page'
-    )
+    thumbnail: Optional[bytes] = Field(default=None, alias='thumbnail', description="Base64-encoded primary thumbnail")
+    scans: Optional[List[bytes]] = Field(default=None, alias='scans', description="Base64-encoded scans of each passport page")
     issued_at: Optional[datetime] = Field(default=None, alias='issuedAt')
     additional_properties: Dict[str, Any] = Field(default_factory=dict)
 
@@ -71,7 +68,6 @@ class PetPassport(BaseModel):
         validate_assignment=True,
         protected_namespaces=(),
     )
-
 
 from datetime import datetime
 from petstore_client.models.pet import Pet

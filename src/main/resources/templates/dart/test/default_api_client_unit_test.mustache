@@ -434,6 +434,81 @@ void main() {
           'cannot be verified end-to-end.',
     );
 
+    // -- Gap AL: Content-Encoding mismatch surfaces ApiError, no process crash --
+    test(
+      'gzip Content-Encoding with non-gzip body surfaces ApiError, not crash',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          // Lie about the encoding: claim gzip but send plain text.
+          request.response.headers.set('Content-Encoding', 'gzip');
+          request.response.statusCode = 200;
+          request.response.add(utf8.encode('{"id":1}'));
+          request.response.close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          await expectLater(
+            client.sendRequest(
+              'GET',
+              'http://localhost:${server.port}/bad-gzip',
+              {},
+              null,
+            ),
+            throwsA(
+              isA<ApiError>()
+                  .having((e) => e.statusCode, 'statusCode', 0)
+                  .having(
+                    (e) => e.message,
+                    'message',
+                    contains('Content-Encoding: gzip'),
+                  ),
+            ),
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'deflate Content-Encoding with non-deflate body surfaces ApiError, not crash',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          // Lie about the encoding: claim deflate but send plain text.
+          request.response.headers.set('Content-Encoding', 'deflate');
+          request.response.statusCode = 200;
+          request.response.add(utf8.encode('{"id":1}'));
+          request.response.close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          await expectLater(
+            client.sendRequest(
+              'GET',
+              'http://localhost:${server.port}/bad-deflate',
+              {},
+              null,
+            ),
+            throwsA(
+              isA<ApiError>()
+                  .having((e) => e.statusCode, 'statusCode', 0)
+                  .having(
+                    (e) => e.message,
+                    'message',
+                    contains('Content-Encoding: deflate'),
+                  ),
+            ),
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
     test('joins multi-value response headers', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {

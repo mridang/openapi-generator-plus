@@ -7,8 +7,10 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -254,6 +256,47 @@ class DefaultApiClientUnitTest {
     ApiResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
     assertEquals(200, response.statusCode());
     assertTrue(response.body().contains("\"x-custom\":\"custom-value\""));
+  }
+
+  @Test
+  void extractsProxyAuthHeaderFromProxyUrlUserInfo() throws Exception {
+    /* Gap AK: java.net.http.HttpClient silently drops userinfo embedded in
+     * the proxy URL. DefaultApiClient must extract `user:pass`, base64-encode
+     * it, and stash a pre-built `Basic <b64>` value as proxyAuthHeader so it
+     * can be injected as Proxy-Authorization on every outbound request. Port
+     * 9999 here is deliberately bogus — we never send, we only inspect the
+     * constructed field. */
+    TransportOptions transport =
+        TransportOptions.builder().proxy("http://myuser:mypass@127.0.0.1:9999").build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+
+    Field field = DefaultApiClient.class.getDeclaredField("proxyAuthHeader");
+    field.setAccessible(true);
+    String actual = (String) field.get(client);
+
+    String expected =
+        "Basic " + Base64.getEncoder().encodeToString("myuser:mypass".getBytes(StandardCharsets.UTF_8));
+    assertEquals(expected, actual);
+  }
+
+  @Test
+  void leavesProxyAuthHeaderNullWhenProxyHasNoUserInfo() throws Exception {
+    TransportOptions transport =
+        TransportOptions.builder().proxy("http://127.0.0.1:9999").build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+
+    Field field = DefaultApiClient.class.getDeclaredField("proxyAuthHeader");
+    field.setAccessible(true);
+    assertNull(field.get(client));
+  }
+
+  @Test
+  void leavesProxyAuthHeaderNullWhenNoProxyConfigured() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+
+    Field field = DefaultApiClient.class.getDeclaredField("proxyAuthHeader");
+    field.setAccessible(true);
+    assertNull(field.get(client));
   }
 
   @Test

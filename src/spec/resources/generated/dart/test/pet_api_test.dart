@@ -7,8 +7,8 @@
 
 import 'dart:io';
 
-import 'package:petstore_client/petstore_client.dart';
 import 'package:test/test.dart';
+import 'package:petstore_client/petstore_client.dart';
 
 import 'testcontainers_helper.dart';
 
@@ -46,10 +46,7 @@ void main() {
       final api = _newPetApiForIntegration();
       final auth = _TestAuth();
 
-      final result = await api.addPet(
-          const Pet(
-              name: 'Fido', photoUrls: <String>{'http://example.com/fido.jpg'}),
-          auth: auth);
+      final result = await api.addPet(Pet(name: 'Fido', photoUrls: <String>{'http://example.com/fido.jpg'}), auth: auth);
       expect(result, isNotNull);
     });
 
@@ -57,11 +54,7 @@ void main() {
       final api = _newPetApiForIntegration();
       final auth = _TestAuth();
 
-      final result = await api.addPetWithHTTPInfo(
-          const Pet(
-              name: 'Buddy',
-              photoUrls: <String>{'http://example.com/buddy.jpg'}),
-          auth: auth);
+      final result = await api.addPetWithHTTPInfo(Pet(name: 'Buddy', photoUrls: <String>{'http://example.com/buddy.jpg'}), auth: auth);
       expect(result.statusCode, greaterThanOrEqualTo(200));
       expect(result.statusCode, lessThan(300));
       expect(result.data, isNotNull);
@@ -87,38 +80,28 @@ void main() {
     test('findPetsByStatus', () async {
       final api = _newPetApiForIntegration();
 
-      final result = await api
-          .findPetsByStatus(const FindPetsByStatusOptions(status: 'available'));
+      final result = await api.findPetsByStatus(const FindPetsByStatusOptions(status: 'available'));
       expect(result, isNotNull);
     });
 
     test('findPetsByStatusWithHTTPInfo', () async {
       final api = _newPetApiForIntegration();
 
-      final result = await api.findPetsByStatusWithHTTPInfo(
-          const FindPetsByStatusOptions(status: 'available'));
+      final result = await api.findPetsByStatusWithHTTPInfo(const FindPetsByStatusOptions(status: 'available'));
       expect(result.statusCode, equals(200));
     });
 
     test('updatePet', () async {
       final api = _newPetApiForIntegration();
 
-      final result = await api.updatePet(
-          1,
-          const Pet(
-              name: 'UpdatedFido',
-              photoUrls: <String>{'http://example.com/fido-updated.jpg'}));
+      final result = await api.updatePet(1, Pet(name: 'UpdatedFido', photoUrls: <String>{'http://example.com/fido-updated.jpg'}));
       expect(result, isNotNull);
     });
 
     test('updatePetWithHTTPInfo', () async {
       final api = _newPetApiForIntegration();
 
-      final result = await api.updatePetWithHTTPInfo(
-          1,
-          const Pet(
-              name: 'UpdatedFido',
-              photoUrls: <String>{'http://example.com/fido-updated.jpg'}));
+      final result = await api.updatePetWithHTTPInfo(1, Pet(name: 'UpdatedFido', photoUrls: <String>{'http://example.com/fido-updated.jpg'}));
       expect(result.statusCode, greaterThanOrEqualTo(200));
       expect(result.statusCode, lessThan(300));
     });
@@ -223,8 +206,7 @@ void main() {
 
     test('getPetTag', () async {
       final api = _newPetApiForIntegration();
-      final result = await api.getPetTag(5, 'cute',
-          const GetPetTagOptions(colors: ['blue', 'black'], sizes: ['S', 'M']));
+      final result = await api.getPetTag(5, 'cute', GetPetTagOptions(colors: ['blue', 'black'], sizes: ['S', 'M']));
       expect(result, isNotNull);
     }, skip: 'Prism does not support matrix/label style parameters');
 

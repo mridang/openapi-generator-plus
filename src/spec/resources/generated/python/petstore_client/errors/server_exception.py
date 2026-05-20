@@ -7,7 +7,6 @@
 
 from petstore_client.errors import ApiException
 
-
 class ServerException(ApiException):
     """Exception for HTTP 5xx server errors."""
 

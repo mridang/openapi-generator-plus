@@ -1,3 +1,5 @@
+import pytest
+
 from {{packageName}}.object_serializer import ObjectSerializer
 from {{packageName}}.models.dry_food import DryFood
 from {{packageName}}.models.wet_food import WetFood
@@ -22,10 +24,26 @@ class TestOneOfPetFood:
         assert result.actual_instance is not None
         assert isinstance(result.actual_instance, WetFood)
 
-    def test_unknown_discriminator_returns_none(self) -> None:
+    def test_missing_discriminator_raises(self) -> None:
+        """Gap AU: missing discriminator field must raise, not silently wrap."""
+        json_str = '{"weightKg":2.5}'
+        with pytest.raises(Exception) as exc_info:
+            ObjectSerializer().deserialize(json_str, 'PetFood')
+        assert 'Missing discriminator' in str(exc_info.value)
+
+    def test_empty_discriminator_raises(self) -> None:
+        """Gap AU: empty discriminator value must raise."""
+        json_str = '{"foodType":"","weightKg":2.5}'
+        with pytest.raises(Exception) as exc_info:
+            ObjectSerializer().deserialize(json_str, 'PetFood')
+        assert 'Empty discriminator' in str(exc_info.value) or 'Unknown discriminator' in str(exc_info.value)
+
+    def test_unknown_discriminator_raises(self) -> None:
+        """Gap AU: unknown discriminator value must raise."""
         json_str = '{"foodType":"raw","calories":300}'
-        result = ObjectSerializer().deserialize(json_str, 'PetFood')
-        assert result is None
+        with pytest.raises(Exception) as exc_info:
+            ObjectSerializer().deserialize(json_str, 'PetFood')
+        assert 'Unknown discriminator' in str(exc_info.value)
 
     def test_serializes_dry_food(self) -> None:
         json_str = '{"foodType":"dry","weightKg":2.5}'

@@ -751,4 +751,26 @@ public class ValueSerializerTest
             () => ValueSerializer.SerializeStyled("id", "", "path", "string", null, "simple", false)
         );
     }
+
+    // N3/W3 parity: `format: date` path parameters must emit a date-only
+    // string (YYYY-MM-DD), not a full ISO datetime. C# models
+    // `format: date` as `DateOnly`, which `Stringify` formats as
+    // `yyyy-MM-dd`.
+
+    [Fact]
+    public void FormatDatePathParamDateOnlyReturnsYyyyMmDd()
+    {
+        var date = new DateOnly(2024, 1, 15);
+        Assert.Equal("2024-01-15", ValueSerializer.Serialize(date, "path", "string"));
+    }
+
+    [Fact]
+    public void FormatDatePathParamDateOnlyViaSerializeStyledReturnsYyyyMmDd()
+    {
+        var date = new DateOnly(2024, 1, 15);
+        Assert.Equal(
+            "2024-01-15",
+            ValueSerializer.SerializeStyled("since", date, "path", "string", null, "simple", false)
+        );
+    }
 }

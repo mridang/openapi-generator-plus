@@ -605,3 +605,32 @@ fn test_serialize_styled_form_explode_single_element_array() {
     );
     assert_eq!(unwrap_multi(result), vec!["red"]);
 }
+
+// ── N3/W3 parity: format:date path parameter emits YYYY-MM-DD ──
+//
+// Rust uses `String` for both `format: date` and `format: date-time`,
+// so the caller controls the wire format. The codegen does not insert
+// a date-only stringifier; the caller passes a pre-formatted
+// "YYYY-MM-DD" string and the value serializer passes it through
+// unchanged (subject to path encoding).
+
+#[test]
+fn test_format_date_path_param_string_passes_through() {
+    let result = value_serializer::serialize_value(Some("2024-01-15"), "path", "string", "");
+    assert_eq!(unwrap_single(result), "2024-01-15");
+}
+
+#[test]
+fn test_format_date_path_param_via_serialize_styled_simple() {
+    let result = value_serializer::serialize_styled(
+        "since",
+        Some("2024-01-15"),
+        None,
+        "path",
+        "string",
+        "",
+        "simple",
+        false,
+    );
+    assert_eq!(unwrap_single(result), "2024-01-15");
+}

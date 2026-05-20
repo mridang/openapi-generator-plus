@@ -122,4 +122,41 @@ class OAuth2ClientCredentialsAuthenticatorTest {
 
     assertEquals("https://api.example.com", auth.getHost());
   }
+
+  @Test
+  void basicAuthUrlEncodesClientIdAndSecret() {
+    // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
+    // client_id and client_secret MUST be application/x-www-form-
+    // urlencoded BEFORE being joined with ':' and base64-encoded.
+    // Verifies a client_id with `+` and a secret with `&` are encoded
+    // (not raw) before the colon-join + base64.
+    AtomicReference<Map<String, String>> capturedHeaders = new AtomicReference<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          capturedHeaders.set(headers);
+          return new ApiResponse(200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+        };
+
+    OAuth2ClientCredentialsAuthenticator auth =
+        new OAuth2ClientCredentialsAuthenticator(
+            "https://api.example.com",
+            "id+with/special",
+            "secret&with=stuff",
+            "https://auth.example.com/token",
+            List.of("read"),
+            ClientAuthMethod.BASIC);
+    auth.setApiClient(client);
+
+    auth.getAuthHeaders();
+
+    String authHeader = capturedHeaders.get().get("Authorization");
+    assertNotNull(authHeader);
+    assertTrue(authHeader.startsWith("Basic "));
+    String decoded =
+        new String(
+            java.util.Base64.getDecoder().decode(authHeader.substring("Basic ".length())),
+            java.nio.charset.StandardCharsets.UTF_8);
+    // Expected: form-urlencoded id ':' form-urlencoded secret
+    assertEquals("id%2Bwith%2Fspecial:secret%26with%3Dstuff", decoded);
+  }
 }

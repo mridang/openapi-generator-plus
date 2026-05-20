@@ -1,0 +1,16 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPathPattern": "/api/error/418(/.*)?"
+  },
+  "response": {
+    "status": 418,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "code": 418,
+      "message": "teapot"
+    }
+  }
+}

@@ -74,14 +74,3 @@ func (o *PetWithOwner) UnmarshalJSON(data []byte) error {
 	*o = PetWithOwner(*aux)
 	return nil
 }
-
-// UnmarshalJSON implements the json.Unmarshaler interface.
-func (o *PetWithOwner) UnmarshalJSON(data []byte) error {
-	type Alias PetWithOwner
-	aux := &Alias{}
-	if err := json.Unmarshal(data, aux); err != nil {
-		return err
-	}
-	*o = PetWithOwner(*aux)
-	return nil
-}

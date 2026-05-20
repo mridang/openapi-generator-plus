@@ -1,3 +1,5 @@
+import datetime
+
 import pytest
 
 from {{packageName}}.value_serializer import ValueSerializer
@@ -278,3 +280,21 @@ class TestPathEncodingParity:
         # callers see the real error rather than a downstream 404.
         with pytest.raises(ValueError):
             ValueSerializer.serialize_styled('id', '', 'path', 'string', None, 'simple', False)
+
+
+class TestValueSerializerFormatDatePath:
+    """N3/W3 parity: ``format: date`` path parameters must emit a date-only
+    string (YYYY-MM-DD), not a full ISO datetime. Python models
+    ``format: date`` as ``datetime.date``, which the value serializer
+    formats via ``isoformat()``.
+    """
+
+    def test_date_in_path_returns_yyyy_mm_dd(self) -> None:
+        date = datetime.date(2024, 1, 15)
+        assert ValueSerializer.serialize(date, 'path', 'string') == '2024-01-15'
+
+    def test_date_via_serialize_styled_simple_returns_yyyy_mm_dd(self) -> None:
+        date = datetime.date(2024, 1, 15)
+        assert ValueSerializer.serialize_styled(
+            'since', date, 'path', 'string', None, 'simple', False
+        ) == '2024-01-15'

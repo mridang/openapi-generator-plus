@@ -393,8 +393,7 @@ describe PetstoreClient::ValueSerializer do
     end
 
     it 'simple style array encodes each item' do
-      result = PetstoreClient::ValueSerializer.serialize_styled('color', ['a b', 'c?d'], :path, 'array', nil, 'simple',
-        false)
+      result = PetstoreClient::ValueSerializer.serialize_styled('color', ['a b', 'c?d'], :path, 'array', nil, 'simple', false)
       _(result).must_equal('a%20b,c%3Fd')
     end
 
@@ -420,6 +419,24 @@ describe PetstoreClient::ValueSerializer do
       _(-> {
         PetstoreClient::ValueSerializer.serialize_styled('id', '', :path, 'string', nil, 'simple', false)
       }).must_raise ArgumentError
+    end
+  end
+
+  # N3/W3 parity: `format: date` path parameters must emit a date-only
+  # string (YYYY-MM-DD), not a full ISO datetime. Ruby models
+  # `format: date` as `Date`, whose `to_s` already produces YYYY-MM-DD.
+  describe 'format:date path parameter emits YYYY-MM-DD' do
+    require 'date'
+
+    it 'Date in path returns YYYY-MM-DD' do
+      date = Date.new(2024, 1, 15)
+      _(PetstoreClient::ValueSerializer.serialize(date, :path, 'string')).must_equal('2024-01-15')
+    end
+
+    it 'Date via serialize_styled simple returns YYYY-MM-DD' do
+      date = Date.new(2024, 1, 15)
+      result = PetstoreClient::ValueSerializer.serialize_styled('since', date, :path, 'string', nil, 'simple', false)
+      _(result).must_equal('2024-01-15')
     end
   end
 end

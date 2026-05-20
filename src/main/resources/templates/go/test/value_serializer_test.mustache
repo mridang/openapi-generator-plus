@@ -3,6 +3,7 @@ package {{packageName}}_test
 
 import (
 	"testing"
+	"time"
 
 	"{{packageName}}/pkg"
 )
@@ -618,4 +619,25 @@ func TestEmptyStringPathParamPanics(t *testing.T) {
 		}
 	}()
 	_ = {{packageName}}.SerializeStyled("id", "", "path", "string", "", "simple", false)
+}
+
+// ── N3/W3 parity: format:date path parameter emits YYYY-MM-DD ──
+//
+// Go has only time.Time (no separate date-only type), so the codegen
+// routes `format: date` path params through StringifyDate to strip the
+// time component. Without this, a date param would go out as a full
+// ISO+offset string, mismatching the 6 SDKs (Java/Kotlin/C#/Python/
+// Ruby/Elixir) with native LocalDate types.
+
+func TestFormatDatePathParam_TimeReturnsDateOnly(t *testing.T) {
+	when := time.Date(2024, time.January, 15, 14, 30, 45, 0, time.UTC)
+	if got := {{packageName}}.StringifyDate(when); got != "2024-01-15" {
+		t.Errorf("expected '2024-01-15', got %q", got)
+	}
+}
+
+func TestFormatDatePathParam_StringPassesThrough(t *testing.T) {
+	if got := {{packageName}}.StringifyDate("2024-01-15"); got != "2024-01-15" {
+		t.Errorf("expected '2024-01-15', got %q", got)
+	}
 }

@@ -142,6 +142,20 @@ Object? serializeStyled(
   }
 }
 
+/// Formats a `format: date` value as YYYY-MM-DD using the DateTime's
+/// own calendar fields (UTC if the DateTime is UTC, local otherwise).
+/// Dart has only DateTime (no Date-only type), so the codegen routes
+/// `format: date` path params through this helper to strip the time
+/// component. Without this, a date param would go out as a full
+/// ISO+offset string, mismatching the 6 SDKs (Java/Kotlin/C#/Python/
+/// Ruby/Elixir) with native LocalDate types.
+String stringifyDate(DateTime value) {
+  final y = value.year.toString().padLeft(4, '0');
+  final m = value.month.toString().padLeft(2, '0');
+  final d = value.day.toString().padLeft(2, '0');
+  return '$y-$m-$d';
+}
+
 Object? _serializeNil(String location) {
   if (location == 'query') return null;
   return '';

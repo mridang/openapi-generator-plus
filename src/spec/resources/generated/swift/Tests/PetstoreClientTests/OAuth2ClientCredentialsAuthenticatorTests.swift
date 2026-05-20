@@ -119,4 +119,32 @@ import Testing
 
     #expect(auth.host() == "https://api.example.com")
   }
+
+  @Test func testBasicAuthUrlEncodesClientIdAndSecret() async {
+    // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
+    // client_id and client_secret MUST be application/x-www-form-
+    // urlencoded BEFORE being joined with ':' and base64-encoded.
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"access_token\":\"at\",\"expires_in\":3600}"))
+
+    let auth = OAuth2ClientCredentialsAuthenticator(
+      host: "https://api.example.com",
+      clientID: "id+with/special",
+      clientSecret: "secret&with=stuff",
+      tokenURL: "https://auth.example.com/token",
+      scopes: ["read"],
+      clientAuthMethod: .basic
+    )
+    auth.setApiClient(client)
+
+    _ = await auth.authHeaders()
+
+    let authHeader = client.lastHeaders["Authorization"] ?? ""
+    #expect(authHeader.hasPrefix("Basic "))
+    let b64 = String(authHeader.dropFirst("Basic ".count))
+    let decodedData = Data(base64Encoded: b64) ?? Data()
+    let decoded = String(data: decodedData, encoding: .utf8) ?? ""
+    // Expected: form-urlencoded id ':' form-urlencoded secret
+    #expect(decoded == "id%2Bwith%2Fspecial:secret%26with%3Dstuff")
+  }
 }

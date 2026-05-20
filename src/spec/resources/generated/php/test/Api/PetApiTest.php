@@ -1,0 +1,259 @@
+<?php
+
+declare(strict_types=1);
+
+namespace PetstoreClient\Test\Api;
+
+use PHPUnit\Framework\TestCase;
+use PetstoreClient\Api\Options\FindPetsByStatusOptions;
+use PetstoreClient\Api\Options\UploadPetCertificateOptions;
+use PetstoreClient\Api\Options\UploadPetDocumentOptions;
+use PetstoreClient\Api\PetApi;
+use PetstoreClient\Auth\BearerAuthenticator;
+use PetstoreClient\Configuration;
+use PetstoreClient\Errors\NotFoundException;
+use PetstoreClient\Errors\ServerException;
+use PetstoreClient\Models\ApiResponse as ApiResponseModel;
+use PetstoreClient\Models\Pet;
+use PetstoreClient\Models\PetStatusEnum;
+use PetstoreClient\Models\PetPassport;
+use PetstoreClient\Models\SetPetAvatarThumbnailRequest;
+
+/**
+ * Integration tests for the Pet API endpoints.
+ */
+class PetApiTest extends TestCase
+{
+    private PetApi $api;
+    private BearerAuthenticator $auth;
+
+    protected function setUp(): void
+    {
+        $baseUrl = getenv('API_BASE_URL') ?: 'http://localhost:4010';
+        $config = Configuration::builder()
+            ->baseUrl($baseUrl)
+            ->defaultHeader('Authorization', 'Bearer test-token')
+            ->build();
+        $this->api = new PetApi(config: $config);
+        $this->auth = new BearerAuthenticator($baseUrl, 'test-token');
+    }
+
+    private function newPetApiForMock(int $statusCode, string $contentType, string $body): PetApi
+    {
+        $client = new PetMockApiClient($statusCode, $body, $contentType);
+        $config = Configuration::builder()
+            ->baseUrl('http://localhost:9999')
+            ->build();
+        return new PetApi(apiClient: $client, config: $config);
+    }
+
+    // -- Integration tests via Prism --
+
+    public function testAddPet(): void
+    {
+        $pet = new Pet(name: 'TestDog', photoUrls: ['http://example.com/photo.jpg']);
+        $pet->id = 12345;
+        $pet->status = PetStatusEnum::AVAILABLE;
+
+        $result = $this->api->addPet($pet, auth: $this->auth);
+
+        $this->assertInstanceOf(Pet::class, $result);
+    }
+
+    public function testAddPetWithHttpInfoExposesStatusAndHeaders(): void
+    {
+        $pet = new Pet(name: 'TestDog', photoUrls: ['http://example.com/photo.jpg']);
+        $pet->id = 67890;
+        $pet->status = PetStatusEnum::AVAILABLE;
+
+        $result = $this->api->addPetWithHttpInfo($pet, auth: $this->auth);
+
+        $this->assertSame(200, $result->statusCode);
+        $this->assertInstanceOf(Pet::class, $result->data);
+        $this->assertNotEmpty($result->headers);
+    }
+
+    public function testGetPetById(): void
+    {
+        $result = $this->api->getPetById(1);
+
+        $this->assertInstanceOf(Pet::class, $result);
+    }
+
+    public function testFindPetsByStatus(): void
+    {
+        $result = $this->api->findPetsByStatus(new FindPetsByStatusOptions('available'));
+
+        $this->assertIsArray($result);
+        $this->assertNotEmpty($result);
+        $this->assertInstanceOf(Pet::class, $result[0]);
+    }
+
+    public function testGetPetPassport(): void
+    {
+        $result = $this->api->getPetPassport(1);
+
+        $this->assertInstanceOf(PetPassport::class, $result);
+    }
+
+    public function testUpdatePet(): void
+    {
+        $pet = new Pet(name: 'UpdatedDog', photoUrls: ['http://example.com/updated.jpg']);
+        $pet->id = 1;
+        $pet->status = PetStatusEnum::PENDING;
+
+        $result = $this->api->updatePet(1, $pet);
+
+        $this->assertInstanceOf(Pet::class, $result);
+    }
+
+    public function testDeletePet(): void
+    {
+        $this->api->deletePet(1, auth: $this->auth);
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function testSetPetAvatar(): void
+    {
+        $tmpFile = tempnam(sys_get_temp_dir(), 'avatar');
+        file_put_contents($tmpFile, "\xFF\xD8\xFF");
+        $body = new \SplFileObject($tmpFile, 'r');
+
+        $this->api->setPetAvatar(1, $body);
+
+        $this->addToAssertionCount(1);
+        unlink($tmpFile);
+    }
+
+    public function testGetPetAvatar(): void
+    {
+        $result = $this->api->getPetAvatar(1);
+
+        $this->assertNotNull($result);
+        $this->assertIsString($result);
+    }
+
+    public function testGetPetAvatarThumbnail(): void
+    {
+        $result = $this->api->getPetAvatarThumbnail(1);
+
+        $this->assertNotNull($result);
+    }
+
+    public function testSetPetAvatarThumbnail(): void
+    {
+        $request = new SetPetAvatarThumbnailRequest('iVBORw0KGgoAAAANSUhEUg==');
+
+        $this->api->setPetAvatarThumbnail(1, $request);
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function testUploadPetCertificate(): void
+    {
+        $tmpFile = tempnam(sys_get_temp_dir(), 'cert');
+        file_put_contents($tmpFile, 'certificate-content');
+        $file = new \SplFileObject($tmpFile, 'r');
+
+        $result = $this->api->uploadPetCertificate(1, new UploadPetCertificateOptions($file));
+
+        $this->assertInstanceOf(ApiResponseModel::class, $result);
+        unlink($tmpFile);
+    }
+
+    public function testUploadPetDocument(): void
+    {
+        $tmpFile = tempnam(sys_get_temp_dir(), 'doc');
+        file_put_contents($tmpFile, 'document-content');
+        $file = new \SplFileObject($tmpFile, 'r');
+
+        $options = new UploadPetDocumentOptions($file, 'vaccination_record', 'Annual checkup');
+        $result = $this->api->uploadPetDocument(1, $options);
+
+        $this->assertInstanceOf(ApiResponseModel::class, $result);
+        unlink($tmpFile);
+    }
+
+    /**
+     * @group skip
+     * Prism does not validate multipart array fields correctly
+     */
+    public function testAddPetPhotos(): void
+    {
+        $this->markTestSkipped('Prism does not validate multipart array fields correctly');
+    }
+
+    public function testDownloadPetDocument(): void
+    {
+        $result = $this->api->downloadPetDocument(1, 1);
+
+        $this->assertNotNull($result);
+        $this->assertIsString($result);
+    }
+
+    /**
+     * @group skip
+     * Prism returns JSON for image content type
+     */
+    public function testGetPetPhoto(): void
+    {
+        $this->markTestSkipped('Prism returns JSON for image content type');
+    }
+
+    public function testGetExternalPetInfoUsesPerOperationServerUrl(): void
+    {
+        $this->markTestSkipped('Per-operation server URL cannot be validated against a local mock server');
+    }
+
+    public function testGetPetTagSendsStyledParameters(): void
+    {
+        $this->markTestSkipped('Styled parameter integration requires a mock server that captures raw request URLs');
+    }
+
+    // -- Mock-based error handling tests --
+
+    public function testErrorHandlingNotFound(): void
+    {
+        $api = $this->newPetApiForMock(404, 'application/json', '{"message":"Pet not found"}');
+
+        $this->expectException(NotFoundException::class);
+        $api->getPetById(99999);
+    }
+
+    public function testErrorHandlingServerError(): void
+    {
+        $api = $this->newPetApiForMock(500, 'application/json', '{"message":"Internal server error"}');
+
+        $this->expectException(ServerException::class);
+        $api->getPetById(1);
+    }
+
+    // -- Mock-based binary download test --
+
+    public function testDownloadBinaryMock(): void
+    {
+        $binaryData = "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A";
+        $api = $this->newPetApiForMock(200, 'application/octet-stream', $binaryData);
+
+        $result = $api->getPetAvatar(1);
+
+        $this->assertNotNull($result);
+        $this->assertSame($binaryData, $result);
+    }
+
+    public function testUploadMultipartMock(): void
+    {
+        $apiResponse = '{"code":200,"type":"ok","message":"upload successful"}';
+        $api = $this->newPetApiForMock(200, 'application/json', $apiResponse);
+
+        $tmpFile = tempnam(sys_get_temp_dir(), 'cert');
+        file_put_contents($tmpFile, 'certificate-content');
+        $file = new \SplFileObject($tmpFile, 'r');
+
+        $result = $api->uploadPetCertificate(1, new UploadPetCertificateOptions($file));
+
+        $this->assertNotNull($result);
+        unlink($tmpFile);
+    }
+}

@@ -61,14 +61,3 @@ func (o *SetPetAvatarRequest) UnmarshalJSON(data []byte) error {
 	*o = SetPetAvatarRequest(*aux)
 	return nil
 }
-
-// UnmarshalJSON implements the json.Unmarshaler interface.
-func (o *SetPetAvatarRequest) UnmarshalJSON(data []byte) error {
-	type Alias SetPetAvatarRequest
-	aux := &Alias{}
-	if err := json.Unmarshal(data, aux); err != nil {
-		return err
-	}
-	*o = SetPetAvatarRequest(*aux)
-	return nil
-}

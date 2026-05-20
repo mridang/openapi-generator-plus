@@ -10,10 +10,8 @@ import 'api_key_location.dart';
 
 class ApiKeyQueryAuthenticator extends ApiKeyAuthenticator {
   ApiKeyQueryAuthenticator({
-    required super.host,
-    required super.apiKey,
+    required String host, required String apiKey,
   }) : super(
-          keyParamName: 'api_key',
-          location: ApiKeyLocation.query,
-        );
+         host: host, keyParamName: 'api_key', apiKey: apiKey, location: ApiKeyLocation.query,
+       );
 }

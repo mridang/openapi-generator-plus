@@ -67,6 +67,37 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
     }
 
     _discriminator_property_name: ClassVar[str] = '{{discriminator.propertyBaseName}}'
+
+    @classmethod
+    def get_discriminator_value(cls, obj: Dict[str, Any]) -> Optional[str]:
+        """Returns the discriminator value (object type) of the data.
+
+        Gap AU: raises ValueError when the discriminator field is missing,
+        empty, or unknown. Previously the ObjectSerializer fell back to
+        wrapping the raw dict in `actual_instance`, producing a stitched
+        `{{classname}}` object that looked valid but couldn't be
+        `isinstance(..., DryFood)`-checked. The other 10 SDKs throw —
+        Python now matches.
+        """
+        if cls._discriminator_property_name not in obj:
+            raise ValueError(
+                f"Missing discriminator field '{cls._discriminator_property_name}' "
+                f"in {{classname}} payload"
+            )
+        discriminator_value = obj[cls._discriminator_property_name]
+        if discriminator_value:
+            mapped = cls.discriminator_value_class_map.get(discriminator_value)
+            if mapped is None:
+                raise ValueError(
+                    f"Unknown discriminator value '{discriminator_value}' "
+                    f"for {{classname}}"
+                )
+            return mapped
+        else:
+            raise ValueError(
+                f"Empty discriminator value for '{cls._discriminator_property_name}' "
+                f"in {{classname}} payload"
+            )
 {{/discriminator}}
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:

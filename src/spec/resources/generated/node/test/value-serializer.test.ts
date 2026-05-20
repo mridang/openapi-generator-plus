@@ -399,4 +399,20 @@ describe('ValueSerializer', () => {
       expect(() => ValueSerializer.serializeStyled('id', '', 'path', 'string', null, 'simple', false)).toThrow();
     });
   });
+
+  // N3/W3 parity: `format: date` path parameters must emit a date-only
+  // string (YYYY-MM-DD), not a full ISO datetime. Node has only `Date`,
+  // so the codegen routes such params through `stringifyDate` to strip
+  // the time component before path-encoding.
+  describe('format:date stringifyDate helper', () => {
+    test('Date instance returns YYYY-MM-DD (UTC)', () => {
+      const date = new Date(Date.UTC(2024, 0, 15, 14, 30, 45));
+      expect(ValueSerializer.stringifyDate(date)).toBe('2024-01-15');
+    });
+
+    test('string passes through truncated to 10 chars', () => {
+      expect(ValueSerializer.stringifyDate('2024-01-15')).toBe('2024-01-15');
+      expect(ValueSerializer.stringifyDate('2024-01-15T14:30:45Z')).toBe('2024-01-15');
+    });
+  });
 });

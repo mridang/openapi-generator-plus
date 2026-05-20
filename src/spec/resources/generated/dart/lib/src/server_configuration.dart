@@ -72,7 +72,7 @@ class ServerConfiguration {
         if (!variable.enumValues.contains(value)) {
           throw ArgumentError(
             "Invalid value '$value' for variable '$varName'; "
-            'allowed: ${variable.enumValues}',
+            "allowed: ${variable.enumValues}",
           );
         }
       }

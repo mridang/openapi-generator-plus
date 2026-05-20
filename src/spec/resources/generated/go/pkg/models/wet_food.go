@@ -61,14 +61,3 @@ func (o *WetFood) UnmarshalJSON(data []byte) error {
 	*o = WetFood(*aux)
 	return nil
 }
-
-// UnmarshalJSON implements the json.Unmarshaler interface.
-func (o *WetFood) UnmarshalJSON(data []byte) error {
-	type Alias WetFood
-	aux := &Alias{}
-	if err := json.Unmarshal(data, aux); err != nil {
-		return err
-	}
-	*o = WetFood(*aux)
-	return nil
-}

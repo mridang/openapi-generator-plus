@@ -13,14 +13,12 @@ from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
 from typing_extensions import Self  # noqa: F401
 from enum import Enum
 
-
 class OrderStatusEnum(str, Enum):
     """Order - status"""
 
     PLACED = 'placed'
     APPROVED = 'approved'
     DELIVERED = 'delivered'
-
 
 class Order(BaseModel):
     """
@@ -31,9 +29,7 @@ class Order(BaseModel):
     pet_id: Optional[int] = Field(default=None, alias='petId', examples=[198772])
     quantity: Optional[int] = Field(default=None, alias='quantity', examples=[7])
     ship_date: Optional[datetime] = Field(default=None, alias='shipDate')
-    status: Optional[OrderStatusEnum] = Field(
-        default=OrderStatusEnum.PLACED, alias='status', description='Order Status', examples=['approved']
-    )
+    status: Optional[OrderStatusEnum] = Field(default=OrderStatusEnum.PLACED, alias='status', description="Order Status", examples=['approved'])
     complete: Optional[bool] = Field(default=None, alias='complete')
     additional_properties: Dict[str, Any] = Field(default_factory=dict)
 
@@ -82,7 +78,6 @@ class Order(BaseModel):
         validate_assignment=True,
         protected_namespaces=(),
     )
-
 
 from datetime import datetime
 

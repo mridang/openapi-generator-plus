@@ -71,8 +71,7 @@ class TransportOptions {
   }) : _defaultHeaders = Map.unmodifiable(defaultHeaders);
 
   /// Returns a copy of the transport-level default headers.
-  Map<String, String> get defaultHeaders =>
-      Map<String, String>.from(_defaultHeaders);
+  Map<String, String> get defaultHeaders => Map<String, String>.from(_defaultHeaders);
 }
 
 /// Builds immutable [TransportOptions] instances.
@@ -113,8 +112,7 @@ class TransportOptionsBuilder {
         throw ArgumentError('Invalid proxy URL: $val');
       }
       if (parsed.scheme != 'http' && parsed.scheme != 'https') {
-        throw ArgumentError(
-            'Invalid proxy URL (must use http or https scheme): $val');
+        throw ArgumentError('Invalid proxy URL (must use http or https scheme): $val');
       }
       if (parsed.host.isEmpty) {
         throw ArgumentError('Invalid proxy URL (missing host): $val');

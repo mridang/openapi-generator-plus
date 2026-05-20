@@ -75,8 +75,7 @@ impl OAuth2TokenManager {
         token_url: &str,
         params: &HashMap<String, String>,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-        self.get_access_token_with_headers(token_url, params, &HashMap::new())
-            .await
+        self.get_access_token_with_headers(token_url, params, &HashMap::new()).await
     }
 
     /// Returns a valid access token, fetching or refreshing as necessary, with
@@ -180,9 +179,11 @@ impl OAuth2TokenManager {
             .await?;
 
         if response.status_code < 200 || response.status_code >= 300 {
-            return Err(
-                format!("token request failed with status {}", response.status_code).into(),
-            );
+            return Err(format!(
+                "token request failed with status {}",
+                response.status_code
+            )
+            .into());
         }
 
         let parsed: serde_json::Value = serde_json::from_str(&response.body)?;

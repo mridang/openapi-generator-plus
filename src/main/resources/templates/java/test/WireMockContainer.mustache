@@ -67,6 +67,10 @@ public final class WireMockContainer {
         return "http://" + INSTANCE.getHost() + ":" + INSTANCE.getMappedPort(8080);
     }
 
+    public static int getHttpsPort() {
+        return INSTANCE.getMappedPort(8443);
+    }
+
     public static String getInternalHttpUrl() {
         return "http://wiremock:8080";
     }

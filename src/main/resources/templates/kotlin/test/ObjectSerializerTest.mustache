@@ -208,6 +208,24 @@ class ObjectSerializerTest {
             assertEquals(1L, result!!.id)
             assertEquals("Dogs", result.name)
         }
+
+        @Test
+        @DisplayName("Gap AJ: null on required non-nullable field throws")
+        fun nullOnRequiredFieldThrows() {
+            val json = "{\"name\":null,\"photoUrls\":[\"x\"]}"
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Pet>(json)
+            }
+        }
+
+        @Test
+        @DisplayName("Gap AJ: missing required non-nullable field throws")
+        fun missingRequiredFieldThrows() {
+            val json = "{\"photoUrls\":[\"x\"]}"
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Pet>(json)
+            }
+        }
     }
 
     @Nested

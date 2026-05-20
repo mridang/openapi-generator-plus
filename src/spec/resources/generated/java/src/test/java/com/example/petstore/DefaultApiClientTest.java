@@ -42,6 +42,52 @@ class DefaultApiClientTest {
   }
 
   @Nested
+  @DisplayName("hostname verification")
+  class HostnameVerification {
+
+    /*
+     * Gap AM: verifySsl=false must disable BOTH cert-chain AND
+     * hostname verification (curl -k semantics). The WireMock cert
+     * is issued for CN=wiremock with SAN entries for `wiremock`,
+     * `localhost`, and `host.docker.internal` — but not for
+     * `127.0.0.1`. Connecting via the literal IP therefore forces
+     * a hostname mismatch independent of chain trust, so we can
+     * assert that turning off verification skips the hostname
+     * check too.
+     */
+
+    @Test
+    @DisplayName(
+        "verifySsl=true rejects hostname mismatch (cert is for localhost, request is to 127.0.0.1)")
+    void verifySslTrueRejectsHostnameMismatch() {
+      String wiremockUrl = "https://127.0.0.1:" + WireMockContainer.getHttpsPort();
+
+      TransportOptions transport =
+          TransportOptions.builder().verifySsl(true).caCertPath(CA_CERT_PATH).build();
+
+      DefaultApiClient client = new DefaultApiClient(transport);
+      assertThrows(
+          ApiException.class,
+          () -> client.sendRequest("GET", wiremockUrl + "/api/test", new HashMap<>(), null));
+    }
+
+    @Test
+    @DisplayName("verifySsl=false accepts hostname mismatch (curl -k semantics)")
+    void verifySslFalseAcceptsHostnameMismatch() throws ApiException {
+      String wiremockUrl = "https://127.0.0.1:" + WireMockContainer.getHttpsPort();
+
+      TransportOptions transport = TransportOptions.builder().verifySsl(false).build();
+
+      DefaultApiClient client = new DefaultApiClient(transport);
+      ApiResponse response =
+          client.sendRequest("GET", wiremockUrl + "/api/test", new HashMap<>(), null);
+
+      assertEquals(200, response.statusCode());
+      assertTrue(response.body().contains("success"));
+    }
+  }
+
+  @Nested
   @DisplayName("custom CA bundle")
   class CustomCaBundle {
 

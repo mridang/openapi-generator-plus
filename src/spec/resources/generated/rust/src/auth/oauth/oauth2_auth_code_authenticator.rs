@@ -92,10 +92,7 @@ impl OAuth2AuthorizationCodeAuthenticator {
             format!("redirect_uri={}", url_query_encode(&self.redirect_uri)),
         ];
         if !self.scopes.is_empty() {
-            params.push(format!(
-                "scope={}",
-                url_query_encode(&self.scopes.join(" "))
-            ));
+            params.push(format!("scope={}", url_query_encode(&self.scopes.join(" "))));
         }
         if !state.is_empty() {
             params.push(format!("state={}", url_query_encode(state)));
@@ -150,7 +147,10 @@ impl Authenticator for OAuth2AuthorizationCodeAuthenticator {
             {
                 Ok(token) => {
                     let mut headers = HashMap::new();
-                    headers.insert("Authorization".to_string(), format!("Bearer {}", token));
+                    headers.insert(
+                        "Authorization".to_string(),
+                        format!("Bearer {}", token),
+                    );
                     headers
                 }
                 Err(_) => HashMap::new(),

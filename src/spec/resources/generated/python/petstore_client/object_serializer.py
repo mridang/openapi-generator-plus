@@ -22,7 +22,6 @@ import petstore_client.models
 
 T = TypeVar('T')
 
-
 class SerializationError(Exception):
     """Exception raised when serialization or deserialization fails."""
 
@@ -30,7 +29,6 @@ class SerializationError(Exception):
         super().__init__(message)
         self.message = message
         self.cause = cause
-
 
 class ObjectSerializer:
     """Handles JSON serialization and deserialization for API requests and responses.
@@ -87,7 +85,9 @@ class ObjectSerializer:
         # Raised when json.loads encounters NaN/Infinity/-Infinity literals.
         # The default parse_constant accepts them silently; we reject so
         # non-spec-compliant JSON from a misbehaving server fails loudly.
-        raise SerializationError(f"Non-finite JSON number '{name}' is forbidden by RFC 8259", None)
+        raise SerializationError(
+            f"Non-finite JSON number '{name}' is forbidden by RFC 8259", None
+        )
 
     def deserialize(self, json_string: Optional[str], target_type: Union[str, Type[T]]) -> Optional[T]:
         """Deserialize a JSON string to an object of the specified type."""
@@ -145,7 +145,9 @@ class ObjectSerializer:
                 _visited = set()
             obj_id = id(obj)
             if obj_id in _visited:
-                raise SerializationError('Circular reference detected during serialization')
+                raise SerializationError(
+                    'Circular reference detected during serialization'
+                )
             _visited.add(obj_id)
             try:
                 if isinstance(obj, list):
@@ -222,24 +224,18 @@ class ObjectSerializer:
 
         Tries each candidate schema and wraps the first successful
         result in the composed model.
+
+        Gap AU: when the composed schema declares a discriminator, route
+        through `get_discriminator_value` so missing / empty / unknown
+        discriminator values raise ValueError (matches the other SDKs)
+        instead of silently wrapping the raw dict in `actual_instance`.
         """
         schemas: set[str] = getattr(klass, 'any_of_schemas', None) or getattr(klass, 'one_of_schemas', None) or set()
-        if hasattr(klass, 'discriminator_value_class_map') and isinstance(data, dict):
-            disc_prop = getattr(klass, '_discriminator_property_name', None)
-            if disc_prop is None:
-                disc_prop = getattr(klass, '__discriminator_property_name', None)
-            if disc_prop is None:
-                for attr in dir(klass):
-                    if 'discriminator_property_name' in attr:
-                        disc_prop = getattr(klass, attr, None)
-                        break
-            if disc_prop and disc_prop in data:
-                disc_value = data[disc_prop]
-                mapped = klass.discriminator_value_class_map.get(str(disc_value))
-                if mapped:
-                    instance = self._deserialize(data, mapped)
-                    return klass(instance)
-                return None
+        if hasattr(klass, 'get_discriminator_value') and isinstance(data, dict):
+            mapped = klass.get_discriminator_value(data)
+            if mapped:
+                instance = self._deserialize(data, mapped)
+                return klass(instance)
 
         for schema_name in schemas:
             try:

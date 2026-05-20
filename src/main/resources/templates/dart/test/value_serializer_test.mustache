@@ -502,6 +502,22 @@ void main() {
         throwsArgumentError,
       );
     });
+
+    // N3/W3 parity: `format: date` path parameters must emit a date-only
+    // string (YYYY-MM-DD), not a full ISO datetime. Dart has only
+    // `DateTime`, so the codegen routes such params through
+    // `stringifyDate` to strip the time component before path-encoding.
+    group('format:date stringifyDate helper', () {
+      test('UTC DateTime returns YYYY-MM-DD', () {
+        final date = DateTime.utc(2024, 1, 15, 14, 30, 45);
+        expect(stringifyDate(date), equals('2024-01-15'));
+      });
+
+      test('midnight UTC DateTime returns YYYY-MM-DD', () {
+        final date = DateTime.utc(2024, 1, 15);
+        expect(stringifyDate(date), equals('2024-01-15'));
+      });
+    });
   });
 }
 {{/generateTests}}

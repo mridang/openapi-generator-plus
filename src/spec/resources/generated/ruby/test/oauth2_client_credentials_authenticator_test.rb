@@ -10,14 +10,16 @@
 # rubocop:disable Metrics/BlockLength, Lint/MissingCopEnableDirective
 
 require 'minitest/autorun'
+require 'base64'
 require 'json'
 require 'petstore_client'
 
 class FakeClientCredentialsClient
-  attr_reader :last_url, :last_body
+  attr_reader :last_url, :last_body, :last_headers
 
-  def send_request(_method, url, _headers, body)
+  def send_request(_method, url, headers, body)
     @last_url = url
+    @last_headers = headers
     @last_body = body
     PetstoreClient::ApiResponse.new(
       status_code: 200,
@@ -70,5 +72,29 @@ describe PetstoreClient::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
 
   it 'getHost returns configured host' do
     _(auth.host).must_equal 'https://api.example.com'
+  end
+
+  it 'basic auth url-encodes client id and secret' do
+    # Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
+    # client_id and client_secret MUST be application/x-www-form-
+    # urlencoded BEFORE being joined with ':' and base64-encoded.
+    basic_client = FakeClientCredentialsClient.new
+    basic_auth = PetstoreClient::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
+      'https://api.example.com',
+      'id+with/special',
+      'secret&with=stuff',
+      'https://auth.example.com/token',
+      %w[read],
+      client_auth_method: PetstoreClient::Auth::OAuth::ClientAuthMethod::BASIC
+    )
+    basic_auth.api_client = basic_client
+
+    basic_auth.auth_headers
+
+    auth_header = basic_client.last_headers['Authorization']
+    _(auth_header).wont_be_nil
+    _(auth_header.start_with?('Basic ')).must_equal true
+    decoded = Base64.strict_decode64(auth_header.sub(/\ABasic /, ''))
+    _(decoded).must_equal 'id%2Bwith%2Fspecial:secret%26with%3Dstuff'
   end
 end

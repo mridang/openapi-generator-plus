@@ -13,7 +13,6 @@ from typing_extensions import Self
 
 from .server_configuration import ServerConfiguration
 
-
 @dataclass(frozen=True)
 class Configuration:
     """API-level configuration for generated client classes.
@@ -69,7 +68,6 @@ class Configuration:
         """Create a new builder for constructing Configuration instances."""
         return ConfigurationBuilder()
 
-
 class ConfigurationBuilder:
     """Builder for creating immutable :class:`Configuration` instances.
 
@@ -110,9 +108,7 @@ class ConfigurationBuilder:
         self._default_headers[name] = value
         return self
 
-    def server(
-        self, server_config: ServerConfiguration, variables: Optional[Dict[str, str]] = None
-    ) -> 'ConfigurationBuilder':
+    def server(self, server_config: ServerConfiguration, variables: Optional[Dict[str, str]] = None) -> 'ConfigurationBuilder':
         """Set the base URL by resolving a server configuration with optional variable overrides.
 
         Calls :meth:`ServerConfiguration.get_url` to resolve the URL template

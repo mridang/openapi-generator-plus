@@ -52,11 +52,7 @@ pub struct BaseApi {
 
 impl BaseApi {
     /// Creates a new BaseApi instance.
-    pub fn new(
-        api_client: Arc<dyn ApiClient>,
-        config: Configuration,
-        authenticator: Option<Arc<dyn Authenticator>>,
-    ) -> Self {
+    pub fn new(api_client: Arc<dyn ApiClient>, config: Configuration, authenticator: Option<Arc<dyn Authenticator>>) -> Self {
         Self {
             config,
             api_client,
@@ -87,9 +83,7 @@ impl BaseApi {
 
         /* Merge authentication query params */
         let mut query_params = params.query_params;
-        let effective_auth: Option<&dyn Authenticator> = params
-            .auth
-            .or_else(|| self.authenticator.as_ref().map(|a| a.as_ref()));
+        let effective_auth: Option<&dyn Authenticator> = params.auth.or_else(|| self.authenticator.as_ref().map(|a| a.as_ref()));
         if let Some(auth) = effective_auth {
             for (k, v) in auth.query_params() {
                 query_params.push((k, v));
@@ -104,9 +98,7 @@ impl BaseApi {
 
         /* Select headers */
         let is_multipart = params.content_type == "multipart/form-data";
-        let mut headers =
-            self.header_selector
-                .select_headers(&params.accepts, params.content_type, is_multipart);
+        let mut headers = self.header_selector.select_headers(&params.accepts, params.content_type, is_multipart);
 
         /* Merge config default headers */
         for (k, v) in self.config.default_headers() {
@@ -133,16 +125,10 @@ impl BaseApi {
                     .iter()
                     .map(|(k, v)| {
                         if !is_valid_cookie_name(k) {
-                            panic!(
-                                "Cookie name '{}' contains characters forbidden by RFC 6265",
-                                k
-                            );
+                            panic!("Cookie name '{}' contains characters forbidden by RFC 6265", k);
                         }
                         if !is_valid_cookie_value(v) {
-                            panic!(
-                                "Cookie value for '{}' contains characters forbidden by RFC 6265",
-                                k
-                            );
+                            panic!("Cookie value for '{}' contains characters forbidden by RFC 6265", k);
                         }
                         format!("{}={}", k, v)
                     })
@@ -173,10 +159,7 @@ impl BaseApi {
                     "Content-Type".to_string(),
                     format!("multipart/form-data; boundary={}", boundary),
                 );
-                Some(RequestBody::Bytes(build_multipart_body(
-                    &form_fields,
-                    &boundary,
-                )?))
+                Some(RequestBody::Bytes(build_multipart_body(&form_fields, &boundary)?))
             } else {
                 None
             }
@@ -191,12 +174,7 @@ impl BaseApi {
         /* Send request */
         let response = self
             .api_client
-            .send_request(
-                params.method,
-                &request_url,
-                &headers,
-                serialized_body.as_ref(),
-            )
+            .send_request(params.method, &request_url, &headers, serialized_body.as_ref())
             .await?;
 
         /* Check for errors */
@@ -215,9 +193,7 @@ impl BaseApi {
         let response = self.invoke_api(params).await?;
 
         /* Check Content-Type before deserializing -- only deserialize JSON responses */
-        let resp_content_type = response
-            .headers
-            .iter()
+        let resp_content_type = response.headers.iter()
             .find(|(k, _)| k.eq_ignore_ascii_case("content-type"))
             .map(|(_, v)| v.split(';').next().unwrap_or("").trim().to_string());
 
@@ -239,9 +215,8 @@ impl BaseApi {
                 .decode(response.body.as_bytes())
                 .unwrap_or_default();
             serde_json::from_value(serde_json::Value::String(
-                String::from_utf8_lossy(&bytes).into_owned(),
-            ))
-            .ok()
+                String::from_utf8_lossy(&bytes).into_owned()
+            )).ok()
         } else {
             None
         };
@@ -276,7 +251,13 @@ fn build_query_string(query_params: &[(String, String)]) -> String {
 
     let parts: Vec<String> = query_params
         .iter()
-        .map(|(k, v)| format!("{}={}", urlencoding::encode(k), urlencoding::encode(v)))
+        .map(|(k, v)| {
+            format!(
+                "{}={}",
+                urlencoding::encode(k),
+                urlencoding::encode(v)
+            )
+        })
         .collect();
 
     parts.join("&")
@@ -394,7 +375,13 @@ pub fn serialize_body(
         let params: std::collections::HashMap<String, String> = serde_json::from_slice(&body)?;
         let encoded: Vec<String> = params
             .iter()
-            .map(|(k, v)| format!("{}={}", urlencoding::encode(k), urlencoding::encode(v)))
+            .map(|(k, v)| {
+                format!(
+                    "{}={}",
+                    urlencoding::encode(k),
+                    urlencoding::encode(v)
+                )
+            })
             .collect();
         return Ok(Some(encoded.join("&").into_bytes()));
     }
@@ -451,8 +438,9 @@ fn is_valid_cookie_name(name: &str) -> bool {
     if name.is_empty() {
         return false;
     }
-    name.chars()
-        .all(|c| c.is_ascii_alphanumeric() || "!#$%&'*+-.^_`|~".contains(c))
+    name.chars().all(|c| {
+        c.is_ascii_alphanumeric() || "!#$%&'*+-.^_`|~".contains(c)
+    })
 }
 
 /// RFC 6265 cookie-value validation (cookie-octet*).

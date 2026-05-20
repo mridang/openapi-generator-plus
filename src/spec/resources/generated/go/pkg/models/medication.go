@@ -54,14 +54,3 @@ func (o *Medication) UnmarshalJSON(data []byte) error {
 	*o = Medication(*aux)
 	return nil
 }
-
-// UnmarshalJSON implements the json.Unmarshaler interface.
-func (o *Medication) UnmarshalJSON(data []byte) error {
-	type Alias Medication
-	aux := &Alias{}
-	if err := json.Unmarshal(data, aux); err != nil {
-		return err
-	}
-	*o = Medication(*aux)
-	return nil
-}

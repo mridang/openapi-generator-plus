@@ -10,7 +10,6 @@ import pytest
 from typing import Any
 from petstore_client.header_selector import HeaderSelector
 
-
 class TestIsJsonMime:
     """Tests for is_json_mime method."""
 
@@ -19,31 +18,30 @@ class TestIsJsonMime:
         return HeaderSelector()
 
     def test_should_return_true_for_application_json(self, header_selector: Any) -> None:
-        assert header_selector.is_json_mime('application/json') is True
+        assert header_selector.is_json_mime("application/json") is True
 
     def test_should_return_true_for_application_json_with_charset(self, header_selector: Any) -> None:
-        assert header_selector.is_json_mime('application/json; charset=UTF-8') is True
+        assert header_selector.is_json_mime("application/json; charset=UTF-8") is True
 
     def test_should_return_true_for_uppercase_application_json(self, header_selector: Any) -> None:
-        assert header_selector.is_json_mime('APPLICATION/JSON') is True
+        assert header_selector.is_json_mime("APPLICATION/JSON") is True
 
     def test_should_return_true_for_vendor_json_types(self, header_selector: Any) -> None:
-        assert header_selector.is_json_mime('application/vnd.api+json') is True
-        assert header_selector.is_json_mime('application/vnd.company+json') is True
-        assert header_selector.is_json_mime('application/hal+json') is True
+        assert header_selector.is_json_mime("application/vnd.api+json") is True
+        assert header_selector.is_json_mime("application/vnd.company+json") is True
+        assert header_selector.is_json_mime("application/hal+json") is True
 
     def test_should_return_false_for_text_html(self, header_selector: Any) -> None:
-        assert header_selector.is_json_mime('text/html') is False
+        assert header_selector.is_json_mime("text/html") is False
 
     def test_should_return_false_for_application_xml(self, header_selector: Any) -> None:
-        assert header_selector.is_json_mime('application/xml') is False
+        assert header_selector.is_json_mime("application/xml") is False
 
     def test_should_return_false_for_none(self, header_selector: Any) -> None:
         assert header_selector.is_json_mime(None) is False
 
     def test_should_return_false_for_empty_string(self, header_selector: Any) -> None:
-        assert header_selector.is_json_mime('') is False
-
+        assert header_selector.is_json_mime("") is False
 
 class TestSelectAcceptHeader:
     """Tests for _select_accept_header method."""
@@ -59,41 +57,44 @@ class TestSelectAcceptHeader:
         assert header_selector._select_accept_header([]) is None
 
     def test_should_return_single_accept_as_is(self, header_selector: Any) -> None:
-        assert header_selector._select_accept_header(['application/json']) == 'application/json'
+        assert header_selector._select_accept_header(["application/json"]) == "application/json"
 
     def test_should_return_single_non_json_accept_as_is(self, header_selector: Any) -> None:
-        assert header_selector._select_accept_header(['text/html']) == 'text/html'
+        assert header_selector._select_accept_header(["text/html"]) == "text/html"
 
     def test_should_return_comma_separated_list_when_no_json_types(self, header_selector: Any) -> None:
-        result = header_selector._select_accept_header(['text/html', 'text/plain'])
-        assert result == 'text/html,text/plain'
+        result = header_selector._select_accept_header(["text/html", "text/plain"])
+        assert result == "text/html,text/plain"
 
     def test_should_prioritize_application_json_with_quality_weight(self, header_selector: Any) -> None:
-        result = header_selector._select_accept_header(['text/html', 'application/json'])
+        result = header_selector._select_accept_header(["text/html", "application/json"])
         # application/json should come first with highest weight
-        assert result.startswith('application/json')
-        assert 'text/html' in result
+        assert result.startswith("application/json")
+        assert "text/html" in result
 
     def test_should_handle_multiple_json_types_with_priority(self, header_selector: Any) -> None:
-        result = header_selector._select_accept_header(['text/html', 'application/vnd.api+json', 'application/json'])
+        result = header_selector._select_accept_header(
+            ["text/html", "application/vnd.api+json", "application/json"]
+        )
         # application/json should come first
-        assert result.startswith('application/json')
+        assert result.startswith("application/json")
         # application/vnd.api+json should come before text/html
-        json_index = result.index('application/json')
-        vendor_json_index = result.index('application/vnd.api+json')
-        html_index = result.index('text/html')
+        json_index = result.index("application/json")
+        vendor_json_index = result.index("application/vnd.api+json")
+        html_index = result.index("text/html")
         assert json_index < vendor_json_index
         assert vendor_json_index < html_index
 
     def test_should_filter_out_empty_entries(self, header_selector: Any) -> None:
-        result = header_selector._select_accept_header(['', 'application/json', None])
-        assert result == 'application/json'
+        result = header_selector._select_accept_header(["", "application/json", None])
+        assert result == "application/json"
 
     def test_should_preserve_existing_quality_weights_in_order(self, header_selector: Any) -> None:
-        result = header_selector._select_accept_header(['text/html;q=0.9', 'application/json', 'text/plain;q=0.8'])
+        result = header_selector._select_accept_header(
+            ["text/html;q=0.9", "application/json", "text/plain;q=0.8"]
+        )
         # application/json should still come first (JSON priority)
-        assert result.startswith('application/json')
-
+        assert result.startswith("application/json")
 
 class TestSelectHeaders:
     """Tests for select_headers method."""
@@ -103,29 +104,52 @@ class TestSelectHeaders:
         return HeaderSelector()
 
     def test_should_set_accept_header_when_accepts_provided(self, header_selector: Any) -> None:
-        headers = header_selector.select_headers(['application/json'], 'application/json', False)
-        assert headers.get('Accept') == 'application/json'
+        headers = header_selector.select_headers(
+            ["application/json"],
+            "application/json",
+            False
+        )
+        assert headers.get("Accept") == "application/json"
 
     def test_should_not_set_accept_header_when_accepts_empty(self, header_selector: Any) -> None:
-        headers = header_selector.select_headers([], 'application/json', False)
-        assert headers.get('Accept') is None
+        headers = header_selector.select_headers(
+            [],
+            "application/json",
+            False
+        )
+        assert headers.get("Accept") is None
 
     def test_should_set_content_type_header_when_not_multipart(self, header_selector: Any) -> None:
-        headers = header_selector.select_headers(['application/json'], 'application/json', False)
-        assert headers.get('Content-Type') == 'application/json'
+        headers = header_selector.select_headers(
+            ["application/json"],
+            "application/json",
+            False
+        )
+        assert headers.get("Content-Type") == "application/json"
 
     def test_should_not_set_content_type_header_when_multipart(self, header_selector: Any) -> None:
-        headers = header_selector.select_headers(['application/json'], 'application/json', True)
-        assert headers.get('Content-Type') is None
+        headers = header_selector.select_headers(
+            ["application/json"],
+            "application/json",
+            True
+        )
+        assert headers.get("Content-Type") is None
 
     def test_should_default_content_type_to_application_json_when_empty(self, header_selector: Any) -> None:
-        headers = header_selector.select_headers(['application/json'], '', False)
-        assert headers.get('Content-Type') == 'application/json'
+        headers = header_selector.select_headers(
+            ["application/json"],
+            "",
+            False
+        )
+        assert headers.get("Content-Type") == "application/json"
 
     def test_should_default_content_type_to_application_json_when_none(self, header_selector: Any) -> None:
-        headers = header_selector.select_headers(['application/json'], None, False)
-        assert headers.get('Content-Type') == 'application/json'
-
+        headers = header_selector.select_headers(
+            ["application/json"],
+            None,
+            False
+        )
+        assert headers.get("Content-Type") == "application/json"
 
 class TestGetNextWeight:
     """Tests for get_next_weight method."""
@@ -170,7 +194,6 @@ class TestGetNextWeight:
         # That's 9 (1000 to 100) + 9 (100 to 10) + 9 (10 to 1) = 27 steps
         assert count == 27
 
-
 class TestQualityWeightFormatting:
     """Tests for quality weight formatting."""
 
@@ -179,16 +202,16 @@ class TestQualityWeightFormatting:
         return HeaderSelector()
 
     def test_should_not_add_quality_weight_for_weight_1000(self, header_selector: Any) -> None:
-        result = header_selector._select_accept_header(['application/json', 'text/html'])
+        result = header_selector._select_accept_header(["application/json", "text/html"])
         # First header should not have ;q= because it's weight 1000
-        assert result.startswith('application/json,') or result == 'application/json'
+        assert result.startswith("application/json,") or result == "application/json"
 
     def test_should_format_quality_weight_correctly(self, header_selector: Any) -> None:
-        result = header_selector._select_accept_header(['application/json', 'text/html'])
+        result = header_selector._select_accept_header(["application/json", "text/html"])
         # text/html should have quality weight like ;q=0.9
-        assert 'text/html;q=0.9' in result or 'text/html;q=0.' in result
+        assert "text/html;q=0.9" in result or "text/html;q=0." in result
 
     def test_should_remove_trailing_zeros_from_quality_weight(self, header_selector: Any) -> None:
-        result = header_selector._select_accept_header(['application/json', 'text/html'])
+        result = header_selector._select_accept_header(["application/json", "text/html"])
         # Should be ;q=0.9 not ;q=0.900
-        assert ';q=0.900' not in result
+        assert ";q=0.900" not in result

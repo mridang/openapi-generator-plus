@@ -12,14 +12,18 @@ use std::sync::{Arc, Mutex};
 
 use petstore::api_client::{ApiClient, RequestBody};
 use petstore::api_response::ApiResponse;
+use petstore::auth::oauth::client_auth_method::ClientAuthMethod;
 use petstore::auth::oauth::OAuth2PasswordAuthenticator;
 use petstore::auth::Authenticator;
 use petstore::auth::HttpAwareAuthenticator;
+use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use base64::Engine as _;
 
 struct FakeApiClient {
     responses: Mutex<Vec<ApiResponse>>,
     last_url: Mutex<Option<String>>,
     last_body: Mutex<Option<String>>,
+    last_headers: Mutex<Option<HashMap<String, String>>>,
 }
 
 impl FakeApiClient {
@@ -28,6 +32,7 @@ impl FakeApiClient {
             responses: Mutex::new(Vec::new()),
             last_url: Mutex::new(None),
             last_body: Mutex::new(None),
+            last_headers: Mutex::new(None),
         }
     }
 
@@ -43,6 +48,10 @@ impl FakeApiClient {
     fn last_body(&self) -> Option<String> {
         self.last_body.lock().unwrap().clone()
     }
+
+    fn last_headers(&self) -> Option<HashMap<String, String>> {
+        self.last_headers.lock().unwrap().clone()
+    }
 }
 
 impl ApiClient for FakeApiClient {
@@ -50,18 +59,16 @@ impl ApiClient for FakeApiClient {
         &self,
         _method: &str,
         url: &str,
-        _headers: &HashMap<String, String>,
+        headers: &HashMap<String, String>,
         body: Option<&RequestBody>,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
-                + Send
-                + '_,
-        >,
-    > {
+    ) -> Pin<Box<dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         {
             let mut last_url = self.last_url.lock().unwrap();
             *last_url = Some(url.to_string());
+        }
+        {
+            let mut last_headers = self.last_headers.lock().unwrap();
+            *last_headers = Some(headers.clone());
         }
         if let Some(RequestBody::Bytes(b)) = body {
             let mut last_body = self.last_body.lock().unwrap();
@@ -171,4 +178,39 @@ async fn test_uses_refresh_token_on_subsequent_calls() {
 fn test_get_host_returns_configured_host() {
     let auth = create_authenticator();
     assert_eq!("https://api.example.com", auth.host());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_basic_auth_url_encodes_client_id_and_secret() {
+    // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
+    // client_id and client_secret MUST be application/x-www-form-
+    // urlencoded BEFORE being joined with ':' and base64-encoded.
+    // Verifies a client_id with `+` and a secret with `&` are encoded
+    // (not raw) before the colon-join + base64.
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"at","expires_in":3600}"#, 200);
+
+    let mut auth = OAuth2PasswordAuthenticator::new(
+        "https://api.example.com",
+        "id+with/special",
+        "secret&with=stuff",
+        "https://auth.example.com/token",
+        "testuser",
+        "testpass",
+        vec!["read".to_string()],
+        "",
+    )
+    .with_client_auth_method(ClientAuthMethod::Basic);
+    auth.set_api_client(client.clone());
+
+    auth.auth_headers().await;
+
+    let headers = client.last_headers().expect("should have headers");
+    let auth_header = headers.get("Authorization").expect("should have Authorization header");
+    assert!(auth_header.starts_with("Basic "));
+    let encoded = &auth_header["Basic ".len()..];
+    let decoded_bytes = BASE64_STANDARD.decode(encoded).expect("base64 decode");
+    let decoded = String::from_utf8(decoded_bytes).expect("utf8");
+    // Expected: form-urlencoded id ':' form-urlencoded secret
+    assert_eq!("id%2Bwith%2Fspecial:secret%26with%3Dstuff", decoded);
 }

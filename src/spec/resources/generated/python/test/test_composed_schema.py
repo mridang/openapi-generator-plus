@@ -1,9 +1,10 @@
+import pytest
+
 from petstore_client.object_serializer import ObjectSerializer
 from petstore_client.models.dry_food import DryFood
 from petstore_client.models.wet_food import WetFood
 from petstore_client.models.medication import Medication
 from petstore_client.models.surgery import Surgery
-
 
 class TestOneOfPetFood:
     """oneOf with discriminator: PetFood"""
@@ -22,10 +23,26 @@ class TestOneOfPetFood:
         assert result.actual_instance is not None
         assert isinstance(result.actual_instance, WetFood)
 
-    def test_unknown_discriminator_returns_none(self) -> None:
+    def test_missing_discriminator_raises(self) -> None:
+        """Gap AU: missing discriminator field must raise, not silently wrap."""
+        json_str = '{"weightKg":2.5}'
+        with pytest.raises(Exception) as exc_info:
+            ObjectSerializer().deserialize(json_str, 'PetFood')
+        assert 'Missing discriminator' in str(exc_info.value)
+
+    def test_empty_discriminator_raises(self) -> None:
+        """Gap AU: empty discriminator value must raise."""
+        json_str = '{"foodType":"","weightKg":2.5}'
+        with pytest.raises(Exception) as exc_info:
+            ObjectSerializer().deserialize(json_str, 'PetFood')
+        assert 'Empty discriminator' in str(exc_info.value) or 'Unknown discriminator' in str(exc_info.value)
+
+    def test_unknown_discriminator_raises(self) -> None:
+        """Gap AU: unknown discriminator value must raise."""
         json_str = '{"foodType":"raw","calories":300}'
-        result = ObjectSerializer().deserialize(json_str, 'PetFood')
-        assert result is None
+        with pytest.raises(Exception) as exc_info:
+            ObjectSerializer().deserialize(json_str, 'PetFood')
+        assert 'Unknown discriminator' in str(exc_info.value)
 
     def test_serializes_dry_food(self) -> None:
         json_str = '{"foodType":"dry","weightKg":2.5}'
@@ -33,7 +50,6 @@ class TestOneOfPetFood:
         serialized = ObjectSerializer().serialize(result)
         assert 'dry' in serialized
         assert '2.5' in serialized
-
 
 class TestAnyOfPetTreatment:
     """anyOf without discriminator: PetTreatment"""
@@ -58,7 +74,6 @@ class TestAnyOfPetTreatment:
         serialized = ObjectSerializer().serialize(result)
         assert serialized is not None
         assert len(serialized) > 0
-
 
 class TestAllOfPetWithOwner:
     """allOf: PetWithOwner"""

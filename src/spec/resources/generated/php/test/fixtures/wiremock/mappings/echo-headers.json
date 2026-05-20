@@ -1,0 +1,20 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "/api/echo-headers"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "transformers": ["response-template"],
+    "jsonBody": {
+      "user-agent": "{{request.headers.User-Agent}}",
+      "x-request-id": "{{request.headers.X-Request-ID}}",
+      "x-custom": "{{request.headers.X-Custom}}",
+      "accept": "{{request.headers.Accept}}",
+      "authorization": "{{request.headers.Authorization}}"
+    }
+  }
+}

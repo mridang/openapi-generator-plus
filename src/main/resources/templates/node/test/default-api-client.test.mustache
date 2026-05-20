@@ -26,6 +26,55 @@ describe('DefaultApiClient', () => {
     }, 30000);
   });
 
+  describe('hostname verification', () => {
+    /*
+     * Gap AM: verifySsl=false must disable BOTH cert-chain AND
+     * hostname verification (curl -k semantics). The WireMock cert
+     * is issued for CN=wiremock with SAN entries for `wiremock`,
+     * `localhost`, and `host.docker.internal` — but not for
+     * `127.0.0.1`. Connecting via the literal IP therefore forces a
+     * hostname mismatch independent of chain trust, so we can assert
+     * that turning off verification skips the hostname check too.
+     */
+
+    function ipHttpsUrl(): string {
+      const wiremockUrl = process.env['WIREMOCK_HTTPS_URL']!;
+      const port = new URL(wiremockUrl).port;
+      return `https://127.0.0.1:${port}`;
+    }
+
+    test('verifySsl=true rejects hostname mismatch (cert is for localhost, request is to 127.0.0.1)', async () => {
+      const caCertPath = process.env['CA_CERT_PATH']!;
+
+      const transport = TransportOptions.builder()
+        .verifySsl(true)
+        .caCertPath(caCertPath)
+        .build();
+
+      const client = new DefaultApiClient(transport);
+      await expect(
+        client.sendRequest('GET', `${ipHttpsUrl()}/api/test`, {}, null)
+      ).rejects.toThrow();
+    });
+
+    test('verifySsl=false accepts hostname mismatch (curl -k semantics)', async () => {
+      const transport = TransportOptions.builder()
+        .verifySsl(false)
+        .build();
+
+      const client = new DefaultApiClient(transport);
+      const response = await client.sendRequest(
+        'GET',
+        `${ipHttpsUrl()}/api/test`,
+        {},
+        null
+      );
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain('success');
+    });
+  });
+
   describe('custom CA bundle', () => {
     test('makes HTTPS request with custom CA cert', async () => {
       const wiremockUrl = process.env['WIREMOCK_HTTPS_URL']!;

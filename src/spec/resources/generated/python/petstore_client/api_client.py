@@ -9,7 +9,6 @@ from typing import Any, Dict, Protocol, runtime_checkable
 
 from petstore_client.api_response import ApiResponse
 
-
 @runtime_checkable
 class ApiClient(Protocol):
     """Interface for API HTTP transport.

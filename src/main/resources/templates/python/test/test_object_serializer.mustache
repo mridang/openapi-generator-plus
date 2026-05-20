@@ -293,6 +293,23 @@ class TestDeserialize:
         assert ObjectSerializer().deserialize(None, 'Category') is None
 
 
+class TestRequiredFieldNullRejection:
+    """Gap AJ — null or missing on a required non-nullable field must raise.
+
+    Pydantic 2 already rejects None for non-Optional typed fields; this test
+    locks in that behaviour as a regression guard."""
+
+    def test_null_on_required_field_raises(self) -> None:
+        json_str = '{"name": null, "photoUrls": ["x"]}'
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize(json_str, 'Pet')
+
+    def test_missing_required_field_raises(self) -> None:
+        json_str = '{"photoUrls": ["x"]}'
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize(json_str, 'Pet')
+
+
 class TestNanInfinityRejection:
     """Gap V — RFC 8259 §6 forbids NaN/Infinity/-Infinity in JSON.
 

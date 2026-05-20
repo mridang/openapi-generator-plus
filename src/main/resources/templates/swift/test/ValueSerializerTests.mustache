@@ -447,4 +447,21 @@ import Testing
         let result = ValueSerializer.serializeStyled("color", value: "a b", location: "query", schemaType: "string", collectionFormat: "", style: "form", explode: false)
         #expect(result as? String == "a b")
     }
+
+    // N3/W3 parity: `format: date` path parameters must emit a date-only
+    // string (YYYY-MM-DD), not a full ISO datetime. Swift has only `Date`,
+    // so the codegen routes such params through `stringifyDate` to strip
+    // the time component before path-encoding.
+
+    @Test func testFormatDatePathParamStringifyDateReturnsYyyyMmDd() {
+        // 2024-01-15T14:30:45Z
+        let date = Date(timeIntervalSince1970: 1_705_329_045)
+        #expect(stringifyDate(date) == "2024-01-15")
+    }
+
+    @Test func testFormatDatePathParamStringifyDateIsUtcBased() {
+        // Midnight UTC on 2024-01-15.
+        let date = Date(timeIntervalSince1970: 1_705_276_800)
+        #expect(stringifyDate(date) == "2024-01-15")
+    }
 }
