@@ -451,11 +451,20 @@ work to address. Documented as known limitations.
   on swagger-parser auto-converting to `nullable: true`. If the
   conversion is broken upstream, all 12 SDKs fail together (nullable
   not emitted on the field). Needs an upstream verification test.
-- **Gap BB** — `contentEncoding` / `contentMediaType`: 3.1 string-with-
-  embedded-binary annotation silently ignored. SDKs continue to use
-  the 3.0 `format: byte`/`binary` pattern (which DOES work). Specs
-  using only the new keywords get plain `String` fields with no
-  base64 auto-decode. Affects: 12.
+- **Gap BB (partially fixed — rule landed)** — `contentEncoding` /
+  `contentMediaType`: 3.1 string-with-embedded-binary annotation was
+  silently ignored. Now normalized by `CONTENT_ENCODING` rule
+  (`AdvancedOpenAPINormalizer` → `ContentEncodingRule`): `base64` /
+  `binary` map onto the existing 3.0 `format: byte` / `format: binary`
+  codepath; `base64url` and `base16` set `format: byte` plus the
+  `x-is-base64url` / `x-is-base16` extension flags so per-language
+  templates can route to URL-safe / hex decoders. `contentMediaType`
+  is appended to the schema description as
+  `"Content media type: <value>"`. Per-language template work to
+  honour `x-is-base64url` / `x-is-base16` flags is still pending (Java
+  `Base64.getUrlDecoder`, Python `base64.urlsafe_b64decode`, etc.) —
+  the default base64 path is already correct for `base64`. Affects:
+  12 (rule applies across all SDKs uniformly; routing TODO).
 - **Gap BC (WONTFIX)** — `webhooks` (3.1 top-level) and `callbacks`
   (3.0 per-op): SDK scope is **client → server** only. We do NOT
   generate any code for spec entries that describe **server → client**

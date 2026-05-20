@@ -1184,6 +1184,16 @@ components:
         issuedAt:
           type: string
           format: date-time
+        # Gap BB — OAS 3.1 contentEncoding/contentMediaType.
+        # Normalized by the CONTENT_ENCODING rule into format: byte +
+        # contentMediaType appended to the docstring. Without the rule,
+        # generators that only understand OAS 3.0 would emit a plain
+        # String here with no base64 decoding.
+        biometricChip:
+          type: string
+          contentEncoding: base64
+          contentMediaType: application/octet-stream
+          description: Embedded chip data (OAS 3.1 contentEncoding form)
 
     Metadata:
       type: object
