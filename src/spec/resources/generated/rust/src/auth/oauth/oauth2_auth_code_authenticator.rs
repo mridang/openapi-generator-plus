@@ -78,17 +78,27 @@ impl OAuth2AuthorizationCodeAuthenticator {
     /// Builds the authorization URL to redirect the user to.
     ///
     /// The `state` parameter is optional and used for CSRF protection.
+    ///
+    /// Each query parameter value is URL-encoded per RFC 3986 to avoid
+    /// breaking the URL when client_id / redirect_uri / scopes / state
+    /// contain reserved characters (`&`, `=`, `#`, space, etc.). The other
+    /// 11 SDKs do this via their language's url-encoder; Rust previously
+    /// used `format!()` directly which let attacker-controlled state
+    /// chars corrupt the URL.
     pub fn build_authorization_url(&self, state: &str) -> String {
         let mut params = vec![
             format!("response_type=code"),
-            format!("client_id={}", &self.client_id),
-            format!("redirect_uri={}", &self.redirect_uri),
+            format!("client_id={}", url_query_encode(&self.client_id)),
+            format!("redirect_uri={}", url_query_encode(&self.redirect_uri)),
         ];
         if !self.scopes.is_empty() {
-            params.push(format!("scope={}", self.scopes.join(" ")));
+            params.push(format!(
+                "scope={}",
+                url_query_encode(&self.scopes.join(" "))
+            ));
         }
         if !state.is_empty() {
-            params.push(format!("state={}", state));
+            params.push(format!("state={}", url_query_encode(state)));
         }
         format!("{}?{}", self.authorization_url, params.join("&"))
     }
@@ -157,4 +167,26 @@ impl HttpAwareAuthenticator for OAuth2AuthorizationCodeAuthenticator {
     fn set_api_client(&mut self, client: Arc<dyn ApiClient>) {
         self.token_manager.set_api_client(client);
     }
+}
+
+/// RFC 3986 query component percent-encoder (unreserved + `~` only).
+/// Mirrors the form_url_encode helpers in oauth2_token_manager and
+/// oauth2_client_credentials so query params and form bodies use the
+/// same escape set. `+` is used for space per application/x-www-form-
+/// urlencoded convention; the authorization URL is a query string so
+/// the browser/server will decode `+` → space identically.
+fn url_query_encode(s: &str) -> String {
+    let mut result = String::new();
+    for byte in s.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                result.push(byte as char);
+            }
+            b' ' => result.push('+'),
+            _ => {
+                result.push_str(&format!("%{:02X}", byte));
+            }
+        }
+    }
+    result
 }

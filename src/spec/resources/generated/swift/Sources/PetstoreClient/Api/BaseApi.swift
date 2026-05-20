@@ -181,24 +181,40 @@ open class BaseApi {
     )
   }
 
+  /// RFC 3986 query component encoding. Foundation's .urlQueryAllowed
+  /// includes `&`, `=`, `+`, and other reserved chars used as delimiters
+  /// inside the query string, so a value like `Foo&Bar` would arrive at
+  /// the server as a literal `&` and split the key=value pair (param
+  /// pollution / wrong endpoint). Build a tighter set: the RFC 3986
+  /// unreserved set (ALPHA / DIGIT / `-._~`) is always safe; everything
+  /// else gets percent-encoded.
+  private static let queryComponentAllowed: CharacterSet = {
+    var allowed = CharacterSet()
+    allowed.insert(
+      charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+    return allowed
+  }()
+
   static func buildQueryString(_ queryParams: [String: Any?]) -> String {
     guard !queryParams.isEmpty else { return "" }
 
     var parts: [String] = []
     for (k, v) in queryParams {
       guard let v = v else { continue }
-      let encodedKey = k.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? k
+      let encodedKey =
+        k.addingPercentEncoding(withAllowedCharacters: BaseApi.queryComponentAllowed) ?? k
 
       if let items = v as? [String] {
         for item in items {
           let encodedValue =
-            item.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? item
+            item.addingPercentEncoding(withAllowedCharacters: BaseApi.queryComponentAllowed) ?? item
           parts.append("\(encodedKey)=\(encodedValue)")
         }
       } else {
         let strVal = ObjectSerializer.stringify(v)
         let encodedValue =
-          strVal.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? strVal
+          strVal.addingPercentEncoding(withAllowedCharacters: BaseApi.queryComponentAllowed)
+          ?? strVal
         parts.append("\(encodedKey)=\(encodedValue)")
       }
     }

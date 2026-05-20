@@ -371,6 +371,26 @@ header-merge path. Not done; not auditing.
   CR/LF into the header value via input — the asymmetry is correct.
   Closed without action.
 
+### Typed error body access (3-pattern divergence, idiomatic)
+
+Three patterns exist for typed-error-body access (per recent agent
+audit):
+
+- **Pre-parse + cast** (Java, Kotlin, C#): `errorBody` is parsed once
+  at throw-time into `Object`; `getTypedErrorBody(Class<T>)` does a
+  runtime cast. Zero deserialize cost; runtime cast may silently
+  return null on mismatch (C#).
+- **Lazy deserialize** (PHP, Python, Ruby, Node, Go, Swift, Rust,
+  Elixir): `getTypedErrorBody(T)` calls ObjectSerializer.deserialize
+  on the raw response body each call.
+- **Closure-based** (Dart): `typedErrorBody<T>(T Function(Map) fromJson)`
+  requires caller to supply a fromJson factory (matches how Dart
+  models work — no reflection). DX divergent from the other 11 but
+  consistent with Dart conventions.
+
+This is idiomatic per-language behavior, not a real correctness gap.
+Documented; not auditing again.
+
 ### Response header case-insensitive lookup (uniform feature gap)
 
 All 12 SDKs preserve transport-case in the response-headers Map exposed
