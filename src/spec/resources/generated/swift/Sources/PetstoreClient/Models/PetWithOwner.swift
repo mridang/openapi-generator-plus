@@ -9,79 +9,82 @@ import Foundation
 
 /// PetWithOwner A pet record extended with owner information
 public struct PetWithOwner: Codable, Sendable {
-    /// Example: `10`
-    public var id: Int64?
-    /// Example: `doggie`
-    public var name: String
-    /// Example: `null`
-    public var category: Category?
-    /// Example: `null`
-    public var photoUrls: Set<String>
-    /// Example: `null`
-    public var tags: [Tag]?
-    /// pet status in the store
-    /// Example: `null`
-    @available(*, deprecated, message: "This property is deprecated.")
-    public var status: String?
-    /// Example: `null`
-    public var ownerName: String
-    /// Example: `null`
-    public var ownerEmail: String?
+  /// Example: `10`
+  public var id: Int64?
+  /// Example: `doggie`
+  public var name: String
+  /// Example: `null`
+  public var category: Category?
+  /// Example: `null`
+  public var photoUrls: Set<String>
+  /// Example: `null`
+  public var tags: [Tag]?
+  /// pet status in the store
+  /// Example: `null`
+  @available(*, deprecated, message: "This property is deprecated.")
+  public var status: String?
+  /// Example: `null`
+  public var ownerName: String
+  /// Example: `null`
+  public var ownerEmail: String?
 
-    enum CodingKeys: String, CodingKey {
-        case id = "id"
-        case name = "name"
-        case category = "category"
-        case photoUrls = "photoUrls"
-        case tags = "tags"
-        case status = "status"
-        case ownerName = "ownerName"
-        case ownerEmail = "ownerEmail"
-    }
+  enum CodingKeys: String, CodingKey {
+    case id = "id"
+    case name = "name"
+    case category = "category"
+    case photoUrls = "photoUrls"
+    case tags = "tags"
+    case status = "status"
+    case ownerName = "ownerName"
+    case ownerEmail = "ownerEmail"
+  }
 
-    /// Creates a new PetWithOwner instance.
-    public init(name: String, photoUrls: Set<String>, ownerName: String, id: Int64? = nil, category: Category? = nil, tags: [Tag]? = nil, status: String? = nil, ownerEmail: String? = nil) {
-        self.name = name
-        self.photoUrls = photoUrls
-        self.ownerName = ownerName
-        self.id = id
-        self.category = category
-        self.tags = tags
-        self.status = status
-        self.ownerEmail = ownerEmail
-    }
+  /// Creates a new PetWithOwner instance.
+  public init(
+    name: String, photoUrls: Set<String>, ownerName: String, id: Int64? = nil,
+    category: Category? = nil, tags: [Tag]? = nil, status: String? = nil, ownerEmail: String? = nil
+  ) {
+    self.name = name
+    self.photoUrls = photoUrls
+    self.ownerName = ownerName
+    self.id = id
+    self.category = category
+    self.tags = tags
+    self.status = status
+    self.ownerEmail = ownerEmail
+  }
 
-    /// Decodes this instance from the given decoder.
-    ///
-    /// Required fields use `decode(_:forKey:)`; optional fields use
-    /// `decodeIfPresent(_:forKey:)`. Unknown JSON keys are silently ignored
-    /// — matching the cross-language "discard extras on deserialise" expectation.
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.id = try container.decodeIfPresent(Int64.self, forKey: .id)
-        self.name = try container.decode(String.self, forKey: .name)
-        self.category = try container.decodeIfPresent(Category.self, forKey: .category)
-        self.photoUrls = try container.decode(Set<String>.self, forKey: .photoUrls)
-        self.tags = try container.decodeIfPresent([Tag].self, forKey: .tags)
-        self.status = try container.decodeIfPresent(String.self, forKey: .status)
-        self.ownerName = try container.decode(String.self, forKey: .ownerName)
-        self.ownerEmail = try container.decodeIfPresent(String.self, forKey: .ownerEmail)
-    }
+  /// Decodes this instance from the given decoder.
+  ///
+  /// Required fields use `decode(_:forKey:)`; optional fields use
+  /// `decodeIfPresent(_:forKey:)`. Unknown JSON keys are silently ignored
+  /// — matching the cross-language "discard extras on deserialise" expectation.
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.id = try container.decodeIfPresent(Int64.self, forKey: .id)
+    self.name = try container.decode(String.self, forKey: .name)
+    self.category = try container.decodeIfPresent(Category.self, forKey: .category)
+    self.photoUrls = try container.decode(Set<String>.self, forKey: .photoUrls)
+    self.tags = try container.decodeIfPresent([Tag].self, forKey: .tags)
+    self.status = try container.decodeIfPresent(String.self, forKey: .status)
+    self.ownerName = try container.decode(String.self, forKey: .ownerName)
+    self.ownerEmail = try container.decodeIfPresent(String.self, forKey: .ownerEmail)
+  }
 
-    /// Encodes this instance, omitting nil optional fields from the JSON output.
-    ///
-    /// Uses `encodeIfPresent` for every optional property so that unset values
-    /// are dropped from the wire payload rather than emitted as `null` — matching
-    /// the cross-language "discard nulls on serialise" expectation.
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(id, forKey: .id)
-        try container.encode(name, forKey: .name)
-        try container.encodeIfPresent(category, forKey: .category)
-        try container.encode(photoUrls, forKey: .photoUrls)
-        try container.encodeIfPresent(tags, forKey: .tags)
-        try container.encodeIfPresent(status, forKey: .status)
-        try container.encode(ownerName, forKey: .ownerName)
-        try container.encodeIfPresent(ownerEmail, forKey: .ownerEmail)
-    }
+  /// Encodes this instance, omitting nil optional fields from the JSON output.
+  ///
+  /// Uses `encodeIfPresent` for every optional property so that unset values
+  /// are dropped from the wire payload rather than emitted as `null` — matching
+  /// the cross-language "discard nulls on serialise" expectation.
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encodeIfPresent(id, forKey: .id)
+    try container.encode(name, forKey: .name)
+    try container.encodeIfPresent(category, forKey: .category)
+    try container.encode(photoUrls, forKey: .photoUrls)
+    try container.encodeIfPresent(tags, forKey: .tags)
+    try container.encodeIfPresent(status, forKey: .status)
+    try container.encode(ownerName, forKey: .ownerName)
+    try container.encodeIfPresent(ownerEmail, forKey: .ownerEmail)
+  }
 }

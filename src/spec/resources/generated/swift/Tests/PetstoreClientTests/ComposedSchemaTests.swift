@@ -7,115 +7,119 @@
 
 import Foundation
 import Testing
+
 @testable import PetstoreClient
 
 @Suite final class ComposedSchemaTests {
 
-    // MARK: - oneOf with discriminator: PetFood
+  // MARK: - oneOf with discriminator: PetFood
 
-    @Test func testPetFoodDeserializeDryFood() throws {
-        let jsonData = Data("{\"foodType\":\"dry\",\"weightKg\":2.5}".utf8)
+  @Test func testPetFoodDeserializeDryFood() throws {
+    let jsonData = Data("{\"foodType\":\"dry\",\"weightKg\":2.5}".utf8)
 
-        let food = try JSONDecoder().decode(PetFood.self, from: jsonData)
-        let val = food.value()
-        #expect(val != nil)
-        #expect(val is DryFood)
-    }
+    let food = try JSONDecoder().decode(PetFood.self, from: jsonData)
+    let val = food.value()
+    #expect(val != nil)
+    #expect(val is DryFood)
+  }
 
-    @Test func testPetFoodDeserializeWetFood() throws {
-        let jsonData = Data("{\"foodType\":\"wet\",\"volumeMl\":400}".utf8)
+  @Test func testPetFoodDeserializeWetFood() throws {
+    let jsonData = Data("{\"foodType\":\"wet\",\"volumeMl\":400}".utf8)
 
-        let food = try JSONDecoder().decode(PetFood.self, from: jsonData)
-        let val = food.value()
-        #expect(val != nil)
-        #expect(val is WetFood)
-    }
+    let food = try JSONDecoder().decode(PetFood.self, from: jsonData)
+    let val = food.value()
+    #expect(val != nil)
+    #expect(val is WetFood)
+  }
 
-    @Test func testPetFoodDeserializeUnknownDiscriminator() throws {
-        let jsonData = Data("{\"foodType\":\"raw\",\"calories\":300}".utf8)
+  @Test func testPetFoodDeserializeUnknownDiscriminator() throws {
+    let jsonData = Data("{\"foodType\":\"raw\",\"calories\":300}".utf8)
 
-        #expect(throws: (any Error).self) { try JSONDecoder().decode(PetFood.self, from: jsonData) }
-    }
+    #expect(throws: (any Error).self) { try JSONDecoder().decode(PetFood.self, from: jsonData) }
+  }
 
-    @Test func testPetFoodSerializeDryFood() throws {
-        let jsonData = Data("{\"foodType\":\"dry\",\"weightKg\":2.5}".utf8)
-        let food = try JSONDecoder().decode(PetFood.self, from: jsonData)
+  @Test func testPetFoodSerializeDryFood() throws {
+    let jsonData = Data("{\"foodType\":\"dry\",\"weightKg\":2.5}".utf8)
+    let food = try JSONDecoder().decode(PetFood.self, from: jsonData)
 
-        let data = try JSONEncoder().encode(food)
-        let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-        #expect(parsed?["foodType"] as? String == "dry")
-    }
+    let data = try JSONEncoder().encode(food)
+    let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+    #expect(parsed?["foodType"] as? String == "dry")
+  }
 
-    // MARK: - anyOf without discriminator: PetTreatment
+  // MARK: - anyOf without discriminator: PetTreatment
 
-    @Test func testPetTreatmentDeserializeMedication() throws {
-        // Medication schema has fields: drugName (required), dosage (optional)
-        let jsonData = Data("{\"drugName\":\"Amoxicillin\",\"dosage\":\"250mg\"}".utf8)
+  @Test func testPetTreatmentDeserializeMedication() throws {
+    // Medication schema has fields: drugName (required), dosage (optional)
+    let jsonData = Data("{\"drugName\":\"Amoxicillin\",\"dosage\":\"250mg\"}".utf8)
 
-        let treatment = try JSONDecoder().decode(PetTreatment.self, from: jsonData)
-        let val = treatment.value()
-        #expect(val != nil)
-    }
+    let treatment = try JSONDecoder().decode(PetTreatment.self, from: jsonData)
+    let val = treatment.value()
+    #expect(val != nil)
+  }
 
-    @Test func testPetTreatmentDeserializeSurgery() throws {
-        let jsonData = Data("{\"procedureName\":\"Spay\",\"durationMinutes\":45}".utf8)
+  @Test func testPetTreatmentDeserializeSurgery() throws {
+    let jsonData = Data("{\"procedureName\":\"Spay\",\"durationMinutes\":45}".utf8)
 
-        let treatment = try JSONDecoder().decode(PetTreatment.self, from: jsonData)
-        let val = treatment.value()
-        #expect(val != nil)
-    }
+    let treatment = try JSONDecoder().decode(PetTreatment.self, from: jsonData)
+    let val = treatment.value()
+    #expect(val != nil)
+  }
 
-    @Test func testPetTreatmentSerializeRoundTrip() throws {
-        // Medication schema has fields: drugName (required), dosage (optional)
-        let jsonData = Data("{\"drugName\":\"Amoxicillin\",\"dosage\":\"250mg\"}".utf8)
+  @Test func testPetTreatmentSerializeRoundTrip() throws {
+    // Medication schema has fields: drugName (required), dosage (optional)
+    let jsonData = Data("{\"drugName\":\"Amoxicillin\",\"dosage\":\"250mg\"}".utf8)
 
-        let treatment = try JSONDecoder().decode(PetTreatment.self, from: jsonData)
+    let treatment = try JSONDecoder().decode(PetTreatment.self, from: jsonData)
 
-        let data = try JSONEncoder().encode(treatment)
-        #expect(!(data.isEmpty))
-    }
+    let data = try JSONEncoder().encode(treatment)
+    #expect(!(data.isEmpty))
+  }
 
-    // MARK: - allOf: PetWithOwner extends Pet fields
+  // MARK: - allOf: PetWithOwner extends Pet fields
 
-    @Test func testPetWithOwnerDeserialize() throws {
-        let jsonData = Data("""
-        {
-            "name": "Fido",
-            "photoUrls": ["http://example.com/fido.jpg"],
-            "ownerName": "John Doe",
-            "ownerEmail": "john@example.com"
-        }
-        """.utf8)
+  @Test func testPetWithOwnerDeserialize() throws {
+    let jsonData = Data(
+      """
+      {
+          "name": "Fido",
+          "photoUrls": ["http://example.com/fido.jpg"],
+          "ownerName": "John Doe",
+          "ownerEmail": "john@example.com"
+      }
+      """.utf8)
 
-        let petWithOwner = try JSONDecoder().decode(PetWithOwner.self, from: jsonData)
-        #expect(petWithOwner != nil)
-    }
+    let petWithOwner = try JSONDecoder().decode(PetWithOwner.self, from: jsonData)
+    #expect(petWithOwner != nil)
+  }
 
-    @Test func testPetWithOwnerSerialize() throws {
-        let pet = PetWithOwner(name: "Fido", photoUrls: ["http://example.com/fido.jpg"], ownerName: "John Doe")
+  @Test func testPetWithOwnerSerialize() throws {
+    let pet = PetWithOwner(
+      name: "Fido", photoUrls: ["http://example.com/fido.jpg"], ownerName: "John Doe")
 
-        let data = try JSONEncoder().encode(pet)
-        #expect(!(data.isEmpty))
+    let data = try JSONEncoder().encode(pet)
+    #expect(!(data.isEmpty))
 
-        let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-        #expect(parsed?["name"] as? String == "Fido")
-        #expect(parsed?["ownerName"] as? String == "John Doe")
-    }
+    let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+    #expect(parsed?["name"] as? String == "Fido")
+    #expect(parsed?["ownerName"] as? String == "John Doe")
+  }
 
-    @Test func testPetWithOwnerRoundTrip() throws {
-        let jsonData = Data("""
-        {
-            "name": "Buddy",
-            "photoUrls": ["http://example.com/buddy.jpg"],
-            "ownerName": "Jane Smith"
-        }
-        """.utf8)
+  @Test func testPetWithOwnerRoundTrip() throws {
+    let jsonData = Data(
+      """
+      {
+          "name": "Buddy",
+          "photoUrls": ["http://example.com/buddy.jpg"],
+          "ownerName": "Jane Smith"
+      }
+      """.utf8)
 
-        let pet = try JSONDecoder().decode(PetWithOwner.self, from: jsonData)
+    let pet = try JSONDecoder().decode(PetWithOwner.self, from: jsonData)
 
-        let data = try JSONEncoder().encode(pet)
+    let data = try JSONEncoder().encode(pet)
 
-        let restored = try JSONDecoder().decode(PetWithOwner.self, from: data)
-        #expect(restored != nil)
-    }
+    let restored = try JSONDecoder().decode(PetWithOwner.self, from: data)
+    #expect(restored != nil)
+  }
 }

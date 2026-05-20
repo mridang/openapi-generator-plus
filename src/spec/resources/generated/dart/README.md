@@ -1,0 +1,41 @@
+# petstore_client SDK
+
+Auto-generated Dart SDK client for the Swagger Petstore - OpenAPI 3.0 API.
+
+## Build
+
+```bash
+dart pub get
+```
+
+## Test
+
+```bash
+dart test
+```
+
+## Package
+
+- Name: `petstore_client`
+- Version: `1.0.0`
+
+## Caveats
+
+### Integer and decimal precision
+
+Dart's `jsonDecode` returns a `num` (the union of `int` and `double`).
+For JSON numbers above 2^53 the parser silently picks `double`, so
+`format: int64` values larger than 9 007 199 254 740 991 — Twitter
+/ X IDs, Snowflake IDs, Discord IDs, and similar 64-bit auto-
+increment IDs — lose precision.
+
+`format: decimal` / `format: number` values are likewise stored as
+`double`, so monetary values lose exact decimal representation.
+`0.1 + 0.2` is `0.30000000000000004`. Do not do arithmetic on
+prices, balances, or other money-typed fields; use the `decimal`
+package or pass values as strings.
+
+Fixing this end-to-end would require switching generated model
+fields to `BigInt` and a custom JSON parser, which breaks the
+arithmetic operators on every existing consumer. Documented as a
+known limitation.

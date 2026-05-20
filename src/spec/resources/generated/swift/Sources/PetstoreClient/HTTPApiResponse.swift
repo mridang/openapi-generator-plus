@@ -9,18 +9,18 @@ import Foundation
 
 /// HttpResponse wraps an HTTP response with status code, body, and headers.
 public struct HttpResponse: Sendable {
-    /// The HTTP status code of the response.
-    public let statusCode: Int
+  /// The HTTP status code of the response.
+  public let statusCode: Int
 
-    /// The raw response body as a string.
-    public let body: String
+  /// The raw response body as a string.
+  public let body: String
 
-    /// The response headers.
-    public let headers: [String: String]
+  /// The response headers.
+  public let headers: [String: String]
 
-    public init(statusCode: Int, body: String, headers: [String: String]) {
-        self.statusCode = statusCode
-        self.body = body
-        self.headers = headers
-    }
+  public init(statusCode: Int, body: String, headers: [String: String]) {
+    self.statusCode = statusCode
+    self.body = body
+    self.headers = headers
+  }
 }

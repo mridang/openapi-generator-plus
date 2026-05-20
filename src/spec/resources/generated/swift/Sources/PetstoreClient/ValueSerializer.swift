@@ -11,64 +11,68 @@ import Foundation
 /// their location and style.
 public enum ValueSerializer {
 
-    /// Serializes a parameter value for HTTP requests based on its location.
-    ///
-    /// - Parameters:
-    ///   - value: The value to serialize.
-    ///   - location: "path", "query", "header", or "cookie".
-    ///   - schemaType: The schema type (e.g. "string", "array").
-    ///   - collectionFormat: Legacy collection format (e.g. "csv", "ssv", "tsv", "pipes", "multi").
-    /// - Returns: The serialized value.
-    public static func serializeValue(_ value: Any?, location: String, schemaType: String, collectionFormat: String) -> Any? {
-        guard let value = value else {
-            return serializeNil(location: location)
-        }
-
-        if let items = toStringArray(value) {
-            return serializeArray(items, location: location, collectionFormat: collectionFormat)
-        }
-
-        let strVal = ObjectSerializer.stringify(value)
-        if location == "path" {
-            return ValueSerializer.encodePathSegment(strVal)
-        }
-        return strVal
+  /// Serializes a parameter value for HTTP requests based on its location.
+  ///
+  /// - Parameters:
+  ///   - value: The value to serialize.
+  ///   - location: "path", "query", "header", or "cookie".
+  ///   - schemaType: The schema type (e.g. "string", "array").
+  ///   - collectionFormat: Legacy collection format (e.g. "csv", "ssv", "tsv", "pipes", "multi").
+  /// - Returns: The serialized value.
+  public static func serializeValue(
+    _ value: Any?, location: String, schemaType: String, collectionFormat: String
+  ) -> Any? {
+    guard let value = value else {
+      return serializeNil(location: location)
     }
 
-    /// Serializes a deepObject-style query parameter.
-    ///
-    /// Produces a dictionary of flattened keys in the form paramName[key] to stringified values.
-    public static func serializeDeepObject(_ paramName: String, value: [String: Any]?) -> [String: String] {
-        guard let value = value else { return [:] }
-
-        var result: [String: String] = [:]
-        for (key, val) in value {
-            result["\(paramName)[\(key)]"] = ObjectSerializer.stringify(val)
-        }
-        return result
+    if let items = toStringArray(value) {
+      return serializeArray(items, location: location, collectionFormat: collectionFormat)
     }
 
-    /// Serializes a parameter value according to OAS 3.0 style and explode rules.
-    ///
-    /// - Parameters:
-    ///   - paramName: The parameter name.
-    ///   - value: The value to serialize.
-    ///   - location: "path", "query", "header", "cookie".
-    ///   - schemaType: The schema type.
-    ///   - collectionFormat: Legacy collection format.
-    ///   - style: OAS 3.0 style (e.g. "matrix", "label", "form", "simple", "spaceDelimited", "pipeDelimited").
-    ///   - explode: Whether to explode array values.
-    /// - Returns: The serialized value.
-    public static func serializeStyled(
-        _ paramName: String,
-        value: Any?,
-        location: String,
-        schemaType: String,
-        collectionFormat: String,
-        style: String,
-        explode: Bool
-    ) -> Any? {
-        /* Path parameters are required components of the URL — accepting an
+    let strVal = ObjectSerializer.stringify(value)
+    if location == "path" {
+      return ValueSerializer.encodePathSegment(strVal)
+    }
+    return strVal
+  }
+
+  /// Serializes a deepObject-style query parameter.
+  ///
+  /// Produces a dictionary of flattened keys in the form paramName[key] to stringified values.
+  public static func serializeDeepObject(_ paramName: String, value: [String: Any]?) -> [String:
+    String]
+  {
+    guard let value = value else { return [:] }
+
+    var result: [String: String] = [:]
+    for (key, val) in value {
+      result["\(paramName)[\(key)]"] = ObjectSerializer.stringify(val)
+    }
+    return result
+  }
+
+  /// Serializes a parameter value according to OAS 3.0 style and explode rules.
+  ///
+  /// - Parameters:
+  ///   - paramName: The parameter name.
+  ///   - value: The value to serialize.
+  ///   - location: "path", "query", "header", "cookie".
+  ///   - schemaType: The schema type.
+  ///   - collectionFormat: Legacy collection format.
+  ///   - style: OAS 3.0 style (e.g. "matrix", "label", "form", "simple", "spaceDelimited", "pipeDelimited").
+  ///   - explode: Whether to explode array values.
+  /// - Returns: The serialized value.
+  public static func serializeStyled(
+    _ paramName: String,
+    value: Any?,
+    location: String,
+    schemaType: String,
+    collectionFormat: String,
+    style: String,
+    explode: Bool
+  ) -> Any? {
+    /* Path parameters are required components of the URL — accepting an
          * empty string would silently produce a malformed URL like
          * `/pet//details`, which most servers route to 404 instead of
          * surfacing the bug at the call site. The required-non-null check
@@ -76,141 +80,147 @@ public enum ValueSerializer {
          * case that slips through it. preconditionFailure is appropriate
          * because passing "" for a required path param is a programmer
          * error, not a recoverable runtime condition. */
-        if location == "path", let str = value as? String, str.isEmpty {
-            preconditionFailure("Path parameter '\(paramName)' must not be empty")
-        }
-
-        if style.isEmpty {
-            return serializeValue(value, location: location, schemaType: schemaType, collectionFormat: collectionFormat)
-        }
-
-        let items = toStringArray(value)
-        let isArray = items != nil
-
-        let encodeIfPath: (String) -> String = { location == "path" ? ValueSerializer.encodePathSegment($0) : $0 }
-
-        switch style {
-        case "matrix":
-            guard let value = value else {
-                return location == "query" ? nil : "" as Any
-            }
-            if let items = items {
-                if explode {
-                    return items.map { ";\(paramName)=\(encodeIfPath($0))" }.joined()
-                }
-                return ";\(paramName)=\(items.map(encodeIfPath).joined(separator: ","))"
-            }
-            return ";\(paramName)=\(encodeIfPath(ObjectSerializer.stringify(value)))"
-
-        case "label":
-            guard let value = value else {
-                return location == "query" ? nil : "" as Any
-            }
-            if let items = items {
-                if explode {
-                    return "." + items.map(encodeIfPath).joined(separator: ".")
-                }
-                return "." + items.map(encodeIfPath).joined(separator: ",")
-            }
-            return "." + encodeIfPath(ObjectSerializer.stringify(value))
-
-        case "spaceDelimited":
-            guard let value = value else {
-                return location == "query" ? nil : "" as Any
-            }
-            if let items = items {
-                return items.map(encodeIfPath).joined(separator: " ")
-            }
-            return encodeIfPath(ObjectSerializer.stringify(value))
-
-        case "pipeDelimited":
-            guard let value = value else {
-                return location == "query" ? nil : "" as Any
-            }
-            if let items = items {
-                return items.map(encodeIfPath).joined(separator: "|")
-            }
-            return encodeIfPath(ObjectSerializer.stringify(value))
-
-        case "form":
-            guard let value = value else {
-                return location == "query" ? nil : "" as Any
-            }
-            if let items = items {
-                if explode {
-                    return items
-                }
-                return items.joined(separator: ",")
-            }
-            return ObjectSerializer.stringify(value)
-
-        case "simple":
-            guard let value = value else {
-                return location == "query" ? nil : "" as Any
-            }
-            if let items = items {
-                return items.map(encodeIfPath).joined(separator: ",")
-            }
-            return encodeIfPath(ObjectSerializer.stringify(value))
-
-        default:
-            return serializeValue(value, location: location, schemaType: schemaType, collectionFormat: collectionFormat)
-        }
+    if location == "path", let str = value as? String, str.isEmpty {
+      preconditionFailure("Path parameter '\(paramName)' must not be empty")
     }
 
-    /// Percent-encodes a string for use as a path segment, preserving
-    /// sub-delimiters that OAS 3.0 path styles use as structural separators.
-    static func encodePathSegment(_ value: String) -> String {
-        guard !value.isEmpty else { return value }
-        var allowed = CharacterSet.alphanumerics
-        allowed.insert(charactersIn: "-._~;=,:@!$&'()*+")
-        return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
+    if style.isEmpty {
+      return serializeValue(
+        value, location: location, schemaType: schemaType, collectionFormat: collectionFormat)
     }
 
-    private static func serializeNil(location: String) -> Any? {
-        if location == "query" { return nil }
-        return "" as Any
+    let items = toStringArray(value)
+    let isArray = items != nil
+
+    let encodeIfPath: (String) -> String = {
+      location == "path" ? ValueSerializer.encodePathSegment($0) : $0
     }
 
-    private static func serializeArray(_ items: [String], location: String, collectionFormat: String) -> Any? {
-        if location == "query" {
-            return serializeQueryArray(items, collectionFormat: collectionFormat)
+    switch style {
+    case "matrix":
+      guard let value = value else {
+        return location == "query" ? nil : "" as Any
+      }
+      if let items = items {
+        if explode {
+          return items.map { ";\(paramName)=\(encodeIfPath($0))" }.joined()
+        }
+        return ";\(paramName)=\(items.map(encodeIfPath).joined(separator: ","))"
+      }
+      return ";\(paramName)=\(encodeIfPath(ObjectSerializer.stringify(value)))"
+
+    case "label":
+      guard let value = value else {
+        return location == "query" ? nil : "" as Any
+      }
+      if let items = items {
+        if explode {
+          return "." + items.map(encodeIfPath).joined(separator: ".")
+        }
+        return "." + items.map(encodeIfPath).joined(separator: ",")
+      }
+      return "." + encodeIfPath(ObjectSerializer.stringify(value))
+
+    case "spaceDelimited":
+      guard let value = value else {
+        return location == "query" ? nil : "" as Any
+      }
+      if let items = items {
+        return items.map(encodeIfPath).joined(separator: " ")
+      }
+      return encodeIfPath(ObjectSerializer.stringify(value))
+
+    case "pipeDelimited":
+      guard let value = value else {
+        return location == "query" ? nil : "" as Any
+      }
+      if let items = items {
+        return items.map(encodeIfPath).joined(separator: "|")
+      }
+      return encodeIfPath(ObjectSerializer.stringify(value))
+
+    case "form":
+      guard let value = value else {
+        return location == "query" ? nil : "" as Any
+      }
+      if let items = items {
+        if explode {
+          return items
         }
         return items.joined(separator: ",")
-    }
+      }
+      return ObjectSerializer.stringify(value)
 
-    private static func serializeQueryArray(_ items: [String], collectionFormat: String) -> Any {
-        switch collectionFormat {
-        case "multi":
-            return items
-        case "ssv":
-            return items.joined(separator: " ")
-        case "tsv":
-            return items.joined(separator: "\t")
-        case "pipes":
-            return items.joined(separator: "|")
-        default:
-            return items.joined(separator: ",")
-        }
-    }
+    case "simple":
+      guard let value = value else {
+        return location == "query" ? nil : "" as Any
+      }
+      if let items = items {
+        return items.map(encodeIfPath).joined(separator: ",")
+      }
+      return encodeIfPath(ObjectSerializer.stringify(value))
 
-    /// Attempts to convert a value to a [String] array.
-    ///
-    /// Preserves nil slots in styled csv/ssv/tsv/pipes arrays by emitting an
-    /// empty string for each nil element (OAS csv semantics for `1,,3`).
-    private static func toStringArray(_ value: Any?) -> [String]? {
-        if let items = value as? [String] {
-            return items
-        }
-        if let items = value as? [String?] {
-            return items.map { $0 ?? "" }
-        }
-        if let items = value as? [Any?] {
-            return items.map { $0.map { ObjectSerializer.stringify($0) } ?? "" }
-        }
-        if let items = value as? [Any] {
-            return items.map { ObjectSerializer.stringify($0) }
-        }
-        return nil
+    default:
+      return serializeValue(
+        value, location: location, schemaType: schemaType, collectionFormat: collectionFormat)
     }
+  }
+
+  /// Percent-encodes a string for use as a path segment, preserving
+  /// sub-delimiters that OAS 3.0 path styles use as structural separators.
+  static func encodePathSegment(_ value: String) -> String {
+    guard !value.isEmpty else { return value }
+    var allowed = CharacterSet.alphanumerics
+    allowed.insert(charactersIn: "-._~;=,:@!$&'()*+")
+    return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
+  }
+
+  private static func serializeNil(location: String) -> Any? {
+    if location == "query" { return nil }
+    return "" as Any
+  }
+
+  private static func serializeArray(_ items: [String], location: String, collectionFormat: String)
+    -> Any?
+  {
+    if location == "query" {
+      return serializeQueryArray(items, collectionFormat: collectionFormat)
+    }
+    return items.joined(separator: ",")
+  }
+
+  private static func serializeQueryArray(_ items: [String], collectionFormat: String) -> Any {
+    switch collectionFormat {
+    case "multi":
+      return items
+    case "ssv":
+      return items.joined(separator: " ")
+    case "tsv":
+      return items.joined(separator: "\t")
+    case "pipes":
+      return items.joined(separator: "|")
+    default:
+      return items.joined(separator: ",")
+    }
+  }
+
+  /// Attempts to convert a value to a [String] array.
+  ///
+  /// Preserves nil slots in styled csv/ssv/tsv/pipes arrays by emitting an
+  /// empty string for each nil element (OAS csv semantics for `1,,3`).
+  private static func toStringArray(_ value: Any?) -> [String]? {
+    if let items = value as? [String] {
+      return items
+    }
+    if let items = value as? [String?] {
+      return items.map { $0 ?? "" }
+    }
+    if let items = value as? [Any?] {
+      return items.map { $0.map { ObjectSerializer.stringify($0) } ?? "" }
+    }
+    if let items = value as? [Any] {
+      return items.map { ObjectSerializer.stringify($0) }
+    }
+    return nil
+  }
 }

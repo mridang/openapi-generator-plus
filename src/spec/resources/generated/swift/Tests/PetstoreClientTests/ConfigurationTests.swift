@@ -7,171 +7,174 @@
 
 import Foundation
 import Testing
+
 @testable import PetstoreClient
 
 @Suite final class ConfigurationTests {
 
-    @Test func testDefaultValues() {
-        let config = Configuration.default()
+  @Test func testDefaultValues() {
+    let config = Configuration.default()
 
-        #expect(config.baseURL == "/api/v3")
-        #expect(config.defaultHeaders.isEmpty)
+    #expect(config.baseURL == "/api/v3")
+    #expect(config.defaultHeaders.isEmpty)
+  }
+
+  @Test func testBuilderReturnsInstance() {
+    let builder = ConfigurationBuilder()
+    #expect(builder != nil)
+  }
+
+  @Test func testBuilderSetsBaseURL() {
+    let config = ConfigurationBuilder()
+      .baseURL("https://custom.example.com")
+      .build()
+
+    #expect(config.baseURL == "https://custom.example.com")
+  }
+
+  @Test func testBuilderSetsDefaultHeader() {
+    let config = ConfigurationBuilder()
+      .defaultHeader(name: "X-Custom", value: "value")
+      .build()
+
+    #expect(config.defaultHeaders["X-Custom"] == "value")
+  }
+
+  @Test func testBuilderSetsMultipleDefaultHeaders() {
+    let config = ConfigurationBuilder()
+      .defaultHeaders([
+        "X-First": "one",
+        "X-Second": "two",
+      ])
+      .build()
+
+    #expect(config.defaultHeaders["X-First"] == "one")
+    #expect(config.defaultHeaders["X-Second"] == "two")
+  }
+
+  @Test func testBuilderChaining() {
+    let config = ConfigurationBuilder()
+      .baseURL("https://api.example.com")
+      .defaultHeader(name: "Authorization", value: "Bearer token")
+      .build()
+
+    #expect(config.baseURL == "https://api.example.com")
+    #expect(config.defaultHeaders["Authorization"] == "Bearer token")
+  }
+
+  @Test func testServerURLResolution() throws {
+    let server = ServerConfiguration(
+      urlTemplate: "https://{env}.example.com/api/{version}",
+      description: "Test server",
+      variables: [
+        "env": ServerVariable(
+          defaultValue: "api",
+          enumValues: ["api", "staging"]
+        ),
+        "version": ServerVariable(
+          defaultValue: "v3",
+          enumValues: ["v2", "v3"]
+        ),
+      ]
+    )
+
+    let config = try ConfigurationBuilder()
+      .server(server, variables: ["env": "staging"])
+      .build()
+
+    #expect(config.baseURL == "https://staging.example.com/api/v3")
+  }
+
+  @Test func testServerURLResolutionWithDefaults() throws {
+    let server = ServerConfiguration(
+      urlTemplate: "https://{env}.example.com/api/{version}",
+      description: "Test server",
+      variables: [
+        "env": ServerVariable(
+          defaultValue: "api",
+          enumValues: ["api", "staging"]
+        ),
+        "version": ServerVariable(
+          defaultValue: "v3",
+          enumValues: ["v2", "v3"]
+        ),
+      ]
+    )
+
+    let config = try ConfigurationBuilder()
+      .server(server)
+      .build()
+
+    #expect(config.baseURL == "https://api.example.com/api/v3")
+  }
+
+  @Test func testBaseURLOverride() {
+    let config = ConfigurationBuilder()
+      .baseURL("https://original.example.com")
+      .baseURL("https://override.example.com")
+      .build()
+
+    #expect(config.baseURL == "https://override.example.com")
+  }
+
+  @Test func testDefaultHeadersCopyIsolation() {
+    let config = ConfigurationBuilder()
+      .defaultHeader(name: "X-Test", value: "value")
+      .build()
+
+    var headers = config.defaultHeaders
+    headers["X-Mutated"] = "should-not-affect-config"
+
+    #expect(
+      config.defaultHeaders["X-Mutated"] == nil,
+      "Modifying returned headers should not affect the configuration")
+  }
+
+  @Test func testBuilderAccumulatesMultipleHeaders() {
+    let config = ConfigurationBuilder()
+      .defaultHeader(name: "X-First", value: "one")
+      .defaultHeader(name: "X-Second", value: "two")
+      .build()
+
+    #expect(config.defaultHeaders.count == 2)
+    #expect(config.defaultHeaders["X-First"] == "one")
+    #expect(config.defaultHeaders["X-Second"] == "two")
+  }
+
+  @Test func testBuilderMergesSingleAndBulkHeaders() {
+    let config = ConfigurationBuilder()
+      .defaultHeader(name: "X-First", value: "one")
+      .defaultHeaders(["X-Second": "two"])
+      .defaultHeader(name: "X-Third", value: "three")
+      .build()
+
+    #expect(config.defaultHeaders.count == 3)
+    #expect(config.defaultHeaders["X-First"] == "one")
+    #expect(config.defaultHeaders["X-Second"] == "two")
+    #expect(config.defaultHeaders["X-Third"] == "three")
+  }
+
+  @Test func testInvalidServerVariableEnumValueThrows() {
+    let server = ServerConfiguration(
+      urlTemplate: "https://{env}.example.com",
+      variables: [
+        "env": ServerVariable(defaultValue: "api", enumValues: ["api", "staging"])
+      ]
+    )
+
+    #expect(throws: (any Error).self) {
+      try ConfigurationBuilder().server(server, variables: ["env": "invalid"]).build()
     }
+  }
 
-    @Test func testBuilderReturnsInstance() {
-        let builder = ConfigurationBuilder()
-        #expect(builder != nil)
-    }
+  @Test func testBuilderProducesIndependentInstances() {
+    let builder = ConfigurationBuilder().baseURL("https://example.com")
+    let first = builder.build()
+    let second = builder.build()
 
-    @Test func testBuilderSetsBaseURL() {
-        let config = ConfigurationBuilder()
-            .baseURL("https://custom.example.com")
-            .build()
-
-        #expect(config.baseURL == "https://custom.example.com")
-    }
-
-    @Test func testBuilderSetsDefaultHeader() {
-        let config = ConfigurationBuilder()
-            .defaultHeader(name: "X-Custom", value: "value")
-            .build()
-
-        #expect(config.defaultHeaders["X-Custom"] == "value")
-    }
-
-    @Test func testBuilderSetsMultipleDefaultHeaders() {
-        let config = ConfigurationBuilder()
-            .defaultHeaders([
-                "X-First": "one",
-                "X-Second": "two"
-            ])
-            .build()
-
-        #expect(config.defaultHeaders["X-First"] == "one")
-        #expect(config.defaultHeaders["X-Second"] == "two")
-    }
-
-    @Test func testBuilderChaining() {
-        let config = ConfigurationBuilder()
-            .baseURL("https://api.example.com")
-            .defaultHeader(name: "Authorization", value: "Bearer token")
-            .build()
-
-        #expect(config.baseURL == "https://api.example.com")
-        #expect(config.defaultHeaders["Authorization"] == "Bearer token")
-    }
-
-    @Test func testServerURLResolution() throws {
-        let server = ServerConfiguration(
-            urlTemplate: "https://{env}.example.com/api/{version}",
-            description: "Test server",
-            variables: [
-                "env": ServerVariable(
-                    defaultValue: "api",
-                    enumValues: ["api", "staging"]
-                ),
-                "version": ServerVariable(
-                    defaultValue: "v3",
-                    enumValues: ["v2", "v3"]
-                )
-            ]
-        )
-
-        let config = try ConfigurationBuilder()
-            .server(server, variables: ["env": "staging"])
-            .build()
-
-        #expect(config.baseURL == "https://staging.example.com/api/v3")
-    }
-
-    @Test func testServerURLResolutionWithDefaults() throws {
-        let server = ServerConfiguration(
-            urlTemplate: "https://{env}.example.com/api/{version}",
-            description: "Test server",
-            variables: [
-                "env": ServerVariable(
-                    defaultValue: "api",
-                    enumValues: ["api", "staging"]
-                ),
-                "version": ServerVariable(
-                    defaultValue: "v3",
-                    enumValues: ["v2", "v3"]
-                )
-            ]
-        )
-
-        let config = try ConfigurationBuilder()
-            .server(server)
-            .build()
-
-        #expect(config.baseURL == "https://api.example.com/api/v3")
-    }
-
-    @Test func testBaseURLOverride() {
-        let config = ConfigurationBuilder()
-            .baseURL("https://original.example.com")
-            .baseURL("https://override.example.com")
-            .build()
-
-        #expect(config.baseURL == "https://override.example.com")
-    }
-
-    @Test func testDefaultHeadersCopyIsolation() {
-        let config = ConfigurationBuilder()
-            .defaultHeader(name: "X-Test", value: "value")
-            .build()
-
-        var headers = config.defaultHeaders
-        headers["X-Mutated"] = "should-not-affect-config"
-
-        #expect(config.defaultHeaders["X-Mutated"] == nil,
-            "Modifying returned headers should not affect the configuration")
-    }
-
-    @Test func testBuilderAccumulatesMultipleHeaders() {
-        let config = ConfigurationBuilder()
-            .defaultHeader(name: "X-First", value: "one")
-            .defaultHeader(name: "X-Second", value: "two")
-            .build()
-
-        #expect(config.defaultHeaders.count == 2)
-        #expect(config.defaultHeaders["X-First"] == "one")
-        #expect(config.defaultHeaders["X-Second"] == "two")
-    }
-
-    @Test func testBuilderMergesSingleAndBulkHeaders() {
-        let config = ConfigurationBuilder()
-            .defaultHeader(name: "X-First", value: "one")
-            .defaultHeaders(["X-Second": "two"])
-            .defaultHeader(name: "X-Third", value: "three")
-            .build()
-
-        #expect(config.defaultHeaders.count == 3)
-        #expect(config.defaultHeaders["X-First"] == "one")
-        #expect(config.defaultHeaders["X-Second"] == "two")
-        #expect(config.defaultHeaders["X-Third"] == "three")
-    }
-
-    @Test func testInvalidServerVariableEnumValueThrows() {
-        let server = ServerConfiguration(
-            urlTemplate: "https://{env}.example.com",
-            variables: [
-                "env": ServerVariable(defaultValue: "api", enumValues: ["api", "staging"])
-            ]
-        )
-
-        #expect(throws: (any Error).self) {
-            try ConfigurationBuilder().server(server, variables: ["env": "invalid"]).build()
-        }
-    }
-
-    @Test func testBuilderProducesIndependentInstances() {
-        let builder = ConfigurationBuilder().baseURL("https://example.com")
-        let first = builder.build()
-        let second = builder.build()
-
-        #expect(first.baseURL == second.baseURL)
-        #expect(!(first === second as AnyObject),
-            "Build() should produce independent instances")
-    }
+    #expect(first.baseURL == second.baseURL)
+    #expect(
+      !(first === second as AnyObject),
+      "Build() should produce independent instances")
+  }
 }

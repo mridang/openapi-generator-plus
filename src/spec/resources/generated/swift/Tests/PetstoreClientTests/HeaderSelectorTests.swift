@@ -7,138 +7,144 @@
 
 import Foundation
 import Testing
+
 @testable import PetstoreClient
 
 @Suite final class HeaderSelectorTests {
 
-    @Test func testIsJsonMime() {
-        let hs = HeaderSelector()
+  @Test func testIsJsonMime() {
+    let hs = HeaderSelector()
 
-        let testCases: [(String, Bool)] = [
-            ("application/json", true),
-            ("application/json; charset=utf-8", true),
-            ("application/vnd.api+json", true),
-            ("application/xml", false),
-            ("text/plain", false),
-            ("", false),
-            ("application/octet-stream", false),
-            ("application/hal+json", true)
-        ]
+    let testCases: [(String, Bool)] = [
+      ("application/json", true),
+      ("application/json; charset=utf-8", true),
+      ("application/vnd.api+json", true),
+      ("application/xml", false),
+      ("text/plain", false),
+      ("", false),
+      ("application/octet-stream", false),
+      ("application/hal+json", true),
+    ]
 
-        for (input, expected) in testCases {
-            #expect(hs.isJsonMime(input) == expected, "IsJsonMime(\(input)) should be \(expected)")
-        }
+    for (input, expected) in testCases {
+      #expect(hs.isJsonMime(input) == expected, "IsJsonMime(\(input)) should be \(expected)")
     }
+  }
 
-    @Test func testSelectHeadersWithSingleAccept() {
-        let hs = HeaderSelector()
-        let headers = hs.selectHeaders(accept: ["application/json"], contentType: "application/json", isMultipart: false)
+  @Test func testSelectHeadersWithSingleAccept() {
+    let hs = HeaderSelector()
+    let headers = hs.selectHeaders(
+      accept: ["application/json"], contentType: "application/json", isMultipart: false)
 
-        #expect(headers["Accept"] == "application/json")
-        #expect(headers["Content-Type"] == "application/json")
+    #expect(headers["Accept"] == "application/json")
+    #expect(headers["Content-Type"] == "application/json")
+  }
+
+  @Test func testSelectHeadersWithMultipleAccepts() {
+    let hs = HeaderSelector()
+    let headers = hs.selectHeaders(
+      accept: ["application/json", "application/xml"], contentType: "application/json",
+      isMultipart: false)
+
+    let accept = headers["Accept"] ?? ""
+    #expect(accept.contains("application/json"))
+  }
+
+  @Test func testSelectHeadersWithEmptyAccepts() {
+    let hs = HeaderSelector()
+    let headers = hs.selectHeaders(accept: [], contentType: "application/json", isMultipart: false)
+
+    #expect(headers["Accept"] == nil)
+  }
+
+  @Test func testSelectHeadersMultipartOmitsContentType() {
+    let hs = HeaderSelector()
+    let headers = hs.selectHeaders(
+      accept: ["application/json"], contentType: "multipart/form-data", isMultipart: true)
+
+    #expect(headers["Content-Type"] == nil)
+  }
+
+  @Test func testSelectHeadersDefaultContentType() {
+    let hs = HeaderSelector()
+    let headers = hs.selectHeaders(
+      accept: ["application/json"], contentType: "", isMultipart: false)
+
+    #expect(headers["Content-Type"] == "application/json")
+  }
+
+  @Test func testQualityWeighting() {
+    let hs = HeaderSelector()
+    let headers = hs.selectHeaders(
+      accept: ["application/json", "application/xml", "text/plain"],
+      contentType: "application/json",
+      isMultipart: false
+    )
+
+    let accept = headers["Accept"] ?? ""
+    #expect(!(accept.isEmpty))
+
+    // application/json should appear first (highest priority)
+    let jsonIdx = accept.range(of: "application/json")
+    let xmlIdx = accept.range(of: "application/xml")
+    #expect(jsonIdx != nil)
+    #expect(xmlIdx != nil)
+    if let jsonIdx = jsonIdx, let xmlIdx = xmlIdx {
+      #expect(jsonIdx.lowerBound < xmlIdx.lowerBound)
     }
+  }
 
-    @Test func testSelectHeadersWithMultipleAccepts() {
-        let hs = HeaderSelector()
-        let headers = hs.selectHeaders(accept: ["application/json", "application/xml"], contentType: "application/json", isMultipart: false)
+  @Test func testSelectHeadersWithVendorJSON() {
+    let hs = HeaderSelector()
+    let headers = hs.selectHeaders(
+      accept: ["application/vnd.api+json", "application/xml"],
+      contentType: "application/json",
+      isMultipart: false
+    )
 
-        let accept = headers["Accept"] ?? ""
-        #expect(accept.contains("application/json"))
+    let accept = headers["Accept"] ?? ""
+    #expect(accept.contains("application/vnd.api+json"))
+  }
+
+  @Test func testIsJsonMimeCaseInsensitive() {
+    let hs = HeaderSelector()
+
+    #expect(hs.isJsonMime("APPLICATION/JSON"))
+  }
+
+  @Test func testGetNextWeightStandardSequence() {
+    let hs = HeaderSelector()
+
+    #expect(hs.getNextWeight(1000, hasMoreThan28Headers: false) == 900)
+    #expect(hs.getNextWeight(900, hasMoreThan28Headers: false) == 800)
+    #expect(hs.getNextWeight(200, hasMoreThan28Headers: false) == 100)
+    #expect(hs.getNextWeight(100, hasMoreThan28Headers: false) == 90)
+    #expect(hs.getNextWeight(90, hasMoreThan28Headers: false) == 80)
+  }
+
+  @Test func testGetNextWeightMoreThan28Headers() {
+    let hs = HeaderSelector()
+
+    #expect(hs.getNextWeight(1000, hasMoreThan28Headers: true) == 999)
+    #expect(hs.getNextWeight(999, hasMoreThan28Headers: true) == 998)
+    #expect(hs.getNextWeight(998, hasMoreThan28Headers: true) == 997)
+  }
+
+  @Test func testGetNextWeightMinimum() {
+    let hs = HeaderSelector()
+
+    #expect(hs.getNextWeight(1, hasMoreThan28Headers: false) == 1)
+    #expect(hs.getNextWeight(0, hasMoreThan28Headers: false) == 1)
+    #expect(hs.getNextWeight(-1, hasMoreThan28Headers: false) == 1)
+  }
+
+  @Test func testGetNextWeight27Steps() {
+    let hs = HeaderSelector()
+
+    var weight = 1000
+    for _ in 0..<27 {
+      weight = hs.getNextWeight(weight, hasMoreThan28Headers: false)
     }
-
-    @Test func testSelectHeadersWithEmptyAccepts() {
-        let hs = HeaderSelector()
-        let headers = hs.selectHeaders(accept: [], contentType: "application/json", isMultipart: false)
-
-        #expect(headers["Accept"] == nil)
-    }
-
-    @Test func testSelectHeadersMultipartOmitsContentType() {
-        let hs = HeaderSelector()
-        let headers = hs.selectHeaders(accept: ["application/json"], contentType: "multipart/form-data", isMultipart: true)
-
-        #expect(headers["Content-Type"] == nil)
-    }
-
-    @Test func testSelectHeadersDefaultContentType() {
-        let hs = HeaderSelector()
-        let headers = hs.selectHeaders(accept: ["application/json"], contentType: "", isMultipart: false)
-
-        #expect(headers["Content-Type"] == "application/json")
-    }
-
-    @Test func testQualityWeighting() {
-        let hs = HeaderSelector()
-        let headers = hs.selectHeaders(
-            accept: ["application/json", "application/xml", "text/plain"],
-            contentType: "application/json",
-            isMultipart: false
-        )
-
-        let accept = headers["Accept"] ?? ""
-        #expect(!(accept.isEmpty))
-
-        // application/json should appear first (highest priority)
-        let jsonIdx = accept.range(of: "application/json")
-        let xmlIdx = accept.range(of: "application/xml")
-        #expect(jsonIdx != nil)
-        #expect(xmlIdx != nil)
-        if let jsonIdx = jsonIdx, let xmlIdx = xmlIdx {
-            #expect(jsonIdx.lowerBound < xmlIdx.lowerBound)
-        }
-    }
-
-    @Test func testSelectHeadersWithVendorJSON() {
-        let hs = HeaderSelector()
-        let headers = hs.selectHeaders(
-            accept: ["application/vnd.api+json", "application/xml"],
-            contentType: "application/json",
-            isMultipart: false
-        )
-
-        let accept = headers["Accept"] ?? ""
-        #expect(accept.contains("application/vnd.api+json"))
-    }
-
-    @Test func testIsJsonMimeCaseInsensitive() {
-        let hs = HeaderSelector()
-
-        #expect(hs.isJsonMime("APPLICATION/JSON"))
-    }
-
-    @Test func testGetNextWeightStandardSequence() {
-        let hs = HeaderSelector()
-
-        #expect(hs.getNextWeight(1000, hasMoreThan28Headers: false) == 900)
-        #expect(hs.getNextWeight(900, hasMoreThan28Headers: false) == 800)
-        #expect(hs.getNextWeight(200, hasMoreThan28Headers: false) == 100)
-        #expect(hs.getNextWeight(100, hasMoreThan28Headers: false) == 90)
-        #expect(hs.getNextWeight(90, hasMoreThan28Headers: false) == 80)
-    }
-
-    @Test func testGetNextWeightMoreThan28Headers() {
-        let hs = HeaderSelector()
-
-        #expect(hs.getNextWeight(1000, hasMoreThan28Headers: true) == 999)
-        #expect(hs.getNextWeight(999, hasMoreThan28Headers: true) == 998)
-        #expect(hs.getNextWeight(998, hasMoreThan28Headers: true) == 997)
-    }
-
-    @Test func testGetNextWeightMinimum() {
-        let hs = HeaderSelector()
-
-        #expect(hs.getNextWeight(1, hasMoreThan28Headers: false) == 1)
-        #expect(hs.getNextWeight(0, hasMoreThan28Headers: false) == 1)
-        #expect(hs.getNextWeight(-1, hasMoreThan28Headers: false) == 1)
-    }
-
-    @Test func testGetNextWeight27Steps() {
-        let hs = HeaderSelector()
-
-        var weight = 1000
-        for _ in 0..<27 {
-            weight = hs.getNextWeight(weight, hasMoreThan28Headers: false)
-        }
-        #expect(weight == 1)
-    }
+    #expect(weight == 1)
+  }
 }
