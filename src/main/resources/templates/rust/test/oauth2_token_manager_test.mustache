@@ -165,6 +165,32 @@ async fn test_set_access_token_bypasses_endpoint() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn test_invalidate_access_token_forces_refetch() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"tok1","expires_in":3600}"#, 200);
+    client.enqueue(r#"{"access_token":"tok2","expires_in":3600}"#, 200);
+
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client);
+
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let first = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect("should succeed");
+    manager.invalidate_access_token().await;
+    let second = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect("should succeed");
+
+    assert_eq!("tok1", first);
+    assert_eq!("tok2", second);
+}
+
+#[tokio::test(flavor = "multi_thread")]
 #[should_panic(expected = "ApiClient has not been injected")]
 async fn test_throws_when_no_api_client_injected() {
     let manager = OAuth2TokenManager::new();

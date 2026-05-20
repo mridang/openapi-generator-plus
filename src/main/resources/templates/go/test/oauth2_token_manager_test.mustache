@@ -170,6 +170,38 @@ func TestOAuth2TokenManager_SetAccessTokenBypassesEndpoint(t *testing.T) {
 	}
 }
 
+func TestOAuth2TokenManager_InvalidateAccessTokenForcesRefetch(t *testing.T) {
+	client := newFakeTokenClient(
+		fakeResponse{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
+		fakeResponse{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
+	)
+
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	params := map[string]string{"grant_type": "client_credentials"}
+
+	first, err := manager.GetAccessToken("https://auth.example.com/token", params)
+	if err != nil {
+		t.Fatalf("unexpected error on first call: %v", err)
+	}
+	manager.InvalidateAccessToken()
+	second, err := manager.GetAccessToken("https://auth.example.com/token", params)
+	if err != nil {
+		t.Fatalf("unexpected error on second call: %v", err)
+	}
+
+	if first != "tok1" {
+		t.Errorf("expected first token 'tok1', got %q", first)
+	}
+	if second != "tok2" {
+		t.Errorf("expected second token 'tok2', got %q", second)
+	}
+	if atomic.LoadInt32(&client.index) != 2 {
+		t.Errorf("expected 2 HTTP calls after invalidate, got %d", atomic.LoadInt32(&client.index))
+	}
+}
+
 func TestOAuth2TokenManager_ThrowsWhenNoApiClientInjected(t *testing.T) {
 	manager := oauth.NewOAuth2TokenManager()
 

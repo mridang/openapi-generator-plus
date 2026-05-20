@@ -67,6 +67,18 @@ module {{moduleName}}
           end
         end
 
+        # Invalidate the cached access token so that the next call to
+        # {#get_access_token} fetches a fresh token from the token endpoint.
+        # Intended for tests and recovery flows.
+        #
+        # @return [void]
+        def invalidate_access_token
+          @mutex.synchronize do
+            @access_token = nil
+            @token_expiry = nil
+          end
+        end
+
         private
 
         # @return [Boolean] true when the cached access token is still valid

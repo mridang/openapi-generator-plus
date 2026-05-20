@@ -98,6 +98,14 @@ class OAuth2TokenManager {
     return _accessToken;
   }
 
+  /// Invalidates the cached access token so that the next call to
+  /// [getAccessToken] fetches a fresh token from the token endpoint.
+  /// Intended for tests and recovery flows.
+  void invalidateAccessToken() {
+    _accessToken = '';
+    _tokenExpiry = null;
+  }
+
   /// Manually sets an access token, bypassing the token endpoint.
   void setAccessToken(String token) {
     _accessToken = token;

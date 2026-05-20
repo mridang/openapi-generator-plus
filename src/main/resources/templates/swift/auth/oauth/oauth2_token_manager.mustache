@@ -133,6 +133,16 @@ public final class OAuth2TokenManager: @unchecked Sendable {
         }
     }
 
+    /// Invalidates the cached access token so that the next call to
+    /// ``getAccessToken(tokenURL:params:extraHeaders:)`` fetches a fresh
+    /// token from the token endpoint. Intended for tests and recovery flows.
+    public func invalidateAccessToken() {
+        lock.withLock {
+            self.accessToken = ""
+            self.tokenExpiry = .distantPast
+        }
+    }
+
     private func fetchToken(tokenURL: String, params: [String: String], extraHeaders: [String: String] = [:]) async throws {
         let client: ApiClient = try lock.withLock {
             guard let client = apiClient else {

@@ -93,6 +93,23 @@ describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
     _(client.call_count).must_equal 0
   end
 
+  it 'invalidate_access_token forces refetch' do
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'tok1', 'expires_in' => 3600 } },
+      { status: 200, body: { 'access_token' => 'tok2', 'expires_in' => 3600 } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    token1 = manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    manager.invalidate_access_token
+    token2 = manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+
+    _(token1).must_equal 'tok1'
+    _(token2).must_equal 'tok2'
+    _(client.call_count).must_equal 2
+  end
+
   it 'throws when no ApiClient injected' do
     manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
     assert_raises(RuntimeError) do
