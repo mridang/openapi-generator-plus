@@ -190,6 +190,9 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{#example}}
    * @example {{{.}}}
 {{/example}}
+{{#vendorExtensions.examples}}
+   * @example {{summary}} - {{value}}
+{{/vendorExtensions.examples}}
 {{#isReadOnly}}
    * @readonly
 {{/isReadOnly}}
@@ -209,6 +212,9 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{#example}}
   /** @example {{{.}}} */
 {{/example}}
+{{#vendorExtensions.examples}}
+  /** @example {{summary}} - {{value}} */
+{{/vendorExtensions.examples}}
 {{#isReadOnly}}
   /** @readonly */
 {{/isReadOnly}}
@@ -250,6 +256,26 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 
   [key: string]: {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}unknown{{/additionalPropertiesType}};
 {{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+
+  /**
+   * Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+   * Constructs an instance from a JSON-like payload and throws on any key not
+   * declared above. Callers should prefer this over `new {{classname}}(data)`
+   * when validating untrusted input.
+   */
+  static fromJsonStrict(raw: Record<string, unknown>): {{classname}} {
+    const declared = new Set<string>([{{#vars}}'{{baseName}}'{{^-last}}, {{/-last}}{{/vars}}]);
+    for (const key of Object.keys(raw)) {
+      if (!declared.has(key)) {
+        throw new Error(
+          "Unknown property '" + key
+            + "' on {{classname}} (unevaluatedProperties:false)");
+      }
+    }
+    return new {{classname}}(raw as Partial<{{classname}}>);
+  }
+{{/isUnevaluatedPropertiesFalse}}
 
   constructor(data?: Partial<{{classname}}>) {
 {{#parent}}
@@ -265,6 +291,64 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/requiredVars}}
     }
 {{/hasRequired}}
+{{! Gap S: strict primitive type checks. class-transformer is
+    lenient and silently passes string-for-int / number-for-bool
+    through. ObjectSerializer routes plainToInstance output back
+    through this constructor so wire-type bugs ({"id": "42"} on an
+    int field) raise TypeError instead of corrupting the instance. }}
+{{#vars}}
+{{^isEnum}}
+{{#isPrimitiveType}}
+{{^isArray}}
+{{#isInteger}}
+    if (this.{{name}} != null && typeof this.{{name}} !== 'number') {
+      throw new TypeError(`{{name}} must be a number, got ${typeof this.{{name}}}`);
+    }
+{{/isInteger}}
+{{#isLong}}
+    if (this.{{name}} != null && typeof this.{{name}} !== 'number') {
+      throw new TypeError(`{{name}} must be a number, got ${typeof this.{{name}}}`);
+    }
+{{/isLong}}
+{{#isShort}}
+    if (this.{{name}} != null && typeof this.{{name}} !== 'number') {
+      throw new TypeError(`{{name}} must be a number, got ${typeof this.{{name}}}`);
+    }
+{{/isShort}}
+{{#isFloat}}
+    if (this.{{name}} != null && typeof this.{{name}} !== 'number') {
+      throw new TypeError(`{{name}} must be a number, got ${typeof this.{{name}}}`);
+    }
+{{/isFloat}}
+{{#isDouble}}
+    if (this.{{name}} != null && typeof this.{{name}} !== 'number') {
+      throw new TypeError(`{{name}} must be a number, got ${typeof this.{{name}}}`);
+    }
+{{/isDouble}}
+{{#isNumber}}
+    if (this.{{name}} != null && typeof this.{{name}} !== 'number') {
+      throw new TypeError(`{{name}} must be a number, got ${typeof this.{{name}}}`);
+    }
+{{/isNumber}}
+{{#isBoolean}}
+    if (this.{{name}} != null && typeof this.{{name}} !== 'boolean') {
+      throw new TypeError(`{{name}} must be a boolean, got ${typeof this.{{name}}}`);
+    }
+{{/isBoolean}}
+{{#isString}}
+    if (this.{{name}} != null && typeof this.{{name}} !== 'string') {
+      throw new TypeError(`{{name}} must be a string, got ${typeof this.{{name}}}`);
+    }
+{{/isString}}
+{{/isArray}}
+{{#isArray}}
+    if (this.{{name}} != null && !Array.isArray(this.{{name}}) && !(this.{{name}} instanceof Set)) {
+      throw new TypeError(`{{name}} must be an array, got ${typeof this.{{name}}}`);
+    }
+{{/isArray}}
+{{/isPrimitiveType}}
+{{/isEnum}}
+{{/vars}}
 {{#hasEnums}}
 {{#vars}}
 {{#isEnum}}

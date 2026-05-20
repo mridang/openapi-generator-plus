@@ -293,7 +293,7 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
     {{name}}: {{classname}}{{enumName}} = Field(alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#example}}, examples=[{{{.}}}]{{/example}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}}{{#defaultValue}}, default={{{.}}}{{/defaultValue}})
 {{/isEnum}}
 {{^isEnum}}
-    {{name}}: {{{dataType}}} = Field(alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#example}}, examples=[{{{.}}}]{{/example}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}}{{#defaultValue}}, default={{{.}}}{{/defaultValue}})
+    {{name}}: {{{dataType}}} = Field(alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#example}}, examples=[{{{.}}}]{{/example}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}}{{#defaultValue}}, default={{{.}}}{{/defaultValue}}{{#isInteger}}, strict=True{{/isInteger}}{{#isLong}}, strict=True{{/isLong}}{{#isShort}}, strict=True{{/isShort}}{{#isBoolean}}, strict=True{{/isBoolean}}{{#isFloat}}, strict=True{{/isFloat}}{{#isDouble}}, strict=True{{/isDouble}}{{#isString}}, strict=True{{/isString}})
 {{/isEnum}}
 {{/required}}
 {{^required}}
@@ -301,7 +301,7 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
     {{name}}: Optional[{{classname}}{{enumName}}] = Field(default={{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}None{{/defaultValue}}, alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#example}}, examples=[{{{.}}}]{{/example}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}})
 {{/isEnum}}
 {{^isEnum}}
-    {{name}}: Optional[{{{dataType}}}] = Field(default={{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}None{{/defaultValue}}, alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#example}}, examples=[{{{.}}}]{{/example}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}})
+    {{name}}: Optional[{{{dataType}}}] = Field(default={{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}None{{/defaultValue}}, alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#example}}, examples=[{{{.}}}]{{/example}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}}{{#isInteger}}, strict=True{{/isInteger}}{{#isLong}}, strict=True{{/isLong}}{{#isShort}}, strict=True{{/isShort}}{{#isBoolean}}, strict=True{{/isBoolean}}{{#isFloat}}, strict=True{{/isFloat}}{{#isDouble}}, strict=True{{/isDouble}}{{#isString}}, strict=True{{/isString}})
 {{/isEnum}}
 {{/required}}
 {{/vars}}
