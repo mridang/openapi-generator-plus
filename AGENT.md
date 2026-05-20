@@ -363,11 +363,9 @@ header-merge path. Not done; not auditing.
   returns nil; C#/Swift/Ruby/Elixir throw. Also: missing discriminator
   field — Python/PHP wrap raw dict in union container; others throw.
   Already partially covered by Gap L decisions but Go behavior diverges.
-- **Gap AV**: OpenAPI `security: []` operation (explicit no-auth)
-  — Java/Go/Python/Ruby/PHP/C#/Swift/Rust/Kotlin skip authenticator;
-  Dart/Elixir apply default authenticator anyway. Caller-visible
-  spurious auth headers on no-auth endpoints; servers may reject
-  pre-auth tokens or just waste cycles. Two-lang template fix.
+- **Gap AV (FIXED)**: `security: []` operation handling — Dart and
+  Elixir now skip the default authenticator on explicit no-auth
+  operations, matching the other 10 SDKs. commit `a29acc3b`.
 - **Gap AJ**: JSON null on required field — Go silently zero-inits
   ({"name": null} → name=""), Python Pydantic accepts, Kotlin
   explicitNulls=false accepts. Other 9 throw. Needs validation pass
