@@ -343,11 +343,11 @@ header-merge path. Not done; not auditing.
 - **Gap AF**: Empty response body when return type declared — Node,
   Swift, Rust throw parse errors; the other 9 return null/None/nil
   cleanly. Needs lenient empty-body short-circuit in those 3.
-- **Gap AI**: Cookie request header URL-encodes the value, breaking
-  JWT cookies (where `=` padding gets encoded to `%3D`). Uniform
-  across all 12 SDKs — a bug, not a divergence. Per RFC 6265 SHOULD
-  validate forbidden chars but NOT URL-encode arbitrary values. Fix
-  spans 12 langs. Defer to a focused commit.
+  (Verified during cycle: all three actually short-circuit when body
+  is empty/null. False alarm — no fix needed.)
+- **Gap AI (FIXED)**: Cookie request header URL-encoded values,
+  breaking JWT cookies. All 12 SDKs now validate per RFC 6265 and
+  send raw. commit `b649dcb3`.
 - **Gap AJ**: JSON null on required field — Go silently zero-inits
   ({"name": null} → name=""), Python Pydantic accepts, Kotlin
   explicitNulls=false accepts. Other 9 throw. Needs validation pass
@@ -363,8 +363,10 @@ header-merge path. Not done; not auditing.
 - **Gap AM (security)**: TLS verifySsl=false has divergent semantics
   — some langs disable both chain + hostname verification, others
   keep hostname check. Document or standardise.
-- **Gap AN**: Bearer / Basic / ApiKey validation asymmetry — Bearer
-  now validates (Gap AC), ApiKey validates (Gap N), but Basic
-  silently base64-encodes whatever bytes were passed including raw
-  newlines. Lower severity (base64 absorbs the issue) but still an
-  inconsistency.
+- **Gap AN (NOT A BUG)**: Bearer / Basic / ApiKey validation
+  asymmetry — Bearer now validates (Gap AC), ApiKey validates (Gap N),
+  but Basic doesn't. Re-examined: the Basic Authorization header is
+  the base64 of `username:password`, and base64 output is always pure
+  printable ASCII regardless of input bytes. So Basic CANNOT inject
+  CR/LF into the header value via input — the asymmetry is correct.
+  Closed without action.
