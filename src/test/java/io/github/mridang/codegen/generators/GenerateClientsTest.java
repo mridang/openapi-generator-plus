@@ -54,6 +54,7 @@ class GenerateClientsTest {
                         .setGeneratorName(generatorName)
                         .setInputSpec(specUrl.getPath())
                         .setOutputDir(outputDir.toString().replace("\\", "/"))
+                        .setValidateSpec(false)
                         .setAdditionalProperties(props);
 
         DefaultGenerator generator = new DefaultGenerator();

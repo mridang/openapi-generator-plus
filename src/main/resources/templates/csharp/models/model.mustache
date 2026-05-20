@@ -221,6 +221,9 @@ public class {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/
 {{#example}}
     /// <example>{{{.}}}</example>
 {{/example}}
+{{#vendorExtensions.examples}}
+    /// <example>{{summary}}: {{value}}</example>
+{{/vendorExtensions.examples}}
 {{#isReadOnly}}
     /// <remarks>This property is read-only.</remarks>
 {{/isReadOnly}}
@@ -245,6 +248,29 @@ public class {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/
     [JsonExtensionData]
     public Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}>? AdditionalProperties { get; set; }
 {{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+
+    // Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+    // Any JSON key not declared above is captured here so the JsonExtensionData
+    // setter can throw, surfacing unknown-key errors during deserialization.
+    private Dictionary<string, object>? _unknownProperties;
+
+    [JsonExtensionData]
+    public Dictionary<string, object>? UnknownProperties
+    {
+        get => _unknownProperties;
+        set
+        {
+            if (value is not null && value.Count > 0)
+            {
+                throw new ArgumentException(
+                    "Unknown property '" + value.Keys.First()
+                        + "' on {{classname}} (unevaluatedProperties:false)");
+            }
+            _unknownProperties = value;
+        }
+    }
+{{/isUnevaluatedPropertiesFalse}}
 
     /// <summary>Value-equality based on all declared fields{{#isAdditionalPropertiesTrue}}
     /// (including the AdditionalProperties dictionary){{/isAdditionalPropertiesTrue}}. Generated so
@@ -314,6 +340,9 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
 {{#example}}
     /// <example>{{{.}}}</example>
 {{/example}}
+{{#vendorExtensions.examples}}
+    /// <example>{{summary}}: {{value}}</example>
+{{/vendorExtensions.examples}}
 {{#isReadOnly}}
     /// <remarks>This property is read-only.</remarks>
 {{/isReadOnly}}
@@ -335,6 +364,27 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
     [JsonExtensionData]
     public Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}>? AdditionalProperties { get; set; }
 {{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+
+    // Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+    private Dictionary<string, object>? _unknownProperties;
+
+    [JsonExtensionData]
+    public Dictionary<string, object>? UnknownProperties
+    {
+        get => _unknownProperties;
+        set
+        {
+            if (value is not null && value.Count > 0)
+            {
+                throw new ArgumentException(
+                    "Unknown property '" + value.Keys.First()
+                        + "' on {{classname}} (unevaluatedProperties:false)");
+            }
+            _unknownProperties = value;
+        }
+    }
+{{/isUnevaluatedPropertiesFalse}}
 
     /// <summary>Value-equality based on all declared fields{{#isAdditionalPropertiesTrue}}
     /// (including the AdditionalProperties dictionary){{/isAdditionalPropertiesTrue}}.</summary>

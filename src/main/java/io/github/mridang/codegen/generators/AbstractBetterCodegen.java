@@ -96,6 +96,15 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     /** Accumulates Options file metadata across per-tag postProcessOperationsWithModels calls. */
     private final List<Map<String, String>> accumulatedOptionsFiles = new ArrayList<>();
 
+    /**
+     * Set of schema names declared with {@code unevaluatedProperties: false} (OAS 3.1 /
+     * JSON Schema 2020-12). Populated by {@link #fromModel(String, Schema)} and consumed
+     * by {@link #postProcessModels(ModelsMap)} to set the
+     * {@code isUnevaluatedPropertiesFalse} flag on each {@link ModelMap} so per-language
+     * templates can emit strict-mode deserializers that reject unknown JSON keys. Gap AX.1.
+     */
+    private final Set<String> unevaluatedPropertiesFalseSchemas = new HashSet<>();
+
     protected boolean hasBasicAuth;
     protected boolean hasBearerAuth;
     protected boolean hasApiKeyAuth;
@@ -1347,6 +1356,30 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
+     * Records whether the source schema for this model declares
+     * {@code unevaluatedProperties: false} (OAS 3.1 / JSON Schema
+     * 2020-12 strict-mode). The flag is consumed by
+     * {@link #postProcessModels(ModelsMap)} which copies it onto the
+     * per-model {@link ModelMap} so templates can emit deserializers
+     * that reject unknown JSON keys instead of silently capturing them.
+     *
+     * <p>Subclasses that override this method <strong>must</strong>
+     * call {@code super.fromModel(name, schema)} to preserve the
+     * detection. Gap AX.1.
+     */
+    @Override
+    @SuppressWarnings("rawtypes")
+    public CodegenModel fromModel(String name, Schema schema) {
+        if (schema != null && schema.getUnevaluatedProperties() != null) {
+            final Schema unevaluated = schema.getUnevaluatedProperties();
+            if (Boolean.FALSE.equals(unevaluated.getBooleanSchemaValue())) {
+                unevaluatedPropertiesFalseSchemas.add(name);
+            }
+        }
+        return super.fromModel(name, schema);
+    }
+
+    /**
      * Post-processes generated models to strip primitive parents,
      * apply enum naming conventions, sanitize byte-array example
      * values, and run all declarative post-processing hooks
@@ -1359,6 +1392,15 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         final ModelsMap result = postProcessModelsEnum(super.postProcessModels(objs));
         for (final ModelMap modelMap : result.getModels()) {
             final CodegenModel model = modelMap.getModel();
+            // Gap AX.1: propagate unevaluatedProperties:false flag onto the
+            // modelMap so {{#isUnevaluatedPropertiesFalse}} in templates resolves
+            // via Mustache context-chain lookup. Detection happens in fromModel
+            // because CodegenModel does not preserve the source schema's
+            // unevaluatedProperties field.
+            if (unevaluatedPropertiesFalseSchemas.contains(model.name)
+                    || unevaluatedPropertiesFalseSchemas.contains(model.schemaName)) {
+                modelMap.put("isUnevaluatedPropertiesFalse", true);
+            }
             stripPrimitiveParent(model);
             for (final CodegenProperty prop : model.vars) {
                 sanitizeByteArrayExample(prop);
@@ -2209,6 +2251,147 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     // =========================================================================
+    // Gap BD — Plural examples surfaced into property/parameter docstrings
+    // =========================================================================
+
+    /**
+     * Builds a Mustache-friendly list of {@code {summary, description, value}}
+     * maps from an OAS named-examples source. Accepts either a
+     * {@code Map<String, io.swagger.v3.oas.models.examples.Example>} (the
+     * native form used by parameters and media types) or a raw
+     * {@code Map<String, Object>} parsed from an {@code x-examples} extension.
+     */
+    @SuppressWarnings("unchecked")
+    protected static List<Map<String, Object>> buildPluralExamplesList(Object raw) {
+        if (!(raw instanceof Map)) {
+            return new ArrayList<>();
+        }
+        final Map<String, Object> rawMap = (Map<String, Object>) raw;
+        if (rawMap.isEmpty()) {
+            return new ArrayList<>();
+        }
+        final List<Map<String, Object>> result = new ArrayList<>();
+        for (final Map.Entry<String, Object> entry : rawMap.entrySet()) {
+            final Object exObj = entry.getValue();
+            String summary = entry.getKey();
+            String description = null;
+            Object value = null;
+            if (exObj instanceof io.swagger.v3.oas.models.examples.Example) {
+                final io.swagger.v3.oas.models.examples.Example ex =
+                        (io.swagger.v3.oas.models.examples.Example) exObj;
+                if (ex.getSummary() != null) {
+                    summary = ex.getSummary();
+                }
+                description = ex.getDescription();
+                value = ex.getValue();
+            } else if (exObj instanceof Map) {
+                final Map<String, Object> ex = (Map<String, Object>) exObj;
+                if (ex.get("summary") != null) {
+                    summary = String.valueOf(ex.get("summary"));
+                }
+                if (ex.get("description") != null) {
+                    description = String.valueOf(ex.get("description"));
+                }
+                value = ex.get("value");
+            } else {
+                value = exObj;
+            }
+            final Map<String, Object> mustacheEntry = new HashMap<>();
+            mustacheEntry.put("summary", summary == null ? "" : summary);
+            mustacheEntry.put("description", description == null ? "" : description);
+            mustacheEntry.put("value", renderExampleValue(value));
+            result.add(mustacheEntry);
+        }
+        return result;
+    }
+
+    /**
+     * Renders an OAS example value as a single-line string. Primitives are
+     * stringified directly; complex values are serialized as compact JSON so
+     * they remain readable inside a docstring.
+     */
+    private static String renderExampleValue(@Nullable Object value) {
+        if (value == null) {
+            return "";
+        }
+        if (value instanceof CharSequence
+                || value instanceof Number
+                || value instanceof Boolean) {
+            return value.toString();
+        }
+        try {
+            return io.swagger.v3.core.util.Json.mapper().writeValueAsString(value);
+        } catch (Exception e) {
+            return value.toString();
+        }
+    }
+
+    /**
+     * Captures any OAS plural {@code examples} declared on a property's
+     * schema (OAS 3.1 schema-level {@code examples} list, or the
+     * {@code x-examples} extension that callers may use on OAS 3.0 schemas)
+     * and stores a Mustache-friendly list under
+     * {@code property.vendorExtensions["examples"]}.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    protected static void capturePropertyPluralExamples(
+            CodegenProperty property, Schema schema) {
+        if (property == null || schema == null) {
+            return;
+        }
+        List<Map<String, Object>> examples = Collections.emptyList();
+        if (schema.getExtensions() != null
+                && schema.getExtensions().containsKey("x-examples")) {
+            examples = buildPluralExamplesList(schema.getExtensions().get("x-examples"));
+        }
+        if (examples.isEmpty()
+                && schema.getExamples() != null
+                && !schema.getExamples().isEmpty()) {
+            final List<Map<String, Object>> list = new ArrayList<>();
+            int idx = 1;
+            for (final Object ex : (List<Object>) schema.getExamples()) {
+                final Map<String, Object> entry = new HashMap<>();
+                entry.put("summary", "Example " + idx++);
+                entry.put("description", "");
+                entry.put("value", renderExampleValue(ex));
+                list.add(entry);
+            }
+            examples = list;
+        }
+        if (!examples.isEmpty()) {
+            if (property.vendorExtensions == null) {
+                property.vendorExtensions = new HashMap<>();
+            }
+            property.vendorExtensions.put("examples", examples);
+        }
+    }
+
+    /**
+     * Converts the OAS named {@code examples} map carried on each
+     * {@link CodegenParameter} into a Mustache-friendly list under
+     * {@code parameter.vendorExtensions["examples"]}.
+     */
+    protected static void capturePluralExamplesForParameters(
+            List<CodegenParameter> params) {
+        if (params == null) {
+            return;
+        }
+        for (final CodegenParameter param : params) {
+            if (param == null || param.examples == null || param.examples.isEmpty()) {
+                continue;
+            }
+            final List<Map<String, Object>> list = buildPluralExamplesList(param.examples);
+            if (list.isEmpty()) {
+                continue;
+            }
+            if (param.vendorExtensions == null) {
+                param.vendorExtensions = new HashMap<>();
+            }
+            param.vendorExtensions.put("examples", list);
+        }
+    }
+
+    // =========================================================================
     // Gap 17 — File content fixup declarations
     // =========================================================================
 
@@ -2395,6 +2578,63 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
+     * Overrides {@link DefaultCodegen#fromProperty} so that named plural
+     * examples declared on a schema (OAS 3.1 {@code examples} list or the
+     * {@code x-examples} extension on OAS 3.0 schemas) are carried through
+     * into a Mustache-iterable list stored at
+     * {@code property.vendorExtensions["examples"]}. Templates iterate that
+     * list to render per-example docstring blocks (Gap BD).
+     */
+    @Override
+    @SuppressWarnings("rawtypes")
+    public CodegenProperty fromProperty(
+            String name, Schema p, boolean required, boolean schemaIsFromAdditionalProperties) {
+        final CodegenProperty property =
+                super.fromProperty(name, p, required, schemaIsFromAdditionalProperties);
+        capturePropertyPluralExamples(property, p);
+        applyConstAsSingleValueEnum(property, p);
+        return property;
+    }
+
+    /**
+     * Translates OpenAPI 3.1 {@code const} schemas into the existing
+     * single-value enum codepath. Upstream {@link DefaultCodegen}
+     * acknowledges {@code const} is unsupported (see its own warning:
+     * "Maybe it's a const (not yet supported) in openapi v3.1 spec.");
+     * this hook fills the gap by treating a property with a non-null
+     * {@code const} value as a one-element enum. The default value is
+     * set to the const so language templates render an immutable field
+     * initialized to the only allowed value (Gap AY).
+     */
+    @SuppressWarnings("rawtypes")
+    private static void applyConstAsSingleValueEnum(CodegenProperty property, Schema p) {
+        if (property == null || p == null) {
+            return;
+        }
+        final Object constValue = p.getConst();
+        if (constValue == null) {
+            return;
+        }
+        if (property.isEnum || (property._enum != null && !property._enum.isEmpty())) {
+            return;
+        }
+        final String stringValue = String.valueOf(constValue);
+        final List<String> enumValues = new ArrayList<>();
+        enumValues.add(stringValue);
+        property._enum = enumValues;
+        property.isEnum = true;
+        property.isInnerEnum = true;
+        final Map<String, Object> allowableValues = new HashMap<>();
+        final List<Object> values = new ArrayList<>();
+        values.add(constValue);
+        allowableValues.put("values", values);
+        property.allowableValues = allowableValues;
+        if (property.defaultValue == null) {
+            property.defaultValue = stringValue;
+        }
+    }
+
+    /**
      * Post-processes operations after all models are resolved.
      * Strips global-level auth from individual operations to
      * avoid redundant auth injection, injects tag metadata for
@@ -2431,6 +2671,19 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             if (ops != null) {
                 enrichOperationServers(ops, operations);
                 generateOptionsFilesForOps(ops, objs);
+                // Gap BD: surface plural examples on parameters for docstrings
+                for (final CodegenOperation op : ops) {
+                    capturePluralExamplesForParameters(op.allParams);
+                    capturePluralExamplesForParameters(op.pathParams);
+                    capturePluralExamplesForParameters(op.queryParams);
+                    capturePluralExamplesForParameters(op.headerParams);
+                    capturePluralExamplesForParameters(op.cookieParams);
+                    capturePluralExamplesForParameters(op.formParams);
+                    if (op.bodyParam != null) {
+                        capturePluralExamplesForParameters(
+                                Collections.singletonList(op.bodyParam));
+                    }
+                }
             }
         }
         cleanupBadImports(objs);

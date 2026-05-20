@@ -332,6 +332,13 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   {{/example}}
   {{/description}}
   {{/deprecated}}
+  {{#vendorExtensions.examples}}
+  /// ## {{summary}}
+  /// {{description}}
+  /// ```json
+  /// {{value}}
+  /// ```
+  {{/vendorExtensions.examples}}
   {{#isReadOnly}}
   @JsonProperty(value = "{{baseName}}", access = JsonProperty.Access.READ_ONLY)
   {{/isReadOnly}}
@@ -361,6 +368,16 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     return this.additionalProperties;
   }
 {{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+
+  /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false:
+   * any JSON key not declared above must be rejected at deserialization time. */
+  @com.fasterxml.jackson.annotation.JsonAnySetter
+  public void setUnknownProperty(String key, Object value) {
+    throw new IllegalArgumentException(
+        "Unknown property '" + key + "' on {{classname}} (unevaluatedProperties:false)");
+  }
+{{/isUnevaluatedPropertiesFalse}}
 {{#hasRequired}}
 
   @SuppressWarnings("NullAway.Init")

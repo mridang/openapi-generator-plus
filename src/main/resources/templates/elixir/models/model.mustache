@@ -193,10 +193,26 @@ end
 {{#hasVars}}
 defmodule {{moduleName}}.Models.{{classname}} do
   {{#description}}
-  @moduledoc "{{{.}}}"
+  @moduledoc """
+  {{{.}}}
+{{#vars}}{{#vendorExtensions.examples}}
+
+  ## {{summary}}
+
+      {{value}}
+{{/vendorExtensions.examples}}{{/vars}}
+  """
   {{/description}}
   {{^description}}
-  @moduledoc "Model for {{classname}}."
+  @moduledoc """
+  Model for {{classname}}.
+{{#vars}}{{#vendorExtensions.examples}}
+
+  ## {{summary}}
+
+      {{value}}
+{{/vendorExtensions.examples}}{{/vars}}
+  """
   {{/description}}
   {{#isDeprecated}}
   @deprecated "This schema is deprecated."
@@ -261,15 +277,53 @@ defmodule {{moduleName}}.Models.{{classname}} do
   def additional_properties_type, do: "{{{additionalPropertiesType}}}"
 {{/additionalPropertiesType}}
 {{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+  @doc """
+  Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+  Decodes a JSON-decoded map into this struct, raising `ArgumentError` if any
+  key is not declared in `attribute_map/0`.
+  """
+  @spec from_map_strict(map()) :: t()
+  def from_map_strict(data) when is_map(data) do
+    declared = attribute_map() |> Map.values() |> MapSet.new()
+
+    Enum.each(Map.keys(data), fn key ->
+      key_str = to_string(key)
+
+      unless MapSet.member?(declared, key_str) do
+        raise ArgumentError,
+              "Unknown property '#{key_str}' on {{classname}} (unevaluatedProperties:false)"
+      end
+    end)
+
+    struct(__MODULE__, for({k, v} <- data, do: {String.to_existing_atom(to_string(k)), v}))
+  end
+{{/isUnevaluatedPropertiesFalse}}
 end
 {{/hasVars}}
 {{^hasVars}}
 defmodule {{moduleName}}.Models.{{classname}} do
   {{#description}}
-  @moduledoc "{{{.}}}"
+  @moduledoc """
+  {{{.}}}
+{{#vars}}{{#vendorExtensions.examples}}
+
+  ## {{summary}}
+
+      {{value}}
+{{/vendorExtensions.examples}}{{/vars}}
+  """
   {{/description}}
   {{^description}}
-  @moduledoc "Model for {{classname}}."
+  @moduledoc """
+  Model for {{classname}}.
+{{#vars}}{{#vendorExtensions.examples}}
+
+  ## {{summary}}
+
+      {{value}}
+{{/vendorExtensions.examples}}{{/vars}}
+  """
   {{/description}}
   {{#isDeprecated}}
   @deprecated "This schema is deprecated."

@@ -79,6 +79,9 @@ type {{classname}} struct {
 {{#description}}
 	/* {{name}} {{{.}}} */
 {{/description}}
+{{#vendorExtensions.examples}}
+	// {{summary}} — {{value}}
+{{/vendorExtensions.examples}}
 {{#deprecated}}
 	/* Deprecated: This property is deprecated. */
 {{/deprecated}}
@@ -195,6 +198,41 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 	return nil
 }
 {{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+// MarshalJSON implements the json.Marshaler interface.
+func (o {{classname}}) MarshalJSON() ([]byte, error) {
+	type Alias {{classname}}
+	return json.Marshal((Alias)(o))
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+// Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false:
+// reject any JSON key not declared in the schema instead of silently dropping it.
+func (o *{{classname}}) UnmarshalJSON(data []byte) error {
+	type Alias {{classname}}
+	aux := &Alias{}
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	knownFields := map[string]bool{
+{{#vars}}
+		"{{baseName}}": true,
+{{/vars}}
+	}
+	for key := range raw {
+		if !knownFields[key] {
+			return fmt.Errorf("unknown property '%s' on {{classname}} (unevaluatedProperties:false)", key)
+		}
+	}
+	*o = {{classname}}(*aux)
+	return nil
+}
+{{/isUnevaluatedPropertiesFalse}}
+{{^isUnevaluatedPropertiesFalse}}
 {{^isAdditionalPropertiesTrue}}
 // MarshalJSON implements the json.Marshaler interface.
 func (o {{classname}}) MarshalJSON() ([]byte, error) {
@@ -246,6 +284,7 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 }
 {{/hasRequired}}
 {{/isAdditionalPropertiesTrue}}
+{{/isUnevaluatedPropertiesFalse}}
 {{/anyOf}}
 {{/oneOf}}
 {{#oneOf}}

@@ -248,6 +248,21 @@ module {{moduleName}}
       ADDITIONAL_PROPERTIES_TYPE = '{{{additionalPropertiesType}}}'
 {{/additionalPropertiesType}}
 {{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+      # Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+      # Reject any JSON key not declared in ATTRIBUTE_MAP before dry-struct
+      # tries to coerce it (otherwise dry-struct silently drops extras).
+      UNEVALUATED_PROPERTIES_FALSE = true
+
+      transform_keys do |key|
+        skey = key.to_s
+        if !JSON_KEY_MAP.key?(skey) && !ATTRIBUTE_MAP.key?(key.to_sym)
+          raise ArgumentError,
+                "Unknown property '#{skey}' on {{classname}} (unevaluatedProperties:false)"
+        end
+        JSON_KEY_MAP[skey] || key.to_sym
+      end
+{{/isUnevaluatedPropertiesFalse}}
       {{#vars}}
       {{#description}}
       # {{{.}}}
@@ -255,6 +270,11 @@ module {{moduleName}}
       {{#example}}
       # @example {{{.}}}
       {{/example}}
+      {{#vendorExtensions.examples}}
+      # {{summary}}
+      # {{description}}
+      # Example: {{value}}
+      {{/vendorExtensions.examples}}
       {{#deprecated}}
       # @deprecated This property is deprecated.
       {{/deprecated}}

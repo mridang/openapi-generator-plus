@@ -36,6 +36,13 @@ public struct {{classname}}: Codable, Sendable {
 {{#example}}
     /// Example: `{{{.}}}`
 {{/example}}
+{{#vendorExtensions.examples}}
+    /// ## {{summary}}
+    /// {{description}}
+    /// ```json
+    /// {{value}}
+    /// ```
+{{/vendorExtensions.examples}}
 {{#deprecated}}
     @available(*, deprecated, message: "This property is deprecated.")
 {{/deprecated}}
@@ -85,6 +92,23 @@ public struct {{classname}}: Codable, Sendable {
         self.{{name}} = try container.decodeIfPresent({{{dataType}}}.self, forKey: .{{name}})
 {{/required}}
 {{/vars}}
+{{#isUnevaluatedPropertiesFalse}}
+        // Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+        // Re-open the payload with a dynamic-keyed container so we can detect
+        // any JSON key not present in CodingKeys and fail loudly.
+        struct AnyKey: CodingKey {
+            var stringValue: String
+            init?(stringValue: String) { self.stringValue = stringValue }
+            var intValue: Int? { return nil }
+            init?(intValue: Int) { return nil }
+        }
+        let allowed: Set<String> = [{{#vars}}"{{baseName}}"{{^-last}}, {{/-last}}{{/vars}}]
+        let extras = try decoder.container(keyedBy: AnyKey.self)
+        for key in extras.allKeys where !allowed.contains(key.stringValue) {
+            preconditionFailure(
+                "Unknown property '\(key.stringValue)' on {{classname}} (unevaluatedProperties:false)")
+        }
+{{/isUnevaluatedPropertiesFalse}}
     }
 
     /// Encodes this instance, omitting nil optional fields from the JSON output.

@@ -285,6 +285,11 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
     """
 
 {{#vars}}
+{{#vendorExtensions.examples}}
+    # {{summary}}
+    # {{description}}
+    # >>> {{value}}
+{{/vendorExtensions.examples}}
 {{#deprecated}}
     # .. deprecated:: This property is deprecated.
 {{/deprecated}}
@@ -342,6 +347,27 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
         merged['additional_properties'] = extras
         return merged
 {{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+
+    # Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+    # Pydantic must reject any JSON key not declared as a field above.
+    @model_validator(mode='before')
+    @classmethod
+    def _reject_unknown_keys(cls, values: Any) -> Any:
+        if not isinstance(values, dict):
+            return values
+        known: Set[str] = set()
+        for fname, finfo in cls.model_fields.items():
+            known.add(fname)
+            if finfo.alias is not None:
+                known.add(finfo.alias)
+        for key in values.keys():
+            if key not in known:
+                raise ValueError(
+                    "Unknown property '" + str(key)
+                    + "' on {{classname}} (unevaluatedProperties:false)")
+        return values
+{{/isUnevaluatedPropertiesFalse}}
 {{#vars}}
     {{#pattern}}
 

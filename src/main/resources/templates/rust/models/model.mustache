@@ -45,6 +45,12 @@ impl {{classname}} {
 #[deprecated]
 {{/isDeprecated}}
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+{{#isUnevaluatedPropertiesFalse}}
+// Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+// `deny_unknown_fields` makes serde return an error containing the unknown
+// field name when deserializing, surfacing strict-mode violations.
+#[serde(deny_unknown_fields)]
+{{/isUnevaluatedPropertiesFalse}}
 pub struct {{classname}} {
 {{#vars}}
 {{#description}}
@@ -53,6 +59,13 @@ pub struct {{classname}} {
 {{#example}}
     /// Example: `{{{.}}}`
 {{/example}}
+{{#vendorExtensions.examples}}
+    /// ## {{summary}}
+    /// {{description}}
+    /// ```json
+    /// {{value}}
+    /// ```
+{{/vendorExtensions.examples}}
 {{#deprecated}}
     #[deprecated]
 {{/deprecated}}

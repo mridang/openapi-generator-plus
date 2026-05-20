@@ -262,6 +262,9 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{#example}}
      * @example {{{.}}}
 {{/example}}
+{{#vendorExtensions.examples}}
+     * @example {{value}} {{summary}}
+{{/vendorExtensions.examples}}
 {{#isReadOnly}}
      * @readonly
 {{/isReadOnly}}
@@ -303,6 +306,9 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{#example}}
     /** @example {{{.}}} */
 {{/example}}
+{{#vendorExtensions.examples}}
+    /** @example {{value}} {{summary}} */
+{{/vendorExtensions.examples}}
 {{#isReadOnly}}
     /** @readonly */
 {{/isReadOnly}}
@@ -363,6 +369,29 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
     /** @var array<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}mixed{{/additionalPropertiesType}}> */
     public array $additionalProperties = [];
 {{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+
+    /**
+     * Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+     * Validates a decoded JSON payload and throws if it contains a key not
+     * declared on this schema. Callers should pipe payloads through this
+     * helper before invoking the constructor.
+     *
+     * @param array<string, mixed> $data
+     */
+    public static function assertNoUnknownProperties(array $data): void
+    {
+        $declared = [{{#vars}}'{{baseName}}'{{^-last}}, {{/-last}}{{/vars}}];
+        foreach (array_keys($data) as $key) {
+            if (!in_array($key, $declared, true)) {
+                throw new \InvalidArgumentException(
+                    "Unknown property '" . (string) $key
+                        . "' on {{classname}} (unevaluatedProperties:false)"
+                );
+            }
+        }
+    }
+{{/isUnevaluatedPropertiesFalse}}
 
     /**
 {{#requiredVars}}

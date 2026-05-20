@@ -231,6 +231,13 @@ class {{classname}}(
   {{/example}}
   {{/description}}
   {{/deprecated}}
+  {{#vendorExtensions.examples}}
+  /// ## {{summary}}
+  /// {{description}}
+  /// ```json
+  /// {{value}}
+  /// ```
+  {{/vendorExtensions.examples}}
   @SerialName("{{baseName}}")
 {{#isDateTime}}  @Contextual
 {{/isDateTime}}{{#isDate}}  @Contextual
@@ -262,6 +269,27 @@ class {{classname}}(
   @kotlinx.serialization.Transient
   val additionalProperties: MutableMap<String, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}@Contextual Any?{{/additionalPropertiesType}}> = mutableMapOf()
 {{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+
+  /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false:
+   * deserializers must reject any JSON key not declared above. Callers should
+   * decode this class with [parseStrict] (or a Json configured with
+   * ignoreUnknownKeys = false) so unknown keys raise IllegalArgumentException. */
+  companion object {
+    fun parseStrict(raw: String): {{classname}} {
+      val strict = kotlinx.serialization.json.Json {
+        ignoreUnknownKeys = false
+        isLenient = false
+      }
+      try {
+        return strict.decodeFromString(serializer(), raw)
+      } catch (e: kotlinx.serialization.SerializationException) {
+        throw IllegalArgumentException(
+          "Unknown property on {{classname}} (unevaluatedProperties:false): " + e.message, e)
+      }
+    }
+  }
+{{/isUnevaluatedPropertiesFalse}}
 }
 {{/anyOf}}
 {{/oneOf}}
