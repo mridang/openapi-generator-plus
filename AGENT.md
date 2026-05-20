@@ -359,10 +359,11 @@ header-merge path. Not done; not auditing.
 
 ### Gap-fix cycle 18 — additional pending divergences
 
-- **Gap AU**: Unknown discriminator value in oneOf — Go silently
-  returns nil; C#/Swift/Ruby/Elixir throw. Also: missing discriminator
-  field — Python/PHP wrap raw dict in union container; others throw.
-  Already partially covered by Gap L decisions but Go behavior diverges.
+- **Gap AU (PARTIALLY FIXED)**: Unknown discriminator value in oneOf
+  — Go now returns `fmt.Errorf` instead of silent nil (commit
+  `06a58eab`), matching the other 11 SDKs' throw/raise behavior.
+  Still open: Python/PHP wrap raw dict in union container on missing
+  discriminator field (a separate sub-divergence; less impactful).
 - **Gap AV (FIXED)**: `security: []` operation handling — Dart and
   Elixir now skip the default authenticator on explicit no-auth
   operations, matching the other 10 SDKs. commit `a29acc3b`.
