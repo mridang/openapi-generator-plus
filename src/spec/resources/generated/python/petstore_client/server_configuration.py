@@ -8,7 +8,6 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-
 @dataclass(frozen=True)
 class ServerVariable:
     """Represents a server variable from the OpenAPI specification.
@@ -31,7 +30,6 @@ class ServerVariable:
 
     An empty list means any value is accepted.
     """
-
 
 @dataclass(frozen=True)
 class ServerConfiguration:

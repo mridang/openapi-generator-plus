@@ -8,7 +8,6 @@
 from .api_key_authenticator import ApiKeyAuthenticator
 from .api_key_location import ApiKeyLocation
 
-
 class ApiKeyHeaderAuthenticator(ApiKeyAuthenticator):
     def __init__(self, host: str, api_key: str):
-        super().__init__(host, 'X-API-Key', api_key, ApiKeyLocation.HEADER)
+        super().__init__(host, "X-API-Key", api_key, ApiKeyLocation.HEADER)

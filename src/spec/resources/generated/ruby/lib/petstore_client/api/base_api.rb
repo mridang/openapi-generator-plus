@@ -67,7 +67,22 @@ module PetstoreClient
         headers.merge!(effective_auth.auth_headers) if effective_auth
         cookies = effective_auth&.cookie_params || {}
         unless cookies.empty?
-          cookie_str = cookies.map { |k, v| "#{CGI.escape(k.to_s)}=#{CGI.escape(v.to_s)}" }.join('; ')
+          # RFC 6265 — don't URL-encode cookie name/value; most cookie
+          # parsers don't URL-decode, so `=` (base64 padding) would
+          # arrive as literal `%3D` and break JWT/session cookies.
+          # Validate and pass through raw instead.
+          cookie_str = cookies.map do |k, v|
+            name = k.to_s
+            value = v.to_s
+            unless name.match?(/\A[A-Za-z0-9!#$%&'*+\-.^_`|~]+\z/)
+              raise ArgumentError, "Cookie name '#{name}' contains characters forbidden by RFC 6265"
+            end
+            unless value.match?(/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/)
+              raise ArgumentError, "Cookie value for '#{name}' contains characters forbidden by RFC 6265"
+            end
+
+            "#{name}=#{value}"
+          end.join('; ')
           existing = headers['Cookie']
           headers['Cookie'] = existing ? "#{existing}; #{cookie_str}" : cookie_str
         end

@@ -11,7 +11,6 @@ from typing import Dict
 from .base_authenticator import BaseAuthenticator
 from .api_key_location import ApiKeyLocation
 
-
 @dataclass(frozen=True)
 class ApiKeyAuthenticator(BaseAuthenticator):
     """Authenticator for API key authentication."""
@@ -28,11 +27,12 @@ class ApiKeyAuthenticator(BaseAuthenticator):
         # or (b) silently-mangled non-ASCII bytes that different HTTP
         # libs encode differently per language.
         if self.location == ApiKeyLocation.HEADER and any(
-            c != '\t' and (ord(c) < 0x20 or ord(c) >= 0x7F) for c in self.api_key
+            c != '\t' and (ord(c) < 0x20 or ord(c) >= 0x7F)
+            for c in self.api_key
         ):
             raise ValueError(
                 f"API key for header '{self.key_param_name}' must contain "
-                f'only printable ASCII characters (RFC 7230 §3.2.6)'
+                f"only printable ASCII characters (RFC 7230 §3.2.6)"
             )
 
     def get_host(self) -> str:

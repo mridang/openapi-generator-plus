@@ -4,7 +4,6 @@ from petstore_client.models.wet_food import WetFood
 from petstore_client.models.medication import Medication
 from petstore_client.models.surgery import Surgery
 
-
 class TestOneOfPetFood:
     """oneOf with discriminator: PetFood"""
 
@@ -34,7 +33,6 @@ class TestOneOfPetFood:
         assert 'dry' in serialized
         assert '2.5' in serialized
 
-
 class TestAnyOfPetTreatment:
     """anyOf without discriminator: PetTreatment"""
 
@@ -58,7 +56,6 @@ class TestAnyOfPetTreatment:
         serialized = ObjectSerializer().serialize(result)
         assert serialized is not None
         assert len(serialized) > 0
-
 
 class TestAllOfPetWithOwner:
     """allOf: PetWithOwner"""

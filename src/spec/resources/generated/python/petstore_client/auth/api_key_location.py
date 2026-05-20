@@ -7,7 +7,6 @@
 
 from enum import Enum
 
-
 class ApiKeyLocation(Enum):
     """Location where the API key should be sent."""
 

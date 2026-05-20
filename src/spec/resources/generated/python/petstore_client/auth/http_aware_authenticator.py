@@ -10,7 +10,6 @@ from abc import abstractmethod
 from ..api_client import ApiClient
 from .authenticator import Authenticator
 
-
 class HttpAwareAuthenticator(Authenticator):
     """Extension of :class:`Authenticator` for authentication schemes that
     require making HTTP requests (e.g. OAuth2 token exchange, OpenID Connect

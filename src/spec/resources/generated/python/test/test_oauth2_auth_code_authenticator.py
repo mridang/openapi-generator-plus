@@ -12,7 +12,6 @@ from urllib.parse import urlparse, parse_qs
 from petstore_client.auth.oauth.oauth2_auth_code_authenticator import OAuth2AuthorizationCodeAuthenticator
 from petstore_client.api_response import ApiResponse
 
-
 def _create_authenticator() -> OAuth2AuthorizationCodeAuthenticator:
     return OAuth2AuthorizationCodeAuthenticator(
         host='https://api.example.com',
@@ -24,8 +23,8 @@ def _create_authenticator() -> OAuth2AuthorizationCodeAuthenticator:
         scopes=['read', 'write'],
     )
 
-
 class TestOAuth2AuthorizationCodeAuthenticator:
+
     def test_builds_authorization_url_with_required_params(self) -> None:
         auth = _create_authenticator()
 
@@ -55,13 +54,11 @@ class TestOAuth2AuthorizationCodeAuthenticator:
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiResponse(
             status_code=200,
-            body=json.dumps(
-                {
-                    'access_token': 'access_abc',
-                    'refresh_token': 'refresh_xyz',
-                    'expires_in': 3600,
-                }
-            ),
+            body=json.dumps({
+                'access_token': 'access_abc',
+                'refresh_token': 'refresh_xyz',
+                'expires_in': 3600,
+            }),
             headers={'content-type': 'application/json'},
         )
         auth.set_api_client(mock_client)
@@ -84,13 +81,11 @@ class TestOAuth2AuthorizationCodeAuthenticator:
         # First call: exchange_code returns a refresh token with immediate expiry
         mock_client.send_request.return_value = ApiResponse(
             status_code=200,
-            body=json.dumps(
-                {
-                    'access_token': 'access_1',
-                    'refresh_token': 'refresh_token_value',
-                    'expires_in': 0,
-                }
-            ),
+            body=json.dumps({
+                'access_token': 'access_1',
+                'refresh_token': 'refresh_token_value',
+                'expires_in': 0,
+            }),
             headers={'content-type': 'application/json'},
         )
         auth.set_api_client(mock_client)
@@ -99,12 +94,10 @@ class TestOAuth2AuthorizationCodeAuthenticator:
         # Second call: get_auth_headers triggers refresh
         mock_client.send_request.return_value = ApiResponse(
             status_code=200,
-            body=json.dumps(
-                {
-                    'access_token': 'access_2',
-                    'expires_in': 3600,
-                }
-            ),
+            body=json.dumps({
+                'access_token': 'access_2',
+                'expires_in': 3600,
+            }),
             headers={'content-type': 'application/json'},
         )
         headers = auth.get_auth_headers()

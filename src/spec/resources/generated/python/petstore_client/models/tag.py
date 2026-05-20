@@ -12,7 +12,6 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
 from typing_extensions import Self  # noqa: F401
 
-
 class Tag(BaseModel):
     """
     Tags are deprecated, use categories instead
@@ -70,6 +69,5 @@ class Tag(BaseModel):
         validate_assignment=True,
         protected_namespaces=(),
     )
-
 
 Tag.model_rebuild(raise_errors=False)

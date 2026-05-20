@@ -7,7 +7,6 @@
 
 from .basic_authenticator import BasicAuthenticator
 
-
 class PetStoreBasicAuthenticator(BasicAuthenticator):
     def __init__(self, host: str, username: str, password: str):
         super().__init__(host, username, password)

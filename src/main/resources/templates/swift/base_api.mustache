@@ -70,13 +70,20 @@ open class BaseApi {
             for (k, v) in await auth.authHeaders() {
                 headers[k] = v
             }
-            /* Handle cookie params */
+            /* Handle cookie params. RFC 6265 — don't URL-encode; most cookie
+             * parsers don't URL-decode, so `=` (base64 padding) would arrive
+             * as literal `%3D` and break JWT/session cookies. Validate and
+             * pass through raw instead. */
             let cookies = auth.cookieParams()
             if !cookies.isEmpty {
-                let cookieStr = cookies.map {
-                    let ek = $0.key.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $0.key
-                    let ev = $0.value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $0.value
-                    return "\(ek)=\(ev)"
+                let cookieStr = cookies.map { (k, v) -> String in
+                    if !BaseApi.isValidCookieName(k) {
+                        preconditionFailure("Cookie name '\(k)' contains characters forbidden by RFC 6265")
+                    }
+                    if !BaseApi.isValidCookieValue(v) {
+                        preconditionFailure("Cookie value for '\(k)' contains characters forbidden by RFC 6265")
+                    }
+                    return "\(k)=\(v)"
                 }.joined(separator: "; ")
                 if let existing = headers["Cookie"] {
                     headers["Cookie"] = existing + "; " + cookieStr
@@ -438,6 +445,25 @@ open class BaseApi {
         }
 
         return baseErr
+    }
+
+    /// RFC 6265 cookie-name validation (RFC 7230 token).
+    static func isValidCookieName(_ name: String) -> Bool {
+        if name.isEmpty { return false }
+        let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%&'*+-.^_`|~")
+        return name.unicodeScalars.allSatisfy { allowed.contains($0) }
+    }
+
+    /// RFC 6265 cookie-value validation (cookie-octet*).
+    static func isValidCookieValue(_ value: String) -> Bool {
+        return value.unicodeScalars.allSatisfy { s in
+            let v = s.value
+            return v == 0x21
+                || (0x23...0x2B).contains(v)
+                || (0x2D...0x3A).contains(v)
+                || (0x3C...0x5B).contains(v)
+                || (0x5D...0x7E).contains(v)
+        }
     }
 }
 

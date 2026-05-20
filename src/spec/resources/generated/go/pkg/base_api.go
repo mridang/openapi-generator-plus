@@ -111,12 +111,22 @@ func (b *BaseApi) invokeApiForResult(params invokeApiParams) (*HttpResponse, err
 		for k, v := range effectiveAuth.AuthHeaders() {
 			headers[k] = v
 		}
-		/* Handle cookie params */
+		/* Handle cookie params. RFC 6265 — don't URL-encode cookie name/value;
+		 * most cookie parsers don't URL-decode, so `=` (base64 padding) would
+		 * arrive as literal `%3D` and break JWT/session cookies. Validate and
+		 * pass through raw instead. panic on invalid input — it's a
+		 * programmer error. */
 		cookies := effectiveAuth.CookieParams()
 		if len(cookies) > 0 {
 			var cookieParts []string
 			for k, v := range cookies {
-				cookieParts = append(cookieParts, fmt.Sprintf("%s=%s", url.QueryEscape(k), url.QueryEscape(v)))
+				if !isValidCookieName(k) {
+					panic(fmt.Sprintf("Cookie name '%s' contains characters forbidden by RFC 6265", k))
+				}
+				if !isValidCookieValue(v) {
+					panic(fmt.Sprintf("Cookie value for '%s' contains characters forbidden by RFC 6265", k))
+				}
+				cookieParts = append(cookieParts, fmt.Sprintf("%s=%s", k, v))
 			}
 			cookieStr := strings.Join(cookieParts, "; ")
 			if existing, ok := headers["Cookie"]; ok {
@@ -430,4 +440,34 @@ func throwAPIError(response *HttpResponse) error {
 	}
 
 	return baseErr
+}
+
+// isValidCookieName checks RFC 6265 cookie-name (RFC 7230 token).
+func isValidCookieName(name string) bool {
+	if name == "" {
+		return false
+	}
+	for _, c := range name {
+		ok := (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') ||
+			strings.ContainsRune("!#$%&'*+-.^_`|~", c)
+		if !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// isValidCookieValue checks RFC 6265 cookie-octet* validity.
+func isValidCookieValue(value string) bool {
+	for _, c := range value {
+		ok := c == 0x21 ||
+			(c >= 0x23 && c <= 0x2B) ||
+			(c >= 0x2D && c <= 0x3A) ||
+			(c >= 0x3C && c <= 0x5B) ||
+			(c >= 0x5D && c <= 0x7E)
+		if !ok {
+			return false
+		}
+	}
+	return true
 }

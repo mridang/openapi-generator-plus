@@ -22,7 +22,6 @@ import petstore_client.models
 
 T = TypeVar('T')
 
-
 class SerializationError(Exception):
     """Exception raised when serialization or deserialization fails."""
 
@@ -30,7 +29,6 @@ class SerializationError(Exception):
         super().__init__(message)
         self.message = message
         self.cause = cause
-
 
 class ObjectSerializer:
     """Handles JSON serialization and deserialization for API requests and responses.
@@ -87,7 +85,9 @@ class ObjectSerializer:
         # Raised when json.loads encounters NaN/Infinity/-Infinity literals.
         # The default parse_constant accepts them silently; we reject so
         # non-spec-compliant JSON from a misbehaving server fails loudly.
-        raise SerializationError(f"Non-finite JSON number '{name}' is forbidden by RFC 8259", None)
+        raise SerializationError(
+            f"Non-finite JSON number '{name}' is forbidden by RFC 8259", None
+        )
 
     def deserialize(self, json_string: Optional[str], target_type: Union[str, Type[T]]) -> Optional[T]:
         """Deserialize a JSON string to an object of the specified type."""
@@ -145,7 +145,9 @@ class ObjectSerializer:
                 _visited = set()
             obj_id = id(obj)
             if obj_id in _visited:
-                raise SerializationError('Circular reference detected during serialization')
+                raise SerializationError(
+                    'Circular reference detected during serialization'
+                )
             _visited.add(obj_id)
             try:
                 if isinstance(obj, list):

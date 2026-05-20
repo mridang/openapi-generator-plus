@@ -125,7 +125,21 @@ export abstract class BaseApi {
       const cookies = effectiveAuth.getCookieParams();
       const cookieEntries = Object.entries(cookies);
       if (cookieEntries.length > 0) {
-        const cookieStr = cookieEntries.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('; ');
+        /* RFC 6265 — don't URL-encode cookie name/value; most cookie
+         * parsers don't URL-decode, so `=` (base64 padding) would
+         * arrive as literal `%3D` and break JWT/session cookies.
+         * Validate and pass through raw instead. */
+        const cookieStr = cookieEntries
+          .map(([k, v]) => {
+            if (!/^[A-Za-z0-9!#$%&'*+\-.^_`|~]+$/.test(k)) {
+              throw new Error(`Cookie name '${k}' contains characters forbidden by RFC 6265`);
+            }
+            if (!/^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$/.test(v)) {
+              throw new Error(`Cookie value for '${k}' contains characters forbidden by RFC 6265`);
+            }
+            return `${k}=${v}`;
+          })
+          .join('; ');
         const existing = headers['Cookie'];
         headers['Cookie'] = existing ? `${existing}; ${cookieStr}` : cookieStr;
       }

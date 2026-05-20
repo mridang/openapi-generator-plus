@@ -2,7 +2,6 @@
 
 from petstore_client.trace_context_util import inject_trace_context
 
-
 class TestInjectTraceContext:
     """Tests for inject_trace_context function."""
 

@@ -1,11 +1,10 @@
 import json
 from petstore_client.object_serializer import ObjectSerializer
 
-
 class TestMetadataTypedAdditionalProperties:
+
     def test_serialize_empty_metadata(self) -> None:
         from petstore_client.models import Metadata
-
         metadata = Metadata()
         result = ObjectSerializer().serialize(metadata)
         assert result is not None

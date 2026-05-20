@@ -141,9 +141,19 @@ abstract class BaseApi {
             headers.putAll(effectiveAuth.getAuthHeaders())
             val cookies = effectiveAuth.getCookieParams()
             if (cookies.isNotEmpty()) {
+                // RFC 6265 — don't URL-encode cookie name/value; most cookie
+                // parsers don't URL-decode, so `=` (base64 padding) would
+                // arrive as literal `%3D` and break JWT/session cookies.
+                // Validate and pass through raw instead.
                 val cookieStr =
-                    cookies.entries.joinToString("; ") {
-                        "${encode(it.key)}=${encode(it.value)}"
+                    cookies.entries.joinToString("; ") { (name, value) ->
+                        require(isValidCookieName(name)) {
+                            "Cookie name '$name' contains characters forbidden by RFC 6265"
+                        }
+                        require(isValidCookieValue(value)) {
+                            "Cookie value for '$name' contains characters forbidden by RFC 6265"
+                        }
+                        "$name=$value"
                     }
                 val existing = headers["Cookie"]
                 if (!existing.isNullOrEmpty()) {
@@ -322,4 +332,27 @@ abstract class BaseApi {
      * @return URL-encoded string
      */
     internal fun encode(value: String): String = value.encodeURLQueryComponent(spaceToPlus = true)
+
+    /**
+     * RFC 6265 cookie-name validation (RFC 7230 token).
+     */
+    private fun isValidCookieName(name: String): Boolean {
+        if (name.isEmpty()) return false
+        return name.all { c ->
+            c in 'A'..'Z' || c in 'a'..'z' || c in '0'..'9' || c in "!#$%&'*+-.^_`|~"
+        }
+    }
+
+    /**
+     * RFC 6265 cookie-value validation (cookie-octet*).
+     */
+    private fun isValidCookieValue(value: String): Boolean =
+        value.all { c ->
+            val code = c.code
+            code == 0x21 ||
+                code in 0x23..0x2B ||
+                code in 0x2D..0x3A ||
+                code in 0x3C..0x5B ||
+                code in 0x5D..0x7E
+        }
 }

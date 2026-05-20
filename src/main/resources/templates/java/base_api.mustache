@@ -156,12 +156,25 @@ public abstract class BaseApi {
             headers.putAll(effectiveAuth.getAuthHeaders());
             Map<String, String> cookies = effectiveAuth.getCookieParams();
             if (!cookies.isEmpty()) {
+                /* RFC 6265 — cookie name is a token (RFC 7230 §3.2.6); cookie
+                 * value is *cookie-octet (US-ASCII excluding whitespace, DQUOTE,
+                 * comma, semicolon, backslash, controls). DO NOT URL-encode here:
+                 * most cookie parsers do not URL-decode, so `=` (base64 padding)
+                 * would arrive as literal `%3D` and break JWT/session cookies.
+                 * Validate and pass through raw instead. */
                 StringJoiner cookieJoiner = new StringJoiner("; ");
                 for (Map.Entry<String, String> entry : cookies.entrySet()) {
-                    cookieJoiner.add(
-                            URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8)
-                                    + "="
-                                    + URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8));
+                    String name = entry.getKey();
+                    String value = entry.getValue();
+                    if (!isValidCookieName(name)) {
+                        throw new IllegalArgumentException(
+                                "Cookie name '" + name + "' contains characters forbidden by RFC 6265");
+                    }
+                    if (!isValidCookieValue(value)) {
+                        throw new IllegalArgumentException(
+                                "Cookie value for '" + name + "' contains characters forbidden by RFC 6265");
+                    }
+                    cookieJoiner.add(name + "=" + value);
                 }
                 String existing = headers.get("Cookie");
                 if (existing != null && !existing.isEmpty()) {
@@ -333,6 +346,49 @@ public abstract class BaseApi {
      * @param queryParams the query parameters
      * @return encoded query string
      */
+    /**
+     * Returns true if the value is a valid RFC 6265 cookie name (token).
+     * Allowed chars: ALPHA / DIGIT / "!#$%&'*+-.^_`|~".
+     */
+    private static boolean isValidCookieName(String name) {
+        if (name == null || name.isEmpty()) {
+            return false;
+        }
+        for (int i = 0; i < name.length(); i++) {
+            char c = name.charAt(i);
+            boolean ok = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
+                    || "!#$%&'*+-.^_`|~".indexOf(c) >= 0;
+            if (!ok) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Returns true if the value is a valid RFC 6265 cookie value (cookie-octet*).
+     * Allowed: %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E.
+     * Excludes whitespace, DQUOTE, comma, semicolon, backslash, controls.
+     * Empty value is allowed.
+     */
+    private static boolean isValidCookieValue(String value) {
+        if (value == null) {
+            return false;
+        }
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            boolean ok = c == 0x21
+                    || (c >= 0x23 && c <= 0x2B)
+                    || (c >= 0x2D && c <= 0x3A)
+                    || (c >= 0x3C && c <= 0x5B)
+                    || (c >= 0x5D && c <= 0x7E);
+            if (!ok) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private String buildQueryString(Map<String, Object> queryParams) {
         if (queryParams == null || queryParams.isEmpty()) {
             return "";

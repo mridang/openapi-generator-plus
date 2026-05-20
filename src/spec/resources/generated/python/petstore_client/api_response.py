@@ -8,7 +8,6 @@
 from dataclasses import dataclass
 from typing import Dict
 
-
 @dataclass(frozen=True)
 class ApiResponse:
     """Represents an HTTP API response."""

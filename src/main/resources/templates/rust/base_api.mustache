@@ -110,12 +110,23 @@ impl BaseApi {
             for (k, v) in auth.auth_headers().await {
                 headers.insert(k, v);
             }
-            /* Handle cookie params */
+            /* Handle cookie params. RFC 6265 — don't URL-encode cookie name/value;
+             * most cookie parsers don't URL-decode, so `=` (base64 padding) would
+             * arrive as literal `%3D` and break JWT/session cookies. Validate and
+             * pass through raw instead. panic on invalid input — programmer error. */
             let cookies = auth.cookie_params();
             if !cookies.is_empty() {
                 let cookie_parts: Vec<String> = cookies
                     .iter()
-                    .map(|(k, v)| format!("{}={}", urlencoding::encode(k), urlencoding::encode(v)))
+                    .map(|(k, v)| {
+                        if !is_valid_cookie_name(k) {
+                            panic!("Cookie name '{}' contains characters forbidden by RFC 6265", k);
+                        }
+                        if !is_valid_cookie_value(v) {
+                            panic!("Cookie value for '{}' contains characters forbidden by RFC 6265", k);
+                        }
+                        format!("{}={}", k, v)
+                    })
                     .collect();
                 let cookie_str = cookie_parts.join("; ");
                 if let Some(existing) = headers.get("Cookie").cloned() {
@@ -415,4 +426,26 @@ fn throw_api_error(response: &ApiResponse) -> Box<dyn std::error::Error + Send +
     }
 
     Box::new(base_err)
+}
+
+/// RFC 6265 cookie-name validation (RFC 7230 token).
+fn is_valid_cookie_name(name: &str) -> bool {
+    if name.is_empty() {
+        return false;
+    }
+    name.chars().all(|c| {
+        c.is_ascii_alphanumeric() || "!#$%&'*+-.^_`|~".contains(c)
+    })
+}
+
+/// RFC 6265 cookie-value validation (cookie-octet*).
+fn is_valid_cookie_value(value: &str) -> bool {
+    value.chars().all(|c| {
+        let v = c as u32;
+        v == 0x21
+            || (0x23..=0x2B).contains(&v)
+            || (0x2D..=0x3A).contains(&v)
+            || (0x3C..=0x5B).contains(&v)
+            || (0x5D..=0x7E).contains(&v)
+    })
 }
