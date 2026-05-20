@@ -108,6 +108,9 @@ class {{classname}} extends BaseApi
      * @param {{{dataType}}} ${{paramName}}
 {{/isArray}}
 {{/description}}
+{{#vendorExtensions.examples}}
+     * @example {{value}} {{summary}}
+{{/vendorExtensions.examples}}
 {{/pathParams}}
 {{#bodyParam}}
 {{#description}}
@@ -118,6 +121,9 @@ class {{classname}} extends BaseApi
      * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}}
 {{/isArray}}
 {{/description}}
+{{#vendorExtensions.examples}}
+     * @example {{value}} {{summary}}
+{{/vendorExtensions.examples}}
 {{/bodyParam}}
 {{#queryParams}}{{#-first}}
      * @param {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options $options Options for query, header, form, and cookie parameters

@@ -118,9 +118,19 @@ class {{classname}}(BaseApi):
 {{/hasAuthMethods}}
 {{#pathParams}}
         :param {{paramName}}: {{description}}{{#required}} (required){{/required}}{{^required}} (optional{{^isContainer}}{{#defaultValue}}, default to {{.}}{{/defaultValue}}{{/isContainer}}){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.examples}}
+        # {{summary}}
+        # {{description}}
+        # >>> {{value}}
+{{/vendorExtensions.examples}}
 {{/pathParams}}
 {{#bodyParam}}
         :param {{paramName}}: {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.examples}}
+        # {{summary}}
+        # {{description}}
+        # >>> {{value}}
+{{/vendorExtensions.examples}}
 {{/bodyParam}}
 {{#queryParams}}{{#-first}}
         :param options: options for query, header, form, and cookie parameters

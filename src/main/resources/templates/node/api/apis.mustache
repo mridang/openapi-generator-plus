@@ -85,21 +85,39 @@ export class {{classname}} extends BaseApi {
 {{/hasAuthMethods}}
 {{#pathParams}}
    * @param {{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.examples}}
+   * @example {{summary}} - {{value}}
+{{/vendorExtensions.examples}}
 {{/pathParams}}
 {{#bodyParam}}
    * @param {{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.examples}}
+   * @example {{summary}} - {{value}}
+{{/vendorExtensions.examples}}
 {{/bodyParam}}
 {{#queryParams}}
    * @param options.{{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.examples}}
+   * @example {{summary}} - {{value}}
+{{/vendorExtensions.examples}}
 {{/queryParams}}
 {{#headerParams}}
    * @param options.{{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.examples}}
+   * @example {{summary}} - {{value}}
+{{/vendorExtensions.examples}}
 {{/headerParams}}
 {{#formParams}}
    * @param options.{{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.examples}}
+   * @example {{summary}} - {{value}}
+{{/vendorExtensions.examples}}
 {{/formParams}}
 {{#cookieParams}}
    * @param options.{{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.examples}}
+   * @example {{summary}} - {{value}}
+{{/vendorExtensions.examples}}
 {{/cookieParams}}
 {{#returnType}}
    * @return {{{returnType}}}

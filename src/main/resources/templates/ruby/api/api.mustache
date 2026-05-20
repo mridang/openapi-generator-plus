@@ -95,9 +95,19 @@ module {{moduleName}}
 {{/hasAuthMethods}}
 {{#pathParams}}
       # @param {{paramName}} [{{{dataType}}}]{{#description}} {{.}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.examples}}
+      # {{summary}}
+      # {{description}}
+      # Example: {{value}}
+{{/vendorExtensions.examples}}
 {{/pathParams}}
 {{#bodyParam}}
       # @param {{paramName}} [{{{dataType}}}]{{#description}} {{.}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.examples}}
+      # {{summary}}
+      # {{description}}
+      # Example: {{value}}
+{{/vendorExtensions.examples}}
 {{/bodyParam}}
 {{#queryParams}}{{#-first}}
       # @param options [{{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options] options for query, header, form, and cookie parameters

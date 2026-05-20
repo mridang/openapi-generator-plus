@@ -80,6 +80,13 @@ class {{classname}} extends BaseApi {
 {{#isDeprecated}}
   @Deprecated('This operation is deprecated.')
 {{/isDeprecated}}
+{{#allParams}}{{#vendorExtensions.examples}}
+  /// ## {{summary}}
+  /// {{description}}
+  /// ```json
+  /// {{value}}
+  /// ```
+{{/vendorExtensions.examples}}{{/allParams}}
   Future<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}> {{operationId}}({{#pathParams}}{{{dataType}}} {{paramName}}, {{/pathParams}}{{#bodyParam}}{{^required}}{{{dataType}}}? {{/required}}{{#required}}{{{dataType}}} {{/required}}{{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server? server, {{/-first}}{{/servers}}{{#hasAuthMethods}}{Authenticator? auth}{{/hasAuthMethods}}{{^hasAuthMethods}}{}{{/hasAuthMethods}}) async {
 {{#returnType}}
     final result = await {{operationId}}WithHTTPInfo({{#pathParams}}{{paramName}}, {{/pathParams}}{{#bodyParam}}{{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server, {{/-first}}{{/servers}}{{#hasAuthMethods}}auth: auth{{/hasAuthMethods}});

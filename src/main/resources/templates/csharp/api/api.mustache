@@ -115,9 +115,15 @@ public class {{classname}} : BaseApi
 {{/hasAuthMethods}}
     {{#pathParams}}
     /// <param name="{{paramName}}">{{description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
+    {{#vendorExtensions.examples}}
+    /// <example>{{summary}}: {{value}}</example>
+    {{/vendorExtensions.examples}}
     {{/pathParams}}
     {{#bodyParam}}
     /// <param name="{{paramName}}">{{description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
+    {{#vendorExtensions.examples}}
+    /// <example>{{summary}}: {{value}}</example>
+    {{/vendorExtensions.examples}}
     {{/bodyParam}}
 {{#queryParams}}
 {{#-first}}
