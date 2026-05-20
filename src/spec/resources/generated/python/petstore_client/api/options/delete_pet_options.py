@@ -8,6 +8,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
+
 @dataclass
 class DeletePetOptions:
     """Options for the delete_pet operation."""

@@ -11,6 +11,7 @@ from unittest.mock import MagicMock
 from petstore_client.auth.oauth.oauth2_client_credentials_authenticator import OAuth2ClientCredentialsAuthenticator
 from petstore_client.api_response import ApiResponse
 
+
 def _create_authenticator() -> OAuth2ClientCredentialsAuthenticator:
     return OAuth2ClientCredentialsAuthenticator(
         host='https://api.example.com',
@@ -20,22 +21,25 @@ def _create_authenticator() -> OAuth2ClientCredentialsAuthenticator:
         scopes=['read', 'write'],
     )
 
+
 def _create_authenticator_with_mock() -> tuple[OAuth2ClientCredentialsAuthenticator, MagicMock]:
     auth = _create_authenticator()
     mock_client = MagicMock()
     mock_client.send_request.return_value = ApiResponse(
         status_code=200,
-        body=json.dumps({
-            'access_token': 'tok1',
-            'expires_in': 3600,
-        }),
+        body=json.dumps(
+            {
+                'access_token': 'tok1',
+                'expires_in': 3600,
+            }
+        ),
         headers={'content-type': 'application/json'},
     )
     auth.set_api_client(mock_client)
     return auth, mock_client
 
-class TestOAuth2ClientCredentialsAuthenticator:
 
+class TestOAuth2ClientCredentialsAuthenticator:
     def test_sends_client_credentials_grant_type(self) -> None:
         auth, mock_client = _create_authenticator_with_mock()
 
@@ -69,10 +73,12 @@ class TestOAuth2ClientCredentialsAuthenticator:
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiResponse(
             status_code=200,
-            body=json.dumps({
-                'access_token': 'tok-abc',
-                'expires_in': 3600,
-            }),
+            body=json.dumps(
+                {
+                    'access_token': 'tok-abc',
+                    'expires_in': 3600,
+                }
+            ),
             headers={'content-type': 'application/json'},
         )
         auth.set_api_client(mock_client)

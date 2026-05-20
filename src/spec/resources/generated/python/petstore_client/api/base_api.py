@@ -31,9 +31,8 @@ from ..auth.authenticator import Authenticator
 
 T = TypeVar('T')
 
-_COOKIE_NAME_CHARS = frozenset(
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%&'*+-.^_`|~"
-)
+_COOKIE_NAME_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%&'*+-.^_`|~")
+
 
 def _is_valid_cookie_name(name: str) -> bool:
     """RFC 6265 cookie-name validation (RFC 7230 token)."""
@@ -41,19 +40,17 @@ def _is_valid_cookie_name(name: str) -> bool:
         return False
     return all(c in _COOKIE_NAME_CHARS for c in name)
 
+
 def _is_valid_cookie_value(value: str) -> bool:
     """RFC 6265 cookie-value validation (cookie-octet*)."""
     for c in value:
         code = ord(c)
         if not (
-            code == 0x21
-            or 0x23 <= code <= 0x2B
-            or 0x2D <= code <= 0x3A
-            or 0x3C <= code <= 0x5B
-            or 0x5D <= code <= 0x7E
+            code == 0x21 or 0x23 <= code <= 0x2B or 0x2D <= code <= 0x3A or 0x3C <= code <= 0x5B or 0x5D <= code <= 0x7E
         ):
             return False
     return True
+
 
 class BaseApi:
     """Base class for all API classes.
@@ -168,13 +165,9 @@ class BaseApi:
                     name = str(k)
                     value = str(v)
                     if not _is_valid_cookie_name(name):
-                        raise ValueError(
-                            f"Cookie name '{name}' contains characters forbidden by RFC 6265"
-                        )
+                        raise ValueError(f"Cookie name '{name}' contains characters forbidden by RFC 6265")
                     if not _is_valid_cookie_value(value):
-                        raise ValueError(
-                            f"Cookie value for '{name}' contains characters forbidden by RFC 6265"
-                        )
+                        raise ValueError(f"Cookie value for '{name}' contains characters forbidden by RFC 6265")
                     cookie_parts.append(f'{name}={value}')
                 cookie_str = '; '.join(cookie_parts)
                 existing = headers.get('Cookie', '')
@@ -218,6 +211,7 @@ class BaseApi:
             if resp_content_type and not self._header_selector.is_json_mime(resp_content_type):
                 if return_type == 'bytes':
                     import base64
+
                     data = base64.b64decode(response.body) if response.body else b''
                 else:
                     data = response.body
@@ -299,20 +293,40 @@ class BaseApi:
 
         if 400 <= code < 500:
             if code == 400:
-                raise BadRequestException(message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise BadRequestException(
+                    message=message, response_body=body, response_headers=headers, error_body=error_body
+                )
             if code == 401:
-                raise UnauthorizedException(message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise UnauthorizedException(
+                    message=message, response_body=body, response_headers=headers, error_body=error_body
+                )
             if code == 403:
-                raise ForbiddenException(message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise ForbiddenException(
+                    message=message, response_body=body, response_headers=headers, error_body=error_body
+                )
             if code == 404:
-                raise NotFoundException(message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise NotFoundException(
+                    message=message, response_body=body, response_headers=headers, error_body=error_body
+                )
             if code == 409:
-                raise ConflictException(message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise ConflictException(
+                    message=message, response_body=body, response_headers=headers, error_body=error_body
+                )
             if code == 422:
-                raise UnprocessableEntityException(message=message, response_body=body, response_headers=headers, error_body=error_body)
-            raise ClientException(status_code=code, message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise UnprocessableEntityException(
+                    message=message, response_body=body, response_headers=headers, error_body=error_body
+                )
+            raise ClientException(
+                status_code=code, message=message, response_body=body, response_headers=headers, error_body=error_body
+            )
         if code >= 500:
             if code == 500:
-                raise InternalServerErrorException(message=message, response_body=body, response_headers=headers, error_body=error_body)
-            raise ServerException(status_code=code, message=message, response_body=body, response_headers=headers, error_body=error_body)
-        raise ApiException(status_code=code, message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise InternalServerErrorException(
+                    message=message, response_body=body, response_headers=headers, error_body=error_body
+                )
+            raise ServerException(
+                status_code=code, message=message, response_body=body, response_headers=headers, error_body=error_body
+            )
+        raise ApiException(
+            status_code=code, message=message, response_body=body, response_headers=headers, error_body=error_body
+        )

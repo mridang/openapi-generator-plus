@@ -12,6 +12,7 @@ from typing import Dict, Optional
 
 from ...api_client import ApiClient
 
+
 class OAuth2TokenManager:
     """Manages OAuth2 token lifecycle: fetching, caching, and refreshing.
 
@@ -71,8 +72,7 @@ class OAuth2TokenManager:
         """
         with self._lock:
             if self._access_token and (
-                self._token_expiry is None
-                or time.time() < (self._token_expiry - self._EXPIRY_SAFETY_MARGIN_S)
+                self._token_expiry is None or time.time() < (self._token_expiry - self._EXPIRY_SAFETY_MARGIN_S)
             ):
                 return self._access_token
             if self._refresh_token:

@@ -7,6 +7,7 @@
 
 from enum import Enum
 
+
 class ClientAuthMethod(str, Enum):
     """How OAuth2 client credentials are transmitted to the token endpoint.
 

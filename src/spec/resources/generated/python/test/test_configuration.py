@@ -3,6 +3,7 @@ from types import MappingProxyType
 from petstore_client.configuration import Configuration, ConfigurationBuilder
 from petstore_client.server_configuration import ServerConfiguration, ServerVariable
 
+
 class TestConfigurationDefaults:
     def test_default_constructor_uses_spec_base_url(self) -> None:
         config = Configuration()
@@ -21,6 +22,7 @@ class TestConfigurationDefaults:
 
         assert isinstance(builder, ConfigurationBuilder)
 
+
 class TestConfigurationBuilder:
     def test_builder_sets_base_url(self) -> None:
         config = Configuration.builder().base_url('https://custom.example.com').build()
@@ -28,21 +30,19 @@ class TestConfigurationBuilder:
         assert config.base_url == 'https://custom.example.com'
 
     def test_builder_sets_single_default_header(self) -> None:
-        config = (
-            Configuration.builder()
-            .default_header('Authorization', 'Bearer token123')
-            .build()
-        )
+        config = Configuration.builder().default_header('Authorization', 'Bearer token123').build()
 
         assert config.default_headers['Authorization'] == 'Bearer token123'
 
     def test_builder_sets_multiple_default_headers(self) -> None:
         config = (
             Configuration.builder()
-            .default_headers({
-                'Authorization': 'Bearer token123',
-                'X-Custom': 'value',
-            })
+            .default_headers(
+                {
+                    'Authorization': 'Bearer token123',
+                    'X-Custom': 'value',
+                }
+            )
             .build()
         )
 
@@ -86,6 +86,7 @@ class TestConfigurationBuilder:
         server = ServerConfiguration(url_template='https://example.com')
         assert builder is builder.server(server)
 
+
 class TestConfigurationServerResolution:
     def test_builder_server_resolves_url(self) -> None:
         server = ServerConfiguration(
@@ -122,25 +123,17 @@ class TestConfigurationServerResolution:
             },
         )
 
-        config = (
-            Configuration.builder()
-            .server(server, {'env': 'staging', 'version': 'v2'})
-            .build()
-        )
+        config = Configuration.builder().server(server, {'env': 'staging', 'version': 'v2'}).build()
 
         assert config.base_url == 'https://staging.example.com/api/v2'
 
     def test_builder_base_url_overrides_server(self) -> None:
         server = ServerConfiguration(url_template='https://api.example.com')
 
-        config = (
-            Configuration.builder()
-            .server(server)
-            .base_url('https://override.example.com')
-            .build()
-        )
+        config = Configuration.builder().server(server).base_url('https://override.example.com').build()
 
         assert config.base_url == 'https://override.example.com'
+
 
 class TestConfigurationSingleton:
     def teardown_method(self) -> None:
@@ -166,13 +159,10 @@ class TestConfigurationSingleton:
         assert Configuration.get_default() is custom
         assert Configuration.get_default().base_url == 'https://custom.example.com'
 
+
 class TestConfigurationImmutability:
     def test_default_headers_is_immutable(self) -> None:
-        config = (
-            Configuration.builder()
-            .default_header('X-Key', 'value')
-            .build()
-        )
+        config = Configuration.builder().default_header('X-Key', 'value').build()
 
         assert isinstance(config.default_headers, MappingProxyType)
         assert config.default_headers['X-Key'] == 'value'

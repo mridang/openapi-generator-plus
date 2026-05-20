@@ -9,6 +9,7 @@ from typing import Any, Optional
 
 from petstore_client.errors.client_exception import ClientException
 
+
 class UnprocessableEntityException(ClientException):
     """Exception for HTTP 422 Unprocessable Entity."""
 
@@ -19,4 +20,10 @@ class UnprocessableEntityException(ClientException):
         response_body: Optional[str] = None,
         error_body: Optional[Any] = None,
     ) -> None:
-        super().__init__(status_code=422, message=message, response_headers=response_headers, response_body=response_body, error_body=error_body)
+        super().__init__(
+            status_code=422,
+            message=message,
+            response_headers=response_headers,
+            response_body=response_body,
+            error_body=error_body,
+        )

@@ -10,6 +10,7 @@ from typing import Dict
 
 from .base_authenticator import BaseAuthenticator
 
+
 @dataclass(frozen=True)
 class BearerAuthenticator(BaseAuthenticator):
     """Authenticator for HTTP Bearer token authentication."""
@@ -23,9 +24,7 @@ class BearerAuthenticator(BaseAuthenticator):
         # clear error rather than HTTP header injection from CR/LF or
         # silently-mangled non-ASCII bytes.
         if any(c != '\t' and (ord(c) < 0x20 or ord(c) >= 0x7F) for c in self.token):
-            raise ValueError(
-                'Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)'
-            )
+            raise ValueError('Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)')
 
     def get_host(self) -> str:
         return self.host

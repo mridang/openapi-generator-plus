@@ -13,12 +13,14 @@ from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
 from typing_extensions import Self  # noqa: F401
 from enum import Enum
 
+
 class PetWithOwnerStatusEnum(str, Enum):
     """PetWithOwner - status"""
 
     AVAILABLE = 'available'
     PENDING = 'pending'
     SOLD = 'sold'
+
 
 class PetWithOwner(BaseModel):
     """
@@ -31,7 +33,9 @@ class PetWithOwner(BaseModel):
     photo_urls: Set[str] = Field(alias='photoUrls')
     tags: Optional[List[Tag]] = Field(default=None, alias='tags')
     # .. deprecated:: This property is deprecated.
-    status: Optional[PetWithOwnerStatusEnum] = Field(default=None, alias='status', description="pet status in the store")
+    status: Optional[PetWithOwnerStatusEnum] = Field(
+        default=None, alias='status', description='pet status in the store'
+    )
     owner_name: str = Field(alias='ownerName')
     owner_email: Optional[str] = Field(default=None, alias='ownerEmail')
     additional_properties: Dict[str, Any] = Field(default_factory=dict)
@@ -81,6 +85,7 @@ class PetWithOwner(BaseModel):
         validate_assignment=True,
         protected_namespaces=(),
     )
+
 
 from petstore_client.models.category import Category
 from petstore_client.models.tag import Tag

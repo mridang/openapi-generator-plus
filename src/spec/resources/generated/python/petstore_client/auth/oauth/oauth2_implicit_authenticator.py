@@ -11,6 +11,7 @@ from urllib.parse import urlencode
 from ...api_client import ApiClient
 from ..http_aware_authenticator import HttpAwareAuthenticator
 
+
 class OAuth2ImplicitAuthenticator(HttpAwareAuthenticator):
     """Authenticator for the OAuth2 Implicit flow.
 

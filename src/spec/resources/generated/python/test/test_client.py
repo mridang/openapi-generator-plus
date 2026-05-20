@@ -6,6 +6,7 @@ from petstore_client.auth.bearer_authenticator import BearerAuthenticator
 from petstore_client.client import Client
 from petstore_client.transport_options import TransportOptions
 
+
 class TestClient:
     def test_bearer_rejects_crlf(self) -> None:
         with pytest.raises(ValueError):

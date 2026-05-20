@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
 from typing_extensions import Self  # noqa: F401
 
+
 class PetTreatment(BaseModel):
     """
     A treatment that can match a medication, a surgery, or both
@@ -54,6 +55,7 @@ class PetTreatment(BaseModel):
                 'No match found when setting `actual_instance` in PetTreatment with anyOf schemas: Medication, Surgery'
             )
         return v
+
 
 from petstore_client.models.medication import Medication
 from petstore_client.models.surgery import Surgery

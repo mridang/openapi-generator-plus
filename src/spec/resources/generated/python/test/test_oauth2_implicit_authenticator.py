@@ -9,6 +9,7 @@ from urllib.parse import urlparse, parse_qs
 
 from petstore_client.auth.oauth.oauth2_implicit_authenticator import OAuth2ImplicitAuthenticator
 
+
 def _create_authenticator() -> OAuth2ImplicitAuthenticator:
     return OAuth2ImplicitAuthenticator(
         host='https://api.example.com',
@@ -17,8 +18,8 @@ def _create_authenticator() -> OAuth2ImplicitAuthenticator:
         scopes=['read', 'write'],
     )
 
-class TestOAuth2ImplicitAuthenticator:
 
+class TestOAuth2ImplicitAuthenticator:
     def test_builds_authorization_url_with_response_type_token(self) -> None:
         auth = _create_authenticator()
 

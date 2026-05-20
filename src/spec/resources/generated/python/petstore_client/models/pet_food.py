@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
 from typing_extensions import Self  # noqa: F401
 
+
 class PetFood(BaseModel):
     """
     Food for pets, discriminated by foodType
@@ -76,6 +77,7 @@ class PetFood(BaseModel):
             )
         else:
             return v
+
 
 from petstore_client.models.dry_food import DryFood
 from petstore_client.models.wet_food import WetFood

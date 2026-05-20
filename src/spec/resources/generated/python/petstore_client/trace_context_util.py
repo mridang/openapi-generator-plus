@@ -9,6 +9,7 @@
 
 from typing import Dict
 
+
 def inject_trace_context(headers: Dict[str, str]) -> None:
     """Inject the current OpenTelemetry trace context into the given headers dict.
 

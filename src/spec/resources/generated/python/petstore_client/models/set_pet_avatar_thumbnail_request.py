@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
 from typing_extensions import Self  # noqa: F401
 
+
 class SetPetAvatarThumbnailRequest(BaseModel):
     """
     SetPetAvatarThumbnailRequest
@@ -69,5 +70,6 @@ class SetPetAvatarThumbnailRequest(BaseModel):
             )
         else:
             return v
+
 
 SetPetAvatarThumbnailRequest.model_rebuild(raise_errors=False)

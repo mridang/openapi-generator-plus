@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
 from typing_extensions import Self  # noqa: F401
 
+
 class DryFood(BaseModel):
     """
     DryFood
@@ -66,5 +67,6 @@ class DryFood(BaseModel):
         validate_assignment=True,
         protected_namespaces=(),
     )
+
 
 DryFood.model_rebuild(raise_errors=False)

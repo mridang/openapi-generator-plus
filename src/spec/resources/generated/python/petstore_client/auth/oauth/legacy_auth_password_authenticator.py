@@ -7,6 +7,16 @@
 
 from .oauth2_password_authenticator import OAuth2PasswordAuthenticator
 
+
 class LegacyAuthPasswordAuthenticator(OAuth2PasswordAuthenticator):
     def __init__(self, host: str, client_id: str, client_secret: str, username: str, password: str):
-        super().__init__(host, client_id, client_secret, "https://auth.example.com/oauth/token", username, password, ["read"], "https://auth.example.com/oauth/refresh")
+        super().__init__(
+            host,
+            client_id,
+            client_secret,
+            'https://auth.example.com/oauth/token',
+            username,
+            password,
+            ['read'],
+            'https://auth.example.com/oauth/refresh',
+        )

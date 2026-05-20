@@ -12,6 +12,7 @@ from urllib.parse import urlparse, parse_qs
 from petstore_client.auth.oauth.openid_connect_authenticator import OpenIdConnectAuthenticator
 from petstore_client.api_response import ApiResponse
 
+
 def _create_authenticator() -> OpenIdConnectAuthenticator:
     return OpenIdConnectAuthenticator(
         host='https://api.example.com',
@@ -22,25 +23,28 @@ def _create_authenticator() -> OpenIdConnectAuthenticator:
         scopes=['openid', 'profile'],
     )
 
+
 def _create_authenticator_with_discovery() -> tuple[OpenIdConnectAuthenticator, MagicMock]:
     """Helper that creates an authenticator and mocks the discovery endpoint."""
     auth = _create_authenticator()
     mock_client = MagicMock()
     discovery_response = ApiResponse(
         status_code=200,
-        body=json.dumps({
-            'authorization_endpoint': 'https://auth.example.com/authorize',
-            'token_endpoint': 'https://auth.example.com/token',
-            'issuer': 'https://auth.example.com',
-        }),
+        body=json.dumps(
+            {
+                'authorization_endpoint': 'https://auth.example.com/authorize',
+                'token_endpoint': 'https://auth.example.com/token',
+                'issuer': 'https://auth.example.com',
+            }
+        ),
         headers={'content-type': 'application/json'},
     )
     mock_client.send_request.return_value = discovery_response
     auth.set_api_client(mock_client)
     return auth, mock_client
 
-class TestOpenIdConnectAuthenticator:
 
+class TestOpenIdConnectAuthenticator:
     def test_builds_authorization_url_from_discovery(self) -> None:
         auth, mock_client = _create_authenticator_with_discovery()
 
@@ -72,10 +76,12 @@ class TestOpenIdConnectAuthenticator:
         mock_client.reset_mock()
         mock_client.send_request.return_value = ApiResponse(
             status_code=200,
-            body=json.dumps({
-                'access_token': 'oidc_access_token',
-                'expires_in': 3600,
-            }),
+            body=json.dumps(
+                {
+                    'access_token': 'oidc_access_token',
+                    'expires_in': 3600,
+                }
+            ),
             headers={'content-type': 'application/json'},
         )
 
@@ -97,10 +103,12 @@ class TestOpenIdConnectAuthenticator:
         mock_client.reset_mock()
         mock_client.send_request.return_value = ApiResponse(
             status_code=200,
-            body=json.dumps({
-                'access_token': 'oidc-tok',
-                'expires_in': 3600,
-            }),
+            body=json.dumps(
+                {
+                    'access_token': 'oidc-tok',
+                    'expires_in': 3600,
+                }
+            ),
             headers={'content-type': 'application/json'},
         )
 
