@@ -64,20 +64,13 @@ public class Order : IEquatable<Order>
     public bool Equals(Order? other)
     {
         return other is not null
-            && (
-                ReferenceEquals(this, other)
-                || (
-                    EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
+            && (ReferenceEquals(this, other)
+                || (EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
                     && EqualityComparer<long?>.Default.Equals(this.PetId, other.PetId)
                     && EqualityComparer<int?>.Default.Equals(this.Quantity, other.Quantity)
-                    && EqualityComparer<DateTimeOffset?>.Default.Equals(
-                        this.ShipDate,
-                        other.ShipDate
-                    )
+                    && EqualityComparer<DateTimeOffset?>.Default.Equals(this.ShipDate, other.ShipDate)
                     && EqualityComparer<StatusEnum?>.Default.Equals(this.Status, other.Status)
-                    && EqualityComparer<bool?>.Default.Equals(this.Complete, other.Complete)
-                )
-            );
+                    && EqualityComparer<bool?>.Default.Equals(this.Complete, other.Complete)));
     }
 
     public override bool Equals(object? obj)

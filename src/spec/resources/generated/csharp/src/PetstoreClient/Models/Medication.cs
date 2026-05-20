@@ -24,9 +24,9 @@ public class Medication(string drugName) : IEquatable<Medication>
     /// <example>null</example>
 
     [JsonRequired]
+
     [JsonPropertyName("drugName")]
-    public string DrugName { get; set; } =
-        drugName ?? throw new ArgumentNullException(nameof(drugName));
+    public string DrugName { get; set; } = drugName ?? throw new ArgumentNullException(nameof(drugName));
 
     /// <example>null</example>
 
@@ -39,13 +39,9 @@ public class Medication(string drugName) : IEquatable<Medication>
     public bool Equals(Medication? other)
     {
         return other is not null
-            && (
-                ReferenceEquals(this, other)
-                || (
-                    EqualityComparer<string>.Default.Equals(this.DrugName, other.DrugName)
-                    && EqualityComparer<string?>.Default.Equals(this.Dosage, other.Dosage)
-                )
-            );
+            && (ReferenceEquals(this, other)
+                || (EqualityComparer<string>.Default.Equals(this.DrugName, other.DrugName)
+                    && EqualityComparer<string?>.Default.Equals(this.Dosage, other.Dosage)));
     }
 
     public override bool Equals(object? obj)

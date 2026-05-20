@@ -43,6 +43,7 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     /// <example>doggie</example>
 
     [JsonRequired]
+
     [JsonPropertyName("name")]
     public string Name { get; set; } = name ?? throw new ArgumentNullException(nameof(name));
 
@@ -54,6 +55,7 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     /// <example>null</example>
 
     [JsonRequired]
+
     [JsonPropertyName("photoUrls")]
     public HashSet<string> PhotoUrls { get; set; } = photoUrls;
 
@@ -68,6 +70,7 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     /// <example>null</example>
     /// <remarks>Deprecated.</remarks>
     [Obsolete("This property is deprecated.")]
+
     [JsonPropertyName("status")]
     public StatusEnum? Status { get; set; }
 
@@ -77,20 +80,13 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     public bool Equals(Pet? other)
     {
         return other is not null
-            && (
-                ReferenceEquals(this, other)
-                || (
-                    EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
+            && (ReferenceEquals(this, other)
+                || (EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
                     && EqualityComparer<string>.Default.Equals(this.Name, other.Name)
                     && EqualityComparer<Category?>.Default.Equals(this.Category, other.Category)
-                    && EqualityComparer<HashSet<string>>.Default.Equals(
-                        this.PhotoUrls,
-                        other.PhotoUrls
-                    )
+                    && EqualityComparer<HashSet<string>>.Default.Equals(this.PhotoUrls, other.PhotoUrls)
                     && EqualityComparer<List<Tag>?>.Default.Equals(this.Tags, other.Tags)
-                    && EqualityComparer<StatusEnum?>.Default.Equals(this.Status, other.Status)
-                )
-            );
+                    && EqualityComparer<StatusEnum?>.Default.Equals(this.Status, other.Status)));
     }
 
     public override bool Equals(object? obj)

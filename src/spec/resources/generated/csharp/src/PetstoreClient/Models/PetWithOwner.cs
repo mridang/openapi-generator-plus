@@ -22,8 +22,7 @@ namespace PetstoreClient.Models;
 /// A pet record extended with owner information
 /// </summary>
 [method: System.Text.Json.Serialization.JsonConstructor]
-public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerName)
-    : IEquatable<PetWithOwner>
+public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerName) : IEquatable<PetWithOwner>
 {
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum StatusEnum
@@ -46,6 +45,7 @@ public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerNa
     /// <example>doggie</example>
 
     [JsonRequired]
+
     [JsonPropertyName("name")]
     public string Name { get; set; } = name ?? throw new ArgumentNullException(nameof(name));
 
@@ -57,6 +57,7 @@ public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerNa
     /// <example>null</example>
 
     [JsonRequired]
+
     [JsonPropertyName("photoUrls")]
     public HashSet<string> PhotoUrls { get; set; } = photoUrls;
 
@@ -71,15 +72,16 @@ public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerNa
     /// <example>null</example>
     /// <remarks>Deprecated.</remarks>
     [Obsolete("This property is deprecated.")]
+
     [JsonPropertyName("status")]
     public StatusEnum? Status { get; set; }
 
     /// <example>null</example>
 
     [JsonRequired]
+
     [JsonPropertyName("ownerName")]
-    public string OwnerName { get; set; } =
-        ownerName ?? throw new ArgumentNullException(nameof(ownerName));
+    public string OwnerName { get; set; } = ownerName ?? throw new ArgumentNullException(nameof(ownerName));
 
     /// <example>null</example>
 
@@ -92,22 +94,15 @@ public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerNa
     public bool Equals(PetWithOwner? other)
     {
         return other is not null
-            && (
-                ReferenceEquals(this, other)
-                || (
-                    EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
+            && (ReferenceEquals(this, other)
+                || (EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
                     && EqualityComparer<string>.Default.Equals(this.Name, other.Name)
                     && EqualityComparer<Category?>.Default.Equals(this.Category, other.Category)
-                    && EqualityComparer<HashSet<string>>.Default.Equals(
-                        this.PhotoUrls,
-                        other.PhotoUrls
-                    )
+                    && EqualityComparer<HashSet<string>>.Default.Equals(this.PhotoUrls, other.PhotoUrls)
                     && EqualityComparer<List<Tag>?>.Default.Equals(this.Tags, other.Tags)
                     && EqualityComparer<StatusEnum?>.Default.Equals(this.Status, other.Status)
                     && EqualityComparer<string>.Default.Equals(this.OwnerName, other.OwnerName)
-                    && EqualityComparer<string?>.Default.Equals(this.OwnerEmail, other.OwnerEmail)
-                )
-            );
+                    && EqualityComparer<string?>.Default.Equals(this.OwnerEmail, other.OwnerEmail)));
     }
 
     public override bool Equals(object? obj)

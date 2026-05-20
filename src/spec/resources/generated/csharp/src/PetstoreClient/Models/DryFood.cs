@@ -29,6 +29,7 @@ public class DryFood(double weightKg) : PetFood, IEquatable<DryFood>
     /// <example>null</example>
 
     [JsonRequired]
+
     [JsonPropertyName("weightKg")]
     public double WeightKg { get; set; } = weightKg;
 
@@ -38,13 +39,9 @@ public class DryFood(double weightKg) : PetFood, IEquatable<DryFood>
     public bool Equals(DryFood? other)
     {
         return other is not null
-            && (
-                ReferenceEquals(this, other)
-                || (
-                    EqualityComparer<string>.Default.Equals(this.FoodType, other.FoodType)
-                    && EqualityComparer<double>.Default.Equals(this.WeightKg, other.WeightKg)
-                )
-            );
+            && (ReferenceEquals(this, other)
+                || (EqualityComparer<string>.Default.Equals(this.FoodType, other.FoodType)
+                    && EqualityComparer<double>.Default.Equals(this.WeightKg, other.WeightKg)));
     }
 
     public override bool Equals(object? obj)

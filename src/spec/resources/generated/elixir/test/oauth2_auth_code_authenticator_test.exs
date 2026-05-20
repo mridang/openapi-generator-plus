@@ -49,20 +49,18 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
     test "builds authorization URL with state" do
       auth = create_authenticator()
 
-      url =
-        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(auth, "csrf-state-123")
+      url = PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(auth, "csrf-state-123")
 
       assert String.contains?(url, "state=csrf-state-123")
     end
 
     test "exchanges code with correct grant type" do
-      fake_client =
-        FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
-            status_code: 200,
-            body: Jason.encode!(%{"access_token" => "tok1", "refresh_token" => "ref1", "expires_in" => 3600})
-          }
-        ])
+      fake_client = FakeApiClient.new([
+        %PetstoreClient.ApiResponse{
+          status_code: 200,
+          body: Jason.encode!(%{"access_token" => "tok1", "refresh_token" => "ref1", "expires_in" => 3600})
+        }
+      ])
 
       auth = create_authenticator()
       auth = PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(auth, fake_client)
@@ -77,17 +75,16 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
     end
 
     test "includes refresh token on refresh" do
-      fake_client =
-        FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
-            status_code: 200,
-            body: Jason.encode!(%{"access_token" => "tok1", "refresh_token" => "ref1", "expires_in" => 1})
-          },
-          %PetstoreClient.ApiResponse{
-            status_code: 200,
-            body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
-          }
-        ])
+      fake_client = FakeApiClient.new([
+        %PetstoreClient.ApiResponse{
+          status_code: 200,
+          body: Jason.encode!(%{"access_token" => "tok1", "refresh_token" => "ref1", "expires_in" => 1})
+        },
+        %PetstoreClient.ApiResponse{
+          status_code: 200,
+          body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
+        }
+      ])
 
       auth = create_authenticator()
       auth = PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(auth, fake_client)

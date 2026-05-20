@@ -34,10 +34,7 @@ public class DefaultApiClientUnitTest
     [Fact]
     public async Task SendsPostWithJsonBody()
     {
-        var httpClient = CreateMockHttpClient(
-            HttpStatusCode.OK,
-            "{\"method\":\"POST\",\"body\":\"key\"}"
-        );
+        var httpClient = CreateMockHttpClient(HttpStatusCode.OK, "{\"method\":\"POST\",\"body\":\"key\"}");
         var client = new DefaultApiClient(httpClient);
 
         var response = await client.SendRequestAsync(
@@ -150,7 +147,7 @@ public class DefaultApiClientUnitTest
             "ok",
             multiValueHeaders: new Dictionary<string, IEnumerable<string>>
             {
-                { "X-Custom-Value", ["val1", "val2"] },
+                { "X-Custom-Value", ["val1", "val2"] }
             }
         );
         var httpClient = new HttpClient(handler);
@@ -180,12 +177,8 @@ public class DefaultApiClientUnitTest
         var httpClient = new HttpClient(handler);
         var transport = TransportOptions.Builder().UserAgent("MyApp/1.0").Build();
         var client = new DefaultApiClient(httpClient, transport);
-        await client.SendRequestAsync(
-            "GET",
-            new Uri("http://example.com/test"),
-            new Dictionary<string, string>(),
-            null
-        );
+        await client.SendRequestAsync("GET", new Uri("http://example.com/test"),
+            new Dictionary<string, string>(), null);
         Assert.Equal("MyApp/1.0", capturedUserAgent);
     }
 
@@ -200,12 +193,8 @@ public class DefaultApiClientUnitTest
         });
         var httpClient = new HttpClient(handler);
         var client = new DefaultApiClient(httpClient);
-        await client.SendRequestAsync(
-            "GET",
-            new Uri("http://example.com/test"),
-            new Dictionary<string, string>(),
-            null
-        );
+        await client.SendRequestAsync("GET", new Uri("http://example.com/test"),
+            new Dictionary<string, string>(), null);
         Assert.False(string.IsNullOrEmpty(capturedUserAgent));
     }
 
@@ -222,12 +211,8 @@ public class DefaultApiClientUnitTest
         var httpClient = new HttpClient(handler);
         var transport = TransportOptions.Builder().InjectRequestId(true).Build();
         var client = new DefaultApiClient(httpClient, transport);
-        await client.SendRequestAsync(
-            "GET",
-            new Uri("http://example.com/test"),
-            new Dictionary<string, string>(),
-            null
-        );
+        await client.SendRequestAsync("GET", new Uri("http://example.com/test"),
+            new Dictionary<string, string>(), null);
         Assert.NotNull(capturedRequestId);
         Assert.Matches(
             @"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
@@ -247,12 +232,8 @@ public class DefaultApiClientUnitTest
         var httpClient = new HttpClient(handler);
         var transport = TransportOptions.Builder().InjectRequestId(false).Build();
         var client = new DefaultApiClient(httpClient, transport);
-        await client.SendRequestAsync(
-            "GET",
-            new Uri("http://example.com/test"),
-            new Dictionary<string, string>(),
-            null
-        );
+        await client.SendRequestAsync("GET", new Uri("http://example.com/test"),
+            new Dictionary<string, string>(), null);
         Assert.False(requestIdPresent);
     }
 
@@ -269,12 +250,8 @@ public class DefaultApiClientUnitTest
         var httpClient = new HttpClient(handler);
         var transport = TransportOptions.Builder().InjectRequestId(true).Build();
         var client = new DefaultApiClient(httpClient, transport);
-        await client.SendRequestAsync(
-            "GET",
-            new Uri("http://example.com/test"),
-            new Dictionary<string, string> { { "X-Request-ID", "caller-id" } },
-            null
-        );
+        await client.SendRequestAsync("GET", new Uri("http://example.com/test"),
+            new Dictionary<string, string> { { "X-Request-ID", "caller-id" } }, null);
         Assert.Equal("caller-id", capturedRequestId);
     }
 
@@ -286,25 +263,16 @@ public class DefaultApiClientUnitTest
         {
             req.Headers.TryGetValues("X-Request-ID", out var vals);
             var id = vals?.FirstOrDefault();
-            if (id != null)
-                capturedIds.Add(id);
+            if (id != null) capturedIds.Add(id);
             return Task.CompletedTask;
         });
         var httpClient = new HttpClient(handler);
         var transport = TransportOptions.Builder().InjectRequestId(true).Build();
         var client = new DefaultApiClient(httpClient, transport);
-        await client.SendRequestAsync(
-            "GET",
-            new Uri("http://example.com/test"),
-            new Dictionary<string, string>(),
-            null
-        );
-        await client.SendRequestAsync(
-            "GET",
-            new Uri("http://example.com/test"),
-            new Dictionary<string, string>(),
-            null
-        );
+        await client.SendRequestAsync("GET", new Uri("http://example.com/test"),
+            new Dictionary<string, string>(), null);
+        await client.SendRequestAsync("GET", new Uri("http://example.com/test"),
+            new Dictionary<string, string>(), null);
         Assert.Equal(2, capturedIds.Count);
         Assert.NotEqual(capturedIds[0], capturedIds[1]);
     }
@@ -320,17 +288,10 @@ public class DefaultApiClientUnitTest
             return Task.CompletedTask;
         });
         var httpClient = new HttpClient(handler);
-        var transport = TransportOptions
-            .Builder()
-            .DefaultHeader("X-Custom", "custom-value")
-            .Build();
+        var transport = TransportOptions.Builder().DefaultHeader("X-Custom", "custom-value").Build();
         var client = new DefaultApiClient(httpClient, transport);
-        await client.SendRequestAsync(
-            "GET",
-            new Uri("http://example.com/test"),
-            new Dictionary<string, string>(),
-            null
-        );
+        await client.SendRequestAsync("GET", new Uri("http://example.com/test"),
+            new Dictionary<string, string>(), null);
         Assert.Equal("custom-value", capturedValue);
     }
 
@@ -347,12 +308,8 @@ public class DefaultApiClientUnitTest
         var httpClient = new HttpClient(handler);
         var transport = TransportOptions.Builder().DefaultHeader("Accept", "text/plain").Build();
         var client = new DefaultApiClient(httpClient, transport);
-        await client.SendRequestAsync(
-            "GET",
-            new Uri("http://example.com/test"),
-            new Dictionary<string, string> { { "Accept", "application/json" } },
-            null
-        );
+        await client.SendRequestAsync("GET", new Uri("http://example.com/test"),
+            new Dictionary<string, string> { { "Accept", "application/json" } }, null);
         Assert.Equal("application/json", capturedAccept);
     }
 
@@ -376,14 +333,11 @@ public class DefaultApiClientUnitTest
         var client = new DefaultApiClient(new HttpClient(handler));
         var formData = new Dictionary<string, object>
         {
-            { "image.png", new byte[] { 0x89, 0x50, 0x4E, 0x47 } },
+            { "image.png", new byte[] { 0x89, 0x50, 0x4E, 0x47 } }
         };
         await client.SendRequestAsync(
-            "POST",
-            new Uri("http://example.com/upload"),
-            new Dictionary<string, string>(),
-            formData
-        );
+            "POST", new Uri("http://example.com/upload"),
+            new Dictionary<string, string>(), formData);
 
         Assert.NotNull(wireText);
         Assert.StartsWith("multipart/form-data", contentTypeHeader);
@@ -404,14 +358,11 @@ public class DefaultApiClientUnitTest
         var client = new DefaultApiClient(new HttpClient(handler));
         var formData = new Dictionary<string, object>
         {
-            { "blob", new byte[] { 0x00, 0x01, 0x02 } },
+            { "blob", new byte[] { 0x00, 0x01, 0x02 } }
         };
         await client.SendRequestAsync(
-            "POST",
-            new Uri("http://example.com/upload"),
-            new Dictionary<string, string>(),
-            formData
-        );
+            "POST", new Uri("http://example.com/upload"),
+            new Dictionary<string, string>(), formData);
 
         Assert.NotNull(wireText);
         Assert.StartsWith("multipart/form-data", contentTypeHeader);
@@ -432,14 +383,11 @@ public class DefaultApiClientUnitTest
         var client = new DefaultApiClient(new HttpClient(handler));
         var formData = new Dictionary<string, object>
         {
-            { "doc.pdf", new byte[] { 0x25, 0x50, 0x44, 0x46 } },
+            { "doc.pdf", new byte[] { 0x25, 0x50, 0x44, 0x46 } }
         };
         await client.SendRequestAsync(
-            "POST",
-            new Uri("http://example.com/upload"),
-            new Dictionary<string, string>(),
-            formData
-        );
+            "POST", new Uri("http://example.com/upload"),
+            new Dictionary<string, string>(), formData);
 
         Assert.NotNull(wireText);
         Assert.StartsWith("multipart/form-data", contentTypeHeader);
@@ -458,15 +406,11 @@ public class DefaultApiClientUnitTest
         var handler = new RawByteHandler(
             HttpStatusCode.OK,
             latin1Bytes,
-            "text/plain; charset=ISO-8859-1"
-        );
+            "text/plain; charset=ISO-8859-1");
         var client = new DefaultApiClient(new HttpClient(handler));
         var response = await client.SendRequestAsync(
-            "GET",
-            new Uri("http://example.com/latin1"),
-            new Dictionary<string, string>(),
-            null
-        );
+            "GET", new Uri("http://example.com/latin1"),
+            new Dictionary<string, string>(), null);
         Assert.Equal("é", response.Body);
     }
 
@@ -474,14 +418,14 @@ public class DefaultApiClientUnitTest
     public async Task DecodesResponseBodyAsUtf8WhenNoCharsetSpecified()
     {
         byte[] utf8Bytes = Encoding.UTF8.GetBytes("héllo");
-        var handler = new RawByteHandler(HttpStatusCode.OK, utf8Bytes, "text/plain");
+        var handler = new RawByteHandler(
+            HttpStatusCode.OK,
+            utf8Bytes,
+            "text/plain");
         var client = new DefaultApiClient(new HttpClient(handler));
         var response = await client.SendRequestAsync(
-            "GET",
-            new Uri("http://example.com/utf8-default"),
-            new Dictionary<string, string>(),
-            null
-        );
+            "GET", new Uri("http://example.com/utf8-default"),
+            new Dictionary<string, string>(), null);
         Assert.Equal("héllo", response.Body);
     }
 
@@ -492,16 +436,12 @@ public class DefaultApiClientUnitTest
         var handler = new RawByteHandler(
             HttpStatusCode.OK,
             utf8Bytes,
-            "text/plain; charset=not-a-real-charset"
-        );
+            "text/plain; charset=not-a-real-charset");
         var client = new DefaultApiClient(new HttpClient(handler));
         // Must not throw despite the unknown charset
         var response = await client.SendRequestAsync(
-            "GET",
-            new Uri("http://example.com/unknown-charset"),
-            new Dictionary<string, string>(),
-            null
-        );
+            "GET", new Uri("http://example.com/unknown-charset"),
+            new Dictionary<string, string>(), null);
         Assert.Equal("héllo", response.Body);
     }
 
@@ -520,8 +460,7 @@ public class DefaultApiClientUnitTest
 
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
-            CancellationToken cancellationToken
-        )
+            CancellationToken cancellationToken)
         {
             var response = new HttpResponseMessage(_statusCode)
             {
@@ -565,7 +504,10 @@ public class DefaultApiClientUnitTest
         )
         {
             await _onRequest(request);
-            return new HttpResponseMessage(_statusCode) { Content = new StringContent(_body) };
+            return new HttpResponseMessage(_statusCode)
+            {
+                Content = new StringContent(_body),
+            };
         }
     }
 

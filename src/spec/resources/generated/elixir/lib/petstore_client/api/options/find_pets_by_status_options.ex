@@ -15,6 +15,8 @@ defmodule PetstoreClient.Api.Options.FindPetsByStatusOptions do
           filter: term()
         }
 
-  defstruct status: nil,
-            filter: nil
+  defstruct [
+    status: nil,
+    filter: nil
+  ]
 end

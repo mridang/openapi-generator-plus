@@ -9,8 +9,8 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 
-use super::Authenticator;
 use crate::auth::api_key_location::ApiKeyLocation;
+use super::Authenticator;
 
 /// ApiKeyAuthenticator provides API key authentication.
 ///
@@ -41,9 +41,7 @@ impl ApiKeyAuthenticator {
         // because this is a programmer error, not a recoverable runtime
         // condition.
         if location == ApiKeyLocation::Header
-            && api_key
-                .chars()
-                .any(|c| c != '\t' && ((c as u32) < 0x20 || (c as u32) >= 0x7F))
+            && api_key.chars().any(|c| c != '\t' && ((c as u32) < 0x20 || (c as u32) >= 0x7F))
         {
             panic!(
                 "API key for header '{}' must contain only printable ASCII characters (RFC 7230 §3.2.6)",

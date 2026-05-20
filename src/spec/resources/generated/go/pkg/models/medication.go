@@ -9,13 +9,12 @@ package models
 
 import (
 	"encoding/json"
-	"fmt"
 )
 
 // Medication is a model class generated from the OpenAPI schema.
 type Medication struct {
-	DrugName string  `json:"drugName"`
-	Dosage   *string `json:"dosage,omitempty"`
+	DrugName string `json:"drugName"`
+	Dosage *string `json:"dosage,omitempty"`
 }
 
 // NewMedication creates a new Medication instance.

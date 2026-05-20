@@ -9,7 +9,8 @@ import 'bearer_authenticator.dart';
 
 class PetStoreBearerAuthenticator extends BearerAuthenticator {
   PetStoreBearerAuthenticator({
-    required super.host,
-    required super.token,
-  });
+    required String host, required String token,
+  }) : super(
+         host: host, token: token,
+       );
 }

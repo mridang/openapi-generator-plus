@@ -8,15 +8,6 @@ defmodule PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator do
   Creates a new `LegacyAuthPasswordAuthenticator` authenticator.
   """
   def new(host, client_id, client_secret, username, password) do
-    PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.new(
-      host,
-      client_id,
-      client_secret,
-      "https://auth.example.com/oauth/token",
-      "https://auth.example.com/oauth/refresh",
-      username,
-      password,
-      []
-    )
+    PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.new(host, client_id, client_secret, "https://auth.example.com/oauth/token", "https://auth.example.com/oauth/refresh", username, password, [])
   end
 end

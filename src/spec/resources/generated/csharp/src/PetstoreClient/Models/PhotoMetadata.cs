@@ -40,18 +40,11 @@ public class PhotoMetadata : IEquatable<PhotoMetadata>
     public bool Equals(PhotoMetadata? other)
     {
         return other is not null
-            && (
-                ReferenceEquals(this, other)
-                || (
-                    EqualityComparer<string?>.Default.Equals(this.Caption, other.Caption)
+            && (ReferenceEquals(this, other)
+                || (EqualityComparer<string?>.Default.Equals(this.Caption, other.Caption)
                     && EqualityComparer<bool?>.Default.Equals(this.IsPrimary, other.IsPrimary)
                     && EqualityComparer<DateTimeOffset?>.Default.Equals(this.TakenAt, other.TakenAt)
-                    && EqualityComparer<PhotoMetadataLocation?>.Default.Equals(
-                        this.Location,
-                        other.Location
-                    )
-                )
-            );
+                    && EqualityComparer<PhotoMetadataLocation?>.Default.Equals(this.Location, other.Location)));
     }
 
     public override bool Equals(object? obj)

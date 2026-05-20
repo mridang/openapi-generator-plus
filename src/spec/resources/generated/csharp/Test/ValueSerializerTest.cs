@@ -91,57 +91,37 @@ public class ValueSerializerTest
     [Fact]
     public void QueryArrayJoinsWithCommaByDefault()
     {
-        Assert.Equal(
-            "a,b,c",
-            ValueSerializer.Serialize(new List<object> { "a", "b", "c" }, "query", "array")
-        );
+        Assert.Equal("a,b,c", ValueSerializer.Serialize(new List<object> { "a", "b", "c" }, "query", "array"));
     }
 
     [Fact]
     public void QueryArrayJoinsWithCommaForCsv()
     {
-        Assert.Equal(
-            "a,b,c",
-            ValueSerializer.Serialize(new List<object> { "a", "b", "c" }, "query", "array", "csv")
-        );
+        Assert.Equal("a,b,c", ValueSerializer.Serialize(new List<object> { "a", "b", "c" }, "query", "array", "csv"));
     }
 
     [Fact]
     public void QueryArrayJoinsWithSpaceForSsv()
     {
-        Assert.Equal(
-            "a b c",
-            ValueSerializer.Serialize(new List<object> { "a", "b", "c" }, "query", "array", "ssv")
-        );
+        Assert.Equal("a b c", ValueSerializer.Serialize(new List<object> { "a", "b", "c" }, "query", "array", "ssv"));
     }
 
     [Fact]
     public void QueryArrayJoinsWithTabForTsv()
     {
-        Assert.Equal(
-            "a\tb\tc",
-            ValueSerializer.Serialize(new List<object> { "a", "b", "c" }, "query", "array", "tsv")
-        );
+        Assert.Equal("a\tb\tc", ValueSerializer.Serialize(new List<object> { "a", "b", "c" }, "query", "array", "tsv"));
     }
 
     [Fact]
     public void QueryArrayJoinsWithPipeForPipes()
     {
-        Assert.Equal(
-            "a|b|c",
-            ValueSerializer.Serialize(new List<object> { "a", "b", "c" }, "query", "array", "pipes")
-        );
+        Assert.Equal("a|b|c", ValueSerializer.Serialize(new List<object> { "a", "b", "c" }, "query", "array", "pipes"));
     }
 
     [Fact]
     public void QueryArrayReturnsListForMulti()
     {
-        var result = ValueSerializer.Serialize(
-            new List<object> { "a", "b", "c" },
-            "query",
-            "array",
-            "multi"
-        );
+        var result = ValueSerializer.Serialize(new List<object> { "a", "b", "c" }, "query", "array", "multi");
         Assert.Equal(new List<string> { "a", "b", "c" }, result);
     }
 
@@ -167,19 +147,13 @@ public class ValueSerializerTest
     [Fact]
     public void QueryArrayOfIntegersStringifiesElements()
     {
-        Assert.Equal(
-            "1,2,3",
-            ValueSerializer.Serialize(new List<object> { 1, 2, 3 }, "query", "array")
-        );
+        Assert.Equal("1,2,3", ValueSerializer.Serialize(new List<object> { 1, 2, 3 }, "query", "array"));
     }
 
     [Fact]
     public void QueryArrayOfBooleansStringifiesElements()
     {
-        Assert.Equal(
-            "true,false",
-            ValueSerializer.Serialize(new List<object> { true, false }, "query", "array")
-        );
+        Assert.Equal("true,false", ValueSerializer.Serialize(new List<object> { true, false }, "query", "array"));
     }
 
     // -- header location --
@@ -211,10 +185,7 @@ public class ValueSerializerTest
     [Fact]
     public void HeaderArrayJoinsWithComma()
     {
-        Assert.Equal(
-            "a,b,c",
-            ValueSerializer.Serialize(new List<object> { "a", "b", "c" }, "header", "array")
-        );
+        Assert.Equal("a,b,c", ValueSerializer.Serialize(new List<object> { "a", "b", "c" }, "header", "array"));
     }
 
     [Fact]
@@ -226,10 +197,7 @@ public class ValueSerializerTest
     [Fact]
     public void HeaderArrayOfIntegersStringifiesAndJoins()
     {
-        Assert.Equal(
-            "1,2,3",
-            ValueSerializer.Serialize(new List<object> { 1, 2, 3 }, "header", "array")
-        );
+        Assert.Equal("1,2,3", ValueSerializer.Serialize(new List<object> { 1, 2, 3 }, "header", "array"));
     }
 
     // -- form location --
@@ -269,53 +237,25 @@ public class ValueSerializerTest
     [Fact]
     public void MatrixScalarReturnsSemicolonPrefixedNameValue()
     {
-        Assert.Equal(
-            ";color=blue",
-            ValueSerializer.SerializeStyled("color", "blue", "path", "string", null, "matrix", true)
-        );
+        Assert.Equal(";color=blue", ValueSerializer.SerializeStyled("color", "blue", "path", "string", null, "matrix", true));
     }
 
     [Fact]
     public void MatrixArrayExplodeFalseJoinsWithComma()
     {
-        Assert.Equal(
-            ";color=blue,black",
-            ValueSerializer.SerializeStyled(
-                "color",
-                new List<object> { "blue", "black" },
-                "path",
-                "array",
-                null,
-                "matrix",
-                false
-            )
-        );
+        Assert.Equal(";color=blue,black", ValueSerializer.SerializeStyled("color", new List<object> { "blue", "black" }, "path", "array", null, "matrix", false));
     }
 
     [Fact]
     public void MatrixArrayExplodeTrueRepeatsName()
     {
-        Assert.Equal(
-            ";color=blue;color=black",
-            ValueSerializer.SerializeStyled(
-                "color",
-                new List<object> { "blue", "black" },
-                "path",
-                "array",
-                null,
-                "matrix",
-                true
-            )
-        );
+        Assert.Equal(";color=blue;color=black", ValueSerializer.SerializeStyled("color", new List<object> { "blue", "black" }, "path", "array", null, "matrix", true));
     }
 
     [Fact]
     public void MatrixNullReturnsEmptyString()
     {
-        Assert.Equal(
-            "",
-            ValueSerializer.SerializeStyled("color", null, "path", "string", null, "matrix", true)
-        );
+        Assert.Equal("", ValueSerializer.SerializeStyled("color", null, "path", "string", null, "matrix", true));
     }
 
     // -- serializeStyled: label style --
@@ -323,53 +263,25 @@ public class ValueSerializerTest
     [Fact]
     public void LabelScalarReturnsDotPrefixedValue()
     {
-        Assert.Equal(
-            ".blue",
-            ValueSerializer.SerializeStyled("color", "blue", "path", "string", null, "label", true)
-        );
+        Assert.Equal(".blue", ValueSerializer.SerializeStyled("color", "blue", "path", "string", null, "label", true));
     }
 
     [Fact]
     public void LabelArrayExplodeFalseJoinsWithComma()
     {
-        Assert.Equal(
-            ".blue,black",
-            ValueSerializer.SerializeStyled(
-                "color",
-                new List<object> { "blue", "black" },
-                "path",
-                "array",
-                null,
-                "label",
-                false
-            )
-        );
+        Assert.Equal(".blue,black", ValueSerializer.SerializeStyled("color", new List<object> { "blue", "black" }, "path", "array", null, "label", false));
     }
 
     [Fact]
     public void LabelArrayExplodeTrueJoinsWithDot()
     {
-        Assert.Equal(
-            ".blue.black",
-            ValueSerializer.SerializeStyled(
-                "color",
-                new List<object> { "blue", "black" },
-                "path",
-                "array",
-                null,
-                "label",
-                true
-            )
-        );
+        Assert.Equal(".blue.black", ValueSerializer.SerializeStyled("color", new List<object> { "blue", "black" }, "path", "array", null, "label", true));
     }
 
     [Fact]
     public void LabelNullReturnsEmptyString()
     {
-        Assert.Equal(
-            "",
-            ValueSerializer.SerializeStyled("color", null, "path", "string", null, "label", true)
-        );
+        Assert.Equal("", ValueSerializer.SerializeStyled("color", null, "path", "string", null, "label", true));
     }
 
     // -- serializeStyled: spaceDelimited style --
@@ -377,35 +289,13 @@ public class ValueSerializerTest
     [Fact]
     public void SpaceDelimitedArrayJoinsWithSpace()
     {
-        Assert.Equal(
-            "blue black",
-            ValueSerializer.SerializeStyled(
-                "color",
-                new List<object> { "blue", "black" },
-                "query",
-                "array",
-                null,
-                "spaceDelimited",
-                false
-            )
-        );
+        Assert.Equal("blue black", ValueSerializer.SerializeStyled("color", new List<object> { "blue", "black" }, "query", "array", null, "spaceDelimited", false));
     }
 
     [Fact]
     public void SpaceDelimitedScalarReturnsStringifiedValue()
     {
-        Assert.Equal(
-            "blue",
-            ValueSerializer.SerializeStyled(
-                "color",
-                "blue",
-                "query",
-                "string",
-                null,
-                "spaceDelimited",
-                false
-            )
-        );
+        Assert.Equal("blue", ValueSerializer.SerializeStyled("color", "blue", "query", "string", null, "spaceDelimited", false));
     }
 
     // -- serializeStyled: pipeDelimited style --
@@ -413,35 +303,13 @@ public class ValueSerializerTest
     [Fact]
     public void PipeDelimitedArrayJoinsWithPipe()
     {
-        Assert.Equal(
-            "blue|black",
-            ValueSerializer.SerializeStyled(
-                "color",
-                new List<object> { "blue", "black" },
-                "query",
-                "array",
-                null,
-                "pipeDelimited",
-                false
-            )
-        );
+        Assert.Equal("blue|black", ValueSerializer.SerializeStyled("color", new List<object> { "blue", "black" }, "query", "array", null, "pipeDelimited", false));
     }
 
     [Fact]
     public void PipeDelimitedScalarReturnsStringifiedValue()
     {
-        Assert.Equal(
-            "blue",
-            ValueSerializer.SerializeStyled(
-                "color",
-                "blue",
-                "query",
-                "string",
-                null,
-                "pipeDelimited",
-                false
-            )
-        );
+        Assert.Equal("blue", ValueSerializer.SerializeStyled("color", "blue", "query", "string", null, "pipeDelimited", false));
     }
 
     // -- cookie location --
@@ -463,65 +331,33 @@ public class ValueSerializerTest
     [Fact]
     public void FormStyleArrayExplodeFalseJoinsWithComma()
     {
-        Assert.Equal(
-            "blue,black",
-            ValueSerializer.SerializeStyled(
-                "color",
-                new List<object> { "blue", "black" },
-                "query",
-                "array",
-                null,
-                "form",
-                false
-            )
-        );
+        Assert.Equal("blue,black", ValueSerializer.SerializeStyled("color", new List<object> { "blue", "black" }, "query", "array", null, "form", false));
     }
 
     [Fact]
     public void FormStyleArrayExplodeTrueReturnsList()
     {
-        var result = ValueSerializer.SerializeStyled(
-            "color",
-            new List<object> { "blue", "black" },
-            "query",
-            "array",
-            null,
-            "form",
-            true
-        );
+        var result = ValueSerializer.SerializeStyled("color", new List<object> { "blue", "black" }, "query", "array", null, "form", true);
         Assert.Equal(new List<string> { "blue", "black" }, result);
     }
 
     [Fact]
     public void FormStyleScalarExplodeTrueReturnsStringNotList()
     {
-        Assert.Equal(
-            "blue",
-            ValueSerializer.SerializeStyled("color", "blue", "query", "string", null, "form", true)
-        );
+        Assert.Equal("blue", ValueSerializer.SerializeStyled("color", "blue", "query", "string", null, "form", true));
     }
 
     [Fact]
     public void FormStyleSingleElementArrayExplodeTrueReturnsList()
     {
-        var result = ValueSerializer.SerializeStyled(
-            "color",
-            new List<object> { "blue" },
-            "query",
-            "array",
-            null,
-            "form",
-            true
-        );
+        var result = ValueSerializer.SerializeStyled("color", new List<object> { "blue" }, "query", "array", null, "form", true);
         Assert.Equal(new List<string> { "blue" }, result);
     }
 
     [Fact]
     public void FormStyleNullReturnsNullForQuery()
     {
-        Assert.Null(
-            ValueSerializer.SerializeStyled("color", null, "query", "string", null, "form", true)
-        );
+        Assert.Null(ValueSerializer.SerializeStyled("color", null, "query", "string", null, "form", true));
     }
 
     // -- serializeStyled: simple style backward compatibility --
@@ -529,53 +365,25 @@ public class ValueSerializerTest
     [Fact]
     public void SimpleStyleScalarReturnsStringifiedValue()
     {
-        Assert.Equal(
-            "5",
-            ValueSerializer.SerializeStyled("id", "5", "path", "string", null, "simple", false)
-        );
+        Assert.Equal("5", ValueSerializer.SerializeStyled("id", "5", "path", "string", null, "simple", false));
     }
 
     [Fact]
     public void SimpleStyleArrayJoinsWithComma()
     {
-        Assert.Equal(
-            "3,4,5",
-            ValueSerializer.SerializeStyled(
-                "id",
-                new List<object> { "3", "4", "5" },
-                "path",
-                "array",
-                null,
-                "simple",
-                false
-            )
-        );
+        Assert.Equal("3,4,5", ValueSerializer.SerializeStyled("id", new List<object> { "3", "4", "5" }, "path", "array", null, "simple", false));
     }
 
     [Fact]
     public void SimpleStyleNullReturnsEmptyString()
     {
-        Assert.Equal(
-            "",
-            ValueSerializer.SerializeStyled("id", null, "path", "string", null, "simple", true)
-        );
+        Assert.Equal("", ValueSerializer.SerializeStyled("id", null, "path", "string", null, "simple", true));
     }
 
     [Fact]
     public void SimpleStyleScalarUrlEncodesPath()
     {
-        Assert.Equal(
-            "hello%20world",
-            ValueSerializer.SerializeStyled(
-                "id",
-                "hello world",
-                "path",
-                "string",
-                null,
-                "simple",
-                false
-            )
-        );
+        Assert.Equal("hello%20world", ValueSerializer.SerializeStyled("id", "hello world", "path", "string", null, "simple", false));
     }
 
     // -- serializeStyled: null style falls back to location default --
@@ -583,19 +391,13 @@ public class ValueSerializerTest
     [Fact]
     public void NullStyleFallsBackToLocationDefault()
     {
-        Assert.Equal(
-            "5",
-            ValueSerializer.SerializeStyled("id", "5", "path", "string", null, null, false)
-        );
+        Assert.Equal("5", ValueSerializer.SerializeStyled("id", "5", "path", "string", null, null, false));
     }
 
     [Fact]
     public void EmptyStyleFallsBackToLocationDefault()
     {
-        Assert.Equal(
-            "5",
-            ValueSerializer.SerializeStyled("id", "5", "path", "string", null, "", false)
-        );
+        Assert.Equal("5", ValueSerializer.SerializeStyled("id", "5", "path", "string", null, "", false));
     }
 
     // -- SerializeDeepObject --
@@ -603,10 +405,7 @@ public class ValueSerializerTest
     [Fact]
     public void DeepObjectBasicMapReturnsBracketedKeys()
     {
-        var result = ValueSerializer.SerializeDeepObject(
-            "filter",
-            new Dictionary<string, object?> { { "color", "blue" }, { "size", "large" } }
-        );
+        var result = ValueSerializer.SerializeDeepObject("filter", new Dictionary<string, object?> { { "color", "blue" }, { "size", "large" } });
         Assert.Equal("blue", result["filter[color]"]);
         Assert.Equal("large", result["filter[size]"]);
     }
@@ -691,54 +490,31 @@ public class ValueSerializerTest
     [Fact]
     public void PathEncodingParitySimpleStyleEncodesValue()
     {
-        Assert.Equal(
-            "a%20b",
-            ValueSerializer.SerializeStyled("color", "a b", "path", "string", null, "simple", false)
-        );
+        Assert.Equal("a%20b", ValueSerializer.SerializeStyled("color", "a b", "path", "string", null, "simple", false));
     }
 
     [Fact]
     public void PathEncodingParitySimpleStyleArrayEncodesEachItem()
     {
-        Assert.Equal(
-            "a%20b,c%3Fd",
-            ValueSerializer.SerializeStyled(
-                "color",
-                new List<object> { "a b", "c?d" },
-                "path",
-                "array",
-                null,
-                "simple",
-                false
-            )
-        );
+        Assert.Equal("a%20b,c%3Fd", ValueSerializer.SerializeStyled("color", new List<object> { "a b", "c?d" }, "path", "array", null, "simple", false));
     }
 
     [Fact]
     public void PathEncodingParityMatrixStyleEncodesValue()
     {
-        Assert.Equal(
-            ";color=a%20b",
-            ValueSerializer.SerializeStyled("color", "a b", "path", "string", null, "matrix", false)
-        );
+        Assert.Equal(";color=a%20b", ValueSerializer.SerializeStyled("color", "a b", "path", "string", null, "matrix", false));
     }
 
     [Fact]
     public void PathEncodingParityLabelStyleEncodesValue()
     {
-        Assert.Equal(
-            ".a%20b",
-            ValueSerializer.SerializeStyled("color", "a b", "path", "string", null, "label", false)
-        );
+        Assert.Equal(".a%20b", ValueSerializer.SerializeStyled("color", "a b", "path", "string", null, "label", false));
     }
 
     [Fact]
     public void PathEncodingParityQueryLocationNotPathEncoded()
     {
-        Assert.Equal(
-            "a b",
-            ValueSerializer.SerializeStyled("color", "a b", "query", "string", null, "form", false)
-        );
+        Assert.Equal("a b", ValueSerializer.SerializeStyled("color", "a b", "query", "string", null, "form", false));
     }
 
     [Fact]
@@ -747,9 +523,8 @@ public class ValueSerializerTest
         // Gap W — empty-string path values silently produce malformed
         // URLs like `/pet//details`; reject at serialization time so
         // callers see the real error rather than a downstream 404.
-        Assert.Throws<ArgumentException>(
-            () => ValueSerializer.SerializeStyled("id", "", "path", "string", null, "simple", false)
-        );
+        Assert.Throws<ArgumentException>(() =>
+            ValueSerializer.SerializeStyled("id", "", "path", "string", null, "simple", false));
     }
 
     // N3/W3 parity: `format: date` path parameters must emit a date-only
@@ -770,7 +545,6 @@ public class ValueSerializerTest
         var date = new DateOnly(2024, 1, 15);
         Assert.Equal(
             "2024-01-15",
-            ValueSerializer.SerializeStyled("since", date, "path", "string", null, "simple", false)
-        );
+            ValueSerializer.SerializeStyled("since", date, "path", "string", null, "simple", false));
     }
 }

@@ -112,12 +112,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator do
           "refresh_token" => refresh
         }
 
-        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
-          self.token_manager,
-          self.refresh_url,
-          params,
-          extra_headers
-        )
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(self.token_manager, self.refresh_url, params, extra_headers)
       else
         base_params = %{
           "grant_type" => "password",
@@ -142,12 +137,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator do
             params
           end
 
-        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
-          self.token_manager,
-          self.token_url,
-          params,
-          extra_headers
-        )
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(self.token_manager, self.token_url, params, extra_headers)
       end
 
     %{"Authorization" => "Bearer #{token}"}

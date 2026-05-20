@@ -9,13 +9,8 @@ import 'openid_connect_authenticator.dart';
 
 class SsoAuthAuthenticator extends OpenIdConnectAuthenticator {
   SsoAuthAuthenticator({
-    required super.host,
-    required super.clientId,
-    required super.clientSecret,
-    required super.redirectUri,
+    required String host, required String clientId, required String clientSecret, required String redirectUri,
   }) : super(
-          openIdConnectUrl:
-              'https://auth.example.com/.well-known/openid-configuration',
-          scopes: [],
-        );
+         host: host, openIdConnectUrl: 'https://auth.example.com/.well-known/openid-configuration', clientId: clientId, clientSecret: clientSecret, redirectUri: redirectUri, scopes: [],
+       );
 }

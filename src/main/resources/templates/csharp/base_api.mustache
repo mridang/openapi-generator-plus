@@ -378,12 +378,18 @@ public abstract class BaseApi
     /// <summary>RFC 6265 cookie-name validation (RFC 7230 token).</summary>
     private static bool IsValidCookieName(string name)
     {
-        if (string.IsNullOrEmpty(name)) return false;
+        if (string.IsNullOrEmpty(name))
+        {
+            return false;
+        }
         foreach (char c in name)
         {
-            bool ok = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
+            bool ok = c is >= 'A' and <= 'Z' or >= 'a' and <= 'z' or >= '0' and <= '9'
                 || "!#$%&'*+-.^_`|~".Contains(c, StringComparison.Ordinal);
-            if (!ok) return false;
+            if (!ok)
+            {
+                return false;
+            }
         }
         return true;
     }
@@ -391,15 +397,21 @@ public abstract class BaseApi
     /// <summary>RFC 6265 cookie-value validation (cookie-octet*).</summary>
     private static bool IsValidCookieValue(string value)
     {
-        if (value == null) return false;
+        if (value == null)
+        {
+            return false;
+        }
         foreach (char c in value)
         {
-            bool ok = c == 0x21
-                || (c >= 0x23 && c <= 0x2B)
-                || (c >= 0x2D && c <= 0x3A)
-                || (c >= 0x3C && c <= 0x5B)
-                || (c >= 0x5D && c <= 0x7E);
-            if (!ok) return false;
+            bool ok = c is 0x21
+                or >= (char)0x23 and <= (char)0x2B
+                or >= (char)0x2D and <= (char)0x3A
+                or >= (char)0x3C and <= (char)0x5B
+                or >= (char)0x5D and <= (char)0x7E;
+            if (!ok)
+            {
+                return false;
+            }
         }
         return true;
     }

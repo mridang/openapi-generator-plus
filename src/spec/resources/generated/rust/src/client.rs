@@ -7,15 +7,15 @@
 
 use std::sync::Arc;
 
-use crate::api::PetApi;
-use crate::api::StoreApi;
 use crate::api_client::ApiClient;
-use crate::auth::Authenticator;
 use crate::auth::BearerAuthenticator;
+use crate::auth::Authenticator;
 use crate::configuration::ConfigurationBuilder;
 use crate::default_api_client::DefaultApiClient;
 use crate::transport_options::TransportOptions;
 use crate::transport_options::TransportOptionsBuilder;
+use crate::api::PetApi;
+use crate::api::StoreApi;
 
 /// Client is the unified entry point for all API services.
 ///
@@ -64,25 +64,13 @@ impl Client {
         let authenticator: Arc<dyn Authenticator> = Arc::from(authenticator);
 
         Self {
-            pet: PetApi::new(
-                api_client.clone(),
-                config.clone(),
-                Some(authenticator.clone()),
-            ),
-            store: StoreApi::new(
-                api_client.clone(),
-                config.clone(),
-                Some(authenticator.clone()),
-            ),
+            pet: PetApi::new(api_client.clone(), config.clone(), Some(authenticator.clone())),
+            store: StoreApi::new(api_client.clone(), config.clone(), Some(authenticator.clone())),
         }
     }
 
     /// Creates a client authenticated with a static Bearer token.
-    pub fn with_token(
-        host: &str,
-        access_token: &str,
-        transport_options: Option<TransportOptions>,
-    ) -> Self {
+    pub fn with_token(host: &str, access_token: &str, transport_options: Option<TransportOptions>) -> Self {
         Self::new(
             Box::new(BearerAuthenticator::new(host, access_token)),
             transport_options,

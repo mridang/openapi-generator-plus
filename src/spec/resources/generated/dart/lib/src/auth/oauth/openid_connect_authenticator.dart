@@ -130,8 +130,8 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
       scopes: _scopes,
     );
     _delegate!.setApiClient(client);
-    _discoveryExpiry =
-        DateTime.now().add(Duration(seconds: _parseMaxAge(response.headers)));
+    _discoveryExpiry = DateTime.now()
+        .add(Duration(seconds: _parseMaxAge(response.headers)));
 
     return _delegate!;
   }

@@ -9,12 +9,11 @@ package models
 
 import (
 	"encoding/json"
-	"fmt"
 )
 
 // Surgery is a model class generated from the OpenAPI schema.
 type Surgery struct {
-	ProcedureName   string `json:"procedureName"`
+	ProcedureName string `json:"procedureName"`
 	DurationMinutes *int32 `json:"durationMinutes,omitempty"`
 }
 

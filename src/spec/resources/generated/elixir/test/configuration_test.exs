@@ -14,7 +14,9 @@ defmodule PetstoreClient.ConfigurationTest do
   end
 
   test "new sets default headers" do
-    config = PetstoreClient.Configuration.new(default_headers: %{"Authorization" => "Bearer token123"})
+    config = PetstoreClient.Configuration.new(
+      default_headers: %{"Authorization" => "Bearer token123"}
+    )
 
     assert config.default_headers == %{"Authorization" => "Bearer token123"}
   end
@@ -25,14 +27,13 @@ defmodule PetstoreClient.ConfigurationTest do
   end
 
   test "new sets all fields" do
-    config =
-      PetstoreClient.Configuration.new(
-        base_url: "https://api.example.com",
-        default_headers: %{
-          "Authorization" => "Bearer token",
-          "X-Custom" => "value"
-        }
-      )
+    config = PetstoreClient.Configuration.new(
+      base_url: "https://api.example.com",
+      default_headers: %{
+        "Authorization" => "Bearer token",
+        "X-Custom" => "value"
+      }
+    )
 
     assert config.base_url == "https://api.example.com"
     assert config.default_headers["Authorization"] == "Bearer token"
@@ -40,14 +41,13 @@ defmodule PetstoreClient.ConfigurationTest do
   end
 
   test "new sets multiple default headers" do
-    config =
-      PetstoreClient.Configuration.new(
-        default_headers: %{
-          "X-First" => "one",
-          "X-Second" => "two",
-          "X-Third" => "three"
-        }
-      )
+    config = PetstoreClient.Configuration.new(
+      default_headers: %{
+        "X-First" => "one",
+        "X-Second" => "two",
+        "X-Third" => "three"
+      }
+    )
 
     assert map_size(config.default_headers) == 3
     assert config.default_headers["X-First"] == "one"

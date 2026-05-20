@@ -9,17 +9,16 @@ package models
 
 import (
 	"encoding/json"
-	"fmt"
 )
 
 // Pet is a model class generated from the OpenAPI schema.
 // See https://example.com/docs/pet Learn more about the Pet model
 type Pet struct {
-	Id        *int64      `json:"id,omitempty"`
-	Name      string      `json:"name"`
-	Category  *Category   `json:"category,omitempty"`
+	Id *int64 `json:"id,omitempty"`
+	Name string `json:"name"`
+	Category *Category `json:"category,omitempty"`
 	PhotoUrls Set[string] `json:"photoUrls"`
-	Tags      *[]Tag      `json:"tags,omitempty"`
+	Tags *[]Tag `json:"tags,omitempty"`
 	/* Status pet status in the store */
 	/* Deprecated: This property is deprecated. */
 	Status *string `json:"status,omitempty"`
@@ -28,7 +27,7 @@ type Pet struct {
 // NewPet creates a new Pet instance.
 func NewPet(name string, photoUrls Set[string]) *Pet {
 	return &Pet{
-		Name:      name,
+		Name: name,
 		PhotoUrls: photoUrls,
 	}
 }

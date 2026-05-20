@@ -1,0 +1,65 @@
+# frozen_string_literal: true
+
+# rubocop:disable Metrics/BlockLength, Lint/MissingCopEnableDirective
+
+require 'test_helper'
+require 'petstore_client/trace_context_util'
+
+describe PetstoreClient::TraceContextUtil do
+  describe '.inject_trace_context' do
+    it 'is a no-op without tracer' do
+      headers = {}
+      PetstoreClient::TraceContextUtil.inject_trace_context(headers)
+      _(headers).must_be_empty
+    end
+
+    it 'empty headers do not cause exception' do
+      headers = {}
+      PetstoreClient::TraceContextUtil.inject_trace_context(headers)
+      _(headers.size).must_equal(0)
+    end
+
+    it 'does not inject traceparent without OTel' do
+      headers = {}
+      PetstoreClient::TraceContextUtil.inject_trace_context(headers)
+      _(headers).wont_include('traceparent')
+    end
+
+    it 'does not inject tracestate without OTel' do
+      headers = {}
+      PetstoreClient::TraceContextUtil.inject_trace_context(headers)
+      _(headers).wont_include('tracestate')
+    end
+
+    it 'preserves Authorization header' do
+      headers = { 'Authorization' => 'Bearer token123' }
+      PetstoreClient::TraceContextUtil.inject_trace_context(headers)
+      _(headers['Authorization']).must_equal('Bearer token123')
+    end
+
+    it 'preserves Content-Type header' do
+      headers = { 'Content-Type' => 'application/json' }
+      PetstoreClient::TraceContextUtil.inject_trace_context(headers)
+      _(headers['Content-Type']).must_equal('application/json')
+    end
+
+    it 'preserves X-Request-ID header' do
+      headers = { 'X-Request-ID' => 'req-12345' }
+      PetstoreClient::TraceContextUtil.inject_trace_context(headers)
+      _(headers['X-Request-ID']).must_equal('req-12345')
+    end
+
+    it 'preserves all existing headers' do
+      headers = {
+        'Authorization' => 'Bearer token',
+        'Content-Type' => 'application/json',
+        'X-Request-ID' => 'abc-123'
+      }
+      PetstoreClient::TraceContextUtil.inject_trace_context(headers)
+      _(headers.size).must_equal(3)
+      _(headers['Authorization']).must_equal('Bearer token')
+      _(headers['Content-Type']).must_equal('application/json')
+      _(headers['X-Request-ID']).must_equal('abc-123')
+    end
+  end
+end

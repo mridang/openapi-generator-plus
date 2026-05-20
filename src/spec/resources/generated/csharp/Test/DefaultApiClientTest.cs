@@ -24,7 +24,9 @@ public class DefaultApiClientTest
     [Fact]
     public async Task MakesHttpsRequestWithVerifySslFalse()
     {
-        var transport = TransportOptions.Builder().VerifySsl(false).Build();
+        var transport = TransportOptions.Builder()
+            .VerifySsl(false)
+            .Build();
 
         var client = new DefaultApiClient(transport);
         var response = await client.SendRequestAsync(
@@ -41,8 +43,7 @@ public class DefaultApiClientTest
     [Fact]
     public async Task MakesHttpsRequestWithCustomCaCert()
     {
-        var transport = TransportOptions
-            .Builder()
+        var transport = TransportOptions.Builder()
             .VerifySsl(true)
             .CaCertPath(_fixture.CaCertPath)
             .Build();
@@ -62,7 +63,9 @@ public class DefaultApiClientTest
     [Fact]
     public async Task MakesHttpRequestThroughProxy()
     {
-        var transport = TransportOptions.Builder().Proxy(_fixture.ProxyUrl).Build();
+        var transport = TransportOptions.Builder()
+            .Proxy(_fixture.ProxyUrl)
+            .Build();
 
         var client = new DefaultApiClient(transport);
         var response = await client.SendRequestAsync(
@@ -79,8 +82,7 @@ public class DefaultApiClientTest
     [Fact]
     public async Task MakesHttpsRequestThroughProxyWithVerifySslFalse()
     {
-        var transport = TransportOptions
-            .Builder()
+        var transport = TransportOptions.Builder()
             .Proxy(_fixture.ProxyUrl)
             .VerifySsl(false)
             .Build();
@@ -102,18 +104,19 @@ public class DefaultApiClientTest
     [Fact]
     public async Task TimesOutOnSlowEndpoint()
     {
-        var transport = TransportOptions.Builder().Timeout(1).Build();
+        var transport = TransportOptions.Builder()
+            .Timeout(1)
+            .Build();
 
         var client = new DefaultApiClient(transport);
 
-        await Assert.ThrowsAsync<ApiException>(
-            () =>
-                client.SendRequestAsync(
-                    "GET",
-                    new Uri(_fixture.WireMockHttpUrl + "/api/slow"),
-                    new Dictionary<string, string>(),
-                    null
-                )
+        await Assert.ThrowsAsync<ApiException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri(_fixture.WireMockHttpUrl + "/api/slow"),
+                new Dictionary<string, string>(),
+                null
+            )
         );
     }
 
@@ -122,7 +125,9 @@ public class DefaultApiClientTest
     [Fact]
     public async Task InjectsCustomUserAgentHeader()
     {
-        var transport = TransportOptions.Builder().UserAgent("MyApp/1.0").Build();
+        var transport = TransportOptions.Builder()
+            .UserAgent("MyApp/1.0")
+            .Build();
 
         var client = new DefaultApiClient(transport);
         var response = await client.SendRequestAsync(
@@ -142,7 +147,9 @@ public class DefaultApiClientTest
     [Fact]
     public async Task InjectsRequestIdHeader()
     {
-        var transport = TransportOptions.Builder().InjectRequestId(true).Build();
+        var transport = TransportOptions.Builder()
+            .InjectRequestId(true)
+            .Build();
 
         var client = new DefaultApiClient(transport);
         var response = await client.SendRequestAsync(
@@ -165,7 +172,9 @@ public class DefaultApiClientTest
     [Fact]
     public async Task GeneratesUniqueRequestIds()
     {
-        var transport = TransportOptions.Builder().InjectRequestId(true).Build();
+        var transport = TransportOptions.Builder()
+            .InjectRequestId(true)
+            .Build();
 
         var client = new DefaultApiClient(transport);
 
@@ -195,8 +204,7 @@ public class DefaultApiClientTest
     [Fact]
     public async Task IncludesTransportDefaultHeaders()
     {
-        var transport = TransportOptions
-            .Builder()
+        var transport = TransportOptions.Builder()
             .DefaultHeader("X-Custom", "custom-value")
             .Build();
 
@@ -216,7 +224,9 @@ public class DefaultApiClientTest
     [Fact]
     public async Task CallerHeadersOverrideTransportDefaults()
     {
-        var transport = TransportOptions.Builder().DefaultHeader("Accept", "text/plain").Build();
+        var transport = TransportOptions.Builder()
+            .DefaultHeader("Accept", "text/plain")
+            .Build();
 
         var client = new DefaultApiClient(transport);
         var response = await client.SendRequestAsync(
@@ -236,7 +246,9 @@ public class DefaultApiClientTest
     [Fact]
     public async Task FollowsRedirectsWhenEnabled()
     {
-        var transport = TransportOptions.Builder().FollowRedirects(true).Build();
+        var transport = TransportOptions.Builder()
+            .FollowRedirects(true)
+            .Build();
 
         var client = new DefaultApiClient(transport);
         var response = await client.SendRequestAsync(
@@ -253,7 +265,9 @@ public class DefaultApiClientTest
     [Fact]
     public async Task ReturnsRedirectWhenDisabled()
     {
-        var transport = TransportOptions.Builder().FollowRedirects(false).Build();
+        var transport = TransportOptions.Builder()
+            .FollowRedirects(false)
+            .Build();
 
         var client = new DefaultApiClient(transport);
         var response = await client.SendRequestAsync(
@@ -271,7 +285,10 @@ public class DefaultApiClientTest
     [Fact]
     public void RespectsMaxRedirectsLimit()
     {
-        var transport = TransportOptions.Builder().FollowRedirects(true).MaxRedirects(5).Build();
+        var transport = TransportOptions.Builder()
+            .FollowRedirects(true)
+            .MaxRedirects(5)
+            .Build();
 
         var client = new DefaultApiClient(transport);
         Assert.NotNull(client);
@@ -287,7 +304,7 @@ public class DefaultApiClientTest
         var formData = new Dictionary<string, object>
         {
             { "description", "A test file" },
-            { "file", System.Text.Encoding.UTF8.GetBytes("file content") },
+            { "file", System.Text.Encoding.UTF8.GetBytes("file content") }
         };
         var response = await client.SendRequestAsync(
             "POST",

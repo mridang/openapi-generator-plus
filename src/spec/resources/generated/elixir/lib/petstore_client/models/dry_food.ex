@@ -42,4 +42,5 @@ defmodule PetstoreClient.Models.DryFood do
       food_type: "String.t()"
     }
   end
+
 end

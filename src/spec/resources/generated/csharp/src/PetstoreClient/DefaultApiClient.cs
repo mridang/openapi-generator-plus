@@ -237,7 +237,9 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         HttpResponseMessage response;
         try
         {
-            response = await _httpClient.SendAsync(request).ConfigureAwait(false);
+            response = await _httpClient
+                .SendAsync(request)
+                .ConfigureAwait(false);
         }
         catch (HttpRequestException ex)
         {
@@ -309,18 +311,16 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             case byte[] bytes:
             {
                 ByteArrayContent content = new(bytes);
-                content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
-                    GetMimeType(name)
-                );
+                content.Headers.ContentType =
+                    new System.Net.Http.Headers.MediaTypeHeaderValue(GetMimeType(name));
                 multipart.Add(content, name, name);
                 break;
             }
             case Stream stream:
             {
                 StreamContent content = new(stream);
-                content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
-                    GetMimeType(name)
-                );
+                content.Headers.ContentType =
+                    new System.Net.Http.Headers.MediaTypeHeaderValue(GetMimeType(name));
                 multipart.Add(content, name, name);
                 break;
             }

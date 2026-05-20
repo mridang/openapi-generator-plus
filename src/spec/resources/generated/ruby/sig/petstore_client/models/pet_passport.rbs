@@ -1,0 +1,11 @@
+module PetstoreClient::Models
+  class PetPassport < Dry::Struct
+    ATTRIBUTE_MAP: Hash[Symbol, String]
+    JSON_KEY_MAP: Hash[String, Symbol]
+    OPENAPI_TYPES: Hash[Symbol, String]
+    attr_reader pet: Pet?
+    attr_reader thumbnail: String?
+    attr_reader scans: Array[String]?
+    attr_reader issued_at: Time?
+  end
+end

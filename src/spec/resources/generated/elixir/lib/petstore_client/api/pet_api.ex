@@ -21,7 +21,6 @@ defmodule PetstoreClient.Api.GetExternalPetInfoServer.Server0 do
     "https://external-api.example.com/v1"
   end
 end
-
 defmodule PetstoreClient.Api.GetMultiServerPetInfoServer do
   @moduledoc "Server type for the get_multi_server_pet_info operation."
 
@@ -63,7 +62,6 @@ defmodule PetstoreClient.Api.GetMultiServerPetInfoServer.Regional do
     |> String.replace("{" <> "region" <> "}", to_string(server.region))
   end
 end
-
 defmodule PetstoreClient.Api.GetPetByIdServer do
   @moduledoc "Server type for the get_pet_by_id operation."
 
@@ -80,7 +78,6 @@ defmodule PetstoreClient.Api.GetPetByIdServer.CDNBackedReadEndpointForPetDetails
     "https://cdn.petstore.io/v3"
   end
 end
-
 defmodule PetstoreClient.Api.GetStagingPetInfoServer do
   @moduledoc "Server type for the get_staging_pet_info operation."
 
@@ -159,7 +156,7 @@ defmodule PetstoreClient.Api.PetApi do
 
   ## Parameters
     * `pet` - Pet - Create a new pet in the store
-
+  
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
@@ -194,7 +191,6 @@ defmodule PetstoreClient.Api.PetApi do
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def add_pet_with_http_info(%__MODULE__{} = api, pet, opts \\ []) do
     auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
-
     if is_nil(pet) do
       raise ArgumentError,
             "Missing the required parameter 'pet' when calling PetApi.add_pet"
@@ -202,29 +198,18 @@ defmodule PetstoreClient.Api.PetApi do
 
     path = "/pet"
     server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
-      else
-        path
-      end
-
+    path = if server do
+      server_url = PetstoreClient.ServerConfiguration.url(server)
+      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+    else
+      path
+    end
     query_params = %{}
     header_params = %{}
     request_body = pet
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api,
-      :POST,
-      path,
-      query_params,
-      header_params,
-      request_body,
+      api, :POST, path, query_params, header_params, request_body,
       ["application/json"],
       "application/json",
       "Pet",
@@ -239,9 +224,9 @@ defmodule PetstoreClient.Api.PetApi do
 
   ## Parameters
     * `pet_id` - integer()
-
+  
     * `options` - Optional parameters (query, header, form, cookie).
-
+  
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
@@ -278,36 +263,20 @@ defmodule PetstoreClient.Api.PetApi do
     # Operation declared `security: []` — no auth applied even if the
     # client has a default authenticator configured (OpenAPI 3.0 spec).
     auth = nil
-
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.add_pet_photos"
     end
 
     path = "/pet/{petId}/photos"
-
-    path =
-      String.replace(
-        path,
-        "{petId}",
-        PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
-        |> to_string()
-        |> encode_path_segment()
-      )
-
+    path = String.replace(path, "{petId}", PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false) |> to_string() |> encode_path_segment())
     server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
-      else
-        path
-      end
-
+    path = if server do
+      server_url = PetstoreClient.ServerConfiguration.url(server)
+      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+    else
+      path
+    end
     query_params = %{}
     header_params = %{}
     request_body = %{}
@@ -315,12 +284,7 @@ defmodule PetstoreClient.Api.PetApi do
     request_body = Map.put(request_body, "metadata", options.metadata)
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api,
-      :POST,
-      path,
-      query_params,
-      header_params,
-      request_body,
+      api, :POST, path, query_params, header_params, request_body,
       ["application/json"],
       "multipart/form-data",
       "[Photo]",
@@ -334,7 +298,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
     * `pet_treatment` - PetTreatment
-
+  
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
@@ -369,7 +333,6 @@ defmodule PetstoreClient.Api.PetApi do
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def add_pet_treatment_with_http_info(%__MODULE__{} = api, pet_id, pet_treatment, opts \\ []) do
     auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
-
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.add_pet_treatment"
@@ -381,40 +344,20 @@ defmodule PetstoreClient.Api.PetApi do
     end
 
     path = "/pet/{petId}/treatment"
-
-    path =
-      String.replace(
-        path,
-        "{petId}",
-        PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
-        |> to_string()
-        |> encode_path_segment()
-      )
-
+    path = String.replace(path, "{petId}", PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false) |> to_string() |> encode_path_segment())
     server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
-      else
-        path
-      end
-
+    path = if server do
+      server_url = PetstoreClient.ServerConfiguration.url(server)
+      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+    else
+      path
+    end
     query_params = %{}
     header_params = %{}
     request_body = pet_treatment
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api,
-      :POST,
-      path,
-      query_params,
-      header_params,
-      request_body,
+      api, :POST, path, query_params, header_params, request_body,
       ["application/json"],
       "application/json",
       "PetTreatment",
@@ -427,9 +370,9 @@ defmodule PetstoreClient.Api.PetApi do
 
   ## Parameters
     * `pet_id` - integer() - Pet id to delete
-
+  
     * `options` - Optional parameters (query, header, form, cookie).
-
+  
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
@@ -464,62 +407,34 @@ defmodule PetstoreClient.Api.PetApi do
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def delete_pet_with_http_info(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
-
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.delete_pet"
     end
 
     path = "/pet/{petId}"
-
-    path =
-      String.replace(
-        path,
-        "{petId}",
-        PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
-        |> to_string()
-        |> encode_path_segment()
-      )
-
+    path = String.replace(path, "{petId}", PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false) |> to_string() |> encode_path_segment())
     server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
-      else
-        path
-      end
-
+    path = if server do
+      server_url = PetstoreClient.ServerConfiguration.url(server)
+      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+    else
+      path
+    end
     query_params = %{}
     header_params = %{}
     cookie_parts = []
-
     cookie_parts =
       if not is_nil(options) and not is_nil(options.api_key) do
-        cookie_parts ++
-          [
-            "api_key=#{PetstoreClient.ValueSerializer.serialize_styled("api_key", options.api_key, :cookie, "String.t()", nil, "form", true)}"
-          ]
+        cookie_parts ++ ["api_key=#{PetstoreClient.ValueSerializer.serialize_styled("api_key", options.api_key, :cookie, "String.t()", nil, "form", true)}"]
       else
         cookie_parts
       end
-
-    header_params =
-      if cookie_parts != [], do: Map.put(header_params, "Cookie", Enum.join(cookie_parts, "; ")), else: header_params
-
+    header_params = if cookie_parts != [], do: Map.put(header_params, "Cookie", Enum.join(cookie_parts, "; ")), else: header_params
     request_body = nil
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api,
-      :DELETE,
-      path,
-      query_params,
-      header_params,
-      request_body,
+      api, :DELETE, path, query_params, header_params, request_body,
       [],
       "application/json",
       nil,
@@ -535,7 +450,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
     * `document_id` - integer()
-
+  
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
@@ -572,7 +487,6 @@ defmodule PetstoreClient.Api.PetApi do
     # Operation declared `security: []` — no auth applied even if the
     # client has a default authenticator configured (OpenAPI 3.0 spec).
     auth = nil
-
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.download_pet_document"
@@ -584,57 +498,21 @@ defmodule PetstoreClient.Api.PetApi do
     end
 
     path = "/pet/{petId}/documents/{documentId}"
-
-    path =
-      String.replace(
-        path,
-        "{petId}",
-        PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
-        |> to_string()
-        |> encode_path_segment()
-      )
-
-    path =
-      String.replace(
-        path,
-        "{documentId}",
-        PetstoreClient.ValueSerializer.serialize_styled(
-          "documentId",
-          document_id,
-          :path,
-          "integer()",
-          nil,
-          "simple",
-          false
-        )
-        |> to_string()
-        |> encode_path_segment()
-      )
-
+    path = String.replace(path, "{petId}", PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false) |> to_string() |> encode_path_segment())
+    path = String.replace(path, "{documentId}", PetstoreClient.ValueSerializer.serialize_styled("documentId", document_id, :path, "integer()", nil, "simple", false) |> to_string() |> encode_path_segment())
     server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
-      else
-        path
-      end
-
+    path = if server do
+      server_url = PetstoreClient.ServerConfiguration.url(server)
+      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+    else
+      path
+    end
     query_params = %{}
     header_params = %{}
     request_body = nil
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api,
-      :GET,
-      path,
-      query_params,
-      header_params,
-      request_body,
+      api, :GET, path, query_params, header_params, request_body,
       ["application/octet-stream"],
       "application/json",
       "binary()",
@@ -648,9 +526,9 @@ defmodule PetstoreClient.Api.PetApi do
   **Deprecated**: This operation is deprecated.
 
   ## Parameters
-
+  
     * `options` - Optional parameters (query, header, form, cookie).
-
+  
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
@@ -690,60 +568,35 @@ defmodule PetstoreClient.Api.PetApi do
     auth = nil
     path = "/pet/findByStatus"
     server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
-      else
-        path
-      end
-
+    path = if server do
+      server_url = PetstoreClient.ServerConfiguration.url(server)
+      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+    else
+      path
+    end
     query_params = %{}
-
     query_params =
       if not is_nil(options) do
         if not is_nil(options.status) do
-          Map.put(
-            query_params,
-            "status",
-            PetstoreClient.ValueSerializer.serialize_styled(
-              "status",
-              options.status,
-              :query,
-              "String.t()",
-              nil,
-              "form",
-              true
-            )
-          )
+          Map.put(query_params, "status",
+            PetstoreClient.ValueSerializer.serialize_styled("status", options.status, :query, "String.t()", nil, "form", true))
         else
           Map.put(query_params, "status", "")
         end
       else
         query_params
       end
-
     query_params =
       if not is_nil(options) and options.filter do
         Map.merge(query_params, PetstoreClient.ValueSerializer.serialize_deep_object("filter", options.filter))
       else
         query_params
       end
-
     header_params = %{}
     request_body = nil
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api,
-      :GET,
-      path,
-      query_params,
-      header_params,
-      request_body,
+      api, :GET, path, query_params, header_params, request_body,
       ["application/json"],
       "application/json",
       "[Pet]",
@@ -756,7 +609,7 @@ defmodule PetstoreClient.Api.PetApi do
 
   ## Parameters
     * `pet_id` - integer()
-
+  
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
@@ -793,47 +646,26 @@ defmodule PetstoreClient.Api.PetApi do
     # Operation declared `security: []` — no auth applied even if the
     # client has a default authenticator configured (OpenAPI 3.0 spec).
     auth = nil
-
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.get_external_pet_info"
     end
 
     path = "/pet/{petId}/external"
-
-    path =
-      String.replace(
-        path,
-        "{petId}",
-        PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
-        |> to_string()
-        |> encode_path_segment()
-      )
-
+    path = String.replace(path, "{petId}", PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false) |> to_string() |> encode_path_segment())
     server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
-      else
-        path
-      end
-
+    path = if server do
+      server_url = PetstoreClient.ServerConfiguration.url(server)
+      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+    else
+      path
+    end
     query_params = %{}
     header_params = %{}
     request_body = nil
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api,
-      :GET,
-      path,
-      query_params,
-      header_params,
-      request_body,
+      api, :GET, path, query_params, header_params, request_body,
       ["application/json"],
       "application/json",
       "Pet",
@@ -846,7 +678,7 @@ defmodule PetstoreClient.Api.PetApi do
 
   ## Parameters
     * `pet_id` - integer()
-
+  
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
@@ -883,47 +715,26 @@ defmodule PetstoreClient.Api.PetApi do
     # Operation declared `security: []` — no auth applied even if the
     # client has a default authenticator configured (OpenAPI 3.0 spec).
     auth = nil
-
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.get_multi_server_pet_info"
     end
 
     path = "/pet/{petId}/multi"
-
-    path =
-      String.replace(
-        path,
-        "{petId}",
-        PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
-        |> to_string()
-        |> encode_path_segment()
-      )
-
+    path = String.replace(path, "{petId}", PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false) |> to_string() |> encode_path_segment())
     server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
-      else
-        path
-      end
-
+    path = if server do
+      server_url = PetstoreClient.ServerConfiguration.url(server)
+      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+    else
+      path
+    end
     query_params = %{}
     header_params = %{}
     request_body = nil
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api,
-      :GET,
-      path,
-      query_params,
-      header_params,
-      request_body,
+      api, :GET, path, query_params, header_params, request_body,
       ["application/json"],
       "application/json",
       "Pet",
@@ -938,7 +749,7 @@ defmodule PetstoreClient.Api.PetApi do
 
   ## Parameters
     * `pet_id` - integer()
-
+  
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
@@ -975,47 +786,26 @@ defmodule PetstoreClient.Api.PetApi do
     # Operation declared `security: []` — no auth applied even if the
     # client has a default authenticator configured (OpenAPI 3.0 spec).
     auth = nil
-
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar"
     end
 
     path = "/pet/{petId}/avatar"
-
-    path =
-      String.replace(
-        path,
-        "{petId}",
-        PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
-        |> to_string()
-        |> encode_path_segment()
-      )
-
+    path = String.replace(path, "{petId}", PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false) |> to_string() |> encode_path_segment())
     server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
-      else
-        path
-      end
-
+    path = if server do
+      server_url = PetstoreClient.ServerConfiguration.url(server)
+      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+    else
+      path
+    end
     query_params = %{}
     header_params = %{}
     request_body = nil
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api,
-      :GET,
-      path,
-      query_params,
-      header_params,
-      request_body,
+      api, :GET, path, query_params, header_params, request_body,
       ["image/jpeg", "image/png"],
       "application/json",
       "binary()",
@@ -1030,7 +820,7 @@ defmodule PetstoreClient.Api.PetApi do
 
   ## Parameters
     * `pet_id` - integer()
-
+  
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
@@ -1067,47 +857,26 @@ defmodule PetstoreClient.Api.PetApi do
     # Operation declared `security: []` — no auth applied even if the
     # client has a default authenticator configured (OpenAPI 3.0 spec).
     auth = nil
-
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar_thumbnail"
     end
 
     path = "/pet/{petId}/avatar/thumbnail"
-
-    path =
-      String.replace(
-        path,
-        "{petId}",
-        PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
-        |> to_string()
-        |> encode_path_segment()
-      )
-
+    path = String.replace(path, "{petId}", PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false) |> to_string() |> encode_path_segment())
     server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
-      else
-        path
-      end
-
+    path = if server do
+      server_url = PetstoreClient.ServerConfiguration.url(server)
+      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+    else
+      path
+    end
     query_params = %{}
     header_params = %{}
     request_body = nil
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api,
-      :GET,
-      path,
-      query_params,
-      header_params,
-      request_body,
+      api, :GET, path, query_params, header_params, request_body,
       ["application/json"],
       "application/json",
       "binary()",
@@ -1124,7 +893,7 @@ defmodule PetstoreClient.Api.PetApi do
 
   ## Parameters
     * `pet_id` - integer() - ID of pet to return
-
+  
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
@@ -1162,47 +931,26 @@ defmodule PetstoreClient.Api.PetApi do
     # Operation declared `security: []` — no auth applied even if the
     # client has a default authenticator configured (OpenAPI 3.0 spec).
     auth = nil
-
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.get_pet_by_id"
     end
 
     path = "/pet/{petId}"
-
-    path =
-      String.replace(
-        path,
-        "{petId}",
-        PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
-        |> to_string()
-        |> encode_path_segment()
-      )
-
+    path = String.replace(path, "{petId}", PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false) |> to_string() |> encode_path_segment())
     server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
-      else
-        path
-      end
-
+    path = if server do
+      server_url = PetstoreClient.ServerConfiguration.url(server)
+      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+    else
+      path
+    end
     query_params = %{}
     header_params = %{}
     request_body = nil
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api,
-      :GET,
-      path,
-      query_params,
-      header_params,
-      request_body,
+      api, :GET, path, query_params, header_params, request_body,
       ["application/json"],
       "application/json",
       "Pet",
@@ -1217,7 +965,7 @@ defmodule PetstoreClient.Api.PetApi do
 
   ## Parameters
     * `pet_id` - integer()
-
+  
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
@@ -1254,47 +1002,26 @@ defmodule PetstoreClient.Api.PetApi do
     # Operation declared `security: []` — no auth applied even if the
     # client has a default authenticator configured (OpenAPI 3.0 spec).
     auth = nil
-
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.get_pet_passport"
     end
 
     path = "/pet/{petId}/passport"
-
-    path =
-      String.replace(
-        path,
-        "{petId}",
-        PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
-        |> to_string()
-        |> encode_path_segment()
-      )
-
+    path = String.replace(path, "{petId}", PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false) |> to_string() |> encode_path_segment())
     server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
-      else
-        path
-      end
-
+    path = if server do
+      server_url = PetstoreClient.ServerConfiguration.url(server)
+      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+    else
+      path
+    end
     query_params = %{}
     header_params = %{}
     request_body = nil
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api,
-      :GET,
-      path,
-      query_params,
-      header_params,
-      request_body,
+      api, :GET, path, query_params, header_params, request_body,
       ["application/json"],
       "application/json",
       "PetPassport",
@@ -1310,7 +1037,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
     * `photo_id` - integer()
-
+  
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
@@ -1347,7 +1074,6 @@ defmodule PetstoreClient.Api.PetApi do
     # Operation declared `security: []` — no auth applied even if the
     # client has a default authenticator configured (OpenAPI 3.0 spec).
     auth = nil
-
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.get_pet_photo"
@@ -1359,49 +1085,21 @@ defmodule PetstoreClient.Api.PetApi do
     end
 
     path = "/pet/{petId}/photos/{photoId}"
-
-    path =
-      String.replace(
-        path,
-        "{petId}",
-        PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
-        |> to_string()
-        |> encode_path_segment()
-      )
-
-    path =
-      String.replace(
-        path,
-        "{photoId}",
-        PetstoreClient.ValueSerializer.serialize_styled("photoId", photo_id, :path, "integer()", nil, "simple", false)
-        |> to_string()
-        |> encode_path_segment()
-      )
-
+    path = String.replace(path, "{petId}", PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false) |> to_string() |> encode_path_segment())
+    path = String.replace(path, "{photoId}", PetstoreClient.ValueSerializer.serialize_styled("photoId", photo_id, :path, "integer()", nil, "simple", false) |> to_string() |> encode_path_segment())
     server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
-      else
-        path
-      end
-
+    path = if server do
+      server_url = PetstoreClient.ServerConfiguration.url(server)
+      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+    else
+      path
+    end
     query_params = %{}
     header_params = %{}
     request_body = nil
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api,
-      :GET,
-      path,
-      query_params,
-      header_params,
-      request_body,
+      api, :GET, path, query_params, header_params, request_body,
       ["image/jpeg", "image/png", "application/json"],
       "application/json",
       "binary()",
@@ -1415,9 +1113,9 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
     * `tag_name` - String.t()
-
+  
     * `options` - Optional parameters (query, header, form, cookie).
-
+  
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
@@ -1454,7 +1152,6 @@ defmodule PetstoreClient.Api.PetApi do
     # Operation declared `security: []` — no auth applied even if the
     # client has a default authenticator configured (OpenAPI 3.0 spec).
     auth = nil
-
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.get_pet_tag"
@@ -1466,111 +1163,46 @@ defmodule PetstoreClient.Api.PetApi do
     end
 
     path = "/pet/{petId}/tag/{tagName}"
-
-    path =
-      String.replace(
-        path,
-        "{petId}",
-        PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "matrix", false)
-        |> to_string()
-        |> encode_path_segment()
-      )
-
-    path =
-      String.replace(
-        path,
-        "{tagName}",
-        PetstoreClient.ValueSerializer.serialize_styled("tagName", tag_name, :path, "String.t()", nil, "label", false)
-        |> to_string()
-        |> encode_path_segment()
-      )
-
+    path = String.replace(path, "{petId}", PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "matrix", false) |> to_string() |> encode_path_segment())
+    path = String.replace(path, "{tagName}", PetstoreClient.ValueSerializer.serialize_styled("tagName", tag_name, :path, "String.t()", nil, "label", false) |> to_string() |> encode_path_segment())
     server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
-      else
-        path
-      end
-
+    path = if server do
+      server_url = PetstoreClient.ServerConfiguration.url(server)
+      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+    else
+      path
+    end
     query_params = %{}
-
     query_params =
       if not is_nil(options) and not is_nil(options.colors) and options.colors != [] do
-        Map.put(
-          query_params,
-          "colors",
-          PetstoreClient.ValueSerializer.serialize_styled(
-            "colors",
-            options.colors,
-            :query,
-            "[String.t()]",
-            :pipes,
-            "pipeDelimited",
-            false
-          )
-        )
+        Map.put(query_params, "colors",
+          PetstoreClient.ValueSerializer.serialize_styled("colors", options.colors, :query, "[String.t()]", :pipes, "pipeDelimited", false))
       else
         query_params
       end
-
     query_params =
       if not is_nil(options) and not is_nil(options.sizes) and options.sizes != [] do
-        Map.put(
-          query_params,
-          "sizes",
-          PetstoreClient.ValueSerializer.serialize_styled(
-            "sizes",
-            options.sizes,
-            :query,
-            "[String.t()]",
-            :ssv,
-            "spaceDelimited",
-            false
-          )
-        )
+        Map.put(query_params, "sizes",
+          PetstoreClient.ValueSerializer.serialize_styled("sizes", options.sizes, :query, "[String.t()]", :ssv, "spaceDelimited", false))
       else
         query_params
       end
-
     query_params =
       if not is_nil(options) do
         if not is_nil(options.filter) do
-          Map.put(
-            query_params,
-            "filter",
-            PetstoreClient.ValueSerializer.serialize_styled(
-              "filter",
-              options.filter,
-              :query,
-              "String.t()",
-              nil,
-              "form",
-              true
-            )
-          )
+          Map.put(query_params, "filter",
+            PetstoreClient.ValueSerializer.serialize_styled("filter", options.filter, :query, "String.t()", nil, "form", true))
         else
           Map.put(query_params, "filter", "")
         end
       else
         query_params
       end
-
     header_params = %{}
     request_body = nil
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api,
-      :GET,
-      path,
-      query_params,
-      header_params,
-      request_body,
+      api, :GET, path, query_params, header_params, request_body,
       ["application/json"],
       "application/json",
       "Pet",
@@ -1583,7 +1215,7 @@ defmodule PetstoreClient.Api.PetApi do
 
   ## Parameters
     * `pet_id` - integer()
-
+  
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
@@ -1620,47 +1252,26 @@ defmodule PetstoreClient.Api.PetApi do
     # Operation declared `security: []` — no auth applied even if the
     # client has a default authenticator configured (OpenAPI 3.0 spec).
     auth = nil
-
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.get_staging_pet_info"
     end
 
     path = "/pet/{petId}/staging"
-
-    path =
-      String.replace(
-        path,
-        "{petId}",
-        PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
-        |> to_string()
-        |> encode_path_segment()
-      )
-
+    path = String.replace(path, "{petId}", PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false) |> to_string() |> encode_path_segment())
     server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
-      else
-        path
-      end
-
+    path = if server do
+      server_url = PetstoreClient.ServerConfiguration.url(server)
+      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+    else
+      path
+    end
     query_params = %{}
     header_params = %{}
     request_body = nil
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api,
-      :GET,
-      path,
-      query_params,
-      header_params,
-      request_body,
+      api, :GET, path, query_params, header_params, request_body,
       ["application/json"],
       "application/json",
       "Pet",
@@ -1676,7 +1287,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
     * `body` - binary()
-
+  
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
@@ -1713,7 +1324,6 @@ defmodule PetstoreClient.Api.PetApi do
     # Operation declared `security: []` — no auth applied even if the
     # client has a default authenticator configured (OpenAPI 3.0 spec).
     auth = nil
-
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar"
@@ -1725,40 +1335,20 @@ defmodule PetstoreClient.Api.PetApi do
     end
 
     path = "/pet/{petId}/avatar"
-
-    path =
-      String.replace(
-        path,
-        "{petId}",
-        PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
-        |> to_string()
-        |> encode_path_segment()
-      )
-
+    path = String.replace(path, "{petId}", PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false) |> to_string() |> encode_path_segment())
     server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
-      else
-        path
-      end
-
+    path = if server do
+      server_url = PetstoreClient.ServerConfiguration.url(server)
+      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+    else
+      path
+    end
     query_params = %{}
     header_params = %{}
     request_body = body
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api,
-      :PUT,
-      path,
-      query_params,
-      header_params,
-      request_body,
+      api, :PUT, path, query_params, header_params, request_body,
       [],
       "image/jpeg",
       nil,
@@ -1774,7 +1364,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
     * `set_pet_avatar_thumbnail_request` - SetPetAvatarThumbnailRequest
-
+  
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
@@ -1811,7 +1401,6 @@ defmodule PetstoreClient.Api.PetApi do
     # Operation declared `security: []` — no auth applied even if the
     # client has a default authenticator configured (OpenAPI 3.0 spec).
     auth = nil
-
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar_thumbnail"
@@ -1823,40 +1412,20 @@ defmodule PetstoreClient.Api.PetApi do
     end
 
     path = "/pet/{petId}/avatar/thumbnail"
-
-    path =
-      String.replace(
-        path,
-        "{petId}",
-        PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
-        |> to_string()
-        |> encode_path_segment()
-      )
-
+    path = String.replace(path, "{petId}", PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false) |> to_string() |> encode_path_segment())
     server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
-      else
-        path
-      end
-
+    path = if server do
+      server_url = PetstoreClient.ServerConfiguration.url(server)
+      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+    else
+      path
+    end
     query_params = %{}
     header_params = %{}
     request_body = set_pet_avatar_thumbnail_request
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api,
-      :PUT,
-      path,
-      query_params,
-      header_params,
-      request_body,
+      api, :PUT, path, query_params, header_params, request_body,
       [],
       "application/json",
       nil,
@@ -1870,7 +1439,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer() - ID of pet to update
     * `pet` - Pet - Pet object that needs to be updated
-
+  
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
@@ -1907,7 +1476,6 @@ defmodule PetstoreClient.Api.PetApi do
     # Operation declared `security: []` — no auth applied even if the
     # client has a default authenticator configured (OpenAPI 3.0 spec).
     auth = nil
-
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.update_pet"
@@ -1919,40 +1487,20 @@ defmodule PetstoreClient.Api.PetApi do
     end
 
     path = "/pet/{petId}"
-
-    path =
-      String.replace(
-        path,
-        "{petId}",
-        PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
-        |> to_string()
-        |> encode_path_segment()
-      )
-
+    path = String.replace(path, "{petId}", PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false) |> to_string() |> encode_path_segment())
     server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
-      else
-        path
-      end
-
+    path = if server do
+      server_url = PetstoreClient.ServerConfiguration.url(server)
+      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+    else
+      path
+    end
     query_params = %{}
     header_params = %{}
     request_body = pet
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api,
-      :PUT,
-      path,
-      query_params,
-      header_params,
-      request_body,
+      api, :PUT, path, query_params, header_params, request_body,
       ["application/json"],
       "application/json",
       "Pet",
@@ -1967,9 +1515,9 @@ defmodule PetstoreClient.Api.PetApi do
 
   ## Parameters
     * `pet_id` - integer()
-
+  
     * `options` - Optional parameters (query, header, form, cookie).
-
+  
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
@@ -2006,48 +1554,27 @@ defmodule PetstoreClient.Api.PetApi do
     # Operation declared `security: []` — no auth applied even if the
     # client has a default authenticator configured (OpenAPI 3.0 spec).
     auth = nil
-
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_certificate"
     end
 
     path = "/pet/{petId}/certificate"
-
-    path =
-      String.replace(
-        path,
-        "{petId}",
-        PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
-        |> to_string()
-        |> encode_path_segment()
-      )
-
+    path = String.replace(path, "{petId}", PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false) |> to_string() |> encode_path_segment())
     server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
-      else
-        path
-      end
-
+    path = if server do
+      server_url = PetstoreClient.ServerConfiguration.url(server)
+      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+    else
+      path
+    end
     query_params = %{}
     header_params = %{}
     request_body = %{}
     request_body = Map.put(request_body, "file", options.file)
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api,
-      :POST,
-      path,
-      query_params,
-      header_params,
-      request_body,
+      api, :POST, path, query_params, header_params, request_body,
       ["application/json"],
       "multipart/form-data",
       "ApiResponse",
@@ -2062,9 +1589,9 @@ defmodule PetstoreClient.Api.PetApi do
 
   ## Parameters
     * `pet_id` - integer()
-
+  
     * `options` - Optional parameters (query, header, form, cookie).
-
+  
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
@@ -2101,58 +1628,29 @@ defmodule PetstoreClient.Api.PetApi do
     # Operation declared `security: []` — no auth applied even if the
     # client has a default authenticator configured (OpenAPI 3.0 spec).
     auth = nil
-
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"
     end
 
     path = "/pet/{petId}/documents"
-
-    path =
-      String.replace(
-        path,
-        "{petId}",
-        PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
-        |> to_string()
-        |> encode_path_segment()
-      )
-
+    path = String.replace(path, "{petId}", PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false) |> to_string() |> encode_path_segment())
     server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
-      else
-        path
-      end
-
+    path = if server do
+      server_url = PetstoreClient.ServerConfiguration.url(server)
+      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+    else
+      path
+    end
     query_params = %{}
     header_params = %{}
     request_body = %{}
     request_body = Map.put(request_body, "file", options.file)
-
-    request_body =
-      if not is_nil(options) and not is_nil(options.document_type),
-        do: Map.put(request_body, "documentType", options.document_type),
-        else: request_body
-
-    request_body =
-      if not is_nil(options) and not is_nil(options.notes),
-        do: Map.put(request_body, "notes", options.notes),
-        else: request_body
+    request_body = if not is_nil(options) and not is_nil(options.document_type), do: Map.put(request_body, "documentType", options.document_type), else: request_body
+    request_body = if not is_nil(options) and not is_nil(options.notes), do: Map.put(request_body, "notes", options.notes), else: request_body
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api,
-      :POST,
-      path,
-      query_params,
-      header_params,
-      request_body,
+      api, :POST, path, query_params, header_params, request_body,
       ["application/json"],
       "multipart/form-data",
       "ApiResponse",

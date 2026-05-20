@@ -17,19 +17,19 @@ import '../api_result.dart';
 import '../auth/authenticator.dart';
 import '../configuration.dart';
 import '../default_api_client.dart';
-import '../errors/api_error.dart';
-import '../errors/bad_request_error.dart';
-import '../errors/client_error.dart';
-import '../errors/conflict_error.dart';
-import '../errors/forbidden_error.dart';
-import '../errors/internal_server_error.dart';
-import '../errors/not_found_error.dart';
-import '../errors/server_error.dart';
-import '../errors/unauthorized_error.dart';
-import '../errors/unprocessable_entity_error.dart';
 import '../header_selector.dart';
 import '../object_serializer.dart';
 import '../trace_context_util.dart';
+import '../errors/api_error.dart';
+import '../errors/client_error.dart';
+import '../errors/server_error.dart';
+import '../errors/bad_request_error.dart';
+import '../errors/unauthorized_error.dart';
+import '../errors/forbidden_error.dart';
+import '../errors/not_found_error.dart';
+import '../errors/conflict_error.dart';
+import '../errors/unprocessable_entity_error.dart';
+import '../errors/internal_server_error.dart';
 
 /// BaseApi provides common functionality for all API classes.
 class BaseApi {
@@ -60,8 +60,7 @@ class BaseApi {
     Authenticator? auth,
   }) async {
     var requestUrl = path;
-    if (!requestUrl.startsWith('http://') &&
-        !requestUrl.startsWith('https://')) {
+    if (!requestUrl.startsWith('http://') && !requestUrl.startsWith('https://')) {
       requestUrl = config.baseUrl + path;
     }
 
@@ -80,8 +79,7 @@ class BaseApi {
     }
 
     final isMultipart = contentType == 'multipart/form-data';
-    final headers =
-        _headerSelector.selectHeaders(accepts, contentType, isMultipart);
+    final headers = _headerSelector.selectHeaders(accepts, contentType, isMultipart);
 
     headers.addAll(config.defaultHeaders);
 
@@ -99,16 +97,13 @@ class BaseApi {
         // arrive as literal `%3D` and break JWT/session cookies.
         // Validate and pass through raw instead.
         final cookieNameRe = RegExp(r"^[A-Za-z0-9!#$%&'*+\-.^_`|~]+$");
-        final cookieValueRe =
-            RegExp(r'^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$');
+        final cookieValueRe = RegExp(r'^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$');
         final cookieParts = cookies.entries.map((e) {
           if (!cookieNameRe.hasMatch(e.key)) {
-            throw ArgumentError(
-                "Cookie name '${e.key}' contains characters forbidden by RFC 6265");
+            throw ArgumentError("Cookie name '${e.key}' contains characters forbidden by RFC 6265");
           }
           if (!cookieValueRe.hasMatch(e.value)) {
-            throw ArgumentError(
-                "Cookie value for '${e.key}' contains characters forbidden by RFC 6265");
+            throw ArgumentError("Cookie value for '${e.key}' contains characters forbidden by RFC 6265");
           }
           return '${e.key}=${e.value}';
         }).toList();
@@ -176,14 +171,11 @@ class BaseApi {
     );
 
     T? data;
-    if (returnType.isNotEmpty &&
-        response.body.isNotEmpty &&
-        deserialize != null) {
+    if (returnType.isNotEmpty && response.body.isNotEmpty && deserialize != null) {
       final responseContentType = response.headers.entries
-              .where((e) => e.key.toLowerCase() == 'content-type')
-              .map((e) => e.value)
-              .firstOrNull ??
-          '';
+          .where((e) => e.key.toLowerCase() == 'content-type')
+          .map((e) => e.value)
+          .firstOrNull ?? '';
       if (_headerSelector.isJsonMime(responseContentType)) {
         data = deserialize(response.body);
       } else {
@@ -230,8 +222,7 @@ class BaseApi {
       return null;
     }
 
-    if (contentType.startsWith('image/') ||
-        contentType == 'application/octet-stream') {
+    if (contentType.startsWith('image/') || contentType == 'application/octet-stream') {
       if (body is Uint8List) return body;
       if (body is List<int>) return Uint8List.fromList(body);
       if (body is String) return Uint8List.fromList(utf8.encode(body));
@@ -244,8 +235,7 @@ class BaseApi {
     if (contentType == 'application/x-www-form-urlencoded') {
       if (body is Map<String, String>) {
         final values = body.entries
-            .map((e) =>
-                '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+            .map((e) => '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
             .join('&');
         return Uint8List.fromList(utf8.encode(values));
       }
@@ -259,8 +249,7 @@ class BaseApi {
   /// Each entry value may be a `List<int>` (binary), a `List` (repeated
   /// field), or any other value which is converted to its string
   /// representation.
-  static Uint8List _buildMultipartBody(
-      Map<String, Object?> formFields, String boundary) {
+  static Uint8List _buildMultipartBody(Map<String, Object?> formFields, String boundary) {
     final parts = <List<int>>[];
 
     for (final entry in formFields.entries) {
@@ -355,51 +344,33 @@ class BaseApi {
       switch (code) {
         case 400:
           return BadRequestError(
-            statusCode: code,
-            message: msg,
-            responseBody: body,
-            responseHeaders: response.headers,
-            errorBody: parsed,
+            statusCode: code, message: msg, responseBody: body,
+            responseHeaders: response.headers, errorBody: parsed,
           );
         case 401:
           return UnauthorizedError(
-            statusCode: code,
-            message: msg,
-            responseBody: body,
-            responseHeaders: response.headers,
-            errorBody: parsed,
+            statusCode: code, message: msg, responseBody: body,
+            responseHeaders: response.headers, errorBody: parsed,
           );
         case 403:
           return ForbiddenError(
-            statusCode: code,
-            message: msg,
-            responseBody: body,
-            responseHeaders: response.headers,
-            errorBody: parsed,
+            statusCode: code, message: msg, responseBody: body,
+            responseHeaders: response.headers, errorBody: parsed,
           );
         case 404:
           return NotFoundError(
-            statusCode: code,
-            message: msg,
-            responseBody: body,
-            responseHeaders: response.headers,
-            errorBody: parsed,
+            statusCode: code, message: msg, responseBody: body,
+            responseHeaders: response.headers, errorBody: parsed,
           );
         case 409:
           return ConflictError(
-            statusCode: code,
-            message: msg,
-            responseBody: body,
-            responseHeaders: response.headers,
-            errorBody: parsed,
+            statusCode: code, message: msg, responseBody: body,
+            responseHeaders: response.headers, errorBody: parsed,
           );
         case 422:
           return UnprocessableEntityError(
-            statusCode: code,
-            message: msg,
-            responseBody: body,
-            responseHeaders: response.headers,
-            errorBody: parsed,
+            statusCode: code, message: msg, responseBody: body,
+            responseHeaders: response.headers, errorBody: parsed,
           );
         default:
           return clientErr;
@@ -417,11 +388,8 @@ class BaseApi {
       switch (code) {
         case 500:
           return InternalServerError(
-            statusCode: code,
-            message: msg,
-            responseBody: body,
-            responseHeaders: response.headers,
-            errorBody: parsed,
+            statusCode: code, message: msg, responseBody: body,
+            responseHeaders: response.headers, errorBody: parsed,
           );
         default:
           return serverErr;

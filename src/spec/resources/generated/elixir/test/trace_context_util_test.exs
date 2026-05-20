@@ -50,7 +50,6 @@ defmodule PetstoreClient.TraceContextUtilTest do
         "Content-Type" => "application/json",
         "X-Request-ID" => "abc-123"
       }
-
       result = PetstoreClient.TraceContextUtil.inject_trace_context(headers)
       assert map_size(result) == 3
       assert result["Authorization"] == "Bearer token"

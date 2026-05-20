@@ -114,16 +114,10 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
   test "sends POST with JSON body" do
     base_url = start_server(200, "application/json", ~s({"method":"POST","body":"key"}))
     client = PetstoreClient.DefaultApiClient.new()
-
-    response =
-      PetstoreClient.DefaultApiClient.send_request(
-        client,
-        :post,
-        "#{base_url}/echo",
-        %{"Content-Type" => "application/json"},
-        ~s({"key":"value"})
-      )
-
+    response = PetstoreClient.DefaultApiClient.send_request(
+      client, :post, "#{base_url}/echo",
+      %{"Content-Type" => "application/json"}, ~s({"key":"value"})
+    )
     assert response.status_code == 200
     assert String.contains?(response.body, "POST")
     assert String.contains?(response.body, "key")
@@ -134,7 +128,6 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     client = PetstoreClient.DefaultApiClient.new()
     response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/echo", %{}, nil)
     assert response.status_code == 200
-
     header_value =
       response.headers
       |> Enum.find(fn {k, _} -> String.downcase(k) == "x-test-header" end)
@@ -142,7 +135,6 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
         {_, v} -> v
         nil -> nil
       end
-
     assert header_value == "test-value"
   end
 
@@ -182,13 +174,11 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     # Manually build a TCP server that sends two X-Custom-Value headers
     {:ok, listen_socket} =
       :gen_tcp.listen(0, [:binary, packet: :raw, active: false, reuseaddr: true])
-
     {:ok, port} = :inet.port(listen_socket)
 
     spawn(fn ->
       {:ok, socket} = :gen_tcp.accept(listen_socket, 5000)
       :gen_tcp.recv(socket, 0, 2000)
-
       response =
         "HTTP/1.1 200 OK\r\n" <>
           "X-Custom-Value: val1\r\n" <>
@@ -197,7 +187,6 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
           "Connection: close\r\n" <>
           "\r\n" <>
           "ok"
-
       :gen_tcp.send(socket, response)
       :gen_tcp.close(socket)
       :gen_tcp.close(listen_socket)
@@ -206,18 +195,10 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     Process.sleep(20)
 
     client = PetstoreClient.DefaultApiClient.new()
-
-    response =
-      PetstoreClient.DefaultApiClient.send_request(
-        client,
-        :get,
-        "http://127.0.0.1:#{port}/multi-header",
-        %{},
-        nil
-      )
-
+    response = PetstoreClient.DefaultApiClient.send_request(
+      client, :get, "http://127.0.0.1:#{port}/multi-header", %{}, nil
+    )
     assert response.status_code == 200
-
     header_value =
       response.headers
       |> Enum.find(fn {k, _} -> String.downcase(k) == "x-custom-value" end)
@@ -225,7 +206,6 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
         {_, v} -> v
         nil -> nil
       end
-
     assert header_value != nil
     assert String.contains?(header_value, "val1") and String.contains?(header_value, "val2")
   end
@@ -273,15 +253,9 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     {base_url, _port} = start_header_capture_server()
     transport = PetstoreClient.TransportOptions.new(inject_request_id: true)
     client = PetstoreClient.DefaultApiClient.new(transport)
-
     PetstoreClient.DefaultApiClient.send_request(
-      client,
-      :get,
-      "#{base_url}/test",
-      %{"X-Request-ID" => "caller-id"},
-      nil
+      client, :get, "#{base_url}/test", %{"X-Request-ID" => "caller-id"}, nil
     )
-
     assert_receive {:captured_headers, headers}, 5000
     assert headers["x-request-id"] == "caller-id"
   end
@@ -312,15 +286,9 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     {base_url, _port} = start_header_capture_server()
     transport = PetstoreClient.TransportOptions.new(default_headers: %{"Accept" => "text/plain"})
     client = PetstoreClient.DefaultApiClient.new(transport)
-
     PetstoreClient.DefaultApiClient.send_request(
-      client,
-      :get,
-      "#{base_url}/test",
-      %{"Accept" => "application/json"},
-      nil
+      client, :get, "#{base_url}/test", %{"Accept" => "application/json"}, nil
     )
-
     assert_receive {:captured_headers, headers}, 5000
     assert headers["accept"] == "application/json"
   end

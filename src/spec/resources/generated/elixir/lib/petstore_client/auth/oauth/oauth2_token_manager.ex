@@ -76,8 +76,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
   crashing the Agent process), returned as a sentinel result, and re-raised in
   the caller so callers see the original exception class.
   """
-  @spec get_access_token(pid(), String.t(), %{optional(String.t()) => String.t()}, %{optional(String.t()) => String.t()}) ::
-          String.t()
+  @spec get_access_token(pid(), String.t(), %{optional(String.t()) => String.t()}, %{optional(String.t()) => String.t()}) :: String.t()
   def get_access_token(manager, token_url, params, extra_headers \\ %{}) do
     result =
       Agent.get_and_update(
@@ -191,10 +190,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
     new_state =
       if Map.has_key?(parsed, "expires_in") do
         expires_in = parsed["expires_in"]
-
-        expiry =
-          if expires_in > 30, do: System.system_time(:second) + expires_in - 30, else: System.system_time(:second)
-
+        expiry = if expires_in > 30, do: System.system_time(:second) + expires_in - 30, else: System.system_time(:second)
         %{new_state | token_expiry: expiry}
       else
         new_state

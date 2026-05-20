@@ -19,8 +19,7 @@ public class PrismFixture : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        var hostAppPath =
-            Environment.GetEnvironmentVariable("HOST_APP_PATH") ?? Directory.GetCurrentDirectory();
+        var hostAppPath = Environment.GetEnvironmentVariable("HOST_APP_PATH") ?? Directory.GetCurrentDirectory();
         var specPath = Path.Combine(hostAppPath, "Test", "Resources", "openapi.yaml");
 
         _container = new ContainerBuilder()
@@ -44,4 +43,6 @@ public class PrismFixture : IAsyncLifetime
 }
 
 [CollectionDefinition("Prism")]
-public class PrismTestGroup : ICollectionFixture<PrismFixture> { }
+public class PrismTestGroup : ICollectionFixture<PrismFixture>
+{
+}

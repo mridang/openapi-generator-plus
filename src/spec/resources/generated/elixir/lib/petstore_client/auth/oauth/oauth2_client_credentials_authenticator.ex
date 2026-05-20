@@ -94,14 +94,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator do
         params
       end
 
-    token =
-      PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
-        self.token_manager,
-        self.token_url,
-        params,
-        extra_headers
-      )
-
+    token = PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(self.token_manager, self.token_url, params, extra_headers)
     %{"Authorization" => "Bearer #{token}"}
   end
 end

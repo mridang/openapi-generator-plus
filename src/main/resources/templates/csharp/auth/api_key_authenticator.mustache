@@ -29,7 +29,7 @@ public class ApiKeyAuthenticator(
          * libs encode differently per language. */
         return location != ApiKeyLocation.Header
             ? []
-            : apiKey.Any(c => c != '\t' && (c < 0x20 || c >= 0x7F))
+            : apiKey.Any(c => c != '\t' && c is < (char)0x20 or >= (char)0x7F)
                 ? throw new ArgumentException(
                     $"API key for header '{keyParamName}' must contain only printable ASCII characters (RFC 7230 §3.2.6)",
                     nameof(apiKey))

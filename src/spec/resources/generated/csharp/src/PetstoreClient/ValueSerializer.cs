@@ -78,18 +78,9 @@ public static class ValueSerializer
                 return collectionFormat switch
                 {
                     "multi" => list.Cast<object>().Select(ObjectSerializer.Stringify).ToList(),
-                    "ssv" => string.Join(
-                        " ",
-                        list.Cast<object>().Select(ObjectSerializer.Stringify)
-                    ),
-                    "tsv" => string.Join(
-                        "\t",
-                        list.Cast<object>().Select(ObjectSerializer.Stringify)
-                    ),
-                    "pipes" => string.Join(
-                        "|",
-                        list.Cast<object>().Select(ObjectSerializer.Stringify)
-                    ),
+                    "ssv" => string.Join(" ", list.Cast<object>().Select(ObjectSerializer.Stringify)),
+                    "tsv" => string.Join("\t", list.Cast<object>().Select(ObjectSerializer.Stringify)),
+                    "pipes" => string.Join("|", list.Cast<object>().Select(ObjectSerializer.Stringify)),
                     _ => string.Join(",", list.Cast<object>().Select(ObjectSerializer.Stringify)),
                 };
             }
@@ -136,9 +127,7 @@ public static class ValueSerializer
         if (location == "path" && value is string strValue && strValue.Length == 0)
         {
             throw new ArgumentException(
-                $"Path parameter '{paramName}' must not be empty",
-                nameof(value)
-            );
+                $"Path parameter '{paramName}' must not be empty", nameof(value));
         }
 
         if (string.IsNullOrEmpty(style))
@@ -158,10 +147,7 @@ public static class ValueSerializer
         }
 
         /* URL-encoding is applied for path parameters only. */
-        string enc(string s)
-        {
-            return location == "path" ? EncodePathSegment(s) : s;
-        }
+        string enc(string s) { return location == "path" ? EncodePathSegment(s) : s; }
 
         switch (style)
         {
@@ -186,19 +172,17 @@ public static class ValueSerializer
             case "form":
                 if (items != null)
                 {
-                    return explode ? items : string.Join(",", items);
+                    return explode
+                        ? items
+                        : string.Join(",", items);
                 }
                 return ObjectSerializer.Stringify(value);
 
             case "spaceDelimited":
-                return items != null
-                    ? string.Join(" ", items.Select(enc))
-                    : enc(ObjectSerializer.Stringify(value));
+                return items != null ? string.Join(" ", items.Select(enc)) : enc(ObjectSerializer.Stringify(value));
 
             case "pipeDelimited":
-                return items != null
-                    ? string.Join("|", items.Select(enc))
-                    : enc(ObjectSerializer.Stringify(value));
+                return items != null ? string.Join("|", items.Select(enc)) : enc(ObjectSerializer.Stringify(value));
 
             case "simple":
                 if (items != null)
@@ -238,4 +222,5 @@ public static class ValueSerializer
 
         return result;
     }
+
 }

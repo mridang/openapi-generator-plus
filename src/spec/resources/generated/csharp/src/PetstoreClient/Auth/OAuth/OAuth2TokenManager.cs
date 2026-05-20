@@ -60,7 +60,8 @@ public sealed class OAuth2TokenManager
             _accessToken is not null
             && (
                 _tokenExpiry is null
-                || DateTimeOffset.UtcNow < _tokenExpiry.Value.AddSeconds(-ExpirySafetyMarginSeconds)
+                || DateTimeOffset.UtcNow
+                    < _tokenExpiry.Value.AddSeconds(-ExpirySafetyMarginSeconds)
             )
         )
         {
@@ -215,10 +216,9 @@ public sealed class OAuth2TokenManager
         if (root.TryGetProperty("expires_in", out JsonElement expiresIn))
         {
             int seconds = expiresIn.GetInt32();
-            _tokenExpiry =
-                seconds > 30
-                    ? DateTimeOffset.UtcNow.AddSeconds(seconds - 30)
-                    : DateTimeOffset.UtcNow;
+            _tokenExpiry = seconds > 30
+                ? DateTimeOffset.UtcNow.AddSeconds(seconds - 30)
+                : DateTimeOffset.UtcNow;
         }
     }
 

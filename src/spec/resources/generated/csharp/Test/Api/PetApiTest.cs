@@ -27,8 +27,7 @@ public class PetApiTest
     {
         var baseUrl = prism.BaseUrl;
         _auth = new BearerAuthenticator(baseUrl, "test-token");
-        var config = Configuration
-            .Builder()
+        var config = Configuration.Builder()
             .BaseUrl(baseUrl)
             .DefaultHeader("Authorization", "Bearer test-token")
             .Build();
@@ -53,9 +52,7 @@ public class PetApiTest
     [Fact]
     public async Task TestFindPetsByStatus()
     {
-        var result = await _api.FindPetsByStatusAsync(
-            new FindPetsByStatusOptions { Status = "available" }
-        );
+        var result = await _api.FindPetsByStatusAsync(new FindPetsByStatusOptions { Status = "available" });
 
         Assert.NotNull(result);
         Assert.NotEmpty(result);
@@ -133,10 +130,7 @@ public class PetApiTest
     public async Task TestUploadPetCertificate()
     {
         var fileData = new MemoryStream(new byte[] { 0x25, 0x50, 0x44, 0x46 });
-        var result = await _api.UploadPetCertificateAsync(
-            1L,
-            new UploadPetCertificateOptions { File = fileData }
-        );
+        var result = await _api.UploadPetCertificateAsync(1L, new UploadPetCertificateOptions { File = fileData });
 
         Assert.NotNull(result);
         Assert.IsType<PetstoreClient.Models.ApiResponse>(result);
@@ -146,15 +140,7 @@ public class PetApiTest
     public async Task TestUploadPetDocument()
     {
         var fileData = new MemoryStream(new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D });
-        var result = await _api.UploadPetDocumentAsync(
-            1L,
-            new UploadPetDocumentOptions
-            {
-                File = fileData,
-                DocumentType = "vaccination",
-                Notes = "Annual rabies vaccination",
-            }
-        );
+        var result = await _api.UploadPetDocumentAsync(1L, new UploadPetDocumentOptions { File = fileData, DocumentType = "vaccination", Notes = "Annual rabies vaccination" });
 
         Assert.NotNull(result);
         Assert.IsType<PetstoreClient.Models.ApiResponse>(result);
@@ -168,12 +154,13 @@ public class PetApiTest
             new MemoryStream(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 }),
             new MemoryStream(new byte[] { 0xFF, 0xD8, 0xFF, 0xE1 }),
         };
-        var metadata = new PhotoMetadata { Caption = "Pet photo", IsPrimary = true };
+        var metadata = new PhotoMetadata
+        {
+            Caption = "Pet photo",
+            IsPrimary = true,
+        };
 
-        var result = await _api.AddPetPhotosAsync(
-            1L,
-            new AddPetPhotosOptions { Files = files, Metadata = metadata }
-        );
+        var result = await _api.AddPetPhotosAsync(1L, new AddPetPhotosOptions { Files = files, Metadata = metadata });
 
         Assert.NotNull(result);
         Assert.IsType<List<Photo>>(result);
@@ -271,25 +258,20 @@ public class PetApiTest
         }
 
         public Task<PetstoreClient.ApiResponse> SendRequestAsync(
-            string method,
-            Uri url,
-            Dictionary<string, string> headers,
-            object? body
-        )
+            string method, Uri url, Dictionary<string, string> headers, object? body)
         {
-            return Task.FromResult(
-                new PetstoreClient.ApiResponse(
-                    _statusCode,
-                    _body,
-                    new Dictionary<string, string> { { "Content-Type", _contentType } }
-                )
-            );
+            return Task.FromResult(new PetstoreClient.ApiResponse(_statusCode, _body, new Dictionary<string, string>
+            {
+                { "Content-Type", _contentType }
+            }));
         }
     }
 
     private static PetApi NewPetApiForMock(int status, string contentType, string body)
     {
-        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var config = Configuration.Builder()
+            .BaseUrl("http://localhost")
+            .Build();
         return new PetApi(new FakeApiClient(status, contentType, body), config);
     }
 
@@ -298,23 +280,15 @@ public class PetApiTest
     {
         var mockApi = NewPetApiForMock(404, "application/json", "{\"message\":\"Pet not found\"}");
 
-        await Assert.ThrowsAsync<PetstoreClient.Errors.NotFoundException>(
-            async () => await mockApi.GetPetByIdAsync(99999L)
-        );
+        await Assert.ThrowsAsync<PetstoreClient.Errors.NotFoundException>(async () => await mockApi.GetPetByIdAsync(99999L));
     }
 
     [Fact]
     public async Task TestErrorHandlingServerError()
     {
-        var mockApi = NewPetApiForMock(
-            500,
-            "application/json",
-            "{\"message\":\"Internal server error\"}"
-        );
+        var mockApi = NewPetApiForMock(500, "application/json", "{\"message\":\"Internal server error\"}");
 
-        await Assert.ThrowsAsync<PetstoreClient.Errors.InternalServerErrorException>(
-            async () => await mockApi.GetPetByIdAsync(1L)
-        );
+        await Assert.ThrowsAsync<PetstoreClient.Errors.InternalServerErrorException>(async () => await mockApi.GetPetByIdAsync(1L));
     }
 
     [Fact]
@@ -329,17 +303,10 @@ public class PetApiTest
     [Fact]
     public async Task TestUploadMultipartMock()
     {
-        var mockApi = NewPetApiForMock(
-            200,
-            "application/json",
-            "{\"code\":200,\"type\":\"\",\"message\":\"success\"}"
-        );
+        var mockApi = NewPetApiForMock(200, "application/json", "{\"code\":200,\"type\":\"\",\"message\":\"success\"}");
 
         var fileData = new MemoryStream(new byte[] { 0x25, 0x50, 0x44, 0x46 });
-        var result = await mockApi.UploadPetCertificateAsync(
-            1L,
-            new UploadPetCertificateOptions { File = fileData }
-        );
+        var result = await mockApi.UploadPetCertificateAsync(1L, new UploadPetCertificateOptions { File = fileData });
 
         Assert.NotNull(result);
     }

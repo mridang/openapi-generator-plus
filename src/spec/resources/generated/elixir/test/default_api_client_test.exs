@@ -16,11 +16,10 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     wiremock_url = System.fetch_env!("WIREMOCK_HTTPS_URL")
     ca_cert_path = System.fetch_env!("CA_CERT_PATH")
 
-    transport =
-      PetstoreClient.TransportOptions.new(
-        verify_ssl: true,
-        ca_cert_path: ca_cert_path
-      )
+    transport = PetstoreClient.TransportOptions.new(
+      verify_ssl: true,
+      ca_cert_path: ca_cert_path
+    )
 
     client = PetstoreClient.DefaultApiClient.new(transport)
     response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{wiremock_url}/api/test", %{}, nil)
@@ -113,7 +112,9 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
   test "includes transport-level default headers" do
     wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
 
-    transport = PetstoreClient.TransportOptions.new(default_headers: %{"X-Custom" => "custom-value"})
+    transport = PetstoreClient.TransportOptions.new(
+      default_headers: %{"X-Custom" => "custom-value"}
+    )
 
     client = PetstoreClient.DefaultApiClient.new(transport)
     response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{wiremock_url}/api/echo-headers", %{}, nil)
@@ -126,7 +127,9 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
   test "caller headers override transport default headers" do
     wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
 
-    transport = PetstoreClient.TransportOptions.new(default_headers: %{"Accept" => "text/plain"})
+    transport = PetstoreClient.TransportOptions.new(
+      default_headers: %{"Accept" => "text/plain"}
+    )
 
     client = PetstoreClient.DefaultApiClient.new(transport)
 
@@ -166,11 +169,10 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
   end
 
   test "respects max_redirects limit" do
-    transport =
-      PetstoreClient.TransportOptions.new(
-        follow_redirects: true,
-        max_redirects: 5
-      )
+    transport = PetstoreClient.TransportOptions.new(
+      follow_redirects: true,
+      max_redirects: 5
+    )
 
     client = PetstoreClient.DefaultApiClient.new(transport)
     assert client != nil
@@ -189,32 +191,22 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
 
   test "decompresses gzip response" do
     client = PetstoreClient.DefaultApiClient.new()
-
-    response =
-      PetstoreClient.DefaultApiClient.send_request(
-        client,
-        :get,
-        "https://jsonplaceholder.typicode.com/posts/1",
-        %{"Accept-Encoding" => "gzip"},
-        nil
-      )
-
+    response = PetstoreClient.DefaultApiClient.send_request(
+      client, :get,
+      "https://jsonplaceholder.typicode.com/posts/1",
+      %{"Accept-Encoding" => "gzip"}, nil
+    )
     assert response.status_code == 200
     assert String.contains?(response.body, "userId")
   end
 
   test "decompresses brotli response" do
     client = PetstoreClient.DefaultApiClient.new()
-
-    response =
-      PetstoreClient.DefaultApiClient.send_request(
-        client,
-        :get,
-        "https://jsonplaceholder.typicode.com/posts/1",
-        %{"Accept-Encoding" => "br"},
-        nil
-      )
-
+    response = PetstoreClient.DefaultApiClient.send_request(
+      client, :get,
+      "https://jsonplaceholder.typicode.com/posts/1",
+      %{"Accept-Encoding" => "br"}, nil
+    )
     assert response.status_code == 200
     assert String.contains?(response.body, "userId")
   end
@@ -223,16 +215,11 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
   test "decompresses zstd response" do
     # zstd is not supported by the Req HTTP library or Erlang's built-in HTTP client
     client = PetstoreClient.DefaultApiClient.new()
-
-    response =
-      PetstoreClient.DefaultApiClient.send_request(
-        client,
-        :get,
-        "https://jsonplaceholder.typicode.com/posts/1",
-        %{"Accept-Encoding" => "zstd"},
-        nil
-      )
-
+    response = PetstoreClient.DefaultApiClient.send_request(
+      client, :get,
+      "https://jsonplaceholder.typicode.com/posts/1",
+      %{"Accept-Encoding" => "zstd"}, nil
+    )
     assert response.status_code == 200
     assert String.contains?(response.body, "userId")
   end

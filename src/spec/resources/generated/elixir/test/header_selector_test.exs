@@ -87,9 +87,7 @@ defmodule PetstoreClient.HeaderSelectorTest do
     end
 
     test "prioritizes application/json with quality weight" do
-      headers =
-        PetstoreClient.HeaderSelector.select_headers(["text/html", "application/json"], "application/json", false)
-
+      headers = PetstoreClient.HeaderSelector.select_headers(["text/html", "application/json"], "application/json", false)
       accept = headers["Accept"]
       assert String.starts_with?(accept, "application/json")
       assert String.contains?(accept, "text/html")
@@ -101,40 +99,28 @@ defmodule PetstoreClient.HeaderSelectorTest do
     end
 
     test "application/json has no quality suffix" do
-      headers =
-        PetstoreClient.HeaderSelector.select_headers(["application/json", "text/html"], "application/json", false)
-
+      headers = PetstoreClient.HeaderSelector.select_headers(["application/json", "text/html"], "application/json", false)
       accept = headers["Accept"]
       assert accept != nil
       assert String.starts_with?(accept, "application/json,") or accept == "application/json"
     end
 
     test "non-JSON types get lower quality weight" do
-      headers =
-        PetstoreClient.HeaderSelector.select_headers(["application/json", "text/html"], "application/json", false)
-
+      headers = PetstoreClient.HeaderSelector.select_headers(["application/json", "text/html"], "application/json", false)
       accept = headers["Accept"]
       assert accept != nil
       assert String.contains?(accept, "text/html;q=0.") or String.contains?(accept, "text/html;q=")
     end
 
     test "removes trailing zeros from quality weight" do
-      headers =
-        PetstoreClient.HeaderSelector.select_headers(["application/json", "text/html"], "application/json", false)
-
+      headers = PetstoreClient.HeaderSelector.select_headers(["application/json", "text/html"], "application/json", false)
       accept = headers["Accept"]
       assert accept != nil
       refute String.contains?(accept, ";q=0.900")
     end
 
     test "multiple JSON types ordered before non-JSON" do
-      headers =
-        PetstoreClient.HeaderSelector.select_headers(
-          ["text/html", "application/vnd.api+json", "application/json"],
-          "application/json",
-          false
-        )
-
+      headers = PetstoreClient.HeaderSelector.select_headers(["text/html", "application/vnd.api+json", "application/json"], "application/json", false)
       accept = headers["Accept"]
       assert accept != nil
       json_idx = :binary.match(accept, "application/json") |> elem(0)
@@ -145,13 +131,7 @@ defmodule PetstoreClient.HeaderSelectorTest do
     end
 
     test "vendor JSON prioritized over non-JSON in accept header" do
-      headers =
-        PetstoreClient.HeaderSelector.select_headers(
-          ["text/plain", "application/vnd.api+json"],
-          "application/json",
-          false
-        )
-
+      headers = PetstoreClient.HeaderSelector.select_headers(["text/plain", "application/vnd.api+json"], "application/json", false)
       accept = headers["Accept"]
       assert accept != nil
       vendor_idx = :binary.match(accept, "application/vnd.api+json") |> elem(0)
@@ -178,15 +158,13 @@ defmodule PetstoreClient.HeaderSelectorTest do
     end
 
     test "produces exactly 27 steps from 1000 to 1" do
-      {count, _} =
-        Enum.reduce_while(1..100, {0, 1000}, fn _, {count, weight} ->
-          if weight > 1 do
-            {:cont, {count + 1, PetstoreClient.HeaderSelector.get_next_weight(weight, false)}}
-          else
-            {:halt, {count, weight}}
-          end
-        end)
-
+      {count, _} = Enum.reduce_while(1..100, {0, 1000}, fn _, {count, weight} ->
+        if weight > 1 do
+          {:cont, {count + 1, PetstoreClient.HeaderSelector.get_next_weight(weight, false)}}
+        else
+          {:halt, {count, weight}}
+        end
+      end)
       assert count == 27
     end
   end

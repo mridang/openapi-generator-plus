@@ -192,12 +192,12 @@ public sealed class TransportOptionsBuilder
             if (uri.Scheme is not "http" and not "https")
             {
                 throw new UriFormatException(
-                    $"Invalid proxy URL (must use http or https scheme): {proxy}"
-                );
+                    $"Invalid proxy URL (must use http or https scheme): {proxy}");
             }
             if (string.IsNullOrEmpty(uri.Host))
             {
-                throw new UriFormatException($"Invalid proxy URL (missing host): {proxy}");
+                throw new UriFormatException(
+                    $"Invalid proxy URL (missing host): {proxy}");
             }
         }
         _proxy = proxy;

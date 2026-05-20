@@ -69,22 +69,9 @@ public class ObjectSerializer
         {
             null => "",
             bool b => b ? "true" : "false",
-            DateOnly d => d.ToString(
-                "yyyy-MM-dd",
-                System.Globalization.CultureInfo.InvariantCulture
-            ),
-            DateTimeOffset dto => dto.ToString(
-                "yyyy-MM-dd'T'HH:mm:sszzz",
-                System.Globalization.CultureInfo.InvariantCulture
-            ),
-            DateTime dt => new DateTimeOffset(
-                dt.Kind == DateTimeKind.Unspecified
-                    ? DateTime.SpecifyKind(dt, DateTimeKind.Utc)
-                    : dt
-            ).ToString(
-                "yyyy-MM-dd'T'HH:mm:sszzz",
-                System.Globalization.CultureInfo.InvariantCulture
-            ),
+            DateOnly d => d.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+            DateTimeOffset dto => dto.ToString("yyyy-MM-dd'T'HH:mm:sszzz", System.Globalization.CultureInfo.InvariantCulture),
+            DateTime dt => new DateTimeOffset(dt.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(dt, DateTimeKind.Utc) : dt).ToString("yyyy-MM-dd'T'HH:mm:sszzz", System.Globalization.CultureInfo.InvariantCulture),
             _ => value.ToString() ?? "",
         };
     }
@@ -173,10 +160,7 @@ public class ObjectSerializer
     /// and returns a deserialized value, or throws on failure.
     /// Returns the first successful deserialization result.
     /// </summary>
-    public static object? ResolveOneOf(
-        JsonElement json,
-        params Func<JsonElement, object?>[] candidates
-    )
+    public static object? ResolveOneOf(JsonElement json, params Func<JsonElement, object?>[] candidates)
     {
         ArgumentNullException.ThrowIfNull(candidates);
 
@@ -195,8 +179,12 @@ public class ObjectSerializer
                     return result;
                 }
             }
-            catch (JsonException) { }
-            catch (NotSupportedException) { }
+            catch (JsonException)
+            {
+            }
+            catch (NotSupportedException)
+            {
+            }
         }
 
         return null;
@@ -208,10 +196,7 @@ public class ObjectSerializer
     /// and returns a deserialized value, or throws on failure.
     /// Returns the first successful deserialization result.
     /// </summary>
-    public static object? ResolveAnyOf(
-        JsonElement json,
-        params Func<JsonElement, object?>[] candidates
-    )
+    public static object? ResolveAnyOf(JsonElement json, params Func<JsonElement, object?>[] candidates)
     {
         return ResolveOneOf(json, candidates);
     }
@@ -235,32 +220,18 @@ public class ObjectSerializer
     /// precision (no subseconds), matching the format used by all other
     /// language generators: yyyy-MM-dd'T'HH:mm:sszzz.
     /// </summary>
-    private sealed class DateTimeOffsetJsonConverter
-        : System.Text.Json.Serialization.JsonConverter<DateTimeOffset>
+    private sealed class DateTimeOffsetJsonConverter : System.Text.Json.Serialization.JsonConverter<DateTimeOffset>
     {
         private const string Format = "yyyy-MM-dd'T'HH:mm:sszzz";
 
-        public override DateTimeOffset Read(
-            ref Utf8JsonReader reader,
-            Type typeToConvert,
-            JsonSerializerOptions options
-        )
+        public override DateTimeOffset Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            return DateTimeOffset.Parse(
-                reader.GetString()!,
-                System.Globalization.CultureInfo.InvariantCulture
-            );
+            return DateTimeOffset.Parse(reader.GetString()!, System.Globalization.CultureInfo.InvariantCulture);
         }
 
-        public override void Write(
-            Utf8JsonWriter writer,
-            DateTimeOffset value,
-            JsonSerializerOptions options
-        )
+        public override void Write(Utf8JsonWriter writer, DateTimeOffset value, JsonSerializerOptions options)
         {
-            writer.WriteStringValue(
-                value.ToString(Format, System.Globalization.CultureInfo.InvariantCulture)
-            );
+            writer.WriteStringValue(value.ToString(Format, System.Globalization.CultureInfo.InvariantCulture));
         }
     }
 }

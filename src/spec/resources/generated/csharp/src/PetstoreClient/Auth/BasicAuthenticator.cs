@@ -10,7 +10,8 @@ namespace PetstoreClient.Auth;
 /// <summary>
 /// Authenticator for HTTP Basic authentication.
 /// </summary>
-public class BasicAuthenticator(string host, string username, string password) : BaseAuthenticator
+public class BasicAuthenticator(string host, string username, string password)
+    : BaseAuthenticator
 {
     private readonly string _authHeader =
         "Basic "
