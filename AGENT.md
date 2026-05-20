@@ -370,3 +370,14 @@ header-merge path. Not done; not auditing.
   printable ASCII regardless of input bytes. So Basic CANNOT inject
   CR/LF into the header value via input — the asymmetry is correct.
   Closed without action.
+
+### Response header case-insensitive lookup (uniform feature gap)
+
+All 12 SDKs preserve transport-case in the response-headers Map exposed
+to callers. They all do case-insensitive lookup internally (for
+`Content-Type`, etc.) but a caller doing
+`response.headers['content-type']` may miss a `Content-Type` value.
+This is a uniform behavior (no divergence), and adding a
+case-insensitive `getHeader(name)` accessor across 12 SDKs is a
+non-trivial API surface change. Documented; not in scope for the
+divergence-fix cycles. Don't re-audit.
