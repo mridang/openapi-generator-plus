@@ -9,19 +9,20 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // SetPetAvatarRequest is a model class generated from the OpenAPI schema.
 type SetPetAvatarRequest struct {
 	/* Data Base64-encoded image data */
-	Data []byte `json:"data"`
+	Data     []byte `json:"data"`
 	MimeType string `json:"mimeType"`
 }
 
 // NewSetPetAvatarRequest creates a new SetPetAvatarRequest instance.
 func NewSetPetAvatarRequest(data []byte, mimeType string) *SetPetAvatarRequest {
 	return &SetPetAvatarRequest{
-		Data: data,
+		Data:     data,
 		MimeType: mimeType,
 	}
 }

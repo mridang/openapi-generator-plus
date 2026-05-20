@@ -8,8 +8,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:test/test.dart';
 import 'package:petstore_client/petstore_client.dart';
+import 'package:test/test.dart';
 
 class _FakeApiClient implements ApiClient {
   final List<HttpApiResponse> _responses = [];
@@ -18,7 +18,8 @@ class _FakeApiClient implements ApiClient {
   Map<String, String> lastHeaders = const {};
 
   void enqueue(String body, {int statusCode = 200}) {
-    _responses.add(HttpApiResponse(statusCode: statusCode, body: body, headers: {}));
+    _responses
+        .add(HttpApiResponse(statusCode: statusCode, body: body, headers: {}));
   }
 
   @override

@@ -4,6 +4,7 @@ import pytest
 
 from petstore_client.value_serializer import ValueSerializer
 
+
 class TestValueSerializerPath:
     def test_null_returns_empty_string(self) -> None:
         assert ValueSerializer.serialize(None, 'path', 'string') == ''
@@ -25,6 +26,7 @@ class TestValueSerializerPath:
 
     def test_boolean_false_returns_false(self) -> None:
         assert ValueSerializer.serialize(False, 'path', 'boolean') == 'false'
+
 
 class TestValueSerializerQuery:
     def test_null_returns_none(self) -> None:
@@ -75,6 +77,7 @@ class TestValueSerializerQuery:
     def test_array_of_booleans_stringifies_elements(self) -> None:
         assert ValueSerializer.serialize([True, False], 'query', 'array') == 'true,false'
 
+
 class TestValueSerializerHeader:
     def test_null_returns_empty_string(self) -> None:
         assert ValueSerializer.serialize(None, 'header', 'string') == ''
@@ -97,12 +100,14 @@ class TestValueSerializerHeader:
     def test_array_of_integers_stringifies_and_joins(self) -> None:
         assert ValueSerializer.serialize([1, 2, 3], 'header', 'array') == '1,2,3'
 
+
 class TestValueSerializerCookie:
     def test_string_returns_as_is(self) -> None:
         assert ValueSerializer.serialize('hello', 'cookie', 'string') == 'hello'
 
     def test_null_returns_empty_string(self) -> None:
         assert ValueSerializer.serialize(None, 'cookie', 'string') == ''
+
 
 class TestValueSerializerForm:
     def test_null_returns_empty_string(self) -> None:
@@ -120,52 +125,90 @@ class TestValueSerializerForm:
     def test_boolean_false_returns_false(self) -> None:
         assert ValueSerializer.serialize(False, 'form', 'boolean') == 'false'
 
+
 class TestMatrixStyle:
     def test_scalar_returns_semicolon_prefixed_name_value(self) -> None:
-        assert ValueSerializer.serialize_styled('color', 'blue', 'path', 'string', None, 'matrix', True) == ';color=blue'
+        assert (
+            ValueSerializer.serialize_styled('color', 'blue', 'path', 'string', None, 'matrix', True) == ';color=blue'
+        )
 
     def test_array_with_explode_false_joins_with_comma(self) -> None:
-        assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'path', 'array', None, 'matrix', False) == ';color=blue,black'
+        assert (
+            ValueSerializer.serialize_styled('color', ['blue', 'black'], 'path', 'array', None, 'matrix', False)
+            == ';color=blue,black'
+        )
 
     def test_array_with_explode_true_repeats_name(self) -> None:
-        assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'path', 'array', None, 'matrix', True) == ';color=blue;color=black'
+        assert (
+            ValueSerializer.serialize_styled('color', ['blue', 'black'], 'path', 'array', None, 'matrix', True)
+            == ';color=blue;color=black'
+        )
 
     def test_null_returns_empty_string(self) -> None:
         assert ValueSerializer.serialize_styled('color', None, 'path', 'string', None, 'matrix', True) == ''
+
 
 class TestLabelStyle:
     def test_scalar_returns_dot_prefixed_value(self) -> None:
         assert ValueSerializer.serialize_styled('color', 'blue', 'path', 'string', None, 'label', True) == '.blue'
 
     def test_array_with_explode_false_joins_with_comma(self) -> None:
-        assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'path', 'array', None, 'label', False) == '.blue,black'
+        assert (
+            ValueSerializer.serialize_styled('color', ['blue', 'black'], 'path', 'array', None, 'label', False)
+            == '.blue,black'
+        )
 
     def test_array_with_explode_true_joins_with_dot(self) -> None:
-        assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'path', 'array', None, 'label', True) == '.blue.black'
+        assert (
+            ValueSerializer.serialize_styled('color', ['blue', 'black'], 'path', 'array', None, 'label', True)
+            == '.blue.black'
+        )
 
     def test_null_returns_empty_string(self) -> None:
         assert ValueSerializer.serialize_styled('color', None, 'path', 'string', None, 'label', True) == ''
 
+
 class TestSpaceDelimitedStyle:
     def test_array_joins_with_space(self) -> None:
-        assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'query', 'array', None, 'spaceDelimited', False) == 'blue black'
+        assert (
+            ValueSerializer.serialize_styled(
+                'color', ['blue', 'black'], 'query', 'array', None, 'spaceDelimited', False
+            )
+            == 'blue black'
+        )
 
     def test_scalar_returns_stringified_value(self) -> None:
-        assert ValueSerializer.serialize_styled('color', 'blue', 'query', 'string', None, 'spaceDelimited', False) == 'blue'
+        assert (
+            ValueSerializer.serialize_styled('color', 'blue', 'query', 'string', None, 'spaceDelimited', False)
+            == 'blue'
+        )
+
 
 class TestPipeDelimitedStyle:
     def test_array_joins_with_pipe(self) -> None:
-        assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'query', 'array', None, 'pipeDelimited', False) == 'blue|black'
+        assert (
+            ValueSerializer.serialize_styled('color', ['blue', 'black'], 'query', 'array', None, 'pipeDelimited', False)
+            == 'blue|black'
+        )
 
     def test_scalar_returns_stringified_value(self) -> None:
-        assert ValueSerializer.serialize_styled('color', 'blue', 'query', 'string', None, 'pipeDelimited', False) == 'blue'
+        assert (
+            ValueSerializer.serialize_styled('color', 'blue', 'query', 'string', None, 'pipeDelimited', False) == 'blue'
+        )
+
 
 class TestFormStyleWithExplode:
     def test_array_with_explode_false_joins_with_comma(self) -> None:
-        assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'query', 'array', None, 'form', False) == 'blue,black'
+        assert (
+            ValueSerializer.serialize_styled('color', ['blue', 'black'], 'query', 'array', None, 'form', False)
+            == 'blue,black'
+        )
 
     def test_array_with_explode_true_returns_list(self) -> None:
-        assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'query', 'array', None, 'form', True) == ['blue', 'black']
+        assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'query', 'array', None, 'form', True) == [
+            'blue',
+            'black',
+        ]
 
     def test_scalar_with_explode_true_returns_string_not_list(self) -> None:
         assert ValueSerializer.serialize_styled('color', 'blue', 'query', 'string', None, 'form', True) == 'blue'
@@ -176,18 +219,25 @@ class TestFormStyleWithExplode:
     def test_null_returns_none_for_query(self) -> None:
         assert ValueSerializer.serialize_styled('color', None, 'query', 'string', None, 'form', True) is None
 
+
 class TestSimpleStyleBackwardCompatibility:
     def test_scalar_returns_stringified_value(self) -> None:
         assert ValueSerializer.serialize_styled('id', '5', 'path', 'string', None, 'simple', False) == '5'
 
     def test_array_joins_with_comma(self) -> None:
-        assert ValueSerializer.serialize_styled('id', ['3', '4', '5'], 'path', 'array', None, 'simple', False) == '3,4,5'
+        assert (
+            ValueSerializer.serialize_styled('id', ['3', '4', '5'], 'path', 'array', None, 'simple', False) == '3,4,5'
+        )
 
     def test_null_returns_empty_string(self) -> None:
         assert ValueSerializer.serialize_styled('id', None, 'path', 'string', None, 'simple', True) == ''
 
     def test_scalar_url_encodes_for_path(self) -> None:
-        assert ValueSerializer.serialize_styled('id', 'hello world', 'path', 'string', None, 'simple', False) == 'hello%20world'
+        assert (
+            ValueSerializer.serialize_styled('id', 'hello world', 'path', 'string', None, 'simple', False)
+            == 'hello%20world'
+        )
+
 
 class TestNullStyleFallback:
     def test_path_with_null_style_behaves_like_simple(self) -> None:
@@ -195,6 +245,7 @@ class TestNullStyleFallback:
 
     def test_empty_style_falls_back(self) -> None:
         assert ValueSerializer.serialize_styled('id', '5', 'path', 'string', None, '', False) == '5'
+
 
 class TestDeepObjectSerialization:
     def test_basic_map_returns_bracketed_keys(self) -> None:
@@ -205,6 +256,7 @@ class TestDeepObjectSerialization:
     def test_null_returns_empty_dict(self) -> None:
         result = ValueSerializer.serialize_deep_object('filter', None)
         assert result == {}
+
 
 class TestPathEncodingParity:
     """Cross-language parity tests for path-segment percent-encoding.
@@ -249,10 +301,15 @@ class TestPathEncodingParity:
         assert ValueSerializer.serialize_styled('color', 'a b', 'path', 'string', None, 'simple', False) == 'a%20b'
 
     def test_simple_style_array_encodes_each_item(self) -> None:
-        assert ValueSerializer.serialize_styled('color', ['a b', 'c?d'], 'path', 'array', None, 'simple', False) == 'a%20b,c%3Fd'
+        assert (
+            ValueSerializer.serialize_styled('color', ['a b', 'c?d'], 'path', 'array', None, 'simple', False)
+            == 'a%20b,c%3Fd'
+        )
 
     def test_matrix_style_encodes_value(self) -> None:
-        assert ValueSerializer.serialize_styled('color', 'a b', 'path', 'string', None, 'matrix', False) == ';color=a%20b'
+        assert (
+            ValueSerializer.serialize_styled('color', 'a b', 'path', 'string', None, 'matrix', False) == ';color=a%20b'
+        )
 
     def test_label_style_encodes_value(self) -> None:
         assert ValueSerializer.serialize_styled('color', 'a b', 'path', 'string', None, 'label', False) == '.a%20b'
@@ -267,6 +324,7 @@ class TestPathEncodingParity:
         with pytest.raises(ValueError):
             ValueSerializer.serialize_styled('id', '', 'path', 'string', None, 'simple', False)
 
+
 class TestValueSerializerFormatDatePath:
     """N3/W3 parity: ``format: date`` path parameters must emit a date-only
     string (YYYY-MM-DD), not a full ISO datetime. Python models
@@ -280,6 +338,4 @@ class TestValueSerializerFormatDatePath:
 
     def test_date_via_serialize_styled_simple_returns_yyyy_mm_dd(self) -> None:
         date = datetime.date(2024, 1, 15)
-        assert ValueSerializer.serialize_styled(
-            'since', date, 'path', 'string', None, 'simple', False
-        ) == '2024-01-15'
+        assert ValueSerializer.serialize_styled('since', date, 'path', 'string', None, 'simple', False) == '2024-01-15'

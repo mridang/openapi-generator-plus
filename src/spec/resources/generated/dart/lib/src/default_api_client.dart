@@ -8,13 +8,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
-import 'dart:math';
 
 import 'api_client.dart';
 import 'api_response.dart';
@@ -52,9 +52,13 @@ class DefaultApiClient implements ApiClient {
   /// from [TransportOptions] settings (TLS verification, CA certificates,
   /// proxy routing). Pass a custom [http.Client] to override this
   /// automatic configuration.
-  DefaultApiClient({TransportOptions? transportOptions, http.Client? httpClient})
-      : _transportOptions = transportOptions ?? TransportOptionsBuilder().build(),
-        _httpClient = httpClient ?? _createHttpClient(transportOptions ?? TransportOptionsBuilder().build());
+  DefaultApiClient(
+      {TransportOptions? transportOptions, http.Client? httpClient})
+      : _transportOptions =
+            transportOptions ?? TransportOptionsBuilder().build(),
+        _httpClient = httpClient ??
+            _createHttpClient(
+                transportOptions ?? TransportOptionsBuilder().build());
 
   /// Creates an [IOClient] configured from the given [TransportOptions].
   ///
@@ -74,7 +78,8 @@ class DefaultApiClient implements ApiClient {
     }
 
     if (options.proxy != null) {
-      ioClient.findProxy = (_) => 'PROXY ${options.proxy!.host}:${options.proxy!.port}';
+      ioClient.findProxy =
+          (_) => 'PROXY ${options.proxy!.host}:${options.proxy!.port}';
     }
 
     if (options.timeout != null) {
@@ -99,11 +104,13 @@ class DefaultApiClient implements ApiClient {
     merged.addAll(_transportOptions.defaultHeaders);
     merged.addAll(headers);
 
-    if (!merged.containsKey('User-Agent') && _transportOptions.userAgent.isNotEmpty) {
+    if (!merged.containsKey('User-Agent') &&
+        _transportOptions.userAgent.isNotEmpty) {
       merged['User-Agent'] = _transportOptions.userAgent;
     }
 
-    if (!merged.containsKey('X-Request-ID') && _transportOptions.injectRequestId) {
+    if (!merged.containsKey('X-Request-ID') &&
+        _transportOptions.injectRequestId) {
       merged['X-Request-ID'] = _generateUuid();
     }
 
@@ -128,7 +135,8 @@ class DefaultApiClient implements ApiClient {
           _addMultipartField(multipartRequest, name, value);
         }
       }
-      if (_transportOptions.followRedirects && _transportOptions.maxRedirects != null) {
+      if (_transportOptions.followRedirects &&
+          _transportOptions.maxRedirects != null) {
         multipartRequest.maxRedirects = _transportOptions.maxRedirects!;
       }
       multipartRequest.followRedirects = _transportOptions.followRedirects;
@@ -141,7 +149,8 @@ class DefaultApiClient implements ApiClient {
       }
       standardRequest.headers.addAll(merged);
       standardRequest.followRedirects = _transportOptions.followRedirects;
-      if (_transportOptions.followRedirects && _transportOptions.maxRedirects != null) {
+      if (_transportOptions.followRedirects &&
+          _transportOptions.maxRedirects != null) {
         standardRequest.maxRedirects = _transportOptions.maxRedirects!;
       }
       if (body is Uint8List) {
@@ -152,9 +161,11 @@ class DefaultApiClient implements ApiClient {
 
     final http.StreamedResponse streamedResponse;
     try {
-      final Future<http.StreamedResponse> pendingResponse = _httpClient.send(request);
+      final Future<http.StreamedResponse> pendingResponse =
+          _httpClient.send(request);
       streamedResponse = _transportOptions.timeout != null
-          ? await pendingResponse.timeout(Duration(milliseconds: _transportOptions.timeout!))
+          ? await pendingResponse
+              .timeout(Duration(milliseconds: _transportOptions.timeout!))
           : await pendingResponse;
     } on SocketException catch (e) {
       throw ApiError(statusCode: 0, message: e.message, underlyingError: e);
@@ -170,7 +181,9 @@ class DefaultApiClient implements ApiClient {
       );
     }
     final rawBytes = await streamedResponse.stream.toBytes();
-    final contentEncoding = (streamedResponse.headers['content-encoding'] ?? '').toLowerCase().trim();
+    final contentEncoding = (streamedResponse.headers['content-encoding'] ?? '')
+        .toLowerCase()
+        .trim();
     final responseBytes = _decompressBytes(rawBytes, contentEncoding);
     final contentType = streamedResponse.headers['content-type'] ?? '';
     final responseBody = _isTextContentType(contentType)
@@ -291,8 +304,8 @@ class DefaultApiClient implements ApiClient {
   /// throwing, so an unfamiliar server header cannot break decoding.
   static Encoding _encodingFor(String contentType) {
     if (contentType.isEmpty) return utf8;
-    final match =
-        RegExp(r'charset=([^;]+)', caseSensitive: false).firstMatch(contentType);
+    final match = RegExp(r'charset=([^;]+)', caseSensitive: false)
+        .firstMatch(contentType);
     final cs = match?.group(1)?.trim().toLowerCase();
     if (cs == null || cs.isEmpty) return utf8;
     switch (cs) {

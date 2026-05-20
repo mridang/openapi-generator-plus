@@ -28,10 +28,8 @@ Future<void> setUpContainers() async {
   _network = Network();
   await _network.create();
 
-  final keystorePath =
-      File('${fixtures.path}/certs/server-keystore.p12');
-  final mappingsDir =
-      Directory('${fixtures.path}/wiremock/mappings');
+  final keystorePath = File('${fixtures.path}/certs/server-keystore.p12');
+  final mappingsDir = Directory('${fixtures.path}/wiremock/mappings');
 
   _wiremockContainer = DockerContainer('wiremock/wiremock:3.13.0')
       .withExposedPorts([8080, 8443])
@@ -46,12 +44,18 @@ Future<void> setUpContainers() async {
         0x1A4,
       )
       .withCommand([
-        '--port', '8080',
-        '--https-port', '8443',
-        '--https-keystore', '/tmp/keystore.p12',
-        '--keystore-type', 'PKCS12',
-        '--keystore-password', 'changeit',
-        '--key-manager-password', 'changeit',
+        '--port',
+        '8080',
+        '--https-port',
+        '8443',
+        '--https-keystore',
+        '/tmp/keystore.p12',
+        '--keystore-type',
+        'PKCS12',
+        '--keystore-password',
+        'changeit',
+        '--key-manager-password',
+        'changeit',
         '--verbose',
       ])
       .withNetwork(_network)
@@ -98,10 +102,14 @@ Future<void> setUpContainers() async {
         0x1A4,
       )
       .withCommand([
-        'mock', '-m', 'false', '-h', '0.0.0.0', '/tmp/openapi.yaml',
+        'mock',
+        '-m',
+        'false',
+        '-h',
+        '0.0.0.0',
+        '/tmp/openapi.yaml',
       ])
-      .waitingFor(
-          LogMessageWaitStrategy(RegExp(r'Prism is listening')));
+      .waitingFor(LogMessageWaitStrategy(RegExp(r'Prism is listening')));
 
   await _prismContainer.start();
 

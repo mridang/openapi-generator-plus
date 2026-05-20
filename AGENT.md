@@ -428,10 +428,13 @@ uniformly unsupported across all 12 SDKs (no divergence — consistent
 absence). All require codegen-core upgrades or substantial template
 work to address. Documented as known limitations.
 
-- **Gap AW** — `dependentRequired` / `dependentSchemas`: conditional-
-  required validation silently dropped. Specs that say "if credit_card
-  is set, billing_address is required" generate without that
-  constraint. Affects: 12.
+- **Gap AW (WONTFIX)** — `dependentRequired` / `dependentSchemas`:
+  conditional-required validation. No mainstream client codegen
+  implements this (openapi-generator, swagger-codegen, openapi-
+  typescript, NSwag, autorest all skip it). Server-side validation
+  is authoritative; users wanting client-side checks can plug in a
+  JSON Schema validator library. Don't re-audit; documented in all
+  12 per-SDK READMEs.
 - **Gap AX** — `if` / `then` / `else` schema composition + `unevaluated
   Properties` / `unevaluatedItems`: conditional schemas silently
   dropped. Strict-property enforcement (`unevaluatedProperties:

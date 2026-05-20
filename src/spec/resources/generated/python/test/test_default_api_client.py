@@ -6,6 +6,7 @@ from typing import Any
 from petstore_client.default_api_client import DefaultApiClient
 from petstore_client.transport_options import TransportOptions
 
+
 class TestTlsVerificationDisabled:
     def test_makes_https_request_with_verify_ssl_false(self, wiremock_https_url: Any) -> None:
         transport = TransportOptions.builder().verify_ssl(False).build()
@@ -14,6 +15,7 @@ class TestTlsVerificationDisabled:
 
         assert response.status_code == 200
         assert 'success' in response.body
+
 
 class TestCustomCaBundle:
     def test_makes_https_request_with_custom_ca_cert(self, wiremock_https_url: Any, ca_cert_path: Any) -> None:
@@ -24,6 +26,7 @@ class TestCustomCaBundle:
         assert response.status_code == 200
         assert 'success' in response.body
 
+
 class TestHttpProxy:
     def test_makes_http_request_through_proxy(self, wiremock_internal_http_url: Any, proxy_url: Any) -> None:
         transport = TransportOptions.builder().proxy(proxy_url).build()
@@ -32,6 +35,7 @@ class TestHttpProxy:
 
         assert response.status_code == 200
         assert 'success' in response.body
+
 
 class TestHttpProxyWithTls:
     def test_makes_https_request_through_proxy_with_verify_ssl_false(
@@ -44,6 +48,7 @@ class TestHttpProxyWithTls:
         assert response.status_code == 200
         assert 'success' in response.body
 
+
 class TestRequestTimeout:
     def test_times_out_on_slow_endpoint(self, wiremock_http_url: Any) -> None:
         transport = TransportOptions.builder().timeout(1).build()
@@ -51,6 +56,7 @@ class TestRequestTimeout:
 
         with pytest.raises(Exception):
             client.send_request('GET', wiremock_http_url + '/api/slow', {}, None)
+
 
 class TestUserAgentHeader:
     def test_injects_custom_user_agent_header(self, wiremock_http_url: Any) -> None:
@@ -61,6 +67,7 @@ class TestUserAgentHeader:
         assert response.status_code == 200
         body = json.loads(response.body)
         assert body['user-agent'] == 'MyApp/1.0'
+
 
 class TestRequestIdInjection:
     def test_injects_request_id_header(self, wiremock_http_url: Any) -> None:
@@ -73,6 +80,7 @@ class TestRequestIdInjection:
         request_id = body['x-request-id']
         assert request_id
         import re
+
         assert re.match(
             r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
             request_id,
@@ -89,6 +97,7 @@ class TestRequestIdInjection:
         request_id2 = json.loads(response2.body)['x-request-id']
 
         assert request_id1 != request_id2
+
 
 class TestDefaultHeaders:
     def test_includes_transport_default_headers(self, wiremock_http_url: Any) -> None:
@@ -111,6 +120,7 @@ class TestDefaultHeaders:
         body = json.loads(response.body)
         assert body['accept'] == 'application/json'
 
+
 class TestRedirectHandling:
     def test_follows_redirects_when_enabled(self, wiremock_http_url: Any) -> None:
         transport = TransportOptions.builder().follow_redirects(True).build()
@@ -127,6 +137,7 @@ class TestRedirectHandling:
 
         assert response.status_code == 302
 
+
 class TestMaxRedirects:
     def test_respects_max_redirects_limit(self) -> None:
         transport = TransportOptions.builder().follow_redirects(True).max_redirects(5).build()
@@ -134,12 +145,14 @@ class TestMaxRedirects:
         assert client is not None
         assert transport.max_redirects == 5
 
+
 class TestMultipartBody:
     def test_sends_multipart_form_data(self, wiremock_http_url: Any) -> None:
         client = DefaultApiClient()
         form_data = {'description': 'A test file', 'file': b'file content'}
         response = client.send_request('POST', wiremock_http_url + '/api/test', {}, form_data)
         assert response is not None
+
 
 class TestHttpCompression:
     def test_decompresses_gzip_response(self) -> None:

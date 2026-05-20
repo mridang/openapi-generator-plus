@@ -9,6 +9,15 @@ import { OAuth2AuthorizationCodeAuthenticator } from './oauth2-auth-code-authent
 
 export class UserAuthAuthorizationCodeAuthenticator extends OAuth2AuthorizationCodeAuthenticator {
   constructor(host: string, clientId: string, clientSecret: string, redirectUri: string) {
-    super(host, clientId, clientSecret, 'https://auth.example.com/authorize', 'https://auth.example.com/oauth/token', redirectUri, ['pets:write', 'pets:read'], 'https://auth.example.com/oauth/refresh');
+    super(
+      host,
+      clientId,
+      clientSecret,
+      'https://auth.example.com/authorize',
+      'https://auth.example.com/oauth/token',
+      redirectUri,
+      ['pets:write', 'pets:read'],
+      'https://auth.example.com/oauth/refresh'
+    );
   }
 }

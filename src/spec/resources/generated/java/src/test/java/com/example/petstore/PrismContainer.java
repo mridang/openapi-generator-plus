@@ -7,22 +7,20 @@
 
 package com.example.petstore;
 
+import java.nio.file.Path;
+import java.time.Duration;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.MountableFile;
 
-import java.nio.file.Path;
-import java.time.Duration;
-
-/**
- * Singleton Prism mock server container shared across all test classes.
- */
+/** Singleton Prism mock server container shared across all test classes. */
 public final class PrismContainer {
 
-    private static final GenericContainer<?> INSTANCE;
+  private static final GenericContainer<?> INSTANCE;
 
-    static {
-        INSTANCE = new GenericContainer<>("stoplight/prism:5")
+  static {
+    INSTANCE =
+        new GenericContainer<>("stoplight/prism:5")
             .withExposedPorts(4010)
             .withCopyFileToContainer(
                 MountableFile.forHostPath(Path.of("/app/src/test/resources/openapi.yaml")),
@@ -31,17 +29,20 @@ public final class PrismContainer {
             .waitingFor(Wait.forLogMessage(".*Prism is listening.*", 1))
             .withStartupTimeout(Duration.ofMinutes(2))
             .withLabel("com.mridang.openapi.testcontainer", "true");
-        INSTANCE.start();
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            if (INSTANCE != null && INSTANCE.isRunning()) {
-                INSTANCE.stop();
-            }
-        }));
-    }
+    INSTANCE.start();
+    Runtime.getRuntime()
+        .addShutdownHook(
+            new Thread(
+                () -> {
+                  if (INSTANCE != null && INSTANCE.isRunning()) {
+                    INSTANCE.stop();
+                  }
+                }));
+  }
 
-    private PrismContainer() {}
+  private PrismContainer() {}
 
-    public static String getBaseUrl() {
-        return "http://" + INSTANCE.getHost() + ":" + INSTANCE.getMappedPort(4010);
-    }
+  public static String getBaseUrl() {
+    return "http://" + INSTANCE.getHost() + ":" + INSTANCE.getMappedPort(4010);
+  }
 }

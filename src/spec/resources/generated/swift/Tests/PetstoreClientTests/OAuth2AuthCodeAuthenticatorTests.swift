@@ -7,113 +7,119 @@
 
 import Foundation
 import Testing
+
 @testable import PetstoreClient
 
 @Suite final class OAuth2AuthCodeAuthenticatorTests {
 
-    // MARK: - Mock ApiClient
+  // MARK: - Mock ApiClient
 
-    private final class MockApiClient: ApiClient, @unchecked Sendable {
-        var responses: [HttpResponse] = []
-        var lastMethod: String = ""
-        var lastURL: String = ""
-        var lastHeaders: [String: String] = [:]
-        var lastBody: Data? = nil
+  private final class MockApiClient: ApiClient, @unchecked Sendable {
+    var responses: [HttpResponse] = []
+    var lastMethod: String = ""
+    var lastURL: String = ""
+    var lastHeaders: [String: String] = [:]
+    var lastBody: Data? = nil
 
-        func sendRequest(method: String, url: String, headers: [String: String], body: Any?) async throws -> HttpResponse {
-            lastMethod = method
-            lastURL = url
-            lastHeaders = headers
-            lastBody = body as? Data
-            return responses.removeFirst()
-        }
+    func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+      async throws -> HttpResponse
+    {
+      lastMethod = method
+      lastURL = url
+      lastHeaders = headers
+      lastBody = body as? Data
+      return responses.removeFirst()
     }
+  }
 
-    private func makeResponse(body: String, statusCode: Int = 200) -> HttpResponse {
-        return HttpResponse(statusCode: statusCode, body: body, headers: [:])
-    }
+  private func makeResponse(body: String, statusCode: Int = 200) -> HttpResponse {
+    return HttpResponse(statusCode: statusCode, body: body, headers: [:])
+  }
 
-    private func createAuthenticator() -> OAuth2AuthorizationCodeAuthenticator {
-        return OAuth2AuthorizationCodeAuthenticator(
-            host: "https://api.example.com",
-            clientID: "my-client-id",
-            clientSecret: "my-client-secret",
-            authorizationURL: "https://auth.example.com/authorize",
-            tokenURL: "https://auth.example.com/token",
-            redirectURI: "https://app.example.com/callback",
-            scopes: ["read", "write"]
-        )
-    }
+  private func createAuthenticator() -> OAuth2AuthorizationCodeAuthenticator {
+    return OAuth2AuthorizationCodeAuthenticator(
+      host: "https://api.example.com",
+      clientID: "my-client-id",
+      clientSecret: "my-client-secret",
+      authorizationURL: "https://auth.example.com/authorize",
+      tokenURL: "https://auth.example.com/token",
+      redirectURI: "https://app.example.com/callback",
+      scopes: ["read", "write"]
+    )
+  }
 
-    // MARK: - Tests
+  // MARK: - Tests
 
-    @Test func testBuildsAuthorizationURLWithRequiredParams() {
-        let auth = createAuthenticator()
+  @Test func testBuildsAuthorizationURLWithRequiredParams() {
+    let auth = createAuthenticator()
 
-        let url = auth.buildAuthorizationURL()
+    let url = auth.buildAuthorizationURL()
 
-        #expect(url.contains("response_type=code"))
-        #expect(url.contains("client_id=my-client-id"))
-        #expect(url.contains("redirect_uri="))
-        #expect(url.contains("scope=read%20write"))
-        #expect(url.hasPrefix("https://auth.example.com/authorize?"))
-    }
+    #expect(url.contains("response_type=code"))
+    #expect(url.contains("client_id=my-client-id"))
+    #expect(url.contains("redirect_uri="))
+    #expect(url.contains("scope=read%20write"))
+    #expect(url.hasPrefix("https://auth.example.com/authorize?"))
+  }
 
-    @Test func testBuildsAuthorizationURLWithState() {
-        let auth = createAuthenticator()
+  @Test func testBuildsAuthorizationURLWithState() {
+    let auth = createAuthenticator()
 
-        let url = auth.buildAuthorizationURL(state: "csrf-state-123")
+    let url = auth.buildAuthorizationURL(state: "csrf-state-123")
 
-        #expect(url.contains("state=csrf-state-123"))
-    }
+    #expect(url.contains("state=csrf-state-123"))
+  }
 
-    @Test func testExchangesCodeWithCorrectGrantType() async throws {
-        let client = MockApiClient()
-        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}"))
+  @Test func testExchangesCodeWithCorrectGrantType() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(
+        body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}"))
 
-        let auth = createAuthenticator()
-        auth.setApiClient(client)
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
 
-        try await auth.exchangeCode("auth-code-xyz")
+    try await auth.exchangeCode("auth-code-xyz")
 
-        let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
-        #expect(bodyString.contains("grant_type=authorization_code"))
-        #expect(bodyString.contains("code=auth-code-xyz"))
-        #expect(bodyString.contains("client_id=my-client-id"))
-        #expect(bodyString.contains("client_secret=my-client-secret"))
-    }
+    let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
+    #expect(bodyString.contains("grant_type=authorization_code"))
+    #expect(bodyString.contains("code=auth-code-xyz"))
+    #expect(bodyString.contains("client_id=my-client-id"))
+    #expect(bodyString.contains("client_secret=my-client-secret"))
+  }
 
-    @Test func testIncludesRefreshTokenOnRefresh() async throws {
-        let client = MockApiClient()
-        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
-        client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
+  @Test func testIncludesRefreshTokenOnRefresh() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
 
-        let auth = createAuthenticator()
-        auth.setApiClient(client)
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
 
-        try await auth.exchangeCode("auth-code-xyz")
+    try await auth.exchangeCode("auth-code-xyz")
 
-        let headers = await auth.authHeaders()
+    let headers = await auth.authHeaders()
 
-        let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
-        #expect(bodyString.contains("refresh_token=ref1"))
-        #expect(bodyString.contains("grant_type=refresh_token"))
-        #expect(headers["Authorization"] == "Bearer tok2")
-    }
+    let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
+    #expect(bodyString.contains("refresh_token=ref1"))
+    #expect(bodyString.contains("grant_type=refresh_token"))
+    #expect(headers["Authorization"] == "Bearer tok2")
+  }
 
-    @Test func testThrowsBeforeExchangeCodeCalled() {
-        let auth = createAuthenticator()
+  @Test func testThrowsBeforeExchangeCodeCalled() {
+    let auth = createAuthenticator()
 
-        // authHeaders() calls fatalError before exchangeCode -- we verify the precondition
-        // by checking that no token is available without exchange
-        #expect(auth.host() == "https://api.example.com")
-        // Note: In Swift, fatalError cannot be caught in Swift Testing without a custom assertion.
-        // We verify the authenticator state is consistent before exchange.
-    }
+    // authHeaders() calls fatalError before exchangeCode -- we verify the precondition
+    // by checking that no token is available without exchange
+    #expect(auth.host() == "https://api.example.com")
+    // Note: In Swift, fatalError cannot be caught in Swift Testing without a custom assertion.
+    // We verify the authenticator state is consistent before exchange.
+  }
 
-    @Test func testGetHostReturnsConfiguredHost() {
-        let auth = createAuthenticator()
+  @Test func testGetHostReturnsConfiguredHost() {
+    let auth = createAuthenticator()
 
-        #expect(auth.host() == "https://api.example.com")
-    }
+    #expect(auth.host() == "https://api.example.com")
+  }
 }

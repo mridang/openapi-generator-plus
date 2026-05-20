@@ -10,17 +10,15 @@ package com.example.petstore.errors;
 import java.util.Map;
 import javax.annotation.Nullable;
 
-/**
- * Exception for HTTP 400 Bad Request.
- */
+/** Exception for HTTP 400 Bad Request. */
 public class BadRequestException extends ClientException {
-    private static final long serialVersionUID = 1L;
+  private static final long serialVersionUID = 1L;
 
-    public BadRequestException(
-            String message,
-            @Nullable Map<String, String> responseHeaders,
-            @Nullable String responseBody,
-            @Nullable Object errorBody) {
-        super(400, message, responseHeaders, responseBody, errorBody);
-    }
+  public BadRequestException(
+      String message,
+      @Nullable Map<String, String> responseHeaders,
+      @Nullable String responseBody,
+      @Nullable Object errorBody) {
+    super(400, message, responseHeaders, responseBody, errorBody);
+  }
 }

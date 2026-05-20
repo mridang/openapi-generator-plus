@@ -73,7 +73,8 @@ class OAuth2ClientCredentialsAuthenticator extends BaseAuthenticator
        * separately before joining with ':' and base64-encoding. */
       final encodedId = Uri.encodeComponent(_clientId);
       final encodedSecret = Uri.encodeComponent(_clientSecret);
-      final credentials = base64.encode(utf8.encode('$encodedId:$encodedSecret'));
+      final credentials =
+          base64.encode(utf8.encode('$encodedId:$encodedSecret'));
       extraHeaders['Authorization'] = 'Basic $credentials';
     } else {
       params['client_id'] = _clientId;
@@ -83,7 +84,8 @@ class OAuth2ClientCredentialsAuthenticator extends BaseAuthenticator
       params['scope'] = _scopes.join(' ');
     }
 
-    final token = await _tokenManager.getAccessToken(_tokenUrl, params, extraHeaders);
+    final token =
+        await _tokenManager.getAccessToken(_tokenUrl, params, extraHeaders);
     return {'Authorization': 'Bearer $token'};
   }
 }

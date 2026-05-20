@@ -25,135 +25,144 @@ import javax.annotation.Nullable;
 /**
  * Authenticator for OpenID Connect.
  *
- * <p>Fetches the OIDC discovery document to discover the authorization and
- * token endpoints, then delegates to an {@link OAuth2AuthorizationCodeAuthenticator}.
+ * <p>Fetches the OIDC discovery document to discover the authorization and token endpoints, then
+ * delegates to an {@link OAuth2AuthorizationCodeAuthenticator}.
  *
- * <p>Implements {@link HttpAwareAuthenticator} so that both the discovery
- * request and subsequent token exchange requests use the shared
- * {@link ApiClient} with the same transport configuration (proxy, TLS,
- * timeouts) as regular API calls.
+ * <p>Implements {@link HttpAwareAuthenticator} so that both the discovery request and subsequent
+ * token exchange requests use the shared {@link ApiClient} with the same transport configuration
+ * (proxy, TLS, timeouts) as regular API calls.
  */
 public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
 
-    private static final Pattern MAX_AGE_PATTERN =
-            Pattern.compile("max-age=(\\d+)", Pattern.CASE_INSENSITIVE);
-    private static final long DEFAULT_MAX_AGE_SECONDS = 86400L;
+  private static final Pattern MAX_AGE_PATTERN =
+      Pattern.compile("max-age=(\\d+)", Pattern.CASE_INSENSITIVE);
+  private static final long DEFAULT_MAX_AGE_SECONDS = 86400L;
 
-    private final String       host;
-    private final String       openIdConnectUrl;
-    private final String       clientId;
-    private final String       clientSecret;
-    private final String       redirectUri;
-    private final List<String> scopes;
-    @Nullable private ApiClient apiClient;
-    @Nullable private OAuth2AuthorizationCodeAuthenticator delegate;
-    private Instant discoveryExpiry = Instant.EPOCH;
+  private final String host;
+  private final String openIdConnectUrl;
+  private final String clientId;
+  private final String clientSecret;
+  private final String redirectUri;
+  private final List<String> scopes;
+  @Nullable private ApiClient apiClient;
+  @Nullable private OAuth2AuthorizationCodeAuthenticator delegate;
+  private Instant discoveryExpiry = Instant.EPOCH;
 
-    /**
-     * Create a new OpenID Connect authenticator.
-     *
-     * @param host              API base URL
-     * @param openIdConnectUrl  OIDC discovery document URL
-     * @param clientId          OAuth2 client ID
-     * @param clientSecret      OAuth2 client secret
-     * @param redirectUri       redirect URI registered with the provider
-     * @param scopes            requested scopes
-     */
-    public OpenIdConnectAuthenticator(String host, String openIdConnectUrl,
-            String clientId, String clientSecret, String redirectUri, List<String> scopes) {
-        this.host             = host;
-        this.openIdConnectUrl = openIdConnectUrl;
-        this.clientId         = clientId;
-        this.clientSecret     = clientSecret;
-        this.redirectUri      = redirectUri;
-        this.scopes           = List.copyOf(scopes);
+  /**
+   * Create a new OpenID Connect authenticator.
+   *
+   * @param host API base URL
+   * @param openIdConnectUrl OIDC discovery document URL
+   * @param clientId OAuth2 client ID
+   * @param clientSecret OAuth2 client secret
+   * @param redirectUri redirect URI registered with the provider
+   * @param scopes requested scopes
+   */
+  public OpenIdConnectAuthenticator(
+      String host,
+      String openIdConnectUrl,
+      String clientId,
+      String clientSecret,
+      String redirectUri,
+      List<String> scopes) {
+    this.host = host;
+    this.openIdConnectUrl = openIdConnectUrl;
+    this.clientId = clientId;
+    this.clientSecret = clientSecret;
+    this.redirectUri = redirectUri;
+    this.scopes = List.copyOf(scopes);
+  }
+
+  @Override
+  public synchronized void setApiClient(ApiClient apiClient) {
+    this.apiClient = apiClient;
+  }
+
+  private synchronized OAuth2AuthorizationCodeAuthenticator getDelegate() {
+    if (delegate != null && Instant.now().isBefore(discoveryExpiry)) {
+      return delegate;
     }
-
-    @Override
-    public synchronized void setApiClient(ApiClient apiClient) {
-        this.apiClient = apiClient;
+    if (apiClient == null) {
+      throw new IllegalStateException(
+          "ApiClient has not been injected. "
+              + "Ensure the Client constructor calls setApiClient() "
+              + "on HttpAwareAuthenticator before making API requests.");
     }
+    try {
+      Map<String, String> headers = new HashMap<>();
+      headers.put("Accept", "application/json");
+      ApiResponse response = apiClient.sendRequest("GET", openIdConnectUrl, headers, null);
+      ObjectMapper mapper = new ObjectMapper();
+      JsonNode discovery = mapper.readTree(response.body());
+      String authorizationEndpoint = discovery.get("authorization_endpoint").asText();
+      String tokenEndpoint = discovery.get("token_endpoint").asText();
+      delegate =
+          new OAuth2AuthorizationCodeAuthenticator(
+              host,
+              clientId,
+              clientSecret,
+              authorizationEndpoint,
+              tokenEndpoint,
+              redirectUri,
+              scopes);
+      delegate.setApiClient(apiClient);
+      discoveryExpiry = Instant.now().plusSeconds(parseMaxAge(response.headers()));
+    } catch (ApiException | IOException e) {
+      throw new RuntimeException("Failed to fetch OpenID Connect discovery document", e);
+    }
+    return delegate;
+  }
 
-    private synchronized OAuth2AuthorizationCodeAuthenticator getDelegate() {
-        if (delegate != null && Instant.now().isBefore(discoveryExpiry)) {
-            return delegate;
+  /**
+   * Parse {@code Cache-Control: max-age=<seconds>} from response headers.
+   *
+   * @param headers the response headers
+   * @return the parsed max-age in seconds, or 86400 (RFC 8414 default) if the header is absent or
+   *     does not contain a {@code max-age} directive
+   */
+  private static long parseMaxAge(Map<String, String> headers) {
+    for (Map.Entry<String, String> entry : headers.entrySet()) {
+      if ("Cache-Control".equalsIgnoreCase(entry.getKey())) {
+        Matcher matcher = MAX_AGE_PATTERN.matcher(entry.getValue());
+        if (matcher.find()) {
+          try {
+            return Long.parseLong(matcher.group(1));
+          } catch (NumberFormatException ignored) {
+            return DEFAULT_MAX_AGE_SECONDS;
+          }
         }
-        if (apiClient == null) {
-            throw new IllegalStateException(
-                    "ApiClient has not been injected. "
-                            + "Ensure the Client constructor calls setApiClient() "
-                            + "on HttpAwareAuthenticator before making API requests.");
-        }
-        try {
-            Map<String, String> headers = new HashMap<>();
-            headers.put("Accept", "application/json");
-            ApiResponse response = apiClient.sendRequest(
-                    "GET", openIdConnectUrl, headers, null);
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode discovery = mapper.readTree(response.body());
-            String authorizationEndpoint = discovery.get("authorization_endpoint").asText();
-            String tokenEndpoint         = discovery.get("token_endpoint").asText();
-            delegate = new OAuth2AuthorizationCodeAuthenticator(
-                    host, clientId, clientSecret, authorizationEndpoint,
-                    tokenEndpoint, redirectUri, scopes);
-            delegate.setApiClient(apiClient);
-            discoveryExpiry = Instant.now().plusSeconds(parseMaxAge(response.headers()));
-        } catch (ApiException | IOException e) {
-            throw new RuntimeException("Failed to fetch OpenID Connect discovery document", e);
-        }
-        return delegate;
+        break;
+      }
     }
+    return DEFAULT_MAX_AGE_SECONDS;
+  }
 
-    /**
-     * Parse {@code Cache-Control: max-age=<seconds>} from response headers.
-     *
-     * @param headers the response headers
-     * @return the parsed max-age in seconds, or 86400 (RFC 8414 default) if
-     *         the header is absent or does not contain a {@code max-age} directive
-     */
-    private static long parseMaxAge(Map<String, String> headers) {
-        for (Map.Entry<String, String> entry : headers.entrySet()) {
-            if ("Cache-Control".equalsIgnoreCase(entry.getKey())) {
-                Matcher matcher = MAX_AGE_PATTERN.matcher(entry.getValue());
-                if (matcher.find()) {
-                    try {
-                        return Long.parseLong(matcher.group(1));
-                    } catch (NumberFormatException ignored) {
-                        return DEFAULT_MAX_AGE_SECONDS;
-                    }
-                }
-                break;
-            }
-        }
-        return DEFAULT_MAX_AGE_SECONDS;
-    }
+  /**
+   * Build the authorization URL using the discovered authorization endpoint.
+   *
+   * @param state CSRF state parameter
+   * @return the authorization URL
+   */
+  public String buildAuthorizationUrl(@Nullable String state) {
+    return getDelegate().buildAuthorizationUrl(state);
+  }
 
-    /**
-     * Build the authorization URL using the discovered authorization endpoint.
-     *
-     * @param state CSRF state parameter
-     * @return the authorization URL
-     */
-    public String buildAuthorizationUrl(@Nullable String state) {
-        return getDelegate().buildAuthorizationUrl(state);
-    }
+  /**
+   * Exchange an authorization code for tokens using the discovered token endpoint.
+   *
+   * @param code the authorization code from the callback
+   */
+  public void exchangeCode(String code) {
+    getDelegate().exchangeCode(code);
+  }
 
-    /**
-     * Exchange an authorization code for tokens using the discovered token endpoint.
-     *
-     * @param code the authorization code from the callback
-     */
-    public void exchangeCode(String code) {
-        getDelegate().exchangeCode(code);
-    }
+  @Override
+  public String getHost() {
+    return host;
+  }
 
-    @Override
-    public String getHost() {
-        return host;
-    }
-
-    @Override
-    public Map<String, String> getAuthHeaders() {
-        return getDelegate().getAuthHeaders();
-    }
+  @Override
+  public Map<String, String> getAuthHeaders() {
+    return getDelegate().getAuthHeaders();
+  }
 }

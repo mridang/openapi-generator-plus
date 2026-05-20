@@ -10,73 +10,74 @@ import Foundation
 /// ApiError represents an error returned by the API, including the HTTP status
 /// code, response headers, and response body.
 public class ApiError: Error, LocalizedError, @unchecked Sendable {
-    /// The HTTP status code.
-    public let statusCode: Int
+  /// The HTTP status code.
+  public let statusCode: Int
 
-    /// The error message.
-    public let message: String
+  /// The error message.
+  public let message: String
 
-    /// The raw response body (nil if the transport failed before producing one).
-    public let responseBody: String?
+  /// The raw response body (nil if the transport failed before producing one).
+  public let responseBody: String?
 
-    /// The response headers (nil if the transport failed before producing them).
-    public let responseHeaders: [String: String]?
+  /// The response headers (nil if the transport failed before producing them).
+  public let responseHeaders: [String: String]?
 
-    /// The parsed response body, if JSON.
-    public let errorBody: Any?
+  /// The parsed response body, if JSON.
+  public let errorBody: Any?
 
-    /// The underlying error that caused this ApiError, if any. Set when
-    /// wrapping a URLError or other transport-layer failure so callers can
-    /// drill down to the root cause via `underlyingError`.
-    public let underlyingError: Error?
+  /// The underlying error that caused this ApiError, if any. Set when
+  /// wrapping a URLError or other transport-layer failure so callers can
+  /// drill down to the root cause via `underlyingError`.
+  public let underlyingError: Error?
 
-    public init(
-        statusCode: Int = 0,
-        message: String = "",
-        responseBody: String? = nil,
-        responseHeaders: [String: String]? = nil,
-        errorBody: Any? = nil,
-        underlyingError: Error? = nil
-    ) {
-        self.statusCode = statusCode
-        self.message = message
-        self.responseBody = responseBody
-        self.responseHeaders = responseHeaders
-        self.errorBody = errorBody
-        self.underlyingError = underlyingError
+  public init(
+    statusCode: Int = 0,
+    message: String = "",
+    responseBody: String? = nil,
+    responseHeaders: [String: String]? = nil,
+    errorBody: Any? = nil,
+    underlyingError: Error? = nil
+  ) {
+    self.statusCode = statusCode
+    self.message = message
+    self.responseBody = responseBody
+    self.responseHeaders = responseHeaders
+    self.errorBody = errorBody
+    self.underlyingError = underlyingError
+  }
+
+  public var errorDescription: String? {
+    var msg = message.isEmpty ? "Error message: the server returns an error" : message
+    if statusCode != 0 {
+      msg += "\nHTTP status code: \(statusCode)"
     }
-
-    public var errorDescription: String? {
-        var msg = message.isEmpty ? "Error message: the server returns an error" : message
-        if statusCode != 0 {
-            msg += "\nHTTP status code: \(statusCode)"
-        }
-        if let headers = responseHeaders, !headers.isEmpty {
-            msg += "\nResponse headers: \(headers)"
-        }
-        if let body = responseBody, !body.isEmpty {
-            msg += "\nResponse body: \(body)"
-        }
-        return msg
+    if let headers = responseHeaders, !headers.isEmpty {
+      msg += "\nResponse headers: \(headers)"
     }
-
-    /// Deserializes the response body into the target type. Returns nil if there
-    /// is no response body to parse.
-    public func typedErrorBody<T: Decodable>(as type: T.Type) throws -> T? {
-        guard let body = responseBody, !body.isEmpty,
-              let data = body.data(using: .utf8) else {
-            return nil
-        }
-        return try JSONDecoder().decode(type, from: data)
+    if let body = responseBody, !body.isEmpty {
+      msg += "\nResponse body: \(body)"
     }
+    return msg
+  }
 
-    /// Deserializes the response body into the target type via
-    /// ``ObjectSerializer/deserialize(_:as:)``. Returns nil if there
-    /// is no response body to parse.
-    public func getTypedErrorBody<T: Decodable>(_ type: T.Type) throws -> T? {
-        guard let body = responseBody, !body.isEmpty else {
-            return nil
-        }
-        return try ObjectSerializer.deserialize(body, as: type)
+  /// Deserializes the response body into the target type. Returns nil if there
+  /// is no response body to parse.
+  public func typedErrorBody<T: Decodable>(as type: T.Type) throws -> T? {
+    guard let body = responseBody, !body.isEmpty,
+      let data = body.data(using: .utf8)
+    else {
+      return nil
     }
+    return try JSONDecoder().decode(type, from: data)
+  }
+
+  /// Deserializes the response body into the target type via
+  /// ``ObjectSerializer/deserialize(_:as:)``. Returns nil if there
+  /// is no response body to parse.
+  public func getTypedErrorBody<T: Decodable>(_ type: T.Type) throws -> T? {
+    guard let body = responseBody, !body.isEmpty else {
+      return nil
+    }
+    return try ObjectSerializer.deserialize(body, as: type)
+  }
 }

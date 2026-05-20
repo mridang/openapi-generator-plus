@@ -13,6 +13,7 @@ from ..http_aware_authenticator import HttpAwareAuthenticator
 from .client_auth_method import ClientAuthMethod
 from .oauth2_token_manager import OAuth2TokenManager
 
+
 class OAuth2PasswordAuthenticator(HttpAwareAuthenticator):
     """Authenticator for the OAuth2 Resource Owner Password flow.
 
@@ -84,20 +85,17 @@ class OAuth2PasswordAuthenticator(HttpAwareAuthenticator):
             # RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
             # separately before joining with ':' and base64-encoding.
             from urllib.parse import quote
+
             encoded_id = quote(self._client_id, safe='')
             encoded_secret = quote(self._client_secret, safe='')
-            credentials = base64.b64encode(
-                f'{encoded_id}:{encoded_secret}'.encode('utf-8')
-            ).decode('ascii')
+            credentials = base64.b64encode(f'{encoded_id}:{encoded_secret}'.encode('utf-8')).decode('ascii')
             extra_headers = {'Authorization': f'Basic {credentials}'}
         if self._token_manager.refresh_token:
             params = {
                 'grant_type': 'refresh_token',
                 'refresh_token': self._token_manager.refresh_token,
             }
-            token = self._token_manager.get_access_token(
-                self._refresh_url, params, extra_headers
-            )
+            token = self._token_manager.get_access_token(self._refresh_url, params, extra_headers)
         else:
             params = {
                 'grant_type': 'password',
@@ -109,7 +107,5 @@ class OAuth2PasswordAuthenticator(HttpAwareAuthenticator):
                 params['client_secret'] = self._client_secret
             if self._scopes:
                 params['scope'] = ' '.join(self._scopes)
-            token = self._token_manager.get_access_token(
-                self._token_url, params, extra_headers
-            )
+            token = self._token_manager.get_access_token(self._token_url, params, extra_headers)
         return {'Authorization': f'Bearer {token}'}

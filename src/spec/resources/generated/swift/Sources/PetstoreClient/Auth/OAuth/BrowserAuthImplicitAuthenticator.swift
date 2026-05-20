@@ -7,8 +7,12 @@
 
 import Foundation
 
-public final class BrowserAuthImplicitAuthenticator: OAuth2ImplicitAuthenticator, @unchecked Sendable {
-    public init(host: String, clientId: String) {
-        super.init(host: host, clientID: clientId, authorizationURL: "https://auth.example.com/authorize", scopes: ["read"])
-    }
+public final class BrowserAuthImplicitAuthenticator: OAuth2ImplicitAuthenticator, @unchecked
+  Sendable
+{
+  public init(host: String, clientId: String) {
+    super.init(
+      host: host, clientID: clientId, authorizationURL: "https://auth.example.com/authorize",
+      scopes: ["read"])
+  }
 }

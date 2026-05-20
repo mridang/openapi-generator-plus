@@ -18,143 +18,145 @@ import org.junit.jupiter.api.Test;
 
 class OAuth2ClientCredentialsAuthenticatorTest {
 
-    private static OAuth2ClientCredentialsAuthenticator createAuthenticator() {
-        return new OAuth2ClientCredentialsAuthenticator(
-                "https://api.example.com",
-                "my-client-id",
-                "my-client-secret",
-                "https://auth.example.com/token",
-                List.of("read", "write"));
-    }
+  private static OAuth2ClientCredentialsAuthenticator createAuthenticator() {
+    return new OAuth2ClientCredentialsAuthenticator(
+        "https://api.example.com",
+        "my-client-id",
+        "my-client-secret",
+        "https://auth.example.com/token",
+        List.of("read", "write"));
+  }
 
-    @Test
-    void sendsClientCredentialsGrantType() {
-        AtomicReference<String> capturedBody = new AtomicReference<>();
-        ApiClient client = (method, url, headers, body) -> {
-            capturedBody.set(body != null ? body.toString() : "");
-            return new ApiResponse(200,
-                    "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+  @Test
+  void sendsClientCredentialsGrantType() {
+    AtomicReference<String> capturedBody = new AtomicReference<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          capturedBody.set(body != null ? body.toString() : "");
+          return new ApiResponse(200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
         };
 
-        OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
-        auth.setApiClient(client);
+    OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
 
-        auth.getAuthHeaders();
+    auth.getAuthHeaders();
 
-        String body = capturedBody.get();
-        assertNotNull(body);
-        assertTrue(body.contains("grant_type=client_credentials"));
-    }
+    String body = capturedBody.get();
+    assertNotNull(body);
+    assertTrue(body.contains("grant_type=client_credentials"));
+  }
 
-    @Test
-    void sendsClientIdAndSecret() {
-        AtomicReference<String> capturedBody = new AtomicReference<>();
-        ApiClient client = (method, url, headers, body) -> {
-            capturedBody.set(body != null ? body.toString() : "");
-            return new ApiResponse(200,
-                    "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+  @Test
+  void sendsClientIdAndSecret() {
+    AtomicReference<String> capturedBody = new AtomicReference<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          capturedBody.set(body != null ? body.toString() : "");
+          return new ApiResponse(200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
         };
 
-        OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
-        auth.setApiClient(client);
+    OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
 
-        auth.getAuthHeaders();
+    auth.getAuthHeaders();
 
-        String body = capturedBody.get();
-        assertNotNull(body);
-        assertTrue(body.contains("client_id=my-client-id"));
-        assertTrue(body.contains("client_secret=my-client-secret"));
-    }
+    String body = capturedBody.get();
+    assertNotNull(body);
+    assertTrue(body.contains("client_id=my-client-id"));
+    assertTrue(body.contains("client_secret=my-client-secret"));
+  }
 
-    @Test
-    void sendsScopes() {
-        AtomicReference<String> capturedBody = new AtomicReference<>();
-        ApiClient client = (method, url, headers, body) -> {
-            capturedBody.set(body != null ? body.toString() : "");
-            return new ApiResponse(200,
-                    "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+  @Test
+  void sendsScopes() {
+    AtomicReference<String> capturedBody = new AtomicReference<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          capturedBody.set(body != null ? body.toString() : "");
+          return new ApiResponse(200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
         };
 
-        OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
-        auth.setApiClient(client);
+    OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
 
-        auth.getAuthHeaders();
+    auth.getAuthHeaders();
 
-        String body = capturedBody.get();
-        assertNotNull(body);
-        assertTrue(body.contains("scope=read+write") || body.contains("scope=read%20write"));
-    }
+    String body = capturedBody.get();
+    assertNotNull(body);
+    assertTrue(body.contains("scope=read+write") || body.contains("scope=read%20write"));
+  }
 
-    @Test
-    void returnsAuthorizationBearerHeader() {
-        ApiClient client = (method, url, headers, body) ->
-                new ApiResponse(200,
-                        "{\"access_token\":\"tok-abc\",\"expires_in\":3600}", Map.of());
+  @Test
+  void returnsAuthorizationBearerHeader() {
+    ApiClient client =
+        (method, url, headers, body) ->
+            new ApiResponse(200, "{\"access_token\":\"tok-abc\",\"expires_in\":3600}", Map.of());
 
-        OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
-        auth.setApiClient(client);
+    OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
 
-        Map<String, String> headers = auth.getAuthHeaders();
+    Map<String, String> headers = auth.getAuthHeaders();
 
-        assertEquals("Bearer tok-abc", headers.get("Authorization"));
-    }
+    assertEquals("Bearer tok-abc", headers.get("Authorization"));
+  }
 
-    @Test
-    void sendsRequestToTokenUrl() {
-        AtomicReference<String> capturedUrl = new AtomicReference<>();
-        ApiClient client = (method, url, headers, body) -> {
-            capturedUrl.set(url);
-            return new ApiResponse(200,
-                    "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+  @Test
+  void sendsRequestToTokenUrl() {
+    AtomicReference<String> capturedUrl = new AtomicReference<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          capturedUrl.set(url);
+          return new ApiResponse(200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
         };
 
-        OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
-        auth.setApiClient(client);
+    OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
 
-        auth.getAuthHeaders();
+    auth.getAuthHeaders();
 
-        assertEquals("https://auth.example.com/token", capturedUrl.get());
-    }
+    assertEquals("https://auth.example.com/token", capturedUrl.get());
+  }
 
-    @Test
-    void getHostReturnsConfiguredHost() {
-        OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
+  @Test
+  void getHostReturnsConfiguredHost() {
+    OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
 
-        assertEquals("https://api.example.com", auth.getHost());
-    }
+    assertEquals("https://api.example.com", auth.getHost());
+  }
 
-    @Test
-    void basicAuthUrlEncodesClientIdAndSecret() {
-        // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
-        // client_id and client_secret MUST be application/x-www-form-
-        // urlencoded BEFORE being joined with ':' and base64-encoded.
-        // Verifies a client_id with `+` and a secret with `&` are encoded
-        // (not raw) before the colon-join + base64.
-        AtomicReference<Map<String, String>> capturedHeaders = new AtomicReference<>();
-        ApiClient client = (method, url, headers, body) -> {
-            capturedHeaders.set(headers);
-            return new ApiResponse(200,
-                    "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+  @Test
+  void basicAuthUrlEncodesClientIdAndSecret() {
+    // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
+    // client_id and client_secret MUST be application/x-www-form-
+    // urlencoded BEFORE being joined with ':' and base64-encoded.
+    // Verifies a client_id with `+` and a secret with `&` are encoded
+    // (not raw) before the colon-join + base64.
+    AtomicReference<Map<String, String>> capturedHeaders = new AtomicReference<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          capturedHeaders.set(headers);
+          return new ApiResponse(200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
         };
 
-        OAuth2ClientCredentialsAuthenticator auth = new OAuth2ClientCredentialsAuthenticator(
-                "https://api.example.com",
-                "id+with/special",
-                "secret&with=stuff",
-                "https://auth.example.com/token",
-                List.of("read"),
-                ClientAuthMethod.BASIC);
-        auth.setApiClient(client);
+    OAuth2ClientCredentialsAuthenticator auth =
+        new OAuth2ClientCredentialsAuthenticator(
+            "https://api.example.com",
+            "id+with/special",
+            "secret&with=stuff",
+            "https://auth.example.com/token",
+            List.of("read"),
+            ClientAuthMethod.BASIC);
+    auth.setApiClient(client);
 
-        auth.getAuthHeaders();
+    auth.getAuthHeaders();
 
-        String authHeader = capturedHeaders.get().get("Authorization");
-        assertNotNull(authHeader);
-        assertTrue(authHeader.startsWith("Basic "));
-        String decoded = new String(
-                java.util.Base64.getDecoder().decode(authHeader.substring("Basic ".length())),
-                java.nio.charset.StandardCharsets.UTF_8);
-        // Expected: form-urlencoded id ':' form-urlencoded secret
-        assertEquals("id%2Bwith%2Fspecial:secret%26with%3Dstuff", decoded);
-    }
+    String authHeader = capturedHeaders.get().get("Authorization");
+    assertNotNull(authHeader);
+    assertTrue(authHeader.startsWith("Basic "));
+    String decoded =
+        new String(
+            java.util.Base64.getDecoder().decode(authHeader.substring("Basic ".length())),
+            java.nio.charset.StandardCharsets.UTF_8);
+    // Expected: form-urlencoded id ':' form-urlencoded secret
+    assertEquals("id%2Bwith%2Fspecial:secret%26with%3Dstuff", decoded);
+  }
 }

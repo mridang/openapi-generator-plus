@@ -18,6 +18,7 @@ from .oauth2_auth_code_authenticator import OAuth2AuthorizationCodeAuthenticator
 _DEFAULT_DISCOVERY_MAX_AGE_SECONDS = 86400
 _MAX_AGE_PATTERN = re.compile(r'max-age=(\d+)', re.IGNORECASE)
 
+
 def _parse_max_age(headers: Optional[Mapping[str, str]]) -> int:
     """Parse ``Cache-Control: max-age=<seconds>`` from response headers.
 
@@ -36,6 +37,7 @@ def _parse_max_age(headers: Optional[Mapping[str, str]]) -> int:
                     return _DEFAULT_DISCOVERY_MAX_AGE_SECONDS
             return _DEFAULT_DISCOVERY_MAX_AGE_SECONDS
     return _DEFAULT_DISCOVERY_MAX_AGE_SECONDS
+
 
 class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
     """Authenticator for OpenID Connect.
@@ -125,9 +127,7 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
             self._scopes,
         )
         self._delegate.set_api_client(self._api_client)
-        self._discovery_expiry = time.monotonic() + _parse_max_age(
-            getattr(response, 'headers', None)
-        )
+        self._discovery_expiry = time.monotonic() + _parse_max_age(getattr(response, 'headers', None))
         return self._delegate
 
     def build_authorization_url(self, state: Optional[str] = None) -> str:

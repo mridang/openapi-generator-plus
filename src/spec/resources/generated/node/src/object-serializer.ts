@@ -96,7 +96,7 @@ export class ObjectSerializer {
           if (schemaCls) {
             try {
               const instance = plainToInstance(schemaCls, json, { excludeExtraneousValues: true });
-              const hasValues = Object.values(instance as Record<string, unknown>).some(v => v !== undefined);
+              const hasValues = Object.values(instance as Record<string, unknown>).some((v) => v !== undefined);
               if (hasValues) {
                 return new (cls as unknown as new (i: unknown) => T)(instance);
               }

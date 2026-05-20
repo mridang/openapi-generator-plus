@@ -9,6 +9,15 @@ import { OAuth2PasswordAuthenticator } from './oauth2-password-authenticator.js'
 
 export class LegacyAuthPasswordAuthenticator extends OAuth2PasswordAuthenticator {
   constructor(host: string, clientId: string, clientSecret: string, username: string, password: string) {
-    super(host, clientId, clientSecret, 'https://auth.example.com/oauth/token', username, password, ['read'], 'https://auth.example.com/oauth/refresh');
+    super(
+      host,
+      clientId,
+      clientSecret,
+      'https://auth.example.com/oauth/token',
+      username,
+      password,
+      ['read'],
+      'https://auth.example.com/oauth/refresh'
+    );
   }
 }

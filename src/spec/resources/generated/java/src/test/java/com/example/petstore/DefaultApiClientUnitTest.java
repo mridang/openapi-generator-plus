@@ -256,7 +256,8 @@ class DefaultApiClientUnitTest {
 
   @Test
   void includesTransportDefaultHeaders() throws Exception {
-    TransportOptions transport = TransportOptions.builder().defaultHeader("X-Custom", "custom-value").build();
+    TransportOptions transport =
+        TransportOptions.builder().defaultHeader("X-Custom", "custom-value").build();
     DefaultApiClient client = new DefaultApiClient(transport);
     ApiResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
     assertEquals(200, response.statusCode());
@@ -280,14 +281,14 @@ class DefaultApiClientUnitTest {
     String actual = (String) field.get(client);
 
     String expected =
-        "Basic " + Base64.getEncoder().encodeToString("myuser:mypass".getBytes(StandardCharsets.UTF_8));
+        "Basic "
+            + Base64.getEncoder().encodeToString("myuser:mypass".getBytes(StandardCharsets.UTF_8));
     assertEquals(expected, actual);
   }
 
   @Test
   void leavesProxyAuthHeaderNullWhenProxyHasNoUserInfo() throws Exception {
-    TransportOptions transport =
-        TransportOptions.builder().proxy("http://127.0.0.1:9999").build();
+    TransportOptions transport = TransportOptions.builder().proxy("http://127.0.0.1:9999").build();
     DefaultApiClient client = new DefaultApiClient(transport);
 
     Field field = DefaultApiClient.class.getDeclaredField("proxyAuthHeader");
@@ -306,11 +307,13 @@ class DefaultApiClientUnitTest {
 
   @Test
   void callerHeadersOverrideDefaults() throws Exception {
-    TransportOptions transport = TransportOptions.builder().defaultHeader("Accept", "text/plain").build();
+    TransportOptions transport =
+        TransportOptions.builder().defaultHeader("Accept", "text/plain").build();
     DefaultApiClient client = new DefaultApiClient(transport);
     Map<String, String> callerHeaders = new HashMap<>();
     callerHeaders.put("Accept", "application/json");
-    ApiResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", callerHeaders, null);
+    ApiResponse response =
+        client.sendRequest("GET", baseUrl + "/echo-headers", callerHeaders, null);
     assertEquals(200, response.statusCode());
     assertTrue(response.body().contains("\"accept\":\"application/json\""));
   }

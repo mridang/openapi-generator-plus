@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
 from typing_extensions import Self  # noqa: F401
 
+
 class PhotoMetadata(BaseModel):
     """
     PhotoMetadata
@@ -68,6 +69,7 @@ class PhotoMetadata(BaseModel):
         validate_assignment=True,
         protected_namespaces=(),
     )
+
 
 from datetime import datetime
 from petstore_client.models.photo_metadata_location import PhotoMetadataLocation

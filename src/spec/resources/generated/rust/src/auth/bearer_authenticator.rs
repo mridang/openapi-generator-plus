@@ -27,10 +27,11 @@ impl BearerAuthenticator {
     /// error rather than HTTP header injection from CR/LF or silently-
     /// mangled non-ASCII bytes.
     pub fn new(host: &str, token: &str) -> Self {
-        if token.chars().any(|c| c != '\t' && ((c as u32) < 0x20 || (c as u32) >= 0x7F)) {
-            panic!(
-                "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
-            );
+        if token
+            .chars()
+            .any(|c| c != '\t' && ((c as u32) < 0x20 || (c as u32) >= 0x7F))
+        {
+            panic!("Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)");
         }
         Self {
             host: host.to_string(),

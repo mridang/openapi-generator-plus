@@ -36,7 +36,9 @@ describe('Client', () => {
   test('ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () => {
     // HEADER location must reject anything outside printable ASCII +
     // TAB to prevent header injection (\r\n) and silent UTF-8 mangling.
-    expect(() => new ApiKeyAuthenticator('/api/v3', 'X-Api-Key', 'abc\r\nInjected: yes', ApiKeyLocation.HEADER)).toThrow();
+    expect(
+      () => new ApiKeyAuthenticator('/api/v3', 'X-Api-Key', 'abc\r\nInjected: yes', ApiKeyLocation.HEADER)
+    ).toThrow();
     expect(() => new ApiKeyAuthenticator('/api/v3', 'X-Api-Key', 'kéy', ApiKeyLocation.HEADER)).toThrow();
     // Non-header locations accept arbitrary chars.
     const queryAuth = new ApiKeyAuthenticator('/api/v3', 'api_key', 'kéy', ApiKeyLocation.QUERY);

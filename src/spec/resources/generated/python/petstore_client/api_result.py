@@ -10,6 +10,7 @@ from typing import Dict, Generic, Optional, TypeVar
 
 T = TypeVar('T')
 
+
 @dataclass(frozen=True)
 class ApiResult(Generic[T]):
     """Represents a typed API response with deserialized data, status code,

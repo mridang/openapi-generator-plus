@@ -30,6 +30,7 @@ try:
 except ImportError:
     _zstandard = None  # type: ignore[assignment]
 
+
 def _supported_encodings() -> str:
     """Return a comma-separated string of supported content encodings.
 
@@ -46,7 +47,9 @@ def _supported_encodings() -> str:
         encodings.append('zstd')
     return ', '.join(encodings)
 
+
 _CHARSET_RE = re.compile(r'charset\s*=\s*"?([^";\s]+)"?', re.IGNORECASE)
+
 
 def _charset_from_content_type(content_type: str) -> Optional[str]:
     """Extract the charset parameter from a Content-Type header value.
@@ -60,6 +63,7 @@ def _charset_from_content_type(content_type: str) -> Optional[str]:
         return None
     return match.group(1).strip()
 
+
 def _decode_with_charset(data: bytes, content_type: str) -> str:
     """Decode bytes using the charset from a Content-Type header.
 
@@ -71,6 +75,7 @@ def _decode_with_charset(data: bytes, content_type: str) -> str:
         return data.decode(charset, errors='replace')
     except LookupError:
         return data.decode('utf-8', errors='replace')
+
 
 def _sanitize_multipart_filename(filename: str) -> Tuple[str, Optional[str]]:
     """Sanitize a multipart filename for use in a Content-Disposition header.
@@ -97,12 +102,14 @@ def _sanitize_multipart_filename(filename: str) -> Tuple[str, Optional[str]]:
     rfc5987 = "UTF-8''" + _url_quote(filename, safe='')
     return ascii_fallback, rfc5987
 
+
 def _guess_content_type(filename: Optional[str]) -> str:
     """Guess a Content-Type from a filename, defaulting to octet-stream."""
     if not filename:
         return 'application/octet-stream'
     guessed, _ = mimetypes.guess_type(filename)
     return guessed or 'application/octet-stream'
+
 
 def _is_text_content_type(content_type: str) -> bool:
     """Return True if the content type represents text that can be decoded as UTF-8."""
@@ -111,11 +118,17 @@ def _is_text_content_type(content_type: str) -> bool:
         return True
     if media_type.startswith('text/'):
         return True
-    return media_type in (
-        'application/json',
-        'application/xml',
-        'application/javascript',
-    ) or media_type.endswith('+json') or media_type.endswith('+xml')
+    return (
+        media_type
+        in (
+            'application/json',
+            'application/xml',
+            'application/javascript',
+        )
+        or media_type.endswith('+json')
+        or media_type.endswith('+xml')
+    )
+
 
 class DefaultApiClient:
     """Default implementation of :class:`ApiClient` using urllib3.
@@ -307,7 +320,7 @@ class DefaultApiClient:
             ascii_fallback, rfc5987 = _sanitize_multipart_filename(filename)
             disposition += f'; filename="{ascii_fallback}"'
             if rfc5987 is not None:
-                disposition += f"; filename*={rfc5987}"
+                disposition += f'; filename*={rfc5987}'
         return disposition
 
     @classmethod
@@ -346,27 +359,17 @@ class DefaultApiClient:
                     if hasattr(content, 'close'):
                         content.close()
                 if isinstance(read_data, str):
-                    raise TypeError(
-                        f'multipart part {name!r}: file opened in text mode; open with mode="rb"'
-                    )
+                    raise TypeError(f'multipart part {name!r}: file opened in text mode; open with mode="rb"')
                 if not isinstance(read_data, bytes):
-                    raise TypeError(
-                        f'multipart part {name!r}: file-like object did not return bytes from read()'
-                    )
+                    raise TypeError(f'multipart part {name!r}: file-like object did not return bytes from read()')
                 file_data: bytes = read_data
             elif isinstance(content, bytes):
                 file_data = content
             else:
-                raise TypeError(
-                    f'multipart part {name!r}: tuple content must be bytes or a binary file-like object'
-                )
+                raise TypeError(f'multipart part {name!r}: tuple content must be bytes or a binary file-like object')
             disposition = cls._build_disposition(name, filename)
             content_type = _guess_content_type(filename)
-            header = (
-                f'--{boundary}\r\n'
-                f'Content-Disposition: {disposition}\r\n'
-                f'Content-Type: {content_type}\r\n\r\n'
-            )
+            header = f'--{boundary}\r\nContent-Disposition: {disposition}\r\nContent-Type: {content_type}\r\n\r\n'
             return header.encode('utf-8') + file_data + b'\r\n'
 
         if hasattr(value, 'read'):
@@ -379,38 +382,24 @@ class DefaultApiClient:
             if isinstance(raw_data, str):
                 # File was opened in text mode; refuse rather than silently
                 # round-tripping arbitrary bytes through UTF-8.
-                raise TypeError(
-                    f'multipart part {name!r}: file opened in text mode; open with mode="rb"'
-                )
+                raise TypeError(f'multipart part {name!r}: file opened in text mode; open with mode="rb"')
             if not isinstance(raw_data, bytes):
-                raise TypeError(
-                    f'multipart part {name!r}: file-like object did not return bytes from read()'
-                )
+                raise TypeError(f'multipart part {name!r}: file-like object did not return bytes from read()')
             raw_bytes: bytes = raw_data
             disposition = cls._build_disposition(name, filename)
             content_type = _guess_content_type(filename)
-            header = (
-                f'--{boundary}\r\n'
-                f'Content-Disposition: {disposition}\r\n'
-                f'Content-Type: {content_type}\r\n\r\n'
-            )
+            header = f'--{boundary}\r\nContent-Disposition: {disposition}\r\nContent-Type: {content_type}\r\n\r\n'
             return header.encode('utf-8') + raw_bytes + b'\r\n'
         elif isinstance(value, bytes):
             disposition = cls._build_disposition(name, None)
             header = (
-                f'--{boundary}\r\n'
-                f'Content-Disposition: {disposition}\r\n'
-                f'Content-Type: application/octet-stream\r\n\r\n'
+                f'--{boundary}\r\nContent-Disposition: {disposition}\r\nContent-Type: application/octet-stream\r\n\r\n'
             )
             return header.encode('utf-8') + value + b'\r\n'
         elif hasattr(value, 'model_dump_json'):
             json_str: str = value.model_dump_json(by_alias=True, exclude_none=True)
             disposition = cls._build_disposition(name, None)
-            header = (
-                f'--{boundary}\r\n'
-                f'Content-Disposition: {disposition}\r\n'
-                f'Content-Type: application/json\r\n\r\n'
-            )
+            header = f'--{boundary}\r\nContent-Disposition: {disposition}\r\nContent-Type: application/json\r\n\r\n'
             return header.encode('utf-8') + json_str.encode('utf-8') + b'\r\n'
         else:
             disposition = cls._build_disposition(name, None)

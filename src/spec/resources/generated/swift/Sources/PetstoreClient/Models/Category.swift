@@ -9,41 +9,41 @@ import Foundation
 
 /// Category is a model class generated from the OpenAPI schema.
 public struct Category: Codable, Sendable {
-    /// Example: `1`
-    public var id: Int64?
-    /// Example: `Dogs`
-    public var name: String?
+  /// Example: `1`
+  public var id: Int64?
+  /// Example: `Dogs`
+  public var name: String?
 
-    enum CodingKeys: String, CodingKey {
-        case id = "id"
-        case name = "name"
-    }
+  enum CodingKeys: String, CodingKey {
+    case id = "id"
+    case name = "name"
+  }
 
-    /// Creates a new Category instance.
-    public init(id: Int64? = nil, name: String? = nil) {
-        self.id = id
-        self.name = name
-    }
+  /// Creates a new Category instance.
+  public init(id: Int64? = nil, name: String? = nil) {
+    self.id = id
+    self.name = name
+  }
 
-    /// Decodes this instance from the given decoder.
-    ///
-    /// Required fields use `decode(_:forKey:)`; optional fields use
-    /// `decodeIfPresent(_:forKey:)`. Unknown JSON keys are silently ignored
-    /// — matching the cross-language "discard extras on deserialise" expectation.
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.id = try container.decodeIfPresent(Int64.self, forKey: .id)
-        self.name = try container.decodeIfPresent(String.self, forKey: .name)
-    }
+  /// Decodes this instance from the given decoder.
+  ///
+  /// Required fields use `decode(_:forKey:)`; optional fields use
+  /// `decodeIfPresent(_:forKey:)`. Unknown JSON keys are silently ignored
+  /// — matching the cross-language "discard extras on deserialise" expectation.
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.id = try container.decodeIfPresent(Int64.self, forKey: .id)
+    self.name = try container.decodeIfPresent(String.self, forKey: .name)
+  }
 
-    /// Encodes this instance, omitting nil optional fields from the JSON output.
-    ///
-    /// Uses `encodeIfPresent` for every optional property so that unset values
-    /// are dropped from the wire payload rather than emitted as `null` — matching
-    /// the cross-language "discard nulls on serialise" expectation.
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(id, forKey: .id)
-        try container.encodeIfPresent(name, forKey: .name)
-    }
+  /// Encodes this instance, omitting nil optional fields from the JSON output.
+  ///
+  /// Uses `encodeIfPresent` for every optional property so that unset values
+  /// are dropped from the wire payload rather than emitted as `null` — matching
+  /// the cross-language "discard nulls on serialise" expectation.
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encodeIfPresent(id, forKey: .id)
+    try container.encodeIfPresent(name, forKey: .name)
+  }
 }

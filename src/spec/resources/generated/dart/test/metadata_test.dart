@@ -20,21 +20,21 @@ void main() {
     });
 
     test('deserialize from JSON', () {
-      final jsonData = '{"createdAt":"2024-01-15T10:30:00+00:00"}';
+      const jsonData = '{"createdAt":"2024-01-15T10:30:00+00:00"}';
 
       final parsed = jsonDecode(jsonData) as Map<String, dynamic>;
       expect(parsed['createdAt'], isNotNull);
     });
 
     test('deserialize empty object', () {
-      final jsonData = '{}';
+      const jsonData = '{}';
 
       final parsed = jsonDecode(jsonData) as Map<String, dynamic>;
       expect(parsed, isEmpty);
     });
 
     test('deserialize with additional properties', () {
-      final jsonData =
+      const jsonData =
           '{"createdAt":"2024-01-15T10:30:00+00:00","customField":"customValue","count":42}';
 
       final parsed = jsonDecode(jsonData) as Map<String, dynamic>;
@@ -43,7 +43,7 @@ void main() {
     });
 
     test('round trip', () {
-      final jsonData = '{"createdAt":"2024-01-15T10:30:00+00:00"}';
+      const jsonData = '{"createdAt":"2024-01-15T10:30:00+00:00"}';
 
       final parsed = jsonDecode(jsonData);
       final serialized = jsonEncode(parsed);

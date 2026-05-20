@@ -8,6 +8,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
+
 @dataclass
 class UploadPetDocumentOptions:
     """Options for the upload_pet_document operation."""

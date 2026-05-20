@@ -3,6 +3,7 @@ import pytest
 from petstore_client.object_serializer import ObjectSerializer, SerializationError
 from petstore_client.models.category import Category
 
+
 class TestDateTimeOffsetPreservation:
     def test_utc_datetime_serializes_containing_offset(self) -> None:
         dt = datetime.datetime.fromisoformat('2024-01-01T12:30:45+00:00')
@@ -34,6 +35,7 @@ class TestDateTimeOffsetPreservation:
         dt = datetime.datetime(2024, 1, 1, 12, 30, 45, tzinfo=datetime.timezone.utc)
         result = ObjectSerializer.stringify(dt)
         import re
+
         assert re.search(r'[+-]\d{2}:\d{2}$|Z$', result), f'should end with offset: {result}'
 
     def test_round_trip_datetime_yields_equivalent_instant(self) -> None:
@@ -41,6 +43,7 @@ class TestDateTimeOffsetPreservation:
         serialized = ObjectSerializer.stringify(original)
         parsed = datetime.datetime.fromisoformat(serialized)
         assert original.utctimetuple() == parsed.utctimetuple()
+
 
 class TestNonAsciiSerialization:
     def test_accented_character_not_unicode_escaped(self) -> None:
@@ -55,6 +58,7 @@ class TestNonAsciiSerialization:
         result = ObjectSerializer().serialize('a\tb')
         assert r'\t' in result
 
+
 class TestDeserializationErrorWrapping:
     def test_truncated_json_raises_serialization_error(self) -> None:
         with pytest.raises(SerializationError):
@@ -68,6 +72,7 @@ class TestDeserializationErrorWrapping:
         with pytest.raises(SerializationError) as exc_info:
             ObjectSerializer().deserialize('{', 'Category')
         assert exc_info.value.cause is not None
+
 
 class TestStringify:
     def test_none_returns_empty_string(self) -> None:
@@ -98,6 +103,7 @@ class TestStringify:
         d = datetime.date(2024, 1, 15)
         assert ObjectSerializer.stringify(d) == '2024-01-15'
 
+
 class TestToPathValue:
     def test_returns_empty_string_for_none(self) -> None:
         assert ObjectSerializer.to_path_value(None) == ''
@@ -113,6 +119,7 @@ class TestToPathValue:
 
     def test_converts_false_to_false(self) -> None:
         assert ObjectSerializer.to_path_value(False) == 'false'
+
 
 class TestToQueryValue:
     def test_returns_none_for_none(self) -> None:
@@ -163,6 +170,7 @@ class TestToQueryValue:
     def test_keeps_empty_slot_for_null_array_element_in_multi(self) -> None:
         assert ObjectSerializer.to_query_value([1, None, 3], 'multi') == ['1', '', '3']
 
+
 class TestToHeaderValue:
     def test_returns_empty_string_for_none(self) -> None:
         assert ObjectSerializer.to_header_value(None) == ''
@@ -175,6 +183,7 @@ class TestToHeaderValue:
 
     def test_joins_array_with_comma(self) -> None:
         assert ObjectSerializer.to_header_value(['a', 'b', 'c']) == 'a,b,c'
+
 
 class TestToFormValue:
     def test_returns_empty_string_for_none(self) -> None:
@@ -192,6 +201,7 @@ class TestToFormValue:
     def test_converts_false_to_false(self) -> None:
         assert ObjectSerializer.to_form_value(False) == 'false'
 
+
 class TestToCookieValue:
     def test_returns_empty_string_for_none(self) -> None:
         assert ObjectSerializer.to_cookie_value(None) == ''
@@ -202,9 +212,11 @@ class TestToCookieValue:
     def test_converts_integer_to_string(self) -> None:
         assert ObjectSerializer.to_cookie_value(42) == '42'
 
+
 class TestSerialize:
     def test_serializes_model_to_valid_json(self) -> None:
         import json
+
         category = Category(id=1, name='Dogs')
         result = ObjectSerializer().serialize(category)
         data = json.loads(result)
@@ -217,6 +229,7 @@ class TestSerialize:
 
     def test_includes_fields_set_to_default_values(self) -> None:
         import json
+
         category = Category(id=0, name='')
         result = ObjectSerializer().serialize(category)
         data = json.loads(result)
@@ -225,26 +238,29 @@ class TestSerialize:
         assert 'name' in data, 'serialized JSON should include name field'
         assert data['name'] == ''
 
+
 class TestUuidRoundtrip:
     def test_serializes_uuid_to_string(self) -> None:
         import uuid
+
         u = uuid.UUID('12345678-1234-5678-1234-567812345678')
         assert ObjectSerializer.stringify(u) == '12345678-1234-5678-1234-567812345678'
 
     def test_deserializes_uuid_string(self) -> None:
         import uuid
-        result = ObjectSerializer()._deserialize(
-            '12345678-1234-5678-1234-567812345678', 'uuid.UUID'
-        )
+
+        result = ObjectSerializer()._deserialize('12345678-1234-5678-1234-567812345678', 'uuid.UUID')
         assert isinstance(result, uuid.UUID)
         assert str(result) == '12345678-1234-5678-1234-567812345678'
 
     def test_serializes_uuid_via_sanitize(self) -> None:
         import json
         import uuid
+
         u = uuid.UUID('12345678-1234-5678-1234-567812345678')
         result = ObjectSerializer().serialize(u)
         assert json.loads(result) == '12345678-1234-5678-1234-567812345678'
+
 
 class TestExtraFieldsOnDeserialize:
     def test_extra_field_in_json_is_ignored(self) -> None:
@@ -254,15 +270,18 @@ class TestExtraFieldsOnDeserialize:
         assert category.id == 1
         assert category.name == 'Dogs'
 
+
 class TestExcludeNoneOnSerialize:
     def test_none_values_are_omitted(self) -> None:
         import json
+
         # Category with id=None should not include the id key on the wire.
         category = Category(id=None, name='Dogs')
         result = ObjectSerializer().serialize(category)
         data = json.loads(result)
         assert 'id' not in data
         assert data['name'] == 'Dogs'
+
 
 class TestDeserialize:
     def test_deserializes_json_to_typed_model(self) -> None:
@@ -277,6 +296,7 @@ class TestDeserialize:
 
     def test_returns_none_for_none_input(self) -> None:
         assert ObjectSerializer().deserialize(None, 'Category') is None
+
 
 class TestRequiredFieldNullRejection:
     """Gap AJ — null or missing on a required non-nullable field must raise.
@@ -294,6 +314,7 @@ class TestRequiredFieldNullRejection:
         with pytest.raises(SerializationError):
             ObjectSerializer().deserialize(json_str, 'Pet')
 
+
 class TestNanInfinityRejection:
     """Gap V — RFC 8259 §6 forbids NaN/Infinity/-Infinity in JSON.
 
@@ -302,16 +323,19 @@ class TestNanInfinityRejection:
 
     def test_serialize_nan_raises(self) -> None:
         import math
+
         with pytest.raises(SerializationError):
             ObjectSerializer().serialize({'val': math.nan})
 
     def test_serialize_infinity_raises(self) -> None:
         import math
+
         with pytest.raises(SerializationError):
             ObjectSerializer().serialize({'val': math.inf})
 
     def test_serialize_negative_infinity_raises(self) -> None:
         import math
+
         with pytest.raises(SerializationError):
             ObjectSerializer().serialize({'val': -math.inf})
 

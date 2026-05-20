@@ -107,9 +107,7 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
       [...this.scopes]
     );
     this.delegate.setApiClient(this.apiClient);
-    this.discoveryExpiry =
-      Date.now() +
-      OpenIdConnectAuthenticator.parseMaxAge(response.headers) * 1000;
+    this.discoveryExpiry = Date.now() + OpenIdConnectAuthenticator.parseMaxAge(response.headers) * 1000;
     return this.delegate;
   }
 
@@ -125,9 +123,7 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
         const match = OpenIdConnectAuthenticator.MAX_AGE_PATTERN.exec(value);
         if (match) {
           const seconds = Number.parseInt(match[1], 10);
-          return Number.isFinite(seconds)
-            ? seconds
-            : OpenIdConnectAuthenticator.DEFAULT_DISCOVERY_MAX_AGE_SECONDS;
+          return Number.isFinite(seconds) ? seconds : OpenIdConnectAuthenticator.DEFAULT_DISCOVERY_MAX_AGE_SECONDS;
         }
         return OpenIdConnectAuthenticator.DEFAULT_DISCOVERY_MAX_AGE_SECONDS;
       }

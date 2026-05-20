@@ -11,8 +11,10 @@ from petstore_client.object_serializer import ObjectSerializer
 
 T = TypeVar('T')
 
+
 class OpenApiException(Exception):
     """The base exception class for all OpenAPIExceptions"""
+
 
 class ApiException(OpenApiException):
     def __init__(
@@ -55,6 +57,7 @@ class ApiException(OpenApiException):
             error_message += 'HTTP response body: {0}\n'.format(self.response_body)
 
         return error_message
+
 
 # Re-export exception subclasses for convenience
 from petstore_client.errors.client_exception import ClientException  # noqa: E402

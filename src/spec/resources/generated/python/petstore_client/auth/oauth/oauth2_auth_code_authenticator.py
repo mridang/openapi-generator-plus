@@ -12,6 +12,7 @@ from ...api_client import ApiClient
 from ..http_aware_authenticator import HttpAwareAuthenticator
 from .oauth2_token_manager import OAuth2TokenManager
 
+
 class OAuth2AuthorizationCodeAuthenticator(HttpAwareAuthenticator):
     """Authenticator for the OAuth2 Authorization Code flow.
 

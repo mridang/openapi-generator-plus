@@ -14,17 +14,10 @@ describe('DefaultApiClient', () => {
     test('makes HTTPS request with verifySsl=false', async () => {
       const wiremockUrl = process.env['WIREMOCK_HTTPS_URL']!;
 
-      const transport = TransportOptions.builder()
-        .verifySsl(false)
-        .build();
+      const transport = TransportOptions.builder().verifySsl(false).build();
 
       const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest(
-        'GET',
-        `${wiremockUrl}/api/test`,
-        {},
-        null
-      );
+      const response = await client.sendRequest('GET', `${wiremockUrl}/api/test`, {}, null);
 
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain('success');
@@ -51,29 +44,17 @@ describe('DefaultApiClient', () => {
     test('verifySsl=true rejects hostname mismatch (cert is for localhost, request is to 127.0.0.1)', async () => {
       const caCertPath = process.env['CA_CERT_PATH']!;
 
-      const transport = TransportOptions.builder()
-        .verifySsl(true)
-        .caCertPath(caCertPath)
-        .build();
+      const transport = TransportOptions.builder().verifySsl(true).caCertPath(caCertPath).build();
 
       const client = new DefaultApiClient(transport);
-      await expect(
-        client.sendRequest('GET', `${ipHttpsUrl()}/api/test`, {}, null)
-      ).rejects.toThrow();
+      await expect(client.sendRequest('GET', `${ipHttpsUrl()}/api/test`, {}, null)).rejects.toThrow();
     });
 
     test('verifySsl=false accepts hostname mismatch (curl -k semantics)', async () => {
-      const transport = TransportOptions.builder()
-        .verifySsl(false)
-        .build();
+      const transport = TransportOptions.builder().verifySsl(false).build();
 
       const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest(
-        'GET',
-        `${ipHttpsUrl()}/api/test`,
-        {},
-        null
-      );
+      const response = await client.sendRequest('GET', `${ipHttpsUrl()}/api/test`, {}, null);
 
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain('success');
@@ -85,18 +66,10 @@ describe('DefaultApiClient', () => {
       const wiremockUrl = process.env['WIREMOCK_HTTPS_URL']!;
       const caCertPath = process.env['CA_CERT_PATH']!;
 
-      const transport = TransportOptions.builder()
-        .verifySsl(true)
-        .caCertPath(caCertPath)
-        .build();
+      const transport = TransportOptions.builder().verifySsl(true).caCertPath(caCertPath).build();
 
       const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest(
-        'GET',
-        `${wiremockUrl}/api/test`,
-        {},
-        null
-      );
+      const response = await client.sendRequest('GET', `${wiremockUrl}/api/test`, {}, null);
 
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain('success');
@@ -108,17 +81,10 @@ describe('DefaultApiClient', () => {
       const wiremockUrl = process.env['WIREMOCK_INTERNAL_HTTP_URL']!;
       const proxyUrl = process.env['PROXY_URL']!;
 
-      const transport = TransportOptions.builder()
-        .proxy(proxyUrl)
-        .build();
+      const transport = TransportOptions.builder().proxy(proxyUrl).build();
 
       const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest(
-        'GET',
-        `${wiremockUrl}/api/test`,
-        {},
-        null
-      );
+      const response = await client.sendRequest('GET', `${wiremockUrl}/api/test`, {}, null);
 
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain('success');
@@ -130,18 +96,10 @@ describe('DefaultApiClient', () => {
       const wiremockUrl = process.env['WIREMOCK_INTERNAL_HTTPS_URL']!;
       const proxyUrl = process.env['PROXY_URL']!;
 
-      const transport = TransportOptions.builder()
-        .proxy(proxyUrl)
-        .verifySsl(false)
-        .build();
+      const transport = TransportOptions.builder().proxy(proxyUrl).verifySsl(false).build();
 
       const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest(
-        'GET',
-        `${wiremockUrl}/api/test`,
-        {},
-        null
-      );
+      const response = await client.sendRequest('GET', `${wiremockUrl}/api/test`, {}, null);
 
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain('success');
@@ -152,14 +110,10 @@ describe('DefaultApiClient', () => {
     test('times out on slow endpoint', async () => {
       const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
 
-      const transport = TransportOptions.builder()
-        .timeout(1)
-        .build();
+      const transport = TransportOptions.builder().timeout(1).build();
 
       const client = new DefaultApiClient(transport);
-      await expect(
-        client.sendRequest('GET', `${wiremockUrl}/api/slow`, {}, null)
-      ).rejects.toThrow();
+      await expect(client.sendRequest('GET', `${wiremockUrl}/api/slow`, {}, null)).rejects.toThrow();
     });
   });
 
@@ -167,17 +121,10 @@ describe('DefaultApiClient', () => {
     test('injects custom User-Agent header', async () => {
       const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
 
-      const transport = TransportOptions.builder()
-        .userAgent('MyApp/1.0')
-        .build();
+      const transport = TransportOptions.builder().userAgent('MyApp/1.0').build();
 
       const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest(
-        'GET',
-        `${wiremockUrl}/api/echo-headers`,
-        {},
-        null
-      );
+      const response = await client.sendRequest('GET', `${wiremockUrl}/api/echo-headers`, {}, null);
 
       expect(response.statusCode).toBe(200);
       const json = JSON.parse(response.body);
@@ -189,50 +136,29 @@ describe('DefaultApiClient', () => {
     test('injects X-Request-ID header with UUID format', async () => {
       const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
 
-      const transport = TransportOptions.builder()
-        .injectRequestId(true)
-        .build();
+      const transport = TransportOptions.builder().injectRequestId(true).build();
 
       const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest(
-        'GET',
-        `${wiremockUrl}/api/echo-headers`,
-        {},
-        null
-      );
+      const response = await client.sendRequest('GET', `${wiremockUrl}/api/echo-headers`, {}, null);
 
       expect(response.statusCode).toBe(200);
       const json = JSON.parse(response.body);
       const requestId = json['x-request-id'];
       expect(requestId).toBeDefined();
-      expect(requestId).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-      );
+      expect(requestId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
     });
 
     test('generates unique X-Request-ID per request', async () => {
       const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
 
-      const transport = TransportOptions.builder()
-        .injectRequestId(true)
-        .build();
+      const transport = TransportOptions.builder().injectRequestId(true).build();
 
       const client = new DefaultApiClient(transport);
 
-      const response1 = await client.sendRequest(
-        'GET',
-        `${wiremockUrl}/api/echo-headers`,
-        {},
-        null
-      );
+      const response1 = await client.sendRequest('GET', `${wiremockUrl}/api/echo-headers`, {}, null);
       const requestId1 = JSON.parse(response1.body)['x-request-id'];
 
-      const response2 = await client.sendRequest(
-        'GET',
-        `${wiremockUrl}/api/echo-headers`,
-        {},
-        null
-      );
+      const response2 = await client.sendRequest('GET', `${wiremockUrl}/api/echo-headers`, {}, null);
       const requestId2 = JSON.parse(response2.body)['x-request-id'];
 
       expect(requestId1).not.toBe(requestId2);
@@ -243,17 +169,10 @@ describe('DefaultApiClient', () => {
     test('includes transport-level default headers', async () => {
       const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
 
-      const transport = TransportOptions.builder()
-        .defaultHeader('X-Custom', 'custom-value')
-        .build();
+      const transport = TransportOptions.builder().defaultHeader('X-Custom', 'custom-value').build();
 
       const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest(
-        'GET',
-        `${wiremockUrl}/api/echo-headers`,
-        {},
-        null
-      );
+      const response = await client.sendRequest('GET', `${wiremockUrl}/api/echo-headers`, {}, null);
 
       expect(response.statusCode).toBe(200);
       const json = JSON.parse(response.body);
@@ -263,9 +182,7 @@ describe('DefaultApiClient', () => {
     test('caller headers override transport default headers', async () => {
       const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
 
-      const transport = TransportOptions.builder()
-        .defaultHeader('Accept', 'text/plain')
-        .build();
+      const transport = TransportOptions.builder().defaultHeader('Accept', 'text/plain').build();
 
       const client = new DefaultApiClient(transport);
       const response = await client.sendRequest(
@@ -285,17 +202,10 @@ describe('DefaultApiClient', () => {
     test('follows redirects when enabled', async () => {
       const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
 
-      const transport = TransportOptions.builder()
-        .followRedirects(true)
-        .build();
+      const transport = TransportOptions.builder().followRedirects(true).build();
 
       const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest(
-        'GET',
-        `${wiremockUrl}/api/redirect`,
-        {},
-        null
-      );
+      const response = await client.sendRequest('GET', `${wiremockUrl}/api/redirect`, {}, null);
 
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain('success');
@@ -304,17 +214,10 @@ describe('DefaultApiClient', () => {
     test('returns redirect response when disabled', async () => {
       const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
 
-      const transport = TransportOptions.builder()
-        .followRedirects(false)
-        .build();
+      const transport = TransportOptions.builder().followRedirects(false).build();
 
       const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest(
-        'GET',
-        `${wiremockUrl}/api/redirect`,
-        {},
-        null
-      );
+      const response = await client.sendRequest('GET', `${wiremockUrl}/api/redirect`, {}, null);
 
       expect(response.statusCode).toBe(302);
     });
@@ -322,10 +225,7 @@ describe('DefaultApiClient', () => {
 
   describe('max redirects', () => {
     test('respects maxRedirects limit', () => {
-      const transport = TransportOptions.builder()
-        .followRedirects(true)
-        .maxRedirects(5)
-        .build();
+      const transport = TransportOptions.builder().followRedirects(true).maxRedirects(5).build();
 
       const client = new DefaultApiClient(transport);
       expect(client).toBeDefined();

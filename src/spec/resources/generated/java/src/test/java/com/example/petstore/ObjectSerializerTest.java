@@ -21,494 +21,520 @@ import org.junit.jupiter.api.Test;
 
 class ObjectSerializerTest {
 
-    private final ObjectSerializer serializer = new ObjectSerializer();
+  private final ObjectSerializer serializer = new ObjectSerializer();
 
-    @Nested
-    @DisplayName("stringify")
-    class StringifyTests {
+  @Nested
+  @DisplayName("stringify")
+  class StringifyTests {
 
-        @Test
-        @DisplayName("null returns empty string")
-        void nullReturnsEmptyString() {
-            assertEquals("", ObjectSerializer.stringify(null));
-        }
-
-        @Test
-        @DisplayName("boolean true returns \"true\"")
-        void booleanTrueReturnsTrue() {
-            assertEquals("true", ObjectSerializer.stringify(true));
-        }
-
-        @Test
-        @DisplayName("boolean false returns \"false\"")
-        void booleanFalseReturnsFalse() {
-            assertEquals("false", ObjectSerializer.stringify(false));
-        }
-
-        @Test
-        @DisplayName("integer returns string representation")
-        void integerReturnsStringRepresentation() {
-            assertEquals("42", ObjectSerializer.stringify(42));
-        }
-
-        @Test
-        @DisplayName("date-time returns ISO 8601 string")
-        void dateTimeReturnsIso8601String() {
-            OffsetDateTime dt = OffsetDateTime.of(2024, 1, 15, 10, 30, 0, 0, ZoneOffset.UTC);
-            String result = ObjectSerializer.stringify(dt);
-            assertTrue(result.startsWith("2024-01-15T10:30:00"));
-        }
-
-        @Test
-        @DisplayName("plain string passes through unchanged")
-        void plainStringPassesThrough() {
-            assertEquals("hello", ObjectSerializer.stringify("hello"));
-        }
-
-        @Test
-        @DisplayName("double returns string representation")
-        void doubleReturnsStringRepresentation() {
-            assertEquals("3.14", ObjectSerializer.stringify(3.14));
-        }
-
-        @Test
-        @DisplayName("long returns string representation")
-        void longReturnsStringRepresentation() {
-            assertEquals("9007199254740993", ObjectSerializer.stringify(9007199254740993L));
-        }
-
-        @Test
-        @DisplayName("UUID returns string representation")
-        void uuidReturnsStringRepresentation() {
-            UUID uuid = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
-            assertEquals("550e8400-e29b-41d4-a716-446655440000", ObjectSerializer.stringify(uuid));
-        }
-
-        @Test
-        @DisplayName("LocalDate returns ISO 8601 date string")
-        void localDateReturnsIso8601DateString() {
-            LocalDate date = LocalDate.of(2024, 1, 15);
-            assertEquals("2024-01-15", ObjectSerializer.stringify(date));
-        }
+    @Test
+    @DisplayName("null returns empty string")
+    void nullReturnsEmptyString() {
+      assertEquals("", ObjectSerializer.stringify(null));
     }
 
-    @Nested
-    @DisplayName("toPathValue")
-    class ToPathValueTests {
-
-        @Test
-        @DisplayName("returns empty string for null")
-        void returnsEmptyStringForNull() {
-            assertEquals("", ObjectSerializer.toPathValue(null));
-        }
-
-        @Test
-        @DisplayName("returns the string for a string value")
-        void returnsStringForStringValue() {
-            assertEquals("hello", ObjectSerializer.toPathValue("hello"));
-        }
-
-        @Test
-        @DisplayName("converts integer to string")
-        void convertsIntegerToString() {
-            assertEquals("42", ObjectSerializer.toPathValue(42));
-        }
-
-        @Test
-        @DisplayName("converts true to \"true\"")
-        void convertsTrueToString() {
-            assertEquals("true", ObjectSerializer.toPathValue(true));
-        }
-
-        @Test
-        @DisplayName("converts false to \"false\"")
-        void convertsFalseToString() {
-            assertEquals("false", ObjectSerializer.toPathValue(false));
-        }
+    @Test
+    @DisplayName("boolean true returns \"true\"")
+    void booleanTrueReturnsTrue() {
+      assertEquals("true", ObjectSerializer.stringify(true));
     }
 
-    @Nested
-    @DisplayName("toQueryValue")
-    class ToQueryValueTests {
-
-        @Test
-        @DisplayName("returns null for null")
-        void returnsNullForNull() {
-            assertNull(ObjectSerializer.toQueryValue(null, null));
-        }
-
-        @Test
-        @DisplayName("returns the string for a string value")
-        void returnsStringForStringValue() {
-            assertEquals("hello", ObjectSerializer.toQueryValue("hello", null));
-        }
-
-        @Test
-        @DisplayName("converts integer to string")
-        void convertsIntegerToString() {
-            assertEquals("42", ObjectSerializer.toQueryValue(42, null));
-        }
-
-        @Test
-        @DisplayName("converts true to \"true\"")
-        void convertsTrueToString() {
-            assertEquals("true", ObjectSerializer.toQueryValue(true, null));
-        }
-
-        @Test
-        @DisplayName("converts false to \"false\"")
-        void convertsFalseToString() {
-            assertEquals("false", ObjectSerializer.toQueryValue(false, null));
-        }
-
-        @Test
-        @DisplayName("joins array with comma by default")
-        void joinsArrayWithCommaByDefault() {
-            List<String> list = Arrays.asList("a", "b", "c");
-            assertEquals("a,b,c", ObjectSerializer.toQueryValue(list, null));
-        }
-
-        @Test
-        @DisplayName("joins array with comma for csv")
-        void joinsArrayWithCommaForCsv() {
-            List<String> list = Arrays.asList("a", "b", "c");
-            assertEquals("a,b,c", ObjectSerializer.toQueryValue(list, "csv"));
-        }
-
-        @Test
-        @DisplayName("joins array with space for ssv")
-        void joinsArrayWithSpaceForSsv() {
-            List<String> list = Arrays.asList("a", "b", "c");
-            assertEquals("a b c", ObjectSerializer.toQueryValue(list, "ssv"));
-        }
-
-        @Test
-        @DisplayName("joins array with tab for tsv")
-        void joinsArrayWithTabForTsv() {
-            List<String> list = Arrays.asList("a", "b", "c");
-            assertEquals("a\tb\tc", ObjectSerializer.toQueryValue(list, "tsv"));
-        }
-
-        @Test
-        @DisplayName("joins array with pipe for pipes")
-        void joinsArrayWithPipeForPipes() {
-            List<String> list = Arrays.asList("a", "b", "c");
-            assertEquals("a|b|c", ObjectSerializer.toQueryValue(list, "pipes"));
-        }
-
-        @Test
-        @DisplayName("returns array as-is for multi")
-        void returnsArrayForMulti() {
-            List<String> list = Arrays.asList("a", "b", "c");
-            assertEquals(list, ObjectSerializer.toQueryValue(list, "multi"));
-        }
+    @Test
+    @DisplayName("boolean false returns \"false\"")
+    void booleanFalseReturnsFalse() {
+      assertEquals("false", ObjectSerializer.stringify(false));
     }
 
-    @Nested
-    @DisplayName("toHeaderValue")
-    class ToHeaderValueTests {
-
-        @Test
-        @DisplayName("returns empty string for null")
-        void returnsEmptyStringForNull() {
-            assertEquals("", ObjectSerializer.toHeaderValue(null));
-        }
-
-        @Test
-        @DisplayName("returns the string for a string value")
-        void returnsStringForStringValue() {
-            assertEquals("hello", ObjectSerializer.toHeaderValue("hello"));
-        }
-
-        @Test
-        @DisplayName("converts integer to string")
-        void convertsIntegerToString() {
-            assertEquals("42", ObjectSerializer.toHeaderValue(42));
-        }
-
-        @Test
-        @DisplayName("joins array with comma")
-        void joinsArrayWithComma() {
-            List<String> list = Arrays.asList("a", "b", "c");
-            assertEquals("a,b,c", ObjectSerializer.toHeaderValue(list));
-        }
+    @Test
+    @DisplayName("integer returns string representation")
+    void integerReturnsStringRepresentation() {
+      assertEquals("42", ObjectSerializer.stringify(42));
     }
 
-    @Nested
-    @DisplayName("toFormValue")
-    class ToFormValueTests {
-
-        @Test
-        @DisplayName("returns empty string for null")
-        void returnsEmptyStringForNull() {
-            assertEquals("", ObjectSerializer.toFormValue(null));
-        }
-
-        @Test
-        @DisplayName("returns the string for a string value")
-        void returnsStringForStringValue() {
-            assertEquals("hello", ObjectSerializer.toFormValue("hello"));
-        }
-
-        @Test
-        @DisplayName("converts integer to string")
-        void convertsIntegerToString() {
-            assertEquals("42", ObjectSerializer.toFormValue(42));
-        }
-
-        @Test
-        @DisplayName("converts true to \"true\"")
-        void convertsTrueToString() {
-            assertEquals("true", ObjectSerializer.toFormValue(true));
-        }
-
-        @Test
-        @DisplayName("converts false to \"false\"")
-        void convertsFalseToString() {
-            assertEquals("false", ObjectSerializer.toFormValue(false));
-        }
+    @Test
+    @DisplayName("date-time returns ISO 8601 string")
+    void dateTimeReturnsIso8601String() {
+      OffsetDateTime dt = OffsetDateTime.of(2024, 1, 15, 10, 30, 0, 0, ZoneOffset.UTC);
+      String result = ObjectSerializer.stringify(dt);
+      assertTrue(result.startsWith("2024-01-15T10:30:00"));
     }
 
-    @Nested
-    @DisplayName("toCookieValue")
-    class ToCookieValueTests {
-
-        @Test
-        @DisplayName("returns empty string for null")
-        void returnsEmptyStringForNull() {
-            assertEquals("", ObjectSerializer.toCookieValue(null));
-        }
-
-        @Test
-        @DisplayName("returns the string for a string value")
-        void returnsStringForStringValue() {
-            assertEquals("hello", ObjectSerializer.toCookieValue("hello"));
-        }
-
-        @Test
-        @DisplayName("converts integer to string")
-        void convertsIntegerToString() {
-            assertEquals("42", ObjectSerializer.toCookieValue(42));
-        }
+    @Test
+    @DisplayName("plain string passes through unchanged")
+    void plainStringPassesThrough() {
+      assertEquals("hello", ObjectSerializer.stringify("hello"));
     }
 
-    @Nested
-    @DisplayName("DateTimeOffsetPreservationTests")
-    class DateTimeOffsetPreservationTests {
-
-        @Test
-        @DisplayName("UTC datetime serializes containing date-time and offset")
-        void utcDateTimeSerializesWithOffset() {
-            OffsetDateTime dt = OffsetDateTime.parse("2024-01-01T12:30:45+00:00");
-            String result = ObjectSerializer.stringify(dt);
-            assertTrue(result.contains("2024-01-01T12:30:45"), "should contain datetime: " + result);
-            assertTrue(result.contains("+00:00") || result.endsWith("Z"), "should contain UTC offset: " + result);
-        }
-
-        @Test
-        @DisplayName("datetime with +05:30 offset preserves offset in serialized string")
-        void positivOffsetPreserved() {
-            OffsetDateTime dt = OffsetDateTime.parse("2024-01-01T12:30:45+05:30");
-            String result = ObjectSerializer.stringify(dt);
-            assertTrue(result.contains("+05:30"), "should contain +05:30 offset: " + result);
-        }
-
-        @Test
-        @DisplayName("datetime with -08:00 offset preserves offset in serialized string")
-        void negativeOffsetPreserved() {
-            OffsetDateTime dt = OffsetDateTime.parse("2024-01-01T12:30:45-08:00");
-            String result = ObjectSerializer.stringify(dt);
-            assertTrue(result.contains("-08:00"), "should contain -08:00 offset: " + result);
-        }
-
-        @Test
-        @DisplayName("subseconds are dropped from serialized datetime")
-        void subsecondsTruncated() {
-            OffsetDateTime dt = OffsetDateTime.parse("2024-01-01T12:30:45.123+00:00");
-            String result = ObjectSerializer.stringify(dt);
-            assertFalse(result.contains(".123"), "subseconds should not appear: " + result);
-        }
-
-        @Test
-        @DisplayName("date-only serializes as ISO 8601 date without time component")
-        void dateOnlySerializesAsDate() {
-            java.time.LocalDate date = java.time.LocalDate.parse("2024-01-01");
-            String result = ObjectSerializer.stringify(date);
-            assertEquals("2024-01-01", result);
-        }
-
-        @Test
-        @DisplayName("serialized datetime string ends with an offset or Z")
-        void serializedDateTimeHasOffset() {
-            OffsetDateTime dt = OffsetDateTime.of(2024, 1, 1, 12, 30, 45, 0, ZoneOffset.UTC);
-            String result = ObjectSerializer.stringify(dt);
-            assertTrue(result.endsWith("+00:00") || result.endsWith("Z") || result.matches(".*[+-]\\d{2}:\\d{2}$"),
-                "should end with offset: " + result);
-        }
-
-        @Test
-        @DisplayName("round-trip: serialize then deserialize yields equivalent datetime")
-        void roundTripDateTime() {
-            OffsetDateTime original = OffsetDateTime.parse("2024-01-01T12:30:45+05:30");
-            String serialized = ObjectSerializer.stringify(original);
-            OffsetDateTime parsed = OffsetDateTime.parse(serialized);
-            assertEquals(original.toInstant(), parsed.toInstant(), "instant should match after round-trip");
-        }
+    @Test
+    @DisplayName("double returns string representation")
+    void doubleReturnsStringRepresentation() {
+      assertEquals("3.14", ObjectSerializer.stringify(3.14));
     }
 
-    @Nested
-    @DisplayName("NonAsciiSerializationTests")
-    class NonAsciiSerializationTests {
-
-        @Test
-        @DisplayName("string with accented character serializes without unicode escape")
-        void accentedCharacterNotEscaped() throws Exception {
-            String result = serializer.serialize("café");
-            assertTrue(result.contains("é"), "should contain literal é, got: " + result);
-        }
-
-        @Test
-        @DisplayName("string with CJK characters serializes without unicode escape")
-        void cjkCharactersNotEscaped() throws Exception {
-            String result = serializer.serialize("日本");
-            assertTrue(result.contains("日本"), "should contain literal CJK chars, got: " + result);
-        }
-
-        @Test
-        @DisplayName("string with tab character serializes as JSON \\t escape")
-        void tabCharacterEscapedProperly() throws Exception {
-            String result = serializer.serialize("a\tb");
-            assertTrue(result.contains("\\t"), "tab should be escaped as \\t in JSON, got: " + result);
-        }
+    @Test
+    @DisplayName("long returns string representation")
+    void longReturnsStringRepresentation() {
+      assertEquals("9007199254740993", ObjectSerializer.stringify(9007199254740993L));
     }
 
-    @Nested
-    @DisplayName("DeserializationErrorWrappingTests")
-    class DeserializationErrorWrappingTests {
-
-        @Test
-        @DisplayName("truncated JSON throws SerializationException not raw parse error")
-        void truncatedJsonThrowsSerializationException() {
-            assertThrows(ObjectSerializer.SerializationException.class, () ->
-                serializer.deserialize("{", new com.fasterxml.jackson.core.type.TypeReference<com.example.petstore.models.Category>() {}));
-        }
-
-        @Test
-        @DisplayName("type mismatch JSON throws SerializationException")
-        void typeMismatchThrowsSerializationException() {
-            assertThrows(ObjectSerializer.SerializationException.class, () ->
-                serializer.deserialize("{\"id\":\"not-a-number\",\"name\":123}", new com.fasterxml.jackson.core.type.TypeReference<com.example.petstore.models.Category>() {}));
-        }
-
-        @Test
-        @DisplayName("thrown SerializationException has cause referencing original error")
-        void serializationExceptionHasCause() {
-            ObjectSerializer.SerializationException ex = assertThrows(ObjectSerializer.SerializationException.class, () ->
-                serializer.deserialize("{", new com.fasterxml.jackson.core.type.TypeReference<com.example.petstore.models.Category>() {}));
-            assertNotNull(ex.getCause(), "exception should have a cause");
-        }
+    @Test
+    @DisplayName("UUID returns string representation")
+    void uuidReturnsStringRepresentation() {
+      UUID uuid = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+      assertEquals("550e8400-e29b-41d4-a716-446655440000", ObjectSerializer.stringify(uuid));
     }
 
-    @Nested
-    @DisplayName("serialize")
-    class SerializeTests {
+    @Test
+    @DisplayName("LocalDate returns ISO 8601 date string")
+    void localDateReturnsIso8601DateString() {
+      LocalDate date = LocalDate.of(2024, 1, 15);
+      assertEquals("2024-01-15", ObjectSerializer.stringify(date));
+    }
+  }
 
-        @Test
-        @DisplayName("serializes a model to valid JSON")
-        void serializesModelToValidJson() {
-            com.example.petstore.models.Category category = new com.example.petstore.models.Category();
-            category.id = 1L;
-            category.name = "Dogs";
-            String json = serializer.serialize(category);
-            assertTrue(json.contains("\"id\":1"));
-            assertTrue(json.contains("\"name\":\"Dogs\""));
-        }
+  @Nested
+  @DisplayName("toPathValue")
+  class ToPathValueTests {
 
-        @Test
-        @DisplayName("handles null")
-        void handlesNull() {
-            String json = serializer.serialize(null);
-            assertEquals("null", json);
-        }
-
-        @Test
-        @DisplayName("includes fields explicitly set to default values")
-        void includesFieldsSetToDefaultValues() {
-            com.example.petstore.models.Category category = new com.example.petstore.models.Category();
-            category.id = 0L;
-            category.name = "";
-            String json = serializer.serialize(category);
-            assertTrue(json.contains("\"id\":0"), "serialized JSON should include id=0, got: " + json);
-            assertTrue(json.contains("\"name\":\"\""), "serialized JSON should include empty name, got: " + json);
-        }
-
-        @Test
-        @DisplayName("omits fields that are null from JSON output")
-        void omitsNullFieldsFromJson() {
-            // Gap #13: nulls must be discarded on serialize (Jackson NON_NULL inclusion).
-            com.example.petstore.models.Category category = new com.example.petstore.models.Category();
-            category.id = 1L;
-            category.name = null;
-            String json = serializer.serialize(category);
-            assertTrue(json.contains("\"id\":1"), "serialized JSON should include id=1, got: " + json);
-            assertFalse(json.contains("\"name\""),
-                    "serialized JSON must NOT include null name field, got: " + json);
-        }
+    @Test
+    @DisplayName("returns empty string for null")
+    void returnsEmptyStringForNull() {
+      assertEquals("", ObjectSerializer.toPathValue(null));
     }
 
-    @Nested
-    @DisplayName("deserialize")
-    class DeserializeTests {
-
-        @Test
-        @DisplayName("deserializes JSON to typed model")
-        void deserializesJsonToTypedModel() {
-            String json = "{\"id\":1,\"name\":\"Dogs\"}";
-            com.example.petstore.models.Category category =
-                    serializer.deserialize(
-                            json,
-                            new com.fasterxml.jackson.core.type.TypeReference<
-                                    com.example.petstore.models.Category>() {});
-            assertNotNull(category);
-            assertEquals(1L, category.id);
-            assertEquals("Dogs", category.name);
-        }
-
-        @Test
-        @DisplayName("returns null for empty input")
-        void returnsNullForEmptyInput() {
-            assertNull(
-                    serializer.deserialize(
-                            "",
-                            new com.fasterxml.jackson.core.type.TypeReference<
-                                    com.example.petstore.models.Category>() {}));
-        }
-
-        @Test
-        @DisplayName("returns null for null input")
-        void returnsNullForNullInput() {
-            assertNull(
-                    serializer.deserialize(
-                            null,
-                            new com.fasterxml.jackson.core.type.TypeReference<
-                                    com.example.petstore.models.Category>() {}));
-        }
-
-        @Test
-        @DisplayName("ignores unknown properties in JSON input")
-        void ignoresUnknownPropertiesInJsonInput() {
-            // Gap #14: extras must be discarded on deserialize (FAIL_ON_UNKNOWN_PROPERTIES=false).
-            String json =
-                    "{\"id\":42,\"name\":\"Dogs\",\"unexpectedField\":\"surprise\","
-                            + "\"another\":123}";
-            com.example.petstore.models.Category category = assertDoesNotThrow(() ->
-                    serializer.deserialize(
-                            json,
-                            new com.fasterxml.jackson.core.type.TypeReference<
-                                    com.example.petstore.models.Category>() {}));
-            assertNotNull(category);
-            assertEquals(42L, category.id);
-            assertEquals("Dogs", category.name);
-        }
+    @Test
+    @DisplayName("returns the string for a string value")
+    void returnsStringForStringValue() {
+      assertEquals("hello", ObjectSerializer.toPathValue("hello"));
     }
+
+    @Test
+    @DisplayName("converts integer to string")
+    void convertsIntegerToString() {
+      assertEquals("42", ObjectSerializer.toPathValue(42));
+    }
+
+    @Test
+    @DisplayName("converts true to \"true\"")
+    void convertsTrueToString() {
+      assertEquals("true", ObjectSerializer.toPathValue(true));
+    }
+
+    @Test
+    @DisplayName("converts false to \"false\"")
+    void convertsFalseToString() {
+      assertEquals("false", ObjectSerializer.toPathValue(false));
+    }
+  }
+
+  @Nested
+  @DisplayName("toQueryValue")
+  class ToQueryValueTests {
+
+    @Test
+    @DisplayName("returns null for null")
+    void returnsNullForNull() {
+      assertNull(ObjectSerializer.toQueryValue(null, null));
+    }
+
+    @Test
+    @DisplayName("returns the string for a string value")
+    void returnsStringForStringValue() {
+      assertEquals("hello", ObjectSerializer.toQueryValue("hello", null));
+    }
+
+    @Test
+    @DisplayName("converts integer to string")
+    void convertsIntegerToString() {
+      assertEquals("42", ObjectSerializer.toQueryValue(42, null));
+    }
+
+    @Test
+    @DisplayName("converts true to \"true\"")
+    void convertsTrueToString() {
+      assertEquals("true", ObjectSerializer.toQueryValue(true, null));
+    }
+
+    @Test
+    @DisplayName("converts false to \"false\"")
+    void convertsFalseToString() {
+      assertEquals("false", ObjectSerializer.toQueryValue(false, null));
+    }
+
+    @Test
+    @DisplayName("joins array with comma by default")
+    void joinsArrayWithCommaByDefault() {
+      List<String> list = Arrays.asList("a", "b", "c");
+      assertEquals("a,b,c", ObjectSerializer.toQueryValue(list, null));
+    }
+
+    @Test
+    @DisplayName("joins array with comma for csv")
+    void joinsArrayWithCommaForCsv() {
+      List<String> list = Arrays.asList("a", "b", "c");
+      assertEquals("a,b,c", ObjectSerializer.toQueryValue(list, "csv"));
+    }
+
+    @Test
+    @DisplayName("joins array with space for ssv")
+    void joinsArrayWithSpaceForSsv() {
+      List<String> list = Arrays.asList("a", "b", "c");
+      assertEquals("a b c", ObjectSerializer.toQueryValue(list, "ssv"));
+    }
+
+    @Test
+    @DisplayName("joins array with tab for tsv")
+    void joinsArrayWithTabForTsv() {
+      List<String> list = Arrays.asList("a", "b", "c");
+      assertEquals("a\tb\tc", ObjectSerializer.toQueryValue(list, "tsv"));
+    }
+
+    @Test
+    @DisplayName("joins array with pipe for pipes")
+    void joinsArrayWithPipeForPipes() {
+      List<String> list = Arrays.asList("a", "b", "c");
+      assertEquals("a|b|c", ObjectSerializer.toQueryValue(list, "pipes"));
+    }
+
+    @Test
+    @DisplayName("returns array as-is for multi")
+    void returnsArrayForMulti() {
+      List<String> list = Arrays.asList("a", "b", "c");
+      assertEquals(list, ObjectSerializer.toQueryValue(list, "multi"));
+    }
+  }
+
+  @Nested
+  @DisplayName("toHeaderValue")
+  class ToHeaderValueTests {
+
+    @Test
+    @DisplayName("returns empty string for null")
+    void returnsEmptyStringForNull() {
+      assertEquals("", ObjectSerializer.toHeaderValue(null));
+    }
+
+    @Test
+    @DisplayName("returns the string for a string value")
+    void returnsStringForStringValue() {
+      assertEquals("hello", ObjectSerializer.toHeaderValue("hello"));
+    }
+
+    @Test
+    @DisplayName("converts integer to string")
+    void convertsIntegerToString() {
+      assertEquals("42", ObjectSerializer.toHeaderValue(42));
+    }
+
+    @Test
+    @DisplayName("joins array with comma")
+    void joinsArrayWithComma() {
+      List<String> list = Arrays.asList("a", "b", "c");
+      assertEquals("a,b,c", ObjectSerializer.toHeaderValue(list));
+    }
+  }
+
+  @Nested
+  @DisplayName("toFormValue")
+  class ToFormValueTests {
+
+    @Test
+    @DisplayName("returns empty string for null")
+    void returnsEmptyStringForNull() {
+      assertEquals("", ObjectSerializer.toFormValue(null));
+    }
+
+    @Test
+    @DisplayName("returns the string for a string value")
+    void returnsStringForStringValue() {
+      assertEquals("hello", ObjectSerializer.toFormValue("hello"));
+    }
+
+    @Test
+    @DisplayName("converts integer to string")
+    void convertsIntegerToString() {
+      assertEquals("42", ObjectSerializer.toFormValue(42));
+    }
+
+    @Test
+    @DisplayName("converts true to \"true\"")
+    void convertsTrueToString() {
+      assertEquals("true", ObjectSerializer.toFormValue(true));
+    }
+
+    @Test
+    @DisplayName("converts false to \"false\"")
+    void convertsFalseToString() {
+      assertEquals("false", ObjectSerializer.toFormValue(false));
+    }
+  }
+
+  @Nested
+  @DisplayName("toCookieValue")
+  class ToCookieValueTests {
+
+    @Test
+    @DisplayName("returns empty string for null")
+    void returnsEmptyStringForNull() {
+      assertEquals("", ObjectSerializer.toCookieValue(null));
+    }
+
+    @Test
+    @DisplayName("returns the string for a string value")
+    void returnsStringForStringValue() {
+      assertEquals("hello", ObjectSerializer.toCookieValue("hello"));
+    }
+
+    @Test
+    @DisplayName("converts integer to string")
+    void convertsIntegerToString() {
+      assertEquals("42", ObjectSerializer.toCookieValue(42));
+    }
+  }
+
+  @Nested
+  @DisplayName("DateTimeOffsetPreservationTests")
+  class DateTimeOffsetPreservationTests {
+
+    @Test
+    @DisplayName("UTC datetime serializes containing date-time and offset")
+    void utcDateTimeSerializesWithOffset() {
+      OffsetDateTime dt = OffsetDateTime.parse("2024-01-01T12:30:45+00:00");
+      String result = ObjectSerializer.stringify(dt);
+      assertTrue(result.contains("2024-01-01T12:30:45"), "should contain datetime: " + result);
+      assertTrue(
+          result.contains("+00:00") || result.endsWith("Z"),
+          "should contain UTC offset: " + result);
+    }
+
+    @Test
+    @DisplayName("datetime with +05:30 offset preserves offset in serialized string")
+    void positivOffsetPreserved() {
+      OffsetDateTime dt = OffsetDateTime.parse("2024-01-01T12:30:45+05:30");
+      String result = ObjectSerializer.stringify(dt);
+      assertTrue(result.contains("+05:30"), "should contain +05:30 offset: " + result);
+    }
+
+    @Test
+    @DisplayName("datetime with -08:00 offset preserves offset in serialized string")
+    void negativeOffsetPreserved() {
+      OffsetDateTime dt = OffsetDateTime.parse("2024-01-01T12:30:45-08:00");
+      String result = ObjectSerializer.stringify(dt);
+      assertTrue(result.contains("-08:00"), "should contain -08:00 offset: " + result);
+    }
+
+    @Test
+    @DisplayName("subseconds are dropped from serialized datetime")
+    void subsecondsTruncated() {
+      OffsetDateTime dt = OffsetDateTime.parse("2024-01-01T12:30:45.123+00:00");
+      String result = ObjectSerializer.stringify(dt);
+      assertFalse(result.contains(".123"), "subseconds should not appear: " + result);
+    }
+
+    @Test
+    @DisplayName("date-only serializes as ISO 8601 date without time component")
+    void dateOnlySerializesAsDate() {
+      java.time.LocalDate date = java.time.LocalDate.parse("2024-01-01");
+      String result = ObjectSerializer.stringify(date);
+      assertEquals("2024-01-01", result);
+    }
+
+    @Test
+    @DisplayName("serialized datetime string ends with an offset or Z")
+    void serializedDateTimeHasOffset() {
+      OffsetDateTime dt = OffsetDateTime.of(2024, 1, 1, 12, 30, 45, 0, ZoneOffset.UTC);
+      String result = ObjectSerializer.stringify(dt);
+      assertTrue(
+          result.endsWith("+00:00")
+              || result.endsWith("Z")
+              || result.matches(".*[+-]\\d{2}:\\d{2}$"),
+          "should end with offset: " + result);
+    }
+
+    @Test
+    @DisplayName("round-trip: serialize then deserialize yields equivalent datetime")
+    void roundTripDateTime() {
+      OffsetDateTime original = OffsetDateTime.parse("2024-01-01T12:30:45+05:30");
+      String serialized = ObjectSerializer.stringify(original);
+      OffsetDateTime parsed = OffsetDateTime.parse(serialized);
+      assertEquals(
+          original.toInstant(), parsed.toInstant(), "instant should match after round-trip");
+    }
+  }
+
+  @Nested
+  @DisplayName("NonAsciiSerializationTests")
+  class NonAsciiSerializationTests {
+
+    @Test
+    @DisplayName("string with accented character serializes without unicode escape")
+    void accentedCharacterNotEscaped() throws Exception {
+      String result = serializer.serialize("café");
+      assertTrue(result.contains("é"), "should contain literal é, got: " + result);
+    }
+
+    @Test
+    @DisplayName("string with CJK characters serializes without unicode escape")
+    void cjkCharactersNotEscaped() throws Exception {
+      String result = serializer.serialize("日本");
+      assertTrue(result.contains("日本"), "should contain literal CJK chars, got: " + result);
+    }
+
+    @Test
+    @DisplayName("string with tab character serializes as JSON \\t escape")
+    void tabCharacterEscapedProperly() throws Exception {
+      String result = serializer.serialize("a\tb");
+      assertTrue(result.contains("\\t"), "tab should be escaped as \\t in JSON, got: " + result);
+    }
+  }
+
+  @Nested
+  @DisplayName("DeserializationErrorWrappingTests")
+  class DeserializationErrorWrappingTests {
+
+    @Test
+    @DisplayName("truncated JSON throws SerializationException not raw parse error")
+    void truncatedJsonThrowsSerializationException() {
+      assertThrows(
+          ObjectSerializer.SerializationException.class,
+          () ->
+              serializer.deserialize(
+                  "{",
+                  new com.fasterxml.jackson.core.type.TypeReference<
+                      com.example.petstore.models.Category>() {}));
+    }
+
+    @Test
+    @DisplayName("type mismatch JSON throws SerializationException")
+    void typeMismatchThrowsSerializationException() {
+      assertThrows(
+          ObjectSerializer.SerializationException.class,
+          () ->
+              serializer.deserialize(
+                  "{\"id\":\"not-a-number\",\"name\":123}",
+                  new com.fasterxml.jackson.core.type.TypeReference<
+                      com.example.petstore.models.Category>() {}));
+    }
+
+    @Test
+    @DisplayName("thrown SerializationException has cause referencing original error")
+    void serializationExceptionHasCause() {
+      ObjectSerializer.SerializationException ex =
+          assertThrows(
+              ObjectSerializer.SerializationException.class,
+              () ->
+                  serializer.deserialize(
+                      "{",
+                      new com.fasterxml.jackson.core.type.TypeReference<
+                          com.example.petstore.models.Category>() {}));
+      assertNotNull(ex.getCause(), "exception should have a cause");
+    }
+  }
+
+  @Nested
+  @DisplayName("serialize")
+  class SerializeTests {
+
+    @Test
+    @DisplayName("serializes a model to valid JSON")
+    void serializesModelToValidJson() {
+      com.example.petstore.models.Category category = new com.example.petstore.models.Category();
+      category.id = 1L;
+      category.name = "Dogs";
+      String json = serializer.serialize(category);
+      assertTrue(json.contains("\"id\":1"));
+      assertTrue(json.contains("\"name\":\"Dogs\""));
+    }
+
+    @Test
+    @DisplayName("handles null")
+    void handlesNull() {
+      String json = serializer.serialize(null);
+      assertEquals("null", json);
+    }
+
+    @Test
+    @DisplayName("includes fields explicitly set to default values")
+    void includesFieldsSetToDefaultValues() {
+      com.example.petstore.models.Category category = new com.example.petstore.models.Category();
+      category.id = 0L;
+      category.name = "";
+      String json = serializer.serialize(category);
+      assertTrue(json.contains("\"id\":0"), "serialized JSON should include id=0, got: " + json);
+      assertTrue(
+          json.contains("\"name\":\"\""),
+          "serialized JSON should include empty name, got: " + json);
+    }
+
+    @Test
+    @DisplayName("omits fields that are null from JSON output")
+    void omitsNullFieldsFromJson() {
+      // Gap #13: nulls must be discarded on serialize (Jackson NON_NULL inclusion).
+      com.example.petstore.models.Category category = new com.example.petstore.models.Category();
+      category.id = 1L;
+      category.name = null;
+      String json = serializer.serialize(category);
+      assertTrue(json.contains("\"id\":1"), "serialized JSON should include id=1, got: " + json);
+      assertFalse(
+          json.contains("\"name\""),
+          "serialized JSON must NOT include null name field, got: " + json);
+    }
+  }
+
+  @Nested
+  @DisplayName("deserialize")
+  class DeserializeTests {
+
+    @Test
+    @DisplayName("deserializes JSON to typed model")
+    void deserializesJsonToTypedModel() {
+      String json = "{\"id\":1,\"name\":\"Dogs\"}";
+      com.example.petstore.models.Category category =
+          serializer.deserialize(
+              json,
+              new com.fasterxml.jackson.core.type.TypeReference<
+                  com.example.petstore.models.Category>() {});
+      assertNotNull(category);
+      assertEquals(1L, category.id);
+      assertEquals("Dogs", category.name);
+    }
+
+    @Test
+    @DisplayName("returns null for empty input")
+    void returnsNullForEmptyInput() {
+      assertNull(
+          serializer.deserialize(
+              "",
+              new com.fasterxml.jackson.core.type.TypeReference<
+                  com.example.petstore.models.Category>() {}));
+    }
+
+    @Test
+    @DisplayName("returns null for null input")
+    void returnsNullForNullInput() {
+      assertNull(
+          serializer.deserialize(
+              null,
+              new com.fasterxml.jackson.core.type.TypeReference<
+                  com.example.petstore.models.Category>() {}));
+    }
+
+    @Test
+    @DisplayName("ignores unknown properties in JSON input")
+    void ignoresUnknownPropertiesInJsonInput() {
+      // Gap #14: extras must be discarded on deserialize (FAIL_ON_UNKNOWN_PROPERTIES=false).
+      String json =
+          "{\"id\":42,\"name\":\"Dogs\",\"unexpectedField\":\"surprise\"," + "\"another\":123}";
+      com.example.petstore.models.Category category =
+          assertDoesNotThrow(
+              () ->
+                  serializer.deserialize(
+                      json,
+                      new com.fasterxml.jackson.core.type.TypeReference<
+                          com.example.petstore.models.Category>() {}));
+      assertNotNull(category);
+      assertEquals(42L, category.id);
+      assertEquals("Dogs", category.name);
+    }
+  }
 }

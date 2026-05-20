@@ -13,6 +13,7 @@ from petstore_client.auth.oauth.client_auth_method import ClientAuthMethod
 from petstore_client.auth.oauth.oauth2_password_authenticator import OAuth2PasswordAuthenticator
 from petstore_client.api_response import ApiResponse
 
+
 def _create_authenticator() -> OAuth2PasswordAuthenticator:
     return OAuth2PasswordAuthenticator(
         host='https://api.example.com',
@@ -24,22 +25,25 @@ def _create_authenticator() -> OAuth2PasswordAuthenticator:
         scopes=['read', 'write'],
     )
 
+
 def _create_authenticator_with_mock() -> tuple[OAuth2PasswordAuthenticator, MagicMock]:
     auth = _create_authenticator()
     mock_client = MagicMock()
     mock_client.send_request.return_value = ApiResponse(
         status_code=200,
-        body=json.dumps({
-            'access_token': 'pw_token',
-            'expires_in': 3600,
-        }),
+        body=json.dumps(
+            {
+                'access_token': 'pw_token',
+                'expires_in': 3600,
+            }
+        ),
         headers={'content-type': 'application/json'},
     )
     auth.set_api_client(mock_client)
     return auth, mock_client
 
-class TestOAuth2PasswordAuthenticator:
 
+class TestOAuth2PasswordAuthenticator:
     def test_sends_password_grant_type(self) -> None:
         auth, mock_client = _create_authenticator_with_mock()
 
@@ -74,10 +78,12 @@ class TestOAuth2PasswordAuthenticator:
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiResponse(
             status_code=200,
-            body=json.dumps({
-                'access_token': 'tok-pwd',
-                'expires_in': 3600,
-            }),
+            body=json.dumps(
+                {
+                    'access_token': 'tok-pwd',
+                    'expires_in': 3600,
+                }
+            ),
             headers={'content-type': 'application/json'},
         )
         auth.set_api_client(mock_client)
@@ -92,19 +98,23 @@ class TestOAuth2PasswordAuthenticator:
         mock_client.send_request.side_effect = [
             ApiResponse(
                 status_code=200,
-                body=json.dumps({
-                    'access_token': 'tok1',
-                    'refresh_token': 'ref1',
-                    'expires_in': 0,
-                }),
+                body=json.dumps(
+                    {
+                        'access_token': 'tok1',
+                        'refresh_token': 'ref1',
+                        'expires_in': 0,
+                    }
+                ),
                 headers={'content-type': 'application/json'},
             ),
             ApiResponse(
                 status_code=200,
-                body=json.dumps({
-                    'access_token': 'tok2',
-                    'expires_in': 3600,
-                }),
+                body=json.dumps(
+                    {
+                        'access_token': 'tok2',
+                        'expires_in': 3600,
+                    }
+                ),
                 headers={'content-type': 'application/json'},
             ),
         ]
@@ -153,5 +163,5 @@ class TestOAuth2PasswordAuthenticator:
         headers = call_args[0][2]
         auth_header = headers['Authorization']
         assert auth_header.startswith('Basic ')
-        decoded = base64.b64decode(auth_header[len('Basic '):]).decode('utf-8')
+        decoded = base64.b64decode(auth_header[len('Basic ') :]).decode('utf-8')
         assert decoded == 'id%2Bwith%2Fspecial:secret%26with%3Dstuff'

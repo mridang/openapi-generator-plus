@@ -7,10 +7,14 @@
 
 import 'oauth2_client_credentials_authenticator.dart';
 
-class MachineAuthClientCredentialsAuthenticator extends OAuth2ClientCredentialsAuthenticator {
+class MachineAuthClientCredentialsAuthenticator
+    extends OAuth2ClientCredentialsAuthenticator {
   MachineAuthClientCredentialsAuthenticator({
-    required String host, required String clientId, required String clientSecret,
+    required super.host,
+    required super.clientId,
+    required super.clientSecret,
   }) : super(
-         host: host, clientId: clientId, clientSecret: clientSecret, tokenUrl: 'https://auth.example.com/oauth/token', scopes: ['pets:write', 'pets:read'],
-       );
+          tokenUrl: 'https://auth.example.com/oauth/token',
+          scopes: ['pets:write', 'pets:read'],
+        );
 }

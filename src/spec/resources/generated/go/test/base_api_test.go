@@ -14,7 +14,7 @@ import (
 	"strings"
 	"testing"
 
-	"petstore/pkg"
+	petstore "petstore/pkg"
 	apierrors "petstore/pkg/errors"
 	"petstore/pkg/models"
 	"petstore/pkg/options"
@@ -67,7 +67,9 @@ func TestBaseApi_ErrorDispatch(t *testing.T) {
 			// Use the DefaultApiClient directly to call WireMock error endpoints
 			client := petstore.NewDefaultApiClient(nil)
 			resp, err := client.SendRequest("GET", wiremockHTTPURL+"/api/error/"+strings.TrimSpace(
-				func() string { return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(tc.errType, "BadRequestError", "400"), "UnauthorizedError", "401"), "ForbiddenError", "403"), "NotFoundError", "404"), "ConflictError", "409"), "UnprocessableEntityError", "422"), "InternalServerError", "500"), "ServerError", "502") }()),
+				func() string {
+					return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(tc.errType, "BadRequestError", "400"), "UnauthorizedError", "401"), "ForbiddenError", "403"), "NotFoundError", "404"), "ConflictError", "409"), "UnprocessableEntityError", "422"), "InternalServerError", "500"), "ServerError", "502")
+				}()),
 				map[string]string{}, nil)
 
 			// The raw client returns the response; BaseApi would dispatch the error

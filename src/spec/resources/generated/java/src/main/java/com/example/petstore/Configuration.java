@@ -15,12 +15,12 @@ import javax.annotation.Nullable;
 /**
  * API-level configuration for generated client classes.
  *
- * <p>Holds the base URL and default headers that are applied to every API
- * request. Transport-level settings (TLS, proxy, timeouts) belong in
- * {@link TransportOptions} and are configured on the {@link DefaultApiClient}.
+ * <p>Holds the base URL and default headers that are applied to every API request. Transport-level
+ * settings (TLS, proxy, timeouts) belong in {@link TransportOptions} and are configured on the
+ * {@link DefaultApiClient}.
  *
- * <p>This class is immutable and thread-safe. Use {@link #builder()} to
- * create instances:
+ * <p>This class is immutable and thread-safe. Use {@link #builder()} to create instances:
+ *
  * <pre>{@code
  * Configuration config = Configuration.builder()
  *     .baseUrl("https://api.example.com")
@@ -30,162 +30,158 @@ import javax.annotation.Nullable;
  */
 public final class Configuration {
 
-    @javax.annotation.Nullable private static volatile Configuration defaultInstance;
+  @javax.annotation.Nullable private static volatile Configuration defaultInstance;
 
-    private final String              baseUrl;
-    private final Map<String, String> defaultHeaders;
+  private final String baseUrl;
+  private final Map<String, String> defaultHeaders;
 
-    Configuration(String baseUrl, Map<String, String> defaultHeaders) {
-        this.baseUrl        = baseUrl;
-        this.defaultHeaders = Collections.unmodifiableMap(new HashMap<>(defaultHeaders));
-    }
+  Configuration(String baseUrl, Map<String, String> defaultHeaders) {
+    this.baseUrl = baseUrl;
+    this.defaultHeaders = Collections.unmodifiableMap(new HashMap<>(defaultHeaders));
+  }
 
-    /**
-     * Create a new builder for constructing {@link Configuration} instances.
-     *
-     * @return a new builder
-     */
-    public static Builder builder() {
-        return new Builder();
-    }
+  /**
+   * Create a new builder for constructing {@link Configuration} instances.
+   *
+   * @return a new builder
+   */
+  public static Builder builder() {
+    return new Builder();
+  }
 
-    /**
-     * Return the default configuration instance.
-     *
-     * <p>If no default has been set via {@link #setDefault(Configuration)},
-     * a new instance is created with the spec-defined base URL and no
-     * default headers.
-     *
-     * @return the default configuration
-     */
-    public static Configuration getDefault() {
-        Configuration result = defaultInstance;
+  /**
+   * Return the default configuration instance.
+   *
+   * <p>If no default has been set via {@link #setDefault(Configuration)}, a new instance is created
+   * with the spec-defined base URL and no default headers.
+   *
+   * @return the default configuration
+   */
+  public static Configuration getDefault() {
+    Configuration result = defaultInstance;
+    if (result == null) {
+      synchronized (Configuration.class) {
+        result = defaultInstance;
         if (result == null) {
-            synchronized (Configuration.class) {
-                result = defaultInstance;
-                if (result == null) {
-                    result = builder().build();
-                    defaultInstance = result;
-                }
-            }
+          result = builder().build();
+          defaultInstance = result;
         }
-        return result;
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Set the default configuration instance.
+   *
+   * @param config the configuration to use as default
+   */
+  public static void setDefault(Configuration config) {
+    defaultInstance = config;
+  }
+
+  /**
+   * The base URL for all API requests.
+   *
+   * <p>Defaults to the first server URL from the OpenAPI specification.
+   *
+   * @return the base URL
+   */
+  public String getBaseUrl() {
+    return baseUrl;
+  }
+
+  /**
+   * Default headers included in every API request.
+   *
+   * <p>These headers are merged after transport-level headers from {@link TransportOptions} but
+   * before operation-specific headers and authentication headers.
+   *
+   * @return an unmodifiable map of header names to values
+   */
+  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+      value = "EI_EXPOSE_REP",
+      justification = "defaultHeaders is already an unmodifiable map")
+  public Map<String, String> getDefaultHeaders() {
+    return defaultHeaders;
+  }
+
+  /** Builder for creating immutable {@link Configuration} instances. */
+  public static final class Builder {
+
+    private String baseUrl = "/api/v3";
+    private final Map<String, String> defaultHeaders = new HashMap<>();
+
+    Builder() {}
+
+    /**
+     * Set the base URL for all API requests.
+     *
+     * @param baseUrl the base URL
+     * @return this builder
+     */
+    public Builder baseUrl(String baseUrl) {
+      this.baseUrl = baseUrl;
+      return this;
     }
 
     /**
-     * Set the default configuration instance.
+     * Add a single default header to include in every API request.
      *
-     * @param config the configuration to use as default
+     * @param name header name
+     * @param value header value
+     * @return this builder
      */
-    public static void setDefault(Configuration config) {
-        defaultInstance = config;
+    public Builder defaultHeader(String name, String value) {
+      this.defaultHeaders.put(name, value);
+      return this;
     }
 
     /**
-     * The base URL for all API requests.
+     * Add multiple default headers to include in every API request.
      *
-     * <p>Defaults to the first server URL from the OpenAPI specification.
-     *
-     * @return the base URL
+     * @param headers map of header names to values
+     * @return this builder
      */
-    public String getBaseUrl() {
-        return baseUrl;
+    public Builder defaultHeaders(Map<String, String> headers) {
+      this.defaultHeaders.putAll(headers);
+      return this;
     }
 
     /**
-     * Default headers included in every API request.
+     * Use a server configuration with variable overrides to set the base URL.
      *
-     * <p>These headers are merged after transport-level headers from
-     * {@link TransportOptions} but before operation-specific headers
-     * and authentication headers.
+     * <p>Resolves the server URL template with the given variable overrides and uses the result as
+     * the base URL. Variables not present in the map use their default values. Enum validation is
+     * performed by {@link ServerConfiguration#getUrl(Map)}.
      *
-     * @return an unmodifiable map of header names to values
+     * @param serverConfig the server configuration to use
+     * @param variables variable overrides (may be null for defaults)
+     * @return this builder
      */
-    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
-        value = "EI_EXPOSE_REP",
-        justification = "defaultHeaders is already an unmodifiable map")
-    public Map<String, String> getDefaultHeaders() {
-        return defaultHeaders;
+    public Builder server(
+        ServerConfiguration serverConfig, @Nullable Map<String, String> variables) {
+      this.baseUrl = serverConfig.getUrl(variables != null ? variables : Map.of());
+      return this;
     }
 
     /**
-     * Builder for creating immutable {@link Configuration} instances.
+     * Use a server configuration with default variables to set the base URL.
+     *
+     * @param serverConfig the server configuration to use
+     * @return this builder
      */
-    public static final class Builder {
-
-        private String                    baseUrl        = "/api/v3";
-        private final Map<String, String> defaultHeaders = new HashMap<>();
-
-        Builder() {}
-
-        /**
-         * Set the base URL for all API requests.
-         *
-         * @param baseUrl the base URL
-         * @return this builder
-         */
-        public Builder baseUrl(String baseUrl) {
-            this.baseUrl = baseUrl;
-            return this;
-        }
-
-        /**
-         * Add a single default header to include in every API request.
-         *
-         * @param name  header name
-         * @param value header value
-         * @return this builder
-         */
-        public Builder defaultHeader(String name, String value) {
-            this.defaultHeaders.put(name, value);
-            return this;
-        }
-
-        /**
-         * Add multiple default headers to include in every API request.
-         *
-         * @param headers map of header names to values
-         * @return this builder
-         */
-        public Builder defaultHeaders(Map<String, String> headers) {
-            this.defaultHeaders.putAll(headers);
-            return this;
-        }
-
-        /**
-         * Use a server configuration with variable overrides to set the base URL.
-         *
-         * <p>Resolves the server URL template with the given variable overrides
-         * and uses the result as the base URL. Variables not present in the map
-         * use their default values. Enum validation is performed by
-         * {@link ServerConfiguration#getUrl(Map)}.
-         *
-         * @param serverConfig the server configuration to use
-         * @param variables    variable overrides (may be null for defaults)
-         * @return this builder
-         */
-        public Builder server(ServerConfiguration serverConfig, @Nullable Map<String, String> variables) {
-            this.baseUrl = serverConfig.getUrl(variables != null ? variables : Map.of());
-            return this;
-        }
-
-        /**
-         * Use a server configuration with default variables to set the base URL.
-         *
-         * @param serverConfig the server configuration to use
-         * @return this builder
-         */
-        public Builder server(ServerConfiguration serverConfig) {
-            return server(serverConfig, null);
-        }
-
-        /**
-         * Build and return an immutable {@link Configuration} instance.
-         *
-         * @return the configured instance
-         */
-        public Configuration build() {
-            return new Configuration(baseUrl, new HashMap<>(defaultHeaders));
-        }
+    public Builder server(ServerConfiguration serverConfig) {
+      return server(serverConfig, null);
     }
+
+    /**
+     * Build and return an immutable {@link Configuration} instance.
+     *
+     * @return the configured instance
+     */
+    public Configuration build() {
+      return new Configuration(baseUrl, new HashMap<>(defaultHeaders));
+    }
+  }
 }

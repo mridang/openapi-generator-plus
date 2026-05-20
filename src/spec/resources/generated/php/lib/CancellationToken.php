@@ -1,4 +1,5 @@
 <?php
+
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -12,11 +13,13 @@ declare(strict_types=1);
 
 namespace PetstoreClient;
 
+use Symfony\Contracts\HttpClient\ResponseInterface;
+
 /**
  * Cooperative cancellation token used to abort an in-flight or pending API request.
  *
  * The token is checked before dispatching the underlying HTTP request and is
- * also handed to the transport so that {@see \Symfony\Contracts\HttpClient\ResponseInterface::cancel()}
+ * also handed to the transport so that {@see ResponseInterface::cancel()}
  * can be invoked on the in-flight Symfony response when supported.
  *
  * Typical usage:

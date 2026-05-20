@@ -18,162 +18,168 @@ import org.junit.jupiter.api.Test;
 
 class OAuth2PasswordAuthenticatorTest {
 
-    private static OAuth2PasswordAuthenticator createAuthenticator() {
-        return new OAuth2PasswordAuthenticator(
-                "https://api.example.com",
-                "my-client-id",
-                "my-client-secret",
-                "https://auth.example.com/token",
-                "testuser",
-                "testpass",
-                List.of("read", "write"));
-    }
+  private static OAuth2PasswordAuthenticator createAuthenticator() {
+    return new OAuth2PasswordAuthenticator(
+        "https://api.example.com",
+        "my-client-id",
+        "my-client-secret",
+        "https://auth.example.com/token",
+        "testuser",
+        "testpass",
+        List.of("read", "write"));
+  }
 
-    @Test
-    void sendsPasswordGrantType() {
-        AtomicReference<String> capturedBody = new AtomicReference<>();
-        ApiClient client = (method, url, headers, body) -> {
-            capturedBody.set(body != null ? body.toString() : "");
-            return new ApiResponse(200,
-                    "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+  @Test
+  void sendsPasswordGrantType() {
+    AtomicReference<String> capturedBody = new AtomicReference<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          capturedBody.set(body != null ? body.toString() : "");
+          return new ApiResponse(200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
         };
 
-        OAuth2PasswordAuthenticator auth = createAuthenticator();
-        auth.setApiClient(client);
+    OAuth2PasswordAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
 
-        auth.getAuthHeaders();
+    auth.getAuthHeaders();
 
-        String body = capturedBody.get();
-        assertNotNull(body);
-        assertTrue(body.contains("grant_type=password"));
-    }
+    String body = capturedBody.get();
+    assertNotNull(body);
+    assertTrue(body.contains("grant_type=password"));
+  }
 
-    @Test
-    void sendsUsernameAndPassword() {
-        AtomicReference<String> capturedBody = new AtomicReference<>();
-        ApiClient client = (method, url, headers, body) -> {
-            capturedBody.set(body != null ? body.toString() : "");
-            return new ApiResponse(200,
-                    "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+  @Test
+  void sendsUsernameAndPassword() {
+    AtomicReference<String> capturedBody = new AtomicReference<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          capturedBody.set(body != null ? body.toString() : "");
+          return new ApiResponse(200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
         };
 
-        OAuth2PasswordAuthenticator auth = createAuthenticator();
-        auth.setApiClient(client);
+    OAuth2PasswordAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
 
-        auth.getAuthHeaders();
+    auth.getAuthHeaders();
 
-        String body = capturedBody.get();
-        assertNotNull(body);
-        assertTrue(body.contains("username=testuser"));
-        assertTrue(body.contains("password=testpass"));
-    }
+    String body = capturedBody.get();
+    assertNotNull(body);
+    assertTrue(body.contains("username=testuser"));
+    assertTrue(body.contains("password=testpass"));
+  }
 
-    @Test
-    void sendsClientIdAndSecret() {
-        AtomicReference<String> capturedBody = new AtomicReference<>();
-        ApiClient client = (method, url, headers, body) -> {
-            capturedBody.set(body != null ? body.toString() : "");
-            return new ApiResponse(200,
-                    "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+  @Test
+  void sendsClientIdAndSecret() {
+    AtomicReference<String> capturedBody = new AtomicReference<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          capturedBody.set(body != null ? body.toString() : "");
+          return new ApiResponse(200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
         };
 
-        OAuth2PasswordAuthenticator auth = createAuthenticator();
-        auth.setApiClient(client);
+    OAuth2PasswordAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
 
-        auth.getAuthHeaders();
+    auth.getAuthHeaders();
 
-        String body = capturedBody.get();
-        assertNotNull(body);
-        assertTrue(body.contains("client_id=my-client-id"));
-        assertTrue(body.contains("client_secret=my-client-secret"));
-    }
+    String body = capturedBody.get();
+    assertNotNull(body);
+    assertTrue(body.contains("client_id=my-client-id"));
+    assertTrue(body.contains("client_secret=my-client-secret"));
+  }
 
-    @Test
-    void returnsAuthorizationBearerHeader() {
-        ApiClient client = (method, url, headers, body) ->
-                new ApiResponse(200,
-                        "{\"access_token\":\"tok-pwd\",\"expires_in\":3600}", Map.of());
+  @Test
+  void returnsAuthorizationBearerHeader() {
+    ApiClient client =
+        (method, url, headers, body) ->
+            new ApiResponse(200, "{\"access_token\":\"tok-pwd\",\"expires_in\":3600}", Map.of());
 
-        OAuth2PasswordAuthenticator auth = createAuthenticator();
-        auth.setApiClient(client);
+    OAuth2PasswordAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
 
-        Map<String, String> headers = auth.getAuthHeaders();
+    Map<String, String> headers = auth.getAuthHeaders();
 
-        assertEquals("Bearer tok-pwd", headers.get("Authorization"));
-    }
+    assertEquals("Bearer tok-pwd", headers.get("Authorization"));
+  }
 
-    @Test
-    void usesRefreshTokenOnSubsequentCalls() {
-        AtomicReference<String> capturedBody = new AtomicReference<>();
-        var calls = new Object() { int count = 0; };
-        ApiClient client = (method, url, headers, body) -> {
-            calls.count++;
-            capturedBody.set(body != null ? body.toString() : "");
-            if (calls.count == 1) {
-                return new ApiResponse(200,
-                        "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}",
-                        Map.of());
-            }
-            return new ApiResponse(200,
-                    "{\"access_token\":\"tok2\",\"expires_in\":3600}", Map.of());
+  @Test
+  void usesRefreshTokenOnSubsequentCalls() {
+    AtomicReference<String> capturedBody = new AtomicReference<>();
+    var calls =
+        new Object() {
+          int count = 0;
+        };
+    ApiClient client =
+        (method, url, headers, body) -> {
+          calls.count++;
+          capturedBody.set(body != null ? body.toString() : "");
+          if (calls.count == 1) {
+            return new ApiResponse(
+                200,
+                "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}",
+                Map.of());
+          }
+          return new ApiResponse(200, "{\"access_token\":\"tok2\",\"expires_in\":3600}", Map.of());
         };
 
-        OAuth2PasswordAuthenticator auth = createAuthenticator();
-        auth.setApiClient(client);
+    OAuth2PasswordAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
 
-        // First call uses password grant
-        auth.getAuthHeaders();
-        // Second call should use refresh_token grant since token is expired
-        auth.getAuthHeaders();
+    // First call uses password grant
+    auth.getAuthHeaders();
+    // Second call should use refresh_token grant since token is expired
+    auth.getAuthHeaders();
 
-        String body = capturedBody.get();
-        assertNotNull(body);
-        assertTrue(body.contains("grant_type=refresh_token"));
-        assertTrue(body.contains("refresh_token=ref1"));
-    }
+    String body = capturedBody.get();
+    assertNotNull(body);
+    assertTrue(body.contains("grant_type=refresh_token"));
+    assertTrue(body.contains("refresh_token=ref1"));
+  }
 
-    @Test
-    void getHostReturnsConfiguredHost() {
-        OAuth2PasswordAuthenticator auth = createAuthenticator();
+  @Test
+  void getHostReturnsConfiguredHost() {
+    OAuth2PasswordAuthenticator auth = createAuthenticator();
 
-        assertEquals("https://api.example.com", auth.getHost());
-    }
+    assertEquals("https://api.example.com", auth.getHost());
+  }
 
-    @Test
-    void basicAuthUrlEncodesClientIdAndSecret() {
-        // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
-        // client_id and client_secret MUST be application/x-www-form-
-        // urlencoded BEFORE being joined with ':' and base64-encoded.
-        // Verifies a client_id with `+` and a secret with `&` are encoded
-        // (not raw) before the colon-join + base64.
-        AtomicReference<Map<String, String>> capturedHeaders = new AtomicReference<>();
-        ApiClient client = (method, url, headers, body) -> {
-            capturedHeaders.set(headers);
-            return new ApiResponse(200,
-                    "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+  @Test
+  void basicAuthUrlEncodesClientIdAndSecret() {
+    // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
+    // client_id and client_secret MUST be application/x-www-form-
+    // urlencoded BEFORE being joined with ':' and base64-encoded.
+    // Verifies a client_id with `+` and a secret with `&` are encoded
+    // (not raw) before the colon-join + base64.
+    AtomicReference<Map<String, String>> capturedHeaders = new AtomicReference<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          capturedHeaders.set(headers);
+          return new ApiResponse(200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
         };
 
-        OAuth2PasswordAuthenticator auth = new OAuth2PasswordAuthenticator(
-                "https://api.example.com",
-                "id+with/special",
-                "secret&with=stuff",
-                "https://auth.example.com/token",
-                null,
-                "testuser",
-                "testpass",
-                List.of("read"),
-                ClientAuthMethod.BASIC);
-        auth.setApiClient(client);
+    OAuth2PasswordAuthenticator auth =
+        new OAuth2PasswordAuthenticator(
+            "https://api.example.com",
+            "id+with/special",
+            "secret&with=stuff",
+            "https://auth.example.com/token",
+            null,
+            "testuser",
+            "testpass",
+            List.of("read"),
+            ClientAuthMethod.BASIC);
+    auth.setApiClient(client);
 
-        auth.getAuthHeaders();
+    auth.getAuthHeaders();
 
-        String authHeader = capturedHeaders.get().get("Authorization");
-        assertNotNull(authHeader);
-        assertTrue(authHeader.startsWith("Basic "));
-        String decoded = new String(
-                java.util.Base64.getDecoder().decode(authHeader.substring("Basic ".length())),
-                java.nio.charset.StandardCharsets.UTF_8);
-        // Expected: form-urlencoded id ':' form-urlencoded secret
-        assertEquals("id%2Bwith%2Fspecial:secret%26with%3Dstuff", decoded);
-    }
+    String authHeader = capturedHeaders.get().get("Authorization");
+    assertNotNull(authHeader);
+    assertTrue(authHeader.startsWith("Basic "));
+    String decoded =
+        new String(
+            java.util.Base64.getDecoder().decode(authHeader.substring("Basic ".length())),
+            java.nio.charset.StandardCharsets.UTF_8);
+    // Expected: form-urlencoded id ':' form-urlencoded secret
+    assertEquals("id%2Bwith%2Fspecial:secret%26with%3Dstuff", decoded);
+  }
 }

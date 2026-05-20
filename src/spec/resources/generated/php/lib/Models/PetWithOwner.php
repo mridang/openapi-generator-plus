@@ -1,4 +1,5 @@
 <?php
+
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -36,13 +37,13 @@ class PetWithOwner
 
     /** @example null */
     #[SerializedName('category')]
-    public ?\PetstoreClient\Models\Category $category = null;
+    public ?Category $category = null;
 
     /** @var string[] */
     #[SerializedName('photoUrls')]
     public array $photoUrls;
 
-    /** @var \PetstoreClient\Models\Tag[]|null */
+    /** @var Tag[]|null */
     #[SerializedName('tags')]
     public ?array $tags = null;
 
@@ -64,14 +65,14 @@ class PetWithOwner
 
     /**
      * @param string[] $photoUrls
-     * @param \PetstoreClient\Models\Tag[]|null $tags
+     * @param Tag[]|null $tags
      */
     public function __construct(
         string $name,
         array $photoUrls,
         string $ownerName,
         ?int $id = null,
-        ?\PetstoreClient\Models\Category $category = null,
+        ?Category $category = null,
         ?array $tags = null,
         ?PetWithOwnerStatusEnum $status = null,
         ?string $ownerEmail = null,

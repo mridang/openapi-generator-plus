@@ -10,6 +10,7 @@ from urllib.parse import quote
 
 from .object_serializer import ObjectSerializer
 
+
 class ValueSerializer:
     """Serializes parameter values for different HTTP locations (path, query, header, form)."""
 

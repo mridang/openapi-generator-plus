@@ -7,6 +7,7 @@
 
 package com.example.petstore;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -25,7 +26,6 @@ import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 import java.nio.file.Files;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.cert.CertificateFactory;
@@ -51,612 +51,614 @@ import javax.net.ssl.X509TrustManager;
 /**
  * Default implementation of {@link ApiClient} using {@link java.net.http.HttpClient}.
  *
- * <p>Applies transport-level settings from {@link TransportOptions}: TLS
- * verification, custom CA certificates, proxy routing, timeouts, redirect
- * handling, {@code User-Agent} injection, {@code X-Request-ID} injection,
- * and transport-level default headers.
+ * <p>Applies transport-level settings from {@link TransportOptions}: TLS verification, custom CA
+ * certificates, proxy routing, timeouts, redirect handling, {@code User-Agent} injection, {@code
+ * X-Request-ID} injection, and transport-level default headers.
  *
  * <p>Header merge order (lowest to highest priority):
+ *
  * <ol>
- *   <li>{@link TransportOptions#getDefaultHeaders()} — transport-level defaults</li>
- *   <li>Caller-provided headers (from {@code BaseApi} — includes config defaults, auth, operation headers)</li>
- *   <li>{@link TransportOptions#getUserAgent()} — injected if not already set</li>
- *   <li>{@link TransportOptions#isInjectRequestId()} — injected if not already set</li>
+ *   <li>{@link TransportOptions#getDefaultHeaders()} — transport-level defaults
+ *   <li>Caller-provided headers (from {@code BaseApi} — includes config defaults, auth, operation
+ *       headers)
+ *   <li>{@link TransportOptions#getUserAgent()} — injected if not already set
+ *   <li>{@link TransportOptions#isInjectRequestId()} — injected if not already set
  * </ol>
  */
 public final class DefaultApiClient implements ApiClient {
 
-    private static final ObjectMapper MULTIPART_MAPPER = ObjectSerializer.createDefaultObjectMapper();
+  private static final ObjectMapper MULTIPART_MAPPER = ObjectSerializer.createDefaultObjectMapper();
 
-    private static final X509TrustManager TRUST_ALL_MANAGER =
-            new X509TrustManager() {
-                @Override
-                public void checkClientTrusted(X509Certificate[] chain, String authType) {}
+  private static final X509TrustManager TRUST_ALL_MANAGER =
+      new X509TrustManager() {
+        @Override
+        public void checkClientTrusted(X509Certificate[] chain, String authType) {}
 
-                @Override
-                public void checkServerTrusted(X509Certificate[] chain, String authType) {}
+        @Override
+        public void checkServerTrusted(X509Certificate[] chain, String authType) {}
 
-                @Override
-                public X509Certificate[] getAcceptedIssuers() {
-                    return new X509Certificate[0];
-                }
-            };
-
-    private final HttpClient       httpClient;
-    private final TransportOptions transportOptions;
-    /** Pre-computed `Proxy-Authorization: Basic <b64(user:pass)>` value
-     *  extracted from the proxy URL's userinfo, or null if no proxy / no
-     *  embedded credentials. Injected on every outbound request because
-     *  java.net.http.HttpClient does not natively handle proxy auth. */
-    private final String           proxyAuthHeader;
-
-    /**
-     * Create a client with default transport settings.
-     *
-     * <p>Equivalent to {@code new DefaultApiClient(TransportOptions.builder().build())}.
-     */
-    public DefaultApiClient() {
-        this(TransportOptions.builder().build());
-    }
-
-    /**
-     * Create a client configured from the given {@link TransportOptions}.
-     *
-     * <p>Applies proxy, custom CA certificate, TLS verification, timeout,
-     * and redirect settings to the underlying {@link HttpClient}.
-     *
-     * @param transportOptions transport configuration to apply
-     */
-    public DefaultApiClient(TransportOptions transportOptions) {
-        this.transportOptions = transportOptions;
-        try {
-            HttpClient.Builder builder = HttpClient.newBuilder();
-
-            if (transportOptions.getProxy() != null) {
-                URI proxyUri = URI.create(transportOptions.getProxy());
-                int port = proxyUri.getPort();
-                if (port == -1) {
-                    port = "https".equals(proxyUri.getScheme()) ? 443 : 80;
-                }
-                builder.proxy(
-                        ProxySelector.of(new InetSocketAddress(proxyUri.getHost(), port)));
-                /* java.net.http.HttpClient has no native Proxy-Authorization
-                 * support; if the proxy URL embeds userinfo (`http://user:pass@
-                 * host:port`), the JDK silently drops it. Extract here and we
-                 * inject the Proxy-Authorization header per request below. The
-                 * other 11 SDKs all do this via library defaults; Java is the
-                 * lone outlier without manual extraction. */
-                String userInfo = proxyUri.getRawUserInfo();
-                if (userInfo != null && !userInfo.isEmpty()) {
-                    this.proxyAuthHeader = "Basic " + Base64.getEncoder().encodeToString(
-                            java.net.URLDecoder.decode(userInfo, StandardCharsets.UTF_8)
-                                    .getBytes(StandardCharsets.UTF_8));
-                } else {
-                    this.proxyAuthHeader = null;
-                }
-            } else {
-                this.proxyAuthHeader = null;
-            }
-
-            if (!transportOptions.isVerifySsl()) {
-                SSLContext sslContext = SSLContext.getInstance("TLS");
-                sslContext.init(null, new TrustManager[] {TRUST_ALL_MANAGER}, null);
-                builder.sslContext(sslContext);
-                /* Gap AM: verifySsl=false must disable BOTH cert-chain AND
-                 * hostname verification (curl -k semantics). The TRUST_ALL
-                 * trust manager skips chain validation, but java.net.http
-                 * still performs HTTPS hostname verification by default —
-                 * users get inconsistent behavior across SDKs unless we
-                 * disable it explicitly. Setting `jdk.internal.httpclient
-                 * .disableHostnameVerification` covers that case. */
-                javax.net.ssl.SSLParameters sslParameters = new javax.net.ssl.SSLParameters();
-                sslParameters.setEndpointIdentificationAlgorithm(null);
-                builder.sslParameters(sslParameters);
-            } else if (transportOptions.getCaCertPath() != null) {
-                CertificateFactory cf = CertificateFactory.getInstance("X.509");
-                X509Certificate caCert;
-                try (FileInputStream fis = new FileInputStream(transportOptions.getCaCertPath())) {
-                    caCert = (X509Certificate) cf.generateCertificate(fis);
-                }
-                KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
-                trustStore.load(null, null);
-                trustStore.setCertificateEntry("ca", caCert);
-                TrustManagerFactory tmf =
-                        TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-                tmf.init(trustStore);
-                SSLContext sslContext = SSLContext.getInstance("TLS");
-                sslContext.init(null, tmf.getTrustManagers(), null);
-                builder.sslContext(sslContext);
-            }
-
-            if (!transportOptions.isFollowRedirects()) {
-                builder.followRedirects(HttpClient.Redirect.NEVER);
-            } else if (transportOptions.getMaxRedirects() != null) {
-                /*
-                 * Java's HttpClient does not support max redirect counts natively,
-                 * so we disable automatic redirects and handle them manually in
-                 * sendRequest when a maxRedirects limit is configured.
-                 */
-                builder.followRedirects(HttpClient.Redirect.NEVER);
-            } else {
-                builder.followRedirects(HttpClient.Redirect.NORMAL);
-            }
-
-            if (transportOptions.getTimeout() != null) {
-                builder.connectTimeout(Duration.ofMillis(transportOptions.getTimeout()));
-            }
-
-            this.httpClient = builder.build();
-        } catch (GeneralSecurityException | IOException e) {
-            throw new RuntimeException("Failed to configure SSL/TLS", e);
+        @Override
+        public X509Certificate[] getAcceptedIssuers() {
+          return new X509Certificate[0];
         }
-    }
+      };
 
-    /**
-     * Create a client with a pre-configured {@link HttpClient}.
-     *
-     * <p>Uses default {@link TransportOptions} for header injection settings.
-     *
-     * @param httpClient the HTTP client to use
-     */
-    public DefaultApiClient(HttpClient httpClient) {
-        this.httpClient       = httpClient;
-        this.transportOptions = TransportOptions.builder().build();
-    }
+  private final HttpClient httpClient;
+  private final TransportOptions transportOptions;
 
-    @Override
-    @SuppressWarnings("unchecked")
-    public ApiResponse sendRequest(
-            String method, String url, Map<String, String> headers, @Nullable Object body)
-            throws ApiException {
+  /**
+   * Pre-computed `Proxy-Authorization: Basic <b64(user:pass)>` value extracted from the proxy URL's
+   * userinfo, or null if no proxy / no embedded credentials. Injected on every outbound request
+   * because java.net.http.HttpClient does not natively handle proxy auth.
+   */
+  private final String proxyAuthHeader;
 
-        Map<String, String> mergedHeaders = new HashMap<>(transportOptions.getDefaultHeaders());
-        mergedHeaders.putAll(headers);
+  /**
+   * Create a client with default transport settings.
+   *
+   * <p>Equivalent to {@code new DefaultApiClient(TransportOptions.builder().build())}.
+   */
+  public DefaultApiClient() {
+    this(TransportOptions.builder().build());
+  }
 
-        if (transportOptions.getUserAgent() != null
-                && !mergedHeaders.containsKey("User-Agent")) {
-            mergedHeaders.put("User-Agent", transportOptions.getUserAgent());
+  /**
+   * Create a client configured from the given {@link TransportOptions}.
+   *
+   * <p>Applies proxy, custom CA certificate, TLS verification, timeout, and redirect settings to
+   * the underlying {@link HttpClient}.
+   *
+   * @param transportOptions transport configuration to apply
+   */
+  public DefaultApiClient(TransportOptions transportOptions) {
+    this.transportOptions = transportOptions;
+    try {
+      HttpClient.Builder builder = HttpClient.newBuilder();
+
+      if (transportOptions.getProxy() != null) {
+        URI proxyUri = URI.create(transportOptions.getProxy());
+        int port = proxyUri.getPort();
+        if (port == -1) {
+          port = "https".equals(proxyUri.getScheme()) ? 443 : 80;
         }
-        if (transportOptions.isInjectRequestId()
-                && !mergedHeaders.containsKey("X-Request-ID")) {
-            mergedHeaders.put("X-Request-ID", UUID.randomUUID().toString());
-        }
-
-        HttpRequest.BodyPublisher bodyPublisher;
-        if (body == null) {
-            bodyPublisher = HttpRequest.BodyPublishers.noBody();
-        } else if (body instanceof Map) {
-            String boundary = UUID.randomUUID().toString();
-            mergedHeaders.put("Content-Type", "multipart/form-data; boundary=" + boundary);
-            bodyPublisher = buildMultipartBody((Map<String, Object>) body, boundary);
-        } else if (body instanceof byte[] bytes) {
-            bodyPublisher = HttpRequest.BodyPublishers.ofByteArray(bytes);
-        } else if (body instanceof InputStream stream) {
-            bodyPublisher = HttpRequest.BodyPublishers.ofInputStream(() -> stream);
+        builder.proxy(ProxySelector.of(new InetSocketAddress(proxyUri.getHost(), port)));
+        /* java.net.http.HttpClient has no native Proxy-Authorization
+         * support; if the proxy URL embeds userinfo (`http://user:pass@
+         * host:port`), the JDK silently drops it. Extract here and we
+         * inject the Proxy-Authorization header per request below. The
+         * other 11 SDKs all do this via library defaults; Java is the
+         * lone outlier without manual extraction. */
+        String userInfo = proxyUri.getRawUserInfo();
+        if (userInfo != null && !userInfo.isEmpty()) {
+          this.proxyAuthHeader =
+              "Basic "
+                  + Base64.getEncoder()
+                      .encodeToString(
+                          java.net.URLDecoder.decode(userInfo, StandardCharsets.UTF_8)
+                              .getBytes(StandardCharsets.UTF_8));
         } else {
-            bodyPublisher = HttpRequest.BodyPublishers.ofString(body.toString());
+          this.proxyAuthHeader = null;
         }
+      } else {
+        this.proxyAuthHeader = null;
+      }
 
-        HttpRequest.Builder builder =
-                HttpRequest.newBuilder(URI.create(url)).method(method, bodyPublisher);
-
-        if (transportOptions.getTimeout() != null) {
-            builder.timeout(Duration.ofMillis(transportOptions.getTimeout()));
+      if (!transportOptions.isVerifySsl()) {
+        SSLContext sslContext = SSLContext.getInstance("TLS");
+        sslContext.init(null, new TrustManager[] {TRUST_ALL_MANAGER}, null);
+        builder.sslContext(sslContext);
+        /* Gap AM: verifySsl=false must disable BOTH cert-chain AND
+         * hostname verification (curl -k semantics). The TRUST_ALL
+         * trust manager skips chain validation, but java.net.http
+         * still performs HTTPS hostname verification by default —
+         * users get inconsistent behavior across SDKs unless we
+         * disable it explicitly. Setting `jdk.internal.httpclient
+         * .disableHostnameVerification` covers that case. */
+        javax.net.ssl.SSLParameters sslParameters = new javax.net.ssl.SSLParameters();
+        sslParameters.setEndpointIdentificationAlgorithm(null);
+        builder.sslParameters(sslParameters);
+      } else if (transportOptions.getCaCertPath() != null) {
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        X509Certificate caCert;
+        try (FileInputStream fis = new FileInputStream(transportOptions.getCaCertPath())) {
+          caCert = (X509Certificate) cf.generateCertificate(fis);
         }
+        KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+        trustStore.load(null, null);
+        trustStore.setCertificateEntry("ca", caCert);
+        TrustManagerFactory tmf =
+            TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        tmf.init(trustStore);
+        SSLContext sslContext = SSLContext.getInstance("TLS");
+        sslContext.init(null, tmf.getTrustManagers(), null);
+        builder.sslContext(sslContext);
+      }
 
-        mergedHeaders.putIfAbsent("Accept-Encoding", getSupportedEncodings());
+      if (!transportOptions.isFollowRedirects()) {
+        builder.followRedirects(HttpClient.Redirect.NEVER);
+      } else if (transportOptions.getMaxRedirects() != null) {
+        /*
+         * Java's HttpClient does not support max redirect counts natively,
+         * so we disable automatic redirects and handle them manually in
+         * sendRequest when a maxRedirects limit is configured.
+         */
+        builder.followRedirects(HttpClient.Redirect.NEVER);
+      } else {
+        builder.followRedirects(HttpClient.Redirect.NORMAL);
+      }
 
-        if (proxyAuthHeader != null) {
-            mergedHeaders.put("Proxy-Authorization", proxyAuthHeader);
-        }
+      if (transportOptions.getTimeout() != null) {
+        builder.connectTimeout(Duration.ofMillis(transportOptions.getTimeout()));
+      }
 
-        for (Map.Entry<String, String> header : mergedHeaders.entrySet()) {
-            if (body == null && "content-type".equalsIgnoreCase(header.getKey())) {
-                continue;
+      this.httpClient = builder.build();
+    } catch (GeneralSecurityException | IOException e) {
+      throw new RuntimeException("Failed to configure SSL/TLS", e);
+    }
+  }
+
+  /**
+   * Create a client with a pre-configured {@link HttpClient}.
+   *
+   * <p>Uses default {@link TransportOptions} for header injection settings.
+   *
+   * @param httpClient the HTTP client to use
+   */
+  public DefaultApiClient(HttpClient httpClient) {
+    this.httpClient = httpClient;
+    this.transportOptions = TransportOptions.builder().build();
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public ApiResponse sendRequest(
+      String method, String url, Map<String, String> headers, @Nullable Object body)
+      throws ApiException {
+
+    Map<String, String> mergedHeaders = new HashMap<>(transportOptions.getDefaultHeaders());
+    mergedHeaders.putAll(headers);
+
+    if (transportOptions.getUserAgent() != null && !mergedHeaders.containsKey("User-Agent")) {
+      mergedHeaders.put("User-Agent", transportOptions.getUserAgent());
+    }
+    if (transportOptions.isInjectRequestId() && !mergedHeaders.containsKey("X-Request-ID")) {
+      mergedHeaders.put("X-Request-ID", UUID.randomUUID().toString());
+    }
+
+    HttpRequest.BodyPublisher bodyPublisher;
+    if (body == null) {
+      bodyPublisher = HttpRequest.BodyPublishers.noBody();
+    } else if (body instanceof Map) {
+      String boundary = UUID.randomUUID().toString();
+      mergedHeaders.put("Content-Type", "multipart/form-data; boundary=" + boundary);
+      bodyPublisher = buildMultipartBody((Map<String, Object>) body, boundary);
+    } else if (body instanceof byte[] bytes) {
+      bodyPublisher = HttpRequest.BodyPublishers.ofByteArray(bytes);
+    } else if (body instanceof InputStream stream) {
+      bodyPublisher = HttpRequest.BodyPublishers.ofInputStream(() -> stream);
+    } else {
+      bodyPublisher = HttpRequest.BodyPublishers.ofString(body.toString());
+    }
+
+    HttpRequest.Builder builder =
+        HttpRequest.newBuilder(URI.create(url)).method(method, bodyPublisher);
+
+    if (transportOptions.getTimeout() != null) {
+      builder.timeout(Duration.ofMillis(transportOptions.getTimeout()));
+    }
+
+    mergedHeaders.putIfAbsent("Accept-Encoding", getSupportedEncodings());
+
+    if (proxyAuthHeader != null) {
+      mergedHeaders.put("Proxy-Authorization", proxyAuthHeader);
+    }
+
+    for (Map.Entry<String, String> header : mergedHeaders.entrySet()) {
+      if (body == null && "content-type".equalsIgnoreCase(header.getKey())) {
+        continue;
+      }
+      builder.header(header.getKey(), header.getValue());
+    }
+
+    try {
+      HttpResponse<byte[]> response =
+          httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofByteArray());
+
+      /*
+       * Manual redirect handling when maxRedirects is configured. The
+       * underlying HttpClient has automatic redirects disabled in this
+       * case, so we follow Location headers ourselves up to the limit.
+       */
+      if (transportOptions.isFollowRedirects() && transportOptions.getMaxRedirects() != null) {
+        int redirectsRemaining = transportOptions.getMaxRedirects();
+        URI originalUri = URI.create(url);
+        Set<String> sensitiveHeaders = Set.of("authorization", "cookie", "proxy-authorization");
+        while (isRedirect(response.statusCode()) && redirectsRemaining > 0) {
+          String location = response.headers().firstValue("location").orElse(null);
+          if (location == null) {
+            break;
+          }
+          URI redirectUri = originalUri.resolve(location);
+          /* Refuse non-HTTP(S) redirect schemes (javascript:, file:,
+           * data:, etc.). URI.resolve() preserves whatever scheme the
+           * server returned in Location, so a malicious or
+           * misconfigured server could otherwise steer the client at
+           * a local-file or scripting URL. */
+          String redirectScheme = redirectUri.getScheme();
+          if (redirectScheme == null
+              || (!"http".equalsIgnoreCase(redirectScheme)
+                  && !"https".equalsIgnoreCase(redirectScheme))) {
+            throw new ApiException(
+                "Refusing to follow redirect to non-HTTP(S) URL: " + redirectUri);
+          }
+          boolean sameOrigin =
+              redirectUri.getHost() != null
+                  && redirectUri.getHost().equalsIgnoreCase(originalUri.getHost())
+                  && redirectUri.getPort() == originalUri.getPort();
+          HttpRequest.Builder redirectBuilder =
+              HttpRequest.newBuilder(redirectUri).method(method, bodyPublisher);
+          if (transportOptions.getTimeout() != null) {
+            redirectBuilder.timeout(Duration.ofMillis(transportOptions.getTimeout()));
+          }
+          for (Map.Entry<String, String> entry : mergedHeaders.entrySet()) {
+            if (!sameOrigin && sensitiveHeaders.contains(entry.getKey().toLowerCase(Locale.ROOT))) {
+              continue;
             }
-            builder.header(header.getKey(), header.getValue());
+            redirectBuilder.header(entry.getKey(), entry.getValue());
+          }
+          response =
+              httpClient.send(redirectBuilder.build(), HttpResponse.BodyHandlers.ofByteArray());
+          redirectsRemaining--;
         }
+      }
 
-        try {
-            HttpResponse<byte[]> response =
-                    httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofByteArray());
-
-            /*
-             * Manual redirect handling when maxRedirects is configured. The
-             * underlying HttpClient has automatic redirects disabled in this
-             * case, so we follow Location headers ourselves up to the limit.
-             */
-            if (transportOptions.isFollowRedirects()
-                    && transportOptions.getMaxRedirects() != null) {
-                int redirectsRemaining = transportOptions.getMaxRedirects();
-                URI originalUri = URI.create(url);
-                Set<String> sensitiveHeaders = Set.of("authorization", "cookie", "proxy-authorization");
-                while (isRedirect(response.statusCode()) && redirectsRemaining > 0) {
-                    String location = response.headers()
-                            .firstValue("location").orElse(null);
-                    if (location == null) {
-                        break;
-                    }
-                    URI redirectUri = originalUri.resolve(location);
-                    /* Refuse non-HTTP(S) redirect schemes (javascript:, file:,
-                     * data:, etc.). URI.resolve() preserves whatever scheme the
-                     * server returned in Location, so a malicious or
-                     * misconfigured server could otherwise steer the client at
-                     * a local-file or scripting URL. */
-                    String redirectScheme = redirectUri.getScheme();
-                    if (redirectScheme == null
-                            || (!"http".equalsIgnoreCase(redirectScheme)
-                                    && !"https".equalsIgnoreCase(redirectScheme))) {
-                        throw new ApiException(
-                                "Refusing to follow redirect to non-HTTP(S) URL: " + redirectUri);
-                    }
-                    boolean sameOrigin = redirectUri.getHost() != null
-                            && redirectUri.getHost().equalsIgnoreCase(originalUri.getHost())
-                            && redirectUri.getPort() == originalUri.getPort();
-                    HttpRequest.Builder redirectBuilder = HttpRequest.newBuilder(redirectUri)
-                            .method(method, bodyPublisher);
-                    if (transportOptions.getTimeout() != null) {
-                        redirectBuilder.timeout(Duration.ofMillis(transportOptions.getTimeout()));
-                    }
-                    for (Map.Entry<String, String> entry : mergedHeaders.entrySet()) {
-                        if (!sameOrigin && sensitiveHeaders.contains(entry.getKey().toLowerCase(Locale.ROOT))) {
-                            continue;
-                        }
-                        redirectBuilder.header(entry.getKey(), entry.getValue());
-                    }
-                    response = httpClient.send(
-                            redirectBuilder.build(),
-                            HttpResponse.BodyHandlers.ofByteArray());
-                    redirectsRemaining--;
+      Map<String, String> responseHeaders = new HashMap<>();
+      response
+          .headers()
+          .map()
+          .forEach(
+              (name, values) -> {
+                if (!values.isEmpty()) {
+                  responseHeaders.put(name, String.join(", ", values));
                 }
-            }
+              });
 
-            Map<String, String> responseHeaders = new HashMap<>();
-            response.headers()
-                    .map()
-                    .forEach(
-                            (name, values) -> {
-                                if (!values.isEmpty()) {
-                                    responseHeaders.put(name, String.join(", ", values));
-                                }
-                            });
+      String contentEncoding = response.headers().firstValue("content-encoding").orElse("identity");
+      String contentType = response.headers().firstValue("content-type").orElse("");
+      byte[] bodyBytes = response.body() != null ? response.body() : new byte[0];
+      byte[] decompressedBytes = decompressBody(bodyBytes, contentEncoding);
+      Charset responseCharset = parseCharset(contentType);
+      String responseBody =
+          isTextContentType(contentType)
+              ? new String(decompressedBytes, responseCharset)
+              : Base64.getEncoder().encodeToString(decompressedBytes);
 
-            String contentEncoding = response.headers()
-                    .firstValue("content-encoding").orElse("identity");
-            String contentType = response.headers()
-                    .firstValue("content-type").orElse("");
-            byte[] bodyBytes = response.body() != null ? response.body() : new byte[0];
-            byte[] decompressedBytes = decompressBody(bodyBytes, contentEncoding);
-            Charset responseCharset = parseCharset(contentType);
-            String responseBody = isTextContentType(contentType)
-                    ? new String(decompressedBytes, responseCharset)
-                    : Base64.getEncoder().encodeToString(decompressedBytes);
-
-            return new ApiResponse(
-                    response.statusCode(),
-                    responseBody,
-                    responseHeaders);
-        } catch (IOException e) {
-            throw new ApiException(e.toString());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ApiException(e.toString());
-        }
+      return new ApiResponse(response.statusCode(), responseBody, responseHeaders);
+    } catch (IOException e) {
+      throw new ApiException(e.toString());
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e.toString());
     }
+  }
 
-    private static boolean isRedirect(int statusCode) {
-        return statusCode == 301 || statusCode == 302 || statusCode == 303
-                || statusCode == 307 || statusCode == 308;
+  private static boolean isRedirect(int statusCode) {
+    return statusCode == 301
+        || statusCode == 302
+        || statusCode == 303
+        || statusCode == 307
+        || statusCode == 308;
+  }
+
+  private static final Pattern CHARSET_PATTERN =
+      Pattern.compile("(?i)charset\\s*=\\s*\"?([^\";\\s]+)\"?");
+
+  /**
+   * Parse the {@code charset=} parameter from a Content-Type header value.
+   *
+   * <p>Falls back to UTF-8 if the header omits a charset, names an unsupported charset, or names an
+   * illegal charset (no exception is propagated).
+   *
+   * @param contentType the raw Content-Type header value (possibly empty)
+   * @return the resolved {@link Charset}, never {@code null}
+   */
+  private static Charset parseCharset(String contentType) {
+    if (contentType == null || contentType.isEmpty()) {
+      return StandardCharsets.UTF_8;
     }
-
-    private static final Pattern CHARSET_PATTERN =
-            Pattern.compile("(?i)charset\\s*=\\s*\"?([^\";\\s]+)\"?");
-
-    /**
-     * Parse the {@code charset=} parameter from a Content-Type header value.
-     *
-     * <p>Falls back to UTF-8 if the header omits a charset, names an unsupported
-     * charset, or names an illegal charset (no exception is propagated).
-     *
-     * @param contentType the raw Content-Type header value (possibly empty)
-     * @return the resolved {@link Charset}, never {@code null}
-     */
-    private static Charset parseCharset(String contentType) {
-        if (contentType == null || contentType.isEmpty()) {
-            return StandardCharsets.UTF_8;
-        }
-        Matcher m = CHARSET_PATTERN.matcher(contentType);
-        if (!m.find()) {
-            return StandardCharsets.UTF_8;
-        }
-        String name = m.group(1).trim();
-        try {
-            return Charset.forName(name);
-        } catch (UnsupportedCharsetException | IllegalCharsetNameException e) {
-            return StandardCharsets.UTF_8;
-        }
+    Matcher m = CHARSET_PATTERN.matcher(contentType);
+    if (!m.find()) {
+      return StandardCharsets.UTF_8;
     }
-
-    private static boolean isTextContentType(String contentType) {
-        int semi = contentType.indexOf(';');
-        String mediaType = (semi >= 0 ? contentType.substring(0, semi) : contentType).trim().toLowerCase(Locale.ROOT);
-        if (mediaType.isEmpty()) {
-            return true;
-        }
-        if (mediaType.startsWith("text/")) {
-            return true;
-        }
-        return mediaType.equals("application/json")
-                || mediaType.equals("application/xml")
-                || mediaType.equals("application/javascript")
-                || mediaType.endsWith("+json")
-                || mediaType.endsWith("+xml");
+    String name = m.group(1).trim();
+    try {
+      return Charset.forName(name);
+    } catch (UnsupportedCharsetException | IllegalCharsetNameException e) {
+      return StandardCharsets.UTF_8;
     }
+  }
 
-    /**
-     * Decompress response body bytes based on the Content-Encoding header value.
-     *
-     * <p>Supports gzip and deflate natively. Brotli and zstd are supported when their
-     * respective libraries ({@code org.brotli:dec} and {@code com.github.luben:zstd-jni})
-     * are on the classpath.
-     *
-     * @param data     the raw response bytes
-     * @param encoding the Content-Encoding header value
-     * @return the decompressed body bytes
-     */
-    private static byte[] decompressBody(byte[] data, String encoding) throws IOException {
-        if (data.length == 0) {
-            return new byte[0];
-        }
-        return switch (encoding.toLowerCase(Locale.ROOT)) {
-            case "gzip", "x-gzip" -> {
-                try (GZIPInputStream gis =
-                        new GZIPInputStream(new ByteArrayInputStream(data))) {
-                    yield gis.readAllBytes();
-                }
-            }
-            case "deflate" -> {
-                try (InflaterInputStream iis =
-                        new InflaterInputStream(new ByteArrayInputStream(data))) {
-                    yield iis.readAllBytes();
-                }
-            }
-            case "br" -> decompressBrotli(data);
-            case "zstd" -> decompressZstd(data);
-            default -> data;
-        };
+  private static boolean isTextContentType(String contentType) {
+    int semi = contentType.indexOf(';');
+    String mediaType =
+        (semi >= 0 ? contentType.substring(0, semi) : contentType).trim().toLowerCase(Locale.ROOT);
+    if (mediaType.isEmpty()) {
+      return true;
     }
-
-    private static byte[] decompressBrotli(byte[] data) throws IOException {
-        try {
-            Class<?> brotliClass = Class.forName("org.brotli.dec.BrotliInputStream");
-            try (InputStream bis = (InputStream) brotliClass
-                    .getConstructor(InputStream.class)
-                    .newInstance(new ByteArrayInputStream(data))) {
-                return bis.readAllBytes();
-            }
-        } catch (ClassNotFoundException e) {
-            return data;
-        } catch (ReflectiveOperationException e) {
-            throw new IOException("Failed to decompress brotli response", e);
-        }
+    if (mediaType.startsWith("text/")) {
+      return true;
     }
+    return mediaType.equals("application/json")
+        || mediaType.equals("application/xml")
+        || mediaType.equals("application/javascript")
+        || mediaType.endsWith("+json")
+        || mediaType.endsWith("+xml");
+  }
 
-    private static byte[] decompressZstd(byte[] data) throws IOException {
-        try {
-            Class<?> zstdClass = Class.forName("com.github.luben.zstd.Zstd");
-            long originalSize = (long) zstdClass
-                    .getMethod("decompressedSize", byte[].class)
-                    .invoke(null, data);
-            int size = originalSize > 0 ? (int) originalSize : data.length * 4;
-            return (byte[]) zstdClass
-                    .getMethod("decompress", byte[].class, int.class)
-                    .invoke(null, data, size);
-        } catch (ClassNotFoundException e) {
-            return data;
-        } catch (ReflectiveOperationException e) {
-            throw new IOException("Failed to decompress zstd response", e);
-        }
+  /**
+   * Decompress response body bytes based on the Content-Encoding header value.
+   *
+   * <p>Supports gzip and deflate natively. Brotli and zstd are supported when their respective
+   * libraries ({@code org.brotli:dec} and {@code com.github.luben:zstd-jni}) are on the classpath.
+   *
+   * @param data the raw response bytes
+   * @param encoding the Content-Encoding header value
+   * @return the decompressed body bytes
+   */
+  private static byte[] decompressBody(byte[] data, String encoding) throws IOException {
+    if (data.length == 0) {
+      return new byte[0];
     }
+    return switch (encoding.toLowerCase(Locale.ROOT)) {
+      case "gzip", "x-gzip" -> {
+        try (GZIPInputStream gis = new GZIPInputStream(new ByteArrayInputStream(data))) {
+          yield gis.readAllBytes();
+        }
+      }
+      case "deflate" -> {
+        try (InflaterInputStream iis = new InflaterInputStream(new ByteArrayInputStream(data))) {
+          yield iis.readAllBytes();
+        }
+      }
+      case "br" -> decompressBrotli(data);
+      case "zstd" -> decompressZstd(data);
+      default -> data;
+    };
+  }
 
-    @SuppressWarnings("EmptyCatch")
-    private static String getSupportedEncodings() {
-        StringBuilder sb = new StringBuilder("gzip, deflate");
-        try {
-            Class.forName("org.brotli.dec.BrotliInputStream");
-            sb.append(", br");
-        } catch (ClassNotFoundException ignored) {
-        }
-        try {
-            Class.forName("com.github.luben.zstd.Zstd");
-            sb.append(", zstd");
-        } catch (ClassNotFoundException ignored) {
-        }
-        return sb.toString();
+  private static byte[] decompressBrotli(byte[] data) throws IOException {
+    try {
+      Class<?> brotliClass = Class.forName("org.brotli.dec.BrotliInputStream");
+      try (InputStream bis =
+          (InputStream)
+              brotliClass
+                  .getConstructor(InputStream.class)
+                  .newInstance(new ByteArrayInputStream(data))) {
+        return bis.readAllBytes();
+      }
+    } catch (ClassNotFoundException e) {
+      return data;
+    } catch (ReflectiveOperationException e) {
+      throw new IOException("Failed to decompress brotli response", e);
     }
+  }
 
-    /**
-     * Build a multipart/form-data request body from a map of form fields.
-     *
-     * <p>Each entry value may be a {@link File}, {@code byte[]}, {@link java.util.List},
-     * or any other object (model objects are JSON-serialized, primitives are converted
-     * to string text parts).
-     *
-     * @param formFields the form field names and values
-     * @param boundary   the multipart boundary string
-     * @return a body publisher for the multipart content
-     */
-    private HttpRequest.BodyPublisher buildMultipartBody(
-            Map<String, Object> formFields, String boundary) {
-        var byteArrays = new java.util.ArrayList<byte[]>();
-
-        for (Map.Entry<String, Object> entry : formFields.entrySet()) {
-            String fieldName = entry.getKey();
-            Object value = entry.getValue();
-
-            if (value instanceof java.util.List<?> list) {
-                for (Object item : list) {
-                    addMultipartField(byteArrays, boundary, fieldName, item);
-                }
-            } else {
-                addMultipartField(byteArrays, boundary, fieldName, value);
-            }
-        }
-        byteArrays.add(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
-
-        int totalLength = 0;
-        for (byte[] arr : byteArrays) {
-            totalLength += arr.length;
-        }
-        byte[] result = new byte[totalLength];
-        int offset = 0;
-        for (byte[] arr : byteArrays) {
-            System.arraycopy(arr, 0, result, offset, arr.length);
-            offset += arr.length;
-        }
-        return HttpRequest.BodyPublishers.ofByteArray(result);
+  private static byte[] decompressZstd(byte[] data) throws IOException {
+    try {
+      Class<?> zstdClass = Class.forName("com.github.luben.zstd.Zstd");
+      long originalSize =
+          (long) zstdClass.getMethod("decompressedSize", byte[].class).invoke(null, data);
+      int size = originalSize > 0 ? (int) originalSize : data.length * 4;
+      return (byte[])
+          zstdClass.getMethod("decompress", byte[].class, int.class).invoke(null, data, size);
+    } catch (ClassNotFoundException e) {
+      return data;
+    } catch (ReflectiveOperationException e) {
+      throw new IOException("Failed to decompress zstd response", e);
     }
+  }
 
-    private void addMultipartField(
-            List<byte[]> byteArrays,
-            String boundary,
-            String fieldName,
-            Object value) {
-        byte[] separator =
-                ("--" + boundary + "\r\nContent-Disposition: form-data; name=")
-                        .getBytes(StandardCharsets.UTF_8);
-        byteArrays.add(separator);
-
-        if (value instanceof File file) {
-            String fileName = file.getName();
-            validateMultipartFilename(fileName);
-            String mimeType;
-            try {
-                mimeType = Files.probeContentType(file.toPath());
-            } catch (IOException e) {
-                mimeType = null;
-            }
-            if (mimeType == null) {
-                mimeType = guessMimeTypeFromName(fileName);
-            }
-            byteArrays.add(
-                    ("\"" + fieldName + "\"; " + buildFilenameDirective(fileName) + "\r\n"
-                                    + "Content-Type: " + mimeType + "\r\n\r\n")
-                            .getBytes(StandardCharsets.UTF_8));
-            try {
-                byteArrays.add(Files.readAllBytes(file.toPath()));
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to read file: " + file, e);
-            }
-        } else if (value instanceof byte[] bytes) {
-            validateMultipartFilename(fieldName);
-            byteArrays.add(
-                    ("\"" + fieldName + "\"; " + buildFilenameDirective(fieldName) + "\r\n"
-                                    + "Content-Type: application/octet-stream\r\n\r\n")
-                            .getBytes(StandardCharsets.UTF_8));
-            byteArrays.add(bytes);
-        } else if (value instanceof InputStream stream) {
-            validateMultipartFilename(fieldName);
-            try (stream) {
-                byteArrays.add(
-                        ("\"" + fieldName + "\"; " + buildFilenameDirective(fieldName) + "\r\n"
-                                        + "Content-Type: application/octet-stream\r\n\r\n")
-                                .getBytes(StandardCharsets.UTF_8));
-                byteArrays.add(stream.readAllBytes());
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to read stream: " + fieldName, e);
-            }
-        } else if (value instanceof String
-                || value instanceof Number
-                || value instanceof Boolean) {
-            byteArrays.add(
-                    ("\"" + fieldName + "\"\r\n\r\n" + value)
-                            .getBytes(StandardCharsets.UTF_8));
-        } else {
-            try {
-                String json = MULTIPART_MAPPER.writeValueAsString(value);
-                byteArrays.add(
-                        ("\"" + fieldName + "\"\r\nContent-Type: application/json\r\n\r\n" + json)
-                                .getBytes(StandardCharsets.UTF_8));
-            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-                throw new RuntimeException(
-                        "Failed to serialize multipart field '" + fieldName + "' as JSON", e);
-            }
-        }
-        byteArrays.add("\r\n".getBytes(StandardCharsets.UTF_8));
+  @SuppressWarnings("EmptyCatch")
+  private static String getSupportedEncodings() {
+    StringBuilder sb = new StringBuilder("gzip, deflate");
+    try {
+      Class.forName("org.brotli.dec.BrotliInputStream");
+      sb.append(", br");
+    } catch (ClassNotFoundException ignored) {
     }
-
-    /**
-     * Reject filenames that would allow header injection or smuggling.
-     *
-     * <p>Filenames are interpolated directly into a {@code Content-Disposition}
-     * header value, so CR/LF/NUL characters could split the header and inject
-     * arbitrary new headers or a new request body.
-     *
-     * @param filename the proposed filename
-     * @throws IllegalArgumentException if the filename contains CR, LF, or NUL
-     */
-    static void validateMultipartFilename(String filename) {
-        if (filename == null) {
-            return;
-        }
-        for (int i = 0; i < filename.length(); i++) {
-            char c = filename.charAt(i);
-            if (c == '\r' || c == '\n' || c == '\0') {
-                throw new IllegalArgumentException(
-                        "Multipart filename must not contain CR, LF, or NUL characters");
-            }
-        }
+    try {
+      Class.forName("com.github.luben.zstd.Zstd");
+      sb.append(", zstd");
+    } catch (ClassNotFoundException ignored) {
     }
+    return sb.toString();
+  }
 
-    /**
-     * Build the {@code filename=...} directive for a multipart part.
-     *
-     * <p>Backslash-escapes embedded {@code "} and {@code \} in the ASCII
-     * fallback. If the filename contains non-ASCII characters, additionally
-     * emits an RFC 5987 {@code filename*=UTF-8''<percent-encoded>} parameter
-     * for clients that support it. The caller is expected to have already
-     * validated the filename via {@link #validateMultipartFilename(String)}.
-     *
-     * @param filename the (already-validated) filename
-     * @return the {@code filename=...} fragment, possibly followed by
-     *     {@code ; filename*=...} for non-ASCII names
-     */
-    static String buildFilenameDirective(String filename) {
-        String escaped = filename.replace("\\", "\\\\").replace("\"", "\\\"");
-        boolean ascii = true;
-        for (int i = 0; i < filename.length(); i++) {
-            if (filename.charAt(i) > 0x7F) {
-                ascii = false;
-                break;
-            }
+  /**
+   * Build a multipart/form-data request body from a map of form fields.
+   *
+   * <p>Each entry value may be a {@link File}, {@code byte[]}, {@link java.util.List}, or any other
+   * object (model objects are JSON-serialized, primitives are converted to string text parts).
+   *
+   * @param formFields the form field names and values
+   * @param boundary the multipart boundary string
+   * @return a body publisher for the multipart content
+   */
+  private HttpRequest.BodyPublisher buildMultipartBody(
+      Map<String, Object> formFields, String boundary) {
+    var byteArrays = new java.util.ArrayList<byte[]>();
+
+    for (Map.Entry<String, Object> entry : formFields.entrySet()) {
+      String fieldName = entry.getKey();
+      Object value = entry.getValue();
+
+      if (value instanceof java.util.List<?> list) {
+        for (Object item : list) {
+          addMultipartField(byteArrays, boundary, fieldName, item);
         }
-        if (ascii) {
-            return "filename=\"" + escaped + "\"";
-        }
-        String asciiFallback = filename.replaceAll("[^\\x20-\\x7E]", "_")
-                .replace("\\", "\\\\").replace("\"", "\\\"");
-        String encoded = URLEncoder.encode(filename, StandardCharsets.UTF_8)
-                .replace("+", "%20");
-        return "filename=\"" + asciiFallback + "\"; filename*=UTF-8''" + encoded;
+      } else {
+        addMultipartField(byteArrays, boundary, fieldName, value);
+      }
     }
+    byteArrays.add(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
 
-    /**
-     * Best-effort MIME type lookup from a filename's extension.
-     *
-     * <p>Uses {@link URLConnection#guessContentTypeFromName(String)}; falls back
-     * to {@code application/octet-stream} when the JDK does not recognize the
-     * extension or when the name has no usable hint.
-     *
-     * @param filename the filename (may be {@code null})
-     * @return a non-null MIME type
-     */
-    static String guessMimeTypeFromName(@Nullable String filename) {
-        if (filename == null || filename.isEmpty()) {
-            return "application/octet-stream";
-        }
-        String guess = URLConnection.guessContentTypeFromName(filename);
-        return guess != null ? guess : "application/octet-stream";
+    int totalLength = 0;
+    for (byte[] arr : byteArrays) {
+      totalLength += arr.length;
     }
+    byte[] result = new byte[totalLength];
+    int offset = 0;
+    for (byte[] arr : byteArrays) {
+      System.arraycopy(arr, 0, result, offset, arr.length);
+      offset += arr.length;
+    }
+    return HttpRequest.BodyPublishers.ofByteArray(result);
+  }
 
+  private void addMultipartField(
+      List<byte[]> byteArrays, String boundary, String fieldName, Object value) {
+    byte[] separator =
+        ("--" + boundary + "\r\nContent-Disposition: form-data; name=")
+            .getBytes(StandardCharsets.UTF_8);
+    byteArrays.add(separator);
+
+    if (value instanceof File file) {
+      String fileName = file.getName();
+      validateMultipartFilename(fileName);
+      String mimeType;
+      try {
+        mimeType = Files.probeContentType(file.toPath());
+      } catch (IOException e) {
+        mimeType = null;
+      }
+      if (mimeType == null) {
+        mimeType = guessMimeTypeFromName(fileName);
+      }
+      byteArrays.add(
+          ("\""
+                  + fieldName
+                  + "\"; "
+                  + buildFilenameDirective(fileName)
+                  + "\r\n"
+                  + "Content-Type: "
+                  + mimeType
+                  + "\r\n\r\n")
+              .getBytes(StandardCharsets.UTF_8));
+      try {
+        byteArrays.add(Files.readAllBytes(file.toPath()));
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to read file: " + file, e);
+      }
+    } else if (value instanceof byte[] bytes) {
+      validateMultipartFilename(fieldName);
+      byteArrays.add(
+          ("\""
+                  + fieldName
+                  + "\"; "
+                  + buildFilenameDirective(fieldName)
+                  + "\r\n"
+                  + "Content-Type: application/octet-stream\r\n\r\n")
+              .getBytes(StandardCharsets.UTF_8));
+      byteArrays.add(bytes);
+    } else if (value instanceof InputStream stream) {
+      validateMultipartFilename(fieldName);
+      try (stream) {
+        byteArrays.add(
+            ("\""
+                    + fieldName
+                    + "\"; "
+                    + buildFilenameDirective(fieldName)
+                    + "\r\n"
+                    + "Content-Type: application/octet-stream\r\n\r\n")
+                .getBytes(StandardCharsets.UTF_8));
+        byteArrays.add(stream.readAllBytes());
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to read stream: " + fieldName, e);
+      }
+    } else if (value instanceof String || value instanceof Number || value instanceof Boolean) {
+      byteArrays.add(("\"" + fieldName + "\"\r\n\r\n" + value).getBytes(StandardCharsets.UTF_8));
+    } else {
+      try {
+        String json = MULTIPART_MAPPER.writeValueAsString(value);
+        byteArrays.add(
+            ("\"" + fieldName + "\"\r\nContent-Type: application/json\r\n\r\n" + json)
+                .getBytes(StandardCharsets.UTF_8));
+      } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+        throw new RuntimeException(
+            "Failed to serialize multipart field '" + fieldName + "' as JSON", e);
+      }
+    }
+    byteArrays.add("\r\n".getBytes(StandardCharsets.UTF_8));
+  }
+
+  /**
+   * Reject filenames that would allow header injection or smuggling.
+   *
+   * <p>Filenames are interpolated directly into a {@code Content-Disposition} header value, so
+   * CR/LF/NUL characters could split the header and inject arbitrary new headers or a new request
+   * body.
+   *
+   * @param filename the proposed filename
+   * @throws IllegalArgumentException if the filename contains CR, LF, or NUL
+   */
+  static void validateMultipartFilename(String filename) {
+    if (filename == null) {
+      return;
+    }
+    for (int i = 0; i < filename.length(); i++) {
+      char c = filename.charAt(i);
+      if (c == '\r' || c == '\n' || c == '\0') {
+        throw new IllegalArgumentException(
+            "Multipart filename must not contain CR, LF, or NUL characters");
+      }
+    }
+  }
+
+  /**
+   * Build the {@code filename=...} directive for a multipart part.
+   *
+   * <p>Backslash-escapes embedded {@code "} and {@code \} in the ASCII fallback. If the filename
+   * contains non-ASCII characters, additionally emits an RFC 5987 {@code
+   * filename*=UTF-8''<percent-encoded>} parameter for clients that support it. The caller is
+   * expected to have already validated the filename via {@link #validateMultipartFilename(String)}.
+   *
+   * @param filename the (already-validated) filename
+   * @return the {@code filename=...} fragment, possibly followed by {@code ; filename*=...} for
+   *     non-ASCII names
+   */
+  static String buildFilenameDirective(String filename) {
+    String escaped = filename.replace("\\", "\\\\").replace("\"", "\\\"");
+    boolean ascii = true;
+    for (int i = 0; i < filename.length(); i++) {
+      if (filename.charAt(i) > 0x7F) {
+        ascii = false;
+        break;
+      }
+    }
+    if (ascii) {
+      return "filename=\"" + escaped + "\"";
+    }
+    String asciiFallback =
+        filename.replaceAll("[^\\x20-\\x7E]", "_").replace("\\", "\\\\").replace("\"", "\\\"");
+    String encoded = URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
+    return "filename=\"" + asciiFallback + "\"; filename*=UTF-8''" + encoded;
+  }
+
+  /**
+   * Best-effort MIME type lookup from a filename's extension.
+   *
+   * <p>Uses {@link URLConnection#guessContentTypeFromName(String)}; falls back to {@code
+   * application/octet-stream} when the JDK does not recognize the extension or when the name has no
+   * usable hint.
+   *
+   * @param filename the filename (may be {@code null})
+   * @return a non-null MIME type
+   */
+  static String guessMimeTypeFromName(@Nullable String filename) {
+    if (filename == null || filename.isEmpty()) {
+      return "application/octet-stream";
+    }
+    String guess = URLConnection.guessContentTypeFromName(filename);
+    return guess != null ? guess : "application/octet-stream";
+  }
 }

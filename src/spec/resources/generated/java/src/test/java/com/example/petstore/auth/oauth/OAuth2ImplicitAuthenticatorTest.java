@@ -15,72 +15,72 @@ import org.junit.jupiter.api.Test;
 
 class OAuth2ImplicitAuthenticatorTest {
 
-    private static OAuth2ImplicitAuthenticator createAuthenticator() {
-        return new OAuth2ImplicitAuthenticator(
-                "https://api.example.com",
-                "my-client-id",
-                "https://auth.example.com/authorize",
-                List.of("read", "write"));
-    }
+  private static OAuth2ImplicitAuthenticator createAuthenticator() {
+    return new OAuth2ImplicitAuthenticator(
+        "https://api.example.com",
+        "my-client-id",
+        "https://auth.example.com/authorize",
+        List.of("read", "write"));
+  }
 
-    @Test
-    void buildsAuthorizationUrlWithResponseTypeToken() {
-        OAuth2ImplicitAuthenticator auth = createAuthenticator();
+  @Test
+  void buildsAuthorizationUrlWithResponseTypeToken() {
+    OAuth2ImplicitAuthenticator auth = createAuthenticator();
 
-        String url = auth.buildAuthorizationUrl(null);
+    String url = auth.buildAuthorizationUrl(null);
 
-        assertTrue(url.startsWith("https://auth.example.com/authorize?"));
-        assertTrue(url.contains("response_type=token"));
-    }
+    assertTrue(url.startsWith("https://auth.example.com/authorize?"));
+    assertTrue(url.contains("response_type=token"));
+  }
 
-    @Test
-    void buildsAuthorizationUrlWithClientId() {
-        OAuth2ImplicitAuthenticator auth = createAuthenticator();
+  @Test
+  void buildsAuthorizationUrlWithClientId() {
+    OAuth2ImplicitAuthenticator auth = createAuthenticator();
 
-        String url = auth.buildAuthorizationUrl(null);
+    String url = auth.buildAuthorizationUrl(null);
 
-        assertTrue(url.contains("client_id=my-client-id"));
-    }
+    assertTrue(url.contains("client_id=my-client-id"));
+  }
 
-    @Test
-    void buildsAuthorizationUrlWithScopes() {
-        OAuth2ImplicitAuthenticator auth = createAuthenticator();
+  @Test
+  void buildsAuthorizationUrlWithScopes() {
+    OAuth2ImplicitAuthenticator auth = createAuthenticator();
 
-        String url = auth.buildAuthorizationUrl(null);
+    String url = auth.buildAuthorizationUrl(null);
 
-        assertTrue(url.contains("scope=read+write") || url.contains("scope=read%20write"));
-    }
+    assertTrue(url.contains("scope=read+write") || url.contains("scope=read%20write"));
+  }
 
-    @Test
-    void buildsAuthorizationUrlWithState() {
-        OAuth2ImplicitAuthenticator auth = createAuthenticator();
+  @Test
+  void buildsAuthorizationUrlWithState() {
+    OAuth2ImplicitAuthenticator auth = createAuthenticator();
 
-        String url = auth.buildAuthorizationUrl("my-state");
+    String url = auth.buildAuthorizationUrl("my-state");
 
-        assertTrue(url.contains("state=my-state"));
-    }
+    assertTrue(url.contains("state=my-state"));
+  }
 
-    @Test
-    void getAuthHeadersReturnsBearerAfterSetAccessToken() {
-        OAuth2ImplicitAuthenticator auth = createAuthenticator();
-        auth.setAccessToken("implicit-tok");
+  @Test
+  void getAuthHeadersReturnsBearerAfterSetAccessToken() {
+    OAuth2ImplicitAuthenticator auth = createAuthenticator();
+    auth.setAccessToken("implicit-tok");
 
-        Map<String, String> headers = auth.getAuthHeaders();
+    Map<String, String> headers = auth.getAuthHeaders();
 
-        assertEquals("Bearer implicit-tok", headers.get("Authorization"));
-    }
+    assertEquals("Bearer implicit-tok", headers.get("Authorization"));
+  }
 
-    @Test
-    void throwsWhenAccessTokenNotSet() {
-        OAuth2ImplicitAuthenticator auth = createAuthenticator();
+  @Test
+  void throwsWhenAccessTokenNotSet() {
+    OAuth2ImplicitAuthenticator auth = createAuthenticator();
 
-        assertThrows(IllegalStateException.class, () -> auth.getAuthHeaders());
-    }
+    assertThrows(IllegalStateException.class, () -> auth.getAuthHeaders());
+  }
 
-    @Test
-    void getHostReturnsConfiguredHost() {
-        OAuth2ImplicitAuthenticator auth = createAuthenticator();
+  @Test
+  void getHostReturnsConfiguredHost() {
+    OAuth2ImplicitAuthenticator auth = createAuthenticator();
 
-        assertEquals("https://api.example.com", auth.getHost());
-    }
+    assertEquals("https://api.example.com", auth.getHost());
+  }
 }

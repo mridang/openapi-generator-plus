@@ -11,66 +11,68 @@ import java.util.Collections;
 import java.util.Map;
 
 /**
- * Authenticator for API key authentication. Supports sending the key
- * as a header, query parameter, or cookie.
+ * Authenticator for API key authentication. Supports sending the key as a header, query parameter,
+ * or cookie.
  */
 public class ApiKeyAuthenticator extends BaseAuthenticator {
 
-    private final String host;
-    private final String keyParamName;
-    private final String apiKey;
-    private final ApiKeyLocation location;
+  private final String host;
+  private final String keyParamName;
+  private final String apiKey;
+  private final ApiKeyLocation location;
 
-    public ApiKeyAuthenticator(String host, String keyParamName, String apiKey, ApiKeyLocation location) {
-        this.host = host;
-        this.keyParamName = keyParamName;
-        this.apiKey = apiKey;
-        this.location = location;
+  public ApiKeyAuthenticator(
+      String host, String keyParamName, String apiKey, ApiKeyLocation location) {
+    this.host = host;
+    this.keyParamName = keyParamName;
+    this.apiKey = apiKey;
+    this.location = location;
+  }
+
+  @Override
+  public String getHost() {
+    return host;
+  }
+
+  @Override
+  public Map<String, String> getAuthHeaders() {
+    if (location != ApiKeyLocation.HEADER) {
+      return Collections.emptyMap();
     }
-
-    @Override
-    public String getHost() {
-        return host;
-    }
-
-    @Override
-    public Map<String, String> getAuthHeaders() {
-        if (location != ApiKeyLocation.HEADER) {
-            return Collections.emptyMap();
+    /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
+     * Reject anything outside printable ASCII + TAB at use time so
+     * callers see a clear error rather than (a) HTTP header injection
+     * from a CR/LF, or (b) silently-mangled non-ASCII bytes that
+     * different HTTP libs encode differently per language. Validation
+     * is lazy (not in the constructor) to avoid SpotBugs
+     * CT_CONSTRUCTOR_THROW on a non-final class. */
+    if (apiKey != null) {
+      for (int i = 0; i < apiKey.length(); i++) {
+        char c = apiKey.charAt(i);
+        if (c != '\t' && (c < 0x20 || c >= 0x7F)) {
+          throw new IllegalArgumentException(
+              "API key for header '"
+                  + keyParamName
+                  + "' must contain only printable ASCII characters (RFC 7230 §3.2.6)");
         }
-        /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
-         * Reject anything outside printable ASCII + TAB at use time so
-         * callers see a clear error rather than (a) HTTP header injection
-         * from a CR/LF, or (b) silently-mangled non-ASCII bytes that
-         * different HTTP libs encode differently per language. Validation
-         * is lazy (not in the constructor) to avoid SpotBugs
-         * CT_CONSTRUCTOR_THROW on a non-final class. */
-        if (apiKey != null) {
-            for (int i = 0; i < apiKey.length(); i++) {
-                char c = apiKey.charAt(i);
-                if (c != '\t' && (c < 0x20 || c >= 0x7F)) {
-                    throw new IllegalArgumentException(
-                            "API key for header '" + keyParamName
-                                    + "' must contain only printable ASCII characters (RFC 7230 §3.2.6)");
-                }
-            }
-        }
-        return Collections.singletonMap(keyParamName, apiKey);
+      }
     }
+    return Collections.singletonMap(keyParamName, apiKey);
+  }
 
-    @Override
-    public Map<String, String> getQueryParams() {
-        if (location == ApiKeyLocation.QUERY) {
-            return Collections.singletonMap(keyParamName, apiKey);
-        }
-        return Collections.emptyMap();
+  @Override
+  public Map<String, String> getQueryParams() {
+    if (location == ApiKeyLocation.QUERY) {
+      return Collections.singletonMap(keyParamName, apiKey);
     }
+    return Collections.emptyMap();
+  }
 
-    @Override
-    public Map<String, String> getCookieParams() {
-        if (location == ApiKeyLocation.COOKIE) {
-            return Collections.singletonMap(keyParamName, apiKey);
-        }
-        return Collections.emptyMap();
+  @Override
+  public Map<String, String> getCookieParams() {
+    if (location == ApiKeyLocation.COOKIE) {
+      return Collections.singletonMap(keyParamName, apiKey);
     }
+    return Collections.emptyMap();
+  }
 }

@@ -7,286 +7,295 @@
 
 import Foundation
 import Testing
+
 @testable import PetstoreClient
 
 @Suite(.serialized)
 final class PetApiTests {
 
-    init() async throws {
-        if prismUrl.isEmpty {
-            try await setUpContainers()
-        }
+  init() async throws {
+    if prismUrl.isEmpty {
+      try await setUpContainers()
     }
+  }
 
-    // MARK: - Helpers
+  // MARK: - Helpers
 
-    private func petApiForIntegration() -> PetApi {
-        let config = ConfigurationBuilder()
-            .baseURL(prismUrl)
-            .defaultHeader(name: "Authorization", value: "Bearer test-token")
-            .build()
-        let client = DefaultApiClient()
-        return PetApi(apiClient: client, config: config)
+  private func petApiForIntegration() -> PetApi {
+    let config = ConfigurationBuilder()
+      .baseURL(prismUrl)
+      .defaultHeader(name: "Authorization", value: "Bearer test-token")
+      .build()
+    let client = DefaultApiClient()
+    return PetApi(apiClient: client, config: config)
+  }
+
+  // MARK: - Integration Tests
+
+  @Test func testAddPet() async throws {
+    let api = petApiForIntegration()
+    let auth = TestAuthenticator()
+
+    let pet = Pet(name: "Fido", photoUrls: ["http://example.com/fido.jpg"])
+
+    let result = try await api.addPet(pet: pet, auth: auth)
+    #expect(result != nil)
+  }
+
+  @Test func testAddPetWithHTTPInfo() async throws {
+    let api = petApiForIntegration()
+    let auth = TestAuthenticator()
+
+    let pet = Pet(name: "Buddy", photoUrls: ["http://example.com/buddy.jpg"])
+
+    let result = try await api.addPetWithHTTPInfo(pet: pet, auth: auth)
+    #expect(result.statusCode >= 200)
+    #expect(result.statusCode < 300)
+    #expect(!result.rawBody.isEmpty)
+  }
+
+  @Test func testGetPetById() async throws {
+    let api = petApiForIntegration()
+
+    let result = try await api.getPetById(petId: 1)
+    #expect(result != nil)
+  }
+
+  @Test func testGetPetByIdWithHTTPInfo() async throws {
+    let api = petApiForIntegration()
+
+    let result = try await api.getPetByIdWithHTTPInfo(petId: 1)
+    #expect(result.statusCode == 200)
+    #expect(result.headers != nil)
+    #expect(!result.rawBody.isEmpty)
+  }
+
+  @Test func testUpdatePet() async throws {
+    let api = petApiForIntegration()
+
+    let pet = Pet(name: "UpdatedFido", photoUrls: ["http://example.com/fido-updated.jpg"])
+
+    let result = try await api.updatePet(petId: 1, pet: pet)
+    #expect(result != nil)
+  }
+
+  @Test func testUpdatePetWithHTTPInfo() async throws {
+    let api = petApiForIntegration()
+
+    let pet = Pet(name: "UpdatedFido", photoUrls: ["http://example.com/fido-updated.jpg"])
+
+    let result = try await api.updatePetWithHTTPInfo(petId: 1, pet: pet)
+    #expect(result.statusCode >= 200)
+    #expect(result.statusCode < 300)
+  }
+
+  @Test func testDeletePet() async throws {
+    let api = petApiForIntegration()
+    let auth = TestAuthenticator()
+
+    try await api.deletePet(petId: 1, options: nil, auth: auth)
+  }
+
+  @Test func testDeletePetWithHTTPInfo() async throws {
+    let api = petApiForIntegration()
+    let auth = TestAuthenticator()
+
+    let result = try await api.deletePetWithHTTPInfo(petId: 1, options: nil, auth: auth)
+    #expect(result.statusCode >= 200)
+    #expect(result.statusCode < 300)
+  }
+
+  @Test func testFindPetsByStatus() async throws {
+    let api = petApiForIntegration()
+
+    let result = try await api.findPetsByStatus(
+      options: FindPetsByStatusOptions(status: "available"))
+    #expect(result != nil)
+  }
+
+  @Test func testFindPetsByStatusWithHTTPInfo() async throws {
+    let api = petApiForIntegration()
+
+    let result = try await api.findPetsByStatusWithHTTPInfo(
+      options: FindPetsByStatusOptions(status: "available"))
+    #expect(result.statusCode == 200)
+  }
+
+  @Test func testGetPetPassport() async throws {
+    let api = petApiForIntegration()
+
+    let result = try await api.getPetPassport(petId: 1)
+    #expect(result != nil)
+  }
+
+  @Test func testGetPetPassportWithHTTPInfo() async throws {
+    let api = petApiForIntegration()
+
+    let result = try await api.getPetPassportWithHTTPInfo(petId: 1)
+    #expect(result.statusCode == 200)
+  }
+
+  @Test func testSetPetAvatar() async throws {
+    let api = petApiForIntegration()
+    let imageData = Data([0xFF, 0xD8, 0xFF, 0xE0])
+
+    try await api.setPetAvatar(petId: 1, body: imageData)
+  }
+
+  @Test func testGetPetAvatar() async throws {
+    let api = petApiForIntegration()
+
+    let result = try await api.getPetAvatar(petId: 1)
+    #expect(result != nil)
+  }
+
+  @Test func testGetPetAvatarThumbnail() async throws {
+    let api = petApiForIntegration()
+
+    let result = try await api.getPetAvatarThumbnail(petId: 1)
+    #expect(result != nil)
+  }
+
+  @Test(
+    .disabled(
+      "SetPetAvatarThumbnailRequest is a decoder-only union type with no public constructor"))
+  func testSetPetAvatarThumbnail() async throws {
+    // SetPetAvatarThumbnailRequest has no public constructor; placeholder only.
+  }
+
+  @Test func testUploadPetCertificate() async throws {
+    let api = petApiForIntegration()
+    let fakeCert = Data("fake-pdf-data".utf8)
+
+    let result = try await api.uploadPetCertificate(
+      petId: 1, options: UploadPetCertificateOptions(file: fakeCert))
+    #expect(result != nil)
+  }
+
+  @Test func testUploadPetDocument() async throws {
+    let api = petApiForIntegration()
+    let fakeDoc = Data("fake-doc-data".utf8)
+
+    let result = try await api.uploadPetDocument(
+      petId: 1,
+      options: UploadPetDocumentOptions(
+        file: fakeDoc, documentType: "vaccination_record", notes: "Annual checkup")
+    )
+    #expect(result != nil)
+  }
+
+  @Test(.disabled("Prism does not validate multipart array fields correctly"))
+  func testAddPetPhotos() async throws {
+    let api = petApiForIntegration()
+    _ = try await api.addPetPhotos(petId: 1, options: nil)
+  }
+
+  @Test func testDownloadPetDocument() async throws {
+    let api = petApiForIntegration()
+
+    let result = try await api.downloadPetDocument(petId: 1, documentId: 1)
+    #expect(result != nil)
+  }
+
+  @Test(.disabled("Prism returns JSON for image content type"))
+  func testGetPetPhoto() async throws {
+    let api = petApiForIntegration()
+    _ = try await api.getPetPhoto(petId: 1, photoId: 1)
+  }
+
+  @Test(.disabled("Prism does not support matrix/label style parameters"))
+  func testGetPetTag() async throws {
+    let api = petApiForIntegration()
+    let options = GetPetTagOptions(colors: ["blue", "black"], sizes: ["S", "M"])
+    _ = try await api.getPetTag(petId: 5, tagName: "cute", options: options)
+  }
+
+  @Test(.disabled("Per-operation server URL points to external host"))
+  func testGetExternalPetInfo() async throws {
+    let api = petApiForIntegration()
+    _ = try await api.getExternalPetInfo(petId: 1)
+  }
+
+  // MARK: - Mock Helpers
+
+  private func petApiForMock(
+    statusCode: Int,
+    body: String,
+    contentType: String = "application/json"
+  ) -> PetApi {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = statusCode
+    mockClient.responseBody = body
+    mockClient.responseHeaders = ["Content-Type": contentType]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    return PetApi(apiClient: mockClient, config: config)
+  }
+
+  // MARK: - Mock Tests
+
+  @Test func testDownloadBinaryMock() async throws {
+    let mockApi = petApiForMock(
+      statusCode: 200, body: "FAKE_BINARY_DATA", contentType: "application/octet-stream")
+    let result = try await mockApi.getPetAvatar(petId: 1)
+    #expect(result != nil)
+  }
+
+  @Test func testUploadMultipartMock() async throws {
+    let mockApi = petApiForMock(
+      statusCode: 200, body: "{\"code\":200,\"type\":\"\",\"message\":\"success\"}")
+    let result = try await mockApi.uploadPetCertificate(petId: 1, options: nil)
+    #expect(result != nil)
+  }
+
+  @Test func testErrorHandlingNotFound() async throws {
+    let mockApi = petApiForMock(statusCode: 404, body: "{\"message\":\"Pet not found\"}")
+    do {
+      _ = try await mockApi.getPetById(petId: 99999)
+      Issue.record("Expected error for status 404")
+    } catch {
+      #expect(error != nil)
     }
+  }
 
-    // MARK: - Integration Tests
-
-    @Test func testAddPet() async throws {
-        let api = petApiForIntegration()
-        let auth = TestAuthenticator()
-
-        let pet = Pet(name: "Fido", photoUrls: ["http://example.com/fido.jpg"])
-
-        let result = try await api.addPet(pet: pet, auth: auth)
-        #expect(result != nil)
+  @Test func testErrorHandlingServerError() async throws {
+    let mockApi = petApiForMock(statusCode: 500, body: "{\"message\":\"Internal server error\"}")
+    do {
+      _ = try await mockApi.getPetById(petId: 1)
+      Issue.record("Expected error for status 500")
+    } catch {
+      #expect(error != nil)
     }
-
-    @Test func testAddPetWithHTTPInfo() async throws {
-        let api = petApiForIntegration()
-        let auth = TestAuthenticator()
-
-        let pet = Pet(name: "Buddy", photoUrls: ["http://example.com/buddy.jpg"])
-
-        let result = try await api.addPetWithHTTPInfo(pet: pet, auth: auth)
-        #expect(result.statusCode >= 200)
-        #expect(result.statusCode < 300)
-        #expect(!result.rawBody.isEmpty)
-    }
-
-    @Test func testGetPetById() async throws {
-        let api = petApiForIntegration()
-
-        let result = try await api.getPetById(petId: 1)
-        #expect(result != nil)
-    }
-
-    @Test func testGetPetByIdWithHTTPInfo() async throws {
-        let api = petApiForIntegration()
-
-        let result = try await api.getPetByIdWithHTTPInfo(petId: 1)
-        #expect(result.statusCode == 200)
-        #expect(result.headers != nil)
-        #expect(!result.rawBody.isEmpty)
-    }
-
-    @Test func testUpdatePet() async throws {
-        let api = petApiForIntegration()
-
-        let pet = Pet(name: "UpdatedFido", photoUrls: ["http://example.com/fido-updated.jpg"])
-
-        let result = try await api.updatePet(petId: 1, pet: pet)
-        #expect(result != nil)
-    }
-
-    @Test func testUpdatePetWithHTTPInfo() async throws {
-        let api = petApiForIntegration()
-
-        let pet = Pet(name: "UpdatedFido", photoUrls: ["http://example.com/fido-updated.jpg"])
-
-        let result = try await api.updatePetWithHTTPInfo(petId: 1, pet: pet)
-        #expect(result.statusCode >= 200)
-        #expect(result.statusCode < 300)
-    }
-
-    @Test func testDeletePet() async throws {
-        let api = petApiForIntegration()
-        let auth = TestAuthenticator()
-
-        try await api.deletePet(petId: 1, options: nil, auth: auth)
-    }
-
-    @Test func testDeletePetWithHTTPInfo() async throws {
-        let api = petApiForIntegration()
-        let auth = TestAuthenticator()
-
-        let result = try await api.deletePetWithHTTPInfo(petId: 1, options: nil, auth: auth)
-        #expect(result.statusCode >= 200)
-        #expect(result.statusCode < 300)
-    }
-
-    @Test func testFindPetsByStatus() async throws {
-        let api = petApiForIntegration()
-
-        let result = try await api.findPetsByStatus(options: FindPetsByStatusOptions(status: "available"))
-        #expect(result != nil)
-    }
-
-    @Test func testFindPetsByStatusWithHTTPInfo() async throws {
-        let api = petApiForIntegration()
-
-        let result = try await api.findPetsByStatusWithHTTPInfo(options: FindPetsByStatusOptions(status: "available"))
-        #expect(result.statusCode == 200)
-    }
-
-    @Test func testGetPetPassport() async throws {
-        let api = petApiForIntegration()
-
-        let result = try await api.getPetPassport(petId: 1)
-        #expect(result != nil)
-    }
-
-    @Test func testGetPetPassportWithHTTPInfo() async throws {
-        let api = petApiForIntegration()
-
-        let result = try await api.getPetPassportWithHTTPInfo(petId: 1)
-        #expect(result.statusCode == 200)
-    }
-
-    @Test func testSetPetAvatar() async throws {
-        let api = petApiForIntegration()
-        let imageData = Data([0xFF, 0xD8, 0xFF, 0xE0])
-
-        try await api.setPetAvatar(petId: 1, body: imageData)
-    }
-
-    @Test func testGetPetAvatar() async throws {
-        let api = petApiForIntegration()
-
-        let result = try await api.getPetAvatar(petId: 1)
-        #expect(result != nil)
-    }
-
-    @Test func testGetPetAvatarThumbnail() async throws {
-        let api = petApiForIntegration()
-
-        let result = try await api.getPetAvatarThumbnail(petId: 1)
-        #expect(result != nil)
-    }
-
-    @Test(.disabled("SetPetAvatarThumbnailRequest is a decoder-only union type with no public constructor"))
-    func testSetPetAvatarThumbnail() async throws {
-        // SetPetAvatarThumbnailRequest has no public constructor; placeholder only.
-    }
-
-    @Test func testUploadPetCertificate() async throws {
-        let api = petApiForIntegration()
-        let fakeCert = Data("fake-pdf-data".utf8)
-
-        let result = try await api.uploadPetCertificate(petId: 1, options: UploadPetCertificateOptions(file: fakeCert))
-        #expect(result != nil)
-    }
-
-    @Test func testUploadPetDocument() async throws {
-        let api = petApiForIntegration()
-        let fakeDoc = Data("fake-doc-data".utf8)
-
-        let result = try await api.uploadPetDocument(
-            petId: 1,
-            options: UploadPetDocumentOptions(file: fakeDoc, documentType: "vaccination_record", notes: "Annual checkup")
-        )
-        #expect(result != nil)
-    }
-
-    @Test(.disabled("Prism does not validate multipart array fields correctly"))
-    func testAddPetPhotos() async throws {
-        let api = petApiForIntegration()
-        _ = try await api.addPetPhotos(petId: 1, options: nil)
-    }
-
-    @Test func testDownloadPetDocument() async throws {
-        let api = petApiForIntegration()
-
-        let result = try await api.downloadPetDocument(petId: 1, documentId: 1)
-        #expect(result != nil)
-    }
-
-    @Test(.disabled("Prism returns JSON for image content type"))
-    func testGetPetPhoto() async throws {
-        let api = petApiForIntegration()
-        _ = try await api.getPetPhoto(petId: 1, photoId: 1)
-    }
-
-    @Test(.disabled("Prism does not support matrix/label style parameters"))
-    func testGetPetTag() async throws {
-        let api = petApiForIntegration()
-        let options = GetPetTagOptions(colors: ["blue", "black"], sizes: ["S", "M"])
-        _ = try await api.getPetTag(petId: 5, tagName: "cute", options: options)
-    }
-
-    @Test(.disabled("Per-operation server URL points to external host"))
-    func testGetExternalPetInfo() async throws {
-        let api = petApiForIntegration()
-        _ = try await api.getExternalPetInfo(petId: 1)
-    }
-
-    // MARK: - Mock Helpers
-
-    private func petApiForMock(
-        statusCode: Int,
-        body: String,
-        contentType: String = "application/json"
-    ) -> PetApi {
-        let mockClient = MockApiClient()
-        mockClient.responseStatusCode = statusCode
-        mockClient.responseBody = body
-        mockClient.responseHeaders = ["Content-Type": contentType]
-        let config = ConfigurationBuilder().baseURL("https://example.com").build()
-        return PetApi(apiClient: mockClient, config: config)
-    }
-
-    // MARK: - Mock Tests
-
-    @Test func testDownloadBinaryMock() async throws {
-        let mockApi = petApiForMock(statusCode: 200, body: "FAKE_BINARY_DATA", contentType: "application/octet-stream")
-        let result = try await mockApi.getPetAvatar(petId: 1)
-        #expect(result != nil)
-    }
-
-    @Test func testUploadMultipartMock() async throws {
-        let mockApi = petApiForMock(statusCode: 200, body: "{\"code\":200,\"type\":\"\",\"message\":\"success\"}")
-        let result = try await mockApi.uploadPetCertificate(petId: 1, options: nil)
-        #expect(result != nil)
-    }
-
-    @Test func testErrorHandlingNotFound() async throws {
-        let mockApi = petApiForMock(statusCode: 404, body: "{\"message\":\"Pet not found\"}")
-        do {
-            _ = try await mockApi.getPetById(petId: 99999)
-            Issue.record("Expected error for status 404")
-        } catch {
-            #expect(error != nil)
-        }
-    }
-
-    @Test func testErrorHandlingServerError() async throws {
-        let mockApi = petApiForMock(statusCode: 500, body: "{\"message\":\"Internal server error\"}")
-        do {
-            _ = try await mockApi.getPetById(petId: 1)
-            Issue.record("Expected error for status 500")
-        } catch {
-            #expect(error != nil)
-        }
-    }
+  }
 }
 
 /// Test authenticator for integration tests.
 private final class TestAuthenticator: BaseAuthenticator, @unchecked Sendable {
-    override func host() -> String { return "" }
-    override func authHeaders() async -> [String: String] {
-        return ["Authorization": "Bearer test-token"]
-    }
+  override func host() -> String { return "" }
+  override func authHeaders() async -> [String: String] {
+    return ["Authorization": "Bearer test-token"]
+  }
 }
 
 private final class MockApiClient: ApiClient, @unchecked Sendable {
-    var lastMethod: String = ""
-    var lastURL: String = ""
-    var lastHeaders: [String: String] = [:]
-    var lastBody: Data? = nil
-    var responseStatusCode: Int = 200
-    var responseBody: String = "{}"
-    var responseHeaders: [String: String] = ["Content-Type": "application/json"]
+  var lastMethod: String = ""
+  var lastURL: String = ""
+  var lastHeaders: [String: String] = [:]
+  var lastBody: Data? = nil
+  var responseStatusCode: Int = 200
+  var responseBody: String = "{}"
+  var responseHeaders: [String: String] = ["Content-Type": "application/json"]
 
-    func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
-        async throws -> HttpResponse
-    {
-        lastMethod = method
-        lastURL = url
-        lastHeaders = headers
-        lastBody = body as? Data
-        return HttpResponse(
-            statusCode: responseStatusCode,
-            body: responseBody,
-            headers: responseHeaders
-        )
-    }
+  func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+    async throws -> HttpResponse
+  {
+    lastMethod = method
+    lastURL = url
+    lastHeaders = headers
+    lastBody = body as? Data
+    return HttpResponse(
+      statusCode: responseStatusCode,
+      body: responseBody,
+      headers: responseHeaders
+    )
+  }
 }

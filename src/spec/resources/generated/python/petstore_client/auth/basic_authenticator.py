@@ -11,6 +11,7 @@ from typing import Dict
 
 from .base_authenticator import BaseAuthenticator
 
+
 @dataclass(frozen=True)
 class BasicAuthenticator(BaseAuthenticator):
     """Authenticator for HTTP Basic authentication."""

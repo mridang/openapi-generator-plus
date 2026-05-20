@@ -9,11 +9,12 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // DryFood is a model class generated from the OpenAPI schema.
 type DryFood struct {
-	FoodType string `json:"foodType"`
+	FoodType string  `json:"foodType"`
 	WeightKg float64 `json:"weightKg"`
 }
 

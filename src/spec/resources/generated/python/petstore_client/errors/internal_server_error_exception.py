@@ -9,6 +9,7 @@ from typing import Any, Optional
 
 from petstore_client.errors.server_exception import ServerException
 
+
 class InternalServerErrorException(ServerException):
     """Exception for HTTP 500 Internal Server Error."""
 
@@ -19,4 +20,10 @@ class InternalServerErrorException(ServerException):
         response_body: Optional[str] = None,
         error_body: Optional[Any] = None,
     ) -> None:
-        super().__init__(status_code=500, message=message, response_headers=response_headers, response_body=response_body, error_body=error_body)
+        super().__init__(
+            status_code=500,
+            message=message,
+            response_headers=response_headers,
+            response_body=response_body,
+            error_body=error_body,
+        )

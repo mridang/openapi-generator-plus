@@ -52,7 +52,13 @@ impl ApiClient for FakeApiClient {
         url: &str,
         _headers: &HashMap<String, String>,
         body: Option<&RequestBody>,
-    ) -> Pin<Box<dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
+                + Send
+                + '_,
+        >,
+    > {
         {
             let mut last_url = self.last_url.lock().unwrap();
             *last_url = Some(url.to_string());
@@ -115,7 +121,9 @@ async fn test_exchanges_code_with_correct_grant_type() {
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
 
-    auth.exchange_code("auth-code-xyz").await.expect("should succeed");
+    auth.exchange_code("auth-code-xyz")
+        .await
+        .expect("should succeed");
 
     let body = client.last_body().expect("should have body");
     assert!(body.contains("grant_type=authorization_code"));
@@ -136,7 +144,9 @@ async fn test_includes_refresh_token_on_refresh() {
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
 
-    auth.exchange_code("auth-code-xyz").await.expect("should succeed");
+    auth.exchange_code("auth-code-xyz")
+        .await
+        .expect("should succeed");
 
     // GetAuthHeaders triggers a refresh since token is expired
     let headers = auth.auth_headers().await;

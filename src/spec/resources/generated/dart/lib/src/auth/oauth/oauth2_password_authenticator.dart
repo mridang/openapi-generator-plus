@@ -79,7 +79,8 @@ class OAuth2PasswordAuthenticator extends BaseAuthenticator
        * separately before joining with ':' and base64-encoding. */
       final encodedId = Uri.encodeComponent(_clientId);
       final encodedSecret = Uri.encodeComponent(_clientSecret);
-      final credentials = base64.encode(utf8.encode('$encodedId:$encodedSecret'));
+      final credentials =
+          base64.encode(utf8.encode('$encodedId:$encodedSecret'));
       extraHeaders['Authorization'] = 'Basic $credentials';
     }
 
@@ -106,7 +107,8 @@ class OAuth2PasswordAuthenticator extends BaseAuthenticator
       tokenUrl = _tokenUrl;
     }
 
-    final token = await _tokenManager.getAccessToken(tokenUrl, params, extraHeaders);
+    final token =
+        await _tokenManager.getAccessToken(tokenUrl, params, extraHeaders);
     return {'Authorization': 'Bearer $token'};
   }
 }

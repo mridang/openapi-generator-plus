@@ -11,24 +11,29 @@ from unittest.mock import MagicMock
 from petstore_client.auth.oauth.oauth2_token_manager import OAuth2TokenManager
 from petstore_client.api_response import ApiResponse
 
-class TestOAuth2TokenManager:
 
+class TestOAuth2TokenManager:
     def test_extracts_access_token_from_response(self) -> None:
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiResponse(
             status_code=200,
-            body=json.dumps({
-                'access_token': 'my_access_token',
-                'expires_in': 3600,
-            }),
+            body=json.dumps(
+                {
+                    'access_token': 'my_access_token',
+                    'expires_in': 3600,
+                }
+            ),
             headers={'content-type': 'application/json'},
         )
         manager.set_api_client(mock_client)
 
-        token = manager.get_access_token('https://auth.example.com/token', {
-            'grant_type': 'client_credentials',
-        })
+        token = manager.get_access_token(
+            'https://auth.example.com/token',
+            {
+                'grant_type': 'client_credentials',
+            },
+        )
 
         assert token == 'my_access_token'
 
@@ -37,19 +42,24 @@ class TestOAuth2TokenManager:
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiResponse(
             status_code=200,
-            body=json.dumps({
-                'access_token': 'access123',
-                'refresh_token': 'refresh456',
-                'expires_in': 3600,
-            }),
+            body=json.dumps(
+                {
+                    'access_token': 'access123',
+                    'refresh_token': 'refresh456',
+                    'expires_in': 3600,
+                }
+            ),
             headers={'content-type': 'application/json'},
         )
         manager.set_api_client(mock_client)
 
-        manager.get_access_token('https://auth.example.com/token', {
-            'grant_type': 'authorization_code',
-            'code': 'authcode',
-        })
+        manager.get_access_token(
+            'https://auth.example.com/token',
+            {
+                'grant_type': 'authorization_code',
+                'code': 'authcode',
+            },
+        )
 
         assert manager.refresh_token == 'refresh456'
 
@@ -58,10 +68,12 @@ class TestOAuth2TokenManager:
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiResponse(
             status_code=200,
-            body=json.dumps({
-                'access_token': 'tok1',
-                'expires_in': 3600,
-            }),
+            body=json.dumps(
+                {
+                    'access_token': 'tok1',
+                    'expires_in': 3600,
+                }
+            ),
             headers={'content-type': 'application/json'},
         )
         manager.set_api_client(mock_client)
@@ -82,18 +94,22 @@ class TestOAuth2TokenManager:
         mock_client.send_request.side_effect = [
             ApiResponse(
                 status_code=200,
-                body=json.dumps({
-                    'access_token': 'token_first',
-                    'expires_in': 0,
-                }),
+                body=json.dumps(
+                    {
+                        'access_token': 'token_first',
+                        'expires_in': 0,
+                    }
+                ),
                 headers={'content-type': 'application/json'},
             ),
             ApiResponse(
                 status_code=200,
-                body=json.dumps({
-                    'access_token': 'token_second',
-                    'expires_in': 3600,
-                }),
+                body=json.dumps(
+                    {
+                        'access_token': 'token_second',
+                        'expires_in': 3600,
+                    }
+                ),
                 headers={'content-type': 'application/json'},
             ),
         ]

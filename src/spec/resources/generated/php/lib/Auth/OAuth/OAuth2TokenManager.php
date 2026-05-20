@@ -1,4 +1,5 @@
 <?php
+
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -82,10 +83,12 @@ final class OAuth2TokenManager
      */
     public function getAccessToken(string $tokenUrl, array $params, array $extraHeaders = []): string
     {
-        if ($this->accessToken !== null && (
+        if (
+            $this->accessToken !== null && (
             $this->tokenExpiry === null
             || microtime(true) < ($this->tokenExpiry - self::EXPIRY_SAFETY_MARGIN_S)
-        )) {
+            )
+        ) {
             return $this->accessToken;
         }
         if ($this->refreshToken !== null && $this->refreshToken !== '') {

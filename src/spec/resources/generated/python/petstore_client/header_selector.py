@@ -10,6 +10,7 @@ import re
 from collections import namedtuple
 from typing import Any, Dict, List, Optional
 
+
 class HeaderSelector:
     """HeaderSelector"""
 

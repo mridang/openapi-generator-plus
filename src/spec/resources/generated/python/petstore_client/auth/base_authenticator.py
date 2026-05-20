@@ -10,6 +10,7 @@ from typing import Dict
 
 from .authenticator import Authenticator
 
+
 class BaseAuthenticator(Authenticator):
     """Abstract base class providing default implementations for optional
     Authenticator methods. Concrete authenticators should extend this class.

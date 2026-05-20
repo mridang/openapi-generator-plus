@@ -8,7 +8,7 @@ export default [
   {
     plugins: { unicorn },
     rules: {
-      'unicorn/prefer-node-protocol': 'error',
-    },
-  },
+      'unicorn/prefer-node-protocol': 'error'
+    }
+  }
 ];

@@ -18,122 +18,126 @@ import org.junit.jupiter.api.Test;
 
 class OAuth2TokenManagerTest {
 
-    private ApiClient fakeClient(String responseBody) {
-        return fakeClient(200, responseBody);
-    }
+  private ApiClient fakeClient(String responseBody) {
+    return fakeClient(200, responseBody);
+  }
 
-    private ApiClient fakeClient(int statusCode, String responseBody) {
-        return (method, url, headers, body) ->
-                new ApiResponse(statusCode, responseBody, Map.of());
-    }
+  private ApiClient fakeClient(int statusCode, String responseBody) {
+    return (method, url, headers, body) -> new ApiResponse(statusCode, responseBody, Map.of());
+  }
 
-    @Test
-    void extractsAccessTokenFromResponse() {
-        OAuth2TokenManager manager = new OAuth2TokenManager();
-        manager.setApiClient(fakeClient(
-                "{\"access_token\":\"my-token\",\"expires_in\":3600}"));
+  @Test
+  void extractsAccessTokenFromResponse() {
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(fakeClient("{\"access_token\":\"my-token\",\"expires_in\":3600}"));
 
-        Map<String, String> params = new HashMap<>();
-        params.put("grant_type", "client_credentials");
-        String token = manager.getAccessToken("https://auth.example.com/token", params);
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "client_credentials");
+    String token = manager.getAccessToken("https://auth.example.com/token", params);
 
-        assertEquals("my-token", token);
-    }
+    assertEquals("my-token", token);
+  }
 
-    @Test
-    void storesRefreshToken() {
-        OAuth2TokenManager manager = new OAuth2TokenManager();
-        manager.setApiClient(fakeClient(
-                "{\"access_token\":\"at\",\"refresh_token\":\"rt\",\"expires_in\":3600}"));
+  @Test
+  void storesRefreshToken() {
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(
+        fakeClient("{\"access_token\":\"at\",\"refresh_token\":\"rt\",\"expires_in\":3600}"));
 
-        Map<String, String> params = new HashMap<>();
-        params.put("grant_type", "client_credentials");
-        manager.getAccessToken("https://auth.example.com/token", params);
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "client_credentials");
+    manager.getAccessToken("https://auth.example.com/token", params);
 
-        assertEquals("rt", manager.getRefreshToken());
-    }
+    assertEquals("rt", manager.getRefreshToken());
+  }
 
-    @Test
-    void returnsCachedTokenWhenNotExpired() {
-        AtomicInteger callCount = new AtomicInteger(0);
-        ApiClient client = (method, url, headers, body) -> {
-            callCount.incrementAndGet();
-            return new ApiResponse(200,
-                    "{\"access_token\":\"tok1\",\"expires_in\":3600}", Map.of());
+  @Test
+  void returnsCachedTokenWhenNotExpired() {
+    AtomicInteger callCount = new AtomicInteger(0);
+    ApiClient client =
+        (method, url, headers, body) -> {
+          callCount.incrementAndGet();
+          return new ApiResponse(200, "{\"access_token\":\"tok1\",\"expires_in\":3600}", Map.of());
         };
 
-        OAuth2TokenManager manager = new OAuth2TokenManager();
-        manager.setApiClient(client);
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
 
-        Map<String, String> params = new HashMap<>();
-        params.put("grant_type", "client_credentials");
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "client_credentials");
 
-        String first = manager.getAccessToken("https://auth.example.com/token", params);
-        String second = manager.getAccessToken("https://auth.example.com/token", params);
+    String first = manager.getAccessToken("https://auth.example.com/token", params);
+    String second = manager.getAccessToken("https://auth.example.com/token", params);
 
-        assertEquals("tok1", first);
-        assertEquals("tok1", second);
-        assertEquals(1, callCount.get());
-    }
+    assertEquals("tok1", first);
+    assertEquals("tok1", second);
+    assertEquals(1, callCount.get());
+  }
 
-    @Test
-    void refetchesTokenWhenExpired() {
-        var responses = new Object() { int call = 0; };
-        ApiClient client = (method, url, headers, body) -> {
-            responses.call++;
-            if (responses.call == 1) {
-                return new ApiResponse(200,
-                        "{\"access_token\":\"expired-token\",\"expires_in\":0}", Map.of());
-            }
-            return new ApiResponse(200,
-                    "{\"access_token\":\"fresh-token\",\"expires_in\":3600}", Map.of());
+  @Test
+  void refetchesTokenWhenExpired() {
+    var responses =
+        new Object() {
+          int call = 0;
+        };
+    ApiClient client =
+        (method, url, headers, body) -> {
+          responses.call++;
+          if (responses.call == 1) {
+            return new ApiResponse(
+                200, "{\"access_token\":\"expired-token\",\"expires_in\":0}", Map.of());
+          }
+          return new ApiResponse(
+              200, "{\"access_token\":\"fresh-token\",\"expires_in\":3600}", Map.of());
         };
 
-        OAuth2TokenManager manager = new OAuth2TokenManager();
-        manager.setApiClient(client);
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
 
-        Map<String, String> params = new HashMap<>();
-        params.put("grant_type", "client_credentials");
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "client_credentials");
 
-        manager.getAccessToken("https://auth.example.com/token", params);
-        String token = manager.getAccessToken("https://auth.example.com/token", params);
+    manager.getAccessToken("https://auth.example.com/token", params);
+    String token = manager.getAccessToken("https://auth.example.com/token", params);
 
-        assertEquals("fresh-token", token);
-        assertEquals(2, responses.call);
-    }
+    assertEquals("fresh-token", token);
+    assertEquals(2, responses.call);
+  }
 
-    @Test
-    void setAccessTokenBypassesEndpoint() {
-        OAuth2TokenManager manager = new OAuth2TokenManager();
-        manager.setAccessToken("manual-token");
+  @Test
+  void setAccessTokenBypassesEndpoint() {
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setAccessToken("manual-token");
 
-        Map<String, String> params = new HashMap<>();
-        params.put("grant_type", "client_credentials");
-        String token = manager.getAccessToken("https://auth.example.com/token", params);
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "client_credentials");
+    String token = manager.getAccessToken("https://auth.example.com/token", params);
 
-        assertEquals("manual-token", token);
-    }
+    assertEquals("manual-token", token);
+  }
 
-    @Test
-    void throwsWhenNoApiClientInjected() {
-        OAuth2TokenManager manager = new OAuth2TokenManager();
+  @Test
+  void throwsWhenNoApiClientInjected() {
+    OAuth2TokenManager manager = new OAuth2TokenManager();
 
-        Map<String, String> params = new HashMap<>();
-        params.put("grant_type", "client_credentials");
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "client_credentials");
 
-        assertThrows(IllegalStateException.class, () ->
-                manager.getAccessToken("https://auth.example.com/token", params));
-    }
+    assertThrows(
+        IllegalStateException.class,
+        () -> manager.getAccessToken("https://auth.example.com/token", params));
+  }
 
-    @Test
-    void throwsWhenTokenRequestFails() {
-        OAuth2TokenManager manager = new OAuth2TokenManager();
-        manager.setApiClient(fakeClient(401, "{\"error\":\"invalid_client\"}"));
+  @Test
+  void throwsWhenTokenRequestFails() {
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(fakeClient(401, "{\"error\":\"invalid_client\"}"));
 
-        Map<String, String> params = new HashMap<>();
-        params.put("grant_type", "client_credentials");
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "client_credentials");
 
-        assertThrows(RuntimeException.class, () ->
-                manager.getAccessToken("https://auth.example.com/token", params));
-    }
+    assertThrows(
+        RuntimeException.class,
+        () -> manager.getAccessToken("https://auth.example.com/token", params));
+  }
 }

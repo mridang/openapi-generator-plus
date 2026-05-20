@@ -7,201 +7,210 @@
 
 import Foundation
 import Testing
+
 @testable import PetstoreClient
 
 @Suite final class OAuth2TokenManagerTests {
 
-    // MARK: - Mock ApiClient
+  // MARK: - Mock ApiClient
 
-    private final class MockApiClient: ApiClient, @unchecked Sendable {
-        var responses: [HttpResponse] = []
-        var lastMethod: String = ""
-        var lastURL: String = ""
-        var lastHeaders: [String: String] = [:]
-        var lastBody: Data? = nil
+  private final class MockApiClient: ApiClient, @unchecked Sendable {
+    var responses: [HttpResponse] = []
+    var lastMethod: String = ""
+    var lastURL: String = ""
+    var lastHeaders: [String: String] = [:]
+    var lastBody: Data? = nil
 
-        func sendRequest(method: String, url: String, headers: [String: String], body: Any?) async throws -> HttpResponse {
-            lastMethod = method
-            lastURL = url
-            lastHeaders = headers
-            lastBody = body as? Data
-            return responses.removeFirst()
-        }
+    func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+      async throws -> HttpResponse
+    {
+      lastMethod = method
+      lastURL = url
+      lastHeaders = headers
+      lastBody = body as? Data
+      return responses.removeFirst()
+    }
+  }
+
+  /// Mock client that counts requests and serves the same response, optionally
+  /// stalling briefly so concurrent callers all queue up against the same
+  /// in-flight refresh task.
+  private final class CountingMockApiClient: ApiClient, @unchecked Sendable {
+    private let lock = NSLock()
+    private var _callCount = 0
+    private let responseBody: String
+    private let delayNanos: UInt64
+
+    var callCount: Int {
+      lock.withLock { _callCount }
     }
 
-    /// Mock client that counts requests and serves the same response, optionally
-    /// stalling briefly so concurrent callers all queue up against the same
-    /// in-flight refresh task.
-    private final class CountingMockApiClient: ApiClient, @unchecked Sendable {
-        private let lock = NSLock()
-        private var _callCount = 0
-        private let responseBody: String
-        private let delayNanos: UInt64
-
-        var callCount: Int {
-            lock.withLock { _callCount }
-        }
-
-        init(responseBody: String, delayNanos: UInt64 = 50_000_000) {
-            self.responseBody = responseBody
-            self.delayNanos = delayNanos
-        }
-
-        func sendRequest(method: String, url: String, headers: [String: String], body: Any?) async throws -> HttpResponse {
-            lock.withLock { _callCount += 1 }
-            if delayNanos > 0 {
-                try? await Task.sleep(nanoseconds: delayNanos)
-            }
-            return HttpResponse(statusCode: 200, body: responseBody, headers: [:])
-        }
+    init(responseBody: String, delayNanos: UInt64 = 50_000_000) {
+      self.responseBody = responseBody
+      self.delayNanos = delayNanos
     }
 
-    private func makeResponse(body: String, statusCode: Int = 200) -> HttpResponse {
-        return HttpResponse(statusCode: statusCode, body: body, headers: [:])
+    func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+      async throws -> HttpResponse
+    {
+      lock.withLock { _callCount += 1 }
+      if delayNanos > 0 {
+        try? await Task.sleep(nanoseconds: delayNanos)
+      }
+      return HttpResponse(statusCode: 200, body: responseBody, headers: [:])
     }
+  }
 
-    // MARK: - Tests
+  private func makeResponse(body: String, statusCode: Int = 200) -> HttpResponse {
+    return HttpResponse(statusCode: statusCode, body: body, headers: [:])
+  }
 
-    @Test func testExtractsAccessTokenFromResponse() async throws {
-        let client = MockApiClient()
-        client.responses.append(makeResponse(body: "{\"access_token\":\"tok123\",\"expires_in\":3600}"))
+  // MARK: - Tests
 
-        let manager = OAuth2TokenManager()
-        manager.setApiClient(client)
+  @Test func testExtractsAccessTokenFromResponse() async throws {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok123\",\"expires_in\":3600}"))
 
-        let token = try await manager.getAccessToken(
-            tokenURL: "https://auth.example.com/token",
-            params: ["grant_type": "client_credentials"]
-        )
+    let manager = OAuth2TokenManager()
+    manager.setApiClient(client)
 
-        #expect(token == "tok123")
+    let token = try await manager.getAccessToken(
+      tokenURL: "https://auth.example.com/token",
+      params: ["grant_type": "client_credentials"]
+    )
+
+    #expect(token == "tok123")
+  }
+
+  @Test func testStoresRefreshToken() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(
+        body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}"))
+
+    let manager = OAuth2TokenManager()
+    manager.setApiClient(client)
+
+    _ = try await manager.getAccessToken(
+      tokenURL: "https://auth.example.com/token",
+      params: ["grant_type": "authorization_code"]
+    )
+
+    #expect(manager.refreshToken == "ref1")
+  }
+
+  @Test func testReturnsCachedTokenWhenNotExpired() async throws {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+
+    let manager = OAuth2TokenManager()
+    manager.setApiClient(client)
+
+    let params = ["grant_type": "client_credentials"]
+    let tokenURL = "https://auth.example.com/token"
+
+    let first = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+    let second = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+
+    #expect(first == "tok1")
+    #expect(second == "tok1")
+  }
+
+  @Test func testRefetchesTokenWhenExpired() async throws {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":1}"))
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
+
+    let manager = OAuth2TokenManager()
+    manager.setApiClient(client)
+
+    let params = ["grant_type": "client_credentials"]
+    let tokenURL = "https://auth.example.com/token"
+
+    let first = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+    let second = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+
+    #expect(first == "tok1")
+    #expect(second == "tok2")
+  }
+
+  @Test func testSetAccessTokenBypassesEndpoint() async throws {
+    let manager = OAuth2TokenManager()
+    manager.setAccessToken("manual-token")
+
+    let token = try await manager.getAccessToken(
+      tokenURL: "https://auth.example.com/token",
+      params: [:]
+    )
+
+    #expect(token == "manual-token")
+  }
+
+  @Test func testThrowsWhenNoApiClientInjected() async {
+    let manager = OAuth2TokenManager()
+
+    do {
+      _ = try await manager.getAccessToken(
+        tokenURL: "https://auth.example.com/token",
+        params: ["grant_type": "client_credentials"]
+      )
+      Issue.record("Expected error when no ApiClient injected")
+    } catch {
+      #expect(error != nil)
     }
+  }
 
-    @Test func testStoresRefreshToken() async throws {
-        let client = MockApiClient()
-        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}"))
+  // MARK: - Concurrent refresh coalescing (single-flight)
 
-        let manager = OAuth2TokenManager()
-        manager.setApiClient(client)
-
-        _ = try await manager.getAccessToken(
-            tokenURL: "https://auth.example.com/token",
-            params: ["grant_type": "authorization_code"]
-        )
-
-        #expect(manager.refreshToken == "ref1")
-    }
-
-    @Test func testReturnsCachedTokenWhenNotExpired() async throws {
-        let client = MockApiClient()
-        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
-
-        let manager = OAuth2TokenManager()
-        manager.setApiClient(client)
-
-        let params = ["grant_type": "client_credentials"]
-        let tokenURL = "https://auth.example.com/token"
-
-        let first = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
-        let second = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
-
-        #expect(first == "tok1")
-        #expect(second == "tok1")
-    }
-
-    @Test func testRefetchesTokenWhenExpired() async throws {
-        let client = MockApiClient()
-        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":1}"))
-        client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
-
-        let manager = OAuth2TokenManager()
-        manager.setApiClient(client)
-
-        let params = ["grant_type": "client_credentials"]
-        let tokenURL = "https://auth.example.com/token"
-
-        let first = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
-        let second = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
-
-        #expect(first == "tok1")
-        #expect(second == "tok2")
-    }
-
-    @Test func testSetAccessTokenBypassesEndpoint() async throws {
-        let manager = OAuth2TokenManager()
-        manager.setAccessToken("manual-token")
-
-        let token = try await manager.getAccessToken(
-            tokenURL: "https://auth.example.com/token",
-            params: [:]
-        )
-
-        #expect(token == "manual-token")
-    }
-
-    @Test func testThrowsWhenNoApiClientInjected() async {
-        let manager = OAuth2TokenManager()
-
-        do {
-            _ = try await manager.getAccessToken(
-                tokenURL: "https://auth.example.com/token",
-                params: ["grant_type": "client_credentials"]
-            )
-            Issue.record("Expected error when no ApiClient injected")
-        } catch {
-            #expect(error != nil)
-        }
-    }
-
-    // MARK: - Concurrent refresh coalescing (single-flight)
-
-    @Test func testConcurrentCallersCoalesceIntoSingleRefresh() async throws {
-        /* 10 concurrent callers on a freshly invalidated manager must result in
+  @Test func testConcurrentCallersCoalesceIntoSingleRefresh() async throws {
+    /* 10 concurrent callers on a freshly invalidated manager must result in
          * exactly one HTTP call to the token endpoint -- not 10. */
-        let client = CountingMockApiClient(
-            responseBody: "{\"access_token\":\"shared-tok\",\"expires_in\":3600}",
-            delayNanos: 100_000_000
-        )
+    let client = CountingMockApiClient(
+      responseBody: "{\"access_token\":\"shared-tok\",\"expires_in\":3600}",
+      delayNanos: 100_000_000
+    )
 
-        let manager = OAuth2TokenManager()
-        manager.setApiClient(client)
+    let manager = OAuth2TokenManager()
+    manager.setApiClient(client)
 
-        let params = ["grant_type": "client_credentials"]
-        let tokenURL = "https://auth.example.com/token"
+    let params = ["grant_type": "client_credentials"]
+    let tokenURL = "https://auth.example.com/token"
 
-        let tokens = await withTaskGroup(of: String?.self) { group -> [String] in
-            for _ in 0..<10 {
-                group.addTask {
-                    return try? await manager.getAccessToken(tokenURL: tokenURL, params: params)
-                }
-            }
-            var collected: [String] = []
-            for await value in group {
-                if let v = value { collected.append(v) }
-            }
-            return collected
+    let tokens = await withTaskGroup(of: String?.self) { group -> [String] in
+      for _ in 0..<10 {
+        group.addTask {
+          return try? await manager.getAccessToken(tokenURL: tokenURL, params: params)
         }
-
-        #expect(tokens.count == 10, "all 10 concurrent callers should receive a token")
-        #expect(tokens.allSatisfy { $0 == "shared-tok" }, "all callers should get the same token")
-        #expect(client.callCount == 1, "expected exactly 1 token-endpoint call for 10 concurrent callers, got \(client.callCount)")
+      }
+      var collected: [String] = []
+      for await value in group {
+        if let v = value { collected.append(v) }
+      }
+      return collected
     }
 
-    @Test func testThrowsWhenTokenRequestFails() async {
-        let client = MockApiClient()
-        client.responses.append(makeResponse(body: "{\"error\":\"invalid_client\"}", statusCode: 401))
+    #expect(tokens.count == 10, "all 10 concurrent callers should receive a token")
+    #expect(tokens.allSatisfy { $0 == "shared-tok" }, "all callers should get the same token")
+    #expect(
+      client.callCount == 1,
+      "expected exactly 1 token-endpoint call for 10 concurrent callers, got \(client.callCount)")
+  }
 
-        let manager = OAuth2TokenManager()
-        manager.setApiClient(client)
+  @Test func testThrowsWhenTokenRequestFails() async {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"error\":\"invalid_client\"}", statusCode: 401))
 
-        do {
-            _ = try await manager.getAccessToken(
-                tokenURL: "https://auth.example.com/token",
-                params: ["grant_type": "client_credentials"]
-            )
-            Issue.record("Expected error when token request fails")
-        } catch {
-            #expect(error != nil)
-        }
+    let manager = OAuth2TokenManager()
+    manager.setApiClient(client)
+
+    do {
+      _ = try await manager.getAccessToken(
+        tokenURL: "https://auth.example.com/token",
+        params: ["grant_type": "client_credentials"]
+      )
+      Issue.record("Expected error when token request fails")
+    } catch {
+      #expect(error != nil)
     }
+  }
 }

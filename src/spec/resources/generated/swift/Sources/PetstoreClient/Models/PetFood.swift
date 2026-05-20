@@ -9,54 +9,54 @@ import Foundation
 
 /// PetFood Food for pets, discriminated by foodType
 public struct PetFood: Codable, Sendable {
-    private let _value: Any
+  private let _value: Any
 
-    public init(from decoder: Decoder) throws {
-        /* Use discriminator to determine type */
-        let container = try decoder.singleValueContainer()
-        let data = try container.decode(AnyCodable.self)
+  public init(from decoder: Decoder) throws {
+    /* Use discriminator to determine type */
+    let container = try decoder.singleValueContainer()
+    let data = try container.decode(AnyCodable.self)
 
-        struct DiscriminatorHelper: Decodable {
-            let foodType: String
-        }
-        let rawData = try JSONEncoder().encode(data)
-        let disc = try JSONDecoder().decode(DiscriminatorHelper.self, from: rawData)
-
-        switch disc.foodType {
-        case "dry":
-            let v = try JSONDecoder().decode(DryFood.self, from: rawData)
-            self._value = v
-            return
-        case "wet":
-            let v = try JSONDecoder().decode(WetFood.self, from: rawData)
-            self._value = v
-            return
-        default:
-            throw DecodingError.dataCorrupted(
-                DecodingError.Context(
-                    codingPath: decoder.codingPath,
-                    debugDescription: "Unknown discriminator value: \(disc.foodType)"
-                )
-            )
-        }
+    struct DiscriminatorHelper: Decodable {
+      let foodType: String
     }
+    let rawData = try JSONEncoder().encode(data)
+    let disc = try JSONDecoder().decode(DiscriminatorHelper.self, from: rawData)
 
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        if let encodable = _value as? Encodable {
-            try encodable.encode(to: encoder)
-        } else {
-            try container.encodeNil()
-        }
+    switch disc.foodType {
+    case "dry":
+      let v = try JSONDecoder().decode(DryFood.self, from: rawData)
+      self._value = v
+      return
+    case "wet":
+      let v = try JSONDecoder().decode(WetFood.self, from: rawData)
+      self._value = v
+      return
+    default:
+      throw DecodingError.dataCorrupted(
+        DecodingError.Context(
+          codingPath: decoder.codingPath,
+          debugDescription: "Unknown discriminator value: \(disc.foodType)"
+        )
+      )
     }
+  }
 
-    /// Returns the underlying value of the union type.
-    public func value() -> Any {
-        return _value
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.singleValueContainer()
+    if let encodable = _value as? Encodable {
+      try encodable.encode(to: encoder)
+    } else {
+      try container.encodeNil()
     }
+  }
 
-    /// Returns the underlying value cast to the specified type.
-    public func value<T>(as type: T.Type) -> T? {
-        return _value as? T
-    }
+  /// Returns the underlying value of the union type.
+  public func value() -> Any {
+    return _value
+  }
+
+  /// Returns the underlying value cast to the specified type.
+  public func value<T>(as type: T.Type) -> T? {
+    return _value as? T
+  }
 }

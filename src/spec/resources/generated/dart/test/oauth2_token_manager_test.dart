@@ -7,10 +7,9 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
-import 'package:test/test.dart';
 import 'package:petstore_client/petstore_client.dart';
+import 'package:test/test.dart';
 
 class _FakeApiClient implements ApiClient {
   final List<HttpApiResponse> _responses = [];
@@ -19,7 +18,8 @@ class _FakeApiClient implements ApiClient {
   int requestCount = 0;
 
   void enqueue(String body, {int statusCode = 200}) {
-    _responses.add(HttpApiResponse(statusCode: statusCode, body: body, headers: {}));
+    _responses
+        .add(HttpApiResponse(statusCode: statusCode, body: body, headers: {}));
   }
 
   @override
@@ -152,7 +152,9 @@ void main() {
       );
     });
 
-    test('single-flight: 10 concurrent getAccessToken calls trigger one HTTP request', () async {
+    test(
+        'single-flight: 10 concurrent getAccessToken calls trigger one HTTP request',
+        () async {
       final gate = Completer<void>();
       final client = _GatedApiClient(
         gate,

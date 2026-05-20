@@ -7,19 +7,14 @@
 
 package com.example.petstore.models;
 
-import com.example.petstore.models.Category;
-import com.example.petstore.models.Tag;
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nullable;
 
 /** A pet record extended with owner information */
@@ -61,7 +56,6 @@ public class PetWithOwner {
 
   /** Example: {@code doggie} */
   @JsonProperty("name")
-  
   public String name;
 
   /** Example: {@code null} */
@@ -71,7 +65,6 @@ public class PetWithOwner {
 
   /** Example: {@code null} */
   @JsonProperty("photoUrls")
-  
   public Set<String> photoUrls = new LinkedHashSet<>();
 
   /** Example: {@code null} */
@@ -93,7 +86,6 @@ public class PetWithOwner {
 
   /** Example: {@code null} */
   @JsonProperty("ownerName")
-  
   public String ownerName;
 
   /** Example: {@code null} */
@@ -105,7 +97,10 @@ public class PetWithOwner {
   public PetWithOwner() {}
 
   @com.fasterxml.jackson.annotation.JsonCreator
-  public PetWithOwner(@JsonProperty(value = "name", required = true) String name, @JsonProperty(value = "photoUrls", required = true) Set<String> photoUrls, @JsonProperty(value = "ownerName", required = true) String ownerName) {
+  public PetWithOwner(
+      @JsonProperty(value = "name", required = true) String name,
+      @JsonProperty(value = "photoUrls", required = true) Set<String> photoUrls,
+      @JsonProperty(value = "ownerName", required = true) String ownerName) {
     this.name = java.util.Objects.requireNonNull(name, "name is required");
     this.photoUrls = java.util.Objects.requireNonNull(photoUrls, "photoUrls is required");
     this.ownerName = java.util.Objects.requireNonNull(ownerName, "ownerName is required");
@@ -136,6 +131,7 @@ public class PetWithOwner {
 
   @Override
   public int hashCode() {
-    return java.util.Objects.hash(id, name, category, photoUrls, tags, status, ownerName, ownerEmail);
+    return java.util.Objects.hash(
+        id, name, category, photoUrls, tags, status, ownerName, ownerEmail);
   }
 }

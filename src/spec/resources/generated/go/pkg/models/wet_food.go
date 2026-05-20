@@ -9,12 +9,13 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // WetFood is a model class generated from the OpenAPI schema.
 type WetFood struct {
 	FoodType string `json:"foodType"`
-	VolumeMl int32 `json:"volumeMl"`
+	VolumeMl int32  `json:"volumeMl"`
 }
 
 // NewWetFood creates a new WetFood instance.
