@@ -9,6 +9,7 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // PetFood Food for pets, discriminated by foodType
@@ -46,7 +47,11 @@ func (o *PetFood) UnmarshalJSON(data []byte) error {
 		o.value = v
 		return nil
 	}
-	return nil
+	// Gap AU — unknown discriminator value. Other 11 SDKs throw; Go
+	// previously returned nil silently, leaving the union uninitialized
+	// and producing a hard-to-debug `nil` downstream. Align by surfacing
+	// the error so callers see the malformed server response.
+	return fmt.Errorf("unknown discriminator value %q for PetFood", disc.FoodType)
 }
 
 // Value returns the underlying value of the union type.

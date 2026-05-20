@@ -241,7 +241,11 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 		return nil
 {{/mappedModels}}
 	}
-	return nil
+	// Gap AU — unknown discriminator value. Other 11 SDKs throw; Go
+	// previously returned nil silently, leaving the union uninitialized
+	// and producing a hard-to-debug `nil` downstream. Align by surfacing
+	// the error so callers see the malformed server response.
+	return fmt.Errorf("unknown discriminator value %q for {{classname}}", disc.{{#pascalcase}}{{propertyBaseName}}{{/pascalcase}})
 {{/discriminator}}
 {{^discriminator}}
 	/* Try each oneOf type */
