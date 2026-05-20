@@ -177,6 +177,21 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 			o.AdditionalProperties[key] = v
 		}
 	}
+	/* Gap AJ: encoding/json silently zero-inits required fields when the
+	 * value is null or missing. Reject both for required non-nullable
+	 * fields so the malformed server response surfaces at the deserialize
+	 * call instead of producing a confusing NPE later. */
+{{#vars}}
+{{#required}}
+{{^isNullable}}
+	if rawVal, ok := raw["{{baseName}}"]; !ok {
+		return fmt.Errorf("required field '{{baseName}}' is missing in {{classname}}")
+	} else if string(rawVal) == "null" {
+		return fmt.Errorf("required field '{{baseName}}' must not be null in {{classname}}")
+	}
+{{/isNullable}}
+{{/required}}
+{{/vars}}
 	return nil
 }
 {{/isAdditionalPropertiesTrue}}
@@ -186,6 +201,38 @@ func (o {{classname}}) MarshalJSON() ([]byte, error) {
 	type Alias {{classname}}
 	return json.Marshal((Alias)(o))
 }
+
+{{#hasRequired}}
+// UnmarshalJSON implements the json.Unmarshaler interface.
+// Gap AJ: encoding/json silently zero-inits required fields when the
+// value is null or missing. This wrapper rejects both for required
+// non-nullable fields so malformed server responses surface at the
+// deserialize call instead of producing a confusing zero-value later.
+func (o *{{classname}}) UnmarshalJSON(data []byte) error {
+	type Alias {{classname}}
+	aux := &Alias{}
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+{{#vars}}
+{{#required}}
+{{^isNullable}}
+	if rawVal, ok := raw["{{baseName}}"]; !ok {
+		return fmt.Errorf("required field '{{baseName}}' is missing in {{classname}}")
+	} else if string(rawVal) == "null" {
+		return fmt.Errorf("required field '{{baseName}}' must not be null in {{classname}}")
+	}
+{{/isNullable}}
+{{/required}}
+{{/vars}}
+	*o = {{classname}}(*aux)
+	return nil
+}
+{{/hasRequired}}
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
 func (o *{{classname}}) UnmarshalJSON(data []byte) error {

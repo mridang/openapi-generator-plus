@@ -8,7 +8,7 @@
 import Foundation
 
 public final class ApiKeyQueryAuthenticator: ApiKeyAuthenticator, @unchecked Sendable {
-  public init(host: String, apiKey: String) {
-    super.init(host: host, keyParamName: "api_key", apiKey: apiKey, location: .query)
-  }
+    public init(host: String, apiKey: String) {
+        super.init(host: host, keyParamName: "api_key", apiKey: apiKey, location: .query)
+    }
 }

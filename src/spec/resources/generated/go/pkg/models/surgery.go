@@ -9,6 +9,7 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // Surgery is a model class generated from the OpenAPI schema.
@@ -28,6 +29,30 @@ func NewSurgery(procedureName string) *Surgery {
 func (o Surgery) MarshalJSON() ([]byte, error) {
 	type Alias Surgery
 	return json.Marshal((Alias)(o))
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+// Gap AJ: encoding/json silently zero-inits required fields when the
+// value is null or missing. This wrapper rejects both for required
+// non-nullable fields so malformed server responses surface at the
+// deserialize call instead of producing a confusing zero-value later.
+func (o *Surgery) UnmarshalJSON(data []byte) error {
+	type Alias Surgery
+	aux := &Alias{}
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	if rawVal, ok := raw["procedureName"]; !ok {
+		return fmt.Errorf("required field 'procedureName' is missing in Surgery")
+	} else if string(rawVal) == "null" {
+		return fmt.Errorf("required field 'procedureName' must not be null in Surgery")
+	}
+	*o = Surgery(*aux)
+	return nil
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

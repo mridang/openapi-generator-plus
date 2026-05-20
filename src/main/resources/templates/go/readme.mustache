@@ -17,3 +17,21 @@ go test ./...
 ## Module
 
 - Module: `{{packageName}}`
+
+## Caveats
+
+### Decimal / `format: number` precision
+
+Go's `encoding/json` parses JSON numbers into `float64` by default
+when the target type is `interface{}`, and into `float64` for `float`
+typed fields. `format: decimal` / `format: number` values are
+therefore stored as `float64`, so monetary values lose exact decimal
+representation. `0.1 + 0.2` in Go is `0.30000000000000004`.
+
+Do not do arithmetic on prices, balances, or other money-typed
+fields. If you need exact decimal arithmetic, parse the raw response
+body yourself and use `math/big.Rat` or a third-party decimal
+library.
+
+`format: int64` is unaffected — Go's `int64` natively represents the
+full 64-bit range without precision loss.

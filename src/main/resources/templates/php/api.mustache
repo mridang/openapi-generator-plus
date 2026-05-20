@@ -640,7 +640,7 @@ use Exception;
         if (${{paramName}} !== null) {
             $resourcePath = str_replace(
                 '{' . '{{baseName}}' . '}',
-                ObjectSerializer::toPathValue(${{paramName}}),
+                {{#isDate}}ObjectSerializer::toPathDateValue(${{paramName}}){{/isDate}}{{^isDate}}ObjectSerializer::toPathValue(${{paramName}}){{/isDate}},
                 $resourcePath
             );
         }

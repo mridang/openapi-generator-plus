@@ -9,10 +9,8 @@ import 'oauth2_implicit_authenticator.dart';
 
 class BrowserAuthImplicitAuthenticator extends OAuth2ImplicitAuthenticator {
   BrowserAuthImplicitAuthenticator({
-    required super.host,
-    required super.clientId,
+    required String host, required String clientId,
   }) : super(
-          authorizationUrl: 'https://auth.example.com/authorize',
-          scopes: ['read'],
-        );
+         host: host, clientId: clientId, authorizationUrl: 'https://auth.example.com/authorize', scopes: ['read'],
+       );
 }

@@ -57,7 +57,14 @@ export class DefaultApiClient implements ApiClient {
     const tlsOptions = needsTls
       ? {
           ca: this.transportOptions.caCertPath ? fs.readFileSync(this.transportOptions.caCertPath) : undefined,
-          rejectUnauthorized: this.transportOptions.verifySsl
+          rejectUnauthorized: this.transportOptions.verifySsl,
+          /* Gap AM: verifySsl=false must disable BOTH cert-chain AND
+           * hostname verification (curl -k semantics). undici's
+           * `rejectUnauthorized=false` skips the chain but TLS still
+           * matches the hostname against the cert's CN/SAN by default.
+           * Setting `checkServerIdentity` to a no-op makes the two
+           * checks symmetric. */
+          checkServerIdentity: this.transportOptions.verifySsl ? undefined : () => undefined
         }
       : undefined;
 

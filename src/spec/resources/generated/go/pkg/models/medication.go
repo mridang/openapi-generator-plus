@@ -9,6 +9,7 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // Medication is a model class generated from the OpenAPI schema.
@@ -28,6 +29,30 @@ func NewMedication(drugName string) *Medication {
 func (o Medication) MarshalJSON() ([]byte, error) {
 	type Alias Medication
 	return json.Marshal((Alias)(o))
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+// Gap AJ: encoding/json silently zero-inits required fields when the
+// value is null or missing. This wrapper rejects both for required
+// non-nullable fields so malformed server responses surface at the
+// deserialize call instead of producing a confusing zero-value later.
+func (o *Medication) UnmarshalJSON(data []byte) error {
+	type Alias Medication
+	aux := &Alias{}
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	if rawVal, ok := raw["drugName"]; !ok {
+		return fmt.Errorf("required field 'drugName' is missing in Medication")
+	} else if string(rawVal) == "null" {
+		return fmt.Errorf("required field 'drugName' must not be null in Medication")
+	}
+	*o = Medication(*aux)
+	return nil
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

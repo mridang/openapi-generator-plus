@@ -490,3 +490,17 @@ func replacePathParam(_ path: String, name: String, value: String) -> String {
     let encoded = value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
     return path.replacingOccurrences(of: "{\(name)}", with: encoded)
 }
+
+/// Formats a `format: date` value as YYYY-MM-DD using a fixed-locale,
+/// fixed-timezone formatter. Swift has only Date (no separate date-only
+/// type), so the codegen checks the spec format and routes through this
+/// helper to strip the time component. Without this, a date param goes
+/// out as a full ISO+offset string, which mismatches the 6 SDKs with
+/// native LocalDate types — the spec calls for date-only.
+func stringifyDate(_ value: Date) -> String {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd"
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.timeZone = TimeZone(secondsFromGMT: 0)
+    return formatter.string(from: value)
+}

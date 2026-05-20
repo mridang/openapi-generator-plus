@@ -72,5 +72,9 @@ func (o *Metadata) UnmarshalJSON(data []byte) error {
 			o.AdditionalProperties[key] = v
 		}
 	}
+	/* Gap AJ: encoding/json silently zero-inits required fields when the
+	 * value is null or missing. Reject both for required non-nullable
+	 * fields so the malformed server response surfaces at the deserialize
+	 * call instead of producing a confusing NPE later. */
 	return nil
 }

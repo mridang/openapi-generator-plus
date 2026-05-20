@@ -9,6 +9,7 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // SetPetAvatarRequest is a model class generated from the OpenAPI schema.
@@ -30,6 +31,35 @@ func NewSetPetAvatarRequest(data []byte, mimeType string) *SetPetAvatarRequest {
 func (o SetPetAvatarRequest) MarshalJSON() ([]byte, error) {
 	type Alias SetPetAvatarRequest
 	return json.Marshal((Alias)(o))
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+// Gap AJ: encoding/json silently zero-inits required fields when the
+// value is null or missing. This wrapper rejects both for required
+// non-nullable fields so malformed server responses surface at the
+// deserialize call instead of producing a confusing zero-value later.
+func (o *SetPetAvatarRequest) UnmarshalJSON(data []byte) error {
+	type Alias SetPetAvatarRequest
+	aux := &Alias{}
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	if rawVal, ok := raw["data"]; !ok {
+		return fmt.Errorf("required field 'data' is missing in SetPetAvatarRequest")
+	} else if string(rawVal) == "null" {
+		return fmt.Errorf("required field 'data' must not be null in SetPetAvatarRequest")
+	}
+	if rawVal, ok := raw["mimeType"]; !ok {
+		return fmt.Errorf("required field 'mimeType' is missing in SetPetAvatarRequest")
+	} else if string(rawVal) == "null" {
+		return fmt.Errorf("required field 'mimeType' must not be null in SetPetAvatarRequest")
+	}
+	*o = SetPetAvatarRequest(*aux)
+	return nil
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

@@ -32,16 +32,16 @@ import Foundation
 /// OpenTelemetry if available, otherwise do nothing (no crash).
 public enum TraceContextUtil {
 
-  /// The propagator function used to inject trace context headers.
-  /// Set this at application startup to enable trace context propagation.
-  /// When nil (the default), ``injectTraceContext(headers:)`` is a no-op.
-  public static var propagator: ((_ headers: inout [String: String]) -> Void)?
+    /// The propagator function used to inject trace context headers.
+    /// Set this at application startup to enable trace context propagation.
+    /// When nil (the default), ``injectTraceContext(headers:)`` is a no-op.
+    public static var propagator: ((_ headers: inout [String: String]) -> Void)?
 
-  /// Injects trace context headers into the given header dictionary.
-  ///
-  /// If a ``propagator`` has been configured, it is called to inject
-  /// W3C traceparent and tracestate headers. Otherwise this is a no-op.
-  public static func injectTraceContext(headers: inout [String: String]) {
-    propagator?(&headers)
-  }
+    /// Injects trace context headers into the given header dictionary.
+    ///
+    /// If a ``propagator`` has been configured, it is called to inject
+    /// W3C traceparent and tracestate headers. Otherwise this is a no-op.
+    public static func injectTraceContext(headers: inout [String: String]) {
+        propagator?(&headers)
+    }
 }

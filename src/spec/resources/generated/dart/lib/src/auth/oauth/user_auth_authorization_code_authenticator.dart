@@ -7,17 +7,10 @@
 
 import 'oauth2_auth_code_authenticator.dart';
 
-class UserAuthAuthorizationCodeAuthenticator
-    extends OAuth2AuthorizationCodeAuthenticator {
+class UserAuthAuthorizationCodeAuthenticator extends OAuth2AuthorizationCodeAuthenticator {
   UserAuthAuthorizationCodeAuthenticator({
-    required super.host,
-    required super.clientId,
-    required super.clientSecret,
-    required super.redirectUri,
+    required String host, required String clientId, required String clientSecret, required String redirectUri,
   }) : super(
-          authorizationUrl: 'https://auth.example.com/authorize',
-          tokenUrl: 'https://auth.example.com/oauth/token',
-          scopes: ['pets:write', 'pets:read'],
-          refreshUrl: 'https://auth.example.com/oauth/refresh',
-        );
+         host: host, clientId: clientId, clientSecret: clientSecret, authorizationUrl: 'https://auth.example.com/authorize', tokenUrl: 'https://auth.example.com/oauth/token', redirectUri: redirectUri, scopes: ['pets:write', 'pets:read'], refreshUrl: 'https://auth.example.com/oauth/refresh',
+       );
 }

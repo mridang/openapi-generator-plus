@@ -99,9 +99,14 @@ public final class {{classname}}: BaseApi {
 
         var path = "{{{path}}}"
 {{#pathParams}}
+{{#isDate}}
+        path = replacePathParam(path, name: "{{baseName}}", value: stringifyDate({{paramName}}))
+{{/isDate}}
+{{^isDate}}
 {{=<% %>=}}
         path = replacePathParam(path, name: "<%baseName%>", value: "\(<%paramName%>)")
 <%={{ }}=%>
+{{/isDate}}
 {{/pathParams}}
 {{#servers}}
 {{#-first}}

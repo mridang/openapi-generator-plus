@@ -175,6 +175,22 @@ export class ValueSerializer {
    * sub-delimiters (including `;`, `=`, `,`, `.`) that OAS 3.0 matrix/label/
    * simple styles use as structural separators in the styled value.
    */
+  /**
+   * Formats a `format: date` value as YYYY-MM-DD for wire serialization.
+   * Node has only Date (no separate date-only type), so the codegen
+   * checks the spec format and routes through this helper to strip the
+   * time component. Without this, a date param goes out as a full
+   * ISO+offset string, mismatching the 6 SDKs (Java/Kotlin/C#/Python/
+   * Ruby/Elixir) with native LocalDate types.
+   */
+  static stringifyDate(value: Date | string): string {
+    if (typeof value === 'string') return value.substring(0, 10);
+    const y = String(value.getUTCFullYear()).padStart(4, '0');
+    const m = String(value.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(value.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
   static encodePathSegment(value: string): string {
     return encodeURIComponent(value)
       .replace(/%3B/g, ';')

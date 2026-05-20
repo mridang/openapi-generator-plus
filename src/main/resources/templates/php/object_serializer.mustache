@@ -370,6 +370,28 @@ class ObjectSerializer
     }
 
     /**
+     * Formats a `format: date` value as YYYY-MM-DD for wire serialization.
+     * PHP has only DateTime (no separate date-only type), so the codegen
+     * checks the spec format and routes through this helper to strip the
+     * time component. Without this, a date param goes out as a full ATOM
+     * (ISO+offset) string, mismatching the 6 SDKs (Java/Kotlin/C#/Python/
+     * Ruby/Elixir) with native LocalDate types.
+     */
+    public static function toPathDateValue(mixed $value): string
+    {
+        if ($value === null) {
+            return '';
+        }
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('Y-m-d');
+        }
+        if (is_string($value)) {
+            return substr($value, 0, 10);
+        }
+        return self::stringify($value);
+    }
+
+    /**
      * Convert a value to a representation suitable for use as a query parameter.
      * For collections, joins using the specified collection format delimiter.
      *

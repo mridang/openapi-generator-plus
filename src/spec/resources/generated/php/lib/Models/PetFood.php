@@ -1,5 +1,4 @@
 <?php
-
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -12,8 +11,6 @@
 declare(strict_types=1);
 
 namespace PetstoreClient\Models;
-
-use PetstoreClient\ObjectSerializer;
 
 /**
  * Food for pets, discriminated by foodType
@@ -42,18 +39,30 @@ class PetFood
 
     public static function build(mixed $data): self
     {
-        if (
-            is_array($data)
-            && isset($data[self::DISCRIMINATOR_PROPERTY])
-            && is_string($data[self::DISCRIMINATOR_PROPERTY])
-        ) {
-            $discValue = $data[self::DISCRIMINATOR_PROPERTY];
-            $class = self::DISCRIMINATOR_MAPPING[$discValue] ?? null;
-            if ($class !== null) {
-                return new self(ObjectSerializer::deserialize($data, $class));
-            }
+        /* Gap AU: throw on missing / unknown / non-string discriminator
+         * value. Previously this fell through to `return new self($data)`
+         * which wrapped the raw array in a oneOf container — the result
+         * couldn't be `instanceof DryFood`-checked. The other 10 SDKs
+         * throw — PHP now matches. */
+        if (!is_array($data) || !isset($data[self::DISCRIMINATOR_PROPERTY])) {
+            throw new \InvalidArgumentException(
+                "Missing discriminator field '" . self::DISCRIMINATOR_PROPERTY
+                . "' in " . self::class . " payload"
+            );
         }
-
-        return new self($data);
+        if (!is_string($data[self::DISCRIMINATOR_PROPERTY])) {
+            throw new \InvalidArgumentException(
+                "Discriminator field '" . self::DISCRIMINATOR_PROPERTY
+                . "' for " . self::class . " must be a string"
+            );
+        }
+        $discValue = $data[self::DISCRIMINATOR_PROPERTY];
+        $class = self::DISCRIMINATOR_MAPPING[$discValue] ?? null;
+        if ($class === null) {
+            throw new \InvalidArgumentException(
+                "Unknown discriminator value '{$discValue}' for " . self::class
+            );
+        }
+        return new self(\PetstoreClient\ObjectSerializer::deserialize($data, $class));
     }
 }

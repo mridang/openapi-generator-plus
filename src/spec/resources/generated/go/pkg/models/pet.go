@@ -9,6 +9,7 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // Pet is a model class generated from the OpenAPI schema.
@@ -36,6 +37,35 @@ func NewPet(name string, photoUrls Set[string]) *Pet {
 func (o Pet) MarshalJSON() ([]byte, error) {
 	type Alias Pet
 	return json.Marshal((Alias)(o))
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+// Gap AJ: encoding/json silently zero-inits required fields when the
+// value is null or missing. This wrapper rejects both for required
+// non-nullable fields so malformed server responses surface at the
+// deserialize call instead of producing a confusing zero-value later.
+func (o *Pet) UnmarshalJSON(data []byte) error {
+	type Alias Pet
+	aux := &Alias{}
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	if rawVal, ok := raw["name"]; !ok {
+		return fmt.Errorf("required field 'name' is missing in Pet")
+	} else if string(rawVal) == "null" {
+		return fmt.Errorf("required field 'name' must not be null in Pet")
+	}
+	if rawVal, ok := raw["photoUrls"]; !ok {
+		return fmt.Errorf("required field 'photoUrls' is missing in Pet")
+	} else if string(rawVal) == "null" {
+		return fmt.Errorf("required field 'photoUrls' must not be null in Pet")
+	}
+	*o = Pet(*aux)
+	return nil
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

@@ -173,9 +173,15 @@ class ObjectSerializer(
         fun createDefaultJson(): Json = Json {
             ignoreUnknownKeys = true
             encodeDefaults = false
-            explicitNulls = false
+            // Gap AJ: removed `explicitNulls = false` so deserialization
+            // throws on `{"name": null}` for a required non-nullable field
+            // instead of silently assigning null. Aligns with the 9 SDKs
+            // that throw; Python and Go also tightened in this cycle.
+            // explicitNulls defaults to true.
             isLenient = true
-            coerceInputValues = true
+            // Gap AJ: removed `coerceInputValues = true` for the same
+            // reason — coercing missing values to defaults masked the
+            // required-field violation. Default is false (strict).
             serializersModule = SerializersModule {
                 contextual(OffsetDateTimeSerializer)
                 contextual(LocalDateSerializer)

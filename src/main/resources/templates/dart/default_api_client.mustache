@@ -232,12 +232,31 @@ class DefaultApiClient implements ApiClient {
       case '':
         return bytes;
       case 'gzip':
-        return Uint8List.fromList(GZipCodec().decode(bytes));
+        try {
+          return Uint8List.fromList(GZipCodec().decode(bytes));
+        } catch (e) {
+          /* Gap AL: server lied about Content-Encoding: gzip. Previously
+           * GZipCodec.decode threw uncaught and crashed the process; now
+           * we surface it as a clean ApiError. */
+          throw ApiError(
+            statusCode: 0,
+            message:
+                'Server claimed Content-Encoding: gzip but body is not valid gzip: $e',
+            underlyingError: e,
+          );
+        }
       case 'deflate':
         try {
           return Uint8List.fromList(ZLibDecoder().convert(bytes));
-        } catch (_) {
-          return bytes;
+        } catch (e) {
+          /* Gap AL: throw on deflate mismatch instead of silently
+           * returning raw bytes — caller needs to know. */
+          throw ApiError(
+            statusCode: 0,
+            message:
+                'Server claimed Content-Encoding: deflate but body is not valid deflate: $e',
+            underlyingError: e,
+          );
         }
       default:
         throw ApiError(

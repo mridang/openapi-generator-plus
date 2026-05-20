@@ -9,14 +9,8 @@ import 'oauth2_password_authenticator.dart';
 
 class LegacyAuthPasswordAuthenticator extends OAuth2PasswordAuthenticator {
   LegacyAuthPasswordAuthenticator({
-    required super.host,
-    required super.clientId,
-    required super.clientSecret,
-    required super.username,
-    required super.password,
+    required String host, required String clientId, required String clientSecret, required String username, required String password,
   }) : super(
-          tokenUrl: 'https://auth.example.com/oauth/token',
-          refreshUrl: 'https://auth.example.com/oauth/refresh',
-          scopes: ['read'],
-        );
+         host: host, clientId: clientId, clientSecret: clientSecret, tokenUrl: 'https://auth.example.com/oauth/token', refreshUrl: 'https://auth.example.com/oauth/refresh', username: username, password: password, scopes: ['read'],
+       );
 }

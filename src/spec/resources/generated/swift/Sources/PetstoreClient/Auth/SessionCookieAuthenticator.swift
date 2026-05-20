@@ -8,7 +8,7 @@
 import Foundation
 
 public final class SessionCookieAuthenticator: ApiKeyAuthenticator, @unchecked Sendable {
-  public init(host: String, apiKey: String) {
-    super.init(host: host, keyParamName: "SESSION_ID", apiKey: apiKey, location: .cookie)
-  }
+    public init(host: String, apiKey: String) {
+        super.init(host: host, keyParamName: "SESSION_ID", apiKey: apiKey, location: .cookie)
+    }
 }

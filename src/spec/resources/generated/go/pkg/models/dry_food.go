@@ -9,6 +9,7 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // DryFood is a model class generated from the OpenAPI schema.
@@ -30,6 +31,35 @@ func NewDryFood(weightKg float64) *DryFood {
 func (o DryFood) MarshalJSON() ([]byte, error) {
 	type Alias DryFood
 	return json.Marshal((Alias)(o))
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+// Gap AJ: encoding/json silently zero-inits required fields when the
+// value is null or missing. This wrapper rejects both for required
+// non-nullable fields so malformed server responses surface at the
+// deserialize call instead of producing a confusing zero-value later.
+func (o *DryFood) UnmarshalJSON(data []byte) error {
+	type Alias DryFood
+	aux := &Alias{}
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	if rawVal, ok := raw["foodType"]; !ok {
+		return fmt.Errorf("required field 'foodType' is missing in DryFood")
+	} else if string(rawVal) == "null" {
+		return fmt.Errorf("required field 'foodType' must not be null in DryFood")
+	}
+	if rawVal, ok := raw["weightKg"]; !ok {
+		return fmt.Errorf("required field 'weightKg' is missing in DryFood")
+	} else if string(rawVal) == "null" {
+		return fmt.Errorf("required field 'weightKg' must not be null in DryFood")
+	}
+	*o = DryFood(*aux)
+	return nil
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

@@ -12,72 +12,62 @@ import Foundation
 /// Conforms to ``HttpAwareAuthenticator`` so that token exchange requests use the
 /// shared ``ApiClient`` with the same transport configuration (proxy, TLS, timeouts)
 /// as regular API calls.
-public class OAuth2ClientCredentialsAuthenticator: BaseAuthenticator, HttpAwareAuthenticator,
-  @unchecked Sendable
-{
-  private let _host: String
-  private let clientID: String
-  private let clientSecret: String
-  private let tokenURL: String
-  private let scopes: [String]
-  private let clientAuthMethod: ClientAuthMethod
-  private let tokenManager: OAuth2TokenManager
+public class OAuth2ClientCredentialsAuthenticator: BaseAuthenticator, HttpAwareAuthenticator, @unchecked Sendable {
+    private let _host: String
+    private let clientID: String
+    private let clientSecret: String
+    private let tokenURL: String
+    private let scopes: [String]
+    private let clientAuthMethod: ClientAuthMethod
+    private let tokenManager: OAuth2TokenManager
 
-  /// Creates a new client credentials authenticator.
-  public init(
-    host: String, clientID: String, clientSecret: String, tokenURL: String, scopes: [String] = [],
-    clientAuthMethod: ClientAuthMethod = .body
-  ) {
-    self._host = host
-    self.clientID = clientID
-    self.clientSecret = clientSecret
-    self.tokenURL = tokenURL
-    self.scopes = scopes
-    self.clientAuthMethod = clientAuthMethod
-    self.tokenManager = OAuth2TokenManager()
-    super.init()
-  }
+    /// Creates a new client credentials authenticator.
+    public init(host: String, clientID: String, clientSecret: String, tokenURL: String, scopes: [String] = [], clientAuthMethod: ClientAuthMethod = .body) {
+        self._host = host
+        self.clientID = clientID
+        self.clientSecret = clientSecret
+        self.tokenURL = tokenURL
+        self.scopes = scopes
+        self.clientAuthMethod = clientAuthMethod
+        self.tokenManager = OAuth2TokenManager()
+        super.init()
+    }
 
-  /// Returns the API base URL.
-  override public func host() -> String {
-    return _host
-  }
+    /// Returns the API base URL.
+    override public func host() -> String {
+        return _host
+    }
 
-  /// Injects the shared ``ApiClient`` for making token requests.
-  public func setApiClient(_ client: ApiClient) {
-    tokenManager.setApiClient(client)
-  }
+    /// Injects the shared ``ApiClient`` for making token requests.
+    public func setApiClient(_ client: ApiClient) {
+        tokenManager.setApiClient(client)
+    }
 
-  /// Returns the Bearer authentication header with a valid access token.
-  override public func authHeaders() async -> [String: String] {
-    var params: [String: String] = [
-      "grant_type": "client_credentials"
-    ]
-    var extraHeaders: [String: String] = [:]
-    if clientAuthMethod == .basic {
-      /* RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
+    /// Returns the Bearer authentication header with a valid access token.
+    override public func authHeaders() async -> [String: String] {
+        var params: [String: String] = [
+            "grant_type": "client_credentials"
+        ]
+        var extraHeaders: [String: String] = [:]
+        if clientAuthMethod == .basic {
+            /* RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
              * separately before joining with ':' and base64-encoding. */
-      let unreserved = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
-      let encodedID = clientID.addingPercentEncoding(withAllowedCharacters: unreserved) ?? clientID
-      let encodedSecret =
-        clientSecret.addingPercentEncoding(withAllowedCharacters: unreserved) ?? clientSecret
-      let credentials =
-        "\(encodedID):\(encodedSecret)".data(using: .utf8)?.base64EncodedString() ?? ""
-      extraHeaders["Authorization"] = "Basic \(credentials)"
-    } else {
-      params["client_id"] = clientID
-      params["client_secret"] = clientSecret
-    }
-    if !scopes.isEmpty {
-      params["scope"] = scopes.joined(separator: " ")
-    }
+            let unreserved = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+            let encodedID = clientID.addingPercentEncoding(withAllowedCharacters: unreserved) ?? clientID
+            let encodedSecret = clientSecret.addingPercentEncoding(withAllowedCharacters: unreserved) ?? clientSecret
+            let credentials = "\(encodedID):\(encodedSecret)".data(using: .utf8)?.base64EncodedString() ?? ""
+            extraHeaders["Authorization"] = "Basic \(credentials)"
+        } else {
+            params["client_id"] = clientID
+            params["client_secret"] = clientSecret
+        }
+        if !scopes.isEmpty {
+            params["scope"] = scopes.joined(separator: " ")
+        }
 
-    guard
-      let accessToken = try? await tokenManager.getAccessToken(
-        tokenURL: tokenURL, params: params, extraHeaders: extraHeaders)
-    else {
-      return [:]
+        guard let accessToken = try? await tokenManager.getAccessToken(tokenURL: tokenURL, params: params, extraHeaders: extraHeaders) else {
+            return [:]
+        }
+        return ["Authorization": "Bearer \(accessToken)"]
     }
-    return ["Authorization": "Bearer \(accessToken)"]
-  }
 }

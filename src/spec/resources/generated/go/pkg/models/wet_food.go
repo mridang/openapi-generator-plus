@@ -9,6 +9,7 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // WetFood is a model class generated from the OpenAPI schema.
@@ -30,6 +31,35 @@ func NewWetFood(volumeMl int32) *WetFood {
 func (o WetFood) MarshalJSON() ([]byte, error) {
 	type Alias WetFood
 	return json.Marshal((Alias)(o))
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+// Gap AJ: encoding/json silently zero-inits required fields when the
+// value is null or missing. This wrapper rejects both for required
+// non-nullable fields so malformed server responses surface at the
+// deserialize call instead of producing a confusing zero-value later.
+func (o *WetFood) UnmarshalJSON(data []byte) error {
+	type Alias WetFood
+	aux := &Alias{}
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	if rawVal, ok := raw["foodType"]; !ok {
+		return fmt.Errorf("required field 'foodType' is missing in WetFood")
+	} else if string(rawVal) == "null" {
+		return fmt.Errorf("required field 'foodType' must not be null in WetFood")
+	}
+	if rawVal, ok := raw["volumeMl"]; !ok {
+		return fmt.Errorf("required field 'volumeMl' is missing in WetFood")
+	} else if string(rawVal) == "null" {
+		return fmt.Errorf("required field 'volumeMl' must not be null in WetFood")
+	}
+	*o = WetFood(*aux)
+	return nil
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

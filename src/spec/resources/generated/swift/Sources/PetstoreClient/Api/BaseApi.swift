@@ -9,508 +9,481 @@ import Foundation
 
 /// BaseApi provides common functionality for all API classes.
 open class BaseApi {
-  let config: Configuration
-  let apiClient: ApiClient
-  let headerSelector: HeaderSelector
-  let authenticator: Authenticator?
+    let config: Configuration
+    let apiClient: ApiClient
+    let headerSelector: HeaderSelector
+    let authenticator: Authenticator?
 
-  /// Creates a new BaseApi instance.
-  public init(
-    apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil
-  ) {
-    self.apiClient = apiClient ?? DefaultApiClient()
-    self.config = config ?? Configuration.default()
-    self.headerSelector = HeaderSelector()
-    self.authenticator = authenticator
-  }
-
-  /// Parameters for an API invocation.
-  struct InvokeAPIParams {
-    let method: String
-    let path: String
-    var queryParams: [String: Any?] = [:]
-    var headerParams: [String: String] = [:]
-    var body: Any? = nil
-    var accepts: [String] = []
-    var contentType: String = ""
-    var returnType: String = ""
-    var auth: Authenticator? = nil
-  }
-
-  /// Dispatches an API request and returns the raw response.
-  func invokeAPI(_ params: InvokeAPIParams) async throws -> HttpResponse {
-    var requestURL = params.path
-    if !requestURL.hasPrefix("http://") && !requestURL.hasPrefix("https://") {
-      requestURL = config.baseURL + params.path
+    /// Creates a new BaseApi instance.
+    public init(apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil) {
+        self.apiClient = apiClient ?? DefaultApiClient()
+        self.config = config ?? Configuration.default()
+        self.headerSelector = HeaderSelector()
+        self.authenticator = authenticator
     }
 
-    /* Merge authentication query params */
-    var queryParams = params.queryParams
-    let effectiveAuth: Authenticator? = params.auth ?? self.authenticator
-    if let auth = effectiveAuth {
-      for (k, v) in auth.queryParams() {
-        queryParams[k] = v
-      }
+    /// Parameters for an API invocation.
+    struct InvokeAPIParams {
+        let method: String
+        let path: String
+        var queryParams: [String: Any?] = [:]
+        var headerParams: [String: String] = [:]
+        var body: Any? = nil
+        var accepts: [String] = []
+        var contentType: String = ""
+        var returnType: String = ""
+        var auth: Authenticator? = nil
     }
 
-    /* Build query string */
-    let queryString = Self.buildQueryString(queryParams)
-    if !queryString.isEmpty {
-      requestURL = requestURL + "?" + queryString
-    }
+    /// Dispatches an API request and returns the raw response.
+    func invokeAPI(_ params: InvokeAPIParams) async throws -> HttpResponse {
+        var requestURL = params.path
+        if !requestURL.hasPrefix("http://") && !requestURL.hasPrefix("https://") {
+            requestURL = config.baseURL + params.path
+        }
 
-    /* Select headers */
-    let isMultipart = params.contentType == "multipart/form-data"
-    var headers = headerSelector.selectHeaders(
-      accept: params.accepts, contentType: params.contentType, isMultipart: isMultipart)
+        /* Merge authentication query params */
+        var queryParams = params.queryParams
+        let effectiveAuth: Authenticator? = params.auth ?? self.authenticator
+        if let auth = effectiveAuth {
+            for (k, v) in auth.queryParams() {
+                queryParams[k] = v
+            }
+        }
 
-    /* Merge config default headers */
-    for (k, v) in config.defaultHeaders {
-      headers[k] = v
-    }
+        /* Build query string */
+        let queryString = Self.buildQueryString(queryParams)
+        if !queryString.isEmpty {
+            requestURL = requestURL + "?" + queryString
+        }
 
-    /* Merge operation-specific headers */
-    for (k, v) in params.headerParams {
-      headers[k] = v
-    }
+        /* Select headers */
+        let isMultipart = params.contentType == "multipart/form-data"
+        var headers = headerSelector.selectHeaders(accept: params.accepts, contentType: params.contentType, isMultipart: isMultipart)
 
-    /* Merge auth headers */
-    if let auth = effectiveAuth {
-      for (k, v) in await auth.authHeaders() {
-        headers[k] = v
-      }
-      /* Handle cookie params. RFC 6265 — don't URL-encode; most cookie
+        /* Merge config default headers */
+        for (k, v) in config.defaultHeaders {
+            headers[k] = v
+        }
+
+        /* Merge operation-specific headers */
+        for (k, v) in params.headerParams {
+            headers[k] = v
+        }
+
+        /* Merge auth headers */
+        if let auth = effectiveAuth {
+            for (k, v) in await auth.authHeaders() {
+                headers[k] = v
+            }
+            /* Handle cookie params. RFC 6265 — don't URL-encode; most cookie
              * parsers don't URL-decode, so `=` (base64 padding) would arrive
              * as literal `%3D` and break JWT/session cookies. Validate and
              * pass through raw instead. */
-      let cookies = auth.cookieParams()
-      if !cookies.isEmpty {
-        let cookieStr = cookies.map { (k, v) -> String in
-          if !BaseApi.isValidCookieName(k) {
-            preconditionFailure("Cookie name '\(k)' contains characters forbidden by RFC 6265")
-          }
-          if !BaseApi.isValidCookieValue(v) {
-            preconditionFailure("Cookie value for '\(k)' contains characters forbidden by RFC 6265")
-          }
-          return "\(k)=\(v)"
-        }.joined(separator: "; ")
-        if let existing = headers["Cookie"] {
-          headers["Cookie"] = existing + "; " + cookieStr
-        } else {
-          headers["Cookie"] = cookieStr
+            let cookies = auth.cookieParams()
+            if !cookies.isEmpty {
+                let cookieStr = cookies.map { (k, v) -> String in
+                    if !BaseApi.isValidCookieName(k) {
+                        preconditionFailure("Cookie name '\(k)' contains characters forbidden by RFC 6265")
+                    }
+                    if !BaseApi.isValidCookieValue(v) {
+                        preconditionFailure("Cookie value for '\(k)' contains characters forbidden by RFC 6265")
+                    }
+                    return "\(k)=\(v)"
+                }.joined(separator: "; ")
+                if let existing = headers["Cookie"] {
+                    headers["Cookie"] = existing + "; " + cookieStr
+                } else {
+                    headers["Cookie"] = cookieStr
+                }
+            }
         }
-      }
-    }
 
-    /* Inject trace context */
-    TraceContextUtil.injectTraceContext(headers: &headers)
+        /* Inject trace context */
+        TraceContextUtil.injectTraceContext(headers: &headers)
 
-    /* Serialize body -- multipart/form-data is handled separately so that
+        /* Serialize body -- multipart/form-data is handled separately so that
          * the boundary can be injected into the Content-Type header. */
-    let serializedBody: Data?
-    if params.contentType == "multipart/form-data", let formFields = params.body as? [String: Any] {
-      let boundary = UUID().uuidString
-      headers["Content-Type"] = "multipart/form-data; boundary=\(boundary)"
-      serializedBody = try Self.buildMultipartBody(formFields, boundary: boundary)
-    } else {
-      serializedBody = try Self.serializeBody(params.body, contentType: params.contentType)
-    }
-
-    if serializedBody == nil {
-      headers.removeValue(forKey: "Content-Type")
-    }
-
-    /* Send request */
-    let response = try await apiClient.sendRequest(
-      method: params.method,
-      url: requestURL,
-      headers: headers,
-      body: serializedBody
-    )
-
-    /* Check for errors */
-    if response.statusCode < 200 || response.statusCode >= 300 {
-      throw Self.throwAPIError(response)
-    }
-
-    return response
-  }
-
-  /// Dispatches an API request, deserializes the response, and returns an ApiResult.
-  /// Binary endpoints (return type `Data`) get the raw response bytes; JSON endpoints
-  /// run through `ObjectSerializer.deserialize`.
-  func invokeAPIForResult<T: Decodable>(_ params: InvokeAPIParams, as type: T.Type) async throws
-    -> ApiResult<T>
-  {
-    let response = try await invokeAPI(params)
-    let responseContentType =
-      response.headers.first(where: {
-        $0.key.caseInsensitiveCompare("content-type") == .orderedSame
-      })?.value ?? ""
-    var data: T? = nil
-    if type == Data.self {
-      data = (response.body.data(using: .utf8) ?? Data()) as? T
-    } else if !response.body.isEmpty {
-      // Default to JSON when Content-Type is missing — matches the other
-      // 11 SDKs which all assume JSON for empty/missing Content-Type. Some
-      // servers strip Content-Type from JSON responses; Swift previously
-      // returned nil in that case, leaving callers with no data.
-      let isJson = responseContentType.isEmpty || headerSelector.isJsonMime(responseContentType)
-      if isJson {
-        data = try ObjectSerializer.deserialize(response.body, as: type)
-      } else {
-        data = response.body as? T
-      }
-    }
-    return ApiResult<T>(
-      statusCode: response.statusCode,
-      data: data,
-      rawBody: response.body,
-      headers: response.headers
-    )
-  }
-
-  /// Dispatches an API request and returns an ApiResult with Void data (for operations with no return type).
-  func invokeAPIForEmptyResult(_ params: InvokeAPIParams) async throws -> ApiResult<Void> {
-    let response = try await invokeAPI(params)
-    return ApiResult<Void>(
-      statusCode: response.statusCode,
-      data: nil,
-      rawBody: response.body,
-      headers: response.headers
-    )
-  }
-
-  /// RFC 3986 query component encoding. Foundation's .urlQueryAllowed
-  /// includes `&`, `=`, `+`, and other reserved chars used as delimiters
-  /// inside the query string, so a value like `Foo&Bar` would arrive at
-  /// the server as a literal `&` and split the key=value pair (param
-  /// pollution / wrong endpoint). Build a tighter set: the RFC 3986
-  /// unreserved set (ALPHA / DIGIT / `-._~`) is always safe; everything
-  /// else gets percent-encoded.
-  private static let queryComponentAllowed: CharacterSet = {
-    var allowed = CharacterSet()
-    allowed.insert(
-      charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
-    return allowed
-  }()
-
-  static func buildQueryString(_ queryParams: [String: Any?]) -> String {
-    guard !queryParams.isEmpty else { return "" }
-
-    var parts: [String] = []
-    for (k, v) in queryParams {
-      guard let v = v else { continue }
-      let encodedKey =
-        k.addingPercentEncoding(withAllowedCharacters: BaseApi.queryComponentAllowed) ?? k
-
-      if let items = v as? [String] {
-        for item in items {
-          let encodedValue =
-            item.addingPercentEncoding(withAllowedCharacters: BaseApi.queryComponentAllowed) ?? item
-          parts.append("\(encodedKey)=\(encodedValue)")
+        let serializedBody: Data?
+        if params.contentType == "multipart/form-data", let formFields = params.body as? [String: Any] {
+            let boundary = UUID().uuidString
+            headers["Content-Type"] = "multipart/form-data; boundary=\(boundary)"
+            serializedBody = try Self.buildMultipartBody(formFields, boundary: boundary)
+        } else {
+            serializedBody = try Self.serializeBody(params.body, contentType: params.contentType)
         }
-      } else {
-        let strVal = ObjectSerializer.stringify(v)
-        let encodedValue =
-          strVal.addingPercentEncoding(withAllowedCharacters: BaseApi.queryComponentAllowed)
-          ?? strVal
-        parts.append("\(encodedKey)=\(encodedValue)")
-      }
-    }
 
-    return parts.joined(separator: "&")
-  }
-
-  static func serializeBody(_ body: Any?, contentType: String) throws -> Data? {
-    guard let body = body else { return nil }
-
-    if contentType == "multipart/form-data" {
-      return nil
-    }
-
-    if contentType.hasPrefix("image/") || contentType == "application/octet-stream" {
-      if let data = body as? Data {
-        return data
-      }
-      if let str = body as? String {
-        return str.data(using: .utf8)
-      }
-    }
-
-    if contentType == "text/plain" {
-      return "\(body)".data(using: .utf8)
-    }
-
-    if contentType == "application/x-www-form-urlencoded" {
-      if let params = body as? [String: Any] {
-        let formSafe = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
-        let encoded = params.map {
-          let key =
-            "\($0.key)".addingPercentEncoding(withAllowedCharacters: formSafe) ?? "\($0.key)"
-          let val =
-            "\($0.value)".addingPercentEncoding(withAllowedCharacters: formSafe) ?? "\($0.value)"
-          return "\(key)=\(val)"
-        }.joined(separator: "&")
-        return encoded.data(using: .utf8)
-      }
-    }
-
-    let jsonString = try ObjectSerializer.serialize(body)
-    return jsonString.data(using: .utf8)
-  }
-
-  /// Build a multipart/form-data request body from a dictionary of form fields.
-  ///
-  /// Each entry value may be `Data`, `URL` (file), `[Any]` (repeated field), or
-  /// any other value which is converted to its string representation.
-  ///
-  /// - Parameters:
-  ///   - formFields: dictionary mapping field names to values
-  ///   - boundary: the multipart boundary string
-  /// - Returns: the assembled multipart body as `Data`
-  static func buildMultipartBody(_ formFields: [String: Any], boundary: String) throws -> Data {
-    var body = Data()
-
-    for (name, value) in formFields {
-      if let list = value as? [Any] {
-        for item in list {
-          try appendMultipartField(&body, boundary: boundary, name: name, value: item)
+        if serializedBody == nil {
+            headers.removeValue(forKey: "Content-Type")
         }
-      } else {
-        try appendMultipartField(&body, boundary: boundary, name: name, value: value)
-      }
-    }
-    body.append("--\(boundary)--\r\n".data(using: .utf8)!)
-    return body
-  }
 
-  private static func appendMultipartField(
-    _ body: inout Data, boundary: String, name: String, value: Any
-  ) throws {
-    let safeName = try sanitizeQuotedHeaderValue(name)
-
-    if let fileURL = value as? URL {
-      let fileName = fileURL.lastPathComponent
-      let fileData = (try? Data(contentsOf: fileURL)) ?? Data()
-      let mimeType = mimeTypeForFilename(fileName)
-      let disposition = try buildContentDisposition(name: safeName, filename: fileName)
-      body.append(
-        "--\(boundary)\r\n\(disposition)\r\nContent-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
-      body.append(fileData)
-      body.append("\r\n".data(using: .utf8)!)
-    } else if let data = value as? Data {
-      let mimeType = mimeTypeForFilename(name)
-      let disposition = try buildContentDisposition(name: safeName, filename: name)
-      body.append(
-        "--\(boundary)\r\n\(disposition)\r\nContent-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
-      body.append(data)
-      body.append("\r\n".data(using: .utf8)!)
-    } else if value is String || value is Int || value is Double || value is Bool {
-      body.append(
-        "--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\n\r\n\(value)\r\n"
-          .data(using: .utf8)!)
-    } else {
-      /* Model objects -- serialize to JSON */
-      if let jsonString = try? ObjectSerializer.serialize(value) {
-        body.append(
-          "--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\nContent-Type: application/json\r\n\r\n\(jsonString)\r\n"
-            .data(using: .utf8)!)
-      } else {
-        body.append(
-          "--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\n\r\n\(value)\r\n"
-            .data(using: .utf8)!)
-      }
-    }
-  }
-
-  /// Validates and escapes a value destined for a quoted multipart header.
-  ///
-  /// Throws ``URLError/badURL`` if the value contains CR, LF, or NUL (header
-  /// injection risk); otherwise backslash-escapes `\` and `"`.
-  static func sanitizeQuotedHeaderValue(_ value: String) throws -> String {
-    for scalar in value.unicodeScalars {
-      if scalar == "\r" || scalar == "\n" || scalar.value == 0 {
-        throw URLError(.badURL)
-      }
-    }
-    var escaped = ""
-    escaped.reserveCapacity(value.count)
-    for ch in value {
-      if ch == "\\" || ch == "\"" {
-        escaped.append("\\")
-      }
-      escaped.append(ch)
-    }
-    return escaped
-  }
-
-  /// Builds a `Content-Disposition` header value for a file part.
-  ///
-  /// Emits an ASCII-safe `filename="..."` (with non-ASCII chars replaced by `_`)
-  /// and, when the original filename contains non-ASCII codepoints, an additional
-  /// RFC 5987 `filename*=UTF-8''<percent-encoded>` parameter.
-  static func buildContentDisposition(name: String, filename: String) throws -> String {
-    let safeFilename = try sanitizeQuotedHeaderValue(filename)
-    let isAscii = filename.unicodeScalars.allSatisfy { $0.isASCII }
-    if isAscii {
-      return "Content-Disposition: form-data; name=\"\(name)\"; filename=\"\(safeFilename)\""
-    }
-    var asciiFallback = ""
-    for scalar in filename.unicodeScalars {
-      if scalar.isASCII {
-        asciiFallback.unicodeScalars.append(scalar)
-      } else {
-        asciiFallback.append("_")
-      }
-    }
-    let asciiSafe = try sanitizeQuotedHeaderValue(asciiFallback)
-    var allowed = CharacterSet.alphanumerics
-    allowed.insert(charactersIn: "!#$&+-.^_`|~")
-    let encoded = filename.addingPercentEncoding(withAllowedCharacters: allowed) ?? asciiSafe
-    return
-      "Content-Disposition: form-data; name=\"\(name)\"; filename=\"\(asciiSafe)\"; filename*=UTF-8''\(encoded)"
-  }
-
-  /// Returns a MIME type for the file based on its extension, or
-  /// `application/octet-stream` if no mapping is known.
-  static func mimeTypeForFilename(_ filename: String) -> String {
-    guard let dotIndex = filename.lastIndex(of: ".") else {
-      return "application/octet-stream"
-    }
-    let ext = String(filename[filename.index(after: dotIndex)...]).lowercased()
-    switch ext {
-    case "png": return "image/png"
-    case "jpg", "jpeg": return "image/jpeg"
-    case "gif": return "image/gif"
-    case "webp": return "image/webp"
-    case "svg": return "image/svg+xml"
-    case "bmp": return "image/bmp"
-    case "tiff", "tif": return "image/tiff"
-    case "ico": return "image/x-icon"
-    case "pdf": return "application/pdf"
-    case "json": return "application/json"
-    case "xml": return "application/xml"
-    case "zip": return "application/zip"
-    case "gz", "gzip": return "application/gzip"
-    case "tar": return "application/x-tar"
-    case "txt": return "text/plain"
-    case "csv": return "text/csv"
-    case "html", "htm": return "text/html"
-    case "css": return "text/css"
-    case "js": return "application/javascript"
-    case "mp4": return "video/mp4"
-    case "mp3": return "audio/mpeg"
-    case "wav": return "audio/wav"
-    case "ogg": return "audio/ogg"
-    case "webm": return "video/webm"
-    default: return "application/octet-stream"
-    }
-  }
-
-  static func throwAPIError(_ response: HttpResponse) -> ApiError {
-    let code = response.statusCode
-    let msg = "API returned status code \(code)"
-    let body = response.body
-
-    var parsed: Any? = nil
-    if !body.isEmpty, let data = body.data(using: .utf8) {
-      parsed = try? JSONSerialization.jsonObject(with: data)
-    }
-
-    let baseErr = ApiError(
-      statusCode: code,
-      message: msg,
-      responseBody: body,
-      responseHeaders: response.headers,
-      errorBody: parsed
-    )
-
-    if code >= 400 && code < 500 {
-      let clientErr = ClientError(
-        statusCode: code,
-        message: msg,
-        responseBody: body,
-        responseHeaders: response.headers,
-        errorBody: parsed
-      )
-      switch code {
-      case 400:
-        return BadRequestError(
-          statusCode: code, message: msg, responseBody: body,
-          responseHeaders: response.headers, errorBody: parsed
+        /* Send request */
+        let response = try await apiClient.sendRequest(
+            method: params.method,
+            url: requestURL,
+            headers: headers,
+            body: serializedBody
         )
-      case 401:
-        return UnauthorizedError(
-          statusCode: code, message: msg, responseBody: body,
-          responseHeaders: response.headers, errorBody: parsed
-        )
-      case 403:
-        return ForbiddenError(
-          statusCode: code, message: msg, responseBody: body,
-          responseHeaders: response.headers, errorBody: parsed
-        )
-      case 404:
-        return NotFoundError(
-          statusCode: code, message: msg, responseBody: body,
-          responseHeaders: response.headers, errorBody: parsed
-        )
-      case 409:
-        return ConflictError(
-          statusCode: code, message: msg, responseBody: body,
-          responseHeaders: response.headers, errorBody: parsed
-        )
-      case 422:
-        return UnprocessableEntityError(
-          statusCode: code, message: msg, responseBody: body,
-          responseHeaders: response.headers, errorBody: parsed
-        )
-      default:
-        return clientErr
-      }
+
+        /* Check for errors */
+        if response.statusCode < 200 || response.statusCode >= 300 {
+            throw Self.throwAPIError(response)
+        }
+
+        return response
     }
 
-    if code >= 500 {
-      let serverErr = ServerError(
-        statusCode: code,
-        message: msg,
-        responseBody: body,
-        responseHeaders: response.headers,
-        errorBody: parsed
-      )
-      switch code {
-      case 500:
-        return InternalServerError(
-          statusCode: code, message: msg, responseBody: body,
-          responseHeaders: response.headers, errorBody: parsed
+    /// Dispatches an API request, deserializes the response, and returns an ApiResult.
+    /// Binary endpoints (return type `Data`) get the raw response bytes; JSON endpoints
+    /// run through `ObjectSerializer.deserialize`.
+    func invokeAPIForResult<T: Decodable>(_ params: InvokeAPIParams, as type: T.Type) async throws -> ApiResult<T> {
+        let response = try await invokeAPI(params)
+        let responseContentType = response.headers.first(where: { $0.key.caseInsensitiveCompare("content-type") == .orderedSame })?.value ?? ""
+        var data: T? = nil
+        if type == Data.self {
+            data = (response.body.data(using: .utf8) ?? Data()) as? T
+        } else if !response.body.isEmpty {
+            // Default to JSON when Content-Type is missing — matches the other
+            // 11 SDKs which all assume JSON for empty/missing Content-Type. Some
+            // servers strip Content-Type from JSON responses; Swift previously
+            // returned nil in that case, leaving callers with no data.
+            let isJson = responseContentType.isEmpty || headerSelector.isJsonMime(responseContentType)
+            if isJson {
+                data = try ObjectSerializer.deserialize(response.body, as: type)
+            } else {
+                data = response.body as? T
+            }
+        }
+        return ApiResult<T>(
+            statusCode: response.statusCode,
+            data: data,
+            rawBody: response.body,
+            headers: response.headers
         )
-      default:
-        return serverErr
-      }
     }
 
-    return baseErr
-  }
-
-  /// RFC 6265 cookie-name validation (RFC 7230 token).
-  static func isValidCookieName(_ name: String) -> Bool {
-    if name.isEmpty { return false }
-    let allowed = CharacterSet(
-      charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%&'*+-.^_`|~")
-    return name.unicodeScalars.allSatisfy { allowed.contains($0) }
-  }
-
-  /// RFC 6265 cookie-value validation (cookie-octet*).
-  static func isValidCookieValue(_ value: String) -> Bool {
-    return value.unicodeScalars.allSatisfy { s in
-      let v = s.value
-      return v == 0x21
-        || (0x23...0x2B).contains(v)
-        || (0x2D...0x3A).contains(v)
-        || (0x3C...0x5B).contains(v)
-        || (0x5D...0x7E).contains(v)
+    /// Dispatches an API request and returns an ApiResult with Void data (for operations with no return type).
+    func invokeAPIForEmptyResult(_ params: InvokeAPIParams) async throws -> ApiResult<Void> {
+        let response = try await invokeAPI(params)
+        return ApiResult<Void>(
+            statusCode: response.statusCode,
+            data: nil,
+            rawBody: response.body,
+            headers: response.headers
+        )
     }
-  }
+
+    /// RFC 3986 query component encoding. Foundation's .urlQueryAllowed
+    /// includes `&`, `=`, `+`, and other reserved chars used as delimiters
+    /// inside the query string, so a value like `Foo&Bar` would arrive at
+    /// the server as a literal `&` and split the key=value pair (param
+    /// pollution / wrong endpoint). Build a tighter set: the RFC 3986
+    /// unreserved set (ALPHA / DIGIT / `-._~`) is always safe; everything
+    /// else gets percent-encoded.
+    private static let queryComponentAllowed: CharacterSet = {
+        var allowed = CharacterSet()
+        allowed.insert(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+        return allowed
+    }()
+
+    static func buildQueryString(_ queryParams: [String: Any?]) -> String {
+        guard !queryParams.isEmpty else { return "" }
+
+        var parts: [String] = []
+        for (k, v) in queryParams {
+            guard let v = v else { continue }
+            let encodedKey = k.addingPercentEncoding(withAllowedCharacters: BaseApi.queryComponentAllowed) ?? k
+
+            if let items = v as? [String] {
+                for item in items {
+                    let encodedValue = item.addingPercentEncoding(withAllowedCharacters: BaseApi.queryComponentAllowed) ?? item
+                    parts.append("\(encodedKey)=\(encodedValue)")
+                }
+            } else {
+                let strVal = ObjectSerializer.stringify(v)
+                let encodedValue = strVal.addingPercentEncoding(withAllowedCharacters: BaseApi.queryComponentAllowed) ?? strVal
+                parts.append("\(encodedKey)=\(encodedValue)")
+            }
+        }
+
+        return parts.joined(separator: "&")
+    }
+
+    static func serializeBody(_ body: Any?, contentType: String) throws -> Data? {
+        guard let body = body else { return nil }
+
+        if contentType == "multipart/form-data" {
+            return nil
+        }
+
+        if contentType.hasPrefix("image/") || contentType == "application/octet-stream" {
+            if let data = body as? Data {
+                return data
+            }
+            if let str = body as? String {
+                return str.data(using: .utf8)
+            }
+        }
+
+        if contentType == "text/plain" {
+            return "\(body)".data(using: .utf8)
+        }
+
+        if contentType == "application/x-www-form-urlencoded" {
+            if let params = body as? [String: Any] {
+                let formSafe = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+                let encoded = params.map {
+                    let key = "\($0.key)".addingPercentEncoding(withAllowedCharacters: formSafe) ?? "\($0.key)"
+                    let val = "\($0.value)".addingPercentEncoding(withAllowedCharacters: formSafe) ?? "\($0.value)"
+                    return "\(key)=\(val)"
+                }.joined(separator: "&")
+                return encoded.data(using: .utf8)
+            }
+        }
+
+        let jsonString = try ObjectSerializer.serialize(body)
+        return jsonString.data(using: .utf8)
+    }
+
+    /// Build a multipart/form-data request body from a dictionary of form fields.
+    ///
+    /// Each entry value may be `Data`, `URL` (file), `[Any]` (repeated field), or
+    /// any other value which is converted to its string representation.
+    ///
+    /// - Parameters:
+    ///   - formFields: dictionary mapping field names to values
+    ///   - boundary: the multipart boundary string
+    /// - Returns: the assembled multipart body as `Data`
+    static func buildMultipartBody(_ formFields: [String: Any], boundary: String) throws -> Data {
+        var body = Data()
+
+        for (name, value) in formFields {
+            if let list = value as? [Any] {
+                for item in list {
+                    try appendMultipartField(&body, boundary: boundary, name: name, value: item)
+                }
+            } else {
+                try appendMultipartField(&body, boundary: boundary, name: name, value: value)
+            }
+        }
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        return body
+    }
+
+    private static func appendMultipartField(_ body: inout Data, boundary: String, name: String, value: Any) throws {
+        let safeName = try sanitizeQuotedHeaderValue(name)
+
+        if let fileURL = value as? URL {
+            let fileName = fileURL.lastPathComponent
+            let fileData = (try? Data(contentsOf: fileURL)) ?? Data()
+            let mimeType = mimeTypeForFilename(fileName)
+            let disposition = try buildContentDisposition(name: safeName, filename: fileName)
+            body.append("--\(boundary)\r\n\(disposition)\r\nContent-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
+            body.append(fileData)
+            body.append("\r\n".data(using: .utf8)!)
+        } else if let data = value as? Data {
+            let mimeType = mimeTypeForFilename(name)
+            let disposition = try buildContentDisposition(name: safeName, filename: name)
+            body.append("--\(boundary)\r\n\(disposition)\r\nContent-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
+            body.append(data)
+            body.append("\r\n".data(using: .utf8)!)
+        } else if value is String || value is Int || value is Double || value is Bool {
+            body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\n\r\n\(value)\r\n".data(using: .utf8)!)
+        } else {
+            /* Model objects -- serialize to JSON */
+            if let jsonString = try? ObjectSerializer.serialize(value) {
+                body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\nContent-Type: application/json\r\n\r\n\(jsonString)\r\n".data(using: .utf8)!)
+            } else {
+                body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\n\r\n\(value)\r\n".data(using: .utf8)!)
+            }
+        }
+    }
+
+    /// Validates and escapes a value destined for a quoted multipart header.
+    ///
+    /// Throws ``URLError/badURL`` if the value contains CR, LF, or NUL (header
+    /// injection risk); otherwise backslash-escapes `\` and `"`.
+    static func sanitizeQuotedHeaderValue(_ value: String) throws -> String {
+        for scalar in value.unicodeScalars {
+            if scalar == "\r" || scalar == "\n" || scalar.value == 0 {
+                throw URLError(.badURL)
+            }
+        }
+        var escaped = ""
+        escaped.reserveCapacity(value.count)
+        for ch in value {
+            if ch == "\\" || ch == "\"" {
+                escaped.append("\\")
+            }
+            escaped.append(ch)
+        }
+        return escaped
+    }
+
+    /// Builds a `Content-Disposition` header value for a file part.
+    ///
+    /// Emits an ASCII-safe `filename="..."` (with non-ASCII chars replaced by `_`)
+    /// and, when the original filename contains non-ASCII codepoints, an additional
+    /// RFC 5987 `filename*=UTF-8''<percent-encoded>` parameter.
+    static func buildContentDisposition(name: String, filename: String) throws -> String {
+        let safeFilename = try sanitizeQuotedHeaderValue(filename)
+        let isAscii = filename.unicodeScalars.allSatisfy { $0.isASCII }
+        if isAscii {
+            return "Content-Disposition: form-data; name=\"\(name)\"; filename=\"\(safeFilename)\""
+        }
+        var asciiFallback = ""
+        for scalar in filename.unicodeScalars {
+            if scalar.isASCII {
+                asciiFallback.unicodeScalars.append(scalar)
+            } else {
+                asciiFallback.append("_")
+            }
+        }
+        let asciiSafe = try sanitizeQuotedHeaderValue(asciiFallback)
+        var allowed = CharacterSet.alphanumerics
+        allowed.insert(charactersIn: "!#$&+-.^_`|~")
+        let encoded = filename.addingPercentEncoding(withAllowedCharacters: allowed) ?? asciiSafe
+        return "Content-Disposition: form-data; name=\"\(name)\"; filename=\"\(asciiSafe)\"; filename*=UTF-8''\(encoded)"
+    }
+
+    /// Returns a MIME type for the file based on its extension, or
+    /// `application/octet-stream` if no mapping is known.
+    static func mimeTypeForFilename(_ filename: String) -> String {
+        guard let dotIndex = filename.lastIndex(of: ".") else {
+            return "application/octet-stream"
+        }
+        let ext = String(filename[filename.index(after: dotIndex)...]).lowercased()
+        switch ext {
+        case "png": return "image/png"
+        case "jpg", "jpeg": return "image/jpeg"
+        case "gif": return "image/gif"
+        case "webp": return "image/webp"
+        case "svg": return "image/svg+xml"
+        case "bmp": return "image/bmp"
+        case "tiff", "tif": return "image/tiff"
+        case "ico": return "image/x-icon"
+        case "pdf": return "application/pdf"
+        case "json": return "application/json"
+        case "xml": return "application/xml"
+        case "zip": return "application/zip"
+        case "gz", "gzip": return "application/gzip"
+        case "tar": return "application/x-tar"
+        case "txt": return "text/plain"
+        case "csv": return "text/csv"
+        case "html", "htm": return "text/html"
+        case "css": return "text/css"
+        case "js": return "application/javascript"
+        case "mp4": return "video/mp4"
+        case "mp3": return "audio/mpeg"
+        case "wav": return "audio/wav"
+        case "ogg": return "audio/ogg"
+        case "webm": return "video/webm"
+        default: return "application/octet-stream"
+        }
+    }
+
+    static func throwAPIError(_ response: HttpResponse) -> ApiError {
+        let code = response.statusCode
+        let msg = "API returned status code \(code)"
+        let body = response.body
+
+        var parsed: Any? = nil
+        if !body.isEmpty, let data = body.data(using: .utf8) {
+            parsed = try? JSONSerialization.jsonObject(with: data)
+        }
+
+        let baseErr = ApiError(
+            statusCode: code,
+            message: msg,
+            responseBody: body,
+            responseHeaders: response.headers,
+            errorBody: parsed
+        )
+
+        if code >= 400 && code < 500 {
+            let clientErr = ClientError(
+                statusCode: code,
+                message: msg,
+                responseBody: body,
+                responseHeaders: response.headers,
+                errorBody: parsed
+            )
+            switch code {
+            case 400:
+                return BadRequestError(
+                    statusCode: code, message: msg, responseBody: body,
+                    responseHeaders: response.headers, errorBody: parsed
+                )
+            case 401:
+                return UnauthorizedError(
+                    statusCode: code, message: msg, responseBody: body,
+                    responseHeaders: response.headers, errorBody: parsed
+                )
+            case 403:
+                return ForbiddenError(
+                    statusCode: code, message: msg, responseBody: body,
+                    responseHeaders: response.headers, errorBody: parsed
+                )
+            case 404:
+                return NotFoundError(
+                    statusCode: code, message: msg, responseBody: body,
+                    responseHeaders: response.headers, errorBody: parsed
+                )
+            case 409:
+                return ConflictError(
+                    statusCode: code, message: msg, responseBody: body,
+                    responseHeaders: response.headers, errorBody: parsed
+                )
+            case 422:
+                return UnprocessableEntityError(
+                    statusCode: code, message: msg, responseBody: body,
+                    responseHeaders: response.headers, errorBody: parsed
+                )
+            default:
+                return clientErr
+            }
+        }
+
+        if code >= 500 {
+            let serverErr = ServerError(
+                statusCode: code,
+                message: msg,
+                responseBody: body,
+                responseHeaders: response.headers,
+                errorBody: parsed
+            )
+            switch code {
+            case 500:
+                return InternalServerError(
+                    statusCode: code, message: msg, responseBody: body,
+                    responseHeaders: response.headers, errorBody: parsed
+                )
+            default:
+                return serverErr
+            }
+        }
+
+        return baseErr
+    }
+
+    /// RFC 6265 cookie-name validation (RFC 7230 token).
+    static func isValidCookieName(_ name: String) -> Bool {
+        if name.isEmpty { return false }
+        let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%&'*+-.^_`|~")
+        return name.unicodeScalars.allSatisfy { allowed.contains($0) }
+    }
+
+    /// RFC 6265 cookie-value validation (cookie-octet*).
+    static func isValidCookieValue(_ value: String) -> Bool {
+        return value.unicodeScalars.allSatisfy { s in
+            let v = s.value
+            return v == 0x21
+                || (0x23...0x2B).contains(v)
+                || (0x2D...0x3A).contains(v)
+                || (0x3C...0x5B).contains(v)
+                || (0x5D...0x7E).contains(v)
+        }
+    }
 }
 
 /// Replaces a path parameter placeholder with a percent-encoded value.
@@ -518,8 +491,22 @@ open class BaseApi {
 /// so that path-param values like "foo/bar" are encoded as "foo%2Fbar" and do
 /// not corrupt the URL path structure.
 func replacePathParam(_ path: String, name: String, value: String) -> String {
-  var allowed = CharacterSet.urlPathAllowed
-  allowed.remove("/")
-  let encoded = value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
-  return path.replacingOccurrences(of: "{\(name)}", with: encoded)
+    var allowed = CharacterSet.urlPathAllowed
+    allowed.remove("/")
+    let encoded = value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
+    return path.replacingOccurrences(of: "{\(name)}", with: encoded)
+}
+
+/// Formats a `format: date` value as YYYY-MM-DD using a fixed-locale,
+/// fixed-timezone formatter. Swift has only Date (no separate date-only
+/// type), so the codegen checks the spec format and routes through this
+/// helper to strip the time component. Without this, a date param goes
+/// out as a full ISO+offset string, which mismatches the 6 SDKs with
+/// native LocalDate types — the spec calls for date-only.
+func stringifyDate(_ value: Date) -> String {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd"
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.timeZone = TimeZone(secondsFromGMT: 0)
+    return formatter.string(from: value)
 }

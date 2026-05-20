@@ -18,3 +18,21 @@ bundle exec rake spec
 
 - Name: `{{gemName}}`
 - Version: `{{gemVersion}}`
+
+## Caveats
+
+### Decimal / `format: number` precision
+
+Ruby's stdlib `JSON.parse` returns `Float` for JSON numbers with a
+decimal point. `format: decimal` / `format: number` values are
+therefore stored as `Float`, so monetary values lose exact decimal
+representation. `0.1 + 0.2` in Ruby is `0.30000000000000004`.
+
+Do not do arithmetic on prices, balances, or other money-typed
+fields. If you need exact decimal arithmetic, parse the raw response
+body via `JSON.parse(body, decimal_class: BigDecimal)` and use
+`BigDecimal` (stdlib `bigdecimal`) for the math.
+
+`format: int64` is unaffected — Ruby's `Integer` is arbitrary-
+precision (`Bignum`) and represents the full 64-bit range without
+loss.

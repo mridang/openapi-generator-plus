@@ -217,7 +217,12 @@ export class {{classname}} extends BaseApi {
 {{#-first}}
     let path = `{{{path}}}`;
 {{/-first}}
+{{#isDate}}
+    path = path.replace(`{${'{{baseName}}'}}`, ValueSerializer.encodePathSegment(ValueSerializer.stringifyDate({{paramName}})));
+{{/isDate}}
+{{^isDate}}
     path = path.replace(`{${'{{baseName}}'}}`, ValueSerializer.encodePathSegment(ValueSerializer.serializeStyled('{{baseName}}', {{paramName}}, 'path', '{{{dataType}}}', null, '{{style}}', {{isExplode}}) as string));
+{{/isDate}}
 {{/pathParams}}
 {{#servers}}
 {{#-first}}

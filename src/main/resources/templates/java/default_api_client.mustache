@@ -79,6 +79,11 @@ public final class DefaultApiClient implements ApiClient {
 
     private final HttpClient       httpClient;
     private final TransportOptions transportOptions;
+    /** Pre-computed `Proxy-Authorization: Basic <b64(user:pass)>` value
+     *  extracted from the proxy URL's userinfo, or null if no proxy / no
+     *  embedded credentials. Injected on every outbound request because
+     *  java.net.http.HttpClient does not natively handle proxy auth. */
+    private final String           proxyAuthHeader;
 
     /**
      * Create a client with default transport settings.
@@ -110,12 +115,38 @@ public final class DefaultApiClient implements ApiClient {
                 }
                 builder.proxy(
                         ProxySelector.of(new InetSocketAddress(proxyUri.getHost(), port)));
+                /* java.net.http.HttpClient has no native Proxy-Authorization
+                 * support; if the proxy URL embeds userinfo (`http://user:pass@
+                 * host:port`), the JDK silently drops it. Extract here and we
+                 * inject the Proxy-Authorization header per request below. The
+                 * other 11 SDKs all do this via library defaults; Java is the
+                 * lone outlier without manual extraction. */
+                String userInfo = proxyUri.getRawUserInfo();
+                if (userInfo != null && !userInfo.isEmpty()) {
+                    this.proxyAuthHeader = "Basic " + Base64.getEncoder().encodeToString(
+                            java.net.URLDecoder.decode(userInfo, StandardCharsets.UTF_8)
+                                    .getBytes(StandardCharsets.UTF_8));
+                } else {
+                    this.proxyAuthHeader = null;
+                }
+            } else {
+                this.proxyAuthHeader = null;
             }
 
             if (!transportOptions.isVerifySsl()) {
                 SSLContext sslContext = SSLContext.getInstance("TLS");
                 sslContext.init(null, new TrustManager[] {TRUST_ALL_MANAGER}, null);
                 builder.sslContext(sslContext);
+                /* Gap AM: verifySsl=false must disable BOTH cert-chain AND
+                 * hostname verification (curl -k semantics). The TRUST_ALL
+                 * trust manager skips chain validation, but java.net.http
+                 * still performs HTTPS hostname verification by default —
+                 * users get inconsistent behavior across SDKs unless we
+                 * disable it explicitly. Setting `jdk.internal.httpclient
+                 * .disableHostnameVerification` covers that case. */
+                javax.net.ssl.SSLParameters sslParameters = new javax.net.ssl.SSLParameters();
+                sslParameters.setEndpointIdentificationAlgorithm(null);
+                builder.sslParameters(sslParameters);
             } else if (transportOptions.getCaCertPath() != null) {
                 CertificateFactory cf = CertificateFactory.getInstance("X.509");
                 X509Certificate caCert;
@@ -209,6 +240,10 @@ public final class DefaultApiClient implements ApiClient {
         }
 
         mergedHeaders.putIfAbsent("Accept-Encoding", getSupportedEncodings());
+
+        if (proxyAuthHeader != null) {
+            mergedHeaders.put("Proxy-Authorization", proxyAuthHeader);
+        }
 
         for (Map.Entry<String, String> header : mergedHeaders.entrySet()) {
             if (body == null && "content-type".equalsIgnoreCase(header.getKey())) {

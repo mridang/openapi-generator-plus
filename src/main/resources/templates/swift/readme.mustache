@@ -17,3 +17,21 @@ swift test
 ## Package
 
 - Name: `{{packageName}}`
+
+## Caveats
+
+### Decimal / `format: number` precision
+
+Foundation's `JSONDecoder` parses JSON numbers into `Double` for
+`Decodable` model fields typed as `Double`/`Float`. `format: decimal`
+/ `format: number` values are therefore stored as `Double`, so
+monetary values lose exact decimal representation. `0.1 + 0.2` in
+Swift is `0.30000000000000004`.
+
+Do not do arithmetic on prices, balances, or other money-typed
+fields. If you need exact decimal arithmetic, parse the raw response
+body yourself with `JSONDecoder().userInfo[.useDecimal] = true` and
+map the field to Foundation's `Decimal`.
+
+`format: int64` is unaffected — Swift's `Int` is 64-bit on all
+supported platforms and represents the full range without loss.

@@ -9,12 +9,12 @@ import Foundation
 
 /// ApiKeyLocation specifies where the API key should be sent.
 public enum ApiKeyLocation: Sendable {
-  /// Sends the API key as a request header.
-  case header
+    /// Sends the API key as a request header.
+    case header
 
-  /// Sends the API key as a query parameter.
-  case query
+    /// Sends the API key as a query parameter.
+    case query
 
-  /// Sends the API key as a cookie.
-  case cookie
+    /// Sends the API key as a cookie.
+    case cookie
 }
