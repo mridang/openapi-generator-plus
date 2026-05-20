@@ -48,9 +48,7 @@ public class ConfigurationTest : IDisposable
     [Fact]
     public void BuilderSetsBaseUrl()
     {
-        var config = Configuration.Builder()
-            .BaseUrl("https://custom.example.com")
-            .Build();
+        var config = Configuration.Builder().BaseUrl("https://custom.example.com").Build();
 
         Assert.Equal("https://custom.example.com", config.BaseUrl);
     }
@@ -58,7 +56,8 @@ public class ConfigurationTest : IDisposable
     [Fact]
     public void BuilderSetsSingleDefaultHeader()
     {
-        var config = Configuration.Builder()
+        var config = Configuration
+            .Builder()
             .DefaultHeader("Authorization", "Bearer token123")
             .Build();
 
@@ -69,7 +68,8 @@ public class ConfigurationTest : IDisposable
     [Fact]
     public void BuilderSetsMultipleDefaultHeaders()
     {
-        var config = Configuration.Builder()
+        var config = Configuration
+            .Builder()
             .DefaultHeaders(
                 new Dictionary<string, string>
                 {
@@ -87,7 +87,8 @@ public class ConfigurationTest : IDisposable
     [Fact]
     public void BuilderAccumulatesHeaders()
     {
-        var config = Configuration.Builder()
+        var config = Configuration
+            .Builder()
             .DefaultHeader("X-First", "one")
             .DefaultHeader("X-Second", "two")
             .DefaultHeaders(new Dictionary<string, string> { { "X-Third", "three" } })
@@ -102,7 +103,8 @@ public class ConfigurationTest : IDisposable
     [Fact]
     public void BuilderSetsAllFields()
     {
-        var config = Configuration.Builder()
+        var config = Configuration
+            .Builder()
             .BaseUrl("https://api.example.com")
             .DefaultHeader("Authorization", "Bearer token")
             .DefaultHeaders(new Dictionary<string, string> { { "X-Custom", "value" } })
@@ -127,9 +129,7 @@ public class ConfigurationTest : IDisposable
             }
         );
 
-        var config = Configuration.Builder()
-            .Server(server)
-            .Build();
+        var config = Configuration.Builder().Server(server).Build();
 
         Assert.Equal("https://api.example.com/api/v3", config.BaseUrl);
     }
@@ -147,7 +147,8 @@ public class ConfigurationTest : IDisposable
             }
         );
 
-        var config = Configuration.Builder()
+        var config = Configuration
+            .Builder()
             .Server(
                 server,
                 new Dictionary<string, string> { { "env", "staging" }, { "version", "v2" } }
@@ -166,7 +167,8 @@ public class ConfigurationTest : IDisposable
             new Dictionary<string, ServerVariable>()
         );
 
-        var config = Configuration.Builder()
+        var config = Configuration
+            .Builder()
             .Server(server)
             .BaseUrl("https://override.example.com")
             .Build();
@@ -195,9 +197,7 @@ public class ConfigurationTest : IDisposable
     [Fact]
     public void SetDefaultChangesDefault()
     {
-        var custom = Configuration.Builder()
-            .BaseUrl("https://custom.example.com")
-            .Build();
+        var custom = Configuration.Builder().BaseUrl("https://custom.example.com").Build();
 
         Configuration.Default = custom;
 
@@ -208,9 +208,7 @@ public class ConfigurationTest : IDisposable
     [Fact]
     public void ConfigurationIsImmutable()
     {
-        var config = Configuration.Builder()
-            .DefaultHeader("X-Key", "value")
-            .Build();
+        var config = Configuration.Builder().DefaultHeader("X-Key", "value").Build();
 
         // IReadOnlyDictionary prevents modification; verify the values are frozen
         Assert.Equal("value", config.DefaultHeaders["X-Key"]);

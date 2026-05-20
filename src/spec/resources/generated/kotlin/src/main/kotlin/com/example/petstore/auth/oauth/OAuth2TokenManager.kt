@@ -26,7 +26,6 @@ import kotlinx.serialization.json.longOrNull
  * API calls.
  */
 class OAuth2TokenManager {
-
     private companion object {
         /** Safety margin (in milliseconds) applied to token expiry checks
          *  so that we refresh slightly before the token actually expires,
@@ -55,7 +54,10 @@ class OAuth2TokenManager {
     @Volatile
     private var refreshToken: String? = null
 
-    private fun isTokenValid(token: String?, expiry: Long?): Boolean {
+    private fun isTokenValid(
+        token: String?,
+        expiry: Long?,
+    ): Boolean {
         if (token == null) return false
         if (expiry == null) return true
         return Clock.System.now().toEpochMilliseconds() < expiry - EXPIRY_SAFETY_MARGIN_MS
@@ -89,12 +91,13 @@ class OAuth2TokenManager {
             }
             val currentRefreshToken = refreshToken
             if (!currentRefreshToken.isNullOrEmpty()) {
-                val refreshParams = buildMap {
-                    put("grant_type", "refresh_token")
-                    put("refresh_token", currentRefreshToken)
-                    params["client_id"]?.let { put("client_id", it) }
-                    params["client_secret"]?.let { put("client_secret", it) }
-                }
+                val refreshParams =
+                    buildMap {
+                        put("grant_type", "refresh_token")
+                        put("refresh_token", currentRefreshToken)
+                        params["client_id"]?.let { put("client_id", it) }
+                        params["client_secret"]?.let { put("client_secret", it) }
+                    }
                 try {
                     fetchToken(tokenUrl, refreshParams, extraHeaders)
                     accessToken?.let { return@withLock it }

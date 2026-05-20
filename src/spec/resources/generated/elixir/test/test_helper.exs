@@ -23,9 +23,7 @@ prism_config =
   |> Testcontainers.Container.with_exposed_port(4010)
   |> Testcontainers.Container.with_bind_mount(spec_path, "/tmp/openapi.yaml")
   |> Testcontainers.Container.with_cmd(["mock", "-m", "false", "-h", "0.0.0.0", "/tmp/openapi.yaml"])
-  |> Testcontainers.Container.with_waiting_strategy(
-    Testcontainers.LogWaitStrategy.new(~r/Prism is listening/, 120_000)
-  )
+  |> Testcontainers.Container.with_waiting_strategy(Testcontainers.LogWaitStrategy.new(~r/Prism is listening/, 120_000))
 
 {:ok, prism} = Testcontainers.start_container(prism_config)
 
@@ -42,17 +40,21 @@ wiremock_config =
   |> Testcontainers.Container.with_bind_mount(keystore_path, "/tmp/keystore.p12")
   |> Testcontainers.Container.with_bind_mount(mappings_path, "/home/wiremock/mappings")
   |> Testcontainers.Container.with_cmd([
-    "--port", "8080",
-    "--https-port", "8443",
-    "--https-keystore", "/tmp/keystore.p12",
-    "--keystore-type", "PKCS12",
-    "--keystore-password", "changeit",
-    "--key-manager-password", "changeit",
+    "--port",
+    "8080",
+    "--https-port",
+    "8443",
+    "--https-keystore",
+    "/tmp/keystore.p12",
+    "--keystore-type",
+    "PKCS12",
+    "--keystore-password",
+    "changeit",
+    "--key-manager-password",
+    "changeit",
     "--verbose"
   ])
-  |> Testcontainers.Container.with_waiting_strategy(
-    Testcontainers.LogWaitStrategy.new(~r/port:/, 120_000)
-  )
+  |> Testcontainers.Container.with_waiting_strategy(Testcontainers.LogWaitStrategy.new(~r/port:/, 120_000))
 
 {:ok, wiremock} = Testcontainers.start_container(wiremock_config)
 

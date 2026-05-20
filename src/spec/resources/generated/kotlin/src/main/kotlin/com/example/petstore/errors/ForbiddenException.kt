@@ -14,5 +14,5 @@ class ForbiddenException(
     message: String,
     responseHeaders: Map<String, String>?,
     responseBody: String?,
-    errorBody: Any? = null
+    errorBody: Any? = null,
 ) : ClientException(403, message, responseHeaders, responseBody, errorBody)

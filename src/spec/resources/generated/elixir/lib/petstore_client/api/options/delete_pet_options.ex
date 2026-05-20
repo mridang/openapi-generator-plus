@@ -14,7 +14,5 @@ defmodule PetstoreClient.Api.Options.DeletePetOptions do
           api_key: term()
         }
 
-  defstruct [
-    api_key: nil
-  ]
+  defstruct api_key: nil
 end

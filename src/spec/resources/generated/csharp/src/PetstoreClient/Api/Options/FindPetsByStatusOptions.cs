@@ -14,5 +14,4 @@ public sealed class FindPetsByStatusOptions
 
     /// <summary> Filter criteria as key-value pairs</summary>
     public Dictionary<string, string>? Filter { get; init; }
-
 }

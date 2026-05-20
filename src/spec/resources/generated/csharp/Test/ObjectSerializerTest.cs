@@ -278,16 +278,25 @@ public class ObjectSerializerTest
         [Fact]
         public void UtcDateTimeSerializesContainingDateTimeAndOffset()
         {
-            var dt = DateTimeOffset.Parse("2024-01-01T12:30:45+00:00", CultureInfo.InvariantCulture);
+            var dt = DateTimeOffset.Parse(
+                "2024-01-01T12:30:45+00:00",
+                CultureInfo.InvariantCulture
+            );
             var result = ObjectSerializer.Stringify(dt);
             Assert.Contains("2024-01-01T12:30:45", result);
-            Assert.True(result.Contains("+00:00") || result.EndsWith('Z'), $"should contain UTC offset: {result}");
+            Assert.True(
+                result.Contains("+00:00") || result.EndsWith('Z'),
+                $"should contain UTC offset: {result}"
+            );
         }
 
         [Fact]
         public void PositiveOffsetPreservedInSerializedString()
         {
-            var dt = DateTimeOffset.Parse("2024-01-01T12:30:45+05:30", CultureInfo.InvariantCulture);
+            var dt = DateTimeOffset.Parse(
+                "2024-01-01T12:30:45+05:30",
+                CultureInfo.InvariantCulture
+            );
             var result = ObjectSerializer.Stringify(dt);
             Assert.Contains("+05:30", result);
         }
@@ -295,7 +304,10 @@ public class ObjectSerializerTest
         [Fact]
         public void NegativeOffsetPreservedInSerializedString()
         {
-            var dt = DateTimeOffset.Parse("2024-01-01T12:30:45-08:00", CultureInfo.InvariantCulture);
+            var dt = DateTimeOffset.Parse(
+                "2024-01-01T12:30:45-08:00",
+                CultureInfo.InvariantCulture
+            );
             var result = ObjectSerializer.Stringify(dt);
             Assert.Contains("-08:00", result);
         }
@@ -303,7 +315,10 @@ public class ObjectSerializerTest
         [Fact]
         public void SubsecondsDroppedFromSerializedDatetime()
         {
-            var dt = DateTimeOffset.Parse("2024-01-01T12:30:45.123+00:00", CultureInfo.InvariantCulture);
+            var dt = DateTimeOffset.Parse(
+                "2024-01-01T12:30:45.123+00:00",
+                CultureInfo.InvariantCulture
+            );
             var result = ObjectSerializer.Stringify(dt);
             Assert.DoesNotContain(".123", result);
         }
@@ -321,7 +336,8 @@ public class ObjectSerializerTest
         {
             var dt = new DateTimeOffset(2024, 1, 1, 12, 30, 45, TimeSpan.Zero);
             var result = ObjectSerializer.Stringify(dt);
-            var hasOffset = result.EndsWith("+00:00", StringComparison.Ordinal) || result.EndsWith('Z');
+            var hasOffset =
+                result.EndsWith("+00:00", StringComparison.Ordinal) || result.EndsWith('Z');
             if (!hasOffset)
             {
                 Assert.Matches(@"[+-]\d{2}:\d{2}$", result);
@@ -331,7 +347,10 @@ public class ObjectSerializerTest
         [Fact]
         public void RoundTripDatetimeYieldsEquivalentInstant()
         {
-            var original = DateTimeOffset.Parse("2024-01-01T12:30:45+05:30", CultureInfo.InvariantCulture);
+            var original = DateTimeOffset.Parse(
+                "2024-01-01T12:30:45+05:30",
+                CultureInfo.InvariantCulture
+            );
             var serialized = ObjectSerializer.Stringify(original);
             var parsed = DateTimeOffset.Parse(serialized, CultureInfo.InvariantCulture);
             Assert.Equal(original.UtcDateTime, parsed.UtcDateTime);
@@ -371,19 +390,25 @@ public class ObjectSerializerTest
         [Fact]
         public void TruncatedJsonThrowsJsonException()
         {
-            Assert.Throws<System.Text.Json.JsonException>(() => _serializer.Deserialize<Category>("{"));
+            Assert.Throws<System.Text.Json.JsonException>(
+                () => _serializer.Deserialize<Category>("{")
+            );
         }
 
         [Fact]
         public void InvalidJsonStructureThrowsJsonException()
         {
-            Assert.Throws<System.Text.Json.JsonException>(() => _serializer.Deserialize<Category>("\"hello\""));
+            Assert.Throws<System.Text.Json.JsonException>(
+                () => _serializer.Deserialize<Category>("\"hello\"")
+            );
         }
 
         [Fact]
         public void ThrownJsonExceptionHasMessage()
         {
-            var ex = Assert.Throws<System.Text.Json.JsonException>(() => _serializer.Deserialize<Category>("{"));
+            var ex = Assert.Throws<System.Text.Json.JsonException>(
+                () => _serializer.Deserialize<Category>("{")
+            );
             Assert.NotNull(ex.Message);
         }
     }
@@ -503,7 +528,8 @@ public class ObjectSerializerTest
         [Fact]
         public void MultipleUnknownPropertiesAreSilentlySkipped()
         {
-            var json = "{\"extra1\":1,\"id\":42,\"extra2\":true,\"name\":\"Cats\",\"extra3\":[1,2,3]}";
+            var json =
+                "{\"extra1\":1,\"id\":42,\"extra2\":true,\"name\":\"Cats\",\"extra3\":[1,2,3]}";
             var category = _serializer.Deserialize<Category>(json);
             Assert.NotNull(category);
             Assert.Equal(42L, category!.Id);

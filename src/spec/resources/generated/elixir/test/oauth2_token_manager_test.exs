@@ -12,6 +12,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
     def send_request(%__MODULE__{agent: agent}, _method, url, _headers, body) do
       Agent.get_and_update(agent, fn state ->
         [response | rest] = state.responses
+
         new_state = %{
           state
           | responses: rest,
@@ -19,6 +20,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
             last_body: body,
             call_count: state.call_count + 1
         }
+
         {response, new_state}
       end)
     end
@@ -57,32 +59,35 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
 
   describe "OAuth2TokenManager" do
     test "extracts access token from response" do
-      fake_client = FakeApiClient.new([
-        %PetstoreClient.ApiResponse{
-          status_code: 200,
-          body: Jason.encode!(%{"access_token" => "tok123", "expires_in" => 3600})
-        }
-      ])
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok123", "expires_in" => 3600})
+          }
+        ])
 
       {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
       PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
 
-      token = PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
-        manager,
-        "https://auth.example.com/token",
-        %{"grant_type" => "client_credentials"}
-      )
+      token =
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+          manager,
+          "https://auth.example.com/token",
+          %{"grant_type" => "client_credentials"}
+        )
 
       assert token == "tok123"
     end
 
     test "stores refresh token" do
-      fake_client = FakeApiClient.new([
-        %PetstoreClient.ApiResponse{
-          status_code: 200,
-          body: Jason.encode!(%{"access_token" => "tok1", "refresh_token" => "ref1", "expires_in" => 3600})
-        }
-      ])
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok1", "refresh_token" => "ref1", "expires_in" => 3600})
+          }
+        ])
 
       {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
       PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
@@ -97,12 +102,13 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
     end
 
     test "returns cached token when not expired" do
-      fake_client = FakeApiClient.new([
-        %PetstoreClient.ApiResponse{
-          status_code: 200,
-          body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
-        }
-      ])
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
+          }
+        ])
 
       {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
       PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
@@ -118,16 +124,17 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
     end
 
     test "refetches token when expired" do
-      fake_client = FakeApiClient.new([
-        %PetstoreClient.ApiResponse{
-          status_code: 200,
-          body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 1})
-        },
-        %PetstoreClient.ApiResponse{
-          status_code: 200,
-          body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
-        }
-      ])
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 1})
+          },
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
+          }
+        ])
 
       {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
       PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
@@ -146,11 +153,12 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
       PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_access_token(manager, "manual-token")
 
-      token = PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
-        manager,
-        "https://auth.example.com/token",
-        %{}
-      )
+      token =
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+          manager,
+          "https://auth.example.com/token",
+          %{}
+        )
 
       assert token == "manual-token"
     end
@@ -190,12 +198,13 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
     end
 
     test "throws when token request fails" do
-      fake_client = FakeApiClient.new([
-        %PetstoreClient.ApiResponse{
-          status_code: 401,
-          body: Jason.encode!(%{"error" => "invalid_client"})
-        }
-      ])
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 401,
+            body: Jason.encode!(%{"error" => "invalid_client"})
+          }
+        ])
 
       {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
       PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)

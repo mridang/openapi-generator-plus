@@ -28,7 +28,8 @@ public class BearerAuthenticator(string host, string token) : BaseAuthenticator
         return token?.Any(c => c != '\t' && c is < (char)0x20 or >= (char)0x7F) == true
             ? throw new ArgumentException(
                 "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
-                nameof(token))
+                nameof(token)
+            )
             : new() { ["Authorization"] = "Bearer " + token };
     }
 }

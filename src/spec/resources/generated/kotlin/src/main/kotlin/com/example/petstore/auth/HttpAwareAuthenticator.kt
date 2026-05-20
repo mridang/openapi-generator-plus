@@ -27,7 +27,6 @@ import com.example.petstore.ApiClient
  * and implement [Authenticator] directly.
  */
 interface HttpAwareAuthenticator : Authenticator {
-
     /**
      * Inject the shared API client for making HTTP requests.
      *

@@ -65,10 +65,7 @@ public class MetadataTest
     public void AdditionalPropertiesContainStringValues()
     {
         var metadata = new Metadata();
-        metadata.AdditionalProperties = new Dictionary<string, object>
-        {
-            ["key"] = "value",
-        };
+        metadata.AdditionalProperties = new Dictionary<string, object> { ["key"] = "value" };
         Assert.Equal("value", metadata.AdditionalProperties["key"]);
     }
 }

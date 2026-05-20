@@ -29,7 +29,6 @@ public class WetFood(int volumeMl) : PetFood, IEquatable<WetFood>
     /// <example>null</example>
 
     [JsonRequired]
-
     [JsonPropertyName("volumeMl")]
     public int VolumeMl { get; set; } = volumeMl;
 
@@ -39,9 +38,13 @@ public class WetFood(int volumeMl) : PetFood, IEquatable<WetFood>
     public bool Equals(WetFood? other)
     {
         return other is not null
-            && (ReferenceEquals(this, other)
-                || (EqualityComparer<string>.Default.Equals(this.FoodType, other.FoodType)
-                    && EqualityComparer<int>.Default.Equals(this.VolumeMl, other.VolumeMl)));
+            && (
+                ReferenceEquals(this, other)
+                || (
+                    EqualityComparer<string>.Default.Equals(this.FoodType, other.FoodType)
+                    && EqualityComparer<int>.Default.Equals(this.VolumeMl, other.VolumeMl)
+                )
+            );
     }
 
     public override bool Equals(object? obj)

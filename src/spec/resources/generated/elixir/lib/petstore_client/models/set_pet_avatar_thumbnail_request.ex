@@ -35,13 +35,16 @@ defmodule PetstoreClient.Models.SetPetAvatarThumbnailRequest do
       end)
 
     cond do
-      not is_nil(result) -> result
-      :AnyType in openapi_one_of() -> data
+      not is_nil(result) ->
+        result
+
+      :AnyType in openapi_one_of() ->
+        data
+
       true ->
         # Raise on union no-match (see comment above).
         raise ArgumentError,
               "JSON did not match any schema in the SetPetAvatarThumbnailRequest oneOf union"
     end
   end
-
 end

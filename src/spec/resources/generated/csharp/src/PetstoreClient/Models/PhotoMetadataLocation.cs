@@ -32,9 +32,13 @@ public class PhotoMetadataLocation : IEquatable<PhotoMetadataLocation>
     public bool Equals(PhotoMetadataLocation? other)
     {
         return other is not null
-            && (ReferenceEquals(this, other)
-                || (EqualityComparer<double?>.Default.Equals(this.Lat, other.Lat)
-                    && EqualityComparer<double?>.Default.Equals(this.Lng, other.Lng)));
+            && (
+                ReferenceEquals(this, other)
+                || (
+                    EqualityComparer<double?>.Default.Equals(this.Lat, other.Lat)
+                    && EqualityComparer<double?>.Default.Equals(this.Lng, other.Lng)
+                )
+            );
     }
 
     public override bool Equals(object? obj)

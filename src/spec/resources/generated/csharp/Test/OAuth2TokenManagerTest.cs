@@ -26,7 +26,11 @@ public class OAuth2TokenManagerTest
         public Uri? LastUrl { get; private set; }
 
         public Task<ApiResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body)
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
         {
             LastUrl = url;
             LastBody = body?.ToString();
@@ -45,7 +49,8 @@ public class OAuth2TokenManagerTest
 
         string token = await manager.GetAccessTokenAsync(
             new Uri("https://auth.example.com/token"),
-            new Dictionary<string, string> { ["grant_type"] = "client_credentials" });
+            new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+        );
 
         Assert.Equal("tok123", token);
     }
@@ -54,14 +59,17 @@ public class OAuth2TokenManagerTest
     public async Task StoresRefreshToken()
     {
         var client = new FakeApiClient();
-        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}");
+        client.Enqueue(
+            "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}"
+        );
 
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);
 
         await manager.GetAccessTokenAsync(
             new Uri("https://auth.example.com/token"),
-            new Dictionary<string, string> { ["grant_type"] = "authorization_code" });
+            new Dictionary<string, string> { ["grant_type"] = "authorization_code" }
+        );
 
         Assert.Equal("ref1", manager.RefreshToken);
     }
@@ -117,7 +125,8 @@ public class OAuth2TokenManagerTest
         // No API client needed since token is set manually
         string token = await manager.GetAccessTokenAsync(
             new Uri("https://auth.example.com/token"),
-            new Dictionary<string, string>());
+            new Dictionary<string, string>()
+        );
 
         Assert.Equal("manual-token", token);
     }
@@ -128,9 +137,12 @@ public class OAuth2TokenManagerTest
         var manager = new OAuth2TokenManager();
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => manager.GetAccessTokenAsync(
-                new Uri("https://auth.example.com/token"),
-                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }));
+            () =>
+                manager.GetAccessTokenAsync(
+                    new Uri("https://auth.example.com/token"),
+                    new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+                )
+        );
     }
 
     [Fact]
@@ -139,7 +151,8 @@ public class OAuth2TokenManagerTest
         // Gap G: single-flight refresh. 10 concurrent callers immediately after
         // invalidation must result in exactly ONE HTTP call to the token endpoint.
         var client = new CountingDelayingApiClient(
-            "{\"access_token\":\"tok-concurrent\",\"expires_in\":3600}");
+            "{\"access_token\":\"tok-concurrent\",\"expires_in\":3600}"
+        );
 
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);
@@ -175,7 +188,11 @@ public class OAuth2TokenManagerTest
         public int CallCount => _callCount;
 
         public async Task<ApiResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body)
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
         {
             System.Threading.Interlocked.Increment(ref _callCount);
             // Hold the "in flight" request long enough that all concurrent
@@ -195,8 +212,11 @@ public class OAuth2TokenManagerTest
         manager.SetApiClient(client);
 
         await Assert.ThrowsAsync<HttpRequestException>(
-            () => manager.GetAccessTokenAsync(
-                new Uri("https://auth.example.com/token"),
-                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }));
+            () =>
+                manager.GetAccessTokenAsync(
+                    new Uri("https://auth.example.com/token"),
+                    new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+                )
+        );
     }
 }

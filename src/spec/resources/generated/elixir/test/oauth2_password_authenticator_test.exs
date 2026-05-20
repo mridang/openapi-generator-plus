@@ -5,7 +5,9 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
     defstruct [:agent]
 
     def new(responses) do
-      {:ok, agent} = Agent.start_link(fn -> %{responses: responses, last_url: nil, last_body: nil, last_headers: nil} end)
+      {:ok, agent} =
+        Agent.start_link(fn -> %{responses: responses, last_url: nil, last_body: nil, last_headers: nil} end)
+
       %__MODULE__{agent: agent}
     end
 
@@ -36,12 +38,13 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
 
   describe "OAuth2PasswordAuthenticator" do
     test "sends password grant type" do
-      fake_client = FakeApiClient.new([
-        %PetstoreClient.ApiResponse{
-          status_code: 200,
-          body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
-        }
-      ])
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
+          }
+        ])
 
       auth = create_authenticator()
       auth = PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.set_api_client(auth, fake_client)
@@ -53,12 +56,13 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
     end
 
     test "sends username and password" do
-      fake_client = FakeApiClient.new([
-        %PetstoreClient.ApiResponse{
-          status_code: 200,
-          body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
-        }
-      ])
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
+          }
+        ])
 
       auth = create_authenticator()
       auth = PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.set_api_client(auth, fake_client)
@@ -71,12 +75,13 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
     end
 
     test "sends client id and secret" do
-      fake_client = FakeApiClient.new([
-        %PetstoreClient.ApiResponse{
-          status_code: 200,
-          body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
-        }
-      ])
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
+          }
+        ])
 
       auth = create_authenticator()
       auth = PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.set_api_client(auth, fake_client)
@@ -89,12 +94,13 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
     end
 
     test "returns authorization bearer header" do
-      fake_client = FakeApiClient.new([
-        %PetstoreClient.ApiResponse{
-          status_code: 200,
-          body: Jason.encode!(%{"access_token" => "tok-pwd", "expires_in" => 3600})
-        }
-      ])
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok-pwd", "expires_in" => 3600})
+          }
+        ])
 
       auth = create_authenticator()
       auth = PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.set_api_client(auth, fake_client)
@@ -105,16 +111,17 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
     end
 
     test "uses refresh token on subsequent calls" do
-      fake_client = FakeApiClient.new([
-        %PetstoreClient.ApiResponse{
-          status_code: 200,
-          body: Jason.encode!(%{"access_token" => "tok1", "refresh_token" => "ref1", "expires_in" => 1})
-        },
-        %PetstoreClient.ApiResponse{
-          status_code: 200,
-          body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
-        }
-      ])
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok1", "refresh_token" => "ref1", "expires_in" => 1})
+          },
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
+          }
+        ])
 
       auth = create_authenticator()
       auth = PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.set_api_client(auth, fake_client)
@@ -141,23 +148,26 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
       # urlencoded BEFORE being joined with ':' and base64-encoded.
       # Verifies a client_id with `+` and a secret with `&` are encoded
       # (not raw) before the colon-join + base64.
-      fake_client = FakeApiClient.new([
-        %PetstoreClient.ApiResponse{
-          status_code: 200,
-          body: Jason.encode!(%{"access_token" => "at", "expires_in" => 3600})
-        }
-      ])
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "at", "expires_in" => 3600})
+          }
+        ])
 
-      auth = PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.new(
-        "https://api.example.com",
-        "id+with/special",
-        "secret&with=stuff",
-        "https://auth.example.com/token",
-        "testuser",
-        "testpass",
-        ["read"],
-        client_auth_method: :basic
-      )
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.new(
+          "https://api.example.com",
+          "id+with/special",
+          "secret&with=stuff",
+          "https://auth.example.com/token",
+          "testuser",
+          "testpass",
+          ["read"],
+          client_auth_method: :basic
+        )
+
       auth = PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.set_api_client(auth, fake_client)
 
       PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.auth_headers(auth)

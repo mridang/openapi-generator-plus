@@ -32,9 +32,19 @@ public class Metadata : IEquatable<Metadata>
     public bool Equals(Metadata? other)
     {
         return other is not null
-            && (ReferenceEquals(this, other)
-                || (EqualityComparer<DateTimeOffset?>.Default.Equals(this.CreatedAt, other.CreatedAt)
-                    && EqualityComparer<Dictionary<string, object>?>.Default.Equals(this.AdditionalProperties, other.AdditionalProperties)));
+            && (
+                ReferenceEquals(this, other)
+                || (
+                    EqualityComparer<DateTimeOffset?>.Default.Equals(
+                        this.CreatedAt,
+                        other.CreatedAt
+                    )
+                    && EqualityComparer<Dictionary<string, object>?>.Default.Equals(
+                        this.AdditionalProperties,
+                        other.AdditionalProperties
+                    )
+                )
+            );
     }
 
     public override bool Equals(object? obj)

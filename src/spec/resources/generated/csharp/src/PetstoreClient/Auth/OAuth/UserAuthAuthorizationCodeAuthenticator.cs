@@ -10,6 +10,19 @@ namespace PetstoreClient.Auth.OAuth;
 /// <summary>
 /// Scheme-specific authenticator for the <c>userAuth</c> security scheme.
 /// </summary>
-public sealed class UserAuthAuthorizationCodeAuthenticator(string host, string clientId, string clientSecret, Uri redirectUri)
-    : OAuth2AuthorizationCodeAuthenticator(host, clientId, clientSecret, new Uri("https://auth.example.com/authorize"), new Uri("https://auth.example.com/oauth/token"), new Uri("https://auth.example.com/oauth/refresh"), redirectUri, ["pets:write", "pets:read"])
-{ }
+public sealed class UserAuthAuthorizationCodeAuthenticator(
+    string host,
+    string clientId,
+    string clientSecret,
+    Uri redirectUri
+)
+    : OAuth2AuthorizationCodeAuthenticator(
+        host,
+        clientId,
+        clientSecret,
+        new Uri("https://auth.example.com/authorize"),
+        new Uri("https://auth.example.com/oauth/token"),
+        new Uri("https://auth.example.com/oauth/refresh"),
+        redirectUri,
+        ["pets:write", "pets:read"]
+    ) { }

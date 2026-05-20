@@ -21,7 +21,8 @@ public class OAuth2ImplicitAuthenticatorTest
             "https://api.example.com",
             "my-client-id",
             new Uri("https://auth.example.com/authorize"),
-            Scopes);
+            Scopes
+        );
     }
 
     [Fact]
@@ -56,8 +57,9 @@ public class OAuth2ImplicitAuthenticatorTest
         string scopeStr = url.ToString();
         Assert.True(
             scopeStr.Contains("scope=read%20write", StringComparison.Ordinal)
-            || scopeStr.Contains("scope=read+write", StringComparison.Ordinal)
-            || scopeStr.Contains("scope=read write", StringComparison.Ordinal));
+                || scopeStr.Contains("scope=read+write", StringComparison.Ordinal)
+                || scopeStr.Contains("scope=read write", StringComparison.Ordinal)
+        );
     }
 
     [Fact]

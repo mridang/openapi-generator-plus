@@ -45,7 +45,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
     * `order_id` - integer() - ID of the order to delete
-  
+
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
@@ -82,26 +82,47 @@ defmodule PetstoreClient.Api.StoreApi do
     # Operation declared `security: []` — no auth applied even if the
     # client has a default authenticator configured (OpenAPI 3.0 spec).
     auth = nil
+
     if is_nil(order_id) do
       raise ArgumentError,
             "Missing the required parameter 'order_id' when calling StoreApi.delete_order"
     end
 
     path = "/store/order/{orderId}"
-    path = String.replace(path, "{orderId}", PetstoreClient.ValueSerializer.serialize_styled("orderId", order_id, :path, "integer()", nil, "simple", false) |> to_string() |> encode_path_segment())
+
+    path =
+      String.replace(
+        path,
+        "{orderId}",
+        PetstoreClient.ValueSerializer.serialize_styled("orderId", order_id, :path, "integer()", nil, "simple", false)
+        |> to_string()
+        |> encode_path_segment()
+      )
+
     server = Keyword.get(opts, :server)
-    path = if server do
-      server_url = PetstoreClient.ServerConfiguration.url(server)
-      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
-    else
-      path
-    end
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
+
     query_params = %{}
     header_params = %{}
     request_body = nil
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api, :DELETE, path, query_params, header_params, request_body,
+      api,
+      :DELETE,
+      path,
+      query_params,
+      header_params,
+      request_body,
       [],
       "application/json",
       nil,
@@ -113,7 +134,7 @@ defmodule PetstoreClient.Api.StoreApi do
   Returns pet inventories by status
 
   ## Parameters
-  
+
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
@@ -152,18 +173,29 @@ defmodule PetstoreClient.Api.StoreApi do
     auth = nil
     path = "/store/inventory"
     server = Keyword.get(opts, :server)
-    path = if server do
-      server_url = PetstoreClient.ServerConfiguration.url(server)
-      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
-    else
-      path
-    end
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
+
     query_params = %{}
     header_params = %{}
     request_body = nil
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api, :GET, path, query_params, header_params, request_body,
+      api,
+      :GET,
+      path,
+      query_params,
+      header_params,
+      request_body,
       ["application/json"],
       "application/json",
       "%{String.t() => integer()}",
@@ -176,7 +208,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
     * `order_id` - integer() - ID of order to return
-  
+
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
@@ -213,26 +245,47 @@ defmodule PetstoreClient.Api.StoreApi do
     # Operation declared `security: []` — no auth applied even if the
     # client has a default authenticator configured (OpenAPI 3.0 spec).
     auth = nil
+
     if is_nil(order_id) do
       raise ArgumentError,
             "Missing the required parameter 'order_id' when calling StoreApi.get_order_by_id"
     end
 
     path = "/store/order/{orderId}"
-    path = String.replace(path, "{orderId}", PetstoreClient.ValueSerializer.serialize_styled("orderId", order_id, :path, "integer()", nil, "simple", false) |> to_string() |> encode_path_segment())
+
+    path =
+      String.replace(
+        path,
+        "{orderId}",
+        PetstoreClient.ValueSerializer.serialize_styled("orderId", order_id, :path, "integer()", nil, "simple", false)
+        |> to_string()
+        |> encode_path_segment()
+      )
+
     server = Keyword.get(opts, :server)
-    path = if server do
-      server_url = PetstoreClient.ServerConfiguration.url(server)
-      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
-    else
-      path
-    end
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
+
     query_params = %{}
     header_params = %{}
     request_body = nil
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api, :GET, path, query_params, header_params, request_body,
+      api,
+      :GET,
+      path,
+      query_params,
+      header_params,
+      request_body,
       ["application/json"],
       "application/json",
       "Order",
@@ -245,7 +298,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
     * `order` - Order
-  
+
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
@@ -284,18 +337,29 @@ defmodule PetstoreClient.Api.StoreApi do
     auth = nil
     path = "/store/order"
     server = Keyword.get(opts, :server)
-    path = if server do
-      server_url = PetstoreClient.ServerConfiguration.url(server)
-      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
-    else
-      path
-    end
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
+
     query_params = %{}
     header_params = %{}
     request_body = order
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api, :POST, path, query_params, header_params, request_body,
+      api,
+      :POST,
+      path,
+      query_params,
+      header_params,
+      request_body,
       ["application/json"],
       "application/json",
       "Order",

@@ -98,7 +98,8 @@ public class ComposedSchemaTest
     [Fact]
     public void AllOfDeserializesPetWithOwner()
     {
-        var json = "{\"name\":\"doggie\",\"photoUrls\":[\"http://example.com/photo.jpg\"],\"ownerName\":\"John\",\"ownerEmail\":\"john@example.com\"}";
+        var json =
+            "{\"name\":\"doggie\",\"photoUrls\":[\"http://example.com/photo.jpg\"],\"ownerName\":\"John\",\"ownerEmail\":\"john@example.com\"}";
         var result = _serializer.Deserialize<PetWithOwner>(json);
         Assert.NotNull(result);
         Assert.Equal("doggie", result!.Name);
@@ -109,7 +110,8 @@ public class ComposedSchemaTest
     [Fact]
     public void AllOfSerializesPetWithOwner()
     {
-        var json = "{\"name\":\"Fido\",\"photoUrls\":[\"http://example.com/fido.jpg\"],\"ownerName\":\"John Doe\"}";
+        var json =
+            "{\"name\":\"Fido\",\"photoUrls\":[\"http://example.com/fido.jpg\"],\"ownerName\":\"John Doe\"}";
         var result = _serializer.Deserialize<PetWithOwner>(json);
 
         var serialized = _serializer.Serialize(result!);
@@ -120,7 +122,8 @@ public class ComposedSchemaTest
     [Fact]
     public void AllOfRoundTrip()
     {
-        var json = "{\"name\":\"Buddy\",\"photoUrls\":[\"http://example.com/buddy.jpg\"],\"ownerName\":\"Jane Smith\"}";
+        var json =
+            "{\"name\":\"Buddy\",\"photoUrls\":[\"http://example.com/buddy.jpg\"],\"ownerName\":\"Jane Smith\"}";
         var original = _serializer.Deserialize<PetWithOwner>(json);
 
         var serialized = _serializer.Serialize(original!);

@@ -26,7 +26,11 @@ public class OAuth2AuthCodeAuthenticatorTest
         public Uri? LastUrl { get; private set; }
 
         public Task<ApiResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body)
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
         {
             LastUrl = url;
             LastBody = body?.ToString();
@@ -46,7 +50,8 @@ public class OAuth2AuthCodeAuthenticatorTest
             new Uri("https://auth.example.com/token"),
             null,
             new Uri("https://app.example.com/callback"),
-            Scopes);
+            Scopes
+        );
     }
 
     [Fact]
@@ -62,8 +67,9 @@ public class OAuth2AuthCodeAuthenticatorTest
         Assert.Contains("redirect_uri=", urlStr);
         Assert.True(
             urlStr.Contains("scope=read%20write", StringComparison.Ordinal)
-            || urlStr.Contains("scope=read+write", StringComparison.Ordinal)
-            || urlStr.Contains("scope=read write", StringComparison.Ordinal));
+                || urlStr.Contains("scope=read+write", StringComparison.Ordinal)
+                || urlStr.Contains("scope=read write", StringComparison.Ordinal)
+        );
         Assert.StartsWith("https://auth.example.com/authorize?", urlStr);
     }
 
@@ -81,7 +87,9 @@ public class OAuth2AuthCodeAuthenticatorTest
     public async Task ExchangesCodeWithCorrectGrantType()
     {
         var client = new FakeApiClient();
-        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}");
+        client.Enqueue(
+            "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}"
+        );
 
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);

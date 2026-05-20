@@ -7,17 +7,15 @@
 
 package com.example.petstore
 
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.Assertions.*
 
 class TransportOptionsTest {
-
     @Nested
     @DisplayName("defaults")
     inner class Defaults {
-
         @Test
         @DisplayName("verifySsl defaults to true")
         fun verifySslDefaultsToTrue() {
@@ -86,13 +84,14 @@ class TransportOptionsTest {
     @Nested
     @DisplayName("redirect defaults")
     inner class RedirectDefaults {
-
         @Test
         @DisplayName("followRedirects defaults to true with null maxRedirects")
         fun followRedirectsDefaultsToTrueWithNullMaxRedirects() {
-            val opts = TransportOptions.builder()
-                .followRedirects(true)
-                .build()
+            val opts =
+                TransportOptions
+                    .builder()
+                    .followRedirects(true)
+                    .build()
 
             assertTrue(opts.followRedirects)
             assertNull(opts.maxRedirects)
@@ -102,21 +101,22 @@ class TransportOptionsTest {
     @Nested
     @DisplayName("setting all fields")
     inner class SettingAllFields {
-
         @Test
         @DisplayName("builder sets all fields")
         fun builderSetsAllFields() {
-            val opts = TransportOptions.builder()
-                .verifySsl(false)
-                .caCertPath("/path/to/ca.pem")
-                .proxy("http://proxy:8080")
-                .timeout(5000L)
-                .followRedirects(false)
-                .maxRedirects(3)
-                .userAgent("TestAgent/1.0")
-                .defaultHeader("X-Custom", "value")
-                .injectRequestId(true)
-                .build()
+            val opts =
+                TransportOptions
+                    .builder()
+                    .verifySsl(false)
+                    .caCertPath("/path/to/ca.pem")
+                    .proxy("http://proxy:8080")
+                    .timeout(5000L)
+                    .followRedirects(false)
+                    .maxRedirects(3)
+                    .userAgent("TestAgent/1.0")
+                    .defaultHeader("X-Custom", "value")
+                    .injectRequestId(true)
+                    .build()
 
             assertFalse(opts.verifySsl)
             assertEquals("/path/to/ca.pem", opts.caCertPath)
@@ -133,7 +133,6 @@ class TransportOptionsTest {
     @Nested
     @DisplayName("proxy validation")
     inner class ProxyValidation {
-
         @Test
         @DisplayName("invalid proxy URL throws IllegalArgumentException")
         fun invalidProxyUrlThrowsException() {
@@ -153,7 +152,6 @@ class TransportOptionsTest {
     @Nested
     @DisplayName("builder chaining")
     inner class BuilderChaining {
-
         @Test
         @DisplayName("builder methods return the same builder instance")
         fun builderMethodsReturnSameInstance() {
@@ -175,14 +173,15 @@ class TransportOptionsTest {
     @Nested
     @DisplayName("multiple default headers")
     inner class MultipleDefaultHeaders {
-
         @Test
         @DisplayName("accumulates headers from defaultHeader calls")
         fun accumulatesHeadersFromDefaultHeaderCalls() {
-            val opts = TransportOptions.builder()
-                .defaultHeader("X-First", "one")
-                .defaultHeader("X-Second", "two")
-                .build()
+            val opts =
+                TransportOptions
+                    .builder()
+                    .defaultHeader("X-First", "one")
+                    .defaultHeader("X-Second", "two")
+                    .build()
             assertEquals(2, opts.defaultHeaders.size)
             assertEquals("one", opts.defaultHeaders["X-First"])
             assertEquals("two", opts.defaultHeaders["X-Second"])
@@ -191,10 +190,12 @@ class TransportOptionsTest {
         @Test
         @DisplayName("merges headers from defaultHeaders call")
         fun mergesHeadersFromDefaultHeadersCall() {
-            val opts = TransportOptions.builder()
-                .defaultHeader("X-First", "one")
-                .defaultHeaders(mapOf("X-Second" to "two", "X-Third" to "three"))
-                .build()
+            val opts =
+                TransportOptions
+                    .builder()
+                    .defaultHeader("X-First", "one")
+                    .defaultHeaders(mapOf("X-Second" to "two", "X-Third" to "three"))
+                    .build()
             assertEquals(3, opts.defaultHeaders.size)
             assertEquals("one", opts.defaultHeaders["X-First"])
             assertEquals("two", opts.defaultHeaders["X-Second"])
@@ -205,14 +206,15 @@ class TransportOptionsTest {
     @Nested
     @DisplayName("copy isolation")
     inner class CopyIsolation {
-
         @Test
         @DisplayName("modifying source map does not affect built options")
         fun modifyingSourceMapDoesNotAffectBuiltOptions() {
             val headers = mutableMapOf("X-Original" to "original")
-            val opts = TransportOptions.builder()
-                .defaultHeaders(headers)
-                .build()
+            val opts =
+                TransportOptions
+                    .builder()
+                    .defaultHeaders(headers)
+                    .build()
 
             headers["X-Added"] = "added"
 
@@ -236,7 +238,6 @@ class TransportOptionsTest {
     @Nested
     @DisplayName("TimeoutConfigTests")
     inner class TimeoutConfigTests {
-
         @Test
         @DisplayName("timeout defaults to 10000L (10 seconds)")
         fun timeoutDefaultsToTenSeconds() {
@@ -272,13 +273,14 @@ class TransportOptionsTest {
     @Nested
     @DisplayName("ProxyConfigTests")
     inner class ProxyConfigTests {
-
         @Test
         @DisplayName("setting proxy URL is preserved on read-back")
         fun proxyUrlIsPreservedOnReadBack() {
-            val opts = TransportOptions.builder()
-                .proxy("http://proxy.example.com:8080")
-                .build()
+            val opts =
+                TransportOptions
+                    .builder()
+                    .proxy("http://proxy.example.com:8080")
+                    .build()
             assertEquals("http://proxy.example.com:8080", opts.proxy)
         }
 

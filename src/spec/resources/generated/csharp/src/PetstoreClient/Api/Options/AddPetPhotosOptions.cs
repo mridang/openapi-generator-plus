@@ -16,5 +16,4 @@ public sealed class AddPetPhotosOptions
 
     /// <summary></summary>
     public required PhotoMetadata Metadata { get; init; }
-
 }

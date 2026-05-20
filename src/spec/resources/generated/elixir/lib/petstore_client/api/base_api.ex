@@ -29,8 +29,30 @@ defmodule PetstoreClient.Api.BaseApi do
           String.t() | nil,
           map() | nil
         ) :: {:ok, term()} | {:error, term()}
-  def invoke_api(state, method, path, query_params, header_params, body, accepts, content_type, return_type, auth \\ nil) do
-    case invoke_api_for_result(state, method, path, query_params, header_params, body, accepts, content_type, return_type, auth) do
+  def invoke_api(
+        state,
+        method,
+        path,
+        query_params,
+        header_params,
+        body,
+        accepts,
+        content_type,
+        return_type,
+        auth \\ nil
+      ) do
+    case invoke_api_for_result(
+           state,
+           method,
+           path,
+           query_params,
+           header_params,
+           body,
+           accepts,
+           content_type,
+           return_type,
+           auth
+         ) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -51,7 +73,18 @@ defmodule PetstoreClient.Api.BaseApi do
           String.t() | nil,
           map() | nil
         ) :: {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def invoke_api_for_result(state, method, path, query_params, header_params, body, accepts, content_type, return_type, auth \\ nil) do
+  def invoke_api_for_result(
+        state,
+        method,
+        path,
+        query_params,
+        header_params,
+        body,
+        accepts,
+        content_type,
+        return_type,
+        auth \\ nil
+      ) do
     method = if is_atom(method), do: method |> Atom.to_string() |> String.downcase() |> String.to_atom(), else: method
 
     url =
@@ -109,19 +142,23 @@ defmodule PetstoreClient.Api.BaseApi do
           # parsers don't URL-decode, so `=` (base64 padding) would
           # arrive as literal `%3D` and break JWT/session cookies.
           # Validate and pass through raw instead.
-          cookie_str = Enum.map_join(cookies, "; ", fn {k, v} ->
-            name = to_string(k)
-            value = to_string(v)
-            unless name =~ ~r/\A[A-Za-z0-9!#$%&'*+\-.^_`|~]+\z/ do
-              raise ArgumentError,
-                    "Cookie name '#{name}' contains characters forbidden by RFC 6265"
-            end
-            unless value =~ ~r/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/ do
-              raise ArgumentError,
-                    "Cookie value for '#{name}' contains characters forbidden by RFC 6265"
-            end
-            "#{name}=#{value}"
-          end)
+          cookie_str =
+            Enum.map_join(cookies, "; ", fn {k, v} ->
+              name = to_string(k)
+              value = to_string(v)
+
+              unless name =~ ~r/\A[A-Za-z0-9!#$%&'*+\-.^_`|~]+\z/ do
+                raise ArgumentError,
+                      "Cookie name '#{name}' contains characters forbidden by RFC 6265"
+              end
+
+              unless value =~ ~r/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/ do
+                raise ArgumentError,
+                      "Cookie value for '#{name}' contains characters forbidden by RFC 6265"
+              end
+
+              "#{name}=#{value}"
+            end)
 
           existing = Map.get(headers, "Cookie")
 

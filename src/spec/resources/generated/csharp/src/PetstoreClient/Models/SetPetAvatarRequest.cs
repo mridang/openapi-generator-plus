@@ -27,16 +27,15 @@ public class SetPetAvatarRequest(byte[] data, string mimeType) : IEquatable<SetP
     /// <example>null</example>
 
     [JsonRequired]
-
     [JsonPropertyName("data")]
     public byte[] Data { get; set; } = data;
 
     /// <example>image/jpeg</example>
 
     [JsonRequired]
-
     [JsonPropertyName("mimeType")]
-    public string MimeType { get; set; } = mimeType ?? throw new ArgumentNullException(nameof(mimeType));
+    public string MimeType { get; set; } =
+        mimeType ?? throw new ArgumentNullException(nameof(mimeType));
 
     /// <summary>Value-equality based on all declared fields. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in
@@ -44,9 +43,13 @@ public class SetPetAvatarRequest(byte[] data, string mimeType) : IEquatable<SetP
     public bool Equals(SetPetAvatarRequest? other)
     {
         return other is not null
-            && (ReferenceEquals(this, other)
-                || (EqualityComparer<byte[]>.Default.Equals(this.Data, other.Data)
-                    && EqualityComparer<string>.Default.Equals(this.MimeType, other.MimeType)));
+            && (
+                ReferenceEquals(this, other)
+                || (
+                    EqualityComparer<byte[]>.Default.Equals(this.Data, other.Data)
+                    && EqualityComparer<string>.Default.Equals(this.MimeType, other.MimeType)
+                )
+            );
     }
 
     public override bool Equals(object? obj)

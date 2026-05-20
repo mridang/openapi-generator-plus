@@ -22,7 +22,7 @@ defmodule PetstoreClient.Models.PetTreatment do
   def build(data) do
     candidates =
       openapi_any_of()
-      |> Enum.reject(& &1 == "AnyType")
+      |> Enum.reject(&(&1 == "AnyType"))
       |> Enum.map(fn type_name ->
         fn d -> PetstoreClient.ObjectSerializer.convert_to_type(d, type_name) end
       end)
@@ -30,8 +30,12 @@ defmodule PetstoreClient.Models.PetTreatment do
     result = PetstoreClient.ObjectSerializer.resolve_any_of(data, candidates)
 
     cond do
-      not is_nil(result) -> result
-      "AnyType" in openapi_any_of() -> data
+      not is_nil(result) ->
+        result
+
+      "AnyType" in openapi_any_of() ->
+        data
+
       true ->
         # Raise on union no-match instead of returning nil — aligns with
         # the 5 SDKs that already throw (Python/Swift/Dart/Go/Rust).

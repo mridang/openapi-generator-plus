@@ -86,7 +86,8 @@ public class TransportOptionsTest
     [Fact]
     public void BuilderSetsAllFields()
     {
-        var opts = TransportOptions.Builder()
+        var opts = TransportOptions
+            .Builder()
             .VerifySsl(false)
             .CaCertPath("/path/to/ca.pem")
             .Proxy("http://proxy:8080")
@@ -112,9 +113,7 @@ public class TransportOptionsTest
     [Fact]
     public void FollowRedirectsDefaultsToTrueWithNullMaxRedirects()
     {
-        var opts = TransportOptions.Builder()
-            .FollowRedirects(true)
-            .Build();
+        var opts = TransportOptions.Builder().FollowRedirects(true).Build();
 
         Assert.True(opts.FollowRedirects);
         Assert.Null(opts.MaxRedirects);
@@ -123,16 +122,15 @@ public class TransportOptionsTest
     [Fact]
     public void InvalidProxyUrlThrowsException()
     {
-        Assert.Throws<UriFormatException>(() =>
-            TransportOptions.Builder().Proxy("not a valid url").Build());
+        Assert.Throws<UriFormatException>(
+            () => TransportOptions.Builder().Proxy("not a valid url").Build()
+        );
     }
 
     [Fact]
     public void NullProxyUrlIsAccepted()
     {
-        var opts = TransportOptions.Builder()
-            .Proxy(null)
-            .Build();
+        var opts = TransportOptions.Builder().Proxy(null).Build();
 
         Assert.Null(opts.Proxy);
     }
@@ -157,7 +155,8 @@ public class TransportOptionsTest
     [Fact]
     public void AccumulatesHeadersFromDefaultHeaderCalls()
     {
-        var opts = TransportOptions.Builder()
+        var opts = TransportOptions
+            .Builder()
             .DefaultHeader("X-First", "one")
             .DefaultHeader("X-Second", "two")
             .Build();
@@ -170,13 +169,12 @@ public class TransportOptionsTest
     [Fact]
     public void MergesHeadersFromDefaultHeadersCall()
     {
-        var opts = TransportOptions.Builder()
+        var opts = TransportOptions
+            .Builder()
             .DefaultHeader("X-First", "one")
-            .DefaultHeaders(new Dictionary<string, string>
-            {
-                { "X-Second", "two" },
-                { "X-Third", "three" }
-            })
+            .DefaultHeaders(
+                new Dictionary<string, string> { { "X-Second", "two" }, { "X-Third", "three" } }
+            )
             .Build();
 
         Assert.Equal(3, opts.DefaultHeaders.Count);
@@ -190,9 +188,7 @@ public class TransportOptionsTest
     {
         var headers = new Dictionary<string, string> { { "X-Original", "original" } };
 
-        var opts = TransportOptions.Builder()
-            .DefaultHeaders(headers)
-            .Build();
+        var opts = TransportOptions.Builder().DefaultHeaders(headers).Build();
 
         headers["X-Added"] = "added";
 
@@ -235,9 +231,7 @@ public class TransportOptionsTest
     [Fact]
     public void ProxyUrlIsPreservedOnReadBack()
     {
-        var opts = TransportOptions.Builder()
-            .Proxy("http://proxy.example.com:8080")
-            .Build();
+        var opts = TransportOptions.Builder().Proxy("http://proxy.example.com:8080").Build();
         Assert.Equal("http://proxy.example.com:8080", opts.Proxy);
     }
 
@@ -245,8 +239,9 @@ public class TransportOptionsTest
     public void SettingProxyIsSupportedOnAllPlatforms()
     {
         // Proxy configuration must not throw on any .NET platform.
-        var exception = Record.Exception(() =>
-            TransportOptions.Builder().Proxy("http://proxy.example.com:8080").Build());
+        var exception = Record.Exception(
+            () => TransportOptions.Builder().Proxy("http://proxy.example.com:8080").Build()
+        );
         Assert.Null(exception);
     }
 }

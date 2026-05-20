@@ -11,5 +11,9 @@ namespace PetstoreClient.Auth.OAuth;
 /// Scheme-specific authenticator for the <c>browserAuth</c> security scheme.
 /// </summary>
 public sealed class BrowserAuthImplicitAuthenticator(string host, string clientId)
-    : OAuth2ImplicitAuthenticator(host, clientId, new Uri("https://auth.example.com/authorize"), ["read"])
-{ }
+    : OAuth2ImplicitAuthenticator(
+        host,
+        clientId,
+        new Uri("https://auth.example.com/authorize"),
+        ["read"]
+    ) { }

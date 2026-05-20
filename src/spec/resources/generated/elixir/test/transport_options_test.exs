@@ -48,17 +48,18 @@ defmodule PetstoreClient.TransportOptionsTest do
   end
 
   test "builder sets all fields" do
-    opts = PetstoreClient.TransportOptions.new(
-      verify_ssl: false,
-      ca_cert_path: "/path/to/ca.pem",
-      proxy: "http://proxy:8080",
-      timeout: 5000,
-      follow_redirects: false,
-      max_redirects: 3,
-      user_agent: "TestAgent/1.0",
-      default_headers: %{"X-Custom" => "value"},
-      inject_request_id: true
-    )
+    opts =
+      PetstoreClient.TransportOptions.new(
+        verify_ssl: false,
+        ca_cert_path: "/path/to/ca.pem",
+        proxy: "http://proxy:8080",
+        timeout: 5000,
+        follow_redirects: false,
+        max_redirects: 3,
+        user_agent: "TestAgent/1.0",
+        default_headers: %{"X-Custom" => "value"},
+        inject_request_id: true
+      )
 
     assert opts.verify_ssl == false
     assert opts.ca_cert_path == "/path/to/ca.pem"
@@ -97,9 +98,7 @@ defmodule PetstoreClient.TransportOptionsTest do
   end
 
   test "accumulates headers from default_header calls" do
-    opts = PetstoreClient.TransportOptions.new(
-      default_headers: %{"X-First" => "one", "X-Second" => "two"}
-    )
+    opts = PetstoreClient.TransportOptions.new(default_headers: %{"X-First" => "one", "X-Second" => "two"})
 
     assert map_size(opts.default_headers) == 2
     assert opts.default_headers["X-First"] == "one"
@@ -109,9 +108,7 @@ defmodule PetstoreClient.TransportOptionsTest do
   test "merges headers from default_headers call" do
     initial = %{"X-First" => "one"}
     extra = %{"X-Second" => "two", "X-Third" => "three"}
-    opts = PetstoreClient.TransportOptions.new(
-      default_headers: Map.merge(initial, extra)
-    )
+    opts = PetstoreClient.TransportOptions.new(default_headers: Map.merge(initial, extra))
 
     assert map_size(opts.default_headers) == 3
     assert opts.default_headers["X-First"] == "one"

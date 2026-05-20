@@ -36,10 +36,14 @@ public class ApiResponse : IEquatable<ApiResponse>
     public bool Equals(ApiResponse? other)
     {
         return other is not null
-            && (ReferenceEquals(this, other)
-                || (EqualityComparer<int?>.Default.Equals(this.Code, other.Code)
+            && (
+                ReferenceEquals(this, other)
+                || (
+                    EqualityComparer<int?>.Default.Equals(this.Code, other.Code)
                     && EqualityComparer<string?>.Default.Equals(this.Type, other.Type)
-                    && EqualityComparer<string?>.Default.Equals(this.Message, other.Message)));
+                    && EqualityComparer<string?>.Default.Equals(this.Message, other.Message)
+                )
+            );
     }
 
     public override bool Equals(object? obj)

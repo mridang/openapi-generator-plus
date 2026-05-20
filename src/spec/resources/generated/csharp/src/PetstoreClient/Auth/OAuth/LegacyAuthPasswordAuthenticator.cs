@@ -10,6 +10,20 @@ namespace PetstoreClient.Auth.OAuth;
 /// <summary>
 /// Scheme-specific authenticator for the <c>legacyAuth</c> security scheme.
 /// </summary>
-public sealed class LegacyAuthPasswordAuthenticator(string host, string clientId, string clientSecret, string username, string password)
-    : OAuth2PasswordAuthenticator(host, clientId, clientSecret, new Uri("https://auth.example.com/oauth/token"), new Uri("https://auth.example.com/oauth/refresh"), username, password, ["read"])
-{ }
+public sealed class LegacyAuthPasswordAuthenticator(
+    string host,
+    string clientId,
+    string clientSecret,
+    string username,
+    string password
+)
+    : OAuth2PasswordAuthenticator(
+        host,
+        clientId,
+        clientSecret,
+        new Uri("https://auth.example.com/oauth/token"),
+        new Uri("https://auth.example.com/oauth/refresh"),
+        username,
+        password,
+        ["read"]
+    ) { }

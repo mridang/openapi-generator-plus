@@ -8,26 +8,25 @@
 package com.example.petstore.models
 
 import com.example.petstore.models.*
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
 class ComposedSchemaTest {
-
-    private val json = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = false
-        isLenient = true
-        coerceInputValues = true
-    }
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = false
+            isLenient = true
+            coerceInputValues = true
+        }
 
     @Nested
     @DisplayName("oneOf with discriminator - DryFood")
     inner class DryFoodTests {
-
         @Test
         @DisplayName("deserializes DryFood from JSON")
         fun testDeserializeDryFood() {
@@ -64,12 +63,13 @@ class ComposedSchemaTest {
         @Test
         @DisplayName("serializes DryFood back to JSON")
         fun testSerializeDryFood() {
-            val encodingJson = Json {
-                ignoreUnknownKeys = true
-                encodeDefaults = true
-                isLenient = true
-                coerceInputValues = true
-            }
+            val encodingJson =
+                Json {
+                    ignoreUnknownKeys = true
+                    encodeDefaults = true
+                    isLenient = true
+                    coerceInputValues = true
+                }
             val dryFood = DryFood(weightKg = 2.5)
 
             val jsonString = encodingJson.encodeToString(dryFood)
@@ -83,7 +83,6 @@ class ComposedSchemaTest {
     @Nested
     @DisplayName("anyOf - PetTreatment")
     inner class PetTreatmentTests {
-
         @Test
         @DisplayName("deserializes PetTreatment from JSON without error")
         fun testDeserialize() {
@@ -118,7 +117,6 @@ class ComposedSchemaTest {
     @Nested
     @DisplayName("allOf - PetWithOwner")
     inner class PetWithOwnerTests {
-
         @Test
         @DisplayName("deserializes all properties from allOf composition")
         fun testDeserialize() {
@@ -137,12 +135,13 @@ class ComposedSchemaTest {
         @Test
         @DisplayName("serializes PetWithOwner to JSON")
         fun testSerialize() {
-            val petWithOwner = PetWithOwner(
-                name = "doggie",
-                photoUrls = setOf("http://example.com/photo.jpg"),
-                ownerName = "John",
-                ownerEmail = "john@example.com"
-            )
+            val petWithOwner =
+                PetWithOwner(
+                    name = "doggie",
+                    photoUrls = setOf("http://example.com/photo.jpg"),
+                    ownerName = "John",
+                    ownerEmail = "john@example.com",
+                )
 
             val jsonString = json.encodeToString(petWithOwner)
 
@@ -155,12 +154,13 @@ class ComposedSchemaTest {
         @Test
         @DisplayName("round-trip preserves all fields")
         fun testRoundTrip() {
-            val original = PetWithOwner(
-                name = "doggie",
-                photoUrls = setOf("http://example.com/photo.jpg"),
-                ownerName = "John",
-                ownerEmail = "john@example.com"
-            )
+            val original =
+                PetWithOwner(
+                    name = "doggie",
+                    photoUrls = setOf("http://example.com/photo.jpg"),
+                    ownerName = "John",
+                    ownerEmail = "john@example.com",
+                )
 
             val jsonString = json.encodeToString(original)
             val deserialized = json.decodeFromString<PetWithOwner>(jsonString)

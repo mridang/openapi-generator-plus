@@ -40,11 +40,15 @@ public class Photo : IEquatable<Photo>
     public bool Equals(Photo? other)
     {
         return other is not null
-            && (ReferenceEquals(this, other)
-                || (EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
+            && (
+                ReferenceEquals(this, other)
+                || (
+                    EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
                     && EqualityComparer<string?>.Default.Equals(this.Caption, other.Caption)
                     && EqualityComparer<bool?>.Default.Equals(this.IsPrimary, other.IsPrimary)
-                    && EqualityComparer<string?>.Default.Equals(this.Url, other.Url)));
+                    && EqualityComparer<string?>.Default.Equals(this.Url, other.Url)
+                )
+            );
     }
 
     public override bool Equals(object? obj)

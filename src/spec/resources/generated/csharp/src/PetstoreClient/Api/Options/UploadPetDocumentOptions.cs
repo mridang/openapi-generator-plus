@@ -17,5 +17,4 @@ public sealed class UploadPetDocumentOptions
 
     /// <summary></summary>
     public string? Notes { get; init; }
-
 }

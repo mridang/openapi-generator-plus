@@ -12,8 +12,8 @@ defmodule PetstoreClient.Models.PetFood do
   @spec openapi_one_of() :: [atom()]
   def openapi_one_of do
     [
-      :"DryFood",
-      :"WetFood"
+      :DryFood,
+      :WetFood
     ]
   end
 

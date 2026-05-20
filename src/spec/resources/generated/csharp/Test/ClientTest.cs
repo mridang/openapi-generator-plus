@@ -13,8 +13,7 @@ namespace Test;
 
 public class ClientTest : IDisposable
 {
-    private readonly BearerAuthenticator _authenticator =
-        new("/api/v3", "test-token");
+    private readonly BearerAuthenticator _authenticator = new("/api/v3", "test-token");
 
     public void Dispose()
     {
@@ -50,10 +49,12 @@ public class ClientTest : IDisposable
     [Fact]
     public void BearerRejectsCrlfAndNonAscii()
     {
-        Assert.Throws<ArgumentException>(() =>
-            new BearerAuthenticator("/api/v3", "tok\r\nInjected: yes").GetAuthHeaders());
-        Assert.Throws<ArgumentException>(() =>
-            new BearerAuthenticator("/api/v3", "ñoño").GetAuthHeaders());
+        Assert.Throws<ArgumentException>(
+            () => new BearerAuthenticator("/api/v3", "tok\r\nInjected: yes").GetAuthHeaders()
+        );
+        Assert.Throws<ArgumentException>(
+            () => new BearerAuthenticator("/api/v3", "ñoño").GetAuthHeaders()
+        );
     }
 
     [Fact]
@@ -63,13 +64,33 @@ public class ClientTest : IDisposable
         // ApiKeyAuthenticator's Header location must reject anything
         // outside printable ASCII + TAB to prevent header injection
         // (\r\n) and silent UTF-8 mangling that varies per HTTP lib.
-        Assert.Throws<ArgumentException>(() =>
-            new ApiKeyAuthenticator("/api/v3", "X-Api-Key", "abc\r\nInjected: yes", ApiKeyLocation.Header).GetAuthHeaders());
-        Assert.Throws<ArgumentException>(() =>
-            new ApiKeyAuthenticator("/api/v3", "X-Api-Key", "kéy", ApiKeyLocation.Header).GetAuthHeaders());
+        Assert.Throws<ArgumentException>(
+            () =>
+                new ApiKeyAuthenticator(
+                    "/api/v3",
+                    "X-Api-Key",
+                    "abc\r\nInjected: yes",
+                    ApiKeyLocation.Header
+                ).GetAuthHeaders()
+        );
+        Assert.Throws<ArgumentException>(
+            () =>
+                new ApiKeyAuthenticator(
+                    "/api/v3",
+                    "X-Api-Key",
+                    "kéy",
+                    ApiKeyLocation.Header
+                ).GetAuthHeaders()
+        );
         // Non-header locations accept arbitrary chars.
         Assert.NotNull(
-            new ApiKeyAuthenticator("/api/v3", "api_key", "kéy", ApiKeyLocation.Query).GetQueryParams());
+            new ApiKeyAuthenticator(
+                "/api/v3",
+                "api_key",
+                "kéy",
+                ApiKeyLocation.Query
+            ).GetQueryParams()
+        );
     }
 
     [Fact]

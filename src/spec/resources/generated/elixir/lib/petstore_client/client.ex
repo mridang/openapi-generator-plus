@@ -66,9 +66,7 @@ defmodule PetstoreClient.Client do
       end
 
     config =
-      PetstoreClient.Configuration.new(
-        base_url: authenticator.__struct__.host(authenticator)
-      )
+      PetstoreClient.Configuration.new(base_url: authenticator.__struct__.host(authenticator))
 
     %__MODULE__{
       pet: PetstoreClient.Api.PetApi.new(api_client, config, authenticator),

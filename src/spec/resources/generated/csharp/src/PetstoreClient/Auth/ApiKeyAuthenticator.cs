@@ -32,13 +32,13 @@ public class ApiKeyAuthenticator(
          * clear error rather than (a) HTTP header injection from CR/LF,
          * or (b) silently-mangled non-ASCII bytes that different HTTP
          * libs encode differently per language. */
-        return location != ApiKeyLocation.Header
-            ? []
+        return location != ApiKeyLocation.Header ? []
             : apiKey.Any(c => c != '\t' && c is < (char)0x20 or >= (char)0x7F)
                 ? throw new ArgumentException(
                     $"API key for header '{keyParamName}' must contain only printable ASCII characters (RFC 7230 §3.2.6)",
-                    nameof(apiKey))
-                : new() { [keyParamName] = apiKey };
+                    nameof(apiKey)
+                )
+            : new() { [keyParamName] = apiKey };
     }
 
     /// <inheritdoc/>

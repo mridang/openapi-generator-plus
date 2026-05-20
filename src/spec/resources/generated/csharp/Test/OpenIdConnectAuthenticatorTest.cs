@@ -27,7 +27,11 @@ public class OpenIdConnectAuthenticatorTest
         public string? LastMethod { get; private set; }
 
         public Task<ApiResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body)
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
         {
             LastMethod = method;
             LastUrl = url;
@@ -46,7 +50,8 @@ public class OpenIdConnectAuthenticatorTest
             "my-client-id",
             "my-client-secret",
             new Uri("https://app.example.com/callback"),
-            Scopes);
+            Scopes
+        );
     }
 
     [Fact]
@@ -55,8 +60,9 @@ public class OpenIdConnectAuthenticatorTest
         var client = new FakeApiClient();
         // Discovery document response
         client.Enqueue(
-            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\"," +
-            "\"token_endpoint\":\"https://auth.example.com/token\"}");
+            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                + "\"token_endpoint\":\"https://auth.example.com/token\"}"
+        );
 
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
@@ -75,8 +81,9 @@ public class OpenIdConnectAuthenticatorTest
     {
         var client = new FakeApiClient();
         client.Enqueue(
-            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\"," +
-            "\"token_endpoint\":\"https://auth.example.com/token\"}");
+            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                + "\"token_endpoint\":\"https://auth.example.com/token\"}"
+        );
 
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
@@ -86,7 +93,8 @@ public class OpenIdConnectAuthenticatorTest
         Assert.Equal("GET", client.LastMethod);
         Assert.Equal(
             new Uri("https://auth.example.com/.well-known/openid-configuration"),
-            client.LastUrl);
+            client.LastUrl
+        );
     }
 
     [Fact]
@@ -95,8 +103,9 @@ public class OpenIdConnectAuthenticatorTest
         var client = new FakeApiClient();
         // Discovery document
         client.Enqueue(
-            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\"," +
-            "\"token_endpoint\":\"https://auth.example.com/token\"}");
+            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                + "\"token_endpoint\":\"https://auth.example.com/token\"}"
+        );
         // Token response
         client.Enqueue("{\"access_token\":\"oidc-tok\",\"expires_in\":3600}");
 
@@ -115,8 +124,9 @@ public class OpenIdConnectAuthenticatorTest
         var client = new FakeApiClient();
         // Discovery document
         client.Enqueue(
-            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\"," +
-            "\"token_endpoint\":\"https://auth.example.com/token\"}");
+            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                + "\"token_endpoint\":\"https://auth.example.com/token\"}"
+        );
         // Token response
         client.Enqueue("{\"access_token\":\"oidc-tok\",\"expires_in\":3600}");
         // Refresh response (for GetAuthHeaders)
@@ -137,7 +147,8 @@ public class OpenIdConnectAuthenticatorTest
         var auth = CreateAuthenticator();
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => auth.BuildAuthorizationUrlAsync());
+            () => auth.BuildAuthorizationUrlAsync()
+        );
     }
 
     [Fact]

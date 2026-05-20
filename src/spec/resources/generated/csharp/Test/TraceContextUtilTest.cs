@@ -162,10 +162,7 @@ public class TraceContextUtilTest
     {
         Activity.Current = null;
 
-        var headers = new Dictionary<string, string>
-        {
-            ["Authorization"] = "Bearer token123"
-        };
+        var headers = new Dictionary<string, string> { ["Authorization"] = "Bearer token123" };
         TraceContextUtil.InjectTraceContext(headers);
 
         Assert.Equal("Bearer token123", headers["Authorization"]);
@@ -176,10 +173,7 @@ public class TraceContextUtilTest
     {
         Activity.Current = null;
 
-        var headers = new Dictionary<string, string>
-        {
-            ["Content-Type"] = "application/json"
-        };
+        var headers = new Dictionary<string, string> { ["Content-Type"] = "application/json" };
         TraceContextUtil.InjectTraceContext(headers);
 
         Assert.Equal("application/json", headers["Content-Type"]);
@@ -190,10 +184,7 @@ public class TraceContextUtilTest
     {
         Activity.Current = null;
 
-        var headers = new Dictionary<string, string>
-        {
-            ["X-Request-ID"] = "req-12345"
-        };
+        var headers = new Dictionary<string, string> { ["X-Request-ID"] = "req-12345" };
         TraceContextUtil.InjectTraceContext(headers);
 
         Assert.Equal("req-12345", headers["X-Request-ID"]);
@@ -208,7 +199,7 @@ public class TraceContextUtilTest
         {
             ["Authorization"] = "Bearer token",
             ["Content-Type"] = "application/json",
-            ["X-Request-ID"] = "abc-123"
+            ["X-Request-ID"] = "abc-123",
         };
         TraceContextUtil.InjectTraceContext(headers);
 

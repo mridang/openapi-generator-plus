@@ -10,6 +10,17 @@ namespace PetstoreClient.Auth.OAuth;
 /// <summary>
 /// Scheme-specific authenticator for the <c>ssoAuth</c> security scheme.
 /// </summary>
-public sealed class SsoAuthAuthenticator(string host, string clientId, string clientSecret, Uri redirectUri)
-    : OpenIdConnectAuthenticator(host, new Uri("https://auth.example.com/.well-known/openid-configuration"), clientId, clientSecret, redirectUri, [])
-{ }
+public sealed class SsoAuthAuthenticator(
+    string host,
+    string clientId,
+    string clientSecret,
+    Uri redirectUri
+)
+    : OpenIdConnectAuthenticator(
+        host,
+        new Uri("https://auth.example.com/.well-known/openid-configuration"),
+        clientId,
+        clientSecret,
+        redirectUri,
+        []
+    ) { }

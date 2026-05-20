@@ -4,10 +4,11 @@ defmodule PetstoreClient.Api.StoreApiTest do
   setup do
     base_url = System.get_env("API_BASE_URL", "http://localhost:4010")
 
-    config = PetstoreClient.Configuration.new(
-      base_url: base_url,
-      default_headers: %{"Authorization" => "Bearer test-token"}
-    )
+    config =
+      PetstoreClient.Configuration.new(
+        base_url: base_url,
+        default_headers: %{"Authorization" => "Bearer test-token"}
+      )
 
     api = PetstoreClient.Api.StoreApi.new(nil, config)
 
@@ -51,16 +52,20 @@ defmodule PetstoreClient.Api.StoreApiTest do
     spawn(fn ->
       {:ok, client} = :gen_tcp.accept(socket)
       {:ok, _data} = :gen_tcp.recv(client, 0)
-      response = "HTTP/1.1 #{status} OK\r\nContent-Type: #{content_type}\r\nContent-Length: #{byte_size(body)}\r\n\r\n#{body}"
+
+      response =
+        "HTTP/1.1 #{status} OK\r\nContent-Type: #{content_type}\r\nContent-Length: #{byte_size(body)}\r\n\r\n#{body}"
+
       :gen_tcp.send(client, response)
       :gen_tcp.close(client)
       :gen_tcp.close(socket)
     end)
 
-    config = PetstoreClient.Configuration.new(
-      base_url: "http://127.0.0.1:#{port}",
-      default_headers: %{}
-    )
+    config =
+      PetstoreClient.Configuration.new(
+        base_url: "http://127.0.0.1:#{port}",
+        default_headers: %{}
+      )
 
     PetstoreClient.Api.StoreApi.new(nil, config)
   end
@@ -72,6 +77,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
 
   test "place_order 500 returns error" do
     api = new_store_api_for_mock(500, "application/json", ~s({"message":"Internal server error"}))
+
     order = %PetstoreClient.Models.Order{
       id: 1,
       pet_id: 12_345,
@@ -79,6 +85,7 @@ defmodule PetstoreClient.Api.StoreApiTest do
       status: "placed",
       complete: false
     }
+
     assert {:error, _reason} = PetstoreClient.Api.StoreApi.place_order(api, order)
   end
 

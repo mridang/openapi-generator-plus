@@ -14,5 +14,5 @@ class UnprocessableEntityException(
     message: String,
     responseHeaders: Map<String, String>?,
     responseBody: String?,
-    errorBody: Any? = null
+    errorBody: Any? = null,
 ) : ClientException(422, message, responseHeaders, responseBody, errorBody)

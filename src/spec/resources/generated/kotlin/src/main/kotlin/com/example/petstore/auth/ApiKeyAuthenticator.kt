@@ -14,9 +14,8 @@ open class ApiKeyAuthenticator(
     private val host: String,
     private val keyParamName: String,
     private val apiKey: String,
-    private val location: ApiKeyLocation
+    private val location: ApiKeyLocation,
 ) : BaseAuthenticator() {
-
     init {
         // RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
         // Reject anything outside printable ASCII + TAB so callers see a
@@ -27,7 +26,7 @@ open class ApiKeyAuthenticator(
             apiKey.any { c -> c != '\t' && (c.code < 0x20 || c.code >= 0x7F) }
         ) {
             throw IllegalArgumentException(
-                "API key for header '$keyParamName' must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+                "API key for header '$keyParamName' must contain only printable ASCII characters (RFC 7230 §3.2.6)",
             )
         }
     }
@@ -37,8 +36,7 @@ open class ApiKeyAuthenticator(
     override suspend fun getAuthHeaders(): Map<String, String> =
         if (location == ApiKeyLocation.HEADER) mapOf(keyParamName to apiKey) else emptyMap()
 
-    override fun getQueryParams(): Map<String, String> =
-        if (location == ApiKeyLocation.QUERY) mapOf(keyParamName to apiKey) else emptyMap()
+    override fun getQueryParams(): Map<String, String> = if (location == ApiKeyLocation.QUERY) mapOf(keyParamName to apiKey) else emptyMap()
 
     override fun getCookieParams(): Map<String, String> =
         if (location == ApiKeyLocation.COOKIE) mapOf(keyParamName to apiKey) else emptyMap()

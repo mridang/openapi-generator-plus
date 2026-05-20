@@ -37,9 +37,13 @@ public class Tag : IEquatable<Tag>
     public bool Equals(Tag? other)
     {
         return other is not null
-            && (ReferenceEquals(this, other)
-                || (EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
-                    && EqualityComparer<string?>.Default.Equals(this.Name, other.Name)));
+            && (
+                ReferenceEquals(this, other)
+                || (
+                    EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
+                    && EqualityComparer<string?>.Default.Equals(this.Name, other.Name)
+                )
+            );
     }
 
     public override bool Equals(object? obj)

@@ -24,9 +24,7 @@ namespace PetstoreClient.Auth.OAuth;
 ///   <item><description>Use the authenticator normally -- tokens are managed automatically.</description></item>
 /// </list>
 /// </summary>
-public class OAuth2AuthorizationCodeAuthenticator
-    : BaseAuthenticator,
-        IHttpAwareAuthenticator
+public class OAuth2AuthorizationCodeAuthenticator : BaseAuthenticator, IHttpAwareAuthenticator
 {
     private readonly string _host;
     private readonly string _clientId;

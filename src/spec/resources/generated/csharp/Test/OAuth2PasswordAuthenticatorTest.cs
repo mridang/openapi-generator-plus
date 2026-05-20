@@ -27,7 +27,11 @@ public class OAuth2PasswordAuthenticatorTest
         public Dictionary<string, string> LastHeaders { get; private set; } = new();
 
         public Task<ApiResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body)
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
         {
             LastUrl = url;
             LastHeaders = headers;
@@ -48,7 +52,8 @@ public class OAuth2PasswordAuthenticatorTest
             null,
             "testuser",
             "testpass",
-            Scopes);
+            Scopes
+        );
     }
 
     [Fact]
@@ -157,7 +162,8 @@ public class OAuth2PasswordAuthenticatorTest
             "testuser",
             "testpass",
             new[] { "read" },
-            ClientAuthMethod.Basic);
+            ClientAuthMethod.Basic
+        );
         auth.SetApiClient(client);
 
         await auth.GetAuthHeadersAsync();
@@ -166,7 +172,8 @@ public class OAuth2PasswordAuthenticatorTest
         Assert.NotNull(authHeader);
         Assert.StartsWith("Basic ", authHeader);
         string decoded = System.Text.Encoding.UTF8.GetString(
-            Convert.FromBase64String(authHeader!.Substring("Basic ".Length)));
+            Convert.FromBase64String(authHeader!.Substring("Basic ".Length))
+        );
         // Expected: form-urlencoded id ':' form-urlencoded secret
         Assert.Equal("id%2Bwith%2Fspecial:secret%26with%3Dstuff", decoded);
     }

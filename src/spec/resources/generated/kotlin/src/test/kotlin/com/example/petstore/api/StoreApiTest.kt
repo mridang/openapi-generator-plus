@@ -23,17 +23,18 @@ import java.time.OffsetDateTime
 import java.time.ZoneOffset
 
 class StoreApiTest {
-
     companion object {
         private fun getBaseUrl(): String = PrismContainer.getBaseUrl()
 
         // Share one ktor HttpClient across the suite — see PetApiTest for
         // why per-test client creation exhausts Prism's connection limits.
         private val sharedApi: StoreApi by lazy {
-            val config = Configuration.builder()
-                .baseUrl(getBaseUrl())
-                .defaultHeader("Authorization", "Bearer test-token")
-                .build()
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl(getBaseUrl())
+                    .defaultHeader("Authorization", "Bearer test-token")
+                    .build()
             StoreApi(DefaultApiClient(), config)
         }
     }
@@ -41,20 +42,20 @@ class StoreApiTest {
     @Nested
     @DisplayName("Integration tests")
     inner class IntegrationTests {
-
         private val api: StoreApi get() = sharedApi
 
         @Test
         @DisplayName("placeOrder creates a new order")
         fun testPlaceOrder() {
-            val order = Order(
-                id = 1L,
-                petId = 12345L,
-                quantity = 1,
-                shipDate = OffsetDateTime.now(ZoneOffset.UTC),
-                status = Order.StatusEnum.PLACED,
-                complete = false
-            )
+            val order =
+                Order(
+                    id = 1L,
+                    petId = 12345L,
+                    quantity = 1,
+                    shipDate = OffsetDateTime.now(ZoneOffset.UTC),
+                    status = Order.StatusEnum.PLACED,
+                    complete = false,
+                )
 
             val result = runBlocking { api.placeOrder(order) }
 
@@ -65,14 +66,15 @@ class StoreApiTest {
         @Test
         @DisplayName("placeOrder with HttpInfo returns status and headers")
         fun testPlaceOrderWithHttpInfo() {
-            val order = Order(
-                id = 1L,
-                petId = 12345L,
-                quantity = 1,
-                shipDate = OffsetDateTime.now(ZoneOffset.UTC),
-                status = Order.StatusEnum.PLACED,
-                complete = false
-            )
+            val order =
+                Order(
+                    id = 1L,
+                    petId = 12345L,
+                    quantity = 1,
+                    shipDate = OffsetDateTime.now(ZoneOffset.UTC),
+                    status = Order.StatusEnum.PLACED,
+                    complete = false,
+                )
 
             val result = runBlocking { api.placeOrderWithHttpInfo(order) }
 
@@ -128,7 +130,6 @@ class StoreApiTest {
     @Nested
     @DisplayName("Mock tests")
     inner class MockTests {
-
         @Test
         @DisplayName("getOrderById 404 throws ApiException")
         fun testGetOrderNotFound() {

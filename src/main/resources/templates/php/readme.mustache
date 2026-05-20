@@ -39,3 +39,14 @@ Fixing this end-to-end would require switching the wire layer to
 emit JSON numbers from internal string/GMP representations, which
 breaks `format: int64` schema validation against strict mock servers
 (verified with Prism). Documented as a known limitation.
+
+## Not supported
+
+### Webhooks and callbacks
+
+This SDK is **client → server** only. Spec entries describing
+server-initiated calls — OAS 3.1 top-level `webhooks` and OAS 3.0
+per-operation `callbacks` — are intentionally skipped during code
+generation. If you need to receive webhook deliveries, write the
+handler yourself and use this SDK only to deserialize the incoming
+payload (e.g. by reusing the relevant request-body model).

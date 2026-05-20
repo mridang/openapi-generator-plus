@@ -453,10 +453,14 @@ work to address. Documented as known limitations.
   the 3.0 `format: byte`/`binary` pattern (which DOES work). Specs
   using only the new keywords get plain `String` fields with no
   base64 auto-decode. Affects: 12.
-- **Gap BC** — `webhooks` (top-level, 3.1) and `callbacks` (per-op,
-  3.0): `AbstractBetterCodegen` explicitly marks `Callbacks` as "not
-  implemented". No handler interfaces, no payload models, nothing
-  generated. Affects: 12.
+- **Gap BC (WONTFIX)** — `webhooks` (3.1 top-level) and `callbacks`
+  (3.0 per-op): SDK scope is **client → server** only. We do NOT
+  generate any code for spec entries that describe **server → client**
+  callbacks. Users who need to handle webhooks should write the
+  handler themselves and use the SDK only to deserialize the incoming
+  payload (and even then via the relevant request schema, not a
+  webhook-specific model). Don't re-audit; documented in all 12
+  per-SDK READMEs.
 - **Gap BD** — `examples` (plural, named with summary/description):
   only the singular `example` propagates into docstrings; the plural
   `examples` object is dropped. Multiple named scenarios in spec

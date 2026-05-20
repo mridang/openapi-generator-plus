@@ -42,5 +42,4 @@ defmodule PetstoreClient.Models.WetFood do
       food_type: "String.t()"
     }
   end
-
 end

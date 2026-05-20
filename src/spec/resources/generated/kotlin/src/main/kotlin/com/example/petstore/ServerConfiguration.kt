@@ -13,7 +13,7 @@ package com.example.petstore
 class ServerConfiguration(
     val urlTemplate: String,
     val description: String?,
-    val variables: Map<String, ServerVariable>
+    val variables: Map<String, ServerVariable>,
 ) {
     fun getUrl(overrides: Map<String, String> = emptyMap()): String {
         var url = urlTemplate
@@ -22,7 +22,7 @@ class ServerConfiguration(
             val enumValues = variable.enumValues
             if (enumValues.isNotEmpty() && value !in enumValues) {
                 throw IllegalArgumentException(
-                    "Invalid value '$value' for server variable '$varName'. Allowed values: $enumValues"
+                    "Invalid value '$value' for server variable '$varName'. Allowed values: $enumValues",
                 )
             }
             url = url.replace("{$varName}", value)
@@ -37,5 +37,5 @@ class ServerConfiguration(
 data class ServerVariable(
     val defaultValue: String,
     val description: String?,
-    val enumValues: List<String>
+    val enumValues: List<String>,
 )

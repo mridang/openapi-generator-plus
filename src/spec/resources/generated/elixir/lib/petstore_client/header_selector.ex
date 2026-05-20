@@ -65,8 +65,12 @@ defmodule PetstoreClient.HeaderSelector do
     filtered = Enum.filter(accept, fn s -> not is_nil(s) and s != "" end)
 
     case filtered do
-      [] -> nil
-      [single] -> single
+      [] ->
+        nil
+
+      [single] ->
+        single
+
       _ ->
         headers_with_json = Enum.filter(filtered, &json_mime?/1)
 
