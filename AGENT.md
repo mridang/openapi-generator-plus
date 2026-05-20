@@ -468,14 +468,15 @@ work to address. Documented as known limitations.
   only the singular `example` propagates into docstrings; the plural
   `examples` object is dropped. Multiple named scenarios in spec
   ("Happy Path", "Error Case") never reach generated code. Affects: 12.
-- **Gap BE** — Numeric/string constraint validation (`minLength`,
-  `maxLength`, `minimum`, `maximum`, `exclusiveMinimum/Maximum`,
-  `minItems`, `maxItems`, `uniqueItems`, `minProperties`, `maxProperties`,
-  `multipleOf`): 11 of 12 SDKs silently skip. Python enforces only
-  `pattern` via `@field_validator`. Specs declaring `maxLength: 50`
-  accept overstretched inputs everywhere. Real divergence-ish (Python
-  partial vs other 11 nothing) but functionally everyone fails the
-  contract. Affects: 12 (with Python doing 5% of what's needed).
+- **Gap BE (WONTFIX)** — Numeric/string constraint validation
+  (`minLength`, `maxLength`, `minimum`, `maximum`, `exclusiveMinimum/
+  Maximum`, `minItems`, `maxItems`, `uniqueItems`, `minProperties`,
+  `maxProperties`, `multipleOf`). Server-side validation is
+  authoritative; client-side checks are DX nicety only. Users wanting
+  client-side validation can plug in a JSON Schema validator
+  library. Don't re-audit; documented in all 12 per-SDK READMEs.
+  (Historical note: Python's Pydantic enforces `pattern` only; the
+  other 11 enforce nothing. Closed without action.)
 
 ### Dart oneOf primitive filtering (idiomatic minor divergence)
 

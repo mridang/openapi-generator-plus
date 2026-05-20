@@ -37,3 +37,12 @@ also required" are **not enforced** by this SDK. No mainstream
 OpenAPI client codegen implements them. The server is the authoritative
 validator; if you want client-side checking, plug in a JSON Schema
 validator library for your language.
+
+### Numeric / string constraint validation
+
+OpenAPI keywords like `minLength`, `maxLength`, `minimum`, `maximum`,
+`pattern`, `minItems`, `maxItems`, `uniqueItems`, `multipleOf` are
+**not enforced** by this SDK. The server is the authoritative
+validator; client-side enforcement is a DX nicety, not a correctness
+requirement. If you want fast-fail validation before the network
+round trip, plug in a JSON Schema validator library for your language.
