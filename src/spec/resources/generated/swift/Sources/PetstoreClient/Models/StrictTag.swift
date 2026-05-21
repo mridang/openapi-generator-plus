@@ -34,9 +34,9 @@ public struct StrictTag: Codable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try container.decodeIfPresent(Int64.self, forKey: .id)
         self.name = try container.decodeIfPresent(String.self, forKey: .name)
-        // Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
-        // Re-open the payload with a dynamic-keyed container so we can detect
-        // any JSON key not present in CodingKeys and fail loudly.
+        /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+           Re-open the payload with a dynamic-keyed container so we can detect
+           any JSON key not present in CodingKeys and fail loudly. */
         struct AnyKey: CodingKey {
             var stringValue: String
             init?(stringValue: String) { self.stringValue = stringValue }

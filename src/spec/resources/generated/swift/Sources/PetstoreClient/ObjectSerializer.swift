@@ -92,10 +92,10 @@ public enum ObjectSerializer {
         if data.isEmpty {
             return nil
         }
-        // RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text,
-        // but Windows-generated payloads often include one and Foundation's
-        // JSONDecoder rejects it. Strip silently for parity with Java
-        // Jackson / C# System.Text.Json which strip transparently.
+        /* RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text,
+           but Windows-generated payloads often include one and Foundation's
+           JSONDecoder rejects it. Strip silently for parity with Java
+           Jackson / C# System.Text.Json which strip transparently. */
         let stripped: Data =
             (data.count >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF)
             ? data.subdata(in: 3..<data.count)

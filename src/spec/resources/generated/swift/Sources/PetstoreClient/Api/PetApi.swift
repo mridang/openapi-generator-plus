@@ -122,7 +122,7 @@ public struct GetStagingPetInfoServerStagingServer: GetStagingPetInfoServer {
 /// PetApi provides methods for the Pet API group.
 /// Everything about your Pets
 /// See https://example.com/docs/pets Find out more about pets
-public final class PetApi: BaseApi {
+public final class PetApi: BaseApi, @unchecked Sendable {
 
     /// Add a new pet to the store
 

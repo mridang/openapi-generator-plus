@@ -12,7 +12,9 @@ import Foundation
 ///
 /// Use this type when a model property can contain arbitrary JSON (e.g.
 /// `additionalProperties` or `freeFormObject` schemas).
-public struct AnyCodable: Codable, Equatable, Hashable, Sendable, CustomStringConvertible {
+/* @unchecked: AnyCodable wraps `Any` which is intrinsically non-Sendable.
+   Caller is responsible for ensuring wrapped value is thread-safe. */
+public struct AnyCodable: Codable, Equatable, Hashable, @unchecked Sendable, CustomStringConvertible {
     public let value: Any
 
     public init(_ value: Any?) {

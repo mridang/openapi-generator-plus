@@ -8,7 +8,7 @@
 import Foundation
 
 /// BaseApi provides common functionality for all API classes.
-open class BaseApi {
+open class BaseApi: @unchecked Sendable {
     let config: Configuration
     let apiClient: ApiClient
     let headerSelector: HeaderSelector
@@ -146,10 +146,10 @@ open class BaseApi {
         if type == Data.self {
             data = (response.body.data(using: .utf8) ?? Data()) as? T
         } else if !response.body.isEmpty {
-            // Default to JSON when Content-Type is missing — matches the other
-            // 11 SDKs which all assume JSON for empty/missing Content-Type. Some
-            // servers strip Content-Type from JSON responses; Swift previously
-            // returned nil in that case, leaving callers with no data.
+            /* Default to JSON when Content-Type is missing — matches the other
+               11 SDKs which all assume JSON for empty/missing Content-Type. Some
+               servers strip Content-Type from JSON responses; Swift previously
+               returned nil in that case, leaving callers with no data. */
             let isJson = responseContentType.isEmpty || headerSelector.isJsonMime(responseContentType)
             if isJson {
                 data = try ObjectSerializer.deserialize(response.body, as: type)

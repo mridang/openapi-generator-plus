@@ -9,7 +9,7 @@ import Foundation
 
 /// StoreApi provides methods for the Store API group.
 /// Access to Petstore orders
-public final class StoreApi: BaseApi {
+public final class StoreApi: BaseApi, @unchecked Sendable {
 
     /// Delete purchase order by ID
 

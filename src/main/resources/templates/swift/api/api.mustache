@@ -52,7 +52,7 @@ public struct {{serverTypeName}}{{variantName}}: {{serverTypeName}} {
 {{#tagExternalDocs}}
 /// See {{url}} {{description}}
 {{/tagExternalDocs}}
-public final class {{classname}}: BaseApi {
+public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#operation}}
 
 {{#summary}}
