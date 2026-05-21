@@ -329,6 +329,7 @@ module {{moduleName}}
         def initialize: () -> void
         def get_access_token: (String, Hash[String, String], ?Hash[String, String]) -> String
         def access_token=: (String) -> void
+        def invalidate_access_token: () -> void
         private
         def token_still_valid?: () -> bool
         def try_refresh_token: (String, Hash[String, String], Hash[String, String]) -> bool

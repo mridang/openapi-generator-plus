@@ -52,6 +52,9 @@ module {{moduleName}}::Models
     ADDITIONAL_PROPERTIES_TYPE: String
 {{/additionalPropertiesType}}
 {{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+    UNEVALUATED_PROPERTIES_FALSE: bool
+{{/isUnevaluatedPropertiesFalse}}
 {{#vars}}
     attr_reader {{name}}: {{#lambda.rbsType}}{{{dataType}}}{{/lambda.rbsType}}{{^required}}?{{/required}}
 {{/vars}}

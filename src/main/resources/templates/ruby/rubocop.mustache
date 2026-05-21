@@ -21,3 +21,25 @@ Layout/FirstHashElementIndentation:
 
 Layout/FirstArrayElementIndentation:
   EnforcedStyle: consistent
+
+# Style-only cops disabled for generated code:
+# - Lint/RedundantRequireStatement: templates `require` defensively for clarity
+# - Style/IfUnlessModifier: multi-line if is more readable in generated branches
+# - Style/StringLiterals: templates mix quoting; not worth normalizing
+# - Style/Lambda: `->` arrow vs `lambda` keyword is taste
+# - Metrics/BlockLength: long test blocks are intentional
+Lint/RedundantRequireStatement:
+  Enabled: false
+# Templates carry many `# rubocop:disable Metrics/...` directives that
+# become redundant after we globally disable Metrics/BlockLength etc.
+# Removing them all from templates is mechanical noise; let the cop pass.
+Lint/RedundantCopDisableDirective:
+  Enabled: false
+Style/IfUnlessModifier:
+  Enabled: false
+Style/StringLiterals:
+  Enabled: false
+Style/Lambda:
+  Enabled: false
+Metrics/BlockLength:
+  Enabled: false
