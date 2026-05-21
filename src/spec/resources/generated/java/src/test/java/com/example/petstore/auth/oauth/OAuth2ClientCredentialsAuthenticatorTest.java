@@ -149,7 +149,9 @@ class OAuth2ClientCredentialsAuthenticatorTest {
 
     auth.getAuthHeaders();
 
-    String authHeader = capturedHeaders.get().get("Authorization");
+    Map<String, String> headers = capturedHeaders.get();
+    assertNotNull(headers);
+    String authHeader = headers.get("Authorization");
     assertNotNull(authHeader);
     assertTrue(authHeader.startsWith("Basic "));
     String decoded =

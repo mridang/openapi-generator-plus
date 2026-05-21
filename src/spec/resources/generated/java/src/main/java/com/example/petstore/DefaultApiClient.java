@@ -91,7 +91,7 @@ public final class DefaultApiClient implements ApiClient {
    * userinfo, or null if no proxy / no embedded credentials. Injected on every outbound request
    * because java.net.http.HttpClient does not natively handle proxy auth.
    */
-  private final String proxyAuthHeader;
+  @Nullable private final String proxyAuthHeader;
 
   /**
    * Create a client with default transport settings.
@@ -207,6 +207,7 @@ public final class DefaultApiClient implements ApiClient {
   public DefaultApiClient(HttpClient httpClient) {
     this.httpClient = httpClient;
     this.transportOptions = TransportOptions.builder().build();
+    this.proxyAuthHeader = null;
   }
 
   @Override

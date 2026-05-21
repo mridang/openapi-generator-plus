@@ -28,6 +28,13 @@
                         <arg>-XDcompilePolicy=simple</arg>
                         <arg>--should-stop=ifError=FLOW</arg>
                         <arg>-Xlint:all</arg>
+                        <!-- Java 25-new check, triggered by ctor-time
+                             field initialization patterns in generated
+                             SDKs (e.g. modifyFeatureSet escapes 'this'). -->
+                        <arg>-Xlint:-this-escape</arg>
+                        <!-- Java 23+ markdown doc-comments (///) flagged
+                             as dangling on shared param documentation. -->
+                        <arg>-Xlint:-dangling-doc-comments</arg>
                         <arg>-Xplugin:ErrorProne -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=com.example.petstore</arg>
                         <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
                         <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
