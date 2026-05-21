@@ -22,6 +22,8 @@ class Category
     public ?int $id = null;
 
     /** @example Dogs */
+    /** @example Chihuahua Small breed */
+    /** @example GreatDane Large breed */
     #[SerializedName('name')]
     public ?string $name = null;
 

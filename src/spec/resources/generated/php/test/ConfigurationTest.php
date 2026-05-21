@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
-use PHPUnit\Framework\TestCase;
 use PetstoreClient\Configuration;
 use PetstoreClient\ConfigurationBuilder;
 use PetstoreClient\ServerConfiguration;
 use PetstoreClient\ServerVariable;
+use PHPUnit\Framework\TestCase;
 
 class ConfigurationTest extends TestCase
 {

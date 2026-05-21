@@ -13,9 +13,9 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
-use PHPUnit\Framework\TestCase;
 use PetstoreClient\ApiResponse;
 use PetstoreClient\Auth\OAuth\OpenIdConnectAuthenticator;
+use PHPUnit\Framework\TestCase;
 
 class OpenIdConnectAuthenticatorTest extends TestCase
 {

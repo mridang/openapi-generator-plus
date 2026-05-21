@@ -7,10 +7,11 @@ $finder = (new PhpCsFixer\Finder())
 
 return (new PhpCsFixer\Config())
     ->setRules([
+        '@PHP84Migration:risky' => true,
         'fully_qualified_strict_types' => ['import_symbols' => true],
         'no_unused_imports' => true,
         'ordered_imports' => ['sort_algorithm' => 'alpha'],
     ])
     ->setFinder($finder)
-    ->setRiskyAllowed(false)
+    ->setRiskyAllowed(true)
     ->setCacheFile('.phpcsf');

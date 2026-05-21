@@ -23,7 +23,6 @@ use Symfony\Component\Serializer\Normalizer\BackedEnumNormalizer;
 use Symfony\Component\Serializer\Normalizer\DateTimeNormalizer;
 use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
 use Symfony\Component\Serializer\Serializer;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * Handles JSON serialization and deserialization for API requests and responses.
@@ -85,7 +84,7 @@ class ObjectSerializer
             return $data->format(self::DATE_TIME_FORMAT);
         }
 
-        if ($data instanceof Uuid) {
+        if ($data instanceof \Symfony\Component\Uid\Uuid) {
             return $data->toRfc4122();
         }
 
@@ -130,7 +129,7 @@ class ObjectSerializer
             return $value->format(self::DATE_TIME_FORMAT);
         }
 
-        if ($value instanceof Uuid) {
+        if ($value instanceof \Symfony\Component\Uid\Uuid) {
             return $value->toRfc4122();
         }
 
@@ -295,7 +294,7 @@ class ObjectSerializer
                 }
             }
             if (is_string($data) && $data !== '') {
-                return Uuid::fromString($data);
+                return \Symfony\Component\Uid\Uuid::fromString($data);
             }
             return null;
         }
@@ -353,6 +352,7 @@ class ObjectSerializer
                         sprintf('Expected a JSON object, got %s', get_debug_type($decoded))
                     );
                 }
+                self::assertPrimitiveTypes($decoded, $class);
                 /** @var object $result */
                 $result = self::getSerializer()->denormalize($decoded, $class);
                 return $result;
@@ -364,6 +364,9 @@ class ObjectSerializer
         }
 
         try {
+            if (is_array($data)) {
+                self::assertPrimitiveTypes($data, $class);
+            }
             /** @var object $result */
             $result = self::getSerializer()->denormalize($data, $class);
             return $result;
@@ -371,6 +374,71 @@ class ObjectSerializer
             throw new ApiException($e->getMessage());
         } catch (\Throwable $e) {
             throw new ApiException($e->getMessage());
+        }
+    }
+
+    /**
+     * Gap S — strict primitive type-check.
+     *
+     * Symfony's ObjectNormalizer is permissive: it silently coerces
+     * {"id": "42"} into an int property and {"active": 1} into a bool
+     * property. Walking the declared properties via Reflection and
+     * asserting that incoming primitive types match the declared
+     * PHP type makes wire-type bugs throw an InvalidArgumentException
+     * instead of producing a corrupted typed object. Aligns PHP with
+     * Java/Kotlin/C#/Go/Swift/Rust which throw on type mismatch.
+     *
+     * @param array<string, mixed> $data
+     */
+    private static function assertPrimitiveTypes(array $data, string $class): void
+    {
+        if (!class_exists($class)) {
+            return;
+        }
+        try {
+            $reflection = new \ReflectionClass($class);
+        } catch (\ReflectionException) {
+            return;
+        }
+        foreach ($reflection->getProperties() as $property) {
+            $type = $property->getType();
+            if (!$type instanceof \ReflectionNamedType) {
+                continue;
+            }
+            $typeName = $type->getName();
+            $serializedName = $property->getName();
+            foreach ($property->getAttributes(\Symfony\Component\Serializer\Attribute\SerializedName::class) as $attr) {
+                $args = $attr->getArguments();
+                if (isset($args[0]) && is_string($args[0])) {
+                    $serializedName = $args[0];
+                } elseif (isset($args['name']) && is_string($args['name'])) {
+                    $serializedName = $args['name'];
+                }
+            }
+            if (!array_key_exists($serializedName, $data)) {
+                continue;
+            }
+            $value = $data[$serializedName];
+            if ($value === null) {
+                continue;
+            }
+            $valid = match ($typeName) {
+                'int' => is_int($value),
+                'float' => is_int($value) || is_float($value),
+                'bool' => is_bool($value),
+                'string' => is_string($value),
+                'array' => is_array($value),
+                default => true,
+            };
+            if (!$valid) {
+                throw new \InvalidArgumentException(sprintf(
+                    "Gap S: property '%s' on %s expects %s, got %s",
+                    $serializedName,
+                    $class,
+                    $typeName,
+                    get_debug_type($value)
+                ));
+            }
         }
     }
 

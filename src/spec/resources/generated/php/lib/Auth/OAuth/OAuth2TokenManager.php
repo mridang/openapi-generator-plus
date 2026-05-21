@@ -132,6 +132,17 @@ final class OAuth2TokenManager
     }
 
     /**
+     * Invalidate the cached access token so that the next call to
+     * {@see getAccessToken()} fetches a fresh token from the token endpoint.
+     * Intended for tests and recovery flows.
+     */
+    public function invalidateAccessToken(): void
+    {
+        $this->accessToken = null;
+        $this->tokenExpiry = null;
+    }
+
+    /**
      * Get the current refresh token.
      *
      * @return string|null the refresh token, or null if not available

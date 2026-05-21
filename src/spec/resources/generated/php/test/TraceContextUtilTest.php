@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
-use PHPUnit\Framework\TestCase;
 use PetstoreClient\TraceContextUtil;
+use PHPUnit\Framework\TestCase;
 
 class TraceContextUtilTest extends TestCase
 {

@@ -2,6 +2,12 @@
 
 Auto-generated PHP SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
+## Requirements
+
+- PHP 8.4 or newer
+- Composer 2.x
+- PHP extensions: `ext-curl`, `ext-json`, `ext-mbstring`
+
 ## Install
 
 ```bash
@@ -14,9 +20,30 @@ composer install
 vendor/bin/phpunit
 ```
 
+## Tooling
+
+The generated project ships with a complete formatter, linter, static
+analyser, and Rector configuration. Run any of them via Composer's
+`vendor/bin`:
+
+```bash
+# Formatter — PHP-CS-Fixer (PHP84Migration:risky ruleset)
+vendor/bin/php-cs-fixer fix
+
+# Linter — PHP_CodeSniffer (PSR-12 + SlevomatCodingStandard)
+vendor/bin/phpcs
+
+# Static analyser — PHPStan at level 9 (max)
+vendor/bin/phpstan analyse
+
+# Automated upgrades — Rector (UP_TO_PHP_84 + DEAD_CODE + CODE_QUALITY + TYPE_DECLARATION)
+vendor/bin/rector
+```
+
 ## Package
 
 - Name: `PetstoreClient`
+- Version: `1.0.0`
 
 ## Caveats
 

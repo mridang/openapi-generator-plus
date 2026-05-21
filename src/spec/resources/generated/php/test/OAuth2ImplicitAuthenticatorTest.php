@@ -13,8 +13,8 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
-use PHPUnit\Framework\TestCase;
 use PetstoreClient\Auth\OAuth\OAuth2ImplicitAuthenticator;
+use PHPUnit\Framework\TestCase;
 
 class OAuth2ImplicitAuthenticatorTest extends TestCase
 {

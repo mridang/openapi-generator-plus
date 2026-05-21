@@ -22,7 +22,7 @@ interface PhpSpec extends LanguageSpec, DockerImageSpec {
 
   @Override
   default String getDockerImage() {
-    return "php:8.3-cli";
+    return "php:8.4-cli";
   }
 
   @Override

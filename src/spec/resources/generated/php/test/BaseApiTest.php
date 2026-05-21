@@ -6,27 +6,27 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
-use PHPUnit\Framework\TestCase;
 use PetstoreClient\Api\BaseApi;
+use PetstoreClient\Api\Options\FindPetsByStatusOptions;
+use PetstoreClient\Api\PetApi;
+use PetstoreClient\ApiClient;
+use PetstoreClient\ApiException;
+use PetstoreClient\ApiResponse;
+use PetstoreClient\Auth\Authenticator;
 use PetstoreClient\Configuration;
 use PetstoreClient\DefaultApiClient;
-use PetstoreClient\Servers;
-use PetstoreClient\Auth\Authenticator;
-use PetstoreClient\ApiException;
-use PetstoreClient\Errors\ClientException;
-use PetstoreClient\Errors\ServerException;
 use PetstoreClient\Errors\BadRequestException;
-use PetstoreClient\Errors\UnauthorizedException;
-use PetstoreClient\Errors\ForbiddenException;
-use PetstoreClient\Errors\NotFoundException;
+use PetstoreClient\Errors\ClientException;
 use PetstoreClient\Errors\ConflictException;
-use PetstoreClient\Errors\UnprocessableEntityException;
+use PetstoreClient\Errors\ForbiddenException;
 use PetstoreClient\Errors\InternalServerErrorException;
-use PetstoreClient\ApiClient;
-use PetstoreClient\ApiResponse;
-use PetstoreClient\Api\PetApi;
-use PetstoreClient\Api\Options\FindPetsByStatusOptions;
+use PetstoreClient\Errors\NotFoundException;
+use PetstoreClient\Errors\ServerException;
+use PetstoreClient\Errors\UnauthorizedException;
+use PetstoreClient\Errors\UnprocessableEntityException;
 use PetstoreClient\Models\Category;
+use PetstoreClient\Servers;
+use PHPUnit\Framework\TestCase;
 
 class CapturingApiClient implements ApiClient
 {

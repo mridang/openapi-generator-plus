@@ -19,10 +19,11 @@ class PetPassport
 {
     /** @example null */
     #[SerializedName('pet')]
-    public ?Pet $pet = null;
+    public ?\PetstoreClient\Models\Pet $pet = null;
 
     /**
      * Base64-encoded primary thumbnail
+     * @example dGVzdC10aHVtYm5haWw=
      */
     #[SerializedName('thumbnail')]
     public ?string $thumbnail = null;
@@ -40,17 +41,26 @@ class PetPassport
     public ?\DateTime $issuedAt = null;
 
     /**
+     * Embedded chip data (OAS 3.1 contentEncoding form)
+     * @example null
+     */
+    #[SerializedName('biometricChip')]
+    public ?string $biometricChip = null;
+
+    /**
      * @param string[]|null $scans
      */
     public function __construct(
-        ?Pet $pet = null,
+        ?\PetstoreClient\Models\Pet $pet = null,
         ?string $thumbnail = null,
         ?array $scans = null,
         ?\DateTime $issuedAt = null,
+        ?string $biometricChip = null,
     ) {
         $this->pet = $pet;
         $this->thumbnail = $thumbnail;
         $this->scans = $scans;
         $this->issuedAt = $issuedAt;
+        $this->biometricChip = $biometricChip;
     }
 }

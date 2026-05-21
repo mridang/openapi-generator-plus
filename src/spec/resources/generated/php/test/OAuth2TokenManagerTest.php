@@ -13,9 +13,9 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
-use PHPUnit\Framework\TestCase;
 use PetstoreClient\ApiResponse;
 use PetstoreClient\Auth\OAuth\OAuth2TokenManager;
+use PHPUnit\Framework\TestCase;
 
 class OAuth2TokenManagerTest extends TestCase
 {
@@ -103,6 +103,24 @@ class OAuth2TokenManagerTest extends TestCase
 
         $this->assertSame('manual-token', $token);
         $this->assertCount(0, $client->capturedRequests);
+    }
+
+    public function testInvalidateAccessTokenForcesRefetch(): void
+    {
+        $client = new MockTokenApiClient();
+        $client->enqueueResponse($this->makeTokenResponse('tok1', 3600));
+        $client->enqueueResponse($this->makeTokenResponse('tok2', 3600));
+
+        $manager = new OAuth2TokenManager();
+        $manager->setApiClient($client);
+
+        $first = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+        $manager->invalidateAccessToken();
+        $second = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+        $this->assertSame('tok1', $first);
+        $this->assertSame('tok2', $second);
+        $this->assertCount(2, $client->capturedRequests);
     }
 
     public function testThrowsWhenNoApiClientInjected(): void

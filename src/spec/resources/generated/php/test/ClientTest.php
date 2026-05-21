@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
-use PHPUnit\Framework\TestCase;
-use PetstoreClient\Client;
 use PetstoreClient\Auth\ApiKeyAuthenticator;
 use PetstoreClient\Auth\ApiKeyLocation;
 use PetstoreClient\Auth\BearerAuthenticator;
+use PetstoreClient\Client;
 use PetstoreClient\TransportOptions;
+use PHPUnit\Framework\TestCase;
 
 class ClientTest extends TestCase
 {

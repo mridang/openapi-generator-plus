@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
-use PHPUnit\Framework\TestCase;
 use PetstoreClient\CancellationException;
 use PetstoreClient\CancellationToken;
+use PHPUnit\Framework\TestCase;
 
 class CancellationTokenTest extends TestCase
 {
