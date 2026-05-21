@@ -441,6 +441,8 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 new SupportingFileSpec("lib.mustache", "src", "lib.rs"),
                 new SupportingFileSpec("cargo_toml.mustache", "", "Cargo.toml"),
                 new SupportingFileSpec("rustfmt_toml.mustache", "", "rustfmt.toml"),
+                new SupportingFileSpec("clippy_toml.mustache", "", "clippy.toml"),
+                new SupportingFileSpec("deny_toml.mustache", "", "deny.toml"),
                 new SupportingFileSpec("nextest_toml.mustache", nextestDir, "default.toml"),
                 new SupportingFileSpec("makefile.mustache", "", "Makefile"),
                 new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),

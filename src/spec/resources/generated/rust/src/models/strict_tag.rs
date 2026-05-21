@@ -9,30 +9,24 @@
 use super::*;
 use serde::{Deserialize, Serialize};
 
-/// Category is a model class generated from the OpenAPI schema.
+/// StrictTag is a model class generated from the OpenAPI schema.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
-pub struct Category {
-    /// Example: `1`
+// Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+// `deny_unknown_fields` makes serde return an error containing the unknown
+// field name when deserializing, surfacing strict-mode violations.
+#[serde(deny_unknown_fields)]
+pub struct StrictTag {
+    /// Example: `null`
     #[serde(rename = "id", skip_serializing_if = "Option::is_none")]
     pub id: Option<i64>,
-    /// Example: `Dogs`
-    /// ## Small breed
-    /// Toy or small breed dogs
-    /// ```json
-    /// Chihuahua
-    /// ```
-    /// ## Large breed
-    /// Working or guard breed dogs
-    /// ```json
-    /// GreatDane
-    /// ```
+    /// Example: `null`
     #[serde(rename = "name", skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 }
 
 #[allow(deprecated)]
-impl Category {
-    /// Creates a new Category instance with required parameters.
+impl StrictTag {
+    /// Creates a new StrictTag instance with required parameters.
     pub fn new() -> Self {
         Self {
             id: None,

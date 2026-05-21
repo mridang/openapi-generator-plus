@@ -12,8 +12,8 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use crate::api_client::ApiClient;
-use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
 use crate::auth::Authenticator;
+use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
 
 /// OAuth2ImplicitAuthenticator provides OAuth2 implicit flow authentication.
 ///

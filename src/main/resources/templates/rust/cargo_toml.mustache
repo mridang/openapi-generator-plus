@@ -1,8 +1,22 @@
 [package]
 name = "{{packageName}}"
 version = "{{packageVersion}}"
-edition = "2021"
+edition = "2024"
+rust-version = "1.85"
 license = "MIT"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+must_use_candidate = "allow"
+return_self_not_must_use = "allow"
+too_many_lines = "allow"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

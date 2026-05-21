@@ -212,6 +212,15 @@ impl OAuth2TokenManager {
         inner.access_token = token.to_string();
         inner.token_expiry = None;
     }
+
+    /// Invalidates the cached access token so that the next call to
+    /// `get_access_token` fetches a fresh token from the token endpoint.
+    /// Intended for tests and recovery flows.
+    pub async fn invalidate_access_token(&self) {
+        let mut inner = self.inner.lock().await;
+        inner.access_token = String::new();
+        inner.token_expiry = None;
+    }
 }
 
 /* Soundness: `Arc<dyn ApiClient>` may not auto-impl Send/Sync because the

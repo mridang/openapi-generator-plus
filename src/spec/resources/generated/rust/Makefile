@@ -1,4 +1,4 @@
-.PHONY: all build test lint format docs clean
+.PHONY: all build test lint format audit docs clean
 
 all: build
 
@@ -6,7 +6,10 @@ format:
 	cargo fmt
 
 lint:
-	cargo clippy -- -D warnings
+	cargo clippy --all-targets --all-features -- -D warnings
+
+audit:
+	cargo deny check
 
 build:
 	cargo build

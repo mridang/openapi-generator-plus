@@ -34,6 +34,8 @@ mod set_pet_avatar_request;
 pub use set_pet_avatar_request::*;
 mod set_pet_avatar_thumbnail_request;
 pub use set_pet_avatar_thumbnail_request::*;
+mod strict_tag;
+pub use strict_tag::*;
 mod surgery;
 pub use surgery::*;
 mod tag;

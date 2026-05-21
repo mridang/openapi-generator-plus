@@ -40,6 +40,7 @@ impl StoreApi {
     }
 
     /// Delete purchase order by ID
+
     pub async fn delete_order(
         &self,
         order_id: i64,
@@ -127,6 +128,7 @@ impl StoreApi {
     }
 
     /// Returns pet inventories by status
+
     pub async fn get_inventory(
         &self,
     ) -> Result<std::collections::HashMap<String, i32>, Box<dyn std::error::Error + Send + Sync>>
@@ -168,6 +170,7 @@ impl StoreApi {
     }
 
     /// Find purchase order by ID
+
     pub async fn get_order_by_id(
         &self,
         order_id: i64,
@@ -254,6 +257,7 @@ impl StoreApi {
     }
 
     /// Place an order for a pet
+
     pub async fn place_order(
         &self,
         order: Option<Order>,

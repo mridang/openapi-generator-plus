@@ -9,8 +9,8 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 
-use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 
 use super::Authenticator;
 

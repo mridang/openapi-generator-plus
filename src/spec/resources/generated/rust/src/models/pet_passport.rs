@@ -16,6 +16,7 @@ pub struct PetPassport {
     #[serde(rename = "pet", skip_serializing_if = "Option::is_none")]
     pub pet: Option<Pet>,
     /// Base64-encoded primary thumbnail
+    /// Example: `dGVzdC10aHVtYm5haWw=`
     #[serde(
         rename = "thumbnail",
         skip_serializing_if = "Option::is_none",
@@ -33,6 +34,10 @@ pub struct PetPassport {
     /// Example: `null`
     #[serde(rename = "issuedAt", skip_serializing_if = "Option::is_none")]
     pub issued_at: Option<String>,
+    /// Embedded chip data (OAS 3.1 contentEncoding form)
+    /// Example: `null`
+    #[serde(rename = "biometricChip", skip_serializing_if = "Option::is_none")]
+    pub biometric_chip: Option<String>,
 }
 
 #[allow(deprecated)]
@@ -44,6 +49,7 @@ impl PetPassport {
             thumbnail: None,
             scans: None,
             issued_at: None,
+            biometric_chip: None,
         }
     }
 }

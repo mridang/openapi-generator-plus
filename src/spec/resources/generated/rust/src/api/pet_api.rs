@@ -182,6 +182,7 @@ impl PetApi {
     }
 
     /// Add a new pet to the store
+
     pub async fn add_pet(
         &self,
         auth: Option<&dyn Authenticator>,
@@ -222,6 +223,7 @@ impl PetApi {
 
     /// Add photos to the pet's gallery
     /// Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
+
     pub async fn add_pet_photos(
         &self,
         pet_id: i64,
@@ -325,6 +327,7 @@ impl PetApi {
     }
 
     /// Record a treatment for a pet
+
     pub async fn add_pet_treatment(
         &self,
         auth: Option<&dyn Authenticator>,
@@ -419,6 +422,7 @@ impl PetApi {
     }
 
     /// Deletes a pet
+
     pub async fn delete_pet(
         &self,
         auth: Option<&dyn Authenticator>,
@@ -535,6 +539,7 @@ impl PetApi {
 
     /// Download a vet document
     /// Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
+
     pub async fn download_pet_document(
         &self,
         pet_id: i64,
@@ -676,6 +681,19 @@ impl PetApi {
     /// Finds Pets by status
     #[deprecated]
     /// See https://example.com/docs/filtering Find out more about filtering
+
+    /// ## Available only
+    /// Show only pets currently in stock
+    /// ```json
+    /// available
+    /// ```
+
+    /// ## Sold pets
+    /// Show pets that have been sold
+    /// ```json
+    /// sold
+    /// ```
+
     pub async fn find_pets_by_status(
         &self,
 
@@ -749,6 +767,7 @@ impl PetApi {
     }
 
     /// Get external pet info
+
     pub async fn get_external_pet_info(
         &self,
         pet_id: i64,
@@ -847,6 +866,7 @@ impl PetApi {
     }
 
     /// Get multi-server pet info
+
     pub async fn get_multi_server_pet_info(
         &self,
         pet_id: i64,
@@ -946,6 +966,7 @@ impl PetApi {
 
     /// Get the pet's profile photo
     /// Returns the raw image bytes of the pet's current avatar.
+
     pub async fn get_pet_avatar(
         &self,
         pet_id: i64,
@@ -1033,6 +1054,7 @@ impl PetApi {
 
     /// Get the pet's avatar thumbnail as base64
     /// Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
+
     pub async fn get_pet_avatar_thumbnail(
         &self,
         pet_id: i64,
@@ -1121,6 +1143,7 @@ impl PetApi {
     /// Find pet by ID
     /// Returns a single pet
     #[deprecated]
+
     pub async fn get_pet_by_id(
         &self,
         pet_id: i64,
@@ -1218,6 +1241,7 @@ impl PetApi {
 
     /// Get the pet's passport
     /// Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
+
     pub async fn get_pet_passport(
         &self,
         pet_id: i64,
@@ -1305,6 +1329,7 @@ impl PetApi {
 
     /// Get a photo or its metadata
     /// Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
+
     pub async fn get_pet_photo(
         &self,
         pet_id: i64,
@@ -1442,6 +1467,7 @@ impl PetApi {
     }
 
     /// Get a tag for a pet
+
     pub async fn get_pet_tag(
         &self,
         pet_id: i64,
@@ -1670,6 +1696,7 @@ impl PetApi {
     }
 
     /// Get staging pet info
+
     pub async fn get_staging_pet_info(
         &self,
         pet_id: i64,
@@ -1769,6 +1796,7 @@ impl PetApi {
 
     /// Set the pet's profile photo
     /// Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
+
     pub async fn set_pet_avatar(
         &self,
         pet_id: i64,
@@ -1859,6 +1887,7 @@ impl PetApi {
 
     /// Set the pet's avatar thumbnail as base64
     /// Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
+
     pub async fn set_pet_avatar_thumbnail(
         &self,
         pet_id: i64,
@@ -1951,6 +1980,7 @@ impl PetApi {
     }
 
     /// Update an existing pet
+
     pub async fn update_pet(
         &self,
         pet_id: i64,
@@ -2040,6 +2070,7 @@ impl PetApi {
 
     /// Upload the pet's adoption certificate
     /// Attaches a single adoption certificate document. No metadata fields are required alongside the file.
+
     pub async fn upload_pet_certificate(
         &self,
         pet_id: i64,
@@ -2137,6 +2168,7 @@ impl PetApi {
 
     /// Attach a vet document or health record
     /// Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
+
     pub async fn upload_pet_document(
         &self,
         pet_id: i64,
