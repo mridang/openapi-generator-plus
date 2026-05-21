@@ -82,7 +82,9 @@ void main() {
       expect(client.lastMethod, equals('GET'));
       expect(
         client.lastUrl,
-        equals('https://auth.example.com/.well-known/openid-configuration'),
+        equals(
+          'https://auth.example.com/.well-known/openid-configuration',
+        ),
       );
     });
 
@@ -98,8 +100,8 @@ void main() {
 
       await auth.exchangeCode('oidc-code');
 
-      expect(client.lastBody!, contains('grant_type=authorization_code'));
-      expect(client.lastBody!, contains('code=oidc-code'));
+      expect(client.lastBody, contains('grant_type=authorization_code'));
+      expect(client.lastBody, contains('code=oidc-code'));
     });
 
     test('getAuthHeaders returns Bearer after exchange', () async {
@@ -123,7 +125,7 @@ void main() {
       final auth = _createAuthenticator();
 
       expect(
-        () => auth.buildAuthorizationUrl(),
+        auth.buildAuthorizationUrl,
         throwsA(isA<StateError>()),
       );
     });

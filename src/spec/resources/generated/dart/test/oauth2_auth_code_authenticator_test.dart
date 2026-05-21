@@ -72,7 +72,8 @@ void main() {
     test('exchanges code with correct grant type', () async {
       final client = _FakeApiClient();
       client.enqueue(
-          '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}');
+        '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
+      );
 
       final auth = _createAuthenticator();
       auth.setApiClient(client);
@@ -80,16 +81,17 @@ void main() {
       await auth.exchangeCode('auth-code-xyz');
 
       expect(client.lastBody, isNotNull);
-      expect(client.lastBody!, contains('grant_type=authorization_code'));
-      expect(client.lastBody!, contains('code=auth-code-xyz'));
-      expect(client.lastBody!, contains('client_id=my-client-id'));
-      expect(client.lastBody!, contains('client_secret=my-client-secret'));
+      expect(client.lastBody, contains('grant_type=authorization_code'));
+      expect(client.lastBody, contains('code=auth-code-xyz'));
+      expect(client.lastBody, contains('client_id=my-client-id'));
+      expect(client.lastBody, contains('client_secret=my-client-secret'));
     });
 
     test('includes refresh token on refresh', () async {
       final client = _FakeApiClient();
       client.enqueue(
-          '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}');
+        '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+      );
       client.enqueue('{"access_token":"tok2","expires_in":3600}');
 
       final auth = _createAuthenticator();
@@ -99,8 +101,8 @@ void main() {
 
       final headers = await auth.authHeadersAsync();
 
-      expect(client.lastBody!, contains('refresh_token=ref1'));
-      expect(client.lastBody!, contains('grant_type=refresh_token'));
+      expect(client.lastBody, contains('refresh_token=ref1'));
+      expect(client.lastBody, contains('grant_type=refresh_token'));
       expect(headers['Authorization'], equals('Bearer tok2'));
     });
 
@@ -108,7 +110,7 @@ void main() {
       final auth = _createAuthenticator();
 
       expect(
-        () => auth.authHeaders(),
+        auth.authHeaders,
         throwsA(isA<StateError>()),
       );
     });

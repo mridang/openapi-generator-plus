@@ -204,7 +204,7 @@ void main() {
     });
 
     test('generates unique X-Request-ID per request', () async {
-      final List<String?> ids = [];
+      final ids = <String?>[];
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         ids.add(request.headers.value('x-request-id'));

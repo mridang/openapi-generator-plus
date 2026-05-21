@@ -60,7 +60,7 @@ Future<void> setUpContainers() async {
       ])
       .withNetwork(_network)
       .withNetworkAliases(['wiremock'])
-      .waitingFor(LogMessageWaitStrategy(RegExp(r'port:')));
+      .waitingFor(LogMessageWaitStrategy(RegExp('port:')));
 
   await _wiremockContainer.start();
 
@@ -109,7 +109,9 @@ Future<void> setUpContainers() async {
         '0.0.0.0',
         '/tmp/openapi.yaml',
       ])
-      .waitingFor(LogMessageWaitStrategy(RegExp(r'Prism is listening')));
+      .waitingFor(
+        LogMessageWaitStrategy(RegExp('Prism is listening')),
+      );
 
   await _prismContainer.start();
 

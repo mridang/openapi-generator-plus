@@ -7,15 +7,6 @@
 
 /// ApiResponse is a model class generated from the OpenAPI schema.
 class ApiResponse {
-  /// Example: `null`
-  final int? code;
-
-  /// Example: `null`
-  final String? type_;
-
-  /// Example: `null`
-  final String? message;
-
   const ApiResponse({
     this.code,
     this.type_,
@@ -30,6 +21,15 @@ class ApiResponse {
       message: json['message'] as String?,
     );
   }
+
+  /// Example: `null`
+  final int? code;
+
+  /// Example: `null`
+  final String? type_;
+
+  /// Example: `null`
+  final String? message;
 
   /// Converts this [ApiResponse] to a JSON map.
   Map<String, dynamic> toJson() {

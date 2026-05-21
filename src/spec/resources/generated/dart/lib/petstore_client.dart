@@ -8,7 +8,7 @@
 /// Swagger Petstore - OpenAPI 3.0 API client library.
 ///
 /// A simplified Pet Store API for integration testing.
-library petstore_client;
+library;
 
 export 'src/api/base_api.dart';
 export 'src/api/options/add_pet_photos_options.dart';
@@ -65,6 +65,7 @@ export 'src/models/photo_metadata.dart';
 export 'src/models/photo_metadata_location.dart';
 export 'src/models/set_pet_avatar_request.dart';
 export 'src/models/set_pet_avatar_thumbnail_request.dart';
+export 'src/models/strict_tag.dart';
 export 'src/models/surgery.dart';
 export 'src/models/tag.dart';
 export 'src/models/wet_food.dart';

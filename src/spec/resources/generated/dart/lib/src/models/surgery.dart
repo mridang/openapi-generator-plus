@@ -7,12 +7,6 @@
 
 /// Surgery is a model class generated from the OpenAPI schema.
 class Surgery {
-  /// Example: `null`
-  final String procedureName;
-
-  /// Example: `null`
-  final int? durationMinutes;
-
   const Surgery({
     required this.procedureName,
     this.durationMinutes,
@@ -25,6 +19,12 @@ class Surgery {
       durationMinutes: json['durationMinutes'] as int?,
     );
   }
+
+  /// Example: `null`
+  final String procedureName;
+
+  /// Example: `null`
+  final int? durationMinutes;
 
   /// Converts this [Surgery] to a JSON map.
   Map<String, dynamic> toJson() {

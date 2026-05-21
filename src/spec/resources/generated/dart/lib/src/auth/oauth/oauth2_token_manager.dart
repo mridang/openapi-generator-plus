@@ -8,7 +8,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import '../../api_client.dart';
+import 'package:petstore_client/src/api_client.dart';
 
 /// OAuth2TokenManager manages OAuth2 token lifecycle: fetching, caching, and
 /// refreshing.
@@ -105,6 +105,14 @@ class OAuth2TokenManager {
     return _accessToken;
   }
 
+  /// Invalidates the cached access token so that the next call to
+  /// [getAccessToken] fetches a fresh token from the token endpoint.
+  /// Intended for tests and recovery flows.
+  void invalidateAccessToken() {
+    _accessToken = '';
+    _tokenExpiry = null;
+  }
+
   /// Manually sets an access token, bypassing the token endpoint.
   void setAccessToken(String token) {
     _accessToken = token;
@@ -126,8 +134,10 @@ class OAuth2TokenManager {
     }
 
     final body = params.entries
-        .map((e) =>
-            '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+        .map(
+          (e) =>
+              '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}',
+        )
         .join('&');
 
     final bodyBytes = Uint8List.fromList(utf8.encode(body));

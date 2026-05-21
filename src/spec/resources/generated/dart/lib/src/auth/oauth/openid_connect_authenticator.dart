@@ -7,10 +7,10 @@
 
 import 'dart:convert';
 
-import '../../api_client.dart';
-import '../base_authenticator.dart';
-import '../http_aware_authenticator.dart';
-import 'oauth2_auth_code_authenticator.dart';
+import 'package:petstore_client/src/api_client.dart';
+import 'package:petstore_client/src/auth/base_authenticator.dart';
+import 'package:petstore_client/src/auth/http_aware_authenticator.dart';
+import 'package:petstore_client/src/auth/oauth/oauth2_auth_code_authenticator.dart';
 
 /// OpenIdConnectAuthenticator provides OpenID Connect authentication.
 ///
@@ -23,21 +23,6 @@ import 'oauth2_auth_code_authenticator.dart';
 /// same transport configuration (proxy, TLS, timeouts) as regular API calls.
 class OpenIdConnectAuthenticator extends BaseAuthenticator
     implements HttpAwareAuthenticator {
-  final String _host;
-  final String _openIdConnectUrl;
-  final String _clientId;
-  final String _clientSecret;
-  final String _redirectUri;
-  final List<String> _scopes;
-  ApiClient? _apiClient;
-  OAuth2AuthorizationCodeAuthenticator? _delegate;
-  DateTime _discoveryExpiry = DateTime.fromMillisecondsSinceEpoch(0);
-
-  /// RFC 8414 recommended default max-age for OIDC discovery documents.
-  static const int _defaultDiscoveryMaxAgeSeconds = 86400;
-  static final RegExp _maxAgePattern =
-      RegExp(r'max-age=(\d+)', caseSensitive: false);
-
   /// Creates a new OpenID Connect authenticator.
   OpenIdConnectAuthenticator({
     required String host,
@@ -52,6 +37,20 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
         _clientSecret = clientSecret,
         _redirectUri = redirectUri,
         _scopes = scopes;
+  final String _host;
+  final String _openIdConnectUrl;
+  final String _clientId;
+  final String _clientSecret;
+  final String _redirectUri;
+  final List<String> _scopes;
+  ApiClient? _apiClient;
+  OAuth2AuthorizationCodeAuthenticator? _delegate;
+  DateTime _discoveryExpiry = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// RFC 8414 recommended default max-age for OIDC discovery documents.
+  static const int _defaultDiscoveryMaxAgeSeconds = 86400;
+  static final RegExp _maxAgePattern =
+      RegExp(r'max-age=(\d+)', caseSensitive: false);
 
   @override
   String host() => _host;

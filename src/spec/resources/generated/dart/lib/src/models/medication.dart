@@ -7,12 +7,6 @@
 
 /// Medication is a model class generated from the OpenAPI schema.
 class Medication {
-  /// Example: `null`
-  final String drugName;
-
-  /// Example: `null`
-  final String? dosage;
-
   const Medication({
     required this.drugName,
     this.dosage,
@@ -25,6 +19,12 @@ class Medication {
       dosage: json['dosage'] as String?,
     );
   }
+
+  /// Example: `null`
+  final String drugName;
+
+  /// Example: `null`
+  final String? dosage;
 
   /// Converts this [Medication] to a JSON map.
   Map<String, dynamic> toJson() {

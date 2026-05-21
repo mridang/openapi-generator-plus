@@ -7,28 +7,16 @@
 
 import 'dart:convert';
 
-import 'pet.dart';
+import 'package:petstore_client/src/models/pet.dart';
 
 /// PetPassport is a model class generated from the OpenAPI schema.
 class PetPassport {
-  /// Example: `null`
-  final Pet? pet;
-
-  /// Base64-encoded primary thumbnail
-  final List<int>? thumbnail;
-
-  /// Base64-encoded scans of each passport page
-  /// Example: `null`
-  final List<List<int>>? scans;
-
-  /// Example: `null`
-  final DateTime? issuedAt;
-
   const PetPassport({
     this.pet,
     this.thumbnail,
     this.scans,
     this.issuedAt,
+    this.biometricChip,
   });
 
   /// Creates a [PetPassport] from a JSON map.
@@ -46,8 +34,27 @@ class PetPassport {
       issuedAt: json['issuedAt'] != null
           ? DateTime.parse(json['issuedAt'] as String)
           : null,
+      biometricChip: json['biometricChip'] as String?,
     );
   }
+
+  /// Example: `null`
+  final Pet? pet;
+
+  /// Base64-encoded primary thumbnail
+  /// Example: `dGVzdC10aHVtYm5haWw=`
+  final List<int>? thumbnail;
+
+  /// Base64-encoded scans of each passport page
+  /// Example: `null`
+  final List<List<int>>? scans;
+
+  /// Example: `null`
+  final DateTime? issuedAt;
+
+  /// Embedded chip data (OAS 3.1 contentEncoding form)
+  /// Example: `null`
+  final String? biometricChip;
 
   /// Converts this [PetPassport] to a JSON map.
   Map<String, dynamic> toJson() {
@@ -59,13 +66,16 @@ class PetPassport {
       json['thumbnail'] = base64Encode(thumbnail!);
     }
     if (scans != null) {
-      json['scans'] = scans?.map((e) => base64Encode(e)).toList();
+      json['scans'] = scans?.map(base64Encode).toList();
     }
     if (issuedAt != null) {
       json['issuedAt'] = issuedAt
           ?.toUtc()
           .toIso8601String()
           .replaceFirst(RegExp(r'(\.\d+)?Z$'), '+00:00');
+    }
+    if (biometricChip != null) {
+      json['biometricChip'] = biometricChip;
     }
     return json;
   }
@@ -80,12 +90,14 @@ class PetPassport {
         pet == other.pet &&
         thumbnail == other.thumbnail &&
         scans == other.scans &&
-        issuedAt == other.issuedAt;
+        issuedAt == other.issuedAt &&
+        biometricChip == other.biometricChip;
   }
 
   /// hashCode emits Object.hashAll which accepts an arbitrary-length
   /// Iterable (Object.hash requires 2+ positional args, so it can't
   /// represent the 0-var or 1-var cases without special-casing).
   @override
-  int get hashCode => Object.hashAll([pet, thumbnail, scans, issuedAt]);
+  int get hashCode =>
+      Object.hashAll([pet, thumbnail, scans, issuedAt, biometricChip]);
 }

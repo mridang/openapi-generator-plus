@@ -1,8 +1,13 @@
-include: package:lints/recommended.yaml
+include: package:very_good_analysis/analysis_options.yaml
 
 analyzer:
   errors:
     todo: ignore
+    # Generated code uses dynamic JSON decoding patterns; relax a few rules.
+    public_member_api_docs: ignore
+    lines_longer_than_80_chars: ignore
+    one_member_abstracts: ignore
+    avoid_classes_with_only_static_members: ignore
   language:
     strict-casts: true
     strict-inference: true

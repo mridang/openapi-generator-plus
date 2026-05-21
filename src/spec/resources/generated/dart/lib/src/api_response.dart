@@ -7,6 +7,12 @@
 
 /// HttpApiResponse wraps an HTTP response with status code, body, and headers.
 class HttpApiResponse {
+  const HttpApiResponse({
+    required this.statusCode,
+    required this.body,
+    required this.headers,
+  });
+
   /// The HTTP status code of the response.
   final int statusCode;
 
@@ -15,10 +21,4 @@ class HttpApiResponse {
 
   /// The response headers.
   final Map<String, String> headers;
-
-  const HttpApiResponse({
-    required this.statusCode,
-    required this.body,
-    required this.headers,
-  });
 }

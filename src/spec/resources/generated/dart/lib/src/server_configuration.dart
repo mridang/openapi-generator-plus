@@ -11,6 +11,12 @@
 /// Each variable has a default value and may optionally restrict values to
 /// an enumerated set.
 class ServerVariable {
+  const ServerVariable({
+    required this.defaultValue,
+    this.description = '',
+    this.enumValues = const [],
+  });
+
   /// The default value for this variable.
   final String defaultValue;
 
@@ -20,12 +26,6 @@ class ServerVariable {
   /// The allowed values for this variable. An empty list means any value is
   /// accepted.
   final List<String> enumValues;
-
-  const ServerVariable({
-    required this.defaultValue,
-    this.description = '',
-    this.enumValues = const [],
-  });
 }
 
 /// ServerConfiguration represents a single server entry from the OpenAPI
@@ -36,6 +36,12 @@ class ServerVariable {
 /// with default variable values, or pass overrides to substitute specific
 /// variables.
 class ServerConfiguration {
+  const ServerConfiguration({
+    required this.urlTemplate,
+    this.description = '',
+    this.variables = const {},
+  });
+
   /// The raw URL template before variable substitution.
   final String urlTemplate;
 
@@ -44,12 +50,6 @@ class ServerConfiguration {
 
   /// The server variables and their definitions.
   final Map<String, ServerVariable> variables;
-
-  const ServerConfiguration({
-    required this.urlTemplate,
-    this.description = '',
-    this.variables = const {},
-  });
 
   /// Resolves the URL template using default variable values or the given
   /// overrides.

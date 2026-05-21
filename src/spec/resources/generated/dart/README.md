@@ -2,10 +2,42 @@
 
 Auto-generated Dart SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
+## Requirements
+
+- **Dart SDK:** `>=3.6.0 <4.0.0`
+
+The Dart toolchain bundles the formatter, linter, static analyser, and
+upgrade tool. No additional tools need to be installed.
+
+| Tool        | Command                | Notes                                                |
+|-------------|------------------------|------------------------------------------------------|
+| Formatter   | `dart format .`        | Built into the Dart SDK                              |
+| Linter      | `dart analyze`         | Uses `package:lints/recommended.yaml`                |
+| Analyser    | `dart analyze`         | Strict rules via `package:very_good_analysis`        |
+| Auto-fix    | `dart fix --apply`     | Applies analyser-suggested fixes (Rector-equivalent) |
+
 ## Build
 
 ```bash
 dart pub get
+```
+
+## Format
+
+```bash
+dart format .
+```
+
+## Analyse
+
+```bash
+dart analyze
+```
+
+## Auto-fix
+
+```bash
+dart fix --apply
 ```
 
 ## Test

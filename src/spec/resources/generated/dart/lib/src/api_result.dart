@@ -8,6 +8,13 @@
 /// ApiResult represents a typed API response with deserialized data, status
 /// code, raw body, and headers. Returned by WithHTTPInfo methods.
 class ApiResult<T> {
+  const ApiResult({
+    required this.statusCode,
+    required this.data,
+    required this.rawBody,
+    required this.headers,
+  });
+
   /// The HTTP status code of the response.
   final int statusCode;
 
@@ -19,11 +26,4 @@ class ApiResult<T> {
 
   /// The response headers.
   final Map<String, String> headers;
-
-  const ApiResult({
-    required this.statusCode,
-    required this.data,
-    required this.rawBody,
-    required this.headers,
-  });
 }

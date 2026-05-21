@@ -7,12 +7,6 @@
 
 /// Category is a model class generated from the OpenAPI schema.
 class Category {
-  /// Example: `1`
-  final int? id;
-
-  /// Example: `Dogs`
-  final String? name;
-
   const Category({
     this.id,
     this.name,
@@ -25,6 +19,22 @@ class Category {
       name: json['name'] as String?,
     );
   }
+
+  /// Example: `1`
+  final int? id;
+
+  /// Example: `Dogs`
+  /// ## Small breed
+  /// Toy or small breed dogs
+  /// ```json
+  /// Chihuahua
+  /// ```
+  /// ## Large breed
+  /// Working or guard breed dogs
+  /// ```json
+  /// GreatDane
+  /// ```
+  final String? name;
 
   /// Converts this [Category] to a JSON map.
   Map<String, dynamic> toJson() {

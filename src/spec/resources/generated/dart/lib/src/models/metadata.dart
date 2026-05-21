@@ -7,12 +7,6 @@
 
 /// Metadata is a model class generated from the OpenAPI schema.
 class Metadata {
-  /// Example: `null`
-  final DateTime? createdAt;
-
-  /// Additional properties not defined in the schema.
-  final Map<String, dynamic> additionalProperties;
-
   const Metadata({
     this.createdAt,
     this.additionalProperties = const {},
@@ -36,6 +30,12 @@ class Metadata {
       additionalProperties: additionalProperties,
     );
   }
+
+  /// Example: `null`
+  final DateTime? createdAt;
+
+  /// Additional properties not defined in the schema.
+  final Map<String, dynamic> additionalProperties;
 
   /// Converts this [Metadata] to a JSON map.
   Map<String, dynamic> toJson() {

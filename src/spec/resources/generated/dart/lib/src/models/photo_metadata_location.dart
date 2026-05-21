@@ -7,12 +7,6 @@
 
 /// PhotoMetadataLocation is a model class generated from the OpenAPI schema.
 class PhotoMetadataLocation {
-  /// Example: `null`
-  final double? lat;
-
-  /// Example: `null`
-  final double? lng;
-
   const PhotoMetadataLocation({
     this.lat,
     this.lng,
@@ -25,6 +19,12 @@ class PhotoMetadataLocation {
       lng: json['lng'] as double?,
     );
   }
+
+  /// Example: `null`
+  final double? lat;
+
+  /// Example: `null`
+  final double? lng;
 
   /// Converts this [PhotoMetadataLocation] to a JSON map.
   Map<String, dynamic> toJson() {

@@ -7,25 +7,6 @@
 
 /// Order is a model class generated from the OpenAPI schema.
 class Order {
-  /// Example: `10`
-  final int? id;
-
-  /// Example: `198772`
-  final int? petId;
-
-  /// Example: `7`
-  final int? quantity;
-
-  /// Example: `null`
-  final DateTime? shipDate;
-
-  /// Order Status
-  /// Example: `approved`
-  final String? status;
-
-  /// Example: `null`
-  final bool? complete;
-
   const Order({
     this.id,
     this.petId,
@@ -48,6 +29,25 @@ class Order {
       complete: json['complete'] as bool?,
     );
   }
+
+  /// Example: `10`
+  final int? id;
+
+  /// Example: `198772`
+  final int? petId;
+
+  /// Example: `7`
+  final int? quantity;
+
+  /// Example: `null`
+  final DateTime? shipDate;
+
+  /// Order Status
+  /// Example: `approved`
+  final String? status;
+
+  /// Example: `null`
+  final bool? complete;
 
   /// Converts this [Order] to a JSON map.
   Map<String, dynamic> toJson() {

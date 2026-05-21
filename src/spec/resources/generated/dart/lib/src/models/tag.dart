@@ -8,12 +8,6 @@
 /// Tag Tags are deprecated, use categories instead
 @Deprecated('This schema is deprecated.')
 class Tag {
-  /// Example: `null`
-  final int? id;
-
-  /// Example: `null`
-  final String? name;
-
   const Tag({
     this.id,
     this.name,
@@ -26,6 +20,12 @@ class Tag {
       name: json['name'] as String?,
     );
   }
+
+  /// Example: `null`
+  final int? id;
+
+  /// Example: `null`
+  final String? name;
 
   /// Converts this [Tag] to a JSON map.
   Map<String, dynamic> toJson() {

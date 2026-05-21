@@ -23,8 +23,7 @@ void main() {
       final authenticator =
           BearerAuthenticator(host: '/api/v3', token: 'test-token');
 
-      final client =
-          Client(authenticator: authenticator, transportOptions: null);
+      final client = Client(authenticator: authenticator);
 
       expect(client, isNotNull);
     });

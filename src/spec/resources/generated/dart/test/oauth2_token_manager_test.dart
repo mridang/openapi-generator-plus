@@ -41,11 +41,10 @@ class _FakeApiClient implements ApiClient {
 /// Slow fake that waits on a completer before responding, so that tests
 /// can stack multiple concurrent callers against an in-flight request.
 class _GatedApiClient implements ApiClient {
+  _GatedApiClient(this.gate, this.responseBody);
   final Completer<void> gate;
   final String responseBody;
   int requestCount = 0;
-
-  _GatedApiClient(this.gate, this.responseBody);
 
   @override
   Future<HttpApiResponse> sendRequest(
@@ -80,7 +79,8 @@ void main() {
     test('stores refresh token', () async {
       final client = _FakeApiClient();
       client.enqueue(
-          '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}');
+        '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
+      );
 
       final manager = OAuth2TokenManager();
       manager.setApiClient(client);
@@ -140,6 +140,26 @@ void main() {
       expect(token, equals('manual-token'));
     });
 
+    test('invalidateAccessToken forces refetch', () async {
+      final client = _FakeApiClient();
+      client.enqueue('{"access_token":"tok1","expires_in":3600}');
+      client.enqueue('{"access_token":"tok2","expires_in":3600}');
+
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+
+      final params = {'grant_type': 'client_credentials'};
+      const tokenUrl = 'https://auth.example.com/token';
+
+      final first = await manager.getAccessToken(tokenUrl, params);
+      manager.invalidateAccessToken();
+      final second = await manager.getAccessToken(tokenUrl, params);
+
+      expect(first, equals('tok1'));
+      expect(second, equals('tok2'));
+      expect(client.requestCount, equals(2));
+    });
+
     test('throws when no ApiClient injected', () {
       final manager = OAuth2TokenManager();
 
@@ -179,8 +199,11 @@ void main() {
 
       final results = await Future.wait(futures);
 
-      expect(client.requestCount, equals(1),
-          reason: '10 concurrent callers should share a single refresh');
+      expect(
+        client.requestCount,
+        equals(1),
+        reason: '10 concurrent callers should share a single refresh',
+      );
       for (final token in results) {
         expect(token, equals('tok-shared'));
       }

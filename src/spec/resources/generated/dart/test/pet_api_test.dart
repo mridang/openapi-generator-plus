@@ -203,10 +203,14 @@ void main() {
       expect(result, isNotNull);
     });
 
-    test('addPetPhotos', () async {
-      final api = _newPetApiForIntegration();
-      await api.addPetPhotos(1, null);
-    }, skip: 'Prism does not validate multipart array fields correctly');
+    test(
+      'addPetPhotos',
+      () async {
+        final api = _newPetApiForIntegration();
+        await api.addPetPhotos(1, null);
+      },
+      skip: 'Prism does not validate multipart array fields correctly',
+    );
 
     test('downloadPetDocument', () async {
       final api = _newPetApiForIntegration();
@@ -215,24 +219,39 @@ void main() {
       expect(result, isNotNull);
     });
 
-    test('getPetPhoto', () async {
-      final api = _newPetApiForIntegration();
-      final result = await api.getPetPhoto(1, 1);
-      expect(result, isNotNull);
-    }, skip: 'Prism returns JSON for image content type');
+    test(
+      'getPetPhoto',
+      () async {
+        final api = _newPetApiForIntegration();
+        final result = await api.getPetPhoto(1, 1);
+        expect(result, isNotNull);
+      },
+      skip: 'Prism returns JSON for image content type',
+    );
 
-    test('getPetTag', () async {
-      final api = _newPetApiForIntegration();
-      final result = await api.getPetTag(5, 'cute',
-          const GetPetTagOptions(colors: ['blue', 'black'], sizes: ['S', 'M']));
-      expect(result, isNotNull);
-    }, skip: 'Prism does not support matrix/label style parameters');
+    test(
+      'getPetTag',
+      () async {
+        final api = _newPetApiForIntegration();
+        final result = await api.getPetTag(
+            5,
+            'cute',
+            const GetPetTagOptions(
+                colors: ['blue', 'black'], sizes: ['S', 'M']));
+        expect(result, isNotNull);
+      },
+      skip: 'Prism does not support matrix/label style parameters',
+    );
 
-    test('getExternalPetInfo', () async {
-      final api = _newPetApiForIntegration();
-      final result = await api.getExternalPetInfo(1, null);
-      expect(result, isNotNull);
-    }, skip: 'Per-operation server URL points to external host');
+    test(
+      'getExternalPetInfo',
+      () async {
+        final api = _newPetApiForIntegration();
+        final result = await api.getExternalPetInfo(1, null);
+        expect(result, isNotNull);
+      },
+      skip: 'Per-operation server URL points to external host',
+    );
 
     test('downloadBinaryMock', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

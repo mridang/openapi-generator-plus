@@ -65,7 +65,7 @@ void main() {
       final auth = _createAuthenticator();
 
       expect(
-        () => auth.authHeaders(),
+        auth.authHeaders,
         throwsA(isA<StateError>()),
       );
     });

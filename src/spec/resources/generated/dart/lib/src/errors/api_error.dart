@@ -10,6 +10,15 @@ import 'dart:convert';
 /// ApiError represents an error returned by the API, including the HTTP status
 /// code, response headers, and response body.
 class ApiError implements Exception {
+  const ApiError({
+    required this.statusCode,
+    required this.message,
+    this.responseBody = '',
+    this.responseHeaders = const {},
+    this.errorBody,
+    this.underlyingError,
+  });
+
   /// The HTTP status code.
   final int statusCode;
 
@@ -30,20 +39,11 @@ class ApiError implements Exception {
   /// down via `underlyingError`.
   final Object? underlyingError;
 
-  const ApiError({
-    required this.statusCode,
-    required this.message,
-    this.responseBody = '',
-    this.responseHeaders = const {},
-    this.errorBody,
-    this.underlyingError,
-  });
-
   @override
   String toString() {
-    final buf = StringBuffer(message.isEmpty
-        ? 'Error message: the server returns an error'
-        : message);
+    final buf = StringBuffer(
+      message.isEmpty ? 'Error message: the server returns an error' : message,
+    );
     if (statusCode != 0) {
       buf.write('\nHTTP status code: $statusCode');
     }

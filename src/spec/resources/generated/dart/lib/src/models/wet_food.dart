@@ -7,15 +7,9 @@
 
 /// WetFood is a model class generated from the OpenAPI schema.
 class WetFood {
-  /// Example: `null`
-  final String foodType;
-
-  /// Example: `null`
-  final int volumeMl;
-
   const WetFood({
-    this.foodType = 'wet',
     required this.volumeMl,
+    this.foodType = 'wet',
   });
 
   /// Creates a [WetFood] from a JSON map.
@@ -25,6 +19,12 @@ class WetFood {
       volumeMl: json['volumeMl'] as int,
     );
   }
+
+  /// Example: `null`
+  final String foodType;
+
+  /// Example: `null`
+  final int volumeMl;
 
   /// Converts this [WetFood] to a JSON map.
   Map<String, dynamic> toJson() {

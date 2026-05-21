@@ -7,15 +7,9 @@
 
 /// DryFood is a model class generated from the OpenAPI schema.
 class DryFood {
-  /// Example: `null`
-  final String foodType;
-
-  /// Example: `null`
-  final double weightKg;
-
   const DryFood({
-    this.foodType = 'dry',
     required this.weightKg,
+    this.foodType = 'dry',
   });
 
   /// Creates a [DryFood] from a JSON map.
@@ -25,6 +19,12 @@ class DryFood {
       weightKg: json['weightKg'] as double,
     );
   }
+
+  /// Example: `null`
+  final String foodType;
+
+  /// Example: `null`
+  final double weightKg;
 
   /// Converts this [DryFood] to a JSON map.
   Map<String, dynamic> toJson() {

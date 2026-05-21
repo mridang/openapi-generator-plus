@@ -55,7 +55,7 @@ class HeaderSelector {
     if (filtered.isEmpty) return '';
     if (filtered.length == 1) return filtered[0];
 
-    final headersWithJSON = filtered.where((m) => isJsonMime(m)).toList();
+    final headersWithJSON = filtered.where(isJsonMime).toList();
     if (headersWithJSON.isEmpty) {
       return filtered.join(',');
     }
@@ -151,7 +151,7 @@ class HeaderSelector {
 }
 
 class _HeaderData {
+  _HeaderData(this.header, this.weight);
   final String header;
   final int weight;
-  _HeaderData(this.header, this.weight);
 }
