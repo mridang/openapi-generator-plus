@@ -22,5 +22,14 @@ export class WetFood {
         throw new Error('volumeMl is required');
       }
     }
+    if (this.foodType != null && typeof this.foodType !== 'string') {
+      throw new TypeError(`foodType must be a string, got ${typeof this.foodType}`);
+    }
+    if (this.volumeMl != null && typeof this.volumeMl !== 'number') {
+      throw new TypeError(`volumeMl must be a number, got ${typeof this.volumeMl}`);
+    }
+    if (this.volumeMl != null && typeof this.volumeMl !== 'number') {
+      throw new TypeError(`volumeMl must be a number, got ${typeof this.volumeMl}`);
+    }
   }
 }

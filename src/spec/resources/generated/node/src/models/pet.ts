@@ -48,6 +48,15 @@ export class Pet {
         throw new Error('photoUrls is required');
       }
     }
+    if (this.id != null && typeof this.id !== 'number') {
+      throw new TypeError(`id must be a number, got ${typeof this.id}`);
+    }
+    if (this.name != null && typeof this.name !== 'string') {
+      throw new TypeError(`name must be a string, got ${typeof this.name}`);
+    }
+    if (this.photoUrls != null && !Array.isArray(this.photoUrls) && !(this.photoUrls instanceof Set)) {
+      throw new TypeError(`photoUrls must be an array, got ${typeof this.photoUrls}`);
+    }
     if (this.status != null) {
       const statusValues = Object.values(PetStatusEnum);
       if (!(statusValues as readonly unknown[]).includes(this.status)) {

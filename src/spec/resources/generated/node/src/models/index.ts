@@ -21,6 +21,7 @@ export * from './photo-metadata.js';
 export * from './photo-metadata-location.js';
 export * from './set-pet-avatar-request.js';
 export * from './set-pet-avatar-thumbnail-request.js';
+export * from './strict-tag.js';
 export * from './surgery.js';
 export * from './tag.js';
 export * from './wet-food.js';

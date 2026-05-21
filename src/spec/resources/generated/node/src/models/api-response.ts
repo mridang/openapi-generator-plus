@@ -20,5 +20,17 @@ export class ApiResponse {
 
   constructor(data?: Partial<ApiResponse>) {
     Object.assign(this, data);
+    if (this.code != null && typeof this.code !== 'number') {
+      throw new TypeError(`code must be a number, got ${typeof this.code}`);
+    }
+    if (this.code != null && typeof this.code !== 'number') {
+      throw new TypeError(`code must be a number, got ${typeof this.code}`);
+    }
+    if (this.type != null && typeof this.type !== 'string') {
+      throw new TypeError(`type must be a string, got ${typeof this.type}`);
+    }
+    if (this.message != null && typeof this.message !== 'string') {
+      throw new TypeError(`message must be a string, got ${typeof this.message}`);
+    }
   }
 }

@@ -107,8 +107,20 @@ export class ObjectSerializer {
         }
       }
 
-      return plainToInstance(cls, json, { excludeExtraneousValues: true });
+      const instance = plainToInstance(cls, json, { excludeExtraneousValues: true });
+      // Gap S: re-run the model constructor on the plain-instance so
+      // the model's primitive-type assertions fire. class-transformer
+      // bypasses constructor side-effects, leaving wire-type bugs
+      // ({"id": "42"} on an int field) silent. Routing through the
+      // class's own constructor enforces them.
+      if (instance && typeof instance === 'object' && typeof cls === 'function') {
+        return new (cls as unknown as new (i: unknown) => T)(instance);
+      }
+      return instance;
     } catch (e) {
+      if (e instanceof SerializationError) {
+        throw e;
+      }
       throw new SerializationError(
         `Failed to deserialize object: ${e instanceof Error ? e.message : String(e)}`,
         e instanceof Error ? e : undefined

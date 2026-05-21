@@ -57,6 +57,21 @@ export class PetWithOwner {
         throw new Error('ownerName is required');
       }
     }
+    if (this.id != null && typeof this.id !== 'number') {
+      throw new TypeError(`id must be a number, got ${typeof this.id}`);
+    }
+    if (this.name != null && typeof this.name !== 'string') {
+      throw new TypeError(`name must be a string, got ${typeof this.name}`);
+    }
+    if (this.photoUrls != null && !Array.isArray(this.photoUrls) && !(this.photoUrls instanceof Set)) {
+      throw new TypeError(`photoUrls must be an array, got ${typeof this.photoUrls}`);
+    }
+    if (this.ownerName != null && typeof this.ownerName !== 'string') {
+      throw new TypeError(`ownerName must be a string, got ${typeof this.ownerName}`);
+    }
+    if (this.ownerEmail != null && typeof this.ownerEmail !== 'string') {
+      throw new TypeError(`ownerEmail must be a string, got ${typeof this.ownerEmail}`);
+    }
     if (this.status != null) {
       const statusValues = Object.values(PetWithOwnerStatusEnum);
       if (!(statusValues as readonly unknown[]).includes(this.status)) {

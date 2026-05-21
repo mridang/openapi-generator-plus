@@ -15,6 +15,7 @@ export class PetPassport {
   pet?: Pet;
   /**
    * Base64-encoded primary thumbnail
+   * @example dGVzdC10aHVtYm5haWw=
    */
   @Expose({ name: 'thumbnail' })
   thumbnail?: string;
@@ -27,8 +28,20 @@ export class PetPassport {
   /** @example null */
   @Expose({ name: 'issuedAt' })
   issuedAt?: string;
+  /**
+   * Embedded chip data (OAS 3.1 contentEncoding form)
+   * @example null
+   */
+  @Expose({ name: 'biometricChip' })
+  biometricChip?: string;
 
   constructor(data?: Partial<PetPassport>) {
     Object.assign(this, data);
+    if (this.scans != null && !Array.isArray(this.scans) && !(this.scans instanceof Set)) {
+      throw new TypeError(`scans must be an array, got ${typeof this.scans}`);
+    }
+    if (this.biometricChip != null && typeof this.biometricChip !== 'string') {
+      throw new TypeError(`biometricChip must be a string, got ${typeof this.biometricChip}`);
+    }
   }
 }

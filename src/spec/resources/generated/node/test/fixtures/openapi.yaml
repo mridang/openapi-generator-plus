@@ -1,4 +1,4 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Swagger Petstore - OpenAPI 3.0
   description: A simplified Pet Store API for integration testing.
@@ -84,6 +84,15 @@ paths:
               - available
               - pending
               - sold
+          examples:
+            available_only:
+              summary: Available only
+              description: Show only pets currently in stock
+              value: available
+            sold_pets:
+              summary: Sold pets
+              description: Show pets that have been sold
+              value: sold
         - name: filter
           in: query
           description: Filter criteria as key-value pairs
@@ -991,6 +1000,15 @@ components:
         name:
           type: string
           example: Dogs
+          x-examples:
+            small_breed:
+              summary: Small breed
+              description: Toy or small breed dogs
+              value: Chihuahua
+            large_breed:
+              summary: Large breed
+              description: Working or guard breed dogs
+              value: GreatDane
 
     Tag:
       type: object
@@ -1184,6 +1202,16 @@ components:
         issuedAt:
           type: string
           format: date-time
+        # Gap BB — OAS 3.1 contentEncoding/contentMediaType.
+        # Normalized by the CONTENT_ENCODING rule into format: byte +
+        # contentMediaType appended to the docstring. Without the rule,
+        # generators that only understand OAS 3.0 would emit a plain
+        # String here with no base64 decoding.
+        biometricChip:
+          type: string
+          contentEncoding: base64
+          contentMediaType: application/octet-stream
+          description: Embedded chip data (OAS 3.1 contentEncoding form)
 
     Metadata:
       type: object
@@ -1193,3 +1221,16 @@ components:
           format: date-time
       additionalProperties:
         type: string
+
+    # Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 strict-mode. Deserializers must
+    # reject any JSON key not declared here (or inherited via allOf). Used by the
+    # generated-client extra-key-rejection test in each language.
+    StrictTag:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+      unevaluatedProperties: false

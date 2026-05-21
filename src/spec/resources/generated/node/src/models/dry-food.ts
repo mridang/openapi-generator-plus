@@ -22,5 +22,11 @@ export class DryFood {
         throw new Error('weightKg is required');
       }
     }
+    if (this.foodType != null && typeof this.foodType !== 'string') {
+      throw new TypeError(`foodType must be a string, got ${typeof this.foodType}`);
+    }
+    if (this.weightKg != null && typeof this.weightKg !== 'number') {
+      throw new TypeError(`weightKg must be a number, got ${typeof this.weightKg}`);
+    }
   }
 }

@@ -389,6 +389,8 @@ export class PetApi extends BaseApi {
   /**
    * Finds Pets by status
    * @param options.status Status values that need to be considered for filter (optional) (deprecated)
+   * @example Available only - available
+   * @example Sold pets - sold
    * @param options.filter Filter criteria as key-value pairs (optional)
    * @return Array<Pet>
    * @throws {ApiError} if fails to make API call

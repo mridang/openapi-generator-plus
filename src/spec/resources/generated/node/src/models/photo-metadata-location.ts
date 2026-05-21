@@ -17,5 +17,11 @@ export class PhotoMetadataLocation {
 
   constructor(data?: Partial<PhotoMetadataLocation>) {
     Object.assign(this, data);
+    if (this.lat != null && typeof this.lat !== 'number') {
+      throw new TypeError(`lat must be a number, got ${typeof this.lat}`);
+    }
+    if (this.lng != null && typeof this.lng !== 'number') {
+      throw new TypeError(`lng must be a number, got ${typeof this.lng}`);
+    }
   }
 }

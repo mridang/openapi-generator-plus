@@ -2,6 +2,12 @@
 
 Auto-generated TypeScript SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
+## Requirements
+
+- **Node.js**: 22 LTS or newer (`engines.node >= 22`)
+- **Package manager**: npm 10.x (bundled with Node 22) or pnpm
+- **TypeScript**: 5.7 or newer (installed as a devDependency)
+
 ## Install
 
 ```bash
@@ -12,6 +18,18 @@ npm install
 
 ```bash
 npm test
+```
+
+## Tooling
+
+The package ships with a formatter, linter and static analyser, all
+runnable via the matching npm scripts:
+
+```bash
+npm run format     # prettier (uses .prettierrc.json)
+npm run lint       # eslint 9 flat config (eslint.config.js)
+npm run typecheck  # tsc --noEmit (strict mode)
+npm run build      # tsc (emit to ./dist)
 ```
 
 ## Package

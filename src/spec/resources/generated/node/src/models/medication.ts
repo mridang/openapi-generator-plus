@@ -22,5 +22,11 @@ export class Medication {
         throw new Error('drugName is required');
       }
     }
+    if (this.drugName != null && typeof this.drugName !== 'string') {
+      throw new TypeError(`drugName must be a string, got ${typeof this.drugName}`);
+    }
+    if (this.dosage != null && typeof this.dosage !== 'string') {
+      throw new TypeError(`dosage must be a string, got ${typeof this.dosage}`);
+    }
   }
 }

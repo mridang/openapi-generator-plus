@@ -23,5 +23,17 @@ export class Photo {
 
   constructor(data?: Partial<Photo>) {
     Object.assign(this, data);
+    if (this.id != null && typeof this.id !== 'number') {
+      throw new TypeError(`id must be a number, got ${typeof this.id}`);
+    }
+    if (this.caption != null && typeof this.caption !== 'string') {
+      throw new TypeError(`caption must be a string, got ${typeof this.caption}`);
+    }
+    if (this.isPrimary != null && typeof this.isPrimary !== 'boolean') {
+      throw new TypeError(`isPrimary must be a boolean, got ${typeof this.isPrimary}`);
+    }
+    if (this.url != null && typeof this.url !== 'string') {
+      throw new TypeError(`url must be a string, got ${typeof this.url}`);
+    }
   }
 }

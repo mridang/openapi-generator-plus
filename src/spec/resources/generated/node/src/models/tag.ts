@@ -22,5 +22,11 @@ export class Tag {
 
   constructor(data?: Partial<Tag>) {
     Object.assign(this, data);
+    if (this.id != null && typeof this.id !== 'number') {
+      throw new TypeError(`id must be a number, got ${typeof this.id}`);
+    }
+    if (this.name != null && typeof this.name !== 'string') {
+      throw new TypeError(`name must be a string, got ${typeof this.name}`);
+    }
   }
 }

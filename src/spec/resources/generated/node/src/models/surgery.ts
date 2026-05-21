@@ -22,5 +22,14 @@ export class Surgery {
         throw new Error('procedureName is required');
       }
     }
+    if (this.procedureName != null && typeof this.procedureName !== 'string') {
+      throw new TypeError(`procedureName must be a string, got ${typeof this.procedureName}`);
+    }
+    if (this.durationMinutes != null && typeof this.durationMinutes !== 'number') {
+      throw new TypeError(`durationMinutes must be a number, got ${typeof this.durationMinutes}`);
+    }
+    if (this.durationMinutes != null && typeof this.durationMinutes !== 'number') {
+      throw new TypeError(`durationMinutes must be a number, got ${typeof this.durationMinutes}`);
+    }
   }
 }

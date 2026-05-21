@@ -28,5 +28,8 @@ export class SetPetAvatarRequest {
         throw new Error('mimeType is required');
       }
     }
+    if (this.mimeType != null && typeof this.mimeType !== 'string') {
+      throw new TypeError(`mimeType must be a string, got ${typeof this.mimeType}`);
+    }
   }
 }

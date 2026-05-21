@@ -25,5 +25,11 @@ export class PhotoMetadata {
 
   constructor(data?: Partial<PhotoMetadata>) {
     Object.assign(this, data);
+    if (this.caption != null && typeof this.caption !== 'string') {
+      throw new TypeError(`caption must be a string, got ${typeof this.caption}`);
+    }
+    if (this.isPrimary != null && typeof this.isPrimary !== 'boolean') {
+      throw new TypeError(`isPrimary must be a boolean, got ${typeof this.isPrimary}`);
+    }
   }
 }

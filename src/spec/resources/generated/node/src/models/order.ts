@@ -32,6 +32,21 @@ export class Order {
 
   constructor(data?: Partial<Order>) {
     Object.assign(this, data);
+    if (this.id != null && typeof this.id !== 'number') {
+      throw new TypeError(`id must be a number, got ${typeof this.id}`);
+    }
+    if (this.petId != null && typeof this.petId !== 'number') {
+      throw new TypeError(`petId must be a number, got ${typeof this.petId}`);
+    }
+    if (this.quantity != null && typeof this.quantity !== 'number') {
+      throw new TypeError(`quantity must be a number, got ${typeof this.quantity}`);
+    }
+    if (this.quantity != null && typeof this.quantity !== 'number') {
+      throw new TypeError(`quantity must be a number, got ${typeof this.quantity}`);
+    }
+    if (this.complete != null && typeof this.complete !== 'boolean') {
+      throw new TypeError(`complete must be a boolean, got ${typeof this.complete}`);
+    }
     if (this.status != null) {
       const statusValues = Object.values(OrderStatusEnum);
       if (!(statusValues as readonly unknown[]).includes(this.status)) {
