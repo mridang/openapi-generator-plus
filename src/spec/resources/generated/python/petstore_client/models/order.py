@@ -13,7 +13,6 @@ from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
 from typing_extensions import Self  # noqa: F401
 from enum import Enum
 
-
 class OrderStatusEnum(str, Enum):
     """Order - status"""
 
@@ -21,20 +20,17 @@ class OrderStatusEnum(str, Enum):
     APPROVED = 'approved'
     DELIVERED = 'delivered'
 
-
 class Order(BaseModel):
     """
     Order
     """
 
-    id: Optional[int] = Field(default=None, alias='id', examples=[10])
-    pet_id: Optional[int] = Field(default=None, alias='petId', examples=[198772])
-    quantity: Optional[int] = Field(default=None, alias='quantity', examples=[7])
+    id: Optional[int] = Field(default=None, alias='id', examples=[10], strict=True)
+    pet_id: Optional[int] = Field(default=None, alias='petId', examples=[198772], strict=True)
+    quantity: Optional[int] = Field(default=None, alias='quantity', examples=[7], strict=True, strict=True)
     ship_date: Optional[datetime] = Field(default=None, alias='shipDate')
-    status: Optional[OrderStatusEnum] = Field(
-        default=OrderStatusEnum.PLACED, alias='status', description='Order Status', examples=['approved']
-    )
-    complete: Optional[bool] = Field(default=None, alias='complete')
+    status: Optional[OrderStatusEnum] = Field(default=OrderStatusEnum.PLACED, alias='status', description="Order Status", examples=['approved'])
+    complete: Optional[bool] = Field(default=None, alias='complete', strict=True)
     additional_properties: Dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode='before')
@@ -82,7 +78,6 @@ class Order(BaseModel):
         validate_assignment=True,
         protected_namespaces=(),
     )
-
 
 from datetime import datetime
 

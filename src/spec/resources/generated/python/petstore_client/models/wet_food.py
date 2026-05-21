@@ -12,14 +12,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
 from typing_extensions import Self  # noqa: F401
 
-
 class WetFood(BaseModel):
     """
     WetFood
     """
 
-    food_type: str = Field(alias='foodType')
-    volume_ml: int = Field(alias='volumeMl')
+    food_type: str = Field(alias='foodType', strict=True)
+    volume_ml: int = Field(alias='volumeMl', strict=True, strict=True)
     additional_properties: Dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode='before')
@@ -67,6 +66,5 @@ class WetFood(BaseModel):
         validate_assignment=True,
         protected_namespaces=(),
     )
-
 
 WetFood.model_rebuild(raise_errors=False)

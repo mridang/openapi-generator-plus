@@ -30,8 +30,8 @@ class Pet(BaseModel):
         `Learn more about the Pet model <https://example.com/docs/pet>`_
     """
 
-    id: Optional[int] = Field(default=None, alias='id', examples=[10])
-    name: str = Field(alias='name', examples=['doggie'])
+    id: Optional[int] = Field(default=None, alias='id', examples=[10], strict=True)
+    name: str = Field(alias='name', examples=['doggie'], strict=True)
     category: Optional[Category] = Field(default=None, alias='category')
     photo_urls: Set[str] = Field(alias='photoUrls')
     tags: Optional[List[Tag]] = Field(default=None, alias='tags')

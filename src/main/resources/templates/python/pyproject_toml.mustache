@@ -3,7 +3,7 @@ name = "{{projectName}}"
 version = "{{packageVersion}}"
 description = "{{appDescription}}"
 license = "MIT"
-requires-python = ">=3.10"
+requires-python = ">=3.13"
 dependencies = [
     "urllib3>=2.1.0,<3.0.0",
     "python_dateutil>=2.8.2",
@@ -41,8 +41,10 @@ include = ["{{packageName}}*"]
 [tool.ruff]
 line-length = 120
 cache-dir = ".ruff"
+target-version = "py313"
 
 [tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RET", "N"]
 extend-select = ["B006", "B008", "RUF012"]
 
 [tool.ruff.lint.per-file-ignores]
@@ -54,6 +56,11 @@ quote-style = "single"
 [tool.mypy]
 strict = true
 cache_dir = ".mypy"
+python_version = "3.13"
+
+[tool.pyright]
+pythonVersion = "3.13"
+typeCheckingMode = "strict"
 
 [tool.pytest.ini_options]
 cache_dir = ".pytest"

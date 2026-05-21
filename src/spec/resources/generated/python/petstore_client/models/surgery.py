@@ -12,14 +12,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
 from typing_extensions import Self  # noqa: F401
 
-
 class Surgery(BaseModel):
     """
     Surgery
     """
 
-    procedure_name: str = Field(alias='procedureName')
-    duration_minutes: Optional[int] = Field(default=None, alias='durationMinutes')
+    procedure_name: str = Field(alias='procedureName', strict=True)
+    duration_minutes: Optional[int] = Field(default=None, alias='durationMinutes', strict=True, strict=True)
     additional_properties: Dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode='before')
@@ -67,6 +66,5 @@ class Surgery(BaseModel):
         validate_assignment=True,
         protected_namespaces=(),
     )
-
 
 Surgery.model_rebuild(raise_errors=False)

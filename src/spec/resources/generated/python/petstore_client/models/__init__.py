@@ -24,6 +24,7 @@ from petstore_client.models.set_pet_avatar_request import SetPetAvatarRequest as
 from petstore_client.models.set_pet_avatar_thumbnail_request import (
     SetPetAvatarThumbnailRequest as SetPetAvatarThumbnailRequest,
 )
+from petstore_client.models.strict_tag import StrictTag as StrictTag
 from petstore_client.models.surgery import Surgery as Surgery
 from petstore_client.models.tag import Tag as Tag
 from petstore_client.models.wet_food import WetFood as WetFood

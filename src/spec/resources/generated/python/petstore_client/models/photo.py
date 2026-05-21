@@ -18,10 +18,10 @@ class Photo(BaseModel):
     Photo
     """
 
-    id: Optional[int] = Field(default=None, alias='id')
-    caption: Optional[str] = Field(default=None, alias='caption')
-    is_primary: Optional[bool] = Field(default=None, alias='isPrimary')
-    url: Optional[str] = Field(default=None, alias='url')
+    id: Optional[int] = Field(default=None, alias='id', strict=True)
+    caption: Optional[str] = Field(default=None, alias='caption', strict=True)
+    is_primary: Optional[bool] = Field(default=None, alias='isPrimary', strict=True)
+    url: Optional[str] = Field(default=None, alias='url', strict=True)
     additional_properties: Dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode='before')

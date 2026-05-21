@@ -18,8 +18,8 @@ class PhotoMetadata(BaseModel):
     PhotoMetadata
     """
 
-    caption: Optional[str] = Field(default=None, alias='caption')
-    is_primary: Optional[bool] = Field(default=None, alias='isPrimary')
+    caption: Optional[str] = Field(default=None, alias='caption', strict=True)
+    is_primary: Optional[bool] = Field(default=None, alias='isPrimary', strict=True)
     taken_at: Optional[datetime] = Field(default=None, alias='takenAt')
     location: Optional[PhotoMetadataLocation] = Field(default=None, alias='location')
     additional_properties: Dict[str, Any] = Field(default_factory=dict)

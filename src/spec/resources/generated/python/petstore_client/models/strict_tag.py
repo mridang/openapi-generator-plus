@@ -13,12 +13,9 @@ from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
 from typing_extensions import Self  # noqa: F401
 
 
-class Tag(BaseModel):
+class StrictTag(BaseModel):
     """
-    Tags are deprecated, use categories instead
-
-    .. deprecated::
-        This schema is deprecated.
+    StrictTag
     """
 
     id: Optional[int] = Field(default=None, alias='id', strict=True)
@@ -59,6 +56,23 @@ class Tag(BaseModel):
         merged['additional_properties'] = extras
         return merged
 
+    # Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+    # Pydantic must reject any JSON key not declared as a field above.
+    @model_validator(mode='before')
+    @classmethod
+    def _reject_unknown_keys(cls, values: Any) -> Any:
+        if not isinstance(values, dict):
+            return values
+        known: Set[str] = set()
+        for fname, finfo in cls.model_fields.items():
+            known.add(fname)
+            if finfo.alias is not None:
+                known.add(finfo.alias)
+        for key in values.keys():
+            if key not in known:
+                raise ValueError("Unknown property '" + str(key) + "' on StrictTag (unevaluatedProperties:false)")
+        return values
+
     # Pydantic default mode (lenient) is kept here. strict=True was tried
     # for Gap S but it rejects legitimate JSON-to-Python coercions like
     # list-to-Set (JSON has no Set type) and string-to-Enum (JSON encodes
@@ -72,4 +86,4 @@ class Tag(BaseModel):
     )
 
 
-Tag.model_rebuild(raise_errors=False)
+StrictTag.model_rebuild(raise_errors=False)

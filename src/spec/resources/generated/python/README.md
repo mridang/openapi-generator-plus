@@ -2,6 +2,35 @@
 
 Auto-generated Python SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
+## Requirements
+
+- Python 3.13+
+- `pip`
+
+Install runtime and development dependencies:
+
+```bash
+pip install -e . --group dev
+```
+
+## Format
+
+```bash
+ruff format .
+```
+
+## Lint
+
+```bash
+ruff check .
+```
+
+## Type-check
+
+```bash
+mypy .
+```
+
 ## Install
 
 ```bash

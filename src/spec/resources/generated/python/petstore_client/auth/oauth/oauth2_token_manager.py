@@ -97,6 +97,16 @@ class OAuth2TokenManager:
                 raise RuntimeError('Token fetch did not return an access token')
             return self._access_token
 
+    def invalidate_access_token(self) -> None:
+        """Invalidate the cached access token.
+
+        The next call to :meth:`get_access_token` will fetch a fresh token
+        from the token endpoint. Intended for tests and recovery flows.
+        """
+        with self._lock:
+            self._access_token = None
+            self._token_expiry = None
+
     def set_access_token(self, token: str) -> None:
         """Manually set an access token, bypassing the token endpoint.
 

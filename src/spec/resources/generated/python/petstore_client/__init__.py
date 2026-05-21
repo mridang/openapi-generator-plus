@@ -36,6 +36,7 @@ __all__ = [
     'PhotoMetadataLocation',
     'SetPetAvatarRequest',
     'SetPetAvatarThumbnailRequest',
+    'StrictTag',
     'Surgery',
     'Tag',
     'WetFood',
@@ -104,6 +105,9 @@ from petstore_client.models.set_pet_avatar_request import (
 )
 from petstore_client.models.set_pet_avatar_thumbnail_request import (
     SetPetAvatarThumbnailRequest as SetPetAvatarThumbnailRequest,
+)
+from petstore_client.models.strict_tag import (
+    StrictTag as StrictTag,
 )
 from petstore_client.models.surgery import (
     Surgery as Surgery,

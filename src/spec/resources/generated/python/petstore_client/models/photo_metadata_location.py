@@ -18,8 +18,8 @@ class PhotoMetadataLocation(BaseModel):
     PhotoMetadataLocation
     """
 
-    lat: Optional[float] = Field(default=None, alias='lat')
-    lng: Optional[float] = Field(default=None, alias='lng')
+    lat: Optional[float] = Field(default=None, alias='lat', strict=True)
+    lng: Optional[float] = Field(default=None, alias='lng', strict=True)
     additional_properties: Dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode='before')

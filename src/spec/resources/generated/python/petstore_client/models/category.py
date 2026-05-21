@@ -18,8 +18,14 @@ class Category(BaseModel):
     Category
     """
 
-    id: Optional[int] = Field(default=None, alias='id', examples=[1])
-    name: Optional[str] = Field(default=None, alias='name', examples=['Dogs'])
+    id: Optional[int] = Field(default=None, alias='id', examples=[1], strict=True)
+    # Small breed
+    # Toy or small breed dogs
+    # >>> Chihuahua
+    # Large breed
+    # Working or guard breed dogs
+    # >>> GreatDane
+    name: Optional[str] = Field(default=None, alias='name', examples=['Dogs'], strict=True)
     additional_properties: Dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode='before')

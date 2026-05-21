@@ -136,6 +136,42 @@ class TestOAuth2TokenManager:
 
         assert token == 'manual-token'
 
+    def test_invalidate_access_token_forces_refetch(self) -> None:
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.side_effect = [
+            ApiResponse(
+                status_code=200,
+                body=json.dumps(
+                    {
+                        'access_token': 'tok1',
+                        'expires_in': 3600,
+                    }
+                ),
+                headers={'content-type': 'application/json'},
+            ),
+            ApiResponse(
+                status_code=200,
+                body=json.dumps(
+                    {
+                        'access_token': 'tok2',
+                        'expires_in': 3600,
+                    }
+                ),
+                headers={'content-type': 'application/json'},
+            ),
+        ]
+        manager.set_api_client(mock_client)
+
+        params = {'grant_type': 'client_credentials'}
+        first = manager.get_access_token('https://auth.example.com/token', params)
+        manager.invalidate_access_token()
+        second = manager.get_access_token('https://auth.example.com/token', params)
+
+        assert first == 'tok1'
+        assert second == 'tok2'
+        assert mock_client.send_request.call_count == 2
+
     def test_throws_when_no_api_client_injected(self) -> None:
         manager = OAuth2TokenManager()
 

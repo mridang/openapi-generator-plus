@@ -18,8 +18,8 @@ class Medication(BaseModel):
     Medication
     """
 
-    drug_name: str = Field(alias='drugName')
-    dosage: Optional[str] = Field(default=None, alias='dosage')
+    drug_name: str = Field(alias='drugName', strict=True)
+    dosage: Optional[str] = Field(default=None, alias='dosage', strict=True)
     additional_properties: Dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode='before')
