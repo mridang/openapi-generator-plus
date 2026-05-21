@@ -27,6 +27,7 @@ public class PetPassport : IEquatable<PetPassport>
     /// <summary>
     /// Base64-encoded primary thumbnail
     /// </summary>
+    /// <example>dGVzdC10aHVtYm5haWw=</example>
     [JsonPropertyName("thumbnail")]
     public byte[]? Thumbnail { get; set; }
 
@@ -41,6 +42,13 @@ public class PetPassport : IEquatable<PetPassport>
     [JsonPropertyName("issuedAt")]
     public DateTimeOffset? IssuedAt { get; set; }
 
+    /// <summary>
+    /// Embedded chip data (OAS 3.1 contentEncoding form)
+    /// </summary>
+    /// <example>null</example>
+    [JsonPropertyName("biometricChip")]
+    public string? BiometricChip { get; set; }
+
     /// <summary>Value-equality based on all declared fields.</summary>
     public bool Equals(PetPassport? other)
     {
@@ -54,6 +62,10 @@ public class PetPassport : IEquatable<PetPassport>
                     && EqualityComparer<DateTimeOffset?>.Default.Equals(
                         this.IssuedAt,
                         other.IssuedAt
+                    )
+                    && EqualityComparer<string?>.Default.Equals(
+                        this.BiometricChip,
+                        other.BiometricChip
                     )
                 )
             );
@@ -71,6 +83,7 @@ public class PetPassport : IEquatable<PetPassport>
         hash.Add(this.Thumbnail);
         hash.Add(this.Scans);
         hash.Add(this.IssuedAt);
+        hash.Add(this.BiometricChip);
         return hash.ToHashCode();
     }
 }

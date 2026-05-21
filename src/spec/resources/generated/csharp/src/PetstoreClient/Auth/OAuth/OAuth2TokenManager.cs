@@ -147,6 +147,20 @@ public sealed class OAuth2TokenManager
     }
 
     /// <summary>
+    /// Invalidates the cached access token so that the next call to
+    /// <see cref="GetAccessTokenAsync"/> fetches a fresh token from the token
+    /// endpoint. Intended for tests and recovery flows.
+    /// </summary>
+    public void InvalidateAccessToken()
+    {
+        lock (_stateLock)
+        {
+            _accessToken = null;
+            _tokenExpiry = null;
+        }
+    }
+
+    /// <summary>
     /// Manually sets an access token, bypassing the token endpoint.
     /// </summary>
     /// <param name="token">The access token to use.</param>

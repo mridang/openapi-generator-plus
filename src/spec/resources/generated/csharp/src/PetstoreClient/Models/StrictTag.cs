@@ -18,20 +18,39 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class Category : IEquatable<Category>
+public class StrictTag : IEquatable<StrictTag>
 {
-    /// <example>1</example>
+    /// <example>null</example>
     [JsonPropertyName("id")]
     public long? Id { get; set; }
 
-    /// <example>Dogs</example>
-    /// <example>Small breed: Chihuahua</example>
-    /// <example>Large breed: GreatDane</example>
+    /// <example>null</example>
     [JsonPropertyName("name")]
     public string? Name { get; set; }
 
+    // Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+    private Dictionary<string, object>? _unknownProperties;
+
+    [JsonExtensionData]
+    public Dictionary<string, object>? UnknownProperties
+    {
+        get => _unknownProperties;
+        set
+        {
+            if (value is not null && value.Count > 0)
+            {
+                throw new ArgumentException(
+                    "Unknown property '"
+                        + value.Keys.First()
+                        + "' on StrictTag (unevaluatedProperties:false)"
+                );
+            }
+            _unknownProperties = value;
+        }
+    }
+
     /// <summary>Value-equality based on all declared fields.</summary>
-    public bool Equals(Category? other)
+    public bool Equals(StrictTag? other)
     {
         return other is not null
             && (
@@ -45,7 +64,7 @@ public class Category : IEquatable<Category>
 
     public override bool Equals(object? obj)
     {
-        return Equals(obj as Category);
+        return Equals(obj as StrictTag);
     }
 
     public override int GetHashCode()

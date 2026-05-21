@@ -132,6 +132,27 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
+    public async Task InvalidateAccessTokenForcesRefetch()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
+        var tokenUrl = new Uri("https://auth.example.com/token");
+
+        string first = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        manager.InvalidateAccessToken();
+        string second = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+
+        Assert.Equal("tok1", first);
+        Assert.Equal("tok2", second);
+    }
+
+    [Fact]
     public async Task ThrowsWhenNoApiClientInjected()
     {
         var manager = new OAuth2TokenManager();

@@ -2,6 +2,18 @@
 
 Auto-generated C# SDK client for the {{appName}} API.
 
+## Requirements
+
+- **.NET 10** (Standard Term Support) runtime / SDK
+- **C# 13** language version (`LangVersion=13`)
+- **dotnet CLI 10.x** — install from <https://dotnet.microsoft.com/download/dotnet/10.0>
+
+Tooling baked into the project:
+
+- **Formatter:** `dotnet format` (built into the SDK) and `dotnet csharpier`
+- **Linter / style:** [`StyleCop.Analyzers`](https://github.com/DotNetAnalyzers/StyleCopAnalyzers) (NuGet, included as a `PrivateAssets=all` analyzer reference)
+- **Static analysis:** [`Microsoft.CodeAnalysis.NetAnalyzers`](https://learn.microsoft.com/dotnet/fundamentals/code-analysis/overview) (Roslyn analyzers), with `EnableNETAnalyzers=true` and `AnalysisLevel=latest-all`
+
 ## Build
 
 ```bash
@@ -12,6 +24,27 @@ dotnet build
 
 ```bash
 dotnet test
+```
+
+## Format / Lint / Analyze
+
+```bash
+# Apply formatting (CSharpier + dotnet format)
+make format
+# or directly:
+dotnet csharpier .
+dotnet format --severity warn
+
+# Verify formatting without writing changes
+make lint
+# or directly:
+dotnet csharpier --check .
+dotnet format --verify-no-changes --severity warn
+
+# Run Roslyn / StyleCop analyzers with warnings as errors
+make analyze
+# or directly:
+dotnet build --no-restore /warnaserror
 ```
 
 ## Package
