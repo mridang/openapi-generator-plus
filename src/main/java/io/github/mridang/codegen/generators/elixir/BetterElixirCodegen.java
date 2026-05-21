@@ -279,6 +279,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("mix_exs.mustache", "", "mix.exs"),
             new SupportingFileSpec("coveralls_json.mustache", "", "coveralls.json"),
             new SupportingFileSpec("formatter_exs.mustache", "", ".formatter.exs"),
+            new SupportingFileSpec("credo_exs.mustache", "", ".credo.exs"),
             new SupportingFileSpec("makefile.mustache", "", "Makefile"),
             new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
             new SupportingFileSpec("gitignore.mustache", "", ".gitignore")

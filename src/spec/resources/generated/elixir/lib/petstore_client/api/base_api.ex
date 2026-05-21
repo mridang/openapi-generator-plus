@@ -85,7 +85,12 @@ defmodule PetstoreClient.Api.BaseApi do
         return_type,
         auth \\ nil
       ) do
-    method = if is_atom(method), do: method |> Atom.to_string() |> String.downcase() |> String.to_atom(), else: method
+    method =
+      if is_atom(method) do
+        method |> Atom.to_string() |> String.downcase() |> String.to_atom()
+      else
+        method
+      end
 
     url =
       if String.starts_with?(path, "http://") or String.starts_with?(path, "https://") do
@@ -115,14 +120,33 @@ defmodule PetstoreClient.Api.BaseApi do
       end
 
     query_string = build_query_string(query_params)
-    url = if query_string != "", do: "#{url}?#{query_string}", else: url
+
+    url =
+      if query_string != "" do
+        "#{url}?#{query_string}"
+      else
+        url
+      end
 
     is_multipart = content_type == "multipart/form-data"
     selected = PetstoreClient.HeaderSelector.select_headers(accepts, content_type || "", is_multipart)
 
     headers = %{}
-    headers = if selected["Accept"], do: Map.put(headers, "Accept", selected["Accept"]), else: headers
-    headers = if selected["Content-Type"], do: Map.put(headers, "Content-Type", selected["Content-Type"]), else: headers
+
+    headers =
+      if selected["Accept"] do
+        Map.put(headers, "Accept", selected["Accept"])
+      else
+        headers
+      end
+
+    headers =
+      if selected["Content-Type"] do
+        Map.put(headers, "Content-Type", selected["Content-Type"])
+      else
+        headers
+      end
+
     headers = Map.merge(headers, state.config.default_headers)
     headers = Map.merge(headers, header_params)
 
@@ -179,7 +203,13 @@ defmodule PetstoreClient.Api.BaseApi do
 
     headers = PetstoreClient.TraceContextUtil.inject_trace_context(headers)
     serialized_body = serialize_body(body, content_type)
-    headers = if is_nil(serialized_body), do: Map.delete(headers, "Content-Type"), else: headers
+
+    headers =
+      if is_nil(serialized_body) do
+        Map.delete(headers, "Content-Type")
+      else
+        headers
+      end
 
     result =
       try do
@@ -322,17 +352,31 @@ defmodule PetstoreClient.Api.BaseApi do
     |> Enum.join("&")
   end
 
-  defp serialize_body(nil, _content_type), do: nil
+  defp serialize_body(nil, _content_type) do
+    nil
+  end
 
-  defp serialize_body(body, "multipart/form-data"), do: body
+  defp serialize_body(body, "multipart/form-data") do
+    body
+  end
 
-  defp serialize_body(body, "application/octet-stream"), do: body
+  defp serialize_body(body, "application/octet-stream") do
+    body
+  end
 
-  defp serialize_body(body, "image/" <> _), do: body
+  defp serialize_body(body, "image/" <> _) do
+    body
+  end
 
-  defp serialize_body(body, "text/plain"), do: to_string(body)
+  defp serialize_body(body, "text/plain") do
+    to_string(body)
+  end
 
-  defp serialize_body(body, "application/x-www-form-urlencoded"), do: URI.encode_query(body)
+  defp serialize_body(body, "application/x-www-form-urlencoded") do
+    URI.encode_query(body)
+  end
 
-  defp serialize_body(body, _content_type), do: PetstoreClient.ObjectSerializer.serialize(body)
+  defp serialize_body(body, _content_type) do
+    PetstoreClient.ObjectSerializer.serialize(body)
+  end
 end

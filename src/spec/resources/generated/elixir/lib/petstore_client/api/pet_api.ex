@@ -41,9 +41,17 @@ end
 
 defmodule PetstoreClient.Api.GetMultiServerPetInfoServer.Region do
   @moduledoc "Valid values for region in GetMultiServerPetInfoServer."
-  def us, do: "us"
-  def eu, do: "eu"
-  def ap, do: "ap"
+  def us do
+    "us"
+  end
+
+  def eu do
+    "eu"
+  end
+
+  def ap do
+    "ap"
+  end
 end
 
 defmodule PetstoreClient.Api.GetMultiServerPetInfoServer.Regional do
@@ -89,14 +97,24 @@ end
 
 defmodule PetstoreClient.Api.GetStagingPetInfoServer.Environment do
   @moduledoc "Valid values for environment in GetStagingPetInfoServer."
-  def staging, do: "staging"
-  def sandbox, do: "sandbox"
+  def staging do
+    "staging"
+  end
+
+  def sandbox do
+    "sandbox"
+  end
 end
 
 defmodule PetstoreClient.Api.GetStagingPetInfoServer.Version do
   @moduledoc "Valid values for version in GetStagingPetInfoServer."
-  def v2, do: "v2"
-  def v3, do: "v3"
+  def v2 do
+    "v2"
+  end
+
+  def v3 do
+    "v3"
+  end
 end
 
 defmodule PetstoreClient.Api.GetStagingPetInfoServer.StagingServer do
@@ -207,9 +225,11 @@ defmodule PetstoreClient.Api.PetApi do
       if server do
         server_url = PetstoreClient.ServerConfiguration.url(server)
 
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://") do
+          server_url <> path
+        else
+          path
+        end
       else
         path
       end
@@ -301,9 +321,11 @@ defmodule PetstoreClient.Api.PetApi do
       if server do
         server_url = PetstoreClient.ServerConfiguration.url(server)
 
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://") do
+          server_url <> path
+        else
+          path
+        end
       else
         path
       end
@@ -397,9 +419,11 @@ defmodule PetstoreClient.Api.PetApi do
       if server do
         server_url = PetstoreClient.ServerConfiguration.url(server)
 
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://") do
+          server_url <> path
+        else
+          path
+        end
       else
         path
       end
@@ -487,9 +511,11 @@ defmodule PetstoreClient.Api.PetApi do
       if server do
         server_url = PetstoreClient.ServerConfiguration.url(server)
 
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://") do
+          server_url <> path
+        else
+          path
+        end
       else
         path
       end
@@ -509,7 +535,11 @@ defmodule PetstoreClient.Api.PetApi do
       end
 
     header_params =
-      if cookie_parts != [], do: Map.put(header_params, "Cookie", Enum.join(cookie_parts, "; ")), else: header_params
+      if cookie_parts != [] do
+        Map.put(header_params, "Cookie", Enum.join(cookie_parts, "; "))
+      else
+        header_params
+      end
 
     request_body = nil
 
@@ -617,9 +647,11 @@ defmodule PetstoreClient.Api.PetApi do
       if server do
         server_url = PetstoreClient.ServerConfiguration.url(server)
 
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://") do
+          server_url <> path
+        else
+          path
+        end
       else
         path
       end
@@ -695,9 +727,11 @@ defmodule PetstoreClient.Api.PetApi do
       if server do
         server_url = PetstoreClient.ServerConfiguration.url(server)
 
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://") do
+          server_url <> path
+        else
+          path
+        end
       else
         path
       end
@@ -816,9 +850,11 @@ defmodule PetstoreClient.Api.PetApi do
       if server do
         server_url = PetstoreClient.ServerConfiguration.url(server)
 
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://") do
+          server_url <> path
+        else
+          path
+        end
       else
         path
       end
@@ -906,9 +942,11 @@ defmodule PetstoreClient.Api.PetApi do
       if server do
         server_url = PetstoreClient.ServerConfiguration.url(server)
 
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://") do
+          server_url <> path
+        else
+          path
+        end
       else
         path
       end
@@ -998,9 +1036,11 @@ defmodule PetstoreClient.Api.PetApi do
       if server do
         server_url = PetstoreClient.ServerConfiguration.url(server)
 
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://") do
+          server_url <> path
+        else
+          path
+        end
       else
         path
       end
@@ -1090,9 +1130,11 @@ defmodule PetstoreClient.Api.PetApi do
       if server do
         server_url = PetstoreClient.ServerConfiguration.url(server)
 
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://") do
+          server_url <> path
+        else
+          path
+        end
       else
         path
       end
@@ -1185,9 +1227,11 @@ defmodule PetstoreClient.Api.PetApi do
       if server do
         server_url = PetstoreClient.ServerConfiguration.url(server)
 
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://") do
+          server_url <> path
+        else
+          path
+        end
       else
         path
       end
@@ -1277,9 +1321,11 @@ defmodule PetstoreClient.Api.PetApi do
       if server do
         server_url = PetstoreClient.ServerConfiguration.url(server)
 
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://") do
+          server_url <> path
+        else
+          path
+        end
       else
         path
       end
@@ -1384,9 +1430,11 @@ defmodule PetstoreClient.Api.PetApi do
       if server do
         server_url = PetstoreClient.ServerConfiguration.url(server)
 
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://") do
+          server_url <> path
+        else
+          path
+        end
       else
         path
       end
@@ -1491,9 +1539,11 @@ defmodule PetstoreClient.Api.PetApi do
       if server do
         server_url = PetstoreClient.ServerConfiguration.url(server)
 
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://") do
+          server_url <> path
+        else
+          path
+        end
       else
         path
       end
@@ -1643,9 +1693,11 @@ defmodule PetstoreClient.Api.PetApi do
       if server do
         server_url = PetstoreClient.ServerConfiguration.url(server)
 
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://") do
+          server_url <> path
+        else
+          path
+        end
       else
         path
       end
@@ -1741,9 +1793,11 @@ defmodule PetstoreClient.Api.PetApi do
       if server do
         server_url = PetstoreClient.ServerConfiguration.url(server)
 
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://") do
+          server_url <> path
+        else
+          path
+        end
       else
         path
       end
@@ -1839,9 +1893,11 @@ defmodule PetstoreClient.Api.PetApi do
       if server do
         server_url = PetstoreClient.ServerConfiguration.url(server)
 
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://") do
+          server_url <> path
+        else
+          path
+        end
       else
         path
       end
@@ -1935,9 +1991,11 @@ defmodule PetstoreClient.Api.PetApi do
       if server do
         server_url = PetstoreClient.ServerConfiguration.url(server)
 
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://") do
+          server_url <> path
+        else
+          path
+        end
       else
         path
       end
@@ -2029,9 +2087,11 @@ defmodule PetstoreClient.Api.PetApi do
       if server do
         server_url = PetstoreClient.ServerConfiguration.url(server)
 
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://") do
+          server_url <> path
+        else
+          path
+        end
       else
         path
       end
@@ -2124,9 +2184,11 @@ defmodule PetstoreClient.Api.PetApi do
       if server do
         server_url = PetstoreClient.ServerConfiguration.url(server)
 
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://") do
+          server_url <> path
+        else
+          path
+        end
       else
         path
       end
@@ -2137,14 +2199,18 @@ defmodule PetstoreClient.Api.PetApi do
     request_body = Map.put(request_body, "file", options.file)
 
     request_body =
-      if not is_nil(options) and not is_nil(options.document_type),
-        do: Map.put(request_body, "documentType", options.document_type),
-        else: request_body
+      if not is_nil(options) and not is_nil(options.document_type) do
+        Map.put(request_body, "documentType", options.document_type)
+      else
+        request_body
+      end
 
     request_body =
-      if not is_nil(options) and not is_nil(options.notes),
-        do: Map.put(request_body, "notes", options.notes),
-        else: request_body
+      if not is_nil(options) and not is_nil(options.notes) do
+        Map.put(request_body, "notes", options.notes)
+      else
+        request_body
+      end
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
       api,

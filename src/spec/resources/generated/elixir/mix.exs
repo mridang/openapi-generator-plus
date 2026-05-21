@@ -5,7 +5,7 @@ defmodule PetstoreClient.MixProject do
     [
       app: :petstore_client,
       version: "1.0.0",
-      elixir: "~> 1.17",
+      elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       package: package(),
@@ -15,6 +15,18 @@ defmodule PetstoreClient.MixProject do
         "coveralls.detail": :test,
         "coveralls.post": :test,
         "coveralls.html": :test
+      ],
+      dialyzer: [
+        plt_add_apps: [:mix, :ex_unit],
+        plt_core_path: "_build/#{Mix.env()}",
+        flags: [
+          :error_handling,
+          :extra_return,
+          :missing_return,
+          :underspecs,
+          :unknown,
+          :unmatched_returns
+        ]
       ]
     ]
   end
@@ -39,6 +51,8 @@ defmodule PetstoreClient.MixProject do
       {:mime, "~> 2.0"},
       {:excoveralls, "~> 0.18", only: :test},
       {:junit_formatter, "~> 3.4", only: :test},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:testcontainers, "~> 1.12", only: :test}
     ]
   end

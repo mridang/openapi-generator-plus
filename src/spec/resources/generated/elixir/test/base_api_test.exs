@@ -7,16 +7,24 @@ defmodule PetstoreClient.Api.BaseApiTest do
     defstruct [:host_url, :headers, :query, :cookies]
 
     @impl true
-    def host(%__MODULE__{} = self), do: self.host_url
+    def host(%__MODULE__{} = self) do
+      self.host_url
+    end
 
     @impl true
-    def auth_headers(%__MODULE__{} = self), do: self.headers || %{}
+    def auth_headers(%__MODULE__{} = self) do
+      self.headers || %{}
+    end
 
     @impl true
-    def query_params(%__MODULE__{} = self), do: self.query || %{}
+    def query_params(%__MODULE__{} = self) do
+      self.query || %{}
+    end
 
     @impl true
-    def cookie_params(%__MODULE__{} = self), do: self.cookies || %{}
+    def cookie_params(%__MODULE__{} = self) do
+      self.cookies || %{}
+    end
   end
 
   setup do

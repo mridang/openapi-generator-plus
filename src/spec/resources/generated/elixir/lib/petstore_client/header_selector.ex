@@ -39,7 +39,13 @@ defmodule PetstoreClient.HeaderSelector do
 
     headers =
       if not is_multipart do
-        ct = if is_nil(content_type) or content_type == "", do: "application/json", else: content_type
+        ct =
+          if is_nil(content_type) or content_type == "" do
+            "application/json"
+          else
+            content_type
+          end
+
         Map.put(headers, "Content-Type", ct)
       else
         headers
@@ -52,14 +58,21 @@ defmodule PetstoreClient.HeaderSelector do
   Detects whether a string contains a valid JSON MIME type.
   """
   @spec json_mime?(String.t() | nil) :: boolean()
-  def json_mime?(nil), do: false
-  def json_mime?(""), do: false
+  def json_mime?(nil) do
+    false
+  end
+
+  def json_mime?("") do
+    false
+  end
 
   def json_mime?(search_string) do
     Regex.match?(@json_mime_pattern, search_string)
   end
 
-  defp select_accept_header(nil), do: nil
+  defp select_accept_header(nil) do
+    nil
+  end
 
   defp select_accept_header(accept) do
     filtered = Enum.filter(accept, fn s -> not is_nil(s) and s != "" end)
@@ -124,7 +137,11 @@ defmodule PetstoreClient.HeaderSelector do
   end
 
   defp ensure_float_format(str) do
-    if String.contains?(str, "."), do: str, else: str <> ".0"
+    if String.contains?(str, ".") do
+      str
+    else
+      str <> ".0"
+    end
   end
 
   defp adjust_weight(headers, current_weight, has_more_than_28) do
@@ -153,7 +170,9 @@ defmodule PetstoreClient.HeaderSelector do
     {accept_headers, get_next_weight(weight, has_more_than_28)}
   end
 
-  defp build_accept_header(header, 1000), do: header
+  defp build_accept_header(header, 1000) do
+    header
+  end
 
   defp build_accept_header(header, weight) do
     clean_header = String.replace(header, ~r/[;\s]+$/, "")
@@ -173,9 +192,13 @@ defmodule PetstoreClient.HeaderSelector do
   For more than 28 headers, falls back to 1-by-1 decrement.
   """
   @spec get_next_weight(integer(), boolean()) :: integer()
-  def get_next_weight(current_weight, _has_more_than_28) when current_weight <= 1, do: 1
+  def get_next_weight(current_weight, _has_more_than_28) when current_weight <= 1 do
+    1
+  end
 
-  def get_next_weight(current_weight, true), do: current_weight - 1
+  def get_next_weight(current_weight, true) do
+    current_weight - 1
+  end
 
   def get_next_weight(current_weight, false) do
     step = :math.pow(10, :math.log10(current_weight - 1) |> floor()) |> trunc()

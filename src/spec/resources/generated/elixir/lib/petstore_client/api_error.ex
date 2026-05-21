@@ -56,9 +56,28 @@ defmodule PetstoreClient.ApiError do
   @impl true
   def message(%__MODULE__{} = error) do
     msg = error.message || "Error message: the server returns an error"
-    msg = if error.status_code, do: msg <> "\nHTTP status code: #{error.status_code}", else: msg
-    msg = if error.response_headers, do: msg <> "\nResponse headers: #{inspect(error.response_headers)}", else: msg
-    msg = if error.response_body, do: msg <> "\nResponse body: #{error.response_body}", else: msg
+
+    msg =
+      if error.status_code do
+        msg <> "\nHTTP status code: #{error.status_code}"
+      else
+        msg
+      end
+
+    msg =
+      if error.response_headers do
+        msg <> "\nResponse headers: #{inspect(error.response_headers)}"
+      else
+        msg
+      end
+
+    msg =
+      if error.response_body do
+        msg <> "\nResponse body: #{error.response_body}"
+      else
+        msg
+      end
+
     msg
   end
 

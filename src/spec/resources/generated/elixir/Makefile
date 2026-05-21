@@ -1,4 +1,4 @@
-.PHONY: install build test lint format docs clean
+.PHONY: install build test lint format credo dialyzer docs clean
 
 install:
 	mix deps.get
@@ -12,6 +12,13 @@ test: install
 
 lint: install
 	mix format --check-formatted
+	mix credo --strict
+
+credo: install
+	mix credo --strict
+
+dialyzer: install
+	mix dialyzer
 
 format: install
 	mix format

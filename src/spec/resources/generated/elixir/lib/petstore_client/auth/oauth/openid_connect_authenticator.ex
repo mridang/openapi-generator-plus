@@ -101,7 +101,9 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
   end
 
   @impl PetstoreClient.Auth.Authenticator
-  def host(%__MODULE__{} = self), do: self.host
+  def host(%__MODULE__{} = self) do
+    self.host
+  end
 
   @impl PetstoreClient.Auth.Authenticator
   def auth_headers(%__MODULE__{} = self) do
@@ -124,7 +126,9 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
             "on HttpAwareAuthenticator before making API requests."
   end
 
-  defp resolve_delegate(%__MODULE__{} = self), do: fetch_discovery(self)
+  defp resolve_delegate(%__MODULE__{} = self) do
+    fetch_discovery(self)
+  end
 
   defp fetch_discovery(%__MODULE__{api_client: nil}) do
     raise "ApiClient has not been injected. " <>
@@ -166,7 +170,11 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
   defp parse_max_age(headers) when is_map(headers) do
     cache_control =
       Enum.find_value(headers, nil, fn {k, v} ->
-        if is_binary(k) and String.downcase(k) == "cache-control", do: v, else: nil
+        if is_binary(k) and String.downcase(k) == "cache-control" do
+          v
+        else
+          nil
+        end
       end)
 
     case cache_control do
@@ -184,5 +192,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
     end
   end
 
-  defp parse_max_age(_), do: @default_discovery_max_age_seconds
+  defp parse_max_age(_) do
+    @default_discovery_max_age_seconds
+  end
 end

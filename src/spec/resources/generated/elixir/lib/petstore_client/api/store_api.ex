@@ -105,9 +105,11 @@ defmodule PetstoreClient.Api.StoreApi do
       if server do
         server_url = PetstoreClient.ServerConfiguration.url(server)
 
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://") do
+          server_url <> path
+        else
+          path
+        end
       else
         path
       end
@@ -178,9 +180,11 @@ defmodule PetstoreClient.Api.StoreApi do
       if server do
         server_url = PetstoreClient.ServerConfiguration.url(server)
 
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://") do
+          server_url <> path
+        else
+          path
+        end
       else
         path
       end
@@ -268,9 +272,11 @@ defmodule PetstoreClient.Api.StoreApi do
       if server do
         server_url = PetstoreClient.ServerConfiguration.url(server)
 
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://") do
+          server_url <> path
+        else
+          path
+        end
       else
         path
       end
@@ -342,9 +348,11 @@ defmodule PetstoreClient.Api.StoreApi do
       if server do
         server_url = PetstoreClient.ServerConfiguration.url(server)
 
-        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-          do: server_url <> path,
-          else: path
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://") do
+          server_url <> path
+        else
+          path
+        end
       else
         path
       end

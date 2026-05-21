@@ -172,7 +172,9 @@ defmodule PetstoreClient.DefaultApiClient do
     end
   end
 
-  def decode_text_body(body, _content_type), do: body
+  def decode_text_body(body, _content_type) do
+    body
+  end
 
   defp parse_charset(content_type) when is_binary(content_type) do
     content_type
@@ -197,20 +199,57 @@ defmodule PetstoreClient.DefaultApiClient do
     end)
   end
 
-  defp parse_charset(_), do: nil
+  defp parse_charset(_) do
+    nil
+  end
 
-  defp charset_to_atom("iso-8859-1"), do: :latin1
-  defp charset_to_atom("latin1"), do: :latin1
-  defp charset_to_atom("latin-1"), do: :latin1
-  defp charset_to_atom("utf-16"), do: :utf16
-  defp charset_to_atom("utf16"), do: :utf16
-  defp charset_to_atom("utf-16le"), do: {:utf16, :little}
-  defp charset_to_atom("utf-16be"), do: {:utf16, :big}
-  defp charset_to_atom("utf-32"), do: :utf32
-  defp charset_to_atom("utf32"), do: :utf32
-  defp charset_to_atom("utf-32le"), do: {:utf32, :little}
-  defp charset_to_atom("utf-32be"), do: {:utf32, :big}
-  defp charset_to_atom(_), do: nil
+  defp charset_to_atom("iso-8859-1") do
+    :latin1
+  end
+
+  defp charset_to_atom("latin1") do
+    :latin1
+  end
+
+  defp charset_to_atom("latin-1") do
+    :latin1
+  end
+
+  defp charset_to_atom("utf-16") do
+    :utf16
+  end
+
+  defp charset_to_atom("utf16") do
+    :utf16
+  end
+
+  defp charset_to_atom("utf-16le") do
+    {:utf16, :little}
+  end
+
+  defp charset_to_atom("utf-16be") do
+    {:utf16, :big}
+  end
+
+  defp charset_to_atom("utf-32") do
+    :utf32
+  end
+
+  defp charset_to_atom("utf32") do
+    :utf32
+  end
+
+  defp charset_to_atom("utf-32le") do
+    {:utf32, :little}
+  end
+
+  defp charset_to_atom("utf-32be") do
+    {:utf32, :big}
+  end
+
+  defp charset_to_atom(_) do
+    nil
+  end
 
   @doc false
   def send_request(method, url, headers, body) do
@@ -299,7 +338,9 @@ defmodule PetstoreClient.DefaultApiClient do
     req_opts
   end
 
-  defp prepare_body(nil, headers), do: {nil, Map.delete(headers, "Content-Type")}
+  defp prepare_body(nil, headers) do
+    {nil, Map.delete(headers, "Content-Type")}
+  end
 
   defp prepare_body(body, headers) when is_map(body) do
     boundary = generate_uuid()
@@ -309,7 +350,9 @@ defmodule PetstoreClient.DefaultApiClient do
     {serialized, headers}
   end
 
-  defp prepare_body(body, headers), do: {body, headers}
+  defp prepare_body(body, headers) do
+    {body, headers}
+  end
 
   defp build_multipart_body(form_parts, boundary) do
     parts =
@@ -419,7 +462,9 @@ defmodule PetstoreClient.DefaultApiClient do
     end
   end
 
-  defp guess_mime_type(_), do: "application/octet-stream"
+  defp guess_mime_type(_) do
+    "application/octet-stream"
+  end
 
   defp normalize_headers(headers) do
     Enum.reduce(headers, %{}, fn {key, values}, acc ->

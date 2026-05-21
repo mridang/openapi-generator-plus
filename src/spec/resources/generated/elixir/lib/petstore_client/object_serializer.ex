@@ -47,8 +47,13 @@ defmodule PetstoreClient.ObjectSerializer do
   Deserialize a JSON string to an object of the specified type.
   """
   @spec deserialize(String.t() | nil, String.t()) :: term()
-  def deserialize(nil, _target_type), do: nil
-  def deserialize("", _target_type), do: nil
+  def deserialize(nil, _target_type) do
+    nil
+  end
+
+  def deserialize("", _target_type) do
+    nil
+  end
 
   def deserialize(json_string, target_type) when is_binary(json_string) do
     # RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text, but
@@ -67,7 +72,9 @@ defmodule PetstoreClient.ObjectSerializer do
     end
   end
 
-  def deserialize(data, target_type), do: convert_to_type(data, target_type)
+  def deserialize(data, target_type) do
+    convert_to_type(data, target_type)
+  end
 
   @doc """
   Convert a single scalar value to its string representation.
@@ -77,9 +84,17 @@ defmodule PetstoreClient.ObjectSerializer do
   `ValueSerializer` for transport formatting.
   """
   @spec stringify(term()) :: String.t()
-  def stringify(nil), do: ""
-  def stringify(true), do: "true"
-  def stringify(false), do: "false"
+  def stringify(nil) do
+    ""
+  end
+
+  def stringify(true) do
+    "true"
+  end
+
+  def stringify(false) do
+    "false"
+  end
 
   def stringify(%DateTime{} = dt) do
     DateTime.to_iso8601(dt)
@@ -89,20 +104,29 @@ defmodule PetstoreClient.ObjectSerializer do
     NaiveDateTime.to_iso8601(dt)
   end
 
-  def stringify(%Date{} = d), do: Date.to_iso8601(d)
-  def stringify(value), do: to_string(value)
+  def stringify(%Date{} = d) do
+    Date.to_iso8601(d)
+  end
+
+  def stringify(value) do
+    to_string(value)
+  end
 
   @doc """
   Convert a value to a string suitable for use as a URL path parameter.
   """
   @spec to_path_value(term()) :: String.t()
-  def to_path_value(value), do: stringify(value)
+  def to_path_value(value) do
+    stringify(value)
+  end
 
   @doc """
   Convert a value to a representation suitable for use as a query parameter.
   """
   @spec to_query_value(term(), atom() | nil) :: String.t() | [String.t()] | nil
-  def to_query_value(nil, _collection_format \\ nil), do: nil
+  def to_query_value(nil, _collection_format \\ nil) do
+    nil
+  end
 
   def to_query_value(value, collection_format) when is_list(value) do
     items = Enum.map(value, &stringify/1)
@@ -116,51 +140,86 @@ defmodule PetstoreClient.ObjectSerializer do
     end
   end
 
-  def to_query_value(value, _collection_format), do: stringify(value)
+  def to_query_value(value, _collection_format) do
+    stringify(value)
+  end
 
   @doc """
   Convert a value to a string suitable for use as an HTTP header value.
   """
   @spec to_header_value(term()) :: String.t()
-  def to_header_value(nil), do: ""
+  def to_header_value(nil) do
+    ""
+  end
 
   def to_header_value(value) when is_list(value) do
     Enum.map_join(value, ",", &stringify/1)
   end
 
-  def to_header_value(value), do: stringify(value)
+  def to_header_value(value) do
+    stringify(value)
+  end
 
   @doc """
   Convert a value to a string suitable for use as an HTTP cookie value.
   Cookie values follow the same encoding rules as header values.
   """
   @spec to_cookie_value(term()) :: String.t()
-  def to_cookie_value(value), do: to_header_value(value)
+  def to_cookie_value(value) do
+    to_header_value(value)
+  end
 
   @doc """
   Convert a value to a representation suitable for use as a form parameter.
   """
   @spec to_form_value(term()) :: String.t()
-  def to_form_value(value), do: stringify(value)
+  def to_form_value(value) do
+    stringify(value)
+  end
 
   @doc """
   Sanitize an object for JSON serialization.
   """
   @spec sanitize_for_serialization(term()) :: term()
-  def sanitize_for_serialization(nil), do: nil
-  def sanitize_for_serialization(value) when is_binary(value), do: value
-  def sanitize_for_serialization(value) when is_integer(value), do: value
-  def sanitize_for_serialization(value) when is_float(value), do: value
-  def sanitize_for_serialization(true), do: true
-  def sanitize_for_serialization(false), do: false
+  def sanitize_for_serialization(nil) do
+    nil
+  end
+
+  def sanitize_for_serialization(value) when is_binary(value) do
+    value
+  end
+
+  def sanitize_for_serialization(value) when is_integer(value) do
+    value
+  end
+
+  def sanitize_for_serialization(value) when is_float(value) do
+    value
+  end
+
+  def sanitize_for_serialization(true) do
+    true
+  end
+
+  def sanitize_for_serialization(false) do
+    false
+  end
 
   def sanitize_for_serialization(value) when is_list(value) do
     Enum.map(value, &sanitize_for_serialization/1)
   end
 
-  def sanitize_for_serialization(%Date{} = d), do: Date.to_iso8601(d)
-  def sanitize_for_serialization(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
-  def sanitize_for_serialization(%NaiveDateTime{} = dt), do: NaiveDateTime.to_iso8601(dt)
+  def sanitize_for_serialization(%Date{} = d) do
+    Date.to_iso8601(d)
+  end
+
+  def sanitize_for_serialization(%DateTime{} = dt) do
+    DateTime.to_iso8601(dt)
+  end
+
+  def sanitize_for_serialization(%NaiveDateTime{} = dt) do
+    NaiveDateTime.to_iso8601(dt)
+  end
 
   def sanitize_for_serialization(%{__struct__: _module, actual_instance: inner}) do
     sanitize_for_serialization(inner)
@@ -190,40 +249,64 @@ defmodule PetstoreClient.ObjectSerializer do
     Map.new(map, fn {k, v} -> {k, sanitize_for_serialization(v)} end)
   end
 
-  def sanitize_for_serialization(value) when is_atom(value), do: to_string(value)
-  def sanitize_for_serialization(value), do: to_string(value)
+  def sanitize_for_serialization(value) when is_atom(value) do
+    to_string(value)
+  end
+
+  def sanitize_for_serialization(value) do
+    to_string(value)
+  end
 
   @doc """
   Convert data to the specified type.
   """
   @spec convert_to_type(term(), String.t()) :: term()
-  def convert_to_type(nil, _return_type), do: nil
+  def convert_to_type(nil, _return_type) do
+    nil
+  end
 
   # Strict primitive type-check. Aligns Elixir with Java/Kotlin/C#/Go/
   # Swift/Rust which throw on type mismatch — server bugs surface as
   # ArgumentError instead of being silently coerced ("42" -> 42 etc).
-  def convert_to_type(data, "String") when is_binary(data), do: data
+  def convert_to_type(data, "String") when is_binary(data) do
+    data
+  end
 
-  def convert_to_type(data, "String"),
-    do: raise(ArgumentError, "Expected String, got #{inspect(data)}")
+  def convert_to_type(data, "String") do
+    raise(ArgumentError, "Expected String, got #{inspect(data)}")
+  end
 
-  def convert_to_type(data, "Integer") when is_integer(data), do: data
+  def convert_to_type(data, "Integer") when is_integer(data) do
+    data
+  end
 
-  def convert_to_type(data, "Integer"),
-    do: raise(ArgumentError, "Expected Integer, got #{inspect(data)}")
+  def convert_to_type(data, "Integer") do
+    raise(ArgumentError, "Expected Integer, got #{inspect(data)}")
+  end
 
-  def convert_to_type(data, "Float") when is_float(data), do: data
-  def convert_to_type(data, "Float") when is_integer(data), do: data / 1
+  def convert_to_type(data, "Float") when is_float(data) do
+    data
+  end
 
-  def convert_to_type(data, "Float"),
-    do: raise(ArgumentError, "Expected Float/Integer, got #{inspect(data)}")
+  def convert_to_type(data, "Float") when is_integer(data) do
+    data / 1
+  end
 
-  def convert_to_type(data, "Boolean") when is_boolean(data), do: data
+  def convert_to_type(data, "Float") do
+    raise(ArgumentError, "Expected Float/Integer, got #{inspect(data)}")
+  end
 
-  def convert_to_type(data, "Boolean"),
-    do: raise(ArgumentError, "Expected Boolean, got #{inspect(data)}")
+  def convert_to_type(data, "Boolean") when is_boolean(data) do
+    data
+  end
 
-  def convert_to_type(data, "Object"), do: data
+  def convert_to_type(data, "Boolean") do
+    raise(ArgumentError, "Expected Boolean, got #{inspect(data)}")
+  end
+
+  def convert_to_type(data, "Object") do
+    data
+  end
 
   def convert_to_type(data, "DateTime") do
     case DateTime.from_iso8601(to_string(data)) do
@@ -275,14 +358,23 @@ defmodule PetstoreClient.ObjectSerializer do
     end
   end
 
-  defp atomize_enum(module, data) when is_atom(data), do: data
+  defp atomize_enum(module, data) when is_atom(data) do
+    data
+  end
 
   defp atomize_enum(module, data) when is_binary(data) do
     candidate = String.to_atom(String.downcase(data))
-    if Enum.member?(module.all_values(), candidate), do: candidate, else: data
+
+    if Enum.member?(module.all_values(), candidate) do
+      candidate
+    else
+      data
+    end
   end
 
-  defp atomize_enum(_module, data), do: data
+  defp atomize_enum(_module, data) do
+    data
+  end
 
   # Returns true when at least one key in data matches a JSON key for the struct,
   # preventing a catch-all empty struct from winning over a better candidate.
@@ -304,12 +396,20 @@ defmodule PetstoreClient.ObjectSerializer do
     data
     |> Map.keys()
     |> Enum.any?(fn k ->
-      key_str = if is_atom(k), do: to_string(k), else: k
+      key_str =
+        if is_atom(k) do
+          to_string(k)
+        else
+          k
+        end
+
       MapSet.member?(json_keys, key_str)
     end)
   end
 
-  defp fields_overlap?(_data, _result), do: true
+  defp fields_overlap?(_data, _result) do
+    true
+  end
 
   @doc """
   Attempt to deserialize data against a list of candidate schemas, returning
@@ -347,7 +447,9 @@ defmodule PetstoreClient.ObjectSerializer do
   Attempt to deserialize data as the given type for oneOf/anyOf resolution.
   Uses the try-deserialize-and-catch pattern by delegating to `convert_to_type/2`.
   """
-  def find_and_cast_into_type(_type_name, data) when is_nil(data), do: nil
+  def find_and_cast_into_type(_type_name, data) when is_nil(data) do
+    nil
+  end
 
   def find_and_cast_into_type(type_name, data) do
     type_str = to_string(type_name)
@@ -388,7 +490,9 @@ defmodule PetstoreClient.ObjectSerializer do
     struct(module, transformed)
   end
 
-  defp deserialize_model(_data, _module), do: nil
+  defp deserialize_model(_data, _module) do
+    nil
+  end
 
   defp resolve_model_module(type_name) do
     Module.concat([PetstoreClient, Models, type_name])

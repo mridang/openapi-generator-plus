@@ -155,6 +155,18 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
     end)
   end
 
+  @doc """
+  Invalidate the cached access token so that the next call to
+  `get_access_token/4` fetches a fresh token from the token endpoint.
+  Intended for tests and recovery flows.
+  """
+  @spec invalidate_access_token(pid()) :: :ok
+  def invalidate_access_token(manager) do
+    Agent.update(manager, fn state ->
+      %{state | access_token: nil, token_expiry: nil}
+    end)
+  end
+
   defp fetch_token(state, token_url, params, extra_headers \\ %{}) do
     client = state.api_client
 
@@ -193,7 +205,11 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
         expires_in = parsed["expires_in"]
 
         expiry =
-          if expires_in > 30, do: System.system_time(:second) + expires_in - 30, else: System.system_time(:second)
+          if expires_in > 30 do
+            System.system_time(:second) + expires_in - 30
+          else
+            System.system_time(:second)
+          end
 
         %{new_state | token_expiry: expiry}
       else

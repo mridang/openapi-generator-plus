@@ -17,8 +17,13 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       end)
     end
 
-    def last_url(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_url)
-    def last_body(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_body)
+    def last_url(%__MODULE__{agent: agent}) do
+      Agent.get(agent, & &1.last_url)
+    end
+
+    def last_body(%__MODULE__{agent: agent}) do
+      Agent.get(agent, & &1.last_body)
+    end
   end
 
   defp create_authenticator do

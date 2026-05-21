@@ -85,7 +85,9 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator do
   end
 
   @impl PetstoreClient.Auth.Authenticator
-  def host(%__MODULE__{} = self), do: self.host
+  def host(%__MODULE__{} = self) do
+    self.host
+  end
 
   @impl PetstoreClient.Auth.Authenticator
   def auth_headers(%__MODULE__{} = self) do

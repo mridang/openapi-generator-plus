@@ -81,14 +81,27 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator do
       "client_id" => self.client_id
     }
 
-    params = if self.scopes != [], do: Map.put(params, "scope", Enum.join(self.scopes, " ")), else: params
-    params = if state, do: Map.put(params, "state", state), else: params
+    params =
+      if self.scopes != [] do
+        Map.put(params, "scope", Enum.join(self.scopes, " "))
+      else
+        params
+      end
+
+    params =
+      if state do
+        Map.put(params, "state", state)
+      else
+        params
+      end
 
     "#{self.authorization_url}?#{URI.encode_query(params)}"
   end
 
   @impl PetstoreClient.Auth.Authenticator
-  def host(%__MODULE__{} = self), do: self.host
+  def host(%__MODULE__{} = self) do
+    self.host
+  end
 
   @impl PetstoreClient.Auth.Authenticator
   def auth_headers(%__MODULE__{access_token: nil}) do

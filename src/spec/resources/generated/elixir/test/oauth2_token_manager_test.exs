@@ -25,9 +25,17 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       end)
     end
 
-    def last_url(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_url)
-    def last_body(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_body)
-    def call_count(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.call_count)
+    def last_url(%__MODULE__{agent: agent}) do
+      Agent.get(agent, & &1.last_url)
+    end
+
+    def last_body(%__MODULE__{agent: agent}) do
+      Agent.get(agent, & &1.last_body)
+    end
+
+    def call_count(%__MODULE__{agent: agent}) do
+      Agent.get(agent, & &1.call_count)
+    end
   end
 
   defmodule CountingApiClient do
@@ -54,7 +62,9 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       }
     end
 
-    def call_count(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1)
+    def call_count(%__MODULE__{agent: agent}) do
+      Agent.get(agent, & &1)
+    end
   end
 
   describe "OAuth2TokenManager" do
@@ -161,6 +171,34 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
         )
 
       assert token == "manual-token"
+    end
+
+    test "invalidate_access_token forces refetch" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
+          },
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "client_credentials"}
+      token_url = "https://auth.example.com/token"
+
+      first = PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.invalidate_access_token(manager)
+      second = PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+
+      assert first == "tok1"
+      assert second == "tok2"
+      assert FakeApiClient.call_count(fake_client) == 2
     end
 
     test "throws when no ApiClient injected" do

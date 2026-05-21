@@ -19,7 +19,13 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
           # Drain the incoming request
           :gen_tcp.recv(socket, 0, 2000)
 
-          status_text = if status == 200, do: "OK", else: to_string(status)
+          status_text =
+            if status == 200 do
+              "OK"
+            else
+              to_string(status)
+            end
+
           extra = Enum.map_join(extra_headers, "", fn {k, v} -> "#{k}: #{v}\r\n" end)
 
           response =

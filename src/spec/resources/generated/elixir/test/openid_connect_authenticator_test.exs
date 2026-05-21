@@ -19,9 +19,17 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       end)
     end
 
-    def last_url(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_url)
-    def last_body(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_body)
-    def last_method(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_method)
+    def last_url(%__MODULE__{agent: agent}) do
+      Agent.get(agent, & &1.last_url)
+    end
+
+    def last_body(%__MODULE__{agent: agent}) do
+      Agent.get(agent, & &1.last_body)
+    end
+
+    def last_method(%__MODULE__{agent: agent}) do
+      Agent.get(agent, & &1.last_method)
+    end
   end
 
   defp create_authenticator do

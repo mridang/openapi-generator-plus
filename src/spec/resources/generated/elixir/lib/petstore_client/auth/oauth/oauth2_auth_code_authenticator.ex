@@ -94,8 +94,19 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
       "redirect_uri" => self.redirect_uri
     }
 
-    params = if self.scopes != [], do: Map.put(params, "scope", Enum.join(self.scopes, " ")), else: params
-    params = if state, do: Map.put(params, "state", state), else: params
+    params =
+      if self.scopes != [] do
+        Map.put(params, "scope", Enum.join(self.scopes, " "))
+      else
+        params
+      end
+
+    params =
+      if state do
+        Map.put(params, "state", state)
+      else
+        params
+      end
 
     "#{self.authorization_url}?#{URI.encode_query(params)}"
   end
@@ -127,7 +138,9 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
   end
 
   @impl PetstoreClient.Auth.Authenticator
-  def host(%__MODULE__{} = self), do: self.host
+  def host(%__MODULE__{} = self) do
+    self.host
+  end
 
   @impl PetstoreClient.Auth.Authenticator
   def auth_headers(%__MODULE__{token_exchanged: false}) do
