@@ -718,13 +718,13 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     // registerAuthSupportingFiles — base implementation (non-abstract)
     // =========================================================================
 
-    /**
+    /*
      * Registers the language-specific auth supporting files (base class,
      * HTTP-aware interface, and the concrete authenticator classes enabled by
-     * the security-scheme flags set in {@link #detectSecuritySchemes}).
+     * the security-scheme flags set in #detectSecuritySchemes).
      *
-     * <p>Subclasses that need additional files (e.g. test OAuth helpers, Rust
-     * mod.rs) should call {@code super.registerAuthSupportingFiles()} and then
+     * Subclasses that need additional files (e.g. test OAuth helpers, Rust
+     * mod.rs) should call super.registerAuthSupportingFiles() and then
      * add their extras. Subclasses that have no additional files (Ruby, Go,
      * Kotlin, Swift, Dart, Elixir) can skip the override entirely.
      */
@@ -1541,7 +1541,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         return q + value + q;
     }
 
-    /**
+    /*
      * Post-processes a model property to handle unique-item
      * arrays, add declarative import lists (Gap 15), and
      * optionally sanitize example values (Gap 16). Subclasses

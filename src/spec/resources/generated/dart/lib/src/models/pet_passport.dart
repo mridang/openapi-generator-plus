@@ -7,10 +7,28 @@
 
 import 'dart:convert';
 
-import 'package:petstore_client/src/models/pet.dart';
+import 'pet.dart';
 
 /// PetPassport is a model class generated from the OpenAPI schema.
 class PetPassport {
+  /// Example: `null`
+  final Pet? pet;
+
+  /// Base64-encoded primary thumbnail
+  /// Example: `dGVzdC10aHVtYm5haWw=`
+  final List<int>? thumbnail;
+
+  /// Base64-encoded scans of each passport page
+  /// Example: `null`
+  final List<List<int>>? scans;
+
+  /// Example: `null`
+  final DateTime? issuedAt;
+
+  /// Embedded chip data (OAS 3.1 contentEncoding form)
+  /// Example: `null`
+  final String? biometricChip;
+
   const PetPassport({
     this.pet,
     this.thumbnail,
@@ -38,24 +56,6 @@ class PetPassport {
     );
   }
 
-  /// Example: `null`
-  final Pet? pet;
-
-  /// Base64-encoded primary thumbnail
-  /// Example: `dGVzdC10aHVtYm5haWw=`
-  final List<int>? thumbnail;
-
-  /// Base64-encoded scans of each passport page
-  /// Example: `null`
-  final List<List<int>>? scans;
-
-  /// Example: `null`
-  final DateTime? issuedAt;
-
-  /// Embedded chip data (OAS 3.1 contentEncoding form)
-  /// Example: `null`
-  final String? biometricChip;
-
   /// Converts this [PetPassport] to a JSON map.
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
@@ -66,7 +66,7 @@ class PetPassport {
       json['thumbnail'] = base64Encode(thumbnail!);
     }
     if (scans != null) {
-      json['scans'] = scans?.map(base64Encode).toList();
+      json['scans'] = scans?.map((e) => base64Encode(e)).toList();
     }
     if (issuedAt != null) {
       json['issuedAt'] = issuedAt

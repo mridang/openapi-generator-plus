@@ -8,17 +8,18 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
-import 'package:petstore_client/src/api_client.dart';
-import 'package:petstore_client/src/api_response.dart';
-import 'package:petstore_client/src/errors/api_error.dart';
-import 'package:petstore_client/src/transport_options.dart';
+import 'dart:math';
+
+import 'api_client.dart';
+import 'api_response.dart';
+import 'errors/api_error.dart';
+import 'transport_options.dart';
 
 /// DefaultApiClient is the default HTTP client implementation backed by
 /// the `http` package.
@@ -41,6 +42,9 @@ import 'package:petstore_client/src/transport_options.dart';
 ///  3. [TransportOptions.userAgent] -- injected if not already set
 ///  4. [TransportOptions.injectRequestId] -- injected if not already set
 class DefaultApiClient implements ApiClient {
+  final TransportOptions _transportOptions;
+  final http.Client _httpClient;
+
   /// Creates a client with the given transport settings.
   ///
   /// If [transportOptions] is null, default transport settings are used.
@@ -55,8 +59,6 @@ class DefaultApiClient implements ApiClient {
         _httpClient = httpClient ??
             _createHttpClient(
                 transportOptions ?? TransportOptionsBuilder().build());
-  final TransportOptions _transportOptions;
-  final http.Client _httpClient;
 
   /// Creates an [IOClient] configured from the given [TransportOptions].
   ///
@@ -159,7 +161,8 @@ class DefaultApiClient implements ApiClient {
 
     final http.StreamedResponse streamedResponse;
     try {
-      final pendingResponse = _httpClient.send(request);
+      final Future<http.StreamedResponse> pendingResponse =
+          _httpClient.send(request);
       streamedResponse = _transportOptions.timeout != null
           ? await pendingResponse
               .timeout(Duration(milliseconds: _transportOptions.timeout!))
@@ -212,27 +215,23 @@ class DefaultApiClient implements ApiClient {
       final contentType = parts.length == 2
           ? MediaType(parts[0], parts[1])
           : MediaType('application', 'octet-stream');
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          name,
-          value,
-          filename: name,
-          contentType: contentType,
-        ),
-      );
+      request.files.add(http.MultipartFile.fromBytes(
+        name,
+        value,
+        filename: name,
+        contentType: contentType,
+      ));
     } else if (value is String) {
       request.fields[name] = value;
     } else if (value is num || value is bool) {
       request.fields[name] = value.toString();
     } else {
       final json = jsonEncode(value);
-      request.files.add(
-        http.MultipartFile.fromString(
-          name,
-          json,
-          contentType: MediaType('application', 'json'),
-        ),
-      );
+      request.files.add(http.MultipartFile.fromString(
+        name,
+        json,
+        contentType: MediaType('application', 'json'),
+      ));
     }
   }
 
@@ -305,8 +304,8 @@ class DefaultApiClient implements ApiClient {
   /// throwing, so an unfamiliar server header cannot break decoding.
   static Encoding _encodingFor(String contentType) {
     if (contentType.isEmpty) return utf8;
-    final match =
-        RegExp('charset=([^;]+)', caseSensitive: false).firstMatch(contentType);
+    final match = RegExp(r'charset=([^;]+)', caseSensitive: false)
+        .firstMatch(contentType);
     final cs = match?.group(1)?.trim().toLowerCase();
     if (cs == null || cs.isEmpty) return utf8;
     switch (cs) {

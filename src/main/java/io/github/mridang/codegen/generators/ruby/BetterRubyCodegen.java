@@ -554,7 +554,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                         (fragment, writer) -> writer.write(NamingConvention.PASCAL_CASE.apply(fragment.execute())));
     }
 
-    /**
+    /*
      * Overrides the base class to move {@code .rbs} type-signature
      * files from {@code lib/} to {@code sig/} as required by Ruby's
      * Steep type-checking tooling. The base class handles this via

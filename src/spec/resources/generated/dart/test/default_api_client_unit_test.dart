@@ -8,8 +8,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:petstore_client/petstore_client.dart';
 import 'package:test/test.dart';
+import 'package:petstore_client/petstore_client.dart';
 
 void main() {
   group('DefaultApiClient unit tests', () {
@@ -204,7 +204,7 @@ void main() {
     });
 
     test('generates unique X-Request-ID per request', () async {
-      final ids = <String?>[];
+      final List<String?> ids = [];
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         ids.add(request.headers.value('x-request-id'));

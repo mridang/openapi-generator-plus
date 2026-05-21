@@ -10,28 +10,34 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:mime/mime.dart';
-import 'package:petstore_client/src/api_client.dart';
-import 'package:petstore_client/src/api_response.dart';
-import 'package:petstore_client/src/api_result.dart';
-import 'package:petstore_client/src/auth/authenticator.dart';
-import 'package:petstore_client/src/configuration.dart';
-import 'package:petstore_client/src/default_api_client.dart';
-import 'package:petstore_client/src/errors/api_error.dart';
-import 'package:petstore_client/src/errors/bad_request_error.dart';
-import 'package:petstore_client/src/errors/client_error.dart';
-import 'package:petstore_client/src/errors/conflict_error.dart';
-import 'package:petstore_client/src/errors/forbidden_error.dart';
-import 'package:petstore_client/src/errors/internal_server_error.dart';
-import 'package:petstore_client/src/errors/not_found_error.dart';
-import 'package:petstore_client/src/errors/server_error.dart';
-import 'package:petstore_client/src/errors/unauthorized_error.dart';
-import 'package:petstore_client/src/errors/unprocessable_entity_error.dart';
-import 'package:petstore_client/src/header_selector.dart';
-import 'package:petstore_client/src/object_serializer.dart';
-import 'package:petstore_client/src/trace_context_util.dart';
+
+import '../api_client.dart';
+import '../api_response.dart';
+import '../api_result.dart';
+import '../auth/authenticator.dart';
+import '../configuration.dart';
+import '../default_api_client.dart';
+import '../header_selector.dart';
+import '../object_serializer.dart';
+import '../trace_context_util.dart';
+import '../errors/api_error.dart';
+import '../errors/client_error.dart';
+import '../errors/server_error.dart';
+import '../errors/bad_request_error.dart';
+import '../errors/unauthorized_error.dart';
+import '../errors/forbidden_error.dart';
+import '../errors/not_found_error.dart';
+import '../errors/conflict_error.dart';
+import '../errors/unprocessable_entity_error.dart';
+import '../errors/internal_server_error.dart';
 
 /// BaseApi provides common functionality for all API classes.
 class BaseApi {
+  final Configuration config;
+  final ApiClient apiClient;
+  final HeaderSelector _headerSelector;
+  final Authenticator? _authenticator;
+
   BaseApi({
     ApiClient? apiClient,
     Configuration? config,
@@ -40,10 +46,6 @@ class BaseApi {
         config = config ?? Configuration.defaultConfiguration(),
         _headerSelector = HeaderSelector(),
         _authenticator = authenticator;
-  final Configuration config;
-  final ApiClient apiClient;
-  final HeaderSelector _headerSelector;
-  final Authenticator? _authenticator;
 
   /// Dispatches an API request and returns the full result.
   Future<HttpApiResponse> invokeApi({
@@ -92,10 +94,10 @@ class BaseApi {
 
       final cookies = effectiveAuth.cookieParams();
       if (cookies.isNotEmpty) {
-        // RFC 6265 — don't URL-encode cookie name/value; most cookie
-        // parsers don't URL-decode, so `=` (base64 padding) would
-        // arrive as literal `%3D` and break JWT/session cookies.
-        // Validate and pass through raw instead.
+        /* RFC 6265 — don't URL-encode cookie name/value; most cookie
+           parsers don't URL-decode, so `=` (base64 padding) would
+           arrive as literal `%3D` and break JWT/session cookies.
+           Validate and pass through raw instead. */
         final cookieNameRe = RegExp(r"^[A-Za-z0-9!#$%&'*+\-.^_`|~]+$");
         final cookieValueRe =
             RegExp(r'^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$');
@@ -289,33 +291,25 @@ class BaseApi {
   ) {
     if (value is List<int>) {
       final mimeType = lookupMimeType(name) ?? 'application/octet-stream';
-      parts.add(
-        utf8.encode(
-          '--$boundary\r\nContent-Disposition: form-data; name="$name"; filename="$name"\r\nContent-Type: $mimeType\r\n\r\n',
-        ),
-      );
+      parts.add(utf8.encode(
+        '--$boundary\r\nContent-Disposition: form-data; name="$name"; filename="$name"\r\nContent-Type: $mimeType\r\n\r\n',
+      ));
       parts.add(value);
       parts.add(utf8.encode('\r\n'));
     } else if (value is String || value is num || value is bool) {
-      parts.add(
-        utf8.encode(
-          '--$boundary\r\nContent-Disposition: form-data; name="$name"\r\n\r\n$value\r\n',
-        ),
-      );
+      parts.add(utf8.encode(
+        '--$boundary\r\nContent-Disposition: form-data; name="$name"\r\n\r\n$value\r\n',
+      ));
     } else if (value is Map) {
       final json = jsonEncode(value);
-      parts.add(
-        utf8.encode(
-          '--$boundary\r\nContent-Disposition: form-data; name="$name"\r\nContent-Type: application/json\r\n\r\n$json\r\n',
-        ),
-      );
+      parts.add(utf8.encode(
+        '--$boundary\r\nContent-Disposition: form-data; name="$name"\r\nContent-Type: application/json\r\n\r\n$json\r\n',
+      ));
     } else if (value != null) {
       final serialized = serialize(value);
-      parts.add(
-        utf8.encode(
-          '--$boundary\r\nContent-Disposition: form-data; name="$name"\r\nContent-Type: application/json\r\n\r\n$serialized\r\n',
-        ),
-      );
+      parts.add(utf8.encode(
+        '--$boundary\r\nContent-Disposition: form-data; name="$name"\r\nContent-Type: application/json\r\n\r\n$serialized\r\n',
+      ));
     }
   }
 

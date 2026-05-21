@@ -9,9 +9,10 @@ import 'dart:convert';
 
 /// SerializationError is thrown when serialization or deserialization fails.
 class SerializationError implements Exception {
-  const SerializationError(this.message, [this.cause]);
   final String message;
   final Object? cause;
+
+  const SerializationError(this.message, [this.cause]);
 
   @override
   String toString() {
@@ -125,7 +126,7 @@ Object? toQueryValue(Object? value, String collectionFormat) {
   }
 
   if (value is List) {
-    final items = value.map(stringify).toList();
+    final items = value.map((item) => stringify(item)).toList();
     return _joinCollection(items, collectionFormat);
   }
 
@@ -141,7 +142,7 @@ String toHeaderValue(Object? value) {
   }
 
   if (value is List) {
-    return value.map(stringify).join(',');
+    return value.map((item) => stringify(item)).join(',');
   }
 
   return stringify(value);

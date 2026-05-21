@@ -626,7 +626,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         return param;
     }
 
-    /**
+    /*
      * Removes the discriminator property from variant structs used
      * in internally tagged enums. Serde's {@code #[serde(tag = "...")]}
      * manages the tag field itself, so the inner struct must not

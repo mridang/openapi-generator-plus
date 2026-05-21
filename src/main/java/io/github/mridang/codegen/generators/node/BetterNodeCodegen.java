@@ -407,7 +407,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         return super.getTypeDeclaration(p);
     }
 
-    /**
+    /*
      * Returns null for all schema types because TypeScript
      * variables do not need explicit default value expressions
      * in the generated model constructors.

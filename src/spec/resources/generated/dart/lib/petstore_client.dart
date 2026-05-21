@@ -8,47 +8,50 @@
 /// Swagger Petstore - OpenAPI 3.0 API client library.
 ///
 /// A simplified Pet Store API for integration testing.
-library;
+library petstore_client;
 
-export 'src/api/base_api.dart';
-export 'src/api/options/add_pet_photos_options.dart';
-export 'src/api/options/delete_pet_options.dart';
-export 'src/api/options/find_pets_by_status_options.dart';
-export 'src/api/options/get_pet_tag_options.dart';
-export 'src/api/options/upload_pet_certificate_options.dart';
-export 'src/api/options/upload_pet_document_options.dart';
-export 'src/api/pet_api.dart';
-export 'src/api/store_api.dart';
+export 'src/configuration.dart';
+export 'src/transport_options.dart';
+export 'src/server_configuration.dart';
+export 'src/servers.dart';
 export 'src/api_client.dart';
+export 'src/default_api_client.dart';
 export 'src/api_response.dart';
 export 'src/api_result.dart';
-export 'src/auth/api_key_authenticator.dart';
-export 'src/auth/api_key_location.dart';
+export 'src/api/base_api.dart';
+export 'src/header_selector.dart';
+export 'src/object_serializer.dart';
+export 'src/value_serializer.dart';
+export 'src/trace_context_util.dart';
 export 'src/auth/authenticator.dart';
+
+export 'src/errors/api_error.dart';
+export 'src/errors/client_error.dart';
+export 'src/errors/server_error.dart';
+export 'src/errors/bad_request_error.dart';
+export 'src/errors/unauthorized_error.dart';
+export 'src/errors/forbidden_error.dart';
+export 'src/errors/not_found_error.dart';
+export 'src/errors/conflict_error.dart';
+export 'src/errors/unprocessable_entity_error.dart';
+export 'src/errors/internal_server_error.dart';
+
 export 'src/auth/base_authenticator.dart';
+export 'src/auth/http_aware_authenticator.dart';
 export 'src/auth/basic_authenticator.dart';
 export 'src/auth/bearer_authenticator.dart';
-export 'src/auth/http_aware_authenticator.dart';
+export 'src/auth/api_key_authenticator.dart';
+export 'src/auth/api_key_location.dart';
+export 'src/auth/oauth/client_auth_method.dart';
+export 'src/auth/oauth/oauth2_token_manager.dart';
+export 'src/auth/oauth/oauth2_implicit_authenticator.dart';
 export 'src/auth/oauth/oauth2_auth_code_authenticator.dart';
 export 'src/auth/oauth/oauth2_client_credentials_authenticator.dart';
-export 'src/auth/oauth/oauth2_implicit_authenticator.dart';
 export 'src/auth/oauth/oauth2_password_authenticator.dart';
-export 'src/auth/oauth/oauth2_token_manager.dart';
 export 'src/auth/oauth/openid_connect_authenticator.dart';
-export 'src/client.dart';
-export 'src/configuration.dart';
-export 'src/default_api_client.dart';
-export 'src/errors/api_error.dart';
-export 'src/errors/bad_request_error.dart';
-export 'src/errors/client_error.dart';
-export 'src/errors/conflict_error.dart';
-export 'src/errors/forbidden_error.dart';
-export 'src/errors/internal_server_error.dart';
-export 'src/errors/not_found_error.dart';
-export 'src/errors/server_error.dart';
-export 'src/errors/unauthorized_error.dart';
-export 'src/errors/unprocessable_entity_error.dart';
-export 'src/header_selector.dart';
+
+export 'src/api/pet_api.dart';
+export 'src/api/store_api.dart';
 export 'src/models/api_response.dart';
 export 'src/models/category.dart';
 export 'src/models/dry_food.dart';
@@ -69,9 +72,11 @@ export 'src/models/strict_tag.dart';
 export 'src/models/surgery.dart';
 export 'src/models/tag.dart';
 export 'src/models/wet_food.dart';
-export 'src/object_serializer.dart';
-export 'src/server_configuration.dart';
-export 'src/servers.dart';
-export 'src/trace_context_util.dart';
-export 'src/transport_options.dart';
-export 'src/value_serializer.dart';
+
+export 'src/client.dart';
+export 'src/api/options/add_pet_photos_options.dart';
+export 'src/api/options/delete_pet_options.dart';
+export 'src/api/options/find_pets_by_status_options.dart';
+export 'src/api/options/get_pet_tag_options.dart';
+export 'src/api/options/upload_pet_certificate_options.dart';
+export 'src/api/options/upload_pet_document_options.dart';

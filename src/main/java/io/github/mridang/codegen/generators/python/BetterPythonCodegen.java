@@ -520,7 +520,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         }
     }
 
-    /**
+    /*
      * Overrides the base class to resolve Python-specific type
      * imports ({@code from datetime import datetime}, etc.).
      * The base class handles this via {@link #buildsFqnModelImports()} and

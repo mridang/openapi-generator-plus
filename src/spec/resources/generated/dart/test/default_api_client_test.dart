@@ -7,8 +7,8 @@
 
 import 'dart:convert';
 
-import 'package:petstore_client/petstore_client.dart';
 import 'package:test/test.dart';
+import 'package:petstore_client/petstore_client.dart';
 
 import 'testcontainers_helper.dart';
 
@@ -220,7 +220,7 @@ void main() {
       final headers = {
         'Content-Type': 'multipart/form-data; boundary=test-boundary',
       };
-      const body =
+      final body =
           '--test-boundary\r\nContent-Disposition: form-data; name="description"\r\n\r\nA test file\r\n--test-boundary--\r\n';
       final resp = await client.sendRequest(
         'POST',

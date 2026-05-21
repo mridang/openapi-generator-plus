@@ -7,10 +7,10 @@
 
 import 'dart:convert';
 
-import 'package:petstore_client/src/api_client.dart';
-import 'package:petstore_client/src/auth/base_authenticator.dart';
-import 'package:petstore_client/src/auth/http_aware_authenticator.dart';
-import 'package:petstore_client/src/auth/oauth/oauth2_auth_code_authenticator.dart';
+import '../../api_client.dart';
+import '../base_authenticator.dart';
+import '../http_aware_authenticator.dart';
+import 'oauth2_auth_code_authenticator.dart';
 
 /// OpenIdConnectAuthenticator provides OpenID Connect authentication.
 ///
@@ -23,20 +23,6 @@ import 'package:petstore_client/src/auth/oauth/oauth2_auth_code_authenticator.da
 /// same transport configuration (proxy, TLS, timeouts) as regular API calls.
 class OpenIdConnectAuthenticator extends BaseAuthenticator
     implements HttpAwareAuthenticator {
-  /// Creates a new OpenID Connect authenticator.
-  OpenIdConnectAuthenticator({
-    required String host,
-    required String openIdConnectUrl,
-    required String clientId,
-    required String clientSecret,
-    required String redirectUri,
-    List<String> scopes = const [],
-  })  : _host = host,
-        _openIdConnectUrl = openIdConnectUrl,
-        _clientId = clientId,
-        _clientSecret = clientSecret,
-        _redirectUri = redirectUri,
-        _scopes = scopes;
   final String _host;
   final String _openIdConnectUrl;
   final String _clientId;
@@ -51,6 +37,21 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
   static const int _defaultDiscoveryMaxAgeSeconds = 86400;
   static final RegExp _maxAgePattern =
       RegExp(r'max-age=(\d+)', caseSensitive: false);
+
+  /// Creates a new OpenID Connect authenticator.
+  OpenIdConnectAuthenticator({
+    required String host,
+    required String openIdConnectUrl,
+    required String clientId,
+    required String clientSecret,
+    required String redirectUri,
+    List<String> scopes = const [],
+  })  : _host = host,
+        _openIdConnectUrl = openIdConnectUrl,
+        _clientId = clientId,
+        _clientSecret = clientSecret,
+        _redirectUri = redirectUri,
+        _scopes = scopes;
 
   @override
   String host() => _host;

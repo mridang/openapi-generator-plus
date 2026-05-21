@@ -7,7 +7,7 @@
 
 import 'dart:typed_data';
 
-import 'package:petstore_client/src/api_response.dart';
+import 'api_response.dart';
 
 /// ApiClient is the interface for HTTP clients. Implementations must provide
 /// [sendRequest] to perform the actual HTTP call.

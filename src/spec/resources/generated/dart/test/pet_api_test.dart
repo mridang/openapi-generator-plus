@@ -7,8 +7,8 @@
 
 import 'dart:io';
 
-import 'package:petstore_client/petstore_client.dart';
 import 'package:test/test.dart';
+import 'package:petstore_client/petstore_client.dart';
 
 import 'testcontainers_helper.dart';
 
@@ -47,8 +47,7 @@ void main() {
       final auth = _TestAuth();
 
       final result = await api.addPet(
-          const Pet(
-              name: 'Fido', photoUrls: <String>{'http://example.com/fido.jpg'}),
+          Pet(name: 'Fido', photoUrls: <String>{'http://example.com/fido.jpg'}),
           auth: auth);
       expect(result, isNotNull);
     });
@@ -58,7 +57,7 @@ void main() {
       final auth = _TestAuth();
 
       final result = await api.addPetWithHTTPInfo(
-          const Pet(
+          Pet(
               name: 'Buddy',
               photoUrls: <String>{'http://example.com/buddy.jpg'}),
           auth: auth);
@@ -105,7 +104,7 @@ void main() {
 
       final result = await api.updatePet(
           1,
-          const Pet(
+          Pet(
               name: 'UpdatedFido',
               photoUrls: <String>{'http://example.com/fido-updated.jpg'}));
       expect(result, isNotNull);
@@ -116,7 +115,7 @@ void main() {
 
       final result = await api.updatePetWithHTTPInfo(
           1,
-          const Pet(
+          Pet(
               name: 'UpdatedFido',
               photoUrls: <String>{'http://example.com/fido-updated.jpg'}));
       expect(result.statusCode, greaterThanOrEqualTo(200));
@@ -203,14 +202,10 @@ void main() {
       expect(result, isNotNull);
     });
 
-    test(
-      'addPetPhotos',
-      () async {
-        final api = _newPetApiForIntegration();
-        await api.addPetPhotos(1, null);
-      },
-      skip: 'Prism does not validate multipart array fields correctly',
-    );
+    test('addPetPhotos', () async {
+      final api = _newPetApiForIntegration();
+      await api.addPetPhotos(1, null);
+    }, skip: 'Prism does not validate multipart array fields correctly');
 
     test('downloadPetDocument', () async {
       final api = _newPetApiForIntegration();
@@ -219,39 +214,24 @@ void main() {
       expect(result, isNotNull);
     });
 
-    test(
-      'getPetPhoto',
-      () async {
-        final api = _newPetApiForIntegration();
-        final result = await api.getPetPhoto(1, 1);
-        expect(result, isNotNull);
-      },
-      skip: 'Prism returns JSON for image content type',
-    );
+    test('getPetPhoto', () async {
+      final api = _newPetApiForIntegration();
+      final result = await api.getPetPhoto(1, 1);
+      expect(result, isNotNull);
+    }, skip: 'Prism returns JSON for image content type');
 
-    test(
-      'getPetTag',
-      () async {
-        final api = _newPetApiForIntegration();
-        final result = await api.getPetTag(
-            5,
-            'cute',
-            const GetPetTagOptions(
-                colors: ['blue', 'black'], sizes: ['S', 'M']));
-        expect(result, isNotNull);
-      },
-      skip: 'Prism does not support matrix/label style parameters',
-    );
+    test('getPetTag', () async {
+      final api = _newPetApiForIntegration();
+      final result = await api.getPetTag(5, 'cute',
+          GetPetTagOptions(colors: ['blue', 'black'], sizes: ['S', 'M']));
+      expect(result, isNotNull);
+    }, skip: 'Prism does not support matrix/label style parameters');
 
-    test(
-      'getExternalPetInfo',
-      () async {
-        final api = _newPetApiForIntegration();
-        final result = await api.getExternalPetInfo(1, null);
-        expect(result, isNotNull);
-      },
-      skip: 'Per-operation server URL points to external host',
-    );
+    test('getExternalPetInfo', () async {
+      final api = _newPetApiForIntegration();
+      final result = await api.getExternalPetInfo(1, null);
+      expect(result, isNotNull);
+    }, skip: 'Per-operation server URL points to external host');
 
     test('downloadBinaryMock', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

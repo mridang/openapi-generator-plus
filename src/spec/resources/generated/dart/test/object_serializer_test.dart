@@ -23,7 +23,7 @@ void main() {
     });
 
     test('deserializeRaw JSON to map', () {
-      const input = '{"name":"Fido","age":3}';
+      final input = '{"name":"Fido","age":3}';
 
       final result = deserializeRaw(input) as Map<String, dynamic>;
       expect(result['name'], equals('Fido'));
@@ -168,7 +168,7 @@ void main() {
     });
 
     test('stringify DateTime', () {
-      final ts = DateTime.utc(2024, 1, 15, 10, 30);
+      final ts = DateTime.utc(2024, 1, 15, 10, 30, 0);
       final result = stringify(ts);
       expect(result, equals('2024-01-15T10:30:00+00:00'));
     });
@@ -184,11 +184,8 @@ void main() {
       final result = stringify(dt);
       expect(result, contains('2024-01-01'));
       expect(result, contains('12:30:45'));
-      expect(
-        result.contains('+00:00') || result.endsWith('Z'),
-        isTrue,
-        reason: 'should contain UTC offset: $result',
-      );
+      expect(result.contains('+00:00') || result.endsWith('Z'), isTrue,
+          reason: 'should contain UTC offset: $result');
     });
 
     test('positive timezone offset is preserved', () {
@@ -212,7 +209,7 @@ void main() {
     });
 
     test('date formatted as string contains date component', () {
-      final dt = DateTime.utc(2024, 1);
+      final dt = DateTime.utc(2024, 1, 1, 0, 0, 0);
       final result = stringify(dt);
       expect(result, contains('2024-01-01'));
     });
@@ -221,10 +218,9 @@ void main() {
       final dt = DateTime.utc(2024, 1, 1, 12, 30, 45);
       final result = stringify(dt);
       expect(
-        result.endsWith('Z') || result.contains('+') || result.contains('-'),
-        isTrue,
-        reason: 'should end with offset: $result',
-      );
+          result.endsWith('Z') || result.contains('+') || result.contains('-'),
+          isTrue,
+          reason: 'should end with offset: $result');
     });
 
     test('round-trip: serialize then deserialize yields equivalent instant',
@@ -282,7 +278,7 @@ void main() {
     });
 
     test('serialize includes fields set to default values', () {
-      const category = Category(id: 0, name: '');
+      final category = Category(id: 0, name: '');
       final json = serialize(category);
       final parsed = jsonDecode(json) as Map<String, dynamic>;
       expect(parsed.containsKey('id'), isTrue,
@@ -296,7 +292,7 @@ void main() {
     // Gap K — discriminator auto-emitted on subtype serialise.
 
     test('subtype serialise auto-emits discriminator value', () {
-      const dry = DryFood(weightKg: 2.5);
+      final dry = DryFood(weightKg: 2.5);
       final json = serialize(dry);
       final parsed = jsonDecode(json) as Map<String, dynamic>;
       expect(parsed['foodType'], equals('dry'));
@@ -305,7 +301,7 @@ void main() {
 
     test('subtype round-trip via parent discriminator routes back to subtype',
         () {
-      const dry = DryFood(weightKg: 1.25);
+      final dry = DryFood(weightKg: 1.25);
       final json = serialize(dry);
       final food = PetFood.fromJson(jsonDecode(json) as Map<String, dynamic>);
       expect(food.value, isA<DryFood>());
@@ -317,31 +313,23 @@ void main() {
     // keys from the toJson() map entirely (no `"id": null` slots). Required
     // fields and explicit defaults must still appear.
     test('toJson omits optional fields left null', () {
-      const pet = Pet(name: 'Fido', photoUrls: <String>{'http://x/y.jpg'});
+      final pet = Pet(name: 'Fido', photoUrls: <String>{'http://x/y.jpg'});
       final json = pet.toJson();
       expect(json.containsKey('name'), isTrue,
           reason: 'required field name present');
       expect(json.containsKey('photoUrls'), isTrue,
           reason: 'required field photoUrls present');
-      expect(
-        json.containsKey('id'),
-        isFalse,
-        reason: 'optional id left unset must be omitted, not emitted as null',
-      );
-      expect(
-        json.containsKey('category'),
-        isFalse,
-        reason: 'optional category left unset must be omitted',
-      );
-      expect(
-        json.containsKey('tags'),
-        isFalse,
-        reason: 'optional tags left unset must be omitted',
-      );
+      expect(json.containsKey('id'), isFalse,
+          reason:
+              'optional id left unset must be omitted, not emitted as null');
+      expect(json.containsKey('category'), isFalse,
+          reason: 'optional category left unset must be omitted');
+      expect(json.containsKey('tags'), isFalse,
+          reason: 'optional tags left unset must be omitted');
     });
 
     test('toJson includes optional fields when explicitly set', () {
-      const pet = Pet(
+      final pet = Pet(
         id: 7,
         name: 'Fido',
         photoUrls: <String>{'http://x/y.jpg'},
@@ -382,12 +370,9 @@ void main() {
       };
       final pet = Pet.fromJson(input);
       final round = pet.toJson();
-      expect(
-        round.containsKey('unknownLeak'),
-        isFalse,
-        reason:
-            'unknown fields read by fromJson must NOT be re-emitted by toJson',
-      );
+      expect(round.containsKey('unknownLeak'), isFalse,
+          reason:
+              'unknown fields read by fromJson must NOT be re-emitted by toJson');
     });
   });
 }

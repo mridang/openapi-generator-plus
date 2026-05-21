@@ -112,6 +112,11 @@
           <maxmem>512m</maxmem>
           <compilerArgs>
             <arg>-Xlint:all</arg>
+            <!-- Java 25-introduced check: 'this' references during super-class
+                 constructor. Triggered by DefaultCodegen.modifyFeatureSet
+                 call in our constructor; restructuring requires upstream
+                 refactor in openapi-generator core. Pragmatically disabled. -->
+            <arg>-Xlint:-this-escape</arg>
             <arg>-Werror</arg>
             <arg>-J-Xss4m</arg>
           </compilerArgs>
@@ -490,6 +495,7 @@
                 <arg>--should-stop=ifError=FLOW</arg>
                 <arg>-Xlint:all</arg>
                 <arg>-Xlint:-path</arg>
+                <arg>-Xlint:-this-escape</arg>
                 <arg>-Werror</arg>
                 <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -Xep:NullAway:ERROR -Xep:MissingOverride:ERROR -Xep:InvalidBlockTag:ERROR -Xep:InvalidInlineTag:ERROR -Xep:NonApiType:ERROR -XepOpt:NullAway:AnnotatedPackages=io.github.mridang</arg>
                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>

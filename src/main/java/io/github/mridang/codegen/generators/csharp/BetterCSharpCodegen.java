@@ -382,7 +382,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         return "string";
     }
 
-    /**
+    /*
      * Returns null for all schema types because C# uses
      * language-level defaults (null for reference types, zero
      * for value types) and explicit default expressions are
@@ -506,7 +506,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         return pascalAuthFilename(stem, ".cs");
     }
 
-    /** {@inheritDoc} */
+    /* {@inheritDoc} */
     /** {@inheritDoc} */
     @Override
     protected List<OAuthTestFileSpec> getOAuthTestFileSpecs() {

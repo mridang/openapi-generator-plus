@@ -8,8 +8,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:petstore_client/petstore_client.dart';
 import 'package:test/test.dart';
+import 'package:petstore_client/petstore_client.dart';
 
 class _FakeApiClient implements ApiClient {
   final List<HttpApiResponse> _responses = [];
@@ -60,7 +60,7 @@ void main() {
       await auth.authHeadersAsync();
 
       expect(client.lastBody, isNotNull);
-      expect(client.lastBody, contains('grant_type=client_credentials'));
+      expect(client.lastBody!, contains('grant_type=client_credentials'));
     });
 
     test('sends client id and secret', () async {
@@ -72,8 +72,8 @@ void main() {
 
       await auth.authHeadersAsync();
 
-      expect(client.lastBody, contains('client_id=my-client-id'));
-      expect(client.lastBody, contains('client_secret=my-client-secret'));
+      expect(client.lastBody!, contains('client_id=my-client-id'));
+      expect(client.lastBody!, contains('client_secret=my-client-secret'));
     });
 
     test('sends scopes', () async {
@@ -85,8 +85,8 @@ void main() {
 
       await auth.authHeadersAsync();
 
-      expect(client.lastBody, contains('scope=read'));
-      expect(client.lastBody, contains('write'));
+      expect(client.lastBody!, contains('scope=read'));
+      expect(client.lastBody!, contains('write'));
     });
 
     test('returns authorization bearer header', () async {
@@ -140,7 +140,7 @@ void main() {
 
       final authHeader = client.lastHeaders['Authorization'];
       expect(authHeader, isNotNull);
-      expect(authHeader, startsWith('Basic '));
+      expect(authHeader!, startsWith('Basic '));
       final b64 = authHeader.substring('Basic '.length);
       final decoded = utf8.decode(base64.decode(b64));
       // Expected: form-urlencoded id ':' form-urlencoded secret

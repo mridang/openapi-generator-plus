@@ -7,9 +7,10 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
-import 'package:petstore_client/petstore_client.dart';
 import 'package:test/test.dart';
+import 'package:petstore_client/petstore_client.dart';
 
 class _FakeApiClient implements ApiClient {
   final List<HttpApiResponse> _responses = [];
@@ -41,10 +42,11 @@ class _FakeApiClient implements ApiClient {
 /// Slow fake that waits on a completer before responding, so that tests
 /// can stack multiple concurrent callers against an in-flight request.
 class _GatedApiClient implements ApiClient {
-  _GatedApiClient(this.gate, this.responseBody);
   final Completer<void> gate;
   final String responseBody;
   int requestCount = 0;
+
+  _GatedApiClient(this.gate, this.responseBody);
 
   @override
   Future<HttpApiResponse> sendRequest(
@@ -79,8 +81,7 @@ void main() {
     test('stores refresh token', () async {
       final client = _FakeApiClient();
       client.enqueue(
-        '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
-      );
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}');
 
       final manager = OAuth2TokenManager();
       manager.setApiClient(client);
@@ -199,11 +200,8 @@ void main() {
 
       final results = await Future.wait(futures);
 
-      expect(
-        client.requestCount,
-        equals(1),
-        reason: '10 concurrent callers should share a single refresh',
-      );
+      expect(client.requestCount, equals(1),
+          reason: '10 concurrent callers should share a single refresh');
       for (final token in results) {
         expect(token, equals('tok-shared'));
       }

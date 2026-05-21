@@ -7,10 +7,13 @@
 
 import 'dart:convert';
 
-import 'package:petstore_client/src/auth/base_authenticator.dart';
+import 'base_authenticator.dart';
 
 /// BasicAuthenticator provides HTTP Basic authentication.
 class BasicAuthenticator extends BaseAuthenticator {
+  final String _host;
+  final String _authHeader;
+
   /// Creates a new Basic authenticator.
   BasicAuthenticator({
     required String host,
@@ -19,8 +22,6 @@ class BasicAuthenticator extends BaseAuthenticator {
   })  : _host = host,
         _authHeader =
             'Basic ${base64Encode(utf8.encode('$username:$password'))}';
-  final String _host;
-  final String _authHeader;
 
   @override
   String host() => _host;

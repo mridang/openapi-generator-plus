@@ -7,11 +7,11 @@
 
 import 'dart:convert';
 
-import 'package:petstore_client/src/api_client.dart';
-import 'package:petstore_client/src/auth/base_authenticator.dart';
-import 'package:petstore_client/src/auth/http_aware_authenticator.dart';
-import 'package:petstore_client/src/auth/oauth/client_auth_method.dart';
-import 'package:petstore_client/src/auth/oauth/oauth2_token_manager.dart';
+import '../../api_client.dart';
+import '../base_authenticator.dart';
+import '../http_aware_authenticator.dart';
+import 'client_auth_method.dart';
+import 'oauth2_token_manager.dart';
 
 /// OAuth2ClientCredentialsAuthenticator provides OAuth2 client credentials
 /// flow authentication.
@@ -21,6 +21,14 @@ import 'package:petstore_client/src/auth/oauth/oauth2_token_manager.dart';
 /// timeouts) as regular API calls.
 class OAuth2ClientCredentialsAuthenticator extends BaseAuthenticator
     implements HttpAwareAuthenticator {
+  final String _host;
+  final String _clientId;
+  final String _clientSecret;
+  final String _tokenUrl;
+  final List<String> _scopes;
+  final ClientAuthMethod _clientAuthMethod;
+  final OAuth2TokenManager _tokenManager;
+
   /// Creates a new client credentials authenticator.
   OAuth2ClientCredentialsAuthenticator({
     required String host,
@@ -36,13 +44,6 @@ class OAuth2ClientCredentialsAuthenticator extends BaseAuthenticator
         _scopes = scopes,
         _clientAuthMethod = clientAuthMethod,
         _tokenManager = OAuth2TokenManager();
-  final String _host;
-  final String _clientId;
-  final String _clientSecret;
-  final String _tokenUrl;
-  final List<String> _scopes;
-  final ClientAuthMethod _clientAuthMethod;
-  final OAuth2TokenManager _tokenManager;
 
   @override
   String host() => _host;

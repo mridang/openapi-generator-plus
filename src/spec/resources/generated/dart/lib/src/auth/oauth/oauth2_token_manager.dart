@@ -8,7 +8,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:petstore_client/src/api_client.dart';
+import '../../api_client.dart';
 
 /// OAuth2TokenManager manages OAuth2 token lifecycle: fetching, caching, and
 /// refreshing.
@@ -134,10 +134,8 @@ class OAuth2TokenManager {
     }
 
     final body = params.entries
-        .map(
-          (e) =>
-              '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}',
-        )
+        .map((e) =>
+            '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
         .join('&');
 
     final bodyBytes = Uint8List.fromList(utf8.encode(body));
