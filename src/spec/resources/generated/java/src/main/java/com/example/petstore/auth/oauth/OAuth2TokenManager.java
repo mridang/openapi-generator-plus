@@ -121,6 +121,15 @@ public class OAuth2TokenManager {
   }
 
   /**
+   * Invalidate the cached access token so that the next call to {@link #getAccessToken(String,
+   * Map)} fetches a fresh token from the token endpoint. Intended for tests and recovery flows.
+   */
+  public synchronized void invalidateAccessToken() {
+    this.accessToken = null;
+    this.tokenExpiry = null;
+  }
+
+  /**
    * Manually set an access token, bypassing the token endpoint.
    *
    * @param token the access token to use

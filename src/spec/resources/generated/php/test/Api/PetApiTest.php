@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test\Api;
 
-use PHPUnit\Framework\TestCase;
 use PetstoreClient\Api\Options\FindPetsByStatusOptions;
 use PetstoreClient\Api\Options\UploadPetCertificateOptions;
 use PetstoreClient\Api\Options\UploadPetDocumentOptions;
@@ -15,9 +14,10 @@ use PetstoreClient\Errors\NotFoundException;
 use PetstoreClient\Errors\ServerException;
 use PetstoreClient\Models\ApiResponse as ApiResponseModel;
 use PetstoreClient\Models\Pet;
-use PetstoreClient\Models\PetStatusEnum;
 use PetstoreClient\Models\PetPassport;
+use PetstoreClient\Models\PetStatusEnum;
 use PetstoreClient\Models\SetPetAvatarThumbnailRequest;
+use PHPUnit\Framework\TestCase;
 
 /**
  * Integration tests for the Pet API endpoints.
@@ -255,5 +255,44 @@ class PetApiTest extends TestCase
 
         $this->assertNotNull($result);
         unlink($tmpFile);
+    }
+
+    public function testAddPetPerCallAuthOverride(): void
+    {
+        // Verify the auth: kwarg on the BASE operation method (not just the
+        // WithHttpInfo variant) is applied to the outgoing request. The default
+        // header carries one token; the per-call authenticator carries a
+        // different one and must win on the wire.
+        $captured = new \stdClass();
+        $captured->headers = [];
+
+        $client = new class ($captured) implements \PetstoreClient\ApiClient {
+            public function __construct(private readonly \stdClass $captured)
+            {
+            }
+
+            public function sendRequest(string $method, string $url, array $headers, mixed $body): \PetstoreClient\ApiResponse
+            {
+                $this->captured->headers = $headers;
+                return new \PetstoreClient\ApiResponse(
+                    200,
+                    '{"id":1,"name":"x","photoUrls":[]}',
+                    ['Content-Type' => 'application/json']
+                );
+            }
+        };
+
+        $config = Configuration::builder()
+            ->baseUrl('http://localhost:9999')
+            ->defaultHeader('Authorization', 'Bearer default-token')
+            ->build();
+        $api = new PetApi(apiClient: $client, config: $config);
+        $perCallAuth = new BearerAuthenticator('http://localhost:9999', 'per-call-token');
+
+        $pet = new Pet(name: 'OverrideDog', photoUrls: ['http://example.com/p.jpg']);
+        $pet->id = 1;
+        $api->addPet($pet, auth: $perCallAuth);
+
+        $this->assertSame('Bearer per-call-token', $captured->headers['Authorization'] ?? null);
     }
 }

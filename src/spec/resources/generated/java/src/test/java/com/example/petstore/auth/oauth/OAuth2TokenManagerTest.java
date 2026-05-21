@@ -117,6 +117,31 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
+  void invalidateAccessTokenForcesRefetch() {
+    AtomicInteger callCount = new AtomicInteger(0);
+    ApiClient client =
+        (method, url, headers, body) -> {
+          int n = callCount.incrementAndGet();
+          return new ApiResponse(
+              200, "{\"access_token\":\"tok" + n + "\",\"expires_in\":3600}", Map.of());
+        };
+
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "client_credentials");
+
+    String first = manager.getAccessToken("https://auth.example.com/token", params);
+    manager.invalidateAccessToken();
+    String second = manager.getAccessToken("https://auth.example.com/token", params);
+
+    assertEquals("tok1", first);
+    assertEquals("tok2", second);
+    assertEquals(2, callCount.get());
+  }
+
+  @Test
   void throwsWhenNoApiClientInjected() {
     OAuth2TokenManager manager = new OAuth2TokenManager();
 

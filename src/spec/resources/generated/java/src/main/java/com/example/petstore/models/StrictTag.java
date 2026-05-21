@@ -13,27 +13,25 @@ import javax.annotation.Nullable;
 
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2", "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"})
 @SuppressWarnings({"deprecation", "serial"})
-public class Category {
+public class StrictTag {
 
-  /** Example: {@code 1} */
+  /** Example: {@code null} */
   @JsonProperty("id")
   @Nullable
   public Long id;
 
-  /** Example: {@code Dogs} */
-  /// ## Small breed
-  /// Toy or small breed dogs
-  /// ```json
-  /// Chihuahua
-  /// ```
-  /// ## Large breed
-  /// Working or guard breed dogs
-  /// ```json
-  /// GreatDane
-  /// ```
+  /** Example: {@code null} */
   @JsonProperty("name")
   @Nullable
   public String name;
+
+  /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false:
+   * any JSON key not declared above must be rejected at deserialization time. */
+  @com.fasterxml.jackson.annotation.JsonAnySetter
+  public void setUnknownProperty(String key, Object value) {
+    throw new IllegalArgumentException(
+        "Unknown property '" + key + "' on StrictTag (unevaluatedProperties:false)");
+  }
 
   /* Value-equality based on all declared fields. Generated so model
    * instances work correctly as Set/Map keys and in test assertions.
@@ -45,7 +43,7 @@ public class Category {
     if (this == o) {
       return true;
     }
-    if (!(o instanceof Category other)) {
+    if (!(o instanceof StrictTag other)) {
       return false;
     }
     return java.util.Objects.equals(this.id, other.id)

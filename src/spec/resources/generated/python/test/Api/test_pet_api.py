@@ -3,7 +3,7 @@
 import pytest
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from typing import Any
+from typing import Any, Dict
 from petstore_client.api.pet_api import PetApi
 from petstore_client.api.options.add_pet_photos_options import AddPetPhotosOptions
 from petstore_client.api.options.find_pets_by_status_options import FindPetsByStatusOptions
@@ -189,6 +189,43 @@ class TestPetApiErrorHandling:
         api, server = _create_mock_server(200, 'application/json', '{"code":200,"type":"","message":"success"}')
         result = await api.upload_pet_certificate(1, UploadPetCertificateOptions(file=b'fake-cert-data'))
         assert result is not None
+
+    async def test_add_pet_per_call_auth_override(self) -> None:
+        # Verify that an auth: kwarg passed to the BASE operation method (not just
+        # _with_http_info) is applied to the outgoing request. The default header
+        # carries one token; the per-call authenticator carries a different one and
+        # must win on the wire.
+        captured: Dict[str, str] = {}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self) -> None:
+                for key, value in self.headers.items():
+                    captured[key] = value
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(b'{"id":1,"name":"x","photoUrls":[]}')
+
+            def log_message(self, format: str, *args: object) -> None:  # noqa: A002
+                pass
+
+        server = HTTPServer(('127.0.0.1', 0), Handler)
+        port = server.server_address[1]
+        thread = threading.Thread(target=server.handle_request)
+        thread.daemon = True
+        thread.start()
+
+        base_url = f'http://127.0.0.1:{port}'
+        config = (
+            Configuration.builder().base_url(base_url).default_header('Authorization', 'Bearer default-token').build()
+        )
+        api = PetApi(config=config)
+        per_call_auth = BearerAuthenticator(base_url, 'per-call-token')
+
+        pet = Pet(id=1, name='OverrideDog', photoUrls={'http://example.com/p.jpg'})
+        await api.add_pet(per_call_auth, pet)
+
+        assert captured.get('Authorization') == 'Bearer per-call-token'
 
 
 class TestPetApiWithHttpInfo:

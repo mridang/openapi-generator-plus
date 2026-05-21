@@ -21,7 +21,7 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.14.0</version>
                 <configuration>
-                    <release>17</release>
+                    <release>25</release>
                     <fork>true</fork>
                     <failOnWarning>true</failOnWarning>
                     <compilerArgs>
@@ -45,12 +45,12 @@
                         <path>
                             <groupId>com.google.errorprone</groupId>
                             <artifactId>error_prone_core</artifactId>
-                            <version>2.40.0</version>
+                            <version>${error-prone-version}</version>
                         </path>
                         <path>
                             <groupId>com.uber.nullaway</groupId>
                             <artifactId>nullaway</artifactId>
-                            <version>0.12.7</version>
+                            <version>${nullaway-version}</version>
                         </path>
                     </annotationProcessorPaths>
                 </configuration>
@@ -103,18 +103,63 @@
                 </configuration>
             </plugin>
             <plugin>
-                <groupId>com.spotify.fmt</groupId>
-                <artifactId>fmt-maven-plugin</artifactId>
-                <version>2.25</version>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>${spotless-version}</version>
+                <configuration>
+                    <java>
+                        <includes>
+                            <include>src/main/java/**/*.java</include>
+                            <include>src/test/java/**/*.java</include>
+                        </includes>
+                        <googleJavaFormat/>
+                    </java>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>${checkstyle-plugin-version}</version>
+                <configuration>
+                    <configLocation>${project.basedir}/checkstyle.xml</configLocation>
+                    <consoleOutput>true</consoleOutput>
+                    <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                    <failsOnError>false</failsOnError>
+                    <violationSeverity>warning</violationSeverity>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.puppycrawl.tools</groupId>
+                        <artifactId>checkstyle</artifactId>
+                        <version>${checkstyle-version}</version>
+                    </dependency>
+                </dependencies>
             </plugin>
             <plugin>
                 <groupId>com.github.spotbugs</groupId>
                 <artifactId>spotbugs-maven-plugin</artifactId>
-                <version>4.8.6.6</version>
+                <version>${spotbugs-plugin-version}</version>
                 <configuration>
                     <effort>Default</effort>
                     <threshold>Low</threshold>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.openrewrite.maven</groupId>
+                <artifactId>rewrite-maven-plugin</artifactId>
+                <version>${openrewrite-plugin-version}</version>
+                <configuration>
+                    <activeRecipes>
+                        <recipe>org.openrewrite.java.migrate.UpgradeToJava25</recipe>
+                    </activeRecipes>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.openrewrite.recipe</groupId>
+                        <artifactId>rewrite-migrate-java</artifactId>
+                        <version>${openrewrite-recipes-version}</version>
+                    </dependency>
+                </dependencies>
             </plugin>
             <plugin>
                 <groupId>org.jacoco</groupId>
@@ -151,7 +196,7 @@
         <dependency>
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-annotations</artifactId>
-            <version>4.9.1</version>
+            <version>${spotbugs-annotations-version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -248,5 +293,14 @@
         <opentelemetry-version>1.46.0</opentelemetry-version>
         <jakarta-annotation-version>1.3.5</jakarta-annotation-version>
         <junit-version>5.10.2</junit-version>
+        <error-prone-version>2.41.0</error-prone-version>
+        <nullaway-version>0.12.10</nullaway-version>
+        <spotbugs-plugin-version>4.9.6.2</spotbugs-plugin-version>
+        <spotbugs-annotations-version>4.9.6</spotbugs-annotations-version>
+        <spotless-version>2.46.1</spotless-version>
+        <checkstyle-plugin-version>3.6.0</checkstyle-plugin-version>
+        <checkstyle-version>10.20.2</checkstyle-version>
+        <openrewrite-plugin-version>6.13.0</openrewrite-plugin-version>
+        <openrewrite-recipes-version>3.18.0</openrewrite-recipes-version>
     </properties>
 </project>

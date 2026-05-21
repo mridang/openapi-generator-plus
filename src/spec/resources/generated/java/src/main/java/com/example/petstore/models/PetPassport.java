@@ -23,7 +23,11 @@ public class PetPassport {
   @Nullable
   public Pet pet;
 
-  /** Base64-encoded primary thumbnail */
+  /**
+   * Base64-encoded primary thumbnail
+   *
+   * <p>Example: {@code dGVzdC10aHVtYm5haWw=}
+   */
   @JsonProperty("thumbnail")
   @Nullable
   public byte[] thumbnail;
@@ -42,6 +46,15 @@ public class PetPassport {
   @Nullable
   public OffsetDateTime issuedAt;
 
+  /**
+   * Embedded chip data (OAS 3.1 contentEncoding form)
+   *
+   * <p>Example: {@code null}
+   */
+  @JsonProperty("biometricChip")
+  @Nullable
+  public String biometricChip;
+
   /* Value-equality based on all declared fields. Generated so model
    * instances work correctly as Set/Map keys and in test assertions.
    * Uses pattern-matching `instanceof other` (Java 16+) — required by
@@ -58,11 +71,13 @@ public class PetPassport {
     return java.util.Objects.equals(this.pet, other.pet)
         && java.util.Arrays.equals(this.thumbnail, other.thumbnail)
         && java.util.Objects.equals(this.scans, other.scans)
-        && java.util.Objects.equals(this.issuedAt, other.issuedAt);
+        && java.util.Objects.equals(this.issuedAt, other.issuedAt)
+        && java.util.Objects.equals(this.biometricChip, other.biometricChip);
   }
 
   @Override
   public int hashCode() {
-    return java.util.Objects.hash(pet, java.util.Arrays.hashCode(thumbnail), scans, issuedAt);
+    return java.util.Objects.hash(
+        pet, java.util.Arrays.hashCode(thumbnail), scans, issuedAt, biometricChip);
   }
 }

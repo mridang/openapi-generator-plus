@@ -2,6 +2,23 @@
 
 Auto-generated Java SDK client for the {{appName}} API.
 
+## Requirements
+
+- **Java 25** (LTS, released Sep 2025) — minimum required JDK to build and run
+- **Maven 3.9+** — build tool
+
+### Tooling
+
+The generated project comes pre-wired with the following Maven plugins:
+
+| Tool | Plugin | Invoke |
+| --- | --- | --- |
+| Formatter | `spotless-maven-plugin` (google-java-format) | `mvn spotless:apply` (write) / `mvn spotless:check` (verify) |
+| Linter | `maven-checkstyle-plugin` (`checkstyle.xml` at project root) | `mvn checkstyle:check` |
+| Static analyser | `spotbugs-maven-plugin` | `mvn spotbugs:check` |
+| Static analyser (compile-time) | Error Prone + NullAway (via `maven-compiler-plugin`) | `mvn compile` |
+| Auto-upgrader | `rewrite-maven-plugin` (`org.openrewrite.java.migrate.UpgradeToJava25` recipe) | `mvn rewrite:run` |
+
 ## Build
 
 ```bash
