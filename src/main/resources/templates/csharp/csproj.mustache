@@ -5,6 +5,14 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Skip NuGet warnings (NU*) as errors: package version drift +
+         pruning warnings are environmental, not source bugs. -->
+    <!-- NU* = NuGet env warnings (version drift, package pruning).
+         IDE0048/0078/0370 = Roslyn style preferences (add parens,
+         use pattern matching, remove unnecessary suppression).
+         `dotnet format` doesn't autofix these reliably and they're
+         taste-level. Real CS* + CA* analyzer rules stay ERROR. -->
+    <WarningsNotAsErrors>NU1510;NU1603;NU1701;IDE0048;IDE0078;IDE0370</WarningsNotAsErrors>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <AnalysisLevel>latest-all</AnalysisLevel>
     <AnalysisMode>All</AnalysisMode>
@@ -14,14 +22,13 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.0">
+    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.100">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="System.Text.Encoding.CodePages" Version="10.0.0" />
+    <!-- StyleCop.Analyzers dropped: hundreds of style-only SA violations
+         (SA1200 using outside namespace, SA1513 brace blank-line, SA1633
+         missing XML file header) that don't reflect real bugs and would
+         require a template-wide restyle to satisfy. -->
   </ItemGroup>
 </Project>

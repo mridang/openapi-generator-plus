@@ -147,10 +147,10 @@ public abstract class BaseApi
             Dictionary<string, string> cookies = effectiveAuth.GetCookieParams();
             if (cookies.Count > 0)
             {
-                // RFC 6265 — don't URL-encode cookie name/value; most cookie
-                // parsers don't URL-decode, so `=` (base64 padding) would
-                // arrive as literal `%3D` and break JWT/session cookies.
-                // Validate and pass through raw instead.
+                /* RFC 6265 — don't URL-encode cookie name/value; most cookie
+                   parsers don't URL-decode, so `=` (base64 padding) would
+                   arrive as literal `%3D` and break JWT/session cookies.
+                   Validate and pass through raw instead. */
                 string cookieStr = string.Join(
                     "; ",
                     cookies.Select(c =>
@@ -415,7 +415,7 @@ public abstract class BaseApi
         {
             bool ok =
                 c
-                    is 0x21
+                    is (char)0x21
                         or >= (char)0x23
                         and <= (char)0x2B
                         or >= (char)0x2D

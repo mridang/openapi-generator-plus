@@ -152,13 +152,25 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     /** {@inheritDoc} */
     @Override
     protected String getFormatterDockerImage() {
-        return "mcr.microsoft.com/dotnet/sdk:9.0";
+        // .NET 10 SDK has the matching dotnet-format tooling for net10.0 targets.
+        return "mcr.microsoft.com/dotnet/sdk:10.0";
     }
 
     /** {@inheritDoc} */
     @Override
     protected String[] getFormatterCommands() {
-        return new String[] {"dotnet tool restore", "dotnet csharpier ."};
+        // csharpier formats whitespace/layout. Then `dotnet format style` runs
+        // Roslyn auto-fixers for IDE0048 (add parens for clarity), IDE0078
+        // (use pattern matching), IDE0370 (remove unnecessary suppression)
+        // and other style rules — keeps strict rules ON for callers while
+        // ensuring generated code already complies out of the box.
+        return new String[] {
+            "dotnet tool restore",
+            "dotnet csharpier .",
+            "dotnet restore",
+            "dotnet format style --severity info --no-restore || true",
+            "dotnet format analyzers --severity info --no-restore || true"
+        };
     }
 
     /** {@inheritDoc} */

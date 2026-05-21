@@ -41,6 +41,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
     }
 
     private static readonly string[] Scopes = new[] { "read", "write" };
+    private static readonly string[] scopes = new[] { "read" };
 
     private static OAuth2ClientCredentialsAuthenticator CreateAuthenticator()
     {
@@ -149,7 +150,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
             "id+with/special",
             "secret&with=stuff",
             new Uri("https://auth.example.com/token"),
-            new[] { "read" },
+            scopes,
             ClientAuthMethod.Basic
         );
         auth.SetApiClient(client);

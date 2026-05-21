@@ -41,6 +41,7 @@ public class OAuth2PasswordAuthenticatorTest
     }
 
     private static readonly string[] Scopes = new[] { "read", "write" };
+    private static readonly string[] scopes = new[] { "read" };
 
     private static OAuth2PasswordAuthenticator CreateAuthenticator()
     {
@@ -161,7 +162,7 @@ public class OAuth2PasswordAuthenticatorTest
             null,
             "testuser",
             "testpass",
-            new[] { "read" },
+            scopes,
             ClientAuthMethod.Basic
         );
         auth.SetApiClient(client);
