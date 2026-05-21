@@ -7,5 +7,6 @@ module PetstoreClient::Models
     attr_reader thumbnail: String?
     attr_reader scans: Array[String]?
     attr_reader issued_at: Time?
+    attr_reader biometric_chip: String?
   end
 end

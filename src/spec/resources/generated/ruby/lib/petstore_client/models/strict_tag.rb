@@ -28,8 +28,8 @@ end
 module PetstoreClient
   # Model classes generated from OpenAPI schemas.
   module Models
-    # Model class for Category.
-    class Category < Dry::Struct
+    # Model class for StrictTag.
+    class StrictTag < Dry::Struct
       # Attribute mapping from ruby-style variable name to JSON key.
       ATTRIBUTE_MAP = {
         id: 'id',
@@ -50,15 +50,22 @@ module PetstoreClient
         JSON_KEY_MAP[key.to_s] || key.to_sym
       end
 
-      # @example 1
+      # Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+      # Reject any JSON key not declared in ATTRIBUTE_MAP before dry-struct
+      # tries to coerce it (otherwise dry-struct silently drops extras).
+      UNEVALUATED_PROPERTIES_FALSE = true
+
+      transform_keys do |key|
+        skey = key.to_s
+        if !JSON_KEY_MAP.key?(skey) && !ATTRIBUTE_MAP.key?(key.to_sym)
+          raise ArgumentError,
+            "Unknown property '#{skey}' on StrictTag (unevaluatedProperties:false)"
+        end
+        JSON_KEY_MAP[skey] || key.to_sym
+      end
+      # @example null
       attribute :id, Types::Any.optional.meta(omittable: true)
-      # @example Dogs
-      # Small breed
-      # Toy or small breed dogs
-      # Example: Chihuahua
-      # Large breed
-      # Working or guard breed dogs
-      # Example: GreatDane
+      # @example null
       attribute :name, Types::Any.optional.meta(omittable: true)
     end
   end

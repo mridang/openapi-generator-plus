@@ -35,7 +35,8 @@ module PetstoreClient
         pet: 'pet',
         thumbnail: 'thumbnail',
         scans: 'scans',
-        issued_at: 'issuedAt'
+        issued_at: 'issuedAt',
+        biometric_chip: 'biometricChip'
       }.freeze
 
       # Inverse mapping from JSON key to ruby attribute name.
@@ -46,7 +47,8 @@ module PetstoreClient
         pet: 'Pet',
         thumbnail: 'String',
         scans: 'Array<String>',
-        issued_at: 'Time'
+        issued_at: 'Time',
+        biometric_chip: 'String'
       }.freeze
 
       # Transform incoming hash keys from JSON format to Ruby attribute names.
@@ -57,12 +59,16 @@ module PetstoreClient
       # @example null
       attribute :pet, Types::Any.optional.meta(omittable: true)
       # Base64-encoded primary thumbnail
+      # @example dGVzdC10aHVtYm5haWw=
       attribute :thumbnail, Types::Any.optional.meta(omittable: true)
       # Base64-encoded scans of each passport page
       # @example null
       attribute :scans, Types::Any.optional.meta(omittable: true)
       # @example null
       attribute :issued_at, Types::Any.optional.meta(omittable: true)
+      # Embedded chip data (OAS 3.1 contentEncoding form)
+      # @example null
+      attribute :biometric_chip, Types::Any.optional.meta(omittable: true)
     end
   end
 end

@@ -2,6 +2,12 @@
 
 Auto-generated Ruby SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
+## Requirements
+
+- Ruby `>= 3.4` (the gem targets Ruby 3.4+; older runtimes are not
+  supported and rubocop is configured with `TargetRubyVersion: 3.4`).
+- Bundler `>= 2.x` (`gem install bundler` if missing).
+
 ## Install
 
 ```bash
@@ -11,7 +17,26 @@ bundle install
 ## Test
 
 ```bash
-bundle exec rake spec
+bundle exec rake test
+```
+
+## Lint / Format
+
+`rubocop` is the formatter and the linter. Lint without modifying
+files, then auto-correct in place:
+
+```bash
+bundle exec rubocop          # lint only
+bundle exec rubocop -A       # auto-correct (format)
+```
+
+## Static analysis
+
+`steep` type-checks the gem against the bundled RBS signatures in
+`sig/`:
+
+```bash
+bundle exec steep check
 ```
 
 ## Gem
