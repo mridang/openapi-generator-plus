@@ -19,7 +19,7 @@ public class JavaFormattingSpec extends AbstractFormattingSpec implements JavaSp
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {"mvn fmt:check -B"};
+    return new String[] {"mvn spotless:check -B"};
   }
 
   @Override

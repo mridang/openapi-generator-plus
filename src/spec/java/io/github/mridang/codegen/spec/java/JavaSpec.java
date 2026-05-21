@@ -16,12 +16,12 @@ interface JavaSpec extends LanguageSpec, DockerImageSpec {
 
   @Override
   default DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("maven:3.9-eclipse-temurin-21");
+    return DockerImageName.parse("maven:3.9-eclipse-temurin-25");
   }
 
   @Override
   default String getDockerImage() {
-    return "eclipse-temurin:17-jdk-jammy";
+    return "eclipse-temurin:25-jdk";
   }
 
   @Override

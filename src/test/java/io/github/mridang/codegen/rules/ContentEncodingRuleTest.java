@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@SuppressWarnings("NullAway")
 class ContentEncodingRuleTest extends BaseRuleTest<ContentEncodingRule> {
 
     private OpenAPI specWithComponentSchema(Schema<?> schema) {
@@ -32,7 +33,11 @@ class ContentEncodingRuleTest extends BaseRuleTest<ContentEncodingRule> {
     }
 
     private Schema<?> targetSchema(OpenAPI openAPI) {
-        return openAPI.getComponents().getSchemas().get("Target");
+        Schema<?> s = openAPI.getComponents().getSchemas().get("Target");
+        if (s == null) {
+            throw new IllegalStateException("Target schema not present");
+        }
+        return s;
     }
 
     @Test
@@ -54,7 +59,7 @@ class ContentEncodingRuleTest extends BaseRuleTest<ContentEncodingRule> {
         Schema<?> result = targetSchema(openAPI);
         assertEquals("byte", result.getFormat());
         assertNotNull(result.getExtensions(), "extensions should be present");
-        assertEquals(Boolean.TRUE, result.getExtensions().get(ContentEncodingRule.X_IS_BASE64_URL));
+        assertEquals(true, result.getExtensions().get(ContentEncodingRule.X_IS_BASE64_URL));
         assertNull(result.getContentEncoding());
     }
 
@@ -66,7 +71,7 @@ class ContentEncodingRuleTest extends BaseRuleTest<ContentEncodingRule> {
         rule.apply(openAPI, Map.of(), logger);
         Schema<?> result = targetSchema(openAPI);
         assertEquals("byte", result.getFormat());
-        assertEquals(Boolean.TRUE, result.getExtensions().get(ContentEncodingRule.X_IS_BASE16));
+        assertEquals(true, result.getExtensions().get(ContentEncodingRule.X_IS_BASE16));
         assertNull(result.getContentEncoding());
     }
 
@@ -118,6 +123,9 @@ class ContentEncodingRuleTest extends BaseRuleTest<ContentEncodingRule> {
         OpenAPI openAPI = specWithComponentSchema(parent);
         rule.apply(openAPI, Map.of(), logger);
         Schema<?> inner = (Schema<?>) targetSchema(openAPI).getProperties().get("payload");
+        if (inner == null) {
+            throw new IllegalStateException("inner schema missing");
+        }
         assertEquals("byte", inner.getFormat());
         assertNull(inner.getContentEncoding());
     }
@@ -131,7 +139,7 @@ class ContentEncodingRuleTest extends BaseRuleTest<ContentEncodingRule> {
         rule.apply(openAPI, Map.of(), logger);
         Schema<?> items = (Schema<?>) ((ArraySchema) targetSchema(openAPI)).getItems();
         assertEquals("byte", items.getFormat());
-        assertEquals(Boolean.TRUE, items.getExtensions().get(ContentEncodingRule.X_IS_BASE64_URL));
+        assertEquals(true, items.getExtensions().get(ContentEncodingRule.X_IS_BASE64_URL));
     }
 
     @Test
