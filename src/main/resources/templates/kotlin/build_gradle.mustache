@@ -31,7 +31,8 @@ repositories {
 }
 
 kotlin {
-    jvmToolchain(17)
+    // Use whatever JDK is on PATH (Docker container provides a recent JDK).
+    // Toolchain auto-provisioning requires extra repos configured; we skip that.
     jvm()
 
     sourceSets {

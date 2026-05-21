@@ -12,6 +12,10 @@ insert_final_newline = true
 indent_size = 4
 ktlint_standard_no-wildcard-imports = disabled
 ktlint_standard_backing-property-naming = disabled
+# Generated KDoc + per-example trailing comments coexist on constructor
+# value parameters; both rules object but the layout is intentional.
+ktlint_standard_no-consecutive-comments = disabled
+ktlint_standard_value-parameter-comment = disabled
 
 [*.kts]
 indent_size = 4

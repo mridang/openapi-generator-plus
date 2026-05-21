@@ -232,11 +232,7 @@ class {{classname}}(
   {{/description}}
   {{/deprecated}}
   {{#vendorExtensions.examples}}
-  /// ## {{summary}}
-  /// {{description}}
-  /// ```json
-  /// {{value}}
-  /// ```
+  /* Example "{{summary}}" — {{description}}; value: {{value}} */
   {{/vendorExtensions.examples}}
   @SerialName("{{baseName}}")
 {{#isDateTime}}  @Contextual
