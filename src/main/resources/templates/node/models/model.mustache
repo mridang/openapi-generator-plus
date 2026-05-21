@@ -342,7 +342,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/isString}}
 {{/isArray}}
 {{#isArray}}
-    if (this.{{name}} != null && !Array.isArray(this.{{name}}) && !(this.{{name}} instanceof Set)) {
+    if (this.{{name}} != null && !Array.isArray(this.{{name}}) && !((this.{{name}} as unknown) instanceof Set)) {
       throw new TypeError(`{{name}} must be an array, got ${typeof this.{{name}}}`);
     }
 {{/isArray}}

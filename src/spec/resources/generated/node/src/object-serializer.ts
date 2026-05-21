@@ -108,11 +108,13 @@ export class ObjectSerializer {
       }
 
       const instance = plainToInstance(cls, json, { excludeExtraneousValues: true });
-      // Gap S: re-run the model constructor on the plain-instance so
-      // the model's primitive-type assertions fire. class-transformer
-      // bypasses constructor side-effects, leaving wire-type bugs
-      // ({"id": "42"} on an int field) silent. Routing through the
-      // class's own constructor enforces them.
+      /**
+       * Gap S: re-run the model constructor on the plain-instance so the
+       * model's primitive-type assertions fire. class-transformer bypasses
+       * constructor side-effects, leaving wire-type bugs ({"id": "42"} on
+       * an int field) silent. Routing through the class's own constructor
+       * enforces them.
+       */
       if (instance && typeof instance === 'object' && typeof cls === 'function') {
         return new (cls as unknown as new (i: unknown) => T)(instance);
       }

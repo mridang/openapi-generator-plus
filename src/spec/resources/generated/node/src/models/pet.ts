@@ -54,7 +54,7 @@ export class Pet {
     if (this.name != null && typeof this.name !== 'string') {
       throw new TypeError(`name must be a string, got ${typeof this.name}`);
     }
-    if (this.photoUrls != null && !Array.isArray(this.photoUrls) && !(this.photoUrls instanceof Set)) {
+    if (this.photoUrls != null && !Array.isArray(this.photoUrls) && !((this.photoUrls as unknown) instanceof Set)) {
       throw new TypeError(`photoUrls must be an array, got ${typeof this.photoUrls}`);
     }
     if (this.status != null) {

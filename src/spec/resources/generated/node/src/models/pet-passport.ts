@@ -37,7 +37,7 @@ export class PetPassport {
 
   constructor(data?: Partial<PetPassport>) {
     Object.assign(this, data);
-    if (this.scans != null && !Array.isArray(this.scans) && !(this.scans instanceof Set)) {
+    if (this.scans != null && !Array.isArray(this.scans) && !((this.scans as unknown) instanceof Set)) {
       throw new TypeError(`scans must be an array, got ${typeof this.scans}`);
     }
     if (this.biometricChip != null && typeof this.biometricChip !== 'string') {
