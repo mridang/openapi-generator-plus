@@ -2,6 +2,12 @@
 
 Auto-generated Kotlin SDK client for the {{appName}} API.
 
+## Requirements
+
+- **Kotlin** 2.2 (Kotlin Multiplatform — `jvm` target)
+- **JVM** 17 or newer (Gradle toolchain pins to 17)
+- **Gradle** 8.x (8.10+) or Gradle 9.x
+
 ## Build
 
 ```bash
@@ -12,6 +18,26 @@ Auto-generated Kotlin SDK client for the {{appName}} API.
 
 ```bash
 ./gradlew test
+```
+
+## Lint, format & static analysis
+
+The SDK ships with three configured tools:
+
+- **ktlint** — formatter / style enforcer (`org.jlleitschuh.gradle.ktlint`)
+- **detekt** — linter + static analyser with the `detekt-formatting`
+  and `detekt-rules-libraries` rulesets enabled
+
+Run them together:
+
+```bash
+./gradlew ktlintCheck detekt
+```
+
+To auto-fix formatting issues:
+
+```bash
+./gradlew ktlintFormat
 ```
 
 ## Package

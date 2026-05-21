@@ -136,6 +136,26 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
+    fun invalidateAccessTokenForcesRefetch() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val params = mapOf("grant_type" to "client_credentials")
+        val tokenUrl = "https://auth.example.com/token"
+
+        val first = runBlocking { manager.getAccessToken(tokenUrl, params) }
+        manager.invalidateAccessToken()
+        val second = runBlocking { manager.getAccessToken(tokenUrl, params) }
+
+        assertEquals("tok1", first)
+        assertEquals("tok2", second)
+    }
+
+    @Test
     fun throwsWhenNoApiClientInjected() {
         val manager = OAuth2TokenManager()
 

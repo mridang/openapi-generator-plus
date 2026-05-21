@@ -112,6 +112,16 @@ class OAuth2TokenManager {
     }
 
     /**
+     * Invalidate the cached access token so that the next call to
+     * [getAccessToken] fetches a fresh token from the token endpoint.
+     * Intended for tests and recovery flows.
+     */
+    fun invalidateAccessToken() {
+        this.accessToken = null
+        this.tokenExpiryMs = null
+    }
+
+    /**
      * Manually set an access token, bypassing the token endpoint.
      *
      * @param token the access token to use

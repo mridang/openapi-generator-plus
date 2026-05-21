@@ -13,7 +13,7 @@ format:
 	./gradlew ktlintFormat
 
 lint:
-	./gradlew ktlintCheck
+	./gradlew ktlintCheck detekt
 
 docs:
 	./gradlew dokkaHtml

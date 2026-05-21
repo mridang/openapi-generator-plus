@@ -24,7 +24,11 @@ data class PetPassport(
     /** Example: `null` */
     @SerialName("pet")
     val pet: Pet? = null,
-    /** Base64-encoded primary thumbnail */
+    /**
+     * Base64-encoded primary thumbnail
+     *
+     * Example: `dGVzdC10aHVtYm5haWw=`
+     */
     @SerialName("thumbnail")
     val thumbnail: ByteArray? = null,
     /**
@@ -38,4 +42,11 @@ data class PetPassport(
     @SerialName("issuedAt")
     @Contextual
     val issuedAt: OffsetDateTime? = null,
+    /**
+     * Embedded chip data (OAS 3.1 contentEncoding form)
+     *
+     * Example: `null`
+     */
+    @SerialName("biometricChip")
+    val biometricChip: String? = null,
 )

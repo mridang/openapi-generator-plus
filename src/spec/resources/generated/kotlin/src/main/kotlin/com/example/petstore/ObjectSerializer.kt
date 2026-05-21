@@ -14,13 +14,17 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonDecoder
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonEncoder
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonUnquotedLiteral
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.contextual
 import kotlinx.serialization.serializer
+import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
@@ -184,6 +188,33 @@ class ObjectSerializer(
 
             override fun deserialize(decoder: Decoder): OffsetDateTime =
                 OffsetDateTime.parse(decoder.decodeString(), DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+        }
+
+        // Gap I (decimal half): preserve arbitrary precision through
+        // serialize via JsonUnquotedLiteral (raw JSON Number token) and
+        // through deserialize via reading the raw element source.
+        private object BigDecimalSerializer : KSerializer<BigDecimal> {
+            override val descriptor = PrimitiveSerialDescriptor("BigDecimal", PrimitiveKind.STRING)
+
+            @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+            override fun serialize(
+                encoder: Encoder,
+                value: BigDecimal,
+            ) {
+                if (encoder is JsonEncoder) {
+                    encoder.encodeJsonElement(JsonUnquotedLiteral(value.toPlainString()))
+                } else {
+                    encoder.encodeString(value.toPlainString())
+                }
+            }
+
+            override fun deserialize(decoder: Decoder): BigDecimal {
+                if (decoder is JsonDecoder) {
+                    val element = decoder.decodeJsonElement()
+                    return BigDecimal(element.toString())
+                }
+                return BigDecimal(decoder.decodeString())
+            }
         }
 
         private object LocalDateSerializer : KSerializer<LocalDate> {

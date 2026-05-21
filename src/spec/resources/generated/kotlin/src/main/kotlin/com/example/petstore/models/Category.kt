@@ -21,6 +21,16 @@ data class Category(
     @SerialName("id")
     val id: Long? = null,
     /** Example: `Dogs` */
+    // / ## Small breed
+    // / Toy or small breed dogs
+    // / ```json
+    // / Chihuahua
+    // / ```
+    // / ## Large breed
+    // / Working or guard breed dogs
+    // / ```json
+    // / GreatDane
+    // / ```
     @SerialName("name")
     val name: String? = null,
 )
