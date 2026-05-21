@@ -12,13 +12,7 @@ def prism_container():
     host_app_path = os.environ.get('HOST_APP_PATH', os.getcwd())
     spec_path = os.path.join(host_app_path, 'test', 'fixtures', 'openapi.yaml')
 
-    container = (
-        DockerContainer('stoplight/prism:5')
-        .with_exposed_ports(4010)
-        .with_volume_mapping(spec_path, '/tmp/openapi.yaml', 'ro')
-        .with_command('mock -m false -h 0.0.0.0 /tmp/openapi.yaml')
-        .waiting_for(LogMessageWaitStrategy('Prism is listening'))
-    )
+    container = DockerContainer('stoplight/prism:5').with_exposed_ports(4010).with_volume_mapping(spec_path, '/tmp/openapi.yaml', 'ro').with_command('mock -m false -h 0.0.0.0 /tmp/openapi.yaml').waiting_for(LogMessageWaitStrategy('Prism is listening'))
     container.start()
     yield container
     container.stop()
@@ -50,11 +44,7 @@ def wiremock_container(proxy_network):
         .with_exposed_ports(8080, 8443)
         .with_volume_mapping(keystore_path, '/tmp/keystore.p12', 'ro')
         .with_volume_mapping(mappings_path, '/home/wiremock/mappings', 'ro')
-        .with_command(
-            '--port 8080 --https-port 8443 --https-keystore /tmp/keystore.p12 '
-            '--keystore-type PKCS12 --keystore-password changeit '
-            '--key-manager-password changeit --verbose'
-        )
+        .with_command('--port 8080 --https-port 8443 --https-keystore /tmp/keystore.p12 --keystore-type PKCS12 --keystore-password changeit --key-manager-password changeit --verbose')
         .waiting_for(LogMessageWaitStrategy('port:'))
     )
     container.start()
@@ -68,11 +58,7 @@ def squid_container(proxy_network):
     host_app_path = os.environ.get('HOST_APP_PATH', os.getcwd())
     squid_conf_path = os.path.join(host_app_path, 'test', 'fixtures', 'proxy', 'squid.conf')
 
-    container = (
-        DockerContainer('ubuntu/squid:5.2-22.04_beta')
-        .with_exposed_ports(3128)
-        .with_volume_mapping(squid_conf_path, '/etc/squid/squid.conf', 'ro')
-    )
+    container = DockerContainer('ubuntu/squid:5.2-22.04_beta').with_exposed_ports(3128).with_volume_mapping(squid_conf_path, '/etc/squid/squid.conf', 'ro')
     container.start()
     proxy_network.connect(container._container.id)
     time.sleep(3)

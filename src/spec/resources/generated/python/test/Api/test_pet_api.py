@@ -24,9 +24,7 @@ class TestPetApi:
 
     @pytest.fixture(autouse=True)
     def setup(self, api_base_url: Any) -> None:
-        config = (
-            Configuration.builder().base_url(api_base_url).default_header('Authorization', 'Bearer test-token').build()
-        )
+        config = Configuration.builder().base_url(api_base_url).default_header('Authorization', 'Bearer test-token').build()
         self.api = PetApi(config=config)
         self.auth = BearerAuthenticator(api_base_url, 'test-token')
 
@@ -93,9 +91,7 @@ class TestPetApi:
         assert isinstance(result, ApiResponse)
 
     async def test_upload_pet_document(self) -> None:
-        result = await self.api.upload_pet_document(
-            1, UploadPetDocumentOptions(file=b'doc-data', document_type='vaccination_record', notes='Annual checkup')
-        )
+        result = await self.api.upload_pet_document(1, UploadPetDocumentOptions(file=b'doc-data', document_type='vaccination_record', notes='Annual checkup'))
 
         assert result is not None
         assert isinstance(result, ApiResponse)
@@ -216,9 +212,7 @@ class TestPetApiErrorHandling:
         thread.start()
 
         base_url = f'http://127.0.0.1:{port}'
-        config = (
-            Configuration.builder().base_url(base_url).default_header('Authorization', 'Bearer default-token').build()
-        )
+        config = Configuration.builder().base_url(base_url).default_header('Authorization', 'Bearer default-token').build()
         api = PetApi(config=config)
         per_call_auth = BearerAuthenticator(base_url, 'per-call-token')
 
@@ -233,9 +227,7 @@ class TestPetApiWithHttpInfo:
 
     @pytest.fixture(autouse=True)
     def setup(self, api_base_url: Any) -> None:
-        config = (
-            Configuration.builder().base_url(api_base_url).default_header('Authorization', 'Bearer test-token').build()
-        )
+        config = Configuration.builder().base_url(api_base_url).default_header('Authorization', 'Bearer test-token').build()
         self.api = PetApi(config=config)
         self.auth = BearerAuthenticator(api_base_url, 'test-token')
 

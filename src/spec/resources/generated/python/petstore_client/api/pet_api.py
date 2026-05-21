@@ -130,9 +130,7 @@ class GetStagingPetInfoServerVersion(str, Enum):
 class GetStagingPetInfoServerStagingServer(GetStagingPetInfoServer):
     """Staging server"""
 
-    def __init__(
-        self, environment: GetStagingPetInfoServerEnvironment, version: GetStagingPetInfoServerVersion
-    ) -> None:
+    def __init__(self, environment: GetStagingPetInfoServerEnvironment, version: GetStagingPetInfoServerVersion) -> None:
         self._environment = environment
         self._version = version
 
@@ -268,13 +266,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'metadata'")
 
         path = '/pet/{petId}/photos'
-        path = path.replace(
-            '{' + 'petId' + '}',
-            quote(
-                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
-                safe="/;,=.~:!$&'()*+@",
-            ),
-        )
+        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
         if base_url is not None:
             if base_url.startswith('http://') or base_url.startswith('https://'):
                 path = base_url.rstrip('/') + path
@@ -345,13 +337,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_treatment'")
 
         path = '/pet/{petId}/treatment'
-        path = path.replace(
-            '{' + 'petId' + '}',
-            quote(
-                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
-                safe="/;,=.~:!$&'()*+@",
-            ),
-        )
+        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
         if base_url is not None:
             if base_url.startswith('http://') or base_url.startswith('https://'):
                 path = base_url.rstrip('/') + path
@@ -412,13 +398,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         path = '/pet/{petId}'
-        path = path.replace(
-            '{' + 'petId' + '}',
-            quote(
-                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
-                safe="/;,=.~:!$&'()*+@",
-            ),
-        )
+        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
         if base_url is not None:
             if base_url.startswith('http://') or base_url.startswith('https://'):
                 path = base_url.rstrip('/') + path
@@ -426,9 +406,7 @@ class PetApi(BaseApi):
         header_params: Dict[str, str] = {}
         cookie_parts = []
         if options is not None and options.api_key is not None:
-            cookie_parts.append(
-                f'api_key={ValueSerializer.serialize_styled("api_key", options.api_key, "cookie", "str", None, "form", True)}'
-            )
+            cookie_parts.append(f'api_key={ValueSerializer.serialize_styled("api_key", options.api_key, "cookie", "str", None, "form", True)}')
         if cookie_parts:
             header_params['Cookie'] = '; '.join(cookie_parts)
         body = None
@@ -490,20 +468,8 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'document_id'")
 
         path = '/pet/{petId}/documents/{documentId}'
-        path = path.replace(
-            '{' + 'petId' + '}',
-            quote(
-                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
-                safe="/;,=.~:!$&'()*+@",
-            ),
-        )
-        path = path.replace(
-            '{' + 'documentId' + '}',
-            quote(
-                str(ValueSerializer.serialize_styled('documentId', document_id, 'path', 'int', None, 'simple', False)),
-                safe="/;,=.~:!$&'()*+@",
-            ),
-        )
+        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
+        path = path.replace('{' + 'documentId' + '}', quote(str(ValueSerializer.serialize_styled('documentId', document_id, 'path', 'int', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
         if base_url is not None:
             if base_url.startswith('http://') or base_url.startswith('https://'):
                 path = base_url.rstrip('/') + path
@@ -562,9 +528,7 @@ class PetApi(BaseApi):
         query_params: Dict[str, Any] = {}
         if options is not None:
             if options.status is not None:
-                query_params['status'] = ValueSerializer.serialize_styled(
-                    'status', options.status, 'query', 'str', None, 'form', True
-                )
+                query_params['status'] = ValueSerializer.serialize_styled('status', options.status, 'query', 'str', None, 'form', True)
             else:
                 query_params['status'] = ''
         if options is not None and options.filter is not None:
@@ -619,13 +583,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         path = '/pet/{petId}/external'
-        path = path.replace(
-            '{' + 'petId' + '}',
-            quote(
-                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
-                safe="/;,=.~:!$&'()*+@",
-            ),
-        )
+        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
         if server is not None:
             _server_url = server.get_url()
             if _server_url.startswith('http://') or _server_url.startswith('https://'):
@@ -684,13 +642,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         path = '/pet/{petId}/multi'
-        path = path.replace(
-            '{' + 'petId' + '}',
-            quote(
-                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
-                safe="/;,=.~:!$&'()*+@",
-            ),
-        )
+        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
         if server is not None:
             _server_url = server.get_url()
             if _server_url.startswith('http://') or _server_url.startswith('https://'):
@@ -749,13 +701,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         path = '/pet/{petId}/avatar'
-        path = path.replace(
-            '{' + 'petId' + '}',
-            quote(
-                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
-                safe="/;,=.~:!$&'()*+@",
-            ),
-        )
+        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
         if base_url is not None:
             if base_url.startswith('http://') or base_url.startswith('https://'):
                 path = base_url.rstrip('/') + path
@@ -810,13 +756,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         path = '/pet/{petId}/avatar/thumbnail'
-        path = path.replace(
-            '{' + 'petId' + '}',
-            quote(
-                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
-                safe="/;,=.~:!$&'()*+@",
-            ),
-        )
+        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
         if base_url is not None:
             if base_url.startswith('http://') or base_url.startswith('https://'):
                 path = base_url.rstrip('/') + path
@@ -875,13 +815,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         path = '/pet/{petId}'
-        path = path.replace(
-            '{' + 'petId' + '}',
-            quote(
-                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
-                safe="/;,=.~:!$&'()*+@",
-            ),
-        )
+        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
         if server is not None:
             _server_url = server.get_url()
             if _server_url.startswith('http://') or _server_url.startswith('https://'):
@@ -940,13 +874,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         path = '/pet/{petId}/passport'
-        path = path.replace(
-            '{' + 'petId' + '}',
-            quote(
-                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
-                safe="/;,=.~:!$&'()*+@",
-            ),
-        )
+        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
         if base_url is not None:
             if base_url.startswith('http://') or base_url.startswith('https://'):
                 path = base_url.rstrip('/') + path
@@ -1011,20 +939,8 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'photo_id'")
 
         path = '/pet/{petId}/photos/{photoId}'
-        path = path.replace(
-            '{' + 'petId' + '}',
-            quote(
-                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
-                safe="/;,=.~:!$&'()*+@",
-            ),
-        )
-        path = path.replace(
-            '{' + 'photoId' + '}',
-            quote(
-                str(ValueSerializer.serialize_styled('photoId', photo_id, 'path', 'int', None, 'simple', False)),
-                safe="/;,=.~:!$&'()*+@",
-            ),
-        )
+        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
+        path = path.replace('{' + 'photoId' + '}', quote(str(ValueSerializer.serialize_styled('photoId', photo_id, 'path', 'int', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
         if base_url is not None:
             if base_url.startswith('http://') or base_url.startswith('https://'):
                 path = base_url.rstrip('/') + path
@@ -1093,37 +1009,19 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'tag_name'")
 
         path = '/pet/{petId}/tag/{tagName}'
-        path = path.replace(
-            '{' + 'petId' + '}',
-            quote(
-                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'matrix', False)),
-                safe="/;,=.~:!$&'()*+@",
-            ),
-        )
-        path = path.replace(
-            '{' + 'tagName' + '}',
-            quote(
-                str(ValueSerializer.serialize_styled('tagName', tag_name, 'path', 'str', None, 'label', False)),
-                safe="/;,=.~:!$&'()*+@",
-            ),
-        )
+        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'matrix', False)), safe="/;,=.~:!$&'()*+@"))
+        path = path.replace('{' + 'tagName' + '}', quote(str(ValueSerializer.serialize_styled('tagName', tag_name, 'path', 'str', None, 'label', False)), safe="/;,=.~:!$&'()*+@"))
         if base_url is not None:
             if base_url.startswith('http://') or base_url.startswith('https://'):
                 path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         if options is not None and options.colors is not None:
-            query_params['colors'] = ValueSerializer.serialize_styled(
-                'colors', options.colors, 'query', 'List[str]', 'pipes', 'pipeDelimited', False
-            )
+            query_params['colors'] = ValueSerializer.serialize_styled('colors', options.colors, 'query', 'List[str]', 'pipes', 'pipeDelimited', False)
         if options is not None and options.sizes is not None:
-            query_params['sizes'] = ValueSerializer.serialize_styled(
-                'sizes', options.sizes, 'query', 'List[str]', 'ssv', 'spaceDelimited', False
-            )
+            query_params['sizes'] = ValueSerializer.serialize_styled('sizes', options.sizes, 'query', 'List[str]', 'ssv', 'spaceDelimited', False)
         if options is not None:
             if options.filter is not None:
-                query_params['filter'] = ValueSerializer.serialize_styled(
-                    'filter', options.filter, 'query', 'str', None, 'form', True
-                )
+                query_params['filter'] = ValueSerializer.serialize_styled('filter', options.filter, 'query', 'str', None, 'form', True)
             else:
                 query_params['filter'] = ''
         header_params: Dict[str, str] = {}
@@ -1176,13 +1074,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         path = '/pet/{petId}/staging'
-        path = path.replace(
-            '{' + 'petId' + '}',
-            quote(
-                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
-                safe="/;,=.~:!$&'()*+@",
-            ),
-        )
+        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
         if server is not None:
             _server_url = server.get_url()
             if _server_url.startswith('http://') or _server_url.startswith('https://'):
@@ -1249,13 +1141,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'body'")
 
         path = '/pet/{petId}/avatar'
-        path = path.replace(
-            '{' + 'petId' + '}',
-            quote(
-                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
-                safe="/;,=.~:!$&'()*+@",
-            ),
-        )
+        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
         if base_url is not None:
             if base_url.startswith('http://') or base_url.startswith('https://'):
                 path = base_url.rstrip('/') + path
@@ -1294,9 +1180,7 @@ class PetApi(BaseApi):
         if set_pet_avatar_thumbnail_request is None:
             raise ValueError("Missing the required parameter 'set_pet_avatar_thumbnail_request'")
 
-        result = await self.set_pet_avatar_thumbnail_with_http_info(
-            pet_id, set_pet_avatar_thumbnail_request, base_url=base_url
-        )
+        result = await self.set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request, base_url=base_url)
         return result.data
 
     async def set_pet_avatar_thumbnail_with_http_info(
@@ -1320,13 +1204,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'set_pet_avatar_thumbnail_request'")
 
         path = '/pet/{petId}/avatar/thumbnail'
-        path = path.replace(
-            '{' + 'petId' + '}',
-            quote(
-                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
-                safe="/;,=.~:!$&'()*+@",
-            ),
-        )
+        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
         if base_url is not None:
             if base_url.startswith('http://') or base_url.startswith('https://'):
                 path = base_url.rstrip('/') + path
@@ -1389,13 +1267,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet'")
 
         path = '/pet/{petId}'
-        path = path.replace(
-            '{' + 'petId' + '}',
-            quote(
-                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
-                safe="/;,=.~:!$&'()*+@",
-            ),
-        )
+        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
         if base_url is not None:
             if base_url.startswith('http://') or base_url.startswith('https://'):
                 path = base_url.rstrip('/') + path
@@ -1462,13 +1334,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'file'")
 
         path = '/pet/{petId}/certificate'
-        path = path.replace(
-            '{' + 'petId' + '}',
-            quote(
-                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
-                safe="/;,=.~:!$&'()*+@",
-            ),
-        )
+        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
         if base_url is not None:
             if base_url.startswith('http://') or base_url.startswith('https://'):
                 path = base_url.rstrip('/') + path
@@ -1537,13 +1403,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'file'")
 
         path = '/pet/{petId}/documents'
-        path = path.replace(
-            '{' + 'petId' + '}',
-            quote(
-                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
-                safe="/;,=.~:!$&'()*+@",
-            ),
-        )
+        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
         if base_url is not None:
             if base_url.startswith('http://') or base_url.startswith('https://'):
                 path = base_url.rstrip('/') + path

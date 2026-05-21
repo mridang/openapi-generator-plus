@@ -357,14 +357,7 @@ class TestProxyAuthentication:
     Enable when ``squid.conf`` is provisioned with htpasswd-backed auth.
     """
 
-    @pytest.mark.skip(
-        reason=(
-            'requires Squid configured with basic-auth; the shared squid_container '
-            'in this test environment runs without basic_auth ACLs, so userinfo in the '
-            'proxy URL cannot be verified end-to-end. Enable when squid.conf is '
-            'provisioned with htpasswd-backed auth.'
-        )
-    )
+    @pytest.mark.skip(reason=('requires Squid configured with basic-auth; the shared squid_container in this test environment runs without basic_auth ACLs, so userinfo in the proxy URL cannot be verified end-to-end. Enable when squid.conf is provisioned with htpasswd-backed auth.'))
     def test_proxy_url_with_userinfo_sends_proxy_authorization(self) -> None:
         from urllib.parse import urlparse
 

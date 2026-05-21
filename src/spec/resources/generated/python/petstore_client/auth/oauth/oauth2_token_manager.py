@@ -71,9 +71,7 @@ class OAuth2TokenManager:
                 fetch fails.
         """
         with self._lock:
-            if self._access_token and (
-                self._token_expiry is None or time.time() < (self._token_expiry - self._EXPIRY_SAFETY_MARGIN_S)
-            ):
+            if self._access_token and (self._token_expiry is None or time.time() < (self._token_expiry - self._EXPIRY_SAFETY_MARGIN_S)):
                 return self._access_token
             if self._refresh_token:
                 refresh_params: Dict[str, str] = {
@@ -135,11 +133,7 @@ class OAuth2TokenManager:
                 request fails.
         """
         if self._api_client is None:
-            raise RuntimeError(
-                'ApiClient has not been injected. '
-                'Ensure the Client constructor calls set_api_client() '
-                'on HttpAwareAuthenticator before making API requests.'
-            )
+            raise RuntimeError('ApiClient has not been injected. Ensure the Client constructor calls set_api_client() on HttpAwareAuthenticator before making API requests.')
 
         from urllib.parse import urlencode
 

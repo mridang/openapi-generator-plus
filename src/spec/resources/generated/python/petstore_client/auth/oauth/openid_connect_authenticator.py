@@ -107,11 +107,7 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
         if self._delegate is not None and time.monotonic() < self._discovery_expiry:
             return self._delegate
         if self._api_client is None:
-            raise RuntimeError(
-                'ApiClient has not been injected. '
-                'Ensure the Client constructor calls set_api_client() '
-                'on HttpAwareAuthenticator before making API requests.'
-            )
+            raise RuntimeError('ApiClient has not been injected. Ensure the Client constructor calls set_api_client() on HttpAwareAuthenticator before making API requests.')
         headers: Dict[str, str] = {'Accept': 'application/json'}
         response = self._api_client.send_request('GET', self._openid_connect_url, headers, None)
         discovery = json.loads(response.body)

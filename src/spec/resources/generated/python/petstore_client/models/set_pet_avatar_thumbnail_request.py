@@ -59,15 +59,9 @@ class SetPetAvatarThumbnailRequest(BaseModel):
         except (ValidationError, ValueError) as e:
             error_messages.append(str(e))
         if match > 1:
-            raise ValueError(
-                'Multiple matches found when setting `actual_instance` in SetPetAvatarThumbnailRequest with oneOf schemas: List[bytes], bytes. Details: '
-                + ', '.join(error_messages)
-            )
+            raise ValueError('Multiple matches found when setting `actual_instance` in SetPetAvatarThumbnailRequest with oneOf schemas: List[bytes], bytes. Details: ' + ', '.join(error_messages))
         elif match == 0:
-            raise ValueError(
-                'No match found when setting `actual_instance` in SetPetAvatarThumbnailRequest with oneOf schemas: List[bytes], bytes. Details: '
-                + ', '.join(error_messages)
-            )
+            raise ValueError('No match found when setting `actual_instance` in SetPetAvatarThumbnailRequest with oneOf schemas: List[bytes], bytes. Details: ' + ', '.join(error_messages))
         else:
             return v
 

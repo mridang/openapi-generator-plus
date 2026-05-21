@@ -276,11 +276,7 @@ class DefaultApiClient:
         decompressed = self._decompress_body(raw_data, content_encoding)
         content_type = response.headers.get('content-type') or ''
         if decompressed:
-            response_body = (
-                _decode_with_charset(decompressed, content_type)
-                if _is_text_content_type(content_type)
-                else base64.b64encode(decompressed).decode('ascii')
-            )
+            response_body = _decode_with_charset(decompressed, content_type) if _is_text_content_type(content_type) else base64.b64encode(decompressed).decode('ascii')
         else:
             response_body = ''
         response_headers = dict(response.headers) if response.headers else {}
@@ -348,10 +344,7 @@ class DefaultApiClient:
         if isinstance(value, tuple) and len(value) == 2:
             filename, content = value
             if isinstance(content, str):
-                raise TypeError(
-                    f'multipart part {name!r}: str content with explicit filename is not supported; '
-                    f'pass bytes for binary data'
-                )
+                raise TypeError(f'multipart part {name!r}: str content with explicit filename is not supported; pass bytes for binary data')
             if hasattr(content, 'read'):
                 try:
                     read_data = content.read()
@@ -392,9 +385,7 @@ class DefaultApiClient:
             return header.encode('utf-8') + raw_bytes + b'\r\n'
         elif isinstance(value, bytes):
             disposition = cls._build_disposition(name, None)
-            header = (
-                f'--{boundary}\r\nContent-Disposition: {disposition}\r\nContent-Type: application/octet-stream\r\n\r\n'
-            )
+            header = f'--{boundary}\r\nContent-Disposition: {disposition}\r\nContent-Type: application/octet-stream\r\n\r\n'
             return header.encode('utf-8') + value + b'\r\n'
         elif hasattr(value, 'model_dump_json'):
             json_str: str = value.model_dump_json(by_alias=True, exclude_none=True)

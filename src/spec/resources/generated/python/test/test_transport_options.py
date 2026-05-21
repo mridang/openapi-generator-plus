@@ -43,19 +43,7 @@ class TestTransportOptions:
         assert opts.inject_request_id is False
 
     def test_builder_sets_all_fields(self) -> None:
-        opts = (
-            TransportOptions.builder()
-            .verify_ssl(False)
-            .ca_cert_path('/path/to/ca.pem')
-            .proxy('http://proxy:8080')
-            .timeout(5000)
-            .follow_redirects(False)
-            .max_redirects(3)
-            .user_agent('TestAgent/1.0')
-            .default_header('X-Custom', 'value')
-            .inject_request_id(True)
-            .build()
-        )
+        opts = TransportOptions.builder().verify_ssl(False).ca_cert_path('/path/to/ca.pem').proxy('http://proxy:8080').timeout(5000).follow_redirects(False).max_redirects(3).user_agent('TestAgent/1.0').default_header('X-Custom', 'value').inject_request_id(True).build()
 
         assert opts.verify_ssl is False
         assert opts.ca_cert_path == '/path/to/ca.pem'
@@ -103,12 +91,7 @@ class TestTransportOptions:
         assert opts.default_headers['X-Second'] == 'two'
 
     def test_merges_headers_from_default_headers_call(self) -> None:
-        opts = (
-            TransportOptions.builder()
-            .default_header('X-First', 'one')
-            .default_headers({'X-Second': 'two', 'X-Third': 'three'})
-            .build()
-        )
+        opts = TransportOptions.builder().default_header('X-First', 'one').default_headers({'X-Second': 'two', 'X-Third': 'three'}).build()
 
         assert len(opts.default_headers) == 3
         assert opts.default_headers['X-First'] == 'one'

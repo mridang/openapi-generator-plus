@@ -27,15 +27,13 @@ class PetWithOwner(BaseModel):
     A pet record extended with owner information
     """
 
-    id: Optional[int] = Field(default=None, alias='id', examples=[10], strict=True)
-    name: str = Field(alias='name', examples=['doggie'], strict=True)
+    id: Optional[int] = Field(default=None, alias='id', strict=True)
+    name: str = Field(alias='name', strict=True)
     category: Optional[Category] = Field(default=None, alias='category')
     photo_urls: Set[str] = Field(alias='photoUrls')
     tags: Optional[List[Tag]] = Field(default=None, alias='tags')
     # .. deprecated:: This property is deprecated.
-    status: Optional[PetWithOwnerStatusEnum] = Field(
-        default=None, alias='status', description='pet status in the store'
-    )
+    status: Optional[PetWithOwnerStatusEnum] = Field(default=None, alias='status', description='pet status in the store')
     owner_name: str = Field(alias='ownerName', strict=True)
     owner_email: Optional[str] = Field(default=None, alias='ownerEmail', strict=True)
     additional_properties: Dict[str, Any] = Field(default_factory=dict)

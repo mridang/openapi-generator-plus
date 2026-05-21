@@ -38,9 +38,7 @@ class TestHttpProxy:
 
 
 class TestHttpProxyWithTls:
-    def test_makes_https_request_through_proxy_with_verify_ssl_false(
-        self, wiremock_internal_https_url: Any, proxy_url: Any
-    ) -> None:
+    def test_makes_https_request_through_proxy_with_verify_ssl_false(self, wiremock_internal_https_url: Any, proxy_url: Any) -> None:
         transport = TransportOptions.builder().proxy(proxy_url).verify_ssl(False).build()
         client = DefaultApiClient(transport)
         response = client.send_request('GET', wiremock_internal_https_url + '/api/test', {}, None)
@@ -112,9 +110,7 @@ class TestDefaultHeaders:
     def test_caller_headers_override_transport_defaults(self, wiremock_http_url: Any) -> None:
         transport = TransportOptions.builder().default_header('Accept', 'text/plain').build()
         client = DefaultApiClient(transport)
-        response = client.send_request(
-            'GET', wiremock_http_url + '/api/echo-headers', {'Accept': 'application/json'}, None
-        )
+        response = client.send_request('GET', wiremock_http_url + '/api/echo-headers', {'Accept': 'application/json'}, None)
 
         assert response.status_code == 200
         body = json.loads(response.body)
@@ -157,27 +153,21 @@ class TestMultipartBody:
 class TestHttpCompression:
     def test_decompresses_gzip_response(self) -> None:
         client = DefaultApiClient()
-        response = client.send_request(
-            'GET', 'https://jsonplaceholder.typicode.com/posts/1', {'Accept-Encoding': 'gzip'}, None
-        )
+        response = client.send_request('GET', 'https://jsonplaceholder.typicode.com/posts/1', {'Accept-Encoding': 'gzip'}, None)
 
         assert response.status_code == 200
         assert 'userId' in response.body
 
     def test_decompresses_brotli_response(self) -> None:
         client = DefaultApiClient()
-        response = client.send_request(
-            'GET', 'https://jsonplaceholder.typicode.com/posts/1', {'Accept-Encoding': 'br'}, None
-        )
+        response = client.send_request('GET', 'https://jsonplaceholder.typicode.com/posts/1', {'Accept-Encoding': 'br'}, None)
 
         assert response.status_code == 200
         assert 'userId' in response.body
 
     def test_decompresses_zstd_response(self) -> None:
         client = DefaultApiClient()
-        response = client.send_request(
-            'GET', 'https://jsonplaceholder.typicode.com/posts/1', {'Accept-Encoding': 'zstd'}, None
-        )
+        response = client.send_request('GET', 'https://jsonplaceholder.typicode.com/posts/1', {'Accept-Encoding': 'zstd'}, None)
 
         assert response.status_code == 200
         assert 'userId' in response.body

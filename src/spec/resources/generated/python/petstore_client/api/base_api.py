@@ -7,7 +7,7 @@
 
 import asyncio
 from typing import Any, Dict, List, Optional, TypeVar
-from urllib.parse import quote, urlencode
+from urllib.parse import urlencode
 
 from ..api_client import ApiClient
 from ..api_response import ApiResponse
@@ -45,9 +45,7 @@ def _is_valid_cookie_value(value: str) -> bool:
     """RFC 6265 cookie-value validation (cookie-octet*)."""
     for c in value:
         code = ord(c)
-        if not (
-            code == 0x21 or 0x23 <= code <= 0x2B or 0x2D <= code <= 0x3A or 0x3C <= code <= 0x5B or 0x5D <= code <= 0x7E
-        ):
+        if not (code == 0x21 or 0x23 <= code <= 0x2B or 0x2D <= code <= 0x3A or 0x3C <= code <= 0x5B or 0x5D <= code <= 0x7E):
             return False
     return True
 
@@ -185,9 +183,7 @@ class BaseApi:
         if body is not None:
             if content_type == 'multipart/form-data':
                 serialized_body = body
-            elif content_type is not None and (
-                content_type.startswith('image/') or content_type == 'application/octet-stream'
-            ):
+            elif content_type is not None and (content_type.startswith('image/') or content_type == 'application/octet-stream'):
                 serialized_body = body
             elif content_type == 'text/plain':
                 serialized_body = str(body)
@@ -293,40 +289,20 @@ class BaseApi:
 
         if 400 <= code < 500:
             if code == 400:
-                raise BadRequestException(
-                    message=message, response_body=body, response_headers=headers, error_body=error_body
-                )
+                raise BadRequestException(message=message, response_body=body, response_headers=headers, error_body=error_body)
             if code == 401:
-                raise UnauthorizedException(
-                    message=message, response_body=body, response_headers=headers, error_body=error_body
-                )
+                raise UnauthorizedException(message=message, response_body=body, response_headers=headers, error_body=error_body)
             if code == 403:
-                raise ForbiddenException(
-                    message=message, response_body=body, response_headers=headers, error_body=error_body
-                )
+                raise ForbiddenException(message=message, response_body=body, response_headers=headers, error_body=error_body)
             if code == 404:
-                raise NotFoundException(
-                    message=message, response_body=body, response_headers=headers, error_body=error_body
-                )
+                raise NotFoundException(message=message, response_body=body, response_headers=headers, error_body=error_body)
             if code == 409:
-                raise ConflictException(
-                    message=message, response_body=body, response_headers=headers, error_body=error_body
-                )
+                raise ConflictException(message=message, response_body=body, response_headers=headers, error_body=error_body)
             if code == 422:
-                raise UnprocessableEntityException(
-                    message=message, response_body=body, response_headers=headers, error_body=error_body
-                )
-            raise ClientException(
-                status_code=code, message=message, response_body=body, response_headers=headers, error_body=error_body
-            )
+                raise UnprocessableEntityException(message=message, response_body=body, response_headers=headers, error_body=error_body)
+            raise ClientException(status_code=code, message=message, response_body=body, response_headers=headers, error_body=error_body)
         if code >= 500:
             if code == 500:
-                raise InternalServerErrorException(
-                    message=message, response_body=body, response_headers=headers, error_body=error_body
-                )
-            raise ServerException(
-                status_code=code, message=message, response_body=body, response_headers=headers, error_body=error_body
-            )
-        raise ApiException(
-            status_code=code, message=message, response_body=body, response_headers=headers, error_body=error_body
-        )
+                raise InternalServerErrorException(message=message, response_body=body, response_headers=headers, error_body=error_body)
+            raise ServerException(status_code=code, message=message, response_body=body, response_headers=headers, error_body=error_body)
+        raise ApiException(status_code=code, message=message, response_body=body, response_headers=headers, error_body=error_body)

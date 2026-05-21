@@ -51,9 +51,7 @@ class PetTreatment(BaseModel):
         if isinstance(v, Surgery):
             match += 1
         if match == 0:
-            raise ValueError(
-                'No match found when setting `actual_instance` in PetTreatment with anyOf schemas: Medication, Surgery'
-            )
+            raise ValueError('No match found when setting `actual_instance` in PetTreatment with anyOf schemas: Medication, Surgery')
         return v
 
 

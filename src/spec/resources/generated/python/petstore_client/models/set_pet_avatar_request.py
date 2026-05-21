@@ -19,7 +19,7 @@ class SetPetAvatarRequest(BaseModel):
     """
 
     data: bytes = Field(alias='data', description='Base64-encoded image data')
-    mime_type: str = Field(alias='mimeType', examples=['image/jpeg'], strict=True)
+    mime_type: str = Field(alias='mimeType', strict=True)
     additional_properties: Dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode='before')

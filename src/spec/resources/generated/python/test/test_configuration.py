@@ -50,13 +50,7 @@ class TestConfigurationBuilder:
         assert config.default_headers['X-Custom'] == 'value'
 
     def test_builder_accumulates_headers(self) -> None:
-        config = (
-            Configuration.builder()
-            .default_header('X-First', 'one')
-            .default_header('X-Second', 'two')
-            .default_headers({'X-Third': 'three'})
-            .build()
-        )
+        config = Configuration.builder().default_header('X-First', 'one').default_header('X-Second', 'two').default_headers({'X-Third': 'three'}).build()
 
         assert len(config.default_headers) == 3
         assert config.default_headers['X-First'] == 'one'
@@ -64,13 +58,7 @@ class TestConfigurationBuilder:
         assert config.default_headers['X-Third'] == 'three'
 
     def test_builder_sets_all_fields(self) -> None:
-        config = (
-            Configuration.builder()
-            .base_url('https://api.example.com')
-            .default_header('Authorization', 'Bearer token')
-            .default_headers({'X-Custom': 'value'})
-            .build()
-        )
+        config = Configuration.builder().base_url('https://api.example.com').default_header('Authorization', 'Bearer token').default_headers({'X-Custom': 'value'}).build()
 
         assert config.base_url == 'https://api.example.com'
         assert config.default_headers['Authorization'] == 'Bearer token'

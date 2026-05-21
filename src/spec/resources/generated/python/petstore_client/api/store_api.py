@@ -62,13 +62,7 @@ class StoreApi(BaseApi):
             raise ValueError("Missing the required parameter 'order_id'")
 
         path = '/store/order/{orderId}'
-        path = path.replace(
-            '{' + 'orderId' + '}',
-            quote(
-                str(ValueSerializer.serialize_styled('orderId', order_id, 'path', 'int', None, 'simple', False)),
-                safe="/;,=.~:!$&'()*+@",
-            ),
-        )
+        path = path.replace('{' + 'orderId' + '}', quote(str(ValueSerializer.serialize_styled('orderId', order_id, 'path', 'int', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
         if base_url is not None:
             if base_url.startswith('http://') or base_url.startswith('https://'):
                 path = base_url.rstrip('/') + path
@@ -163,13 +157,7 @@ class StoreApi(BaseApi):
             raise ValueError("Missing the required parameter 'order_id'")
 
         path = '/store/order/{orderId}'
-        path = path.replace(
-            '{' + 'orderId' + '}',
-            quote(
-                str(ValueSerializer.serialize_styled('orderId', order_id, 'path', 'int', None, 'simple', False)),
-                safe="/;,=.~:!$&'()*+@",
-            ),
-        )
+        path = path.replace('{' + 'orderId' + '}', quote(str(ValueSerializer.serialize_styled('orderId', order_id, 'path', 'int', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
         if base_url is not None:
             if base_url.startswith('http://') or base_url.startswith('https://'):
                 path = base_url.rstrip('/') + path

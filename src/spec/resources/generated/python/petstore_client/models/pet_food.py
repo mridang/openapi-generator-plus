@@ -88,15 +88,9 @@ class PetFood(BaseModel):
         else:
             match += 1
         if match > 1:
-            raise ValueError(
-                'Multiple matches found when setting `actual_instance` in PetFood with oneOf schemas: DryFood, WetFood. Details: '
-                + ', '.join(error_messages)
-            )
+            raise ValueError('Multiple matches found when setting `actual_instance` in PetFood with oneOf schemas: DryFood, WetFood. Details: ' + ', '.join(error_messages))
         elif match == 0:
-            raise ValueError(
-                'No match found when setting `actual_instance` in PetFood with oneOf schemas: DryFood, WetFood. Details: '
-                + ', '.join(error_messages)
-            )
+            raise ValueError('No match found when setting `actual_instance` in PetFood with oneOf schemas: DryFood, WetFood. Details: ' + ', '.join(error_messages))
         else:
             return v
 

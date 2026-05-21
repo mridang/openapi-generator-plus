@@ -83,9 +83,7 @@ class ServerConfiguration:
             value = overrides.get(var_name, var.default_value)
 
             if var.enum_values and value not in var.enum_values:
-                raise ValueError(
-                    f"Invalid value '{value}' for server variable '{var_name}'. Allowed values: {var.enum_values}"
-                )
+                raise ValueError(f"Invalid value '{value}' for server variable '{var_name}'. Allowed values: {var.enum_values}")
 
             url = url.replace('{' + var_name + '}', value)
         return url
