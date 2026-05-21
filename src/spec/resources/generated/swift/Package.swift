@@ -20,7 +20,10 @@ let package = Package(
     targets: [
         .target(
             name: "PetstoreClient",
-            path: "Sources"
+            path: "Sources",
+            swiftSettings: [
+                .unsafeFlags(["-warnings-as-errors"], .when(configuration: .debug))
+            ]
         ),
         .testTarget(
             name: "PetstoreClientTests",
@@ -32,5 +35,5 @@ let package = Package(
             exclude: ["Fixtures", "Spec"]
         )
     ],
-    swiftLanguageModes: [.v5]
+    swiftLanguageModes: [.v6]
 )

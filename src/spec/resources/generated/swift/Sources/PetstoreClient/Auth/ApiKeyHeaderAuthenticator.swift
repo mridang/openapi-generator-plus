@@ -8,7 +8,7 @@
 import Foundation
 
 public final class ApiKeyHeaderAuthenticator: ApiKeyAuthenticator, @unchecked Sendable {
-  public init(host: String, apiKey: String) {
-    super.init(host: host, keyParamName: "X-API-Key", apiKey: apiKey, location: .header)
-  }
+    public init(host: String, apiKey: String) {
+        super.init(host: host, keyParamName: "X-API-Key", apiKey: apiKey, location: .header)
+    }
 }

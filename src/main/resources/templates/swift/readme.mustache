@@ -2,6 +2,17 @@
 
 Auto-generated Swift SDK client for the {{appName}} API.
 
+## Requirements
+
+- **Swift 6.0+** (toolchain available at <https://swift.org/download/>)
+- **macOS 14+** or a Linux distribution supported by the Swift toolchain
+- [`swift-format`](https://github.com/apple/swift-format) (bundled with the
+  Swift 6.0 toolchain) — formatter and basic linter
+- [`swiftlint`](https://github.com/realm/SwiftLint) — opinionated linter
+  used in addition to `swift-format`
+- The Swift 6 compiler is invoked with `-warnings-as-errors` (see the
+  `analyse` target) to provide static-analysis coverage on every build
+
 ## Build
 
 ```bash
@@ -13,6 +24,23 @@ swift build
 ```bash
 swift test
 ```
+
+## Format, lint and analyse
+
+```bash
+# Apply formatting in-place
+make format
+
+# Fail the build on any formatting or lint violation
+make lint
+
+# Static-analyse with strict concurrency and warnings-as-errors
+make analyse
+```
+
+`swift-format` is configured via `.swift-format` and `swiftlint` via
+`.swiftlint.yml` at the package root. Both files ship alongside the
+generated sources and can be customised in place.
 
 ## Package
 

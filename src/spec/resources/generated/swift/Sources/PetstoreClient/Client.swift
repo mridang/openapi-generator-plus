@@ -31,38 +31,35 @@ import Foundation
 /// let client = Client(authenticator: authenticator, transportOptions: transport)
 /// ```
 public final class Client: Sendable {
-  /// Provides methods for the Pet API group.
-  public let pet: PetApi
-  /// Provides methods for the Store API group.
-  public let store: StoreApi
+    /// Provides methods for the Pet API group.
+    public let pet: PetApi
+    /// Provides methods for the Store API group.
+    public let store: StoreApi
 
-  /// Creates a new client with the given authenticator and optional transport options.
-  ///
-  /// If the authenticator conforms to ``HttpAwareAuthenticator``, the shared
-  /// ``ApiClient`` is injected so that token exchange and discovery requests use
-  /// the same proxy, TLS, and timeout settings.
-  public init(authenticator: Authenticator, transportOptions: TransportOptions? = nil) {
-    let opts = transportOptions ?? TransportOptionsBuilder().build()
-    let apiClient = DefaultApiClient(transportOptions: opts)
+    /// Creates a new client with the given authenticator and optional transport options.
+    ///
+    /// If the authenticator conforms to ``HttpAwareAuthenticator``, the shared
+    /// ``ApiClient`` is injected so that token exchange and discovery requests use
+    /// the same proxy, TLS, and timeout settings.
+    public init(authenticator: Authenticator, transportOptions: TransportOptions? = nil) {
+        let opts = transportOptions ?? TransportOptionsBuilder().build()
+        let apiClient = DefaultApiClient(transportOptions: opts)
 
-    if let httpAware = authenticator as? HttpAwareAuthenticator {
-      httpAware.setApiClient(apiClient)
+        if let httpAware = authenticator as? HttpAwareAuthenticator {
+            httpAware.setApiClient(apiClient)
+        }
+
+        let config = ConfigurationBuilder()
+            .baseURL(authenticator.host())
+            .build()
+
+        self.pet = PetApi(apiClient: apiClient, config: config, authenticator: authenticator)
+        self.store = StoreApi(apiClient: apiClient, config: config, authenticator: authenticator)
     }
 
-    let config = ConfigurationBuilder()
-      .baseURL(authenticator.host())
-      .build()
-
-    self.pet = PetApi(apiClient: apiClient, config: config, authenticator: authenticator)
-    self.store = StoreApi(apiClient: apiClient, config: config, authenticator: authenticator)
-  }
-
-  /// Creates a client authenticated with a static Bearer token.
-  public convenience init(
-    host: String, accessToken: String, transportOptions: TransportOptions? = nil
-  ) {
-    self.init(
-      authenticator: BearerAuthenticator(host: host, token: accessToken),
-      transportOptions: transportOptions)
-  }
+    /// Creates a client authenticated with a static Bearer token.
+    public convenience init(host: String, accessToken: String, transportOptions: TransportOptions? = nil) {
+        self.init(
+            authenticator: BearerAuthenticator(host: host, token: accessToken), transportOptions: transportOptions)
+    }
 }

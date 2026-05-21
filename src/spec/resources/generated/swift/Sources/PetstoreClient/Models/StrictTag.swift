@@ -7,21 +7,11 @@
 
 import Foundation
 
-/// Category is a model class generated from the OpenAPI schema.
-public struct Category: Codable, Sendable {
-    /// Example: `1`
+/// StrictTag is a model class generated from the OpenAPI schema.
+public struct StrictTag: Codable, Sendable {
+    /// Example: `null`
     public var id: Int64?
-    /// Example: `Dogs`
-    /// ## Small breed
-    /// Toy or small breed dogs
-    /// ```json
-    /// Chihuahua
-    /// ```
-    /// ## Large breed
-    /// Working or guard breed dogs
-    /// ```json
-    /// GreatDane
-    /// ```
+    /// Example: `null`
     public var name: String?
 
     enum CodingKeys: String, CodingKey {
@@ -29,7 +19,7 @@ public struct Category: Codable, Sendable {
         case name = "name"
     }
 
-    /// Creates a new Category instance.
+    /// Creates a new StrictTag instance.
     public init(id: Int64? = nil, name: String? = nil) {
         self.id = id
         self.name = name
@@ -44,6 +34,21 @@ public struct Category: Codable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try container.decodeIfPresent(Int64.self, forKey: .id)
         self.name = try container.decodeIfPresent(String.self, forKey: .name)
+        // Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+        // Re-open the payload with a dynamic-keyed container so we can detect
+        // any JSON key not present in CodingKeys and fail loudly.
+        struct AnyKey: CodingKey {
+            var stringValue: String
+            init?(stringValue: String) { self.stringValue = stringValue }
+            var intValue: Int? { return nil }
+            init?(intValue: Int) { return nil }
+        }
+        let allowed: Set<String> = ["id", "name"]
+        let extras = try decoder.container(keyedBy: AnyKey.self)
+        for key in extras.allKeys where !allowed.contains(key.stringValue) {
+            preconditionFailure(
+                "Unknown property '\(key.stringValue)' on StrictTag (unevaluatedProperties:false)")
+        }
     }
 
     /// Encodes this instance, omitting nil optional fields from the JSON output.

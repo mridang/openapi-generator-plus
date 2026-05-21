@@ -12,6 +12,7 @@ import Foundation
 public final class StoreApi: BaseApi {
 
     /// Delete purchase order by ID
+
     public func deleteOrder(orderId: Int64, ) async throws {
         let result = try await deleteOrderWithHTTPInfo(orderId: orderId, )
         _ = result
@@ -45,6 +46,7 @@ public final class StoreApi: BaseApi {
     }
 
     /// Returns pet inventories by status
+
     public func getInventory() async throws -> [String: Int] {
         let result = try await getInventoryWithHTTPInfo()
         guard let data = result.data else {
@@ -85,6 +87,7 @@ public final class StoreApi: BaseApi {
     }
 
     /// Find purchase order by ID
+
     public func getOrderById(orderId: Int64, ) async throws -> Order {
         let result = try await getOrderByIdWithHTTPInfo(orderId: orderId, )
         guard let data = result.data else {
@@ -126,6 +129,7 @@ public final class StoreApi: BaseApi {
     }
 
     /// Place an order for a pet
+
     public func placeOrder(order: Order?, ) async throws -> Order {
         let result = try await placeOrderWithHTTPInfo(order: order, )
         guard let data = result.data else {

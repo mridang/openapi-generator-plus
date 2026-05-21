@@ -9,71 +9,71 @@ import Foundation
 
 /// Metadata is a model class generated from the OpenAPI schema.
 public struct Metadata: Codable, Sendable {
-  /// Example: `null`
-  public var createdAt: Date?
+    /// Example: `null`
+    public var createdAt: Date?
 
-  /// Additional properties not defined in the schema.
-  public var additionalProperties: [String: AnyCodable]
+    /// Additional properties not defined in the schema.
+    public var additionalProperties: [String: AnyCodable]
 
-  enum CodingKeys: String, CodingKey {
-    case createdAt = "createdAt"
-  }
-
-  /// Creates a new Metadata instance.
-  public init(additionalProperties: [String: AnyCodable] = [:]) {
-    self.additionalProperties = additionalProperties
-  }
-
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt)
-
-    /* Decode additional properties */
-    let knownKeys = Set(CodingKeys.allCases.map { $0.rawValue })
-    let dynamicContainer = try decoder.container(keyedBy: DynamicCodingKey.self)
-    var additionalProperties = [String: AnyCodable]()
-    for key in dynamicContainer.allKeys {
-      if !knownKeys.contains(key.stringValue) {
-        let value = try dynamicContainer.decode(AnyCodable.self, forKey: key)
-        additionalProperties[key.stringValue] = value
-      }
+    enum CodingKeys: String, CodingKey {
+        case createdAt = "createdAt"
     }
-    self.additionalProperties = additionalProperties
-  }
 
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(createdAt, forKey: .createdAt)
-
-    /* Encode additional properties */
-    var dynamicContainer = encoder.container(keyedBy: DynamicCodingKey.self)
-    for (key, value) in additionalProperties {
-      let codingKey = DynamicCodingKey(stringValue: key)!
-      try dynamicContainer.encode(value, forKey: codingKey)
+    /// Creates a new Metadata instance.
+    public init(additionalProperties: [String: AnyCodable] = [:]) {
+        self.additionalProperties = additionalProperties
     }
-  }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt)
+
+        /* Decode additional properties */
+        let knownKeys = Set(CodingKeys.allCases.map { $0.rawValue })
+        let dynamicContainer = try decoder.container(keyedBy: DynamicCodingKey.self)
+        var additionalProperties = [String: AnyCodable]()
+        for key in dynamicContainer.allKeys {
+            if !knownKeys.contains(key.stringValue) {
+                let value = try dynamicContainer.decode(AnyCodable.self, forKey: key)
+                additionalProperties[key.stringValue] = value
+            }
+        }
+        self.additionalProperties = additionalProperties
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(createdAt, forKey: .createdAt)
+
+        /* Encode additional properties */
+        var dynamicContainer = encoder.container(keyedBy: DynamicCodingKey.self)
+        for (key, value) in additionalProperties {
+            let codingKey = DynamicCodingKey(stringValue: key)!
+            try dynamicContainer.encode(value, forKey: codingKey)
+        }
+    }
 }
 
 extension Metadata.CodingKeys: CaseIterable {
-  static var allCases: [Metadata.CodingKeys] {
-    return [
-      .createdAt
-    ]
-  }
+    static var allCases: [Metadata.CodingKeys] {
+        return [
+            .createdAt
+        ]
+    }
 }
 
 /// A coding key that can represent any string value.
 private struct DynamicCodingKey: CodingKey {
-  var stringValue: String
-  var intValue: Int?
+    var stringValue: String
+    var intValue: Int?
 
-  init?(stringValue: String) {
-    self.stringValue = stringValue
-    self.intValue = nil
-  }
+    init?(stringValue: String) {
+        self.stringValue = stringValue
+        self.intValue = nil
+    }
 
-  init?(intValue: Int) {
-    self.stringValue = String(intValue)
-    self.intValue = intValue
-  }
+    init?(intValue: Int) {
+        self.stringValue = String(intValue)
+        self.intValue = intValue
+    }
 }

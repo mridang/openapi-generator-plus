@@ -12,211 +12,209 @@ import Testing
 
 @Suite final class TransportOptionsTests {
 
-  @Test func testVerifySslDefaultsToTrue() {
-    let opts = TransportOptionsBuilder().build()
-    #expect(opts.verifySSL)
-  }
-
-  @Test func testCaCertPathDefaultsToNull() {
-    let opts = TransportOptionsBuilder().build()
-    #expect(opts.caCertPath == nil)
-  }
-
-  @Test func testProxyDefaultsToNull() {
-    let opts = TransportOptionsBuilder().build()
-    #expect(opts.proxy == nil)
-  }
-
-  @Test func testTimeoutDefaultsTo10Seconds() {
-    let opts = TransportOptionsBuilder().build()
-    #expect(opts.timeout == 10000)
-  }
-
-  @Test func testFollowRedirectsDefaultsToTrue() {
-    let opts = TransportOptionsBuilder().build()
-    #expect(opts.followRedirects)
-  }
-
-  @Test func testMaxRedirectsDefaultsToNull() {
-    let opts = TransportOptionsBuilder().build()
-    #expect(opts.maxRedirects == nil)
-  }
-
-  @Test func testUserAgentDefaultsToNonEmptyString() {
-    let opts = TransportOptionsBuilder().build()
-    #expect(!(opts.userAgent?.isEmpty ?? true))
-  }
-
-  @Test func testDefaultHeadersDefaultsToEmpty() {
-    let opts = TransportOptionsBuilder().build()
-    #expect(opts.defaultHeaders.isEmpty)
-  }
-
-  @Test func testInjectRequestIdDefaultsToFalse() {
-    let opts = TransportOptionsBuilder().build()
-    #expect(!(opts.injectRequestID))
-  }
-
-  @Test func testBuilderSetsAllFields() throws {
-    let opts = try TransportOptionsBuilder()
-      .verifySSL(false)
-      .caCertPath("/path/to/ca.pem")
-      .proxy("http://proxy.example.com:8080")
-      .timeout(30000)
-      .followRedirects(false)
-      .maxRedirects(5)
-      .userAgent("CustomAgent/2.0")
-      .defaultHeader(name: "X-Custom", value: "value")
-      .injectRequestID(true)
-      .build()
-
-    #expect(!(opts.verifySSL))
-    #expect(opts.caCertPath == "/path/to/ca.pem")
-    #expect(opts.proxy != nil)
-    #expect(opts.proxy?.absoluteString == "http://proxy.example.com:8080")
-    #expect(opts.timeout == 30000)
-    #expect(!(opts.followRedirects))
-    #expect(opts.maxRedirects == 5)
-    #expect(opts.userAgent == "CustomAgent/2.0")
-    #expect(opts.defaultHeaders["X-Custom"] == "value")
-    #expect(opts.injectRequestID)
-  }
-
-  @Test func testFollowRedirectsDefaultsToTrueWithNullMaxRedirects() {
-    let opts = TransportOptionsBuilder()
-      .followRedirects(true)
-      .build()
-
-    #expect(opts.followRedirects)
-    #expect(opts.maxRedirects == nil)
-  }
-
-  @Test func testInvalidProxyUrlThrowsException() {
-    #expect(throws: TransportOptionsError.self) {
-      try TransportOptionsBuilder().proxy("not a valid url")
+    @Test func testVerifySslDefaultsToTrue() {
+        let opts = TransportOptionsBuilder().build()
+        #expect(opts.verifySSL)
     }
-  }
 
-  @Test func testNullProxyUrlIsAccepted() throws {
-    let opts = try TransportOptionsBuilder()
-      .proxy(nil)
-      .build()
+    @Test func testCaCertPathDefaultsToNull() {
+        let opts = TransportOptionsBuilder().build()
+        #expect(opts.caCertPath == nil)
+    }
 
-    #expect(opts.proxy == nil)
-  }
+    @Test func testProxyDefaultsToNull() {
+        let opts = TransportOptionsBuilder().build()
+        #expect(opts.proxy == nil)
+    }
 
-  @Test func testBuilderMethodsReturnSameInstance() {
-    let opts = TransportOptionsBuilder()
-      .verifySSL(true)
-      .userAgent("Test/1.0")
-      .timeout(10000)
-      .build()
+    @Test func testTimeoutDefaultsTo10Seconds() {
+        let opts = TransportOptionsBuilder().build()
+        #expect(opts.timeout == 10000)
+    }
 
-    #expect(opts.userAgent == "Test/1.0")
-    #expect(opts.timeout == 10000)
-  }
+    @Test func testFollowRedirectsDefaultsToTrue() {
+        let opts = TransportOptionsBuilder().build()
+        #expect(opts.followRedirects)
+    }
 
-  @Test func testAccumulatesHeadersFromDefaultHeaderCalls() {
-    let opts = TransportOptionsBuilder()
-      .defaultHeader(name: "X-First", value: "one")
-      .defaultHeader(name: "X-Second", value: "two")
-      .build()
+    @Test func testMaxRedirectsDefaultsToNull() {
+        let opts = TransportOptionsBuilder().build()
+        #expect(opts.maxRedirects == nil)
+    }
 
-    #expect(opts.defaultHeaders.count == 2)
-    #expect(opts.defaultHeaders["X-First"] == "one")
-    #expect(opts.defaultHeaders["X-Second"] == "two")
-  }
+    @Test func testUserAgentDefaultsToNonEmptyString() {
+        let opts = TransportOptionsBuilder().build()
+        #expect(!(opts.userAgent?.isEmpty ?? true))
+    }
 
-  @Test func testMergesHeadersFromDefaultHeadersCall() {
-    let opts = TransportOptionsBuilder()
-      .defaultHeader(name: "X-First", value: "one")
-      .defaultHeaders([
-        "X-Second": "two",
-        "X-Third": "three",
-      ])
-      .build()
+    @Test func testDefaultHeadersDefaultsToEmpty() {
+        let opts = TransportOptionsBuilder().build()
+        #expect(opts.defaultHeaders.isEmpty)
+    }
 
-    #expect(opts.defaultHeaders.count == 3)
-    #expect(opts.defaultHeaders["X-First"] == "one")
-    #expect(opts.defaultHeaders["X-Second"] == "two")
-    #expect(opts.defaultHeaders["X-Third"] == "three")
-  }
+    @Test func testInjectRequestIdDefaultsToFalse() {
+        let opts = TransportOptionsBuilder().build()
+        #expect(!(opts.injectRequestID))
+    }
 
-  @Test func testModifyingSourceMapDoesNotAffectBuiltOptions() {
-    let opts = TransportOptionsBuilder()
-      .defaultHeader(name: "X-Test", value: "value")
-      .build()
+    @Test func testBuilderSetsAllFields() throws {
+        let opts = try TransportOptionsBuilder()
+            .verifySSL(false)
+            .caCertPath("/path/to/ca.pem")
+            .proxy("http://proxy.example.com:8080")
+            .timeout(30000)
+            .followRedirects(false)
+            .maxRedirects(5)
+            .userAgent("CustomAgent/2.0")
+            .defaultHeader(name: "X-Custom", value: "value")
+            .injectRequestID(true)
+            .build()
 
-    var headers = opts.defaultHeaders
-    headers["X-Mutated"] = "should-not-affect-options"
+        #expect(!(opts.verifySSL))
+        #expect(opts.caCertPath == "/path/to/ca.pem")
+        #expect(opts.proxy != nil)
+        #expect(opts.proxy?.absoluteString == "http://proxy.example.com:8080")
+        #expect(opts.timeout == 30000)
+        #expect(!(opts.followRedirects))
+        #expect(opts.maxRedirects == 5)
+        #expect(opts.userAgent == "CustomAgent/2.0")
+        #expect(opts.defaultHeaders["X-Custom"] == "value")
+        #expect(opts.injectRequestID)
+    }
 
-    #expect(
-      opts.defaultHeaders["X-Mutated"] == nil,
-      "Modifying returned headers should not affect the transport options")
-  }
+    @Test func testFollowRedirectsDefaultsToTrueWithNullMaxRedirects() {
+        let opts = TransportOptionsBuilder()
+            .followRedirects(true)
+            .build()
 
-  @Test func testBuilderProducesIndependentInstances() {
-    let builder = TransportOptionsBuilder()
-      .verifySSL(false)
-    let first = builder.build()
-    let second = builder.build()
+        #expect(opts.followRedirects)
+        #expect(opts.maxRedirects == nil)
+    }
 
-    #expect(first.verifySSL == second.verifySSL)
-    #expect(!(first === second))
-  }
+    @Test func testInvalidProxyUrlThrowsException() {
+        #expect(throws: TransportOptionsError.self) { try TransportOptionsBuilder().proxy("not a valid url") }
+    }
 
-  // TimeoutConfigTests
+    @Test func testNullProxyUrlIsAccepted() throws {
+        let opts = try TransportOptionsBuilder()
+            .proxy(nil)
+            .build()
 
-  @Test func testTimeoutDefaultsTo10000ms() {
-    // Default TransportOptions applies a 10-second (10000 ms) request timeout
-    // so that no SDK call blocks forever when the server stalls.
-    let opts = TransportOptionsBuilder().build()
-    #expect(opts.timeout == 10000)
-  }
+        #expect(opts.proxy == nil)
+    }
 
-  @Test func testSettingTimeoutIsAccessible() {
-    let opts = TransportOptionsBuilder().timeout(5000).build()
-    #expect(opts.timeout == 5000)
-  }
+    @Test func testBuilderMethodsReturnSameInstance() {
+        let opts = TransportOptionsBuilder()
+            .verifySSL(true)
+            .userAgent("Test/1.0")
+            .timeout(10000)
+            .build()
 
-  @Test func testTimeoutFieldIsNamedTimeout() {
-    // Verify via the property that the field is named 'timeout'
-    // (not e.g. 'timeoutIntervalForRequest' or 'timeoutIntervalForResource').
-    let opts = TransportOptionsBuilder().timeout(1000).build()
-    #expect(opts.timeout != nil)
-    #expect(opts.timeout == 1000)
-  }
+        #expect(opts.userAgent == "Test/1.0")
+        #expect(opts.timeout == 10000)
+    }
 
-  // ProxyConfigTests
+    @Test func testAccumulatesHeadersFromDefaultHeaderCalls() {
+        let opts = TransportOptionsBuilder()
+            .defaultHeader(name: "X-First", value: "one")
+            .defaultHeader(name: "X-Second", value: "two")
+            .build()
 
-  @Test func testProxyUrlIsPreservedOnReadBack() throws {
-    let opts = try TransportOptionsBuilder()
-      .proxy("http://proxy.example.com:8080")
-      .build()
-    #expect(opts.proxy != nil)
-    #expect(opts.proxy?.absoluteString == "http://proxy.example.com:8080")
-  }
+        #expect(opts.defaultHeaders.count == 2)
+        #expect(opts.defaultHeaders["X-First"] == "one")
+        #expect(opts.defaultHeaders["X-Second"] == "two")
+    }
 
-  #if os(Linux)
+    @Test func testMergesHeadersFromDefaultHeadersCall() {
+        let opts = TransportOptionsBuilder()
+            .defaultHeader(name: "X-First", value: "one")
+            .defaultHeaders([
+                "X-Second": "two",
+                "X-Third": "three",
+            ])
+            .build()
+
+        #expect(opts.defaultHeaders.count == 3)
+        #expect(opts.defaultHeaders["X-First"] == "one")
+        #expect(opts.defaultHeaders["X-Second"] == "two")
+        #expect(opts.defaultHeaders["X-Third"] == "three")
+    }
+
+    @Test func testModifyingSourceMapDoesNotAffectBuiltOptions() {
+        let opts = TransportOptionsBuilder()
+            .defaultHeader(name: "X-Test", value: "value")
+            .build()
+
+        var headers = opts.defaultHeaders
+        headers["X-Mutated"] = "should-not-affect-options"
+
+        #expect(
+            opts.defaultHeaders["X-Mutated"] == nil,
+            "Modifying returned headers should not affect the transport options")
+    }
+
+    @Test func testBuilderProducesIndependentInstances() {
+        let builder = TransportOptionsBuilder()
+            .verifySSL(false)
+        let first = builder.build()
+        let second = builder.build()
+
+        #expect(first.verifySSL == second.verifySSL)
+        #expect(!(first === second))
+    }
+
+    // TimeoutConfigTests
+
+    @Test func testTimeoutDefaultsTo10000ms() {
+        // Default TransportOptions applies a 10-second (10000 ms) request timeout
+        // so that no SDK call blocks forever when the server stalls.
+        let opts = TransportOptionsBuilder().build()
+        #expect(opts.timeout == 10000)
+    }
+
+    @Test func testSettingTimeoutIsAccessible() {
+        let opts = TransportOptionsBuilder().timeout(5000).build()
+        #expect(opts.timeout == 5000)
+    }
+
+    @Test func testTimeoutFieldIsNamedTimeout() {
+        // Verify via the property that the field is named 'timeout'
+        // (not e.g. 'timeoutIntervalForRequest' or 'timeoutIntervalForResource').
+        let opts = TransportOptionsBuilder().timeout(1000).build()
+        #expect(opts.timeout != nil)
+        #expect(opts.timeout == 1000)
+    }
+
+    // ProxyConfigTests
+
+    @Test func testProxyUrlIsPreservedOnReadBack() throws {
+        let opts = try TransportOptionsBuilder()
+            .proxy("http://proxy.example.com:8080")
+            .build()
+        #expect(opts.proxy != nil)
+        #expect(opts.proxy?.absoluteString == "http://proxy.example.com:8080")
+    }
+
+    #if os(Linux)
     @Test func testSettingProxyRaisesOnLinux() throws {
-      // On Linux, URLSession does not support proxy configuration.
-      // DefaultApiClient.buildSession throws ApiError when a proxy is set on Linux.
-      // We verify that TransportOptions accepts the proxy value (no error at options level),
-      // and document that constructing DefaultApiClient with this opts on Linux will crash
-      // (via try! in the initializer) rather than silently ignoring the proxy setting.
-      let opts = try TransportOptionsBuilder()
-        .proxy("http://proxy.example.com:8080")
-        .build()
-      // The proxy is recorded in TransportOptions; it is DefaultApiClient's init that rejects it.
-      #expect(opts.proxy != nil)
+        // On Linux, URLSession does not support proxy configuration.
+        // DefaultApiClient.buildSession throws ApiError when a proxy is set on Linux.
+        // We verify that TransportOptions accepts the proxy value (no error at options level),
+        // and document that constructing DefaultApiClient with this opts on Linux will crash
+        // (via try! in the initializer) rather than silently ignoring the proxy setting.
+        let opts = try TransportOptionsBuilder()
+            .proxy("http://proxy.example.com:8080")
+            .build()
+        // The proxy is recorded in TransportOptions; it is DefaultApiClient's init that rejects it.
+        #expect(opts.proxy != nil)
     }
-  #else
+    #else
     @Test func testSettingProxyIsSupportedOnNonLinux() throws {
-      // Proxy configuration must not throw on Apple platforms.
-      let opts = try TransportOptionsBuilder()
-        .proxy("http://proxy.example.com:8080")
-        .build()
-      #expect(opts.proxy != nil)
+        // Proxy configuration must not throw on Apple platforms.
+        let opts = try TransportOptionsBuilder()
+            .proxy("http://proxy.example.com:8080")
+            .build()
+        #expect(opts.proxy != nil)
     }
-  #endif
+    #endif
 }

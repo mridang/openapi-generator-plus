@@ -12,77 +12,77 @@ import Testing
 
 @Suite(.serialized) final class StoreApiTests {
 
-  init() async throws {
-    if prismUrl.isEmpty {
-      try await setUpContainers()
+    init() async throws {
+        if prismUrl.isEmpty {
+            try await setUpContainers()
+        }
     }
-  }
 
-  // MARK: - Helpers
+    // MARK: - Helpers
 
-  private func storeApiForIntegration() -> StoreApi {
-    let config = ConfigurationBuilder()
-      .baseURL(prismUrl)
-      .defaultHeader(name: "Authorization", value: "Bearer test-token")
-      .build()
-    let client = DefaultApiClient()
-    return StoreApi(apiClient: client, config: config)
-  }
+    private func storeApiForIntegration() -> StoreApi {
+        let config = ConfigurationBuilder()
+            .baseURL(prismUrl)
+            .defaultHeader(name: "Authorization", value: "Bearer test-token")
+            .build()
+        let client = DefaultApiClient()
+        return StoreApi(apiClient: client, config: config)
+    }
 
-  // MARK: - Integration Tests
+    // MARK: - Integration Tests
 
-  @Test func testPlaceOrder() async throws {
-    let api = storeApiForIntegration()
+    @Test func testPlaceOrder() async throws {
+        let api = storeApiForIntegration()
 
-    let order = Order()
+        let order = Order()
 
-    let result = try await api.placeOrder(order: order)
-    #expect(result != nil)
-  }
+        let result = try await api.placeOrder(order: order)
+        #expect(result != nil)
+    }
 
-  @Test func testPlaceOrderWithHTTPInfo() async throws {
-    let api = storeApiForIntegration()
+    @Test func testPlaceOrderWithHTTPInfo() async throws {
+        let api = storeApiForIntegration()
 
-    let order = Order()
+        let order = Order()
 
-    let result = try await api.placeOrderWithHTTPInfo(order: order)
-    #expect(result.statusCode >= 200)
-    #expect(result.statusCode < 300)
-    #expect(!(result.rawBody.isEmpty))
-  }
+        let result = try await api.placeOrderWithHTTPInfo(order: order)
+        #expect(result.statusCode >= 200)
+        #expect(result.statusCode < 300)
+        #expect(!(result.rawBody.isEmpty))
+    }
 
-  @Test func testGetOrderById() async throws {
-    let api = storeApiForIntegration()
+    @Test func testGetOrderById() async throws {
+        let api = storeApiForIntegration()
 
-    let result = try await api.getOrderById(orderId: 1)
-    #expect(result != nil)
-  }
+        let result = try await api.getOrderById(orderId: 1)
+        #expect(result != nil)
+    }
 
-  @Test func testGetOrderByIdWithHTTPInfo() async throws {
-    let api = storeApiForIntegration()
+    @Test func testGetOrderByIdWithHTTPInfo() async throws {
+        let api = storeApiForIntegration()
 
-    let result = try await api.getOrderByIdWithHTTPInfo(orderId: 1)
-    #expect(result.statusCode == 200)
-    #expect(result.headers != nil)
-  }
+        let result = try await api.getOrderByIdWithHTTPInfo(orderId: 1)
+        #expect(result.statusCode == 200)
+        #expect(result.headers != nil)
+    }
 
-  @Test func testDeleteOrder() async throws {
-    let api = storeApiForIntegration()
+    @Test func testDeleteOrder() async throws {
+        let api = storeApiForIntegration()
 
-    try await api.deleteOrder(orderId: 1)
-  }
+        try await api.deleteOrder(orderId: 1)
+    }
 
-  @Test func testGetInventory() async throws {
-    let api = storeApiForIntegration()
+    @Test func testGetInventory() async throws {
+        let api = storeApiForIntegration()
 
-    let result = try await api.getInventory()
-    #expect(result != nil)
-  }
+        let result = try await api.getInventory()
+        #expect(result != nil)
+    }
 
-  @Test func testGetInventoryWithHTTPInfo() async throws {
-    let api = storeApiForIntegration()
+    @Test func testGetInventoryWithHTTPInfo() async throws {
+        let api = storeApiForIntegration()
 
-    let result = try await api.getInventoryWithHTTPInfo()
-    #expect(result.statusCode == 200)
-  }
+        let result = try await api.getInventoryWithHTTPInfo()
+        #expect(result.statusCode == 200)
+    }
 }

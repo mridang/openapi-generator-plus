@@ -12,68 +12,68 @@ import Foundation
 /// The API key can be sent as a header, query parameter, or cookie,
 /// depending on the location specified at construction.
 public class ApiKeyAuthenticator: BaseAuthenticator, @unchecked Sendable {
-  private let _host: String
-  private let keyParamName: String
-  private let apiKey: String
-  private let location: ApiKeyLocation
+    private let _host: String
+    private let keyParamName: String
+    private let apiKey: String
+    private let location: ApiKeyLocation
 
-  /// Creates a new API key authenticator.
-  ///
-  /// - Parameters:
-  ///   - host: API base URL
-  ///   - keyParamName: Name of the key parameter
-  ///   - apiKey: The API key value
-  ///   - location: Where to send the key (header, query, or cookie)
-  public init(host: String, keyParamName: String, apiKey: String, location: ApiKeyLocation) {
-    /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
+    /// Creates a new API key authenticator.
+    ///
+    /// - Parameters:
+    ///   - host: API base URL
+    ///   - keyParamName: Name of the key parameter
+    ///   - apiKey: The API key value
+    ///   - location: Where to send the key (header, query, or cookie)
+    public init(host: String, keyParamName: String, apiKey: String, location: ApiKeyLocation) {
+        /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
          * Reject anything outside printable ASCII + TAB so callers see
          * a clear error rather than (a) HTTP header injection from
          * CR/LF, or (b) silently-mangled non-ASCII bytes that different
          * HTTP libs encode differently per language. preconditionFailure
          * is appropriate because the failure is a programmer error,
          * not a recoverable runtime condition. */
-    if location == .header
-      && apiKey.unicodeScalars.contains(where: { s in
-        s.value != 0x09 && (s.value < 0x20 || s.value >= 0x7F)
-      })
-    {
-      preconditionFailure(
-        "API key for header '\(keyParamName)' must contain only printable ASCII characters (RFC 7230 §3.2.6)"
-      )
+        if location == .header
+            && apiKey.unicodeScalars.contains(where: { s in
+                s.value != 0x09 && (s.value < 0x20 || s.value >= 0x7F)
+            })
+        {
+            preconditionFailure(
+                "API key for header '\(keyParamName)' must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+            )
+        }
+        self._host = host
+        self.keyParamName = keyParamName
+        self.apiKey = apiKey
+        self.location = location
+        super.init()
     }
-    self._host = host
-    self.keyParamName = keyParamName
-    self.apiKey = apiKey
-    self.location = location
-    super.init()
-  }
 
-  /// Returns the API base URL.
-  override public func host() -> String {
-    return _host
-  }
-
-  /// Returns the API key as a header if the location is `.header`.
-  override public func authHeaders() async -> [String: String] {
-    if location == .header {
-      return [keyParamName: apiKey]
+    /// Returns the API base URL.
+    override public func host() -> String {
+        return _host
     }
-    return [:]
-  }
 
-  /// Returns the API key as a query parameter if the location is `.query`.
-  override public func queryParams() -> [String: String] {
-    if location == .query {
-      return [keyParamName: apiKey]
+    /// Returns the API key as a header if the location is `.header`.
+    override public func authHeaders() async -> [String: String] {
+        if location == .header {
+            return [keyParamName: apiKey]
+        }
+        return [:]
     }
-    return [:]
-  }
 
-  /// Returns the API key as a cookie if the location is `.cookie`.
-  override public func cookieParams() -> [String: String] {
-    if location == .cookie {
-      return [keyParamName: apiKey]
+    /// Returns the API key as a query parameter if the location is `.query`.
+    override public func queryParams() -> [String: String] {
+        if location == .query {
+            return [keyParamName: apiKey]
+        }
+        return [:]
     }
-    return [:]
-  }
+
+    /// Returns the API key as a cookie if the location is `.cookie`.
+    override public func cookieParams() -> [String: String] {
+        if location == .cookie {
+            return [keyParamName: apiKey]
+        }
+        return [:]
+    }
 }

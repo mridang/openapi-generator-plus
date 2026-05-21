@@ -12,336 +12,330 @@ import Testing
 
 @Suite final class ObjectSerializerTests {
 
-  @Test func testSerializeMapToJSON() throws {
-    let input: [String: Any] = ["name": "Fido", "age": 3]
-    let jsonString = try ObjectSerializer.serialize(input)
-    #expect(!(jsonString.isEmpty))
+    @Test func testSerializeMapToJSON() throws {
+        let input: [String: Any] = ["name": "Fido", "age": 3]
+        let jsonString = try ObjectSerializer.serialize(input)
+        #expect(!(jsonString.isEmpty))
 
-    let data = jsonString.data(using: .utf8)!
-    let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-    #expect(parsed?["name"] as? String == "Fido")
-  }
-
-  @Test func testDeserializeJSONToStruct() throws {
-    struct TestModel: Codable {
-      let name: String
-      let age: Int
+        let data = jsonString.data(using: .utf8)!
+        let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        #expect(parsed?["name"] as? String == "Fido")
     }
 
-    let json = "{\"name\":\"Fido\",\"age\":3}"
-    let result = try ObjectSerializer.deserialize(json, as: TestModel.self)
-    #expect(result != nil)
-    #expect(result?.name == "Fido")
-    #expect(result?.age == 3)
-  }
+    @Test func testDeserializeJSONToStruct() throws {
+        struct TestModel: Codable {
+            let name: String
+            let age: Int
+        }
 
-  @Test func testDeserializeEmptyDataReturnsNil() throws {
-    struct TestModel: Codable { let name: String }
-    let result = try ObjectSerializer.deserialize(Data(), as: TestModel.self)
-    #expect(result == nil)
-  }
-
-  @Test func testDeserializeInvalidJSON() {
-    struct TestModel: Codable { let name: String }
-    #expect(throws: (any Error).self) {
-      try ObjectSerializer.deserialize("not json", as: TestModel.self)
+        let json = "{\"name\":\"Fido\",\"age\":3}"
+        let result = try ObjectSerializer.deserialize(json, as: TestModel.self)
+        #expect(result != nil)
+        #expect(result?.name == "Fido")
+        #expect(result?.age == 3)
     }
-  }
 
-  @Test func testToPathValueString() {
-    let result = ObjectSerializer.toPathValue("hello")
-    #expect(result == "hello")
-  }
-
-  @Test func testToPathValueInt() {
-    let result = ObjectSerializer.toPathValue(42)
-    #expect(result == "42")
-  }
-
-  @Test func testToPathValueBool() {
-    #expect(ObjectSerializer.toPathValue(true) == "true")
-    #expect(ObjectSerializer.toPathValue(false) == "false")
-  }
-
-  @Test func testToPathValueNil() {
-    let result = ObjectSerializer.toPathValue(nil)
-    #expect(result == "")
-  }
-
-  @Test func testToQueryValueString() {
-    let result = ObjectSerializer.toQueryValue("hello")
-    #expect(result as? String == "hello")
-  }
-
-  @Test func testToQueryValueStringSliceCSV() {
-    let result = ObjectSerializer.toQueryValue(["a", "b", "c"], collectionFormat: "csv")
-    #expect(result as? String == "a,b,c")
-  }
-
-  @Test func testToQueryValueStringSliceSSV() {
-    let result = ObjectSerializer.toQueryValue(["a", "b", "c"], collectionFormat: "ssv")
-    #expect(result as? String == "a b c")
-  }
-
-  @Test func testToQueryValueStringSliceTSV() {
-    let result = ObjectSerializer.toQueryValue(["a", "b", "c"], collectionFormat: "tsv")
-    #expect(result as? String == "a\tb\tc")
-  }
-
-  @Test func testToQueryValueStringSlicePipes() {
-    let result = ObjectSerializer.toQueryValue(["a", "b", "c"], collectionFormat: "pipes")
-    #expect(result as? String == "a|b|c")
-  }
-
-  @Test func testToQueryValueStringSliceMulti() {
-    let result = ObjectSerializer.toQueryValue(["a", "b", "c"], collectionFormat: "multi")
-    #expect(result as? [String] == ["a", "b", "c"])
-  }
-
-  @Test func testToQueryValueInt() {
-    let result = ObjectSerializer.toQueryValue(42)
-    #expect(result as? String == "42")
-  }
-
-  @Test func testToQueryValueBoolTrue() {
-    let result = ObjectSerializer.toQueryValue(true)
-    #expect(result as? String == "true")
-  }
-
-  @Test func testToQueryValueBoolFalse() {
-    let result = ObjectSerializer.toQueryValue(false)
-    #expect(result as? String == "false")
-  }
-
-  @Test func testToQueryValueNil() {
-    let result = ObjectSerializer.toQueryValue(nil)
-    #expect(result == nil)
-  }
-
-  @Test func testToHeaderValueString() {
-    let result = ObjectSerializer.toHeaderValue("hello")
-    #expect(result == "hello")
-  }
-
-  @Test func testToHeaderValueStringSlice() {
-    let result = ObjectSerializer.toHeaderValue(["a", "b", "c"])
-    #expect(result == "a,b,c")
-  }
-
-  @Test func testToHeaderValueNil() {
-    let result = ObjectSerializer.toHeaderValue(nil)
-    #expect(result == "")
-  }
-
-  @Test func testToFormValueString() {
-    let result = ObjectSerializer.toFormValue("hello")
-    #expect(result == "hello")
-  }
-
-  @Test func testToFormValueInt() {
-    let result = ObjectSerializer.toFormValue(123)
-    #expect(result == "123")
-  }
-
-  @Test func testToFormValueNil() {
-    let result = ObjectSerializer.toFormValue(nil)
-    #expect(result == "")
-  }
-
-  @Test func testToFormValueBoolTrue() {
-    #expect(ObjectSerializer.toFormValue(true) == "true")
-  }
-
-  @Test func testToFormValueBoolFalse() {
-    #expect(ObjectSerializer.toFormValue(false) == "false")
-  }
-
-  @Test func testToCookieValueString() {
-    #expect(ObjectSerializer.toCookieValue("hello") == "hello")
-  }
-
-  @Test func testToCookieValueNil() {
-    #expect(ObjectSerializer.toCookieValue(nil) == "")
-  }
-
-  @Test func testToCookieValueInt() {
-    #expect(ObjectSerializer.toCookieValue(42) == "42")
-  }
-
-  @Test func testStringifyString() {
-    #expect(ObjectSerializer.stringify("hello") == "hello")
-  }
-
-  @Test func testStringifyInt() {
-    #expect(ObjectSerializer.stringify(42) == "42")
-  }
-
-  @Test func testStringifyInt64() {
-    #expect(ObjectSerializer.stringify(Int64(9_999_999_999)) == "9999999999")
-  }
-
-  @Test func testStringifyFloat64() {
-    let result = ObjectSerializer.stringify(3.14)
-    #expect(result.hasPrefix("3.14"))
-  }
-
-  @Test func testStringifyBool() {
-    #expect(ObjectSerializer.stringify(true) == "true")
-    #expect(ObjectSerializer.stringify(false) == "false")
-  }
-
-  @Test func testStringifyDate() {
-    let date = Date(timeIntervalSince1970: 1_705_315_800)
-    let result = ObjectSerializer.stringify(date)
-    #expect(result == "2024-01-15T10:50:00+00:00")
-  }
-
-  @Test func testStringifyNil() {
-    #expect(ObjectSerializer.stringify(nil) == "")
-  }
-
-  // MARK: - DateTimeOffsetPreservationTests
-
-  @Test func testDateTimeUTCSerializesWithOffset() {
-    // Use a fixed UTC date for predictable output
-    let formatter = ISO8601DateFormatter()
-    formatter.formatOptions = [.withInternetDateTime]
-    let date = formatter.date(from: "2024-01-01T12:30:45+00:00")!
-    let result = ObjectSerializer.stringify(date)
-    #expect(result.contains("2024-01-01"), "should contain date: \(result)")
-    #expect(result.contains("12:30:45"), "should contain time: \(result)")
-  }
-
-  @Test func testDateTimeSerializedStringContainsOffset() {
-    let formatter = ISO8601DateFormatter()
-    formatter.formatOptions = [.withInternetDateTime]
-    let date = formatter.date(from: "2024-01-01T12:30:45+00:00")!
-    let result = ObjectSerializer.stringify(date)
-    let hasOffset =
-      result.hasSuffix("Z") || result.contains("+")
-      || (result.last?.isNumber == true && result.contains("-"))
-    #expect(hasOffset, "should contain timezone offset: \(result)")
-  }
-
-  @Test func testDateTimeSubsecondsDropped() {
-    let formatter = ISO8601DateFormatter()
-    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-    let date = formatter.date(from: "2024-01-01T12:30:45.123+00:00")!
-    let result = ObjectSerializer.stringify(date)
-    #expect(!result.contains(".123"), "subseconds should not appear: \(result)")
-  }
-
-  @Test func testDateOnlyStringIsIso8601() {
-    // Test that a Date at midnight serializes with date component
-    let components = DateComponents(
-      calendar: .current, year: 2024, month: 1, day: 1, hour: 0, minute: 0, second: 0)
-    let date = components.date!
-    let result = ObjectSerializer.stringify(date)
-    #expect(result.contains("2024-01-01"), "should contain date: \(result)")
-  }
-
-  @Test func testDateTimeEndsWithOffsetOrZ() {
-    let formatter = ISO8601DateFormatter()
-    formatter.formatOptions = [.withInternetDateTime]
-    let date = formatter.date(from: "2024-01-01T12:30:45+00:00")!
-    let result = ObjectSerializer.stringify(date)
-    let matchesPattern =
-      result.hasSuffix("Z")
-      || result.range(of: #"[+-]\d{2}:\d{2}$"#, options: .regularExpression) != nil
-    #expect(matchesPattern, "should end with offset or Z: \(result)")
-  }
-
-  @Test func testDateTimePositiveOffsetPreservedIfFormatterUsesLocalZone() {
-    // This test verifies the formatter uses the date's timezone, not always UTC
-    // The exact offset depends on the test environment, but the result must be valid ISO 8601
-    let date = Date(timeIntervalSince1970: 1_704_100_245)  // 2024-01-01 some time
-    let result = ObjectSerializer.stringify(date)
-    #expect(!result.isEmpty, "result should not be empty")
-    #expect(result.contains("T"), "result should contain T separator: \(result)")
-  }
-
-  @Test func testDateTimeRoundTrip() throws {
-    let formatter = ISO8601DateFormatter()
-    formatter.formatOptions = [.withInternetDateTime]
-    let original = formatter.date(from: "2024-01-01T12:30:45+00:00")!
-    let serialized = ObjectSerializer.stringify(original)
-    let parsed = formatter.date(from: serialized)
-    #expect(parsed != nil, "should be able to parse back serialized datetime: \(serialized)")
-    #expect(
-      abs(original.timeIntervalSince1970 - (parsed?.timeIntervalSince1970 ?? 0)) < 1,
-      "round-trip should preserve instant")
-  }
-
-  // MARK: - NonAsciiSerializationTests
-
-  @Test func testAccentedCharacterNotUnicodeEscaped() throws {
-    let result = try ObjectSerializer.serialize("café")
-    #expect(result.contains("é"), "should contain literal é: \(result)")
-  }
-
-  @Test func testCjkCharactersNotUnicodeEscaped() throws {
-    let result = try ObjectSerializer.serialize("日本")
-    #expect(result.contains("日本"), "should contain literal CJK chars: \(result)")
-  }
-
-  @Test func testTabCharacterEscapedProperly() throws {
-    let result = try ObjectSerializer.serialize("a\tb")
-    #expect(result.contains("\\t"), "tab should be escaped as \\t: \(result)")
-  }
-
-  // MARK: - DeserializationErrorWrappingTests
-
-  @Test func testTruncatedJsonThrowsSerializationError() {
-    #expect(throws: (any Error).self) {
-      try ObjectSerializer.deserialize("{", as: [String: String].self)
+    @Test func testDeserializeEmptyDataReturnsNil() throws {
+        struct TestModel: Codable { let name: String }
+        let result = try ObjectSerializer.deserialize(Data(), as: TestModel.self)
+        #expect(result == nil)
     }
-  }
 
-  @Test func testInvalidJsonStructureThrowsError() {
-    struct TestModel: Codable { let id: Int }
-    #expect(throws: (any Error).self) {
-      try ObjectSerializer.deserialize("\"hello\"", as: TestModel.self)
+    @Test func testDeserializeInvalidJSON() {
+        struct TestModel: Codable { let name: String }
+        #expect(throws: (any Error).self) { try ObjectSerializer.deserialize("not json", as: TestModel.self) }
     }
-  }
 
-  @Test func testThrownErrorHasDescription() {
-    do {
-      _ = try ObjectSerializer.deserialize("{", as: [String: String].self)
-      Issue.record("Expected error was not thrown")
-    } catch {
-      #expect(!error.localizedDescription.isEmpty, "error should have a description")
+    @Test func testToPathValueString() {
+        let result = ObjectSerializer.toPathValue("hello")
+        #expect(result == "hello")
     }
-  }
 
-  @Test func testSerializeIncludesFieldsSetToDefaultValues() throws {
-    let category = Category(id: 0, name: "")
-    let json = try ObjectSerializer.serialize(category)
-    #expect(json.contains("\"id\":0"), "serialized JSON should include id=0, got: \(json)")
-    #expect(
-      json.contains("\"name\":\"\""), "serialized JSON should include empty name, got: \(json)")
-  }
+    @Test func testToPathValueInt() {
+        let result = ObjectSerializer.toPathValue(42)
+        #expect(result == "42")
+    }
 
-  // MARK: - Gap K — discriminator auto-emitted on subtype serialise
+    @Test func testToPathValueBool() {
+        #expect(ObjectSerializer.toPathValue(true) == "true")
+        #expect(ObjectSerializer.toPathValue(false) == "false")
+    }
 
-  @Test func testSubtypeSerializeAutoEmitsDiscriminator() throws {
-    // Construct the DryFood subtype WITHOUT providing the foodType
-    // discriminator; the constructor's default value should fill it in.
-    let dry = DryFood(weightKg: 2.5)
+    @Test func testToPathValueNil() {
+        let result = ObjectSerializer.toPathValue(nil)
+        #expect(result == "")
+    }
 
-    let json = try ObjectSerializer.serialize(dry)
-    #expect(
-      json.contains("\"foodType\":\"dry\""),
-      "serialised JSON must contain auto-injected discriminator, got: \(json)")
-  }
+    @Test func testToQueryValueString() {
+        let result = ObjectSerializer.toQueryValue("hello")
+        #expect(result as? String == "hello")
+    }
 
-  @Test func testSubtypeRoundTripViaParentDiscriminator() throws {
-    // Construct DryFood without setting foodType, serialise it, then
-    // decode through the parent oneOf wrapper; the discriminator
-    // injected on serialise must route the decoder back to DryFood.
-    let dry = DryFood(weightKg: 1.25)
-    let payload = try ObjectSerializer.serialize(dry)
+    @Test func testToQueryValueStringSliceCSV() {
+        let result = ObjectSerializer.toQueryValue(["a", "b", "c"], collectionFormat: "csv")
+        #expect(result as? String == "a,b,c")
+    }
 
-    let food = try JSONDecoder().decode(PetFood.self, from: Data(payload.utf8))
-    #expect(food.value() is DryFood)
-  }
+    @Test func testToQueryValueStringSliceSSV() {
+        let result = ObjectSerializer.toQueryValue(["a", "b", "c"], collectionFormat: "ssv")
+        #expect(result as? String == "a b c")
+    }
+
+    @Test func testToQueryValueStringSliceTSV() {
+        let result = ObjectSerializer.toQueryValue(["a", "b", "c"], collectionFormat: "tsv")
+        #expect(result as? String == "a\tb\tc")
+    }
+
+    @Test func testToQueryValueStringSlicePipes() {
+        let result = ObjectSerializer.toQueryValue(["a", "b", "c"], collectionFormat: "pipes")
+        #expect(result as? String == "a|b|c")
+    }
+
+    @Test func testToQueryValueStringSliceMulti() {
+        let result = ObjectSerializer.toQueryValue(["a", "b", "c"], collectionFormat: "multi")
+        #expect(result as? [String] == ["a", "b", "c"])
+    }
+
+    @Test func testToQueryValueInt() {
+        let result = ObjectSerializer.toQueryValue(42)
+        #expect(result as? String == "42")
+    }
+
+    @Test func testToQueryValueBoolTrue() {
+        let result = ObjectSerializer.toQueryValue(true)
+        #expect(result as? String == "true")
+    }
+
+    @Test func testToQueryValueBoolFalse() {
+        let result = ObjectSerializer.toQueryValue(false)
+        #expect(result as? String == "false")
+    }
+
+    @Test func testToQueryValueNil() {
+        let result = ObjectSerializer.toQueryValue(nil)
+        #expect(result == nil)
+    }
+
+    @Test func testToHeaderValueString() {
+        let result = ObjectSerializer.toHeaderValue("hello")
+        #expect(result == "hello")
+    }
+
+    @Test func testToHeaderValueStringSlice() {
+        let result = ObjectSerializer.toHeaderValue(["a", "b", "c"])
+        #expect(result == "a,b,c")
+    }
+
+    @Test func testToHeaderValueNil() {
+        let result = ObjectSerializer.toHeaderValue(nil)
+        #expect(result == "")
+    }
+
+    @Test func testToFormValueString() {
+        let result = ObjectSerializer.toFormValue("hello")
+        #expect(result == "hello")
+    }
+
+    @Test func testToFormValueInt() {
+        let result = ObjectSerializer.toFormValue(123)
+        #expect(result == "123")
+    }
+
+    @Test func testToFormValueNil() {
+        let result = ObjectSerializer.toFormValue(nil)
+        #expect(result == "")
+    }
+
+    @Test func testToFormValueBoolTrue() {
+        #expect(ObjectSerializer.toFormValue(true) == "true")
+    }
+
+    @Test func testToFormValueBoolFalse() {
+        #expect(ObjectSerializer.toFormValue(false) == "false")
+    }
+
+    @Test func testToCookieValueString() {
+        #expect(ObjectSerializer.toCookieValue("hello") == "hello")
+    }
+
+    @Test func testToCookieValueNil() {
+        #expect(ObjectSerializer.toCookieValue(nil) == "")
+    }
+
+    @Test func testToCookieValueInt() {
+        #expect(ObjectSerializer.toCookieValue(42) == "42")
+    }
+
+    @Test func testStringifyString() {
+        #expect(ObjectSerializer.stringify("hello") == "hello")
+    }
+
+    @Test func testStringifyInt() {
+        #expect(ObjectSerializer.stringify(42) == "42")
+    }
+
+    @Test func testStringifyInt64() {
+        #expect(ObjectSerializer.stringify(Int64(9_999_999_999)) == "9999999999")
+    }
+
+    @Test func testStringifyFloat64() {
+        let result = ObjectSerializer.stringify(3.14)
+        #expect(result.hasPrefix("3.14"))
+    }
+
+    @Test func testStringifyBool() {
+        #expect(ObjectSerializer.stringify(true) == "true")
+        #expect(ObjectSerializer.stringify(false) == "false")
+    }
+
+    @Test func testStringifyDate() {
+        let date = Date(timeIntervalSince1970: 1_705_315_800)
+        let result = ObjectSerializer.stringify(date)
+        #expect(result == "2024-01-15T10:50:00+00:00")
+    }
+
+    @Test func testStringifyNil() {
+        #expect(ObjectSerializer.stringify(nil) == "")
+    }
+
+    // MARK: - DateTimeOffsetPreservationTests
+
+    @Test func testDateTimeUTCSerializesWithOffset() {
+        // Use a fixed UTC date for predictable output
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        let date = formatter.date(from: "2024-01-01T12:30:45+00:00")!
+        let result = ObjectSerializer.stringify(date)
+        #expect(result.contains("2024-01-01"), "should contain date: \(result)")
+        #expect(result.contains("12:30:45"), "should contain time: \(result)")
+    }
+
+    @Test func testDateTimeSerializedStringContainsOffset() {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        let date = formatter.date(from: "2024-01-01T12:30:45+00:00")!
+        let result = ObjectSerializer.stringify(date)
+        let hasOffset =
+            result.hasSuffix("Z") || result.contains("+") || (result.last?.isNumber == true && result.contains("-"))
+        #expect(hasOffset, "should contain timezone offset: \(result)")
+    }
+
+    @Test func testDateTimeSubsecondsDropped() {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let date = formatter.date(from: "2024-01-01T12:30:45.123+00:00")!
+        let result = ObjectSerializer.stringify(date)
+        #expect(!result.contains(".123"), "subseconds should not appear: \(result)")
+    }
+
+    @Test func testDateOnlyStringIsIso8601() {
+        // Test that a Date at midnight serializes with date component
+        let components = DateComponents(calendar: .current, year: 2024, month: 1, day: 1, hour: 0, minute: 0, second: 0)
+        let date = components.date!
+        let result = ObjectSerializer.stringify(date)
+        #expect(result.contains("2024-01-01"), "should contain date: \(result)")
+    }
+
+    @Test func testDateTimeEndsWithOffsetOrZ() {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        let date = formatter.date(from: "2024-01-01T12:30:45+00:00")!
+        let result = ObjectSerializer.stringify(date)
+        let matchesPattern =
+            result.hasSuffix("Z") || result.range(of: #"[+-]\d{2}:\d{2}$"#, options: .regularExpression) != nil
+        #expect(matchesPattern, "should end with offset or Z: \(result)")
+    }
+
+    @Test func testDateTimePositiveOffsetPreservedIfFormatterUsesLocalZone() {
+        // This test verifies the formatter uses the date's timezone, not always UTC
+        // The exact offset depends on the test environment, but the result must be valid ISO 8601
+        let date = Date(timeIntervalSince1970: 1_704_100_245)  // 2024-01-01 some time
+        let result = ObjectSerializer.stringify(date)
+        #expect(!result.isEmpty, "result should not be empty")
+        #expect(result.contains("T"), "result should contain T separator: \(result)")
+    }
+
+    @Test func testDateTimeRoundTrip() throws {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        let original = formatter.date(from: "2024-01-01T12:30:45+00:00")!
+        let serialized = ObjectSerializer.stringify(original)
+        let parsed = formatter.date(from: serialized)
+        #expect(parsed != nil, "should be able to parse back serialized datetime: \(serialized)")
+        #expect(
+            abs(original.timeIntervalSince1970 - (parsed?.timeIntervalSince1970 ?? 0)) < 1,
+            "round-trip should preserve instant")
+    }
+
+    // MARK: - NonAsciiSerializationTests
+
+    @Test func testAccentedCharacterNotUnicodeEscaped() throws {
+        let result = try ObjectSerializer.serialize("café")
+        #expect(result.contains("é"), "should contain literal é: \(result)")
+    }
+
+    @Test func testCjkCharactersNotUnicodeEscaped() throws {
+        let result = try ObjectSerializer.serialize("日本")
+        #expect(result.contains("日本"), "should contain literal CJK chars: \(result)")
+    }
+
+    @Test func testTabCharacterEscapedProperly() throws {
+        let result = try ObjectSerializer.serialize("a\tb")
+        #expect(result.contains("\\t"), "tab should be escaped as \\t: \(result)")
+    }
+
+    // MARK: - DeserializationErrorWrappingTests
+
+    @Test func testTruncatedJsonThrowsSerializationError() {
+        #expect(throws: (any Error).self) {
+            try ObjectSerializer.deserialize("{", as: [String: String].self)
+        }
+    }
+
+    @Test func testInvalidJsonStructureThrowsError() {
+        struct TestModel: Codable { let id: Int }
+        #expect(throws: (any Error).self) {
+            try ObjectSerializer.deserialize("\"hello\"", as: TestModel.self)
+        }
+    }
+
+    @Test func testThrownErrorHasDescription() {
+        do {
+            _ = try ObjectSerializer.deserialize("{", as: [String: String].self)
+            Issue.record("Expected error was not thrown")
+        } catch {
+            #expect(!error.localizedDescription.isEmpty, "error should have a description")
+        }
+    }
+
+    @Test func testSerializeIncludesFieldsSetToDefaultValues() throws {
+        let category = Category(id: 0, name: "")
+        let json = try ObjectSerializer.serialize(category)
+        #expect(json.contains("\"id\":0"), "serialized JSON should include id=0, got: \(json)")
+        #expect(json.contains("\"name\":\"\""), "serialized JSON should include empty name, got: \(json)")
+    }
+
+    // MARK: - Gap K — discriminator auto-emitted on subtype serialise
+
+    @Test func testSubtypeSerializeAutoEmitsDiscriminator() throws {
+        // Construct the DryFood subtype WITHOUT providing the foodType
+        // discriminator; the constructor's default value should fill it in.
+        let dry = DryFood(weightKg: 2.5)
+
+        let json = try ObjectSerializer.serialize(dry)
+        #expect(
+            json.contains("\"foodType\":\"dry\""),
+            "serialised JSON must contain auto-injected discriminator, got: \(json)")
+    }
+
+    @Test func testSubtypeRoundTripViaParentDiscriminator() throws {
+        // Construct DryFood without setting foodType, serialise it, then
+        // decode through the parent oneOf wrapper; the discriminator
+        // injected on serialise must route the decoder back to DryFood.
+        let dry = DryFood(weightKg: 1.25)
+        let payload = try ObjectSerializer.serialize(dry)
+
+        let food = try JSONDecoder().decode(PetFood.self, from: Data(payload.utf8))
+        #expect(food.value() is DryFood)
+    }
 }

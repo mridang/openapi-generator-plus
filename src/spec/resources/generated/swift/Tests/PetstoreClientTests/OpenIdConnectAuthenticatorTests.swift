@@ -12,122 +12,119 @@ import Testing
 
 @Suite final class OpenIdConnectAuthenticatorTests {
 
-  // MARK: - Mock ApiClient
+    // MARK: - Mock ApiClient
 
-  private final class MockApiClient: ApiClient, @unchecked Sendable {
-    var responses: [HttpResponse] = []
-    var lastMethod: String = ""
-    var lastURL: String = ""
-    var lastHeaders: [String: String] = [:]
-    var lastBody: Data? = nil
+    private final class MockApiClient: ApiClient, @unchecked Sendable {
+        var responses: [HttpResponse] = []
+        var lastMethod: String = ""
+        var lastURL: String = ""
+        var lastHeaders: [String: String] = [:]
+        var lastBody: Data? = nil
 
-    func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
-      async throws -> HttpResponse
-    {
-      lastMethod = method
-      lastURL = url
-      lastHeaders = headers
-      lastBody = body as? Data
-      return responses.removeFirst()
+        func sendRequest(
+            method: String, url: String, headers: [String: String], body: Any?
+        ) async throws -> HttpResponse {
+            lastMethod = method
+            lastURL = url
+            lastHeaders = headers
+            lastBody = body as? Data
+            return responses.removeFirst()
+        }
     }
-  }
 
-  private func makeResponse(body: String, statusCode: Int = 200) -> HttpResponse {
-    return HttpResponse(statusCode: statusCode, body: body, headers: [:])
-  }
-
-  private func createAuthenticator() -> OpenIdConnectAuthenticator {
-    return OpenIdConnectAuthenticator(
-      host: "https://api.example.com",
-      openIDConnectURL: "https://auth.example.com/.well-known/openid-configuration",
-      clientID: "my-client-id",
-      clientSecret: "my-client-secret",
-      redirectURI: "https://app.example.com/callback",
-      scopes: ["openid", "profile"]
-    )
-  }
-
-  private static let discoveryJSON = """
-    {"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}
-    """
-
-  // MARK: - Tests
-
-  @Test func testBuildsAuthorizationURLFromDiscovery() async throws {
-    let client = MockApiClient()
-    client.responses.append(makeResponse(body: Self.discoveryJSON))
-
-    let auth = createAuthenticator()
-    auth.setApiClient(client)
-
-    let url = try await auth.buildAuthorizationURL(state: "my-state")
-
-    #expect(url.hasPrefix("https://auth.example.com/authorize?"))
-    #expect(url.contains("response_type=code"))
-    #expect(url.contains("client_id=my-client-id"))
-    #expect(url.contains("state=my-state"))
-  }
-
-  @Test func testFetchesDiscoveryDocument() async throws {
-    let client = MockApiClient()
-    client.responses.append(makeResponse(body: Self.discoveryJSON))
-
-    let auth = createAuthenticator()
-    auth.setApiClient(client)
-
-    _ = try await auth.buildAuthorizationURL()
-
-    #expect(client.lastMethod == "GET")
-    #expect(client.lastURL == "https://auth.example.com/.well-known/openid-configuration")
-  }
-
-  @Test func testObtainsTokenAfterCodeExchange() async throws {
-    let client = MockApiClient()
-    client.responses.append(makeResponse(body: Self.discoveryJSON))
-    client.responses.append(
-      makeResponse(body: "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}"))
-
-    let auth = createAuthenticator()
-    auth.setApiClient(client)
-
-    try await auth.exchangeCode("oidc-code")
-
-    let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
-    #expect(bodyString.contains("grant_type=authorization_code"))
-    #expect(bodyString.contains("code=oidc-code"))
-  }
-
-  @Test func testGetAuthHeadersReturnsBearerAfterExchange() async throws {
-    let client = MockApiClient()
-    client.responses.append(makeResponse(body: Self.discoveryJSON))
-    client.responses.append(
-      makeResponse(body: "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}"))
-    client.responses.append(
-      makeResponse(body: "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}"))
-
-    let auth = createAuthenticator()
-    auth.setApiClient(client)
-
-    try await auth.exchangeCode("oidc-code")
-    let headers = await auth.authHeaders()
-
-    #expect(headers["Authorization"] == "Bearer oidc-tok")
-  }
-
-  @Test func testThrowsWhenNoApiClientInjected() async {
-    let auth = createAuthenticator()
-
-    do {
-      _ = try await auth.buildAuthorizationURL()
-      Issue.record("Expected error when no ApiClient injected")
-    } catch {
-      #expect(error != nil)
+    private func makeResponse(body: String, statusCode: Int = 200) -> HttpResponse {
+        return HttpResponse(statusCode: statusCode, body: body, headers: [:])
     }
-  }
 
-  @Test func testGetHostReturnsConfiguredHost() {
-    let auth = createAuthenticator()
+    private func createAuthenticator() -> OpenIdConnectAuthenticator {
+        return OpenIdConnectAuthenticator(
+            host: "https://api.example.com",
+            openIDConnectURL: "https://auth.example.com/.well-known/openid-configuration",
+            clientID: "my-client-id",
+            clientSecret: "my-client-secret",
+            redirectURI: "https://app.example.com/callback",
+            scopes: ["openid", "profile"]
+        )
+    }
 
-    #expect(auth.host() == "https://api.example.com")
-  }
+    private static let discoveryJSON = """
+        {"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}
+        """
+
+    // MARK: - Tests
+
+    @Test func testBuildsAuthorizationURLFromDiscovery() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: Self.discoveryJSON))
+
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        let url = try await auth.buildAuthorizationURL(state: "my-state")
+
+        #expect(url.hasPrefix("https://auth.example.com/authorize?"))
+        #expect(url.contains("response_type=code"))
+        #expect(url.contains("client_id=my-client-id"))
+        #expect(url.contains("state=my-state"))
+    }
+
+    @Test func testFetchesDiscoveryDocument() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: Self.discoveryJSON))
+
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        _ = try await auth.buildAuthorizationURL()
+
+        #expect(client.lastMethod == "GET")
+        #expect(client.lastURL == "https://auth.example.com/.well-known/openid-configuration")
+    }
+
+    @Test func testObtainsTokenAfterCodeExchange() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: Self.discoveryJSON))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}"))
+
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        try await auth.exchangeCode("oidc-code")
+
+        let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
+        #expect(bodyString.contains("grant_type=authorization_code"))
+        #expect(bodyString.contains("code=oidc-code"))
+    }
+
+    @Test func testGetAuthHeadersReturnsBearerAfterExchange() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: Self.discoveryJSON))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}"))
+
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        try await auth.exchangeCode("oidc-code")
+        let headers = await auth.authHeaders()
+
+        #expect(headers["Authorization"] == "Bearer oidc-tok")
+    }
+
+    @Test func testThrowsWhenNoApiClientInjected() async {
+        let auth = createAuthenticator()
+
+        do {
+            _ = try await auth.buildAuthorizationURL()
+            Issue.record("Expected error when no ApiClient injected")
+        } catch {
+            #expect(error != nil)
+        }
+    }
+
+    @Test func testGetHostReturnsConfiguredHost() {
+        let auth = createAuthenticator()
+
+        #expect(auth.host() == "https://api.example.com")
+    }
 }

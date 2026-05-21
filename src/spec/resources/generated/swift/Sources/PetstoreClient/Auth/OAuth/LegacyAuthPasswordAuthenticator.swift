@@ -7,14 +7,11 @@
 
 import Foundation
 
-public final class LegacyAuthPasswordAuthenticator: OAuth2PasswordAuthenticator, @unchecked Sendable
-{
-  public init(
-    host: String, clientId: String, clientSecret: String, username: String, password: String
-  ) {
-    super.init(
-      host: host, clientID: clientId, clientSecret: clientSecret,
-      tokenURL: "https://auth.example.com/oauth/token", username: username, password: password,
-      scopes: ["read"], refreshURL: "https://auth.example.com/oauth/refresh")
-  }
+public final class LegacyAuthPasswordAuthenticator: OAuth2PasswordAuthenticator, @unchecked Sendable {
+    public init(host: String, clientId: String, clientSecret: String, username: String, password: String) {
+        super.init(
+            host: host, clientID: clientId, clientSecret: clientSecret,
+            tokenURL: "https://auth.example.com/oauth/token", username: username, password: password, scopes: ["read"],
+            refreshURL: "https://auth.example.com/oauth/refresh")
+    }
 }

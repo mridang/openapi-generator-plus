@@ -10,152 +10,146 @@ import Foundation
 /// HeaderSelector selects Accept and Content-Type headers for API requests
 /// based on the MIME types declared in the OpenAPI specification.
 public final class HeaderSelector: Sendable {
-  private static let jsonMIMEPattern = try! NSRegularExpression(
-    pattern: #"^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)"#,
-    options: .caseInsensitive
-  )
-  private static let weightPattern = try! NSRegularExpression(
-    pattern: #"(.*)\s*;\s*q=(1(?:\.0+)?|0\.\d+)$"#
-  )
+    private static let jsonMIMEPattern = try! NSRegularExpression(
+        pattern: #"^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)"#,
+        options: .caseInsensitive
+    )
+    private static let weightPattern = try! NSRegularExpression(
+        pattern: #"(.*)\s*;\s*q=(1(?:\.0+)?|0\.\d+)$"#
+    )
 
-  public init() {}
+    public init() {}
 
-  private struct HeaderData {
-    let header: String
-    let weight: Int
-  }
-
-  /// Selects the Accept and Content-Type headers for an API request.
-  ///
-  /// - Parameters:
-  ///   - accept: Acceptable MIME types for the response.
-  ///   - contentType: The Content-Type for the request body.
-  ///   - isMultipart: Whether this is a multipart request.
-  /// - Returns: A dictionary of header names to values.
-  public func selectHeaders(accept: [String], contentType: String, isMultipart: Bool) -> [String:
-    String]
-  {
-    var headers: [String: String] = [:]
-
-    let acceptHeader = selectAcceptHeader(accept)
-    if !acceptHeader.isEmpty {
-      headers["Accept"] = acceptHeader
+    private struct HeaderData {
+        let header: String
+        let weight: Int
     }
 
-    if !isMultipart {
-      let ct = contentType.isEmpty ? "application/json" : contentType
-      headers["Content-Type"] = ct
+    /// Selects the Accept and Content-Type headers for an API request.
+    ///
+    /// - Parameters:
+    ///   - accept: Acceptable MIME types for the response.
+    ///   - contentType: The Content-Type for the request body.
+    ///   - isMultipart: Whether this is a multipart request.
+    /// - Returns: A dictionary of header names to values.
+    public func selectHeaders(accept: [String], contentType: String, isMultipart: Bool) -> [String: String] {
+        var headers: [String: String] = [:]
+
+        let acceptHeader = selectAcceptHeader(accept)
+        if !acceptHeader.isEmpty {
+            headers["Accept"] = acceptHeader
+        }
+
+        if !isMultipart {
+            let ct = contentType.isEmpty ? "application/json" : contentType
+            headers["Content-Type"] = ct
+        }
+
+        return headers
     }
 
-    return headers
-  }
-
-  /// Detects whether a string contains a valid JSON MIME type.
-  public func isJsonMime(_ searchString: String) -> Bool {
-    if searchString.isEmpty { return false }
-    let range = NSRange(searchString.startIndex..., in: searchString)
-    return Self.jsonMIMEPattern.firstMatch(in: searchString, range: range) != nil
-  }
-
-  private func selectAcceptHeader(_ accept: [String]) -> String {
-    let filtered = accept.filter { !$0.isEmpty }
-    if filtered.isEmpty { return "" }
-    if filtered.count == 1 { return filtered[0] }
-
-    let headersWithJSON = filtered.filter { isJsonMime($0) }
-    if headersWithJSON.isEmpty {
-      return filtered.joined(separator: ",")
+    /// Detects whether a string contains a valid JSON MIME type.
+    public func isJsonMime(_ searchString: String) -> Bool {
+        if searchString.isEmpty { return false }
+        let range = NSRange(searchString.startIndex..., in: searchString)
+        return Self.jsonMIMEPattern.firstMatch(in: searchString, range: range) != nil
     }
 
-    return getAcceptHeaderWithAdjustedWeight(filtered, headersWithJSON: headersWithJSON)
-  }
+    private func selectAcceptHeader(_ accept: [String]) -> String {
+        let filtered = accept.filter { !$0.isEmpty }
+        if filtered.isEmpty { return "" }
+        if filtered.count == 1 { return filtered[0] }
 
-  private func getAcceptHeaderWithAdjustedWeight(_ accept: [String], headersWithJSON: [String])
-    -> String
-  {
-    let jsonSet = Set(headersWithJSON)
+        let headersWithJSON = filtered.filter { isJsonMime($0) }
+        if headersWithJSON.isEmpty {
+            return filtered.joined(separator: ",")
+        }
 
-    var withApplicationJSON: [HeaderData] = []
-    var withJSON: [HeaderData] = []
-    var withoutJSON: [HeaderData] = []
-
-    for header in accept {
-      let hd = getHeaderAndWeight(header)
-      let lowerHeader = hd.header.lowercased()
-
-      if lowerHeader.hasPrefix("application/json") {
-        withApplicationJSON.append(hd)
-      } else if jsonSet.contains(header) {
-        withJSON.append(hd)
-      } else {
-        withoutJSON.append(hd)
-      }
+        return getAcceptHeaderWithAdjustedWeight(filtered, headersWithJSON: headersWithJSON)
     }
 
-    var acceptHeaders: [String] = []
-    var currentWeight = 1000
-    let hasMoreThan28Headers = accept.count > 28
+    private func getAcceptHeaderWithAdjustedWeight(_ accept: [String], headersWithJSON: [String]) -> String {
+        let jsonSet = Set(headersWithJSON)
 
-    let groups = [withApplicationJSON, withJSON, withoutJSON]
-    for group in groups {
-      if !group.isEmpty {
-        let adjusted = adjustWeight(
-          group, currentWeight: &currentWeight, hasMoreThan28Headers: hasMoreThan28Headers)
-        acceptHeaders.append(contentsOf: adjusted)
-      }
+        var withApplicationJSON: [HeaderData] = []
+        var withJSON: [HeaderData] = []
+        var withoutJSON: [HeaderData] = []
+
+        for header in accept {
+            let hd = getHeaderAndWeight(header)
+            let lowerHeader = hd.header.lowercased()
+
+            if lowerHeader.hasPrefix("application/json") {
+                withApplicationJSON.append(hd)
+            } else if jsonSet.contains(header) {
+                withJSON.append(hd)
+            } else {
+                withoutJSON.append(hd)
+            }
+        }
+
+        var acceptHeaders: [String] = []
+        var currentWeight = 1000
+        let hasMoreThan28Headers = accept.count > 28
+
+        let groups = [withApplicationJSON, withJSON, withoutJSON]
+        for group in groups {
+            if !group.isEmpty {
+                let adjusted = adjustWeight(
+                    group, currentWeight: &currentWeight, hasMoreThan28Headers: hasMoreThan28Headers)
+                acceptHeaders.append(contentsOf: adjusted)
+            }
+        }
+
+        return acceptHeaders.joined(separator: ",")
     }
 
-    return acceptHeaders.joined(separator: ",")
-  }
-
-  private func getHeaderAndWeight(_ header: String) -> HeaderData {
-    let range = NSRange(header.startIndex..., in: header)
-    if let match = Self.weightPattern.firstMatch(in: header, range: range) {
-      let headerRange = Range(match.range(at: 1), in: header)!
-      let weightRange = Range(match.range(at: 2), in: header)!
-      let weight = Int((Double(header[weightRange]) ?? 1.0) * 1000)
-      return HeaderData(header: String(header[headerRange]), weight: weight)
+    private func getHeaderAndWeight(_ header: String) -> HeaderData {
+        let range = NSRange(header.startIndex..., in: header)
+        if let match = Self.weightPattern.firstMatch(in: header, range: range) {
+            let headerRange = Range(match.range(at: 1), in: header)!
+            let weightRange = Range(match.range(at: 2), in: header)!
+            let weight = Int((Double(header[weightRange]) ?? 1.0) * 1000)
+            return HeaderData(header: String(header[headerRange]), weight: weight)
+        }
+        return HeaderData(header: header.trimmingCharacters(in: .whitespaces), weight: 1000)
     }
-    return HeaderData(header: header.trimmingCharacters(in: .whitespaces), weight: 1000)
-  }
 
-  private func adjustWeight(
-    _ headers: [HeaderData], currentWeight: inout Int, hasMoreThan28Headers: Bool
-  ) -> [String] {
-    let sorted = headers.sorted { $0.weight > $1.weight }
+    private func adjustWeight(_ headers: [HeaderData], currentWeight: inout Int, hasMoreThan28Headers: Bool) -> [String]
+    {
+        let sorted = headers.sorted { $0.weight > $1.weight }
 
-    var acceptHeaders: [String] = []
-    for (i, hd) in sorted.enumerated() {
-      if i > 0 && sorted[i - 1].weight > hd.weight {
+        var acceptHeaders: [String] = []
+        for (i, hd) in sorted.enumerated() {
+            if i > 0 && sorted[i - 1].weight > hd.weight {
+                currentWeight = getNextWeight(currentWeight, hasMoreThan28Headers: hasMoreThan28Headers)
+            }
+
+            acceptHeaders.append(buildAcceptHeader(hd.header, weight: currentWeight))
+        }
+
         currentWeight = getNextWeight(currentWeight, hasMoreThan28Headers: hasMoreThan28Headers)
-      }
-
-      acceptHeaders.append(buildAcceptHeader(hd.header, weight: currentWeight))
+        return acceptHeaders
     }
 
-    currentWeight = getNextWeight(currentWeight, hasMoreThan28Headers: hasMoreThan28Headers)
-    return acceptHeaders
-  }
+    private func buildAcceptHeader(_ header: String, weight: Int) -> String {
+        if weight == 1000 {
+            return header
+        }
 
-  private func buildAcceptHeader(_ header: String, weight: Int) -> String {
-    if weight == 1000 {
-      return header
+        let cleanHeader = header.replacingOccurrences(of: "[;\\s]+$", with: "", options: .regularExpression)
+        var weightStr = String(format: "%0.3f", Double(weight) / 1000.0)
+        weightStr = weightStr.replacingOccurrences(of: "0+$", with: "", options: .regularExpression)
+        if weightStr.hasSuffix(".") { weightStr = String(weightStr.dropLast()) }
+
+        return "\(cleanHeader);q=\(weightStr)"
     }
 
-    let cleanHeader = header.replacingOccurrences(
-      of: "[;\\s]+$", with: "", options: .regularExpression)
-    var weightStr = String(format: "%0.3f", Double(weight) / 1000.0)
-    weightStr = weightStr.replacingOccurrences(of: "0+$", with: "", options: .regularExpression)
-    if weightStr.hasSuffix(".") { weightStr = String(weightStr.dropLast()) }
+    public func getNextWeight(_ currentWeight: Int, hasMoreThan28Headers: Bool) -> Int {
+        if currentWeight <= 1 { return 1 }
+        if hasMoreThan28Headers { return currentWeight - 1 }
 
-    return "\(cleanHeader);q=\(weightStr)"
-  }
-
-  public func getNextWeight(_ currentWeight: Int, hasMoreThan28Headers: Bool) -> Int {
-    if currentWeight <= 1 { return 1 }
-    if hasMoreThan28Headers { return currentWeight - 1 }
-
-    let step = Int(pow(10.0, floor(log10(Double(currentWeight - 1)))))
-    return currentWeight - step
-  }
+        let step = Int(pow(10.0, floor(log10(Double(currentWeight - 1)))))
+        return currentWeight - step
+    }
 }

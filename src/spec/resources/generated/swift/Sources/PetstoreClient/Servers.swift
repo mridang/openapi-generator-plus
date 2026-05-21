@@ -27,36 +27,36 @@ import Foundation
 ///     .build()
 /// ```
 public enum Servers {
-  /// Server configuration for: /api/v3
-  /// Relative URL (no variables)
-  public static let server0 = ServerConfiguration(
-    urlTemplate: "/api/v3",
-    description: "Relative URL (no variables)",
-    variables: [:]
-  )
+    /// Server configuration for: /api/v3
+    /// Relative URL (no variables)
+    public static let server0 = ServerConfiguration(
+        urlTemplate: "/api/v3",
+        description: "Relative URL (no variables)",
+        variables: [:]
+    )
 
-  /// Server configuration for: https://{environment}.example.com/api/{version}
-  /// Main API server with variables
-  public static let server1 = ServerConfiguration(
-    urlTemplate: "https://{environment}.example.com/api/{version}",
-    description: "Main API server with variables",
-    variables: [
-      "environment": ServerVariable(
-        defaultValue: "api",
-        description: "API environment",
-        enumValues: ["api", "staging", "sandbox"]
-      ),
-      "version": ServerVariable(
-        defaultValue: "v3",
-        description: "API version",
-        enumValues: ["v2", "v3"]
-      ),
+    /// Server configuration for: https://{environment}.example.com/api/{version}
+    /// Main API server with variables
+    public static let server1 = ServerConfiguration(
+        urlTemplate: "https://{environment}.example.com/api/{version}",
+        description: "Main API server with variables",
+        variables: [
+            "environment": ServerVariable(
+                defaultValue: "api",
+                description: "API environment",
+                enumValues: ["api", "staging", "sandbox"]
+            ),
+            "version": ServerVariable(
+                defaultValue: "v3",
+                description: "API version",
+                enumValues: ["v2", "v3"]
+            ),
+        ]
+    )
+
+    /// All server configurations in declaration order.
+    public static let all: [ServerConfiguration] = [
+        server0,
+        server1,
     ]
-  )
-
-  /// All server configurations in declaration order.
-  public static let all: [ServerConfiguration] = [
-    server0,
-    server1,
-  ]
 }
