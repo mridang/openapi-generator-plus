@@ -106,6 +106,16 @@ func (m *OAuth2TokenManager) SetAccessToken(token string) {
 	m.tokenExpiry = time.Time{}
 }
 
+// InvalidateAccessToken clears the cached access token so that the next call
+// to GetAccessToken fetches a fresh token from the token endpoint. Intended
+// for tests and recovery flows.
+func (m *OAuth2TokenManager) InvalidateAccessToken() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.accessToken = ""
+	m.tokenExpiry = time.Time{}
+}
+
 func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]string, extraHeaders map[string]string) error {
 	client := m.apiClient
 	if client == nil {

@@ -27,6 +27,7 @@ func NewStoreApi(apiClient ApiClient, config *Configuration, authenticator Authe
 }
 
 // DeleteOrder Delete purchase order by ID
+
 func (a *StoreApi) DeleteOrder(orderId int64) error {
 	result, err := a.DeleteOrderWithHTTPInfo(orderId)
 	if err != nil {
@@ -72,6 +73,7 @@ func (a *StoreApi) DeleteOrderWithHTTPInfo(orderId int64) (*ApiResult[interface{
 }
 
 // GetInventory Returns pet inventories by status
+
 func (a *StoreApi) GetInventory() (*map[string]int32, error) {
 	result, err := a.GetInventoryWithHTTPInfo()
 	if err != nil {
@@ -138,6 +140,7 @@ func (a *StoreApi) GetInventoryWithHTTPInfo() (*ApiResult[map[string]int32], err
 }
 
 // GetOrderById Find purchase order by ID
+
 func (a *StoreApi) GetOrderById(orderId int64) (*Order, error) {
 	result, err := a.GetOrderByIdWithHTTPInfo(orderId)
 	if err != nil {
@@ -205,6 +208,7 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], e
 }
 
 // PlaceOrder Place an order for a pet
+
 func (a *StoreApi) PlaceOrder(order *Order) (*Order, error) {
 	result, err := a.PlaceOrderWithHTTPInfo(order)
 	if err != nil {

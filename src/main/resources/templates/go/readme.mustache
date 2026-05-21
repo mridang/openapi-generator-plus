@@ -2,6 +2,26 @@
 
 Auto-generated Go SDK client for the {{appName}} API.
 
+## Requirements
+
+- Go 1.24+
+- [`gofumpt`](https://github.com/mvdan/gofumpt) — stricter formatter (superset of `gofmt`)
+- [`golangci-lint`](https://golangci-lint.run/) — linter aggregator (bundles `staticcheck`, `revive`, `gocritic`, `gosec`, etc.)
+
+### Tooling
+
+```bash
+# Format (gofmt is built into the Go toolchain)
+go fmt ./...
+gofumpt -w .
+
+# Static analysis
+go vet ./...
+
+# Lint (runs staticcheck, revive, gocritic, gosec, bodyclose, errcheck, ...)
+golangci-lint run
+```
+
 ## Build
 
 ```bash

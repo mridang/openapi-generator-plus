@@ -1,6 +1,7 @@
 run:
   timeout: 5m
   tests: true
+  go: "1.24"
 
 linters:
   enable:
@@ -10,22 +11,22 @@ linters:
     - ineffassign
     - staticcheck
     - unused
+    - revive
+    - gocritic
+    - gosec
     - bodyclose
+    - nilerr
     - dogsled
     - dupl
-    - exportloopref
     - gochecknoinits
     - goconst
-    - gocritic
     - gofmt
     - goimports
     - goprintffuncname
-    - gosec
     - misspell
     - nakedret
     - noctx
     - nolintlint
-    - revive
     - stylecheck
     - typecheck
     - unconvert
@@ -34,7 +35,8 @@ linters:
 
 linters-settings:
   govet:
-    check-shadowing: true
+    enable:
+      - shadow
   goconst:
     min-len: 2
     min-occurrences: 2
