@@ -188,18 +188,18 @@ class DefaultApiClient implements ApiClient
 
             $responseBody = $response->getContent(false);
             $rawHeaders = $response->getHeaders(false);
-            // Gap BE+BF: response header keys are normalised to lowercase so
-            // callers can look them up consistently regardless of the casing
-            // the server used (HTTP header names are case-insensitive per
-            // RFC 7230 section 3.2, and HTTP/2 mandates lowercase on the
-            // wire). Repeated header lines (for example multiple Link or
-            // Set-Cookie headers) are joined with ', ' to preserve order
-            // per RFC 7230 section 3.2.2. The Symfony HttpClient already
-            // lowercases keys and exposes multi-value lists; we join them
-            // for the public surface. The joined form is not directly
-            // parseable for Set-Cookie; callers needing structured cookie
-            // access should call $response->getHeaders(false)['set-cookie']
-            // on the raw Symfony response.
+            /* Gap BE+BF: response header keys are normalised to lowercase so
+               callers can look them up consistently regardless of the casing
+               the server used (HTTP header names are case-insensitive per
+               RFC 7230 section 3.2, and HTTP/2 mandates lowercase on the
+               wire). Repeated header lines (for example multiple Link or
+               Set-Cookie headers) are joined with ', ' to preserve order
+               per RFC 7230 section 3.2.2. The Symfony HttpClient already
+               lowercases keys and exposes multi-value lists; we join them
+               for the public surface. The joined form is not directly
+               parseable for Set-Cookie; callers needing structured cookie
+               access should call $response->getHeaders(false)['set-cookie']
+               on the raw Symfony response. */
             $responseHeaders = [];
             foreach ($rawHeaders as $name => $values) {
                 $responseHeaders[strtolower((string) $name)] = implode(', ', $values);

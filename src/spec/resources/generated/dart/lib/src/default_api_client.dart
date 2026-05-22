@@ -190,16 +190,16 @@ class DefaultApiClient implements ApiClient {
         ? _encodingFor(contentType).decode(responseBytes)
         : base64Encode(responseBytes);
 
-    // Gap BE+BF: response header keys are normalised to lowercase so callers
-    // can look them up consistently regardless of the casing the server used
-    // (HTTP header names are case-insensitive per RFC 7230 section 3.2, and
-    // HTTP/2 mandates lowercase on the wire). Repeated header lines are
-    // joined with ", " to preserve order per RFC 7230 section 3.2.2.
-    // package:http already joins multi-value headers with ", " in
-    // `headers`, but Set-Cookie is collapsed to the first occurrence;
-    // we recover the full list via `headersSplitValues` when available.
-    // Applications needing structured cookie access should parse
-    // `Set-Cookie` using `dart:io` `Cookie.fromSetCookieValue`.
+    /* Gap BE+BF: response header keys are normalised to lowercase so callers
+       can look them up consistently regardless of the casing the server used
+       (HTTP header names are case-insensitive per RFC 7230 section 3.2, and
+       HTTP/2 mandates lowercase on the wire). Repeated header lines are
+       joined with ", " to preserve order per RFC 7230 section 3.2.2.
+       package:http already joins multi-value headers with ", " in
+       `headers`, but Set-Cookie is collapsed to the first occurrence;
+       we recover the full list via `headersSplitValues` when available.
+       Applications needing structured cookie access should parse
+       `Set-Cookie` using `dart:io` `Cookie.fromSetCookieValue`. */
     final responseHeaders = <String, String>{};
     final dynamic dynResp = streamedResponse;
     try {

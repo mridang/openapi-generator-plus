@@ -254,14 +254,14 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             ? GetEncodingFromContentType(contentTypeHeader).GetString(responseBytes)
             : Convert.ToBase64String(responseBytes);
 
-        // Gap BE+BF: response header keys are normalised to lowercase so callers
-        // can look them up consistently regardless of the casing the server used
-        // (HTTP header names are case-insensitive per RFC 7230 section 3.2, and
-        // HTTP/2 mandates lowercase on the wire). Repeated header lines are
-        // joined with ", " to preserve order per RFC 7230 section 3.2.2. For
-        // Set-Cookie specifically the joined form is not directly parseable;
-        // applications that need structured cookie access should use
-        // System.Net.CookieContainer attached to HttpClientHandler.
+        /* Gap BE+BF: response header keys are normalised to lowercase so callers
+           can look them up consistently regardless of the casing the server used
+           (HTTP header names are case-insensitive per RFC 7230 section 3.2, and
+           HTTP/2 mandates lowercase on the wire). Repeated header lines are
+           joined with ", " to preserve order per RFC 7230 section 3.2.2. For
+           Set-Cookie specifically the joined form is not directly parseable;
+           applications that need structured cookie access should use
+           System.Net.CookieContainer attached to HttpClientHandler. */
         Dictionary<string, string> responseHeaders = [];
 
         foreach (KeyValuePair<string, IEnumerable<string>> header in response.Headers)
