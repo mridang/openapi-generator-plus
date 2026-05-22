@@ -131,9 +131,17 @@ func (c *DefaultApiClient) SendRequest(method, url string, headers map[string]st
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	respHeaders := make(map[string]string)
-	for k := range resp.Header {
-		respHeaders[k] = resp.Header.Get(k)
+	// Gap BE+BF: response header keys are normalised to lowercase so callers
+	// can look them up consistently regardless of the casing the server used
+	// (HTTP header names are case-insensitive per RFC 7230 section 3.2, and
+	// HTTP/2 mandates lowercase on the wire). Repeated header lines (for
+	// example multiple Link or Set-Cookie headers) are joined with ", " to
+	// preserve order per RFC 7230 section 3.2.2. The joined form is not
+	// directly parseable for Set-Cookie; callers needing structured cookie
+	// access should use resp.Cookies() on the underlying *http.Response.
+	respHeaders := make(map[string]string, len(resp.Header))
+	for k, vs := range resp.Header {
+		respHeaders[strings.ToLower(k)] = strings.Join(vs, ", ")
 	}
 
 	contentType := resp.Header.Get("Content-Type")
