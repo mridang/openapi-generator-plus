@@ -1167,6 +1167,14 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer() - ID of pet to return
 
+  ### `pet_id` example — Small breed ID
+
+      1
+
+  ### `pet_id` example — Large breed ID
+
+      42
+
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns

@@ -44,4 +44,14 @@ public class ElixirFormattingSpec extends AbstractFormattingSpec implements Elix
                         "Generated Elixir code is not properly formatted:\n%s", result.output())
                 .isTrue();
     }
+
+    @Test
+    void pluralExamplesShouldBeAttributedToParameter() throws java.io.IOException {
+        Path petApi = tempOutputDir.resolve("lib/petstore_client/api/pet_api.ex");
+        String src = java.nio.file.Files.readString(petApi);
+        assertThat(src)
+                .as("elixir pet_api.ex should attribute plural examples to their parameter")
+                .contains("### `pet_id` example — Small breed ID")
+                .contains("### `pet_id` example — Large breed ID");
+    }
 }
