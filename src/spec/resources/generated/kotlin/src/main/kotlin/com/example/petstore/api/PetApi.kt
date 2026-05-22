@@ -625,6 +625,8 @@ class PetApi : BaseApi {
      * Find pet by ID
      * Returns a single pet
      * @param petId ID of pet to return (required)
+     * Example — Small breed ID: `1`
+     * Example — Large breed ID: `42`
 
      * @return Pet
      * @throws ApiException if fails to make API call
