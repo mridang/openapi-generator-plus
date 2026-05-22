@@ -179,39 +179,36 @@ public class ContentEncodingRule implements CustomNormalizationRule {
         String mediaType = schema.getContentMediaType();
 
         if (encoding != null && !encoding.isEmpty()) {
-            String normalized = encoding.toLowerCase(java.util.Locale.ROOT);
-            switch (normalized) {
-                case "base64":
-                    setFormatIfAbsent(schema, "byte", logger);
-                    schema.setContentEncoding(null);
-                    break;
-                case "base64url":
-                    setFormatIfAbsent(schema, "byte", logger);
-                    schema.addExtension(X_IS_BASE64_URL, true);
-                    schema.setContentEncoding(null);
-                    break;
-                case "base16":
-                    setFormatIfAbsent(schema, "byte", logger);
-                    schema.addExtension(X_IS_BASE16, true);
-                    schema.setContentEncoding(null);
-                    break;
-                case "binary":
-                case "7bit":
-                case "8bit":
-                    setFormatIfAbsent(schema, "binary", logger);
-                    schema.setContentEncoding(null);
-                    break;
-                case "quoted-printable":
-                    // Treated as plain text with a docstring note; warn loudly.
-                    logger.warn("contentEncoding '{}' is not natively supported; leaving as plain string.", encoding);
-                    appendDocstring(schema, "Content encoding: " + encoding);
-                    schema.setContentEncoding(null);
-                    break;
-                default:
-                    logger.warn("Unknown contentEncoding '{}'; leaving schema as plain string.", encoding);
-                    appendDocstring(schema, "Content encoding: " + encoding);
-                    schema.setContentEncoding(null);
-                    break;
+            // Use equalsIgnoreCase (case-insensitive ASCII compare) rather than
+            // toLowerCase which SpotBugs flags as IMPROPER_UNICODE (locale-
+            // sensitive even with Locale.ROOT). All known contentEncoding
+            // values are ASCII-only per RFC 4648 + JSON Schema 2020-12.
+            if ("base64".equalsIgnoreCase(encoding)) {
+                setFormatIfAbsent(schema, "byte", logger);
+                schema.setContentEncoding(null);
+            } else if ("base64url".equalsIgnoreCase(encoding)) {
+                setFormatIfAbsent(schema, "byte", logger);
+                schema.addExtension(X_IS_BASE64_URL, true);
+                schema.setContentEncoding(null);
+            } else if ("base16".equalsIgnoreCase(encoding)) {
+                setFormatIfAbsent(schema, "byte", logger);
+                schema.addExtension(X_IS_BASE16, true);
+                schema.setContentEncoding(null);
+            } else if ("binary".equalsIgnoreCase(encoding)
+                    || "7bit".equalsIgnoreCase(encoding)
+                    || "8bit".equalsIgnoreCase(encoding)) {
+                setFormatIfAbsent(schema, "binary", logger);
+                schema.setContentEncoding(null);
+            } else if ("quoted-printable".equalsIgnoreCase(encoding)) {
+                // Treated as plain text with a docstring note; warn loudly.
+                logger.warn("contentEncoding '{}' is not natively supported; leaving as plain string.", encoding);
+                appendDocstring(schema, "Content encoding: " + encoding);
+                schema.setContentEncoding(null);
+            }
+            else {
+                logger.warn("Unknown contentEncoding '{}'; leaving schema as plain string.", encoding);
+                appendDocstring(schema, "Content encoding: " + encoding);
+                schema.setContentEncoding(null);
             }
         }
 
