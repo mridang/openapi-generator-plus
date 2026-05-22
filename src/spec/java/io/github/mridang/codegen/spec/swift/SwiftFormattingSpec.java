@@ -47,4 +47,16 @@ public class SwiftFormattingSpec extends AbstractFormattingSpec implements Swift
                         "Generated Swift code is not properly formatted:\n%s", result.output())
                 .isTrue();
     }
+
+    @Test
+    void pluralExamplesShouldBeAttributedToParameter() throws java.io.IOException {
+        Path petApi = tempOutputDir.resolve("Sources/PetstoreClient/Api/PetApi.swift");
+        String src = java.nio.file.Files.readString(petApi);
+        assertThat(src)
+                .as("swift PetApi.swift should attribute plural examples to their parameter")
+                .contains("/// ### `petId` — Small breed ID")
+                .contains("/// 1")
+                .contains("/// ### `petId` — Large breed ID")
+                .contains("/// 42");
+    }
 }

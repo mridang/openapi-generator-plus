@@ -346,13 +346,13 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     @available(*, deprecated, message: "This operation is deprecated.")
     /// See https://example.com/docs/filtering Find out more about filtering
 
-    /// ## Available only
+    /// ### `status` — Available only
     /// Show only pets currently in stock
     /// ```json
     /// available
     /// ```
 
-    /// ## Sold pets
+    /// ### `status` — Sold pets
     /// Show pets that have been sold
     /// ```json
     /// sold
@@ -596,6 +596,18 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     /// Find pet by ID
     /// Returns a single pet
     @available(*, deprecated, message: "This operation is deprecated.")
+
+    /// ### `petId` — Small breed ID
+    /// A common small-breed pet identifier
+    /// ```json
+    /// 1
+    /// ```
+
+    /// ### `petId` — Large breed ID
+    /// A common large-breed pet identifier
+    /// ```json
+    /// 42
+    /// ```
 
     public func getPetById(petId: Int64, server: (any GetPetByIdServer)? = nil, ) async throws -> Pet {
         let result = try await getPetByIdWithHTTPInfo(petId: petId, server: server, )
