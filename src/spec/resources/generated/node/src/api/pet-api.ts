@@ -624,6 +624,8 @@ export class PetApi extends BaseApi {
    * Find pet by ID
    * Returns a single pet
    * @param petId ID of pet to return (required)
+   * @example Small breed ID - 1
+   * @example Large breed ID - 42
    * @return Pet
    * @throws {ApiError} if fails to make API call
    * @deprecated This operation is deprecated.

@@ -785,6 +785,12 @@ class PetApi(BaseApi):
         """Find pet by ID
         Returns a single pet
         :param pet_id: ID of pet to return (required)
+        # Small breed ID
+        # A common small-breed pet identifier
+        # >>> 1
+        # Large breed ID
+        # A common large-breed pet identifier
+        # >>> 42
 
         :return: Pet
         :raises ApiException: if fails to make API call

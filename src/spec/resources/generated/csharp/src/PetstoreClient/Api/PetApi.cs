@@ -882,6 +882,8 @@ public class PetApi : BaseApi
     /// </summary>
     /// <remarks>Returns a single pet</remarks>
     /// <param name="petId">ID of pet to return</param>
+    /// <example>Small breed ID: 1</example>
+    /// <example>Large breed ID: 42</example>
     /// <param name="server">Optional per-operation server override.</param>
     /// <returns><![CDATA[Pet]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>

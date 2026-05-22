@@ -725,6 +725,8 @@ public class PetApi extends BaseApi {
    * Find pet by ID Returns a single pet
    *
    * @param petId ID of pet to return (required)
+   *     <p>Example — Small breed ID: {@code 1}
+   *     <p>Example — Large breed ID: {@code 42}
    * @return Pet
    * @throws ApiException if fails to make API call
    * @deprecated This operation is deprecated.

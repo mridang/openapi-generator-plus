@@ -705,6 +705,8 @@ class PetApi extends BaseApi
      * Find pet by ID
      * Returns a single pet
      * @param int $petId ID of pet to return
+     * @example 1 Small breed ID
+     * @example 42 Large breed ID
 
      * @return \PetstoreClient\Models\Pet
      * @throws ApiException

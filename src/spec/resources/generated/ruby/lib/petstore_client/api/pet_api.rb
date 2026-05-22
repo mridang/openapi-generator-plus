@@ -569,6 +569,12 @@ module PetstoreClient
       # Find pet by ID
       # Returns a single pet
       # @param pet_id [Integer] ID of pet to return
+      # Small breed ID
+      # A common small-breed pet identifier
+      # Example: 1
+      # Large breed ID
+      # A common large-breed pet identifier
+      # Example: 42
 
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
