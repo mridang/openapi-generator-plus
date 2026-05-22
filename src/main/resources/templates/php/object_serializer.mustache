@@ -376,18 +376,15 @@ class ObjectSerializer
      * instead of producing a corrupted typed object. Aligns PHP with
      * Java/Kotlin/C#/Go/Swift/Rust which throw on type mismatch.
      *
-     * @param array<string, mixed> $data
+     * @param array<array-key, mixed> $data
      */
     private static function assertPrimitiveTypes(array $data, string $class): void
     {
         if (!class_exists($class)) {
             return;
         }
-        try {
-            $reflection = new \ReflectionClass($class);
-        } catch (\ReflectionException) {
-            return;
-        }
+        // class_exists guarantees ReflectionClass won't throw — no try/catch needed.
+        $reflection = new \ReflectionClass($class);
         foreach ($reflection->getProperties() as $property) {
             $type = $property->getType();
             if (!$type instanceof \ReflectionNamedType) {
