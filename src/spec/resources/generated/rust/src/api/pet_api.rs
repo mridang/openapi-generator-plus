@@ -676,12 +676,12 @@ impl PetApi {
     /// Finds Pets by status
     #[deprecated]
     /// See https://example.com/docs/filtering Find out more about filtering
-    /// ## Available only
+    /// ### `status` — Available only
     /// Show only pets currently in stock
     /// ```json
     /// available
     /// ```
-    /// ## Sold pets
+    /// ### `status` — Sold pets
     /// Show pets that have been sold
     /// ```json
     /// sold
@@ -1131,6 +1131,16 @@ impl PetApi {
     /// Find pet by ID
     /// Returns a single pet
     #[deprecated]
+    /// ### `pet_id` — Small breed ID
+    /// A common small-breed pet identifier
+    /// ```json
+    /// 1
+    /// ```
+    /// ### `pet_id` — Large breed ID
+    /// A common large-breed pet identifier
+    /// ```json
+    /// 42
+    /// ```
     pub async fn get_pet_by_id(
         &self,
         pet_id: i64,

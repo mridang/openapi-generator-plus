@@ -44,4 +44,16 @@ public class RustFormattingSpec extends AbstractFormattingSpec implements RustSp
                         "Generated Rust code is not properly formatted:\n%s", result.output())
                 .isTrue();
     }
+
+    @Test
+    void pluralExamplesShouldBeAttributedToParameter() throws java.io.IOException {
+        Path petApi = tempOutputDir.resolve("src/api/pet_api.rs");
+        String src = java.nio.file.Files.readString(petApi);
+        assertThat(src)
+                .as("rust pet_api.rs should attribute plural examples to their parameter")
+                .contains("/// ### `pet_id` — Small breed ID")
+                .contains("/// 1")
+                .contains("/// ### `pet_id` — Large breed ID")
+                .contains("/// 42");
+    }
 }
