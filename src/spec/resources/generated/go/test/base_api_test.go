@@ -278,7 +278,7 @@ func (c *capturingApiClient) SendRequest(method, url string, headers map[string]
 		c.capturedHeaders[k] = v
 	}
 	c.capturedBody = body
-	return &petstore.HttpResponse{StatusCode: 200, Body: "{}", Headers: map[string]string{"Content-Type": "application/json"}}, nil
+	return &petstore.HttpResponse{StatusCode: 200, Body: "{}", Headers: map[string]string{"content-type": "application/json"}}, nil
 }
 
 // ── Header flow-through ──
@@ -324,7 +324,7 @@ func (c *contentTypeApiClient) SendRequest(method, url string, headers map[strin
 	return &petstore.HttpResponse{
 		StatusCode: 200,
 		Body:       c.responseBody,
-		Headers:    map[string]string{"Content-Type": c.responseContentType},
+		Headers:    map[string]string{"content-type": c.responseContentType},
 	}, nil
 }
 
@@ -386,7 +386,7 @@ type queryCapturingApiClient struct {
 
 func (c *queryCapturingApiClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*petstore.HttpResponse, error) {
 	c.capturedURL = url
-	return &petstore.HttpResponse{StatusCode: 200, Body: "{}", Headers: map[string]string{"Content-Type": "application/json"}}, nil
+	return &petstore.HttpResponse{StatusCode: 200, Body: "{}", Headers: map[string]string{"content-type": "application/json"}}, nil
 }
 
 func TestBaseApi_QueryParamSerialization(t *testing.T) {
@@ -561,7 +561,7 @@ func (c *bodyCapturingApiClient) SendRequest(method, url string, headers map[str
 	for k, v := range headers {
 		c.capturedHeaders[k] = v
 	}
-	return &petstore.HttpResponse{StatusCode: 200, Body: "{}", Headers: map[string]string{"Content-Type": "application/json"}}, nil
+	return &petstore.HttpResponse{StatusCode: 200, Body: "{}", Headers: map[string]string{"content-type": "application/json"}}, nil
 }
 
 func TestBaseApi_SerializesTextPlainBody(t *testing.T) {
@@ -610,7 +610,7 @@ func (c *binaryResponseApiClient) SendRequest(method, url string, headers map[st
 	return &petstore.HttpResponse{
 		StatusCode: 200,
 		Body:       c.responseBody,
-		Headers:    map[string]string{"Content-Type": c.responseContentType},
+		Headers:    map[string]string{"content-type": c.responseContentType},
 	}, nil
 }
 
@@ -883,7 +883,7 @@ func (c *authHeaderCapturingClient) SendRequest(method, url string, headers map[
 	for k, v := range headers {
 		c.headers[k] = v
 	}
-	return &petstore.HttpResponse{StatusCode: 200, Body: "{}", Headers: map[string]string{"Content-Type": "application/json"}}, nil
+	return &petstore.HttpResponse{StatusCode: 200, Body: "{}", Headers: map[string]string{"content-type": "application/json"}}, nil
 }
 
 func TestAuth_NilPerCallFallsBackToClientLevelAuthenticator(t *testing.T) {

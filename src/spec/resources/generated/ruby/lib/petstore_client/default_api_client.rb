@@ -111,7 +111,7 @@ module PetstoreClient
       # normalise both shapes. The joined form is not directly parseable
       # for Set-Cookie; callers needing structured cookie access should
       # use HTTP::Cookie.parse or read the raw Faraday::Utils::Headers.
-      normalized_headers = {}
+      normalized_headers = {} # : Hash[String, String]
       response.headers.each do |name, value|
         joined = value.is_a?(Array) ? value.join(', ') : value.to_s
         normalized_headers[name.to_s.downcase] = joined

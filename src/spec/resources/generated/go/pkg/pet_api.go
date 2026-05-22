@@ -178,7 +178,8 @@ func (a *PetApi) AddPetWithHTTPInfo(auth Authenticator, pet Pet) (*ApiResult[Pet
 	var data Pet
 	if response.Body != "" {
 		respContentType := ""
-		if ct, ok := response.Headers["Content-Type"]; ok {
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
 		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
@@ -252,7 +253,8 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *AddPetPhotosOpti
 	var data []Photo
 	if response.Body != "" {
 		respContentType := ""
-		if ct, ok := response.Headers["Content-Type"]; ok {
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
 		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
@@ -320,7 +322,8 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(auth Authenticator, petId int64, pe
 	var data PetTreatment
 	if response.Body != "" {
 		respContentType := ""
-		if ct, ok := response.Headers["Content-Type"]; ok {
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
 		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
@@ -443,7 +446,8 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) 
 	var data *os.File
 	if response.Body != "" {
 		respContentType := ""
-		if ct, ok := response.Headers["Content-Type"]; ok {
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
 		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
@@ -528,7 +532,8 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *FindPetsByStatusOptions) 
 	var data []Pet
 	if response.Body != "" {
 		respContentType := ""
-		if ct, ok := response.Headers["Content-Type"]; ok {
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
 		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
@@ -602,7 +607,8 @@ func (a *PetApi) GetExternalPetInfoWithHTTPInfo(petId int64, server GetExternalP
 	var data Pet
 	if response.Body != "" {
 		respContentType := ""
-		if ct, ok := response.Headers["Content-Type"]; ok {
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
 		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
@@ -676,7 +682,8 @@ func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(petId int64, server GetMultiS
 	var data Pet
 	if response.Body != "" {
 		respContentType := ""
-		if ct, ok := response.Headers["Content-Type"]; ok {
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
 		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
@@ -745,7 +752,8 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(petId int64) (*ApiResult[*os.File], er
 	var data *os.File
 	if response.Body != "" {
 		respContentType := ""
-		if ct, ok := response.Headers["Content-Type"]; ok {
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
 		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
@@ -814,7 +822,8 @@ func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(petId int64) (*ApiResult[[]by
 	var data []byte
 	if response.Body != "" {
 		respContentType := ""
-		if ct, ok := response.Headers["Content-Type"]; ok {
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
 		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
@@ -894,7 +903,8 @@ func (a *PetApi) GetPetByIdWithHTTPInfo(petId int64, server GetPetByIdServer) (*
 	var data Pet
 	if response.Body != "" {
 		respContentType := ""
-		if ct, ok := response.Headers["Content-Type"]; ok {
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
 		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
@@ -963,7 +973,8 @@ func (a *PetApi) GetPetPassportWithHTTPInfo(petId int64) (*ApiResult[PetPassport
 	var data PetPassport
 	if response.Body != "" {
 		respContentType := ""
-		if ct, ok := response.Headers["Content-Type"]; ok {
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
 		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
@@ -1033,7 +1044,8 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult
 	var data *os.File
 	if response.Body != "" {
 		respContentType := ""
-		if ct, ok := response.Headers["Content-Type"]; ok {
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
 		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
@@ -1118,7 +1130,8 @@ func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *Get
 	var data Pet
 	if response.Body != "" {
 		respContentType := ""
-		if ct, ok := response.Headers["Content-Type"]; ok {
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
 		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
@@ -1192,7 +1205,8 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(petId int64, server GetStagingPet
 	var data Pet
 	if response.Body != "" {
 		respContentType := ""
-		if ct, ok := response.Headers["Content-Type"]; ok {
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
 		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
@@ -1354,7 +1368,8 @@ func (a *PetApi) UpdatePetWithHTTPInfo(petId int64, pet Pet) (*ApiResult[Pet], e
 	var data Pet
 	if response.Body != "" {
 		respContentType := ""
-		if ct, ok := response.Headers["Content-Type"]; ok {
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
 		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
@@ -1427,7 +1442,8 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *UploadPe
 	var data ApiResponse
 	if response.Body != "" {
 		respContentType := ""
-		if ct, ok := response.Headers["Content-Type"]; ok {
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
 		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
@@ -1506,7 +1522,8 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *UploadPetDo
 	var data ApiResponse
 	if response.Body != "" {
 		respContentType := ""
-		if ct, ok := response.Headers["Content-Type"]; ok {
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
 		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)

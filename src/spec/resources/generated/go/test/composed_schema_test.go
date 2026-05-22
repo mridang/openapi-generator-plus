@@ -9,6 +9,7 @@ package petstore_test
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"petstore/pkg/models"
@@ -53,15 +54,17 @@ func TestPetFood_DeserializeWetFood(t *testing.T) {
 }
 
 func TestPetFood_DeserializeUnknownDiscriminator(t *testing.T) {
+	// Gap AU: SDK now throws on unknown discriminator values for parity
+	// with the other 11 SDKs. Previously this test asserted silent nil.
 	jsonData := []byte(`{"foodType":"raw","calories":300}`)
 
 	var food models.PetFood
 	err := json.Unmarshal(jsonData, &food)
-	if err != nil {
-		t.Fatalf("expected no error for unknown discriminator, got: %v", err)
+	if err == nil {
+		t.Fatalf("expected error for unknown discriminator value 'raw', got nil")
 	}
-	if food.Value() != nil {
-		t.Errorf("expected nil value for unknown discriminator, got %T", food.Value())
+	if !strings.Contains(err.Error(), "unknown discriminator") {
+		t.Errorf("expected 'unknown discriminator' in error message, got: %v", err)
 	}
 }
 
@@ -90,7 +93,7 @@ func TestPetFood_SerializeDryFood(t *testing.T) {
 // ── anyOf without discriminator: PetTreatment ──
 
 func TestPetTreatment_DeserializeMedication(t *testing.T) {
-	jsonData := []byte(`{"medicationName":"Amoxicillin","dosageMg":250}`)
+	jsonData := []byte(`{"drugName":"Amoxicillin","dosage":"250mg"}`)
 
 	var treatment models.PetTreatment
 	err := json.Unmarshal(jsonData, &treatment)
@@ -120,7 +123,7 @@ func TestPetTreatment_DeserializeSurgery(t *testing.T) {
 }
 
 func TestPetTreatment_SerializeRoundTrip(t *testing.T) {
-	jsonData := []byte(`{"medicationName":"Amoxicillin","dosageMg":250}`)
+	jsonData := []byte(`{"drugName":"Amoxicillin","dosage":"250mg"}`)
 
 	var treatment models.PetTreatment
 	if err := json.Unmarshal(jsonData, &treatment); err != nil {

@@ -245,7 +245,8 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 	var data {{{.}}}
 	if response.Body != "" {
 		respContentType := ""
-		if ct, ok := response.Headers["Content-Type"]; ok {
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
 		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)

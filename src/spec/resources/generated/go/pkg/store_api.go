@@ -111,7 +111,8 @@ func (a *StoreApi) GetInventoryWithHTTPInfo() (*ApiResult[map[string]int32], err
 	var data map[string]int32
 	if response.Body != "" {
 		respContentType := ""
-		if ct, ok := response.Headers["Content-Type"]; ok {
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
 		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
@@ -179,7 +180,8 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], e
 	var data Order
 	if response.Body != "" {
 		respContentType := ""
-		if ct, ok := response.Headers["Content-Type"]; ok {
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
 		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
@@ -246,7 +248,8 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(order *Order) (*ApiResult[Order], erro
 	var data Order
 	if response.Body != "" {
 		respContentType := ""
-		if ct, ok := response.Headers["Content-Type"]; ok {
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
 		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
