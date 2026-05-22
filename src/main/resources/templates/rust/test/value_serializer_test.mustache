@@ -617,7 +617,7 @@ fn test_serialize_styled_form_explode_single_element_array() {
 #[test]
 fn test_format_date_path_param_string_passes_through() {
     let result = value_serializer::serialize_value(Some("2024-01-15"), "path", "string", "");
-    assert_eq!(unwrap_single(result), "2024-01-15");
+    assert_eq!(result.unwrap(), "2024-01-15");
 }
 
 #[test]

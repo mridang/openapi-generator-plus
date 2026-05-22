@@ -106,14 +106,12 @@ impl {{classname}} {
 {{#externalDocs}}
     /// See {{url}} {{description}}
 {{/externalDocs}}
-{{#allParams}}{{#vendorExtensions.examples}}
-    /// ## {{summary}}
+{{#allParams}}{{#vendorExtensions.examples}}    /// ## {{summary}}
     /// {{description}}
     /// ```json
     /// {{value}}
     /// ```
-{{/vendorExtensions.examples}}{{/allParams}}
-    pub async fn {{operationId}}(
+{{/vendorExtensions.examples}}{{/allParams}}    pub async fn {{operationId}}(
         &self,
 {{#hasAuthMethods}}
         auth: Option<&dyn Authenticator>,
