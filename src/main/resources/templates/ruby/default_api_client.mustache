@@ -95,10 +95,27 @@ module {{moduleName}}
                         Base64.strict_encode64(decoded_body.to_s)
                       end
 
+      # Gap BE+BF: response header keys are normalised to lowercase so
+      # callers can look them up consistently regardless of the casing the
+      # server used (HTTP header names are case-insensitive per RFC 7230
+      # section 3.2, and HTTP/2 mandates lowercase on the wire). Repeated
+      # header lines (for example multiple Link or Set-Cookie headers) are
+      # joined with ", " to preserve order per RFC 7230 section 3.2.2.
+      # Faraday already collapses repeated headers into either a comma-
+      # joined string or an array depending on the header; here we
+      # normalise both shapes. The joined form is not directly parseable
+      # for Set-Cookie; callers needing structured cookie access should
+      # use HTTP::Cookie.parse or read the raw Faraday::Utils::Headers.
+      normalized_headers = {}
+      response.headers.each do |name, value|
+        joined = value.is_a?(Array) ? value.join(', ') : value.to_s
+        normalized_headers[name.to_s.downcase] = joined
+      end
+
       ApiResponse.new(
         status_code: response.status,
         body: response_body,
-        headers: response.headers.to_h
+        headers: normalized_headers
       )
     end
 
