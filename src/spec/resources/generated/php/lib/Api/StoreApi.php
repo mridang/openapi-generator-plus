@@ -30,7 +30,7 @@ class StoreApi extends BaseApi
      * Delete purchase order by ID
      * @param int $orderId ID of the order to delete
 
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function deleteOrder(int $orderId): void
     {
@@ -41,7 +41,7 @@ class StoreApi extends BaseApi
      * @param int $orderId ID of the order to delete
 
      * @return ApiResult<null>
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function deleteOrderWithHttpInfo(int $orderId): ApiResult
     {
@@ -79,7 +79,7 @@ class StoreApi extends BaseApi
      * Returns pet inventories by status
 
      * @return array<string,int>
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function getInventory()
     {
@@ -91,7 +91,7 @@ class StoreApi extends BaseApi
     /**
 
      * @return ApiResult<array<string,int>>
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function getInventoryWithHttpInfo(): ApiResult
     {
@@ -119,7 +119,7 @@ class StoreApi extends BaseApi
      * @param int $orderId ID of order to return
 
      * @return \PetstoreClient\Models\Order
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function getOrderById(int $orderId)
     {
@@ -132,7 +132,7 @@ class StoreApi extends BaseApi
      * @param int $orderId ID of order to return
 
      * @return ApiResult<\PetstoreClient\Models\Order>
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function getOrderByIdWithHttpInfo(int $orderId): ApiResult
     {
@@ -170,7 +170,7 @@ class StoreApi extends BaseApi
      * Place an order for a pet
 
      * @return \PetstoreClient\Models\Order
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function placeOrder(\PetstoreClient\Models\Order|null $order = null)
     {
@@ -182,7 +182,7 @@ class StoreApi extends BaseApi
     /**
 
      * @return ApiResult<\PetstoreClient\Models\Order>
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function placeOrderWithHttpInfo(\PetstoreClient\Models\Order|null $order = null): ApiResult
     {

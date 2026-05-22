@@ -137,7 +137,7 @@ class {{classname}} extends BaseApi
 {{#returnType}}
      * @return {{{returnType}}}
 {{/returnType}}
-     * @throws ApiException
+     * @throws \{{invokerPackage}}\ApiException
 {{#isDeprecated}}
      * @deprecated This operation is deprecated.
 {{/isDeprecated}}
@@ -184,7 +184,7 @@ class {{classname}} extends BaseApi
      * @param {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options|null $options Options for query, header, form, and cookie parameters
 {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
      * @return ApiResult<{{{returnType}}}>
-     * @throws ApiException
+     * @throws \{{invokerPackage}}\ApiException
      */
     public function {{operationId}}WithHttpInfo({{#pathParams}}{{^-first}}, {{/-first}}{{#isArray}}array{{/isArray}}{{^isArray}}{{#isMap}}array{{/isMap}}{{^isMap}}{{{dataType}}}{{/isMap}}{{/isArray}} ${{paramName}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{#isArray}}array{{/isArray}}{{^isArray}}{{#isMap}}array{{/isMap}}{{^isMap}}{{{dataType}}}{{/isMap}}{{/isArray}}{{^required}}|null{{/required}} ${{paramName}}{{^required}} = null{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options $options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options $options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options $options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{/hasPathParams}}?{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options $options = null{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, ?{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server $server = null{{/-first}}{{/servers}}{{#hasAuthMethods}}, ?Authenticator $auth = null{{/hasAuthMethods}}): ApiResult
     {
@@ -334,7 +334,7 @@ class {{classname}} extends BaseApi
      * @param {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options|null $options Options for query, header, form, and cookie parameters
 {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
      * @return ApiResult<null>
-     * @throws ApiException
+     * @throws \{{invokerPackage}}\ApiException
      */
     public function {{operationId}}WithHttpInfo({{#pathParams}}{{^-first}}, {{/-first}}{{#isArray}}array{{/isArray}}{{^isArray}}{{#isMap}}array{{/isMap}}{{^isMap}}{{{dataType}}}{{/isMap}}{{/isArray}} ${{paramName}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{#isArray}}array{{/isArray}}{{^isArray}}{{#isMap}}array{{/isMap}}{{^isMap}}{{{dataType}}}{{/isMap}}{{/isArray}}{{^required}}|null{{/required}} ${{paramName}}{{^required}} = null{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options $options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options $options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options $options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{/hasPathParams}}?{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options $options = null{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, ?{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server $server = null{{/-first}}{{/servers}}{{#hasAuthMethods}}, ?Authenticator $auth = null{{/hasAuthMethods}}): ApiResult
     {

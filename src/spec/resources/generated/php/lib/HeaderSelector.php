@@ -18,9 +18,9 @@ namespace PetstoreClient;
  */
 class HeaderSelector
 {
-    private const JSON_MIME_PATTERN = '/^application\/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)/i';
+    private const string JSON_MIME_PATTERN = '/^application\/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)/i';
 
-    private const WEIGHT_PATTERN = '/(.*)\s*;\s*q=(1(?:\.0+)?|0\.\d+)$/';
+    private const string WEIGHT_PATTERN = '/(.*)\s*;\s*q=(1(?:\.0+)?|0\.\d+)$/';
 
     /**
      * Select headers for an API request.

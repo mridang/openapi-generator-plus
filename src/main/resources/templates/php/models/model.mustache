@@ -54,10 +54,10 @@ enum {{classname}}: string
 class {{classname}}
 {
 {{#discriminator}}
-    private const DISCRIMINATOR_PROPERTY = '{{discriminator.propertyBaseName}}';
+    private const string DISCRIMINATOR_PROPERTY = '{{discriminator.propertyBaseName}}';
 
     /** @var array<string, class-string> */
-    private const DISCRIMINATOR_MAPPING = [
+    private const array DISCRIMINATOR_MAPPING = [
 {{#mappedModels}}
         '{{mappingName}}' => {{modelName}}::class{{^-last}},{{/-last}}
 {{/mappedModels}}

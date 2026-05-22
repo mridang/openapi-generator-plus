@@ -31,7 +31,7 @@ final class OAuth2TokenManager
      * refresh slightly before the token actually expires, avoiding a race
      * against the server clock.
      */
-    private const EXPIRY_SAFETY_MARGIN_S = 60;
+    private const int EXPIRY_SAFETY_MARGIN_S = 60;
 
     /** @var ApiClient|null The shared API client for making token requests. */
     private ?ApiClient $apiClient = null;

@@ -290,6 +290,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("authenticator.mustache", Path.of(invokerFolder, "auth").toString(), "Authenticator.kt"),
             new SupportingFileSpec("makefile.mustache", "", "Makefile"),
             new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
+            new SupportingFileSpec("detekt_yml.mustache", "", "detekt.yml"),
             new SupportingFileSpec("gitignore.mustache", "", ".gitignore")
         );
     }

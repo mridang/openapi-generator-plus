@@ -33,7 +33,7 @@ use Symfony\Component\Serializer\Serializer;
 class ObjectSerializer
 {
     /** @var string */
-    private const DATE_TIME_FORMAT = \DateTime::ATOM;
+    private const string DATE_TIME_FORMAT = \DateTime::ATOM;
 
     private static ?Serializer $serializer = null;
 

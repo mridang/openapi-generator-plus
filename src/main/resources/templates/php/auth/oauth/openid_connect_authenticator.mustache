@@ -49,7 +49,7 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
     private int $discoveryExpiry = 0;
 
     /** RFC 8414 recommended default max-age for OIDC discovery documents. */
-    private const DEFAULT_DISCOVERY_MAX_AGE_SECONDS = 86400;
+    private const int DEFAULT_DISCOVERY_MAX_AGE_SECONDS = 86400;
 
     /**
      * Create a new OpenID Connect authenticator.

@@ -18,10 +18,10 @@ namespace PetstoreClient\Models;
  */
 class PetFood
 {
-    private const DISCRIMINATOR_PROPERTY = 'foodType';
+    private const string DISCRIMINATOR_PROPERTY = 'foodType';
 
     /** @var array<string, class-string> */
-    private const DISCRIMINATOR_MAPPING = [
+    private const array DISCRIMINATOR_MAPPING = [
         'dry' => DryFood::class,
         'wet' => WetFood::class
     ];

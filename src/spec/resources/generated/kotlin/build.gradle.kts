@@ -76,6 +76,7 @@ detekt {
     allRules = false
     autoCorrect = false
     source.setFrom(files("src/main/kotlin", "src/jvmMain/kotlin"))
+    config.setFrom(files("detekt.yml"))
 }
 
 dependencies {
