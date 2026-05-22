@@ -105,7 +105,7 @@ defmodule PetstoreClient.DefaultApiClient do
       end
 
     headers = normalize_headers(response.headers)
-    content_type = Map.get(headers, "content-type") || Map.get(headers, "Content-Type") || ""
+    content_type = Map.get(headers, "content-type") || ""
     body_binary = response.body || ""
 
     response_body =
@@ -466,6 +466,15 @@ defmodule PetstoreClient.DefaultApiClient do
     "application/octet-stream"
   end
 
+  # Gap BE+BF: response header keys are normalised to lowercase so callers can
+  # look them up consistently regardless of the casing the server used (HTTP
+  # header names are case-insensitive per RFC 7230 section 3.2, and HTTP/2
+  # mandates lowercase on the wire). Repeated header lines are joined with
+  # ", " to preserve order per RFC 7230 section 3.2.2. The joined form is
+  # not directly parseable for Set-Cookie; callers that need structured
+  # cookie access should split on ", " with care or use a dedicated cookie
+  # library such as `:cookies` or parse the original `Req.Response.headers/0`
+  # map themselves.
   defp normalize_headers(headers) do
     Enum.reduce(headers, %{}, fn {key, values}, acc ->
       value =
@@ -475,7 +484,7 @@ defmodule PetstoreClient.DefaultApiClient do
           _ -> to_string(values)
         end
 
-      Map.put(acc, key, value)
+      Map.put(acc, String.downcase(to_string(key)), value)
     end)
   end
 
