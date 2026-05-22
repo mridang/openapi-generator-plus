@@ -44,4 +44,14 @@ public class GoFormattingSpec extends AbstractFormattingSpec implements GoSpec {
                         "Generated Go code is not properly formatted:\n%s", result.output())
                 .isTrue();
     }
+
+    @Test
+    void pluralExamplesShouldBeAttributedToParameter() throws java.io.IOException {
+        Path petApi = tempOutputDir.resolve("pkg/pet_api.go");
+        String src = java.nio.file.Files.readString(petApi);
+        assertThat(src)
+                .as("go pet_api.go should attribute plural examples to their parameter")
+                .contains("// Example for `petId` — Small breed ID: 1")
+                .contains("// Example for `petId` — Large breed ID: 42");
+    }
 }

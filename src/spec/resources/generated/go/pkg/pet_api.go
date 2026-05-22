@@ -475,9 +475,9 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) 
 // Deprecated: This operation is deprecated.
 // See https://example.com/docs/filtering Find out more about filtering
 
-// status: Available only — available
+// Example for `status` — Available only: available
 
-// status: Sold pets — sold
+// Example for `status` — Sold pets: sold
 
 func (a *PetApi) FindPetsByStatus(options *FindPetsByStatusOptions) (*[]Pet, error) {
 	result, err := a.FindPetsByStatusWithHTTPInfo(options)
@@ -845,6 +845,10 @@ func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(petId int64) (*ApiResult[[]by
 // GetPetById Find pet by ID
 // Returns a single pet
 // Deprecated: This operation is deprecated.
+
+// Example for `petId` — Small breed ID: 1
+
+// Example for `petId` — Large breed ID: 42
 
 func (a *PetApi) GetPetById(petId int64, server GetPetByIdServer) (*Pet, error) {
 	result, err := a.GetPetByIdWithHTTPInfo(petId, server)
