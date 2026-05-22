@@ -115,14 +115,29 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             throw ApiError(statusCode: 0, message: "Unexpected non-HTTP response from server")
         }
 
+        // Gap BE+BF: response header keys are normalised to lowercase so
+        // callers can look them up consistently regardless of the casing
+        // the server used (HTTP header names are case-insensitive per
+        // RFC 7230 section 3.2, and HTTP/2 mandates lowercase on the wire).
+        // Repeated header lines (for example multiple Link or Set-Cookie
+        // headers) are joined with ", " to preserve order per RFC 7230
+        // section 3.2.2. NSHTTPURLResponse's allHeaderFields collapses
+        // duplicates so we re-read each header via value(forHTTPHeaderField:),
+        // which on iOS 13+/macOS 10.15+ returns the multi-value joined form
+        // with ", " between values. The joined form is not directly
+        // parseable for Set-Cookie; callers needing structured cookie
+        // access should use HTTPCookie.cookies(withResponseHeaderFields:for:).
         var respHeaders: [String: String] = [:]
-        for (key, value) in httpResponse.allHeaderFields {
-            if let k = key as? String, let v = value as? String {
-                respHeaders[k] = v
+        for key in httpResponse.allHeaderFields.keys {
+            guard let k = key as? String else { continue }
+            if let joined = httpResponse.value(forHTTPHeaderField: k) {
+                respHeaders[k.lowercased()] = joined
+            } else if let v = httpResponse.allHeaderFields[key] as? String {
+                respHeaders[k.lowercased()] = v
             }
         }
 
-        let contentType = httpResponse.value(forHTTPHeaderField: "Content-Type") ?? ""
+        let contentType = respHeaders["content-type"] ?? ""
         let responseBody: String
         if DefaultApiClient.isTextContentType(contentType) {
             let encoding = DefaultApiClient.encodingForContentType(contentType)
