@@ -254,19 +254,46 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             ? GetEncodingFromContentType(contentTypeHeader).GetString(responseBytes)
             : Convert.ToBase64String(responseBytes);
 
+        // Gap BE+BF: response header keys are normalised to lowercase so callers
+        // can look them up consistently regardless of the casing the server used
+        // (HTTP header names are case-insensitive per RFC 7230 section 3.2, and
+        // HTTP/2 mandates lowercase on the wire). Repeated header lines are
+        // joined with ", " to preserve order per RFC 7230 section 3.2.2. For
+        // Set-Cookie specifically the joined form is not directly parseable;
+        // applications that need structured cookie access should use
+        // System.Net.CookieContainer attached to HttpClientHandler.
         Dictionary<string, string> responseHeaders = [];
 
         foreach (KeyValuePair<string, IEnumerable<string>> header in response.Headers)
         {
-            responseHeaders[header.Key] = string.Join(", ", header.Value);
+            responseHeaders[AsciiLower(header.Key)] = string.Join(", ", header.Value);
         }
 
         foreach (KeyValuePair<string, IEnumerable<string>> header in response.Content.Headers)
         {
-            responseHeaders[header.Key] = string.Join(", ", header.Value);
+            responseHeaders[AsciiLower(header.Key)] = string.Join(", ", header.Value);
         }
 
         return new ApiResponse((int)response.StatusCode, responseBody, responseHeaders);
+    }
+
+    /// <summary>
+    /// Lowercases an ASCII string (HTTP header names are tokens restricted to
+    /// the ASCII range per RFC 7230 section 3.2.6, so a culture-aware
+    /// <c>ToLower</c> is unnecessary and would otherwise trip CA1308).
+    /// </summary>
+    private static string AsciiLower(string value)
+    {
+        char[] chars = value.ToCharArray();
+        for (int i = 0; i < chars.Length; i++)
+        {
+            char c = chars[i];
+            if (c >= 'A' && c <= 'Z')
+            {
+                chars[i] = (char)(c + 32);
+            }
+        }
+        return new string(chars);
     }
 
     private static MultipartFormDataContent BuildMultipartContent(

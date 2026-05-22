@@ -58,8 +58,9 @@ public class DefaultApiClientUnitTest
             null
         );
 
-        Assert.True(response.Headers.ContainsKey("X-Test-Header"));
-        Assert.Equal("test-value", response.Headers["X-Test-Header"]);
+        // Gap BE: response header keys are normalised to lowercase.
+        Assert.True(response.Headers.ContainsKey("x-test-header"));
+        Assert.Equal("test-value", response.Headers["x-test-header"]);
     }
 
     [Fact]
@@ -156,8 +157,9 @@ public class DefaultApiClientUnitTest
         );
 
         Assert.Equal(200, response.StatusCode);
-        Assert.True(response.Headers.ContainsKey("X-Custom-Value"));
-        Assert.Equal("val1, val2", response.Headers["X-Custom-Value"]);
+        // Gap BE+BF: lowercase key, multi-value joined with ", ".
+        Assert.True(response.Headers.ContainsKey("x-custom-value"));
+        Assert.Equal("val1, val2", response.Headers["x-custom-value"]);
     }
 
     [Fact]
