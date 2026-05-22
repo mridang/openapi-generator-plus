@@ -134,6 +134,15 @@ paths:
           schema:
             type: integer
             format: int64
+          examples:
+            small_breed:
+              summary: Small breed ID
+              description: A common small-breed pet identifier
+              value: 1
+            large_breed:
+              summary: Large breed ID
+              description: A common large-breed pet identifier
+              value: 42
       responses:
         '200':
           description: Successful operation
