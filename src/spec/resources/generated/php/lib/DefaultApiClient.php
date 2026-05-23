@@ -141,12 +141,33 @@ class DefaultApiClient implements ApiClient
                     } elseif ($v instanceof \SplFileObject) {
                         $path = $v->getRealPath();
                         $filename = $v->getFilename();
+                        self::validateMultipartFilename($filename);
                         $mime = $this->guessMimeType($path !== false ? $path : null, $filename);
-                        $parts[] = DataPart::fromPath(
+                        // For non-ASCII filenames we must emit an RFC 5987
+                        // `filename*=UTF-8''<pct>` parameter alongside the
+                        // sanitised ASCII fallback. Symfony's DataPart only
+                        // emits a raw `filename=` parameter, so we construct
+                        // the DataPart with the ASCII fallback then mutate
+                        // the Content-Disposition header to add filename*.
+                        $isAscii = preg_match('/^[\x00-\x7F]*$/u', $filename) === 1;
+                        $effectiveFilename = $isAscii
+                            ? $filename
+                            : preg_replace('/[^\x20-\x7E]/u', '_', $filename) ?? $filename;
+                        $dataPart = DataPart::fromPath(
                             $path !== false ? $path : $v->getPathname(),
-                            $filename,
+                            $effectiveFilename,
                             $mime
                         );
+                        if (!$isAscii) {
+                            $cd = $dataPart->getHeaders()->get('content-disposition');
+                            if ($cd instanceof \Symfony\Component\Mime\Header\ParameterizedHeader) {
+                                $cd->setParameter(
+                                    'filename*',
+                                    "UTF-8''" . self::rfc5987EncodeValue($filename)
+                                );
+                            }
+                        }
+                        $parts[] = $dataPart;
                     } elseif (is_resource($v)) {
                         try {
                             $parts[] = new DataPart(
@@ -591,5 +612,80 @@ class DefaultApiClient implements ApiClient
         if ($this->client instanceof \Symfony\Contracts\Service\ResetInterface) {
             $this->client->reset();
         }
+    }
+
+    /**
+     * Rejects multipart filenames that would allow Content-Disposition header
+     * injection or smuggling. Throws InvalidArgumentException when the
+     * filename contains CR, LF, or NUL characters.
+     *
+     * @param string|null $filename the filename to validate
+     * @throws \InvalidArgumentException when the filename contains CR/LF/NUL
+     */
+    public static function validateMultipartFilename(?string $filename): void
+    {
+        if ($filename === null) {
+            return;
+        }
+        if (preg_match("/[\r\n\0]/", $filename) === 1) {
+            throw new \InvalidArgumentException(
+                'multipart filename must not contain CR, LF, or NUL characters'
+            );
+        }
+    }
+
+    /**
+     * Builds the `filename=...` directive for a multipart Content-Disposition
+     * header. For ASCII-only filenames emits a quote/backslash-escaped
+     * `filename="..."`. For non-ASCII filenames additionally emits an RFC 5987
+     * `filename*=UTF-8''<percent-encoded>` parameter alongside an ASCII
+     * fallback (non-ASCII bytes replaced with `_`).
+     *
+     * @param string $filename the (validated) filename
+     * @return string the directive string
+     */
+    public static function buildFilenameDirective(string $filename): string
+    {
+        $escaped = str_replace(['\\', '"'], ['\\\\', '\\"'], $filename);
+        $isAscii = preg_match('/^[\x00-\x7F]*$/u', $filename) === 1;
+        if ($isAscii) {
+            return 'filename="' . $escaped . '"';
+        }
+        $fallback = preg_replace('/[^\x20-\x7E]/u', '_', $filename) ?? '';
+        $fallbackEscaped = str_replace(['\\', '"'], ['\\\\', '\\"'], $fallback);
+        $encoded = self::rfc5987EncodeValue($filename);
+
+        return 'filename="' . $fallbackEscaped . '"; filename*=UTF-8\'\'' . $encoded;
+    }
+
+    /**
+     * Percent-encodes every byte that is not an RFC 3986 §2.3 unreserved
+     * character, producing the value-chars production of RFC 5987 §3.2.1.
+     *
+     * @param string $s the value to encode
+     * @return string the percent-encoded value
+     */
+    public static function rfc5987EncodeValue(string $s): string
+    {
+        $hex = '0123456789ABCDEF';
+        $bytes = unpack('C*', $s);
+        if ($bytes === false) {
+            return '';
+        }
+        $out = '';
+        foreach ($bytes as $b) {
+            $isUnreserved =
+                ($b >= 0x41 && $b <= 0x5A) ||
+                ($b >= 0x61 && $b <= 0x7A) ||
+                ($b >= 0x30 && $b <= 0x39) ||
+                $b === 0x2D || $b === 0x2E || $b === 0x5F || $b === 0x7E;
+            if ($isUnreserved) {
+                $out .= chr($b);
+            } else {
+                $out .= '%' . $hex[$b >> 4] . $hex[$b & 0x0F];
+            }
+        }
+
+        return $out;
     }
 }

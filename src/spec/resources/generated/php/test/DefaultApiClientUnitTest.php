@@ -502,4 +502,36 @@ class DefaultApiClientUnitTest extends TestCase
         // Container-backed Squid+auth proxy is not provisioned in this suite.
         $this->markTestSkipped('Skipped: requires a containerized Squid proxy with basic-auth credentials.');
     }
+
+    // -- Gap BI: RFC 5987 filename* for non-ASCII multipart filenames --
+
+    public function testMultipartFilenameNonAsciiEmitsRFC5987(): void
+    {
+        $directive = DefaultApiClient::buildFilenameDirective('日本.pdf');
+        $this->assertStringContainsString("filename*=UTF-8''", $directive);
+        $this->assertStringContainsString('%E6%97%A5%E6%9C%AC', $directive);
+        $this->assertStringStartsWith('filename="', $directive);
+    }
+
+    public function testMultipartFilenameAsciiOnlyOmitsFilenameStar(): void
+    {
+        $directive = DefaultApiClient::buildFilenameDirective('pet.png');
+        $this->assertSame('filename="pet.png"', $directive);
+        $this->assertStringNotContainsString('filename*=', $directive);
+    }
+
+    public function testMultipartFilenameCRLFRejected(): void
+    {
+        foreach (["a\rb.pdf", "a\nb.pdf", "a\r\nb.pdf", "a\x00b.pdf"] as $bad) {
+            try {
+                DefaultApiClient::validateMultipartFilename($bad);
+                $this->fail("expected InvalidArgumentException for: " . bin2hex($bad));
+            } catch (\InvalidArgumentException) {
+                // expected
+            }
+        }
+        // ASCII filename should not throw
+        DefaultApiClient::validateMultipartFilename('pet.png');
+        $this->assertTrue(true);
+    }
 }
