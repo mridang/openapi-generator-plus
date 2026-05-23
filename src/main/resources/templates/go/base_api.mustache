@@ -368,12 +368,17 @@ func mimeTypeForFilename(filename string) string {
 /* createMultipartFilePart creates a multipart file part with a Content-Type
  * derived from the filename extension. multipart.Writer.CreateFormFile
  * always uses application/octet-stream which loses the per-part media type
- * for typed uploads (e.g. PNG, PDF). */
+ * for typed uploads (e.g. PNG, PDF). For non-ASCII filenames it emits an
+ * RFC 5987 filename*= parameter alongside an ASCII fallback so that servers
+ * receive the original filename intact rather than mangled UTF-8. */
 func createMultipartFilePart(writer *multipart.Writer, fieldName, fileName string) (io.Writer, error) {
+	if err := ValidateMultipartFilename(fileName); err != nil {
+		return nil, err
+	}
 	header := make(textproto.MIMEHeader)
 	header.Set("Content-Disposition",
-		fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
-			escapeQuotes(fieldName), escapeQuotes(fileName)))
+		fmt.Sprintf(`form-data; name="%s"; %s`,
+			escapeQuotes(fieldName), BuildFilenameDirective(fileName)))
 	header.Set("Content-Type", mimeTypeForFilename(fileName))
 	return writer.CreatePart(header)
 }
@@ -383,6 +388,68 @@ func createMultipartFilePart(writer *multipart.Writer, fieldName, fileName strin
 func escapeQuotes(s string) string {
 	r := strings.NewReplacer("\\", "\\\\", `"`, `\"`)
 	return r.Replace(s)
+}
+
+/* ValidateMultipartFilename rejects filenames that would allow Content-Disposition
+ * header injection or smuggling. Returns an error if the filename contains
+ * CR, LF, or NUL characters. */
+func ValidateMultipartFilename(filename string) error {
+	for _, c := range filename {
+		if c == '\r' || c == '\n' || c == 0 {
+			return fmt.Errorf("multipart filename must not contain CR, LF, or NUL characters")
+		}
+	}
+	return nil
+}
+
+/* BuildFilenameDirective builds the filename=... directive for a multipart part.
+ * For ASCII-only filenames it emits filename="..." with quote/backslash escaping.
+ * For non-ASCII filenames it additionally emits an RFC 5987
+ * filename*=UTF-8''<percent-encoded> parameter alongside an ASCII fallback
+ * (non-ASCII bytes replaced with '_'). */
+func BuildFilenameDirective(filename string) string {
+	escaped := escapeQuotes(filename)
+	ascii := true
+	for _, c := range filename {
+		if c > 0x7F {
+			ascii = false
+			break
+		}
+	}
+	if ascii {
+		return fmt.Sprintf(`filename="%s"`, escaped)
+	}
+	var fallback strings.Builder
+	for _, c := range filename {
+		if c > 0x7F || c < 0x20 || c == 0x7F {
+			fallback.WriteByte('_')
+		} else {
+			fallback.WriteRune(c)
+		}
+	}
+	asciiFallback := escapeQuotes(fallback.String())
+	encoded := rfc5987EncodeValue(filename)
+	return fmt.Sprintf(`filename="%s"; filename*=UTF-8''%s`, asciiFallback, encoded)
+}
+
+/* rfc5987EncodeValue percent-encodes every byte that is not an RFC 3986 §2.3
+ * unreserved character, producing the value-chars production of RFC 5987 §3.2.1. */
+func rfc5987EncodeValue(s string) string {
+	const hex = "0123456789ABCDEF"
+	b := []byte(s)
+	out := make([]byte, 0, len(b))
+	for _, c := range b {
+		isUnreserved := (c >= 'A' && c <= 'Z') ||
+			(c >= 'a' && c <= 'z') ||
+			(c >= '0' && c <= '9') ||
+			c == '-' || c == '.' || c == '_' || c == '~'
+		if isUnreserved {
+			out = append(out, c)
+		} else {
+			out = append(out, '%', hex[c>>4], hex[c&0x0F])
+		}
+	}
+	return string(out)
 }
 
 func throwAPIError(response *HttpResponse) error {

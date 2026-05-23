@@ -20,6 +20,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -204,17 +205,63 @@ func buildHTTPClient(opts *TransportOptions) *http.Client {
 		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		}
-	} else if opts.MaxRedirects() != nil {
-		maxRedirects := *opts.MaxRedirects()
+	} else {
+		// Gap BH: net/http re-sends Authorization / Cookie / Proxy-Authorization
+		// across same-origin AND cross-origin 3xx redirects by default, which
+		// leaks bearer tokens to attacker-controlled hosts via malicious 302.
+		// CheckRedirect runs before the next request is dispatched; we strip
+		// the sensitive headers from req when the redirect target's origin
+		// (scheme + host + port) differs from the original request's origin.
+		maxRedirects := 10
+		if opts.MaxRedirects() != nil {
+			maxRedirects = *opts.MaxRedirects()
+		}
 		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 			if len(via) >= maxRedirects {
 				return fmt.Errorf("stopped after %d redirects", maxRedirects)
+			}
+			if len(via) == 0 {
+				return nil
+			}
+			origURL := via[0].URL
+			if !sameOrigin(origURL, req.URL) {
+				req.Header.Del("Authorization")
+				req.Header.Del("Cookie")
+				req.Header.Del("Proxy-Authorization")
 			}
 			return nil
 		}
 	}
 
 	return client
+}
+
+// sameOrigin reports whether two URLs share scheme, host, and effective
+// port. Used by CheckRedirect to decide when to strip sensitive headers.
+func sameOrigin(a, b *url.URL) bool {
+	if a == nil || b == nil {
+		return false
+	}
+	if !strings.EqualFold(a.Scheme, b.Scheme) {
+		return false
+	}
+	if !strings.EqualFold(a.Hostname(), b.Hostname()) {
+		return false
+	}
+	return effectivePort(a) == effectivePort(b)
+}
+
+func effectivePort(u *url.URL) string {
+	if p := u.Port(); p != "" {
+		return p
+	}
+	switch strings.ToLower(u.Scheme) {
+	case "https":
+		return "443"
+	case "http":
+		return "80"
+	}
+	return ""
 }
 
 func supportedEncodings() string {
@@ -392,9 +439,12 @@ func buildTransportMultipartBody(formFields map[string]interface{}) (*bytes.Buff
 	for fieldName, value := range formFields {
 		switch v := value.(type) {
 		case []byte:
+			if err := ValidateMultipartFilename(fieldName); err != nil {
+				return nil, "", err
+			}
 			partHeader := make(textproto.MIMEHeader)
 			partHeader.Set("Content-Disposition",
-				fmt.Sprintf(`form-data; name="%s"; filename="%s"`, fieldName, fieldName))
+				fmt.Sprintf(`form-data; name="%s"; %s`, fieldName, BuildFilenameDirective(fieldName)))
 			partHeader.Set("Content-Type", mimeTypeForFilename(fieldName))
 			part, err := writer.CreatePart(partHeader)
 			if err != nil {
@@ -418,9 +468,12 @@ func buildTransportMultipartBody(formFields map[string]interface{}) (*bytes.Buff
 		case []interface{}:
 			for _, item := range v {
 				if b, ok := item.([]byte); ok {
+					if err := ValidateMultipartFilename(fieldName); err != nil {
+						return nil, "", err
+					}
 					partHeader := make(textproto.MIMEHeader)
 					partHeader.Set("Content-Disposition",
-						fmt.Sprintf(`form-data; name="%s"; filename="%s"`, fieldName, fieldName))
+						fmt.Sprintf(`form-data; name="%s"; %s`, fieldName, BuildFilenameDirective(fieldName)))
 					partHeader.Set("Content-Type", mimeTypeForFilename(fieldName))
 					part, err := writer.CreatePart(partHeader)
 					if err != nil {

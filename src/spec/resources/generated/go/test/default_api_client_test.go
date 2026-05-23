@@ -9,10 +9,11 @@ package petstore_test
 
 import (
 	"encoding/json"
-	petstore "petstore/pkg"
 	"regexp"
 	"strings"
 	"testing"
+
+	petstore "petstore/pkg"
 )
 
 func TestDefaultApiClient_MakesHttpsRequestWithVerifySslFalse(t *testing.T) {
@@ -255,6 +256,42 @@ func TestDefaultApiClient_SendsMultipartFormData(t *testing.T) {
 	}
 	if resp == nil {
 		t.Fatal("expected non-nil response")
+	}
+}
+
+/* Gap BI: non-ASCII multipart filenames must use RFC 5987 filename*=UTF-8''<pct>
+ * rather than raw UTF-8 inside the quoted filename="" form. */
+func TestMultipart_MultipartFilenameNonAsciiEmitsRFC5987(t *testing.T) {
+	directive := petstore.BuildFilenameDirective("日本.pdf")
+	if !strings.Contains(directive, "filename*=UTF-8''") {
+		t.Errorf("expected directive to contain filename*=UTF-8'', got %q", directive)
+	}
+	if !strings.Contains(directive, "%E6%97%A5%E6%9C%AC") {
+		t.Errorf("expected percent-encoded UTF-8 bytes for 日本, got %q", directive)
+	}
+	if !strings.HasPrefix(directive, "filename=\"") {
+		t.Errorf("expected ASCII fallback filename=\"...\" prefix, got %q", directive)
+	}
+}
+
+/* Gap BI: ASCII-only filenames must NOT emit a filename*= parameter. */
+func TestMultipart_MultipartFilenameAsciiOnlyOmitsFilenameStar(t *testing.T) {
+	directive := petstore.BuildFilenameDirective("pet.png")
+	if directive != `filename="pet.png"` {
+		t.Errorf("expected `filename=\"pet.png\"`, got %q", directive)
+	}
+	if strings.Contains(directive, "filename*=") {
+		t.Errorf("ASCII-only filename must not emit filename*=, got %q", directive)
+	}
+}
+
+/* Gap F: filenames containing CR/LF/NUL must be rejected to prevent
+ * Content-Disposition header injection. */
+func TestMultipart_MultipartFilenameCRLFRejected(t *testing.T) {
+	for _, bad := range []string{"a\rb.pdf", "a\nb.pdf", "a\r\nb.pdf", "a\x00b.pdf"} {
+		if err := petstore.ValidateMultipartFilename(bad); err == nil {
+			t.Errorf("expected error rejecting %q, got nil", bad)
+		}
 	}
 }
 
