@@ -30,5 +30,18 @@ open class BearerAuthenticator(
 
     override fun getHost(): String = host
 
-    override suspend fun getAuthHeaders(): Map<String, String> = mapOf("Authorization" to "Bearer $token")
+    override suspend fun getAuthHeaders(): Map<String, String> {
+        // Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
+        // from env files are commonly stored already-prefixed; emitting
+        // "Bearer Bearer xyz" would otherwise silently break auth.
+        val stripped =
+            if (token.length >= 7 &&
+                token.substring(0, 7).equals("bearer ", ignoreCase = true)
+            ) {
+                token.substring(7)
+            } else {
+                token
+            }
+        return mapOf("Authorization" to "Bearer $stripped")
+    }
 }

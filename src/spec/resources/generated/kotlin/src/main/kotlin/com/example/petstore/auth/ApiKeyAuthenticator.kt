@@ -17,11 +17,20 @@ open class ApiKeyAuthenticator(
     private val location: ApiKeyLocation,
 ) : BaseAuthenticator() {
     init {
-        // RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
-        // Reject anything outside printable ASCII + TAB so callers see a
-        // clear error rather than (a) HTTP header injection from CR/LF,
-        // or (b) silently-mangled non-ASCII bytes that different HTTP
-        // libs encode differently per language.
+        // Validation applies to ALL locations: empty/whitespace API keys
+        // and CR/LF/NUL are always programmer errors regardless of where
+        // the key ends up (header, query, cookie). RFC 7230 §3.2.6
+        // printable-ASCII rule still applies to HEADER values.
+        if (apiKey.isEmpty() || apiKey.isBlank()) {
+            throw IllegalArgumentException(
+                "API key value for '$keyParamName' must not be empty",
+            )
+        }
+        if (apiKey.any { c -> c == '\r' || c == '\n' || c == '\u0000' }) {
+            throw IllegalArgumentException(
+                "API key value for '$keyParamName' contains forbidden control characters (CR/LF/NUL)",
+            )
+        }
         if (location == ApiKeyLocation.HEADER &&
             apiKey.any { c -> c != '\t' && (c.code < 0x20 || c.code >= 0x7F) }
         ) {
