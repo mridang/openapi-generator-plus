@@ -344,7 +344,7 @@ internal fun isTextContentType(contentType: String): Boolean {
 fun validateMultipartFilename(filename: String?) {
     if (filename == null) return
     for (c in filename) {
-        if (c == '\r' || c == '\n' || c == ' ') {
+        if (c == '\r' || c == '\n' || c == '\u0000') {
             throw IllegalArgumentException(
                 "multipart filename must not contain CR, LF, or NUL characters"
             )
