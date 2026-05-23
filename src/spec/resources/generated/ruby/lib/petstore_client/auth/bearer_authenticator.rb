@@ -31,7 +31,14 @@ module PetstoreClient
 
       # @return [Hash{String => String}]
       def auth_headers
-        { 'Authorization' => "Bearer #{@token}" }
+        # Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
+        # from env files are commonly stored already-prefixed; emitting
+        # "Bearer Bearer xyz" would otherwise silently break auth.
+        value = @token
+        if value.length >= 7 && value[0, 7].downcase == 'bearer '
+          value = value[7..] || ''
+        end
+        { 'Authorization' => "Bearer #{value}" }
       end
     end
   end

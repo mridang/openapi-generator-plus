@@ -19,11 +19,17 @@ module PetstoreClient
       # @param location [Symbol] :header, :query, or :cookie
       def initialize(host, key_param_name, api_key, location)
         super()
-        # RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
-        # Reject anything outside printable ASCII + TAB so callers see
-        # a clear error rather than (a) HTTP header injection from
-        # CR/LF, or (b) silently-mangled non-ASCII bytes that different
-        # HTTP libs encode differently per language.
+        # Validation applies to ALL locations: empty/whitespace API keys
+        # and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
+        # printable-ASCII rule still applies to HEADER values.
+        if api_key.nil? || api_key.empty? || api_key.strip.empty?
+          raise ArgumentError,
+            "API key value for '#{key_param_name}' must not be empty"
+        end
+        if api_key.match?(/[\r\n\x00]/)
+          raise ArgumentError,
+            "API key value for '#{key_param_name}' contains forbidden control characters (CR/LF/NUL)"
+        end
         if location == ApiKeyLocation::HEADER && api_key.match?(/[^\t\x20-\x7E]/)
           raise ArgumentError,
             "API key for header '#{key_param_name}' must contain only printable ASCII characters (RFC 7230 §3.2.6)"
