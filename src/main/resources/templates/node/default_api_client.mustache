@@ -137,11 +137,18 @@ export class DefaultApiClient implements ApiClient {
       delete mergedHeaders['Content-Type'];
     }
 
+    /* Gap BH: undici's automatic redirect following re-sends
+     * Authorization / Cookie / Proxy-Authorization across cross-origin
+     * 3xx redirects by default, which leaks bearer tokens to attacker-
+     * controlled hosts via malicious 302. We disable automatic redirect
+     * following (redirect: 'manual') and follow Location: headers
+     * ourselves below, stripping the sensitive headers when the next
+     * URL's origin (scheme + host + port) differs from the original. */
     const fetchOptions: Record<string, unknown> = {
       method,
       headers: mergedHeaders,
       body: body ?? undefined,
-      redirect: this.transportOptions.followRedirects ? 'follow' : 'manual'
+      redirect: 'manual'
     };
 
     if (this.transportOptions.timeout != null) {
@@ -153,8 +160,35 @@ export class DefaultApiClient implements ApiClient {
     }
 
     let response: Response;
+    let currentUrl = url;
+    const originalUrl = url;
     try {
       response = await fetch(url, fetchOptions as RequestInit);
+      if (this.transportOptions.followRedirects) {
+        const maxRedirects = this.transportOptions.maxRedirects ?? 20;
+        const sensitive = new Set(['authorization', 'cookie', 'proxy-authorization']);
+        let hops = 0;
+        while (
+          hops < maxRedirects &&
+          DefaultApiClient.isRedirectStatus(response.status)
+        ) {
+          const location = response.headers.get('location');
+          if (location == null || location.length === 0) break;
+          const nextUrl = new URL(location, currentUrl).toString();
+          const nextParsed = new URL(nextUrl);
+          if (nextParsed.protocol !== 'http:' && nextParsed.protocol !== 'https:') break;
+          const crossOrigin = !DefaultApiClient.sameOrigin(originalUrl, nextUrl);
+          const redirectHeaders: Record<string, string> = {};
+          for (const [k, v] of Object.entries(mergedHeaders)) {
+            if (crossOrigin && sensitive.has(k.toLowerCase())) continue;
+            redirectHeaders[k] = v;
+          }
+          const redirectOptions = { ...fetchOptions, headers: redirectHeaders };
+          currentUrl = nextUrl;
+          response = await fetch(nextUrl, redirectOptions as RequestInit);
+          hops++;
+        }
+      }
     } catch (error) {
       throw new ApiError(
         0,
@@ -432,6 +466,30 @@ export class DefaultApiClient implements ApiClient {
       mediaType.endsWith('+json') ||
       mediaType.endsWith('+xml')
     );
+  }
+
+  /**
+   * Return true for HTTP 3xx status codes that carry a Location header.
+   */
+  private static isRedirectStatus(code: number): boolean {
+    return code === 301 || code === 302 || code === 303 || code === 307 || code === 308;
+  }
+
+  /**
+   * Compare two URLs by scheme + host + effective port.
+   */
+  private static sameOrigin(a: string, b: string): boolean {
+    try {
+      const ua = new URL(a);
+      const ub = new URL(b);
+      if (ua.protocol !== ub.protocol) return false;
+      if (ua.hostname.toLowerCase() !== ub.hostname.toLowerCase()) return false;
+      const portA = ua.port !== '' ? ua.port : (ua.protocol === 'https:' ? '443' : '80');
+      const portB = ub.port !== '' ? ub.port : (ub.protocol === 'https:' ? '443' : '80');
+      return portA === portB;
+    } catch {
+      return false;
+    }
   }
 
   /**
