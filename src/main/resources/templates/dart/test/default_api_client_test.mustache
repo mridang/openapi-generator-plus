@@ -284,6 +284,30 @@ void main() {
       },
       skip: 'zstd decompression not supported by dart:io',
     );
+
+    // -- Gap BI: RFC 5987 filename* for non-ASCII multipart filenames --
+
+    test('non-ASCII multipart filename emits RFC 5987 filename* parameter', () {
+      final directive = buildFilenameDirective('日本.pdf');
+      expect(directive, contains("filename*=UTF-8''"));
+      expect(directive, contains('%E6%97%A5%E6%9C%AC'));
+      expect(directive, startsWith('filename="'));
+    });
+
+    test('ASCII-only multipart filename omits the filename* parameter', () {
+      final directive = buildFilenameDirective('pet.png');
+      expect(directive, equals('filename="pet.png"'));
+      expect(directive.contains('filename*='), isFalse);
+    });
+
+    test('CRLF/NUL in multipart filename throws ArgumentError', () {
+      for (final bad in ['a\rb.pdf', 'a\nb.pdf', 'a\r\nb.pdf', 'a\u0000b.pdf']) {
+        expect(() => validateMultipartFilename(bad),
+            throwsA(isA<ArgumentError>()),
+            reason: 'expected ArgumentError for $bad');
+      }
+      validateMultipartFilename('pet.png');
+    });
   });
 }
 {{/generateTests}}

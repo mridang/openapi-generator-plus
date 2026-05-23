@@ -261,6 +261,7 @@ class DefaultApiClient implements ApiClient {
     Object value,
   ) {
     if (value is Uint8List) {
+      validateMultipartFilename(name);
       final mimeType = lookupMimeType(name) ?? 'application/octet-stream';
       final parts = mimeType.split('/');
       final contentType = parts.length == 2
@@ -416,4 +417,67 @@ class DefaultApiClient implements ApiClient {
         '${hex.substring(12, 16)}-${hex.substring(16, 20)}-'
         '${hex.substring(20, 32)}';
   }
+}
+
+/// Rejects multipart filenames that would allow Content-Disposition header
+/// injection or smuggling. Throws [ArgumentError] when the filename contains
+/// CR, LF, or NUL.
+void validateMultipartFilename(String? filename) {
+  if (filename == null) return;
+  for (final c in filename.codeUnits) {
+    if (c == 0x0D || c == 0x0A || c == 0x00) {
+      throw ArgumentError(
+          'multipart filename must not contain CR, LF, or NUL characters');
+    }
+  }
+}
+
+/// Builds the `filename=...` directive for a multipart Content-Disposition
+/// header. For ASCII-only filenames emits a quote/backslash-escaped
+/// `filename="..."`. For non-ASCII filenames additionally emits an RFC 5987
+/// `filename*=UTF-8''<percent-encoded>` parameter alongside an ASCII fallback
+/// (non-ASCII bytes replaced with `_`).
+String buildFilenameDirective(String filename) {
+  final escaped = filename.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+  final ascii = filename.codeUnits.every((c) => c <= 0x7F);
+  if (ascii) {
+    return 'filename="$escaped"';
+  }
+  final fallbackBuf = StringBuffer();
+  for (final c in filename.codeUnits) {
+    if (c > 0x7F || c < 0x20 || c == 0x7F) {
+      fallbackBuf.writeCharCode(0x5F);
+    } else {
+      fallbackBuf.writeCharCode(c);
+    }
+  }
+  final fallbackEscaped =
+      fallbackBuf.toString().replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+  final encoded = rfc5987EncodeValue(filename);
+  return 'filename="$fallbackEscaped"; filename*=UTF-8\'\'$encoded';
+}
+
+/// Percent-encodes every byte that is not an RFC 3986 §2.3 unreserved
+/// character, producing the value-chars production of RFC 5987 §3.2.1.
+String rfc5987EncodeValue(String s) {
+  const hex = '0123456789ABCDEF';
+  final bytes = utf8.encode(s);
+  final out = StringBuffer();
+  for (final b in bytes) {
+    final isUnreserved = (b >= 0x41 && b <= 0x5A) ||
+        (b >= 0x61 && b <= 0x7A) ||
+        (b >= 0x30 && b <= 0x39) ||
+        b == 0x2D ||
+        b == 0x2E ||
+        b == 0x5F ||
+        b == 0x7E;
+    if (isUnreserved) {
+      out.writeCharCode(b);
+    } else {
+      out.write('%');
+      out.write(hex[b >> 4]);
+      out.write(hex[b & 0x0F]);
+    }
+  }
+  return out.toString();
 }
