@@ -121,6 +121,12 @@ class DefaultApiClient implements ApiClient {
     final uri = Uri.parse(url);
     http.BaseRequest request;
 
+    /* Gap BH: package:http's auto-redirect re-sends Authorization /
+     * Cookie / Proxy-Authorization across cross-origin 3xx redirects
+     * by default, leaking bearer tokens to attacker-controlled hosts.
+     * We disable auto-redirect on the underlying request and follow
+     * Location headers manually below, stripping sensitive headers
+     * when the next URL's origin differs from the original. */
     if (body is Map<String, Object>) {
       final multipartRequest = http.MultipartRequest(method, uri);
       multipartRequest.headers.addAll(merged);
@@ -135,11 +141,7 @@ class DefaultApiClient implements ApiClient {
           _addMultipartField(multipartRequest, name, value);
         }
       }
-      if (_transportOptions.followRedirects &&
-          _transportOptions.maxRedirects != null) {
-        multipartRequest.maxRedirects = _transportOptions.maxRedirects!;
-      }
-      multipartRequest.followRedirects = _transportOptions.followRedirects;
+      multipartRequest.followRedirects = false;
       request = multipartRequest;
     } else {
       final standardRequest = http.Request(method, uri);
@@ -148,18 +150,15 @@ class DefaultApiClient implements ApiClient {
         merged.remove('content-type');
       }
       standardRequest.headers.addAll(merged);
-      standardRequest.followRedirects = _transportOptions.followRedirects;
-      if (_transportOptions.followRedirects &&
-          _transportOptions.maxRedirects != null) {
-        standardRequest.maxRedirects = _transportOptions.maxRedirects!;
-      }
+      standardRequest.followRedirects = false;
       if (body is Uint8List) {
         standardRequest.bodyBytes = body;
       }
       request = standardRequest;
     }
 
-    final http.StreamedResponse streamedResponse;
+    http.StreamedResponse streamedResponse;
+    Uri currentUri = uri;
     try {
       final Future<http.StreamedResponse> pendingResponse =
           _httpClient.send(request);
@@ -167,6 +166,39 @@ class DefaultApiClient implements ApiClient {
           ? await pendingResponse
               .timeout(Duration(milliseconds: _transportOptions.timeout!))
           : await pendingResponse;
+      if (_transportOptions.followRedirects) {
+        final maxRedirects = _transportOptions.maxRedirects ?? 20;
+        const sensitive = {'authorization', 'cookie', 'proxy-authorization'};
+        var hops = 0;
+        while (hops < maxRedirects &&
+            _isRedirectStatus(streamedResponse.statusCode)) {
+          // Drain any unread body to release the connection.
+          await streamedResponse.stream.drain<void>();
+          final location = streamedResponse.headers['location'];
+          if (location == null || location.isEmpty) break;
+          final nextUri = currentUri.resolve(location);
+          if (nextUri.scheme != 'http' && nextUri.scheme != 'https') break;
+          final crossOrigin = !_sameOrigin(uri, nextUri);
+          final redirectHeaders = <String, String>{};
+          merged.forEach((k, v) {
+            if (crossOrigin && sensitive.contains(k.toLowerCase())) return;
+            redirectHeaders[k] = v;
+          });
+          final next = http.Request(method, nextUri);
+          next.headers.addAll(redirectHeaders);
+          next.followRedirects = false;
+          if (body is Uint8List) {
+            next.bodyBytes = body;
+          }
+          currentUri = nextUri;
+          final p = _httpClient.send(next);
+          streamedResponse = _transportOptions.timeout != null
+              ? await p
+                  .timeout(Duration(milliseconds: _transportOptions.timeout!))
+              : await p;
+          hops++;
+        }
+      }
     } on SocketException catch (e) {
       throw ApiError(statusCode: 0, message: e.message, underlyingError: e);
     } on HandshakeException catch (e) {
@@ -354,6 +386,24 @@ class DefaultApiClient implements ApiClient {
         mediaType == 'application/javascript' ||
         mediaType.endsWith('+json') ||
         mediaType.endsWith('+xml');
+  }
+
+  /// Returns true for HTTP 3xx redirect status codes that carry a Location header.
+  static bool _isRedirectStatus(int code) {
+    return code == 301 ||
+        code == 302 ||
+        code == 303 ||
+        code == 307 ||
+        code == 308;
+  }
+
+  /// Compares two URLs by scheme + host + effective port.
+  static bool _sameOrigin(Uri a, Uri b) {
+    if (a.scheme.toLowerCase() != b.scheme.toLowerCase()) return false;
+    if (a.host.toLowerCase() != b.host.toLowerCase()) return false;
+    final int portA = a.hasPort ? a.port : (a.scheme == 'https' ? 443 : 80);
+    final int portB = b.hasPort ? b.port : (b.scheme == 'https' ? 443 : 80);
+    return portA == portB;
   }
 
   static String _generateUuid() {
