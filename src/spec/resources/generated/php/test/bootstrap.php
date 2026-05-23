@@ -33,7 +33,7 @@ function safeGetMappedPort(StartedGenericContainer $container, int $port): int
 $hostAppPath = getenv('HOST_APP_PATH') ?: getcwd();
 $specPath = $hostAppPath . '/test/fixtures/openapi.yaml';
 
-$prism = new GenericContainer('stoplight/prism:5')
+$prism = (new GenericContainer('stoplight/prism:5'))
     ->withExposedPorts(4010)
     ->withMount($specPath, '/tmp/openapi.yaml')
     ->withCommand(['mock', '-m', 'false', '-h', '0.0.0.0', '/tmp/openapi.yaml'])
@@ -48,7 +48,7 @@ putenv('API_BASE_URL=' . $baseUrl);
 $keystorePath = $hostAppPath . '/test/fixtures/certs/server-keystore.p12';
 $mappingsPath = $hostAppPath . '/test/fixtures/wiremock/mappings';
 
-$wiremock = new GenericContainer('wiremock/wiremock:3.13.0')
+$wiremock = (new GenericContainer('wiremock/wiremock:3.13.0'))
     ->withExposedPorts(8080, 8443)
     ->withMount($keystorePath, '/tmp/keystore.p12')
     ->withMount($mappingsPath, '/home/wiremock/mappings')
@@ -110,7 +110,7 @@ putenv('WIREMOCK_INTERNAL_HTTPS_URL=https://wiremock:8443');
 // Start Squid proxy
 $squidConfPath = $hostAppPath . '/test/fixtures/proxy/squid.conf';
 
-$squid = new GenericContainer('ubuntu/squid:5.2-22.04_beta')
+$squid = (new GenericContainer('ubuntu/squid:5.2-22.04_beta'))
     ->withExposedPorts(3128)
     ->withMount($squidConfPath, '/etc/squid/squid.conf')
     ->start();

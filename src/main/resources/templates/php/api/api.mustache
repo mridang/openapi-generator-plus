@@ -291,7 +291,7 @@ class {{classname}} extends BaseApi
             $requestBody,
             [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
             {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
-            {{{returnType}}}::class{{#hasAuthMethods}},
+            '{{{returnType}}}'{{#hasAuthMethods}},
             $auth{{/hasAuthMethods}}
         );
         return $result;

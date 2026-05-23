@@ -266,8 +266,8 @@ class PetApiTest extends TestCase
         $captured = new \stdClass();
         $captured->headers = [];
 
-        $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
-            public function __construct(private \stdClass $captured)
+        $client = new class ($captured) implements \PetstoreClient\ApiClient {
+            public function __construct(private readonly \stdClass $captured)
             {
             }
 

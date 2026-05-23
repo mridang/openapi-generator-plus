@@ -109,8 +109,7 @@ class StoreApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            array < string,
-            int > ::class
+            'array<string,int>'
         );
         return $result;
     }
@@ -162,7 +161,7 @@ class StoreApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Order::class
+            '\PetstoreClient\Models\Order'
         );
         return $result;
     }
@@ -201,7 +200,7 @@ class StoreApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Order::class
+            '\PetstoreClient\Models\Order'
         );
         return $result;
     }

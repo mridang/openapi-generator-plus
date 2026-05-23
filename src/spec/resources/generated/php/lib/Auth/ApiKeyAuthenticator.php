@@ -60,7 +60,6 @@ class ApiKeyAuthenticator extends BaseAuthenticator
     }
 
     /** @return array<string, string> */
-    #[\Override]
     public function getQueryParams(): array
     {
         if ($this->location === ApiKeyLocation::QUERY) {
@@ -70,7 +69,6 @@ class ApiKeyAuthenticator extends BaseAuthenticator
     }
 
     /** @return array<string, string> */
-    #[\Override]
     public function getCookieParams(): array
     {
         if ($this->location === ApiKeyLocation::COOKIE) {

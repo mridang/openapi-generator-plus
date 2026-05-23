@@ -32,6 +32,7 @@ use Symfony\Component\Serializer\Serializer;
  */
 class ObjectSerializer
 {
+    /** @var string */
     private const string DATE_TIME_FORMAT = \DateTime::ATOM;
 
     private static ?Serializer $serializer = null;
@@ -277,7 +278,7 @@ class ObjectSerializer
             if (is_string($data) && $data !== '') {
                 try {
                     return new \DateTime($data);
-                } catch (\Exception) {
+                } catch (\Exception $exception) {
                     $cleaned = preg_replace('/(:\d{2}.\d{6})\d*/', '$1', $data);
                     return new \DateTime((string) $cleaned);
                 }
@@ -285,7 +286,7 @@ class ObjectSerializer
             return null;
         }
 
-        if ($class === \Symfony\Component\Uid\Uuid::class || $class === \Symfony\Component\Uid\Uuid::class) {
+        if ($class === 'Symfony\Component\Uid\Uuid' || $class === 'Symfony\\Component\\Uid\\Uuid') {
             if (is_string($data)) {
                 $decoded = json_decode($data, true);
                 if (is_string($decoded)) {
@@ -355,7 +356,9 @@ class ObjectSerializer
                 /** @var object $result */
                 $result = self::getSerializer()->denormalize($decoded, $class);
                 return $result;
-            } catch (\JsonException | \InvalidArgumentException | \Throwable $e) {
+            } catch (\JsonException | \InvalidArgumentException $e) {
+                throw new ApiException($e->getMessage());
+            } catch (\Throwable $e) {
                 throw new ApiException($e->getMessage());
             }
         }
@@ -367,7 +370,9 @@ class ObjectSerializer
             /** @var object $result */
             $result = self::getSerializer()->denormalize($data, $class);
             return $result;
-        } catch (\JsonException | \InvalidArgumentException | \Throwable $e) {
+        } catch (\JsonException | \InvalidArgumentException $e) {
+            throw new ApiException($e->getMessage());
+        } catch (\Throwable $e) {
             throw new ApiException($e->getMessage());
         }
     }
@@ -477,7 +482,7 @@ class ObjectSerializer
         }
 
         if (is_array($value)) {
-            $items = array_map(self::stringify(...), $value);
+            $items = array_map([self::class, 'stringify'], $value);
             return match ($collectionFormat) {
                 'ssv' => implode(' ', $items),
                 'tsv' => implode("\t", $items),
@@ -496,7 +501,7 @@ class ObjectSerializer
     public static function toHeaderValue(mixed $value): string
     {
         if (is_array($value)) {
-            return implode(',', array_map(self::stringify(...), $value));
+            return implode(',', array_map(static fn ($v): string => self::stringify($v), $value));
         }
 
         return self::stringify($value);
