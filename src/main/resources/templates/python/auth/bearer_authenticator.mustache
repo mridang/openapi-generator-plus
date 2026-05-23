@@ -27,4 +27,10 @@ class BearerAuthenticator(BaseAuthenticator):
         return self.host
 
     def get_auth_headers(self) -> Dict[str, str]:
-        return {'Authorization': f'Bearer {self.token}'}
+        # Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
+        # from env files are commonly stored already-prefixed; emitting
+        # "Bearer Bearer xyz" would otherwise silently break auth.
+        value = self.token
+        if len(value) >= 7 and value[:7].lower() == 'bearer ':
+            value = value[7:]
+        return {'Authorization': f'Bearer {value}'}
