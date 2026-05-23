@@ -29,6 +29,13 @@ export class BearerAuthenticator extends BaseAuthenticator {
   }
 
   getAuthHeaders(): Record<string, string> {
-    return { Authorization: `Bearer ${this.token}` };
+    /* Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
+     * from env files are commonly stored already-prefixed; emitting
+     * "Bearer Bearer xyz" would otherwise silently break auth. */
+    let value = this.token;
+    if (value.length >= 7 && value.slice(0, 7).toLowerCase() === 'bearer ') {
+      value = value.slice(7);
+    }
+    return { Authorization: `Bearer ${value}` };
   }
 }
