@@ -59,7 +59,7 @@ module PetstoreClient
         skey = key.to_s
         if !JSON_KEY_MAP.key?(skey) && !ATTRIBUTE_MAP.key?(key.to_sym)
           raise ArgumentError,
-                "Unknown property '#{skey}' on StrictTag (unevaluatedProperties:false)"
+            "Unknown property '#{skey}' on StrictTag (unevaluatedProperties:false)"
         end
         JSON_KEY_MAP[skey] || key.to_sym
       end
