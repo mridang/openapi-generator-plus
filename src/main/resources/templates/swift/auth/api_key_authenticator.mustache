@@ -19,13 +19,23 @@ public class ApiKeyAuthenticator: BaseAuthenticator, @unchecked Sendable {
     ///   - apiKey: The API key value
     ///   - location: Where to send the key (header, query, or cookie)
     public init(host: String, keyParamName: String, apiKey: String, location: ApiKeyLocation) {
-        /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
-         * Reject anything outside printable ASCII + TAB so callers see
-         * a clear error rather than (a) HTTP header injection from
-         * CR/LF, or (b) silently-mangled non-ASCII bytes that different
-         * HTTP libs encode differently per language. preconditionFailure
-         * is appropriate because the failure is a programmer error,
-         * not a recoverable runtime condition. */
+        /* Validation applies to ALL locations: empty/whitespace API keys
+         * and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
+         * printable-ASCII rule still applies to HEADER values.
+         * preconditionFailure is appropriate because the failure is a
+         * programmer error, not a recoverable runtime condition. */
+        if apiKey.isEmpty || apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            preconditionFailure(
+                "API key value for '\(keyParamName)' must not be empty"
+            )
+        }
+        if apiKey.unicodeScalars.contains(where: { s in
+            s.value == 0x0D || s.value == 0x0A || s.value == 0x00
+        }) {
+            preconditionFailure(
+                "API key value for '\(keyParamName)' contains forbidden control characters (CR/LF/NUL)"
+            )
+        }
         if location == .header && apiKey.unicodeScalars.contains(where: { s in
             s.value != 0x09 && (s.value < 0x20 || s.value >= 0x7F)
         }) {
