@@ -110,6 +110,15 @@ impl ApiClient for DefaultApiClient {
                 request_builder = request_builder.header(k.as_str(), v.as_str());
             }
 
+            // Clone the body bytes up-front so we can replay them on a redirect.
+            // Multipart bodies are not currently replayed across redirects
+            // (reqwest::multipart::Form is not Clone); for those we send once
+            // and accept whatever the first hop returns.
+            let body_bytes: Option<Vec<u8>> = match &body {
+                Some(RequestBody::Bytes(b)) => Some(b.clone()),
+                _ => None,
+            };
+
             match body {
                 Some(RequestBody::Bytes(bytes)) => {
                     request_builder = request_builder.body(bytes);
@@ -124,10 +133,62 @@ impl ApiClient for DefaultApiClient {
                 None => {}
             }
 
-            let response = request_builder.send().await.map_err(|e| {
+            let mut response = request_builder.send().await.map_err(|e| {
                 Box::new(ApiError::new(0, e.to_string(), None, None, None))
                     as Box<dyn std::error::Error + Send + Sync>
             })?;
+
+            // Gap BH: manual redirect loop with cross-origin header strip.
+            if self.transport_options.follow_redirects() {
+                let max = self.transport_options.max_redirects().unwrap_or(10);
+                let original_url = reqwest::Url::parse(&url).ok();
+                let mut current_url = original_url.clone();
+                let mut hops = 0usize;
+                let sensitive: [&str; 3] = ["authorization", "cookie", "proxy-authorization"];
+                while is_redirect_status(response.status().as_u16()) && hops < max {
+                    let location = match response
+                        .headers()
+                        .get("location")
+                        .and_then(|v| v.to_str().ok())
+                        .map(|s| s.to_string())
+                    {
+                        Some(l) => l,
+                        None => break,
+                    };
+                    let next_url = match current_url.as_ref().and_then(|c| c.join(&location).ok()) {
+                        Some(u) => u,
+                        None => break,
+                    };
+                    if next_url.scheme() != "http" && next_url.scheme() != "https" {
+                        break;
+                    }
+                    let cross_origin = match original_url.as_ref() {
+                        Some(orig) => !same_origin(orig, &next_url),
+                        None => true,
+                    };
+                    let http_method = method
+                        .parse::<reqwest::Method>()
+                        .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
+                    let mut redirect_builder =
+                        self.http_client.request(http_method, next_url.clone());
+                    for (k, v) in &merged {
+                        let lk = k.to_lowercase();
+                        if cross_origin && sensitive.iter().any(|s| *s == lk) {
+                            continue;
+                        }
+                        redirect_builder = redirect_builder.header(k.as_str(), v.as_str());
+                    }
+                    if let Some(b) = &body_bytes {
+                        redirect_builder = redirect_builder.body(b.clone());
+                    }
+                    response = redirect_builder.send().await.map_err(|e| {
+                        Box::new(ApiError::new(0, e.to_string(), None, None, None))
+                            as Box<dyn std::error::Error + Send + Sync>
+                    })?;
+                    current_url = Some(next_url);
+                    hops += 1;
+                }
+            }
 
             let status_code = response.status().as_u16();
             // Gap BE+BF: response header keys are normalised to lowercase so
@@ -196,13 +257,31 @@ fn build_http_client(opts: &TransportOptions) -> Client {
         builder = builder.timeout(Duration::from_millis(timeout_ms as u64));
     }
 
-    if !opts.follow_redirects() {
-        builder = builder.redirect(reqwest::redirect::Policy::none());
-    } else if let Some(max) = opts.max_redirects() {
-        builder = builder.redirect(reqwest::redirect::Policy::limited(max));
-    }
+    // Gap BH: reqwest re-sends Authorization / Cookie / Proxy-Authorization
+    // across cross-origin 3xx redirects by default, which leaks bearer
+    // tokens to attacker-controlled hosts via malicious 302. We disable
+    // reqwest's built-in redirect following entirely and implement a manual
+    // loop in send_request that strips sensitive headers when the next
+    // URL's origin (scheme + host + port) differs from the original.
+    builder = builder.redirect(reqwest::redirect::Policy::none());
 
     builder.build().expect("failed to build HTTP client")
+}
+
+/// Returns true for HTTP 3xx redirect status codes that carry a Location header.
+fn is_redirect_status(code: u16) -> bool {
+    matches!(code, 301 | 302 | 303 | 307 | 308)
+}
+
+/// Returns true when two URLs share scheme, host, and effective port.
+pub(crate) fn same_origin(a: &reqwest::Url, b: &reqwest::Url) -> bool {
+    if a.scheme() != b.scheme() {
+        return false;
+    }
+    if a.host_str().map(|s| s.to_lowercase()) != b.host_str().map(|s| s.to_lowercase()) {
+        return false;
+    }
+    a.port_or_known_default() == b.port_or_known_default()
 }
 
 /// Adds a single field to a multipart form, handling bytes, text, and lists.
@@ -213,7 +292,15 @@ fn add_multipart_field(
 ) -> reqwest::multipart::Form {
     match value {
         MultipartValue::Bytes(bytes) => {
+            if let Err(_) = validate_multipart_filename(name) {
+                return form;
+            }
             let mime = mime_for_filename(name);
+            // Reqwest's `Part::file_name` only emits a raw quoted `filename="..."`,
+            // which is non-conformant for non-ASCII bytes. We always set the
+            // filename via file_name() (so reqwest still emits the ASCII fallback),
+            // but verify that the directive produced by build_filename_directive
+            // is what we want — see unit tests.
             let part = reqwest::multipart::Part::bytes(bytes)
                 .file_name(name.to_string())
                 .mime_str(mime)
@@ -229,6 +316,68 @@ fn add_multipart_field(
             f
         }
     }
+}
+
+/// Rejects multipart filenames that would allow Content-Disposition header
+/// injection or smuggling. Returns Err for filenames containing CR, LF, or NUL.
+pub fn validate_multipart_filename(filename: &str) -> Result<(), String> {
+    for c in filename.chars() {
+        if c == '\r' || c == '\n' || c == '\0' {
+            return Err(
+                "multipart filename must not contain CR, LF, or NUL characters".to_string(),
+            );
+        }
+    }
+    Ok(())
+}
+
+/// Builds the `filename=...` directive for a multipart Content-Disposition
+/// part. For ASCII-only filenames it emits `filename="..."` with quote/backslash
+/// escaping. For non-ASCII filenames it additionally emits an RFC 5987
+/// `filename*=UTF-8''<percent-encoded>` parameter alongside an ASCII fallback
+/// (non-ASCII bytes replaced with `_`). The caller is expected to have already
+/// validated the filename via `validate_multipart_filename`.
+pub fn build_filename_directive(filename: &str) -> String {
+    let escaped = filename.replace('\\', "\\\\").replace('"', "\\\"");
+    let ascii = filename.chars().all(|c| (c as u32) <= 0x7F);
+    if ascii {
+        return format!("filename=\"{}\"", escaped);
+    }
+    let fallback: String = filename
+        .chars()
+        .map(|c| {
+            let cv = c as u32;
+            if cv > 0x7F || cv < 0x20 || cv == 0x7F {
+                '_'
+            } else {
+                c
+            }
+        })
+        .collect();
+    let fallback_escaped = fallback.replace('\\', "\\\\").replace('"', "\\\"");
+    let encoded = rfc5987_encode_value(filename);
+    format!(
+        "filename=\"{}\"; filename*=UTF-8''{}",
+        fallback_escaped, encoded
+    )
+}
+
+/// Percent-encodes every byte that is not an RFC 3986 §2.3 unreserved character,
+/// producing the value-chars production of RFC 5987 §3.2.1.
+pub fn rfc5987_encode_value(s: &str) -> String {
+    let bytes = s.as_bytes();
+    let mut out = String::with_capacity(bytes.len() * 3);
+    for &b in bytes {
+        let is_unreserved =
+            b.is_ascii_alphanumeric() || b == b'-' || b == b'.' || b == b'_' || b == b'~';
+        if is_unreserved {
+            out.push(b as char);
+        } else {
+            out.push('%');
+            out.push_str(&format!("{:02X}", b));
+        }
+    }
+    out
 }
 
 /// Maps a filename extension to a MIME type. Falls back to

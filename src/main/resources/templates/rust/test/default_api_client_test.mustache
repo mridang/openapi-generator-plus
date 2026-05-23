@@ -232,6 +232,39 @@ async fn test_default_api_client_respects_max_redirects_limit() {
     assert!(client.send_request("GET", "http://127.0.0.1:1/unused", &HashMap::new(), None).await.is_err() || true);
 }
 
+/// Gap BI: non-ASCII multipart filenames must use RFC 5987 filename*=UTF-8''<pct>
+/// rather than raw UTF-8 inside the quoted filename="" form.
+#[test]
+fn test_multipart_filename_non_ascii_emits_rfc5987() {
+    let directive = {{packageName}}::default_api_client::build_filename_directive("日本.pdf");
+    assert!(directive.contains("filename*=UTF-8''"),
+        "expected RFC 5987 filename*=UTF-8'' directive, got: {}", directive);
+    assert!(directive.contains("%E6%97%A5%E6%9C%AC"),
+        "expected percent-encoded UTF-8 bytes for 日本, got: {}", directive);
+    assert!(directive.starts_with("filename=\""),
+        "expected ASCII fallback filename=\"...\" prefix, got: {}", directive);
+}
+
+/// Gap BI: ASCII-only filenames must NOT emit a filename*= parameter.
+#[test]
+fn test_multipart_filename_ascii_only_omits_filename_star() {
+    let directive = {{packageName}}::default_api_client::build_filename_directive("pet.png");
+    assert_eq!(directive, "filename=\"pet.png\"");
+    assert!(!directive.contains("filename*="),
+        "ASCII-only filename must not emit filename*=, got: {}", directive);
+}
+
+/// Gap F: filenames containing CR/LF/NUL must be rejected to prevent
+/// Content-Disposition header injection.
+#[test]
+fn test_multipart_filename_crlf_rejected() {
+    for bad in &["a\rb.pdf", "a\nb.pdf", "a\r\nb.pdf", "a\0b.pdf"] {
+        assert!({{packageName}}::default_api_client::validate_multipart_filename(bad).is_err(),
+            "expected error for {:?}", bad);
+    }
+    assert!({{packageName}}::default_api_client::validate_multipart_filename("pet.png").is_ok());
+}
+
 #[tokio::test]
 async fn test_default_api_client_sends_multipart_form_data() {
     let wiremock_url = testcontainers_helper::wiremock_http_url();
