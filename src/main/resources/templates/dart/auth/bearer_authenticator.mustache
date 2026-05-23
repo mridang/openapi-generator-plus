@@ -27,7 +27,14 @@ class BearerAuthenticator extends BaseAuthenticator {
   String host() => _host;
 
   @override
-  Map<String, String> authHeaders() => {
-        'Authorization': 'Bearer $_token',
-      };
+  Map<String, String> authHeaders() {
+    /* Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
+     * from env files are commonly stored already-prefixed; emitting
+     * "Bearer Bearer xyz" would otherwise silently break auth. */
+    var value = _token;
+    if (value.length >= 7 && value.substring(0, 7).toLowerCase() == 'bearer ') {
+      value = value.substring(7);
+    }
+    return {'Authorization': 'Bearer $value'};
+  }
 }

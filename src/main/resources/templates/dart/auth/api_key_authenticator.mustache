@@ -28,11 +28,19 @@ class ApiKeyAuthenticator extends BaseAuthenticator {
         _keyParamName = keyParamName,
         _apiKey = apiKey,
         _location = location {
-    /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
-     * Reject anything outside printable ASCII + TAB so callers see a
-     * clear error rather than (a) HTTP header injection from CR/LF,
-     * or (b) silently-mangled non-ASCII bytes that different HTTP
-     * libs encode differently per language. */
+    /* Validation applies to ALL locations: empty/whitespace API keys
+     * and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
+     * printable-ASCII rule still applies to HEADER values. */
+    if (apiKey.isEmpty || apiKey.trim().isEmpty) {
+      throw ArgumentError(
+        "API key value for '$keyParamName' must not be empty",
+      );
+    }
+    if (apiKey.codeUnits.any((c) => c == 0x0D || c == 0x0A || c == 0x00)) {
+      throw ArgumentError(
+        "API key value for '$keyParamName' contains forbidden control characters (CR/LF/NUL)",
+      );
+    }
     if (location == ApiKeyLocation.header &&
         apiKey.codeUnits.any((c) => c != 0x09 && (c < 0x20 || c >= 0x7F))) {
       throw ArgumentError(
