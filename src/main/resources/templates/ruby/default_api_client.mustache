@@ -84,6 +84,39 @@ module {{moduleName}}
 
       begin
         response = connection.run_request(method.downcase.to_sym, url, serialized_body, merged)
+        # Gap BH: Faraday's follow_redirects middleware re-sends Authorization /
+        # Cookie / Proxy-Authorization across cross-origin 3xx redirects by
+        # default, which leaks bearer tokens to attacker-controlled hosts via
+        # malicious 302. We disable the middleware in build_connection and
+        # follow Location: headers manually here, stripping the sensitive
+        # headers when the next URL's origin (scheme + host + port) differs
+        # from the original.
+        if @transport_options.follow_redirects
+          max_redirects = @transport_options.max_redirects || 20
+          original_url = url
+          hops = 0
+          while hops < max_redirects && self.class.redirect_status?(response.status)
+            location = response.headers['location']
+            break if location.nil? || location.empty?
+
+            next_url = self.class.resolve_url(url, location)
+            break if next_url.nil?
+
+            next_uri = URI.parse(next_url) rescue nil
+            break unless next_uri && %w[http https].include?(next_uri.scheme)
+
+            cross_origin = !self.class.same_origin?(original_url, next_url)
+            redirect_headers = merged.dup
+            if cross_origin
+              redirect_headers.delete_if do |k, _v|
+                %w[authorization cookie proxy-authorization].include?(k.to_s.downcase)
+              end
+            end
+            url = next_url
+            response = connection.run_request(method.downcase.to_sym, next_url, serialized_body, redirect_headers)
+            hops += 1
+          end
+        end
       rescue Faraday::ConnectionFailed, Faraday::TimeoutError, Faraday::SSLError => e
         raise ApiError, e.message
       end
@@ -224,12 +257,36 @@ module {{moduleName}}
           f.options.open_timeout = timeout_secs
         end
 
-        next unless @transport_options.follow_redirects
-
-        redirect_opts = {} #: Hash[Symbol, untyped] # rubocop:disable Layout/LeadingCommentSpace
-        redirect_opts[:limit] = @transport_options.max_redirects if @transport_options.max_redirects
-        f.response :follow_redirects, **redirect_opts
+        # Gap BH: do not register the Faraday follow_redirects middleware
+        # here -- it carries Authorization across cross-origin 3xx, leaking
+        # bearer tokens. We follow redirects ourselves in send_request with
+        # a same-origin check.
       end
+    end
+
+    # Return true for HTTP 3xx redirect status codes that carry a Location header.
+    def self.redirect_status?(code)
+      [301, 302, 303, 307, 308].include?(code.to_i)
+    end
+
+    # Resolve a (possibly relative) Location header value against the previous URL.
+    def self.resolve_url(base, location)
+      URI.join(base, location).to_s
+    rescue StandardError
+      nil
+    end
+
+    # Compare two URLs by scheme + host + effective port.
+    def self.same_origin?(a, b) # rubocop:disable Metrics/AbcSize
+      ua = URI.parse(a) rescue nil
+      ub = URI.parse(b) rescue nil
+      return false if ua.nil? || ub.nil?
+      return false unless ua.scheme&.downcase == ub.scheme&.downcase
+      return false unless ua.host&.downcase == ub.host&.downcase
+
+      port_a = ua.port || (ua.scheme == 'https' ? 443 : 80)
+      port_b = ub.port || (ub.scheme == 'https' ? 443 : 80)
+      port_a == port_b
     end
 
     def build_multipart_body(form_parts, boundary)
