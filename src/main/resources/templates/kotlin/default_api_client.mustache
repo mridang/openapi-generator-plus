@@ -222,7 +222,8 @@ class DefaultApiClient internal constructor(
         value: Any?,
     ) {
         when (value) {
-            is ByteArray ->
+            is ByteArray -> {
+                validateMultipartFilename(fieldName)
                 append(
                     fieldName,
                     value,
@@ -231,9 +232,10 @@ class DefaultApiClient internal constructor(
                         // Servers that read per-part Content-Type (e.g. for image processing)
                         // need this rather than a blanket application/octet-stream.
                         append(HttpHeaders.ContentType, contentTypeForFilename(fieldName).toString())
-                        append(HttpHeaders.ContentDisposition, "filename=$fieldName")
+                        append(HttpHeaders.ContentDisposition, buildFilenameDirective(fieldName))
                     },
                 )
+            }
             null -> {}
             is String, is Number, is Boolean -> append(fieldName, value.toString())
             else -> {
@@ -332,6 +334,71 @@ internal fun isTextContentType(contentType: String): Boolean {
         mediaType == "application/javascript" ||
         mediaType.endsWith("+json") ||
         mediaType.endsWith("+xml")
+}
+
+/**
+ * Rejects multipart filenames that would allow Content-Disposition header
+ * injection or smuggling. Throws [IllegalArgumentException] when the filename
+ * contains CR, LF, or NUL.
+ */
+fun validateMultipartFilename(filename: String?) {
+    if (filename == null) return
+    for (c in filename) {
+        if (c == '\r' || c == '\n' || c == ' ') {
+            throw IllegalArgumentException(
+                "multipart filename must not contain CR, LF, or NUL characters"
+            )
+        }
+    }
+}
+
+/**
+ * Builds the `filename=...` directive for a multipart Content-Disposition part.
+ * For ASCII-only filenames emits `filename="..."` with quote/backslash escaping.
+ * For non-ASCII filenames additionally emits an RFC 5987
+ * `filename*=UTF-8''<percent-encoded>` parameter alongside an ASCII fallback
+ * (non-ASCII bytes replaced with `_`).
+ */
+fun buildFilenameDirective(filename: String): String {
+    val escaped = filename.replace("\\", "\\\\").replace("\"", "\\\"")
+    val ascii = filename.all { it.code <= 0x7F }
+    if (ascii) {
+        return "filename=\"$escaped\""
+    }
+    val fallback = buildString {
+        for (c in filename) {
+            if (c.code > 0x7F || c.code < 0x20 || c.code == 0x7F) {
+                append('_')
+            } else {
+                append(c)
+            }
+        }
+    }.replace("\\", "\\\\").replace("\"", "\\\"")
+    val encoded = rfc5987EncodeValue(filename)
+    return "filename=\"$fallback\"; filename*=UTF-8''$encoded"
+}
+
+/**
+ * Percent-encodes every byte that is not an RFC 3986 §2.3 unreserved character,
+ * producing the value-chars production of RFC 5987 §3.2.1.
+ */
+fun rfc5987EncodeValue(s: String): String {
+    val hex = "0123456789ABCDEF"
+    val bytes = s.toByteArray(Charsets.UTF_8)
+    val out = StringBuilder(bytes.size * 3)
+    for (b in bytes) {
+        val u = b.toInt() and 0xFF
+        val isUnreserved = (u in 'A'.code..'Z'.code) ||
+            (u in 'a'.code..'z'.code) ||
+            (u in '0'.code..'9'.code) ||
+            u == '-'.code || u == '.'.code || u == '_'.code || u == '~'.code
+        if (isUnreserved) {
+            out.append(u.toChar())
+        } else {
+            out.append('%').append(hex[u ushr 4]).append(hex[u and 0x0F])
+        }
+    }
+    return out.toString()
 }
 
 /** Platform-specific [HttpClient] factory; configured with engine, TLS, proxy, and common plugins. */

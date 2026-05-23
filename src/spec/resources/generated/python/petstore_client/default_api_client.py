@@ -251,12 +251,26 @@ class DefaultApiClient:
             request_kwargs['timeout'] = urllib3.Timeout(total=timeout_seconds)
 
         # --- Redirects ---
+        # Gap BH: urllib3's default redirect handling re-sends
+        # Authorization / Cookie / Proxy-Authorization across cross-origin
+        # 3xx redirects, leaking bearer tokens to attacker-controlled hosts.
+        # Use a Retry policy with remove_headers_on_redirect so the sensitive
+        # headers are stripped whenever the redirect target's origin differs
+        # from the original. urllib3.Retry compares the scheme + host + port
+        # of the previous request to decide same-origin.
         if not self._transport_options.follow_redirects:
             request_kwargs['redirect'] = False
-        elif self._transport_options.max_redirects is not None:
-            request_kwargs['redirect'] = self._transport_options.max_redirects
         else:
-            request_kwargs['redirect'] = 20
+            max_redirects = self._transport_options.max_redirects if self._transport_options.max_redirects is not None else 20
+            request_kwargs['retries'] = urllib3.Retry(
+                total=max_redirects,
+                redirect=max_redirects,
+                status=0,
+                read=0,
+                other=0,
+                connect=0,
+                remove_headers_on_redirect=frozenset(['Authorization', 'Cookie', 'Proxy-Authorization']),
+            )
 
         try:
             response = self._pool_manager.request(
