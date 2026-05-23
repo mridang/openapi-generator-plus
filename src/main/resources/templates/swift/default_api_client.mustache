@@ -359,11 +359,15 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
 #endif
 
         /* A session delegate is used when SSL verification is disabled, a
-         * custom CA certificate is configured, or redirect control is needed. */
+         * custom CA certificate is configured, or redirect control is
+         * needed. Gap BH: we always need the delegate to strip sensitive
+         * headers on cross-origin redirects, so it is created
+         * unconditionally when followRedirects is enabled. */
         let needsDelegate = !opts.verifySSL
             || opts.caCertPath != nil
             || !opts.followRedirects
             || opts.maxRedirects != nil
+            || opts.followRedirects
         if needsDelegate {
             let delegate = SessionDelegate(
                 verifySSL: opts.verifySSL,
@@ -474,7 +478,47 @@ private final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTas
             completionHandler(nil)
             return
         }
-        completionHandler(request)
+        /* Gap BH: URLSession re-sends Authorization / Cookie /
+         * Proxy-Authorization across cross-origin 3xx redirects by
+         * default, which leaks bearer tokens to attacker-controlled
+         * hosts via malicious 302. Strip these headers when the next
+         * request's origin (scheme + host + port) differs from the
+         * originating request's origin. */
+        var redirectRequest = request
+        if let originalURL = task.originalRequest?.url,
+           let nextURL = request.url,
+           !DefaultApiClient.sameOrigin(originalURL, nextURL) {
+            for sensitive in ["Authorization", "Cookie", "Proxy-Authorization"] {
+                redirectRequest.setValue(nil, forHTTPHeaderField: sensitive)
+            }
+            /* URLSession by default carries Authorization on the new
+             * request only when it set it via URLCredentialStorage;
+             * headers we set on the original URLRequest via
+             * setValue(_:forHTTPHeaderField:) are NOT auto-carried in
+             * some Foundation builds but ARE in others. The strip is
+             * safe to perform regardless. */
+            if let allHeaders = task.originalRequest?.allHTTPHeaderFields {
+                for sensitive in ["Authorization", "Cookie", "Proxy-Authorization"] {
+                    _ = allHeaders[sensitive] // documented above
+                }
+            }
+        }
+        completionHandler(redirectRequest)
+    }
+}
+
+extension DefaultApiClient {
+    /// Compare two URLs by scheme + host + effective port.
+    static func sameOrigin(_ a: URL, _ b: URL) -> Bool {
+        guard let sa = a.scheme?.lowercased(),
+              let sb = b.scheme?.lowercased(),
+              sa == sb else { return false }
+        guard let ha = a.host?.lowercased(),
+              let hb = b.host?.lowercased(),
+              ha == hb else { return false }
+        let portA = a.port ?? (sa == "https" ? 443 : 80)
+        let portB = b.port ?? (sb == "https" ? 443 : 80)
+        return portA == portB
     }
 }
 
