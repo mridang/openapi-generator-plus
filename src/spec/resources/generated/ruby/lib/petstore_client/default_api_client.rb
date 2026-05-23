@@ -111,7 +111,7 @@ module PetstoreClient
       # normalise both shapes. The joined form is not directly parseable
       # for Set-Cookie; callers needing structured cookie access should
       # use HTTP::Cookie.parse or read the raw Faraday::Utils::Headers.
-      normalized_headers = {} # : Hash[String, String]
+      normalized_headers = {} #: Hash[String, String]
       response.headers.each do |name, value|
         joined = value.is_a?(Array) ? value.join(', ') : value.to_s
         normalized_headers[name.to_s.downcase] = joined
@@ -292,7 +292,7 @@ module PetstoreClient
       fname = filename.to_s
       if fname.match?(/[\r\n\0]/)
         raise ArgumentError,
-          "multipart filename must not contain CR, LF, or NUL bytes: #{fname.inspect}"
+              "multipart filename must not contain CR, LF, or NUL bytes: #{fname.inspect}"
       end
 
       ascii_safe = fname.dup.force_encoding(Encoding::UTF_8)

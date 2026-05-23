@@ -264,7 +264,9 @@ class PetApiTest extends TestCase
         // header carries one token; the per-call authenticator carries a
         // different one and must win on the wire.
         $captured = new \stdClass();
-        $captured->headers = [];
+        /** @var array<string, string> $hdrs */
+        $hdrs = [];
+        $captured->headers = $hdrs;
 
         $client = new class($captured) implements \{{invokerPackage}}\ApiClient {
             public function __construct(private readonly \stdClass $captured)
