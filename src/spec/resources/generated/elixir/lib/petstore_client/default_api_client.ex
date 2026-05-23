@@ -91,14 +91,22 @@ defmodule PetstoreClient.DefaultApiClient do
 
     {serialized_body, merged} = prepare_body(body, merged)
 
+    # Gap BH: Req re-sends Authorization / Cookie / Proxy-Authorization
+    # across cross-origin 3xx redirects by default, which leaks bearer
+    # tokens to attacker-controlled hosts via malicious 302. We've
+    # disabled Req's built-in redirect follower (redirect: false in
+    # build_static_req_options) and follow Location: headers manually
+    # here, stripping the sensitive headers when the next URL's origin
+    # (scheme + host + port) differs from the original.
     response =
       try do
-        Req.request!(
-          client.base_req,
-          method: method,
-          url: url,
-          headers: Enum.map(merged, fn {k, v} -> {k, v} end),
-          body: serialized_body
+        do_request_with_redirects(
+          client,
+          method,
+          url,
+          merged,
+          serialized_body,
+          opts.max_redirects || 20
         )
       rescue
         e -> raise PetstoreClient.ApiError, message: Exception.message(e), status_code: 0, cause: e
@@ -261,10 +269,15 @@ defmodule PetstoreClient.DefaultApiClient do
   # per-request options (method, url, headers, body) are merged at the call
   # site via Req.request!/2.
   defp build_static_req_options(opts) do
+    # Gap BH: always disable Req's auto-redirect; we follow Location
+    # manually in send_request so we can strip Authorization / Cookie /
+    # Proxy-Authorization on cross-origin hops.
     req_opts = [
       decode_body: false,
-      redirect: opts.follow_redirects
+      redirect: false
     ]
+
+    _ = opts.follow_redirects
 
     req_opts =
       if opts.timeout do
@@ -336,6 +349,141 @@ defmodule PetstoreClient.DefaultApiClient do
       end
 
     req_opts
+  end
+
+  @sensitive_redirect_headers ["authorization", "cookie", "proxy-authorization"]
+
+  defp do_request_with_redirects(client, method, url, headers, body, max_redirects) do
+    do_request_with_redirects(client, method, url, url, headers, body, max_redirects, 0)
+  end
+
+  defp do_request_with_redirects(client, _method, _url, _orig_url, _headers, _body, max, hops)
+       when hops > max do
+    raise PetstoreClient.ApiError, message: "too many redirects", status_code: 0
+  end
+
+  defp do_request_with_redirects(client, method, url, orig_url, headers, body, max, hops) do
+    response =
+      Req.request!(
+        client.base_req,
+        method: method,
+        url: url,
+        headers: Enum.map(headers, fn {k, v} -> {k, v} end),
+        body: body
+      )
+
+    if client.transport_options.follow_redirects and is_redirect_status(response.status) do
+      case redirect_location(response.headers) do
+        nil ->
+          response
+
+        location ->
+          next_url = resolve_url(url, location)
+
+          if next_url == nil or not http_scheme?(next_url) do
+            response
+          else
+            cross_origin = not same_origin?(orig_url, next_url)
+
+            next_headers =
+              if cross_origin do
+                strip_sensitive_headers(headers)
+              else
+                headers
+              end
+
+            do_request_with_redirects(
+              client,
+              method,
+              next_url,
+              orig_url,
+              next_headers,
+              body,
+              max,
+              hops + 1
+            )
+          end
+      end
+    else
+      response
+    end
+  end
+
+  defp is_redirect_status(code) when code in [301, 302, 303, 307, 308] do
+    true
+  end
+
+  defp is_redirect_status(_) do
+    false
+  end
+
+  defp redirect_location(headers) when is_map(headers) do
+    Enum.find_value(headers, fn {k, v} ->
+      if String.downcase(to_string(k)) == "location" do
+        case v do
+          [first | _] -> first
+          val when is_binary(val) -> val
+          _ -> nil
+        end
+      end
+    end)
+  end
+
+  defp redirect_location(headers) when is_list(headers) do
+    Enum.find_value(headers, fn {k, v} ->
+      if String.downcase(to_string(k)) == "location" do
+        to_string(v)
+      end
+    end)
+  end
+
+  defp redirect_location(_) do
+    nil
+  end
+
+  defp http_scheme?(url) do
+    case URI.parse(url) do
+      %URI{scheme: s} when s in ["http", "https"] -> true
+      _ -> false
+    end
+  end
+
+  defp resolve_url(base, location) do
+    case URI.parse(location) do
+      %URI{scheme: s} when not is_nil(s) -> location
+      _ -> base |> URI.merge(location) |> URI.to_string()
+    end
+  rescue
+    _ -> nil
+  end
+
+  defp same_origin?(a, b) do
+    pa = URI.parse(a)
+    pb = URI.parse(b)
+    same_scheme = pa.scheme && pb.scheme && String.downcase(pa.scheme) == String.downcase(pb.scheme)
+    same_host = pa.host && pb.host && String.downcase(pa.host) == String.downcase(pb.host)
+    port_a = pa.port || default_port(pa.scheme)
+    port_b = pb.port || default_port(pb.scheme)
+    same_scheme && same_host && port_a == port_b
+  end
+
+  defp default_port("https") do
+    443
+  end
+
+  defp default_port("http") do
+    80
+  end
+
+  defp default_port(_) do
+    nil
+  end
+
+  defp strip_sensitive_headers(headers) when is_map(headers) do
+    Enum.reject(headers, fn {k, _v} ->
+      String.downcase(to_string(k)) in @sensitive_redirect_headers
+    end)
+    |> Map.new()
   end
 
   defp prepare_body(nil, headers) do
