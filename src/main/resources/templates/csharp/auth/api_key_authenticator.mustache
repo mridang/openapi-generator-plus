@@ -19,32 +19,53 @@ public class ApiKeyAuthenticator(
         return host;
     }
 
+    private void ValidateApiKey()
+    {
+        /* Validation applies to ALL locations: empty/whitespace API keys
+         * and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
+         * printable-ASCII rule still applies to HEADER values. */
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            throw new ArgumentException(
+                $"API key value for '{keyParamName}' must not be empty",
+                nameof(apiKey));
+        }
+        if (apiKey.Any(c => c == '\r' || c == '\n' || c == '\0'))
+        {
+            throw new ArgumentException(
+                $"API key value for '{keyParamName}' contains forbidden control characters (CR/LF/NUL)",
+                nameof(apiKey));
+        }
+        if (location == ApiKeyLocation.Header &&
+            apiKey.Any(c => c != '\t' && c is < (char)0x20 or >= (char)0x7F))
+        {
+            throw new ArgumentException(
+                $"API key for header '{keyParamName}' must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+                nameof(apiKey));
+        }
+    }
+
     /// <inheritdoc/>
     public override Dictionary<string, string> GetAuthHeaders()
     {
-        /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
-         * Reject anything outside printable ASCII + TAB so callers see a
-         * clear error rather than (a) HTTP header injection from CR/LF,
-         * or (b) silently-mangled non-ASCII bytes that different HTTP
-         * libs encode differently per language. */
-        return location != ApiKeyLocation.Header
-            ? []
-            : apiKey.Any(c => c != '\t' && c is < (char)0x20 or >= (char)0x7F)
-                ? throw new ArgumentException(
-                    $"API key for header '{keyParamName}' must contain only printable ASCII characters (RFC 7230 §3.2.6)",
-                    nameof(apiKey))
-                : new() { [keyParamName] = apiKey };
+        if (location != ApiKeyLocation.Header) return [];
+        ValidateApiKey();
+        return new() { [keyParamName] = apiKey };
     }
 
     /// <inheritdoc/>
     public override Dictionary<string, string> GetQueryParams()
     {
-        return location == ApiKeyLocation.Query ? new() { [keyParamName] = apiKey } : [];
+        if (location != ApiKeyLocation.Query) return [];
+        ValidateApiKey();
+        return new() { [keyParamName] = apiKey };
     }
 
     /// <inheritdoc/>
     public override Dictionary<string, string> GetCookieParams()
     {
-        return location == ApiKeyLocation.Cookie ? new() { [keyParamName] = apiKey } : [];
+        if (location != ApiKeyLocation.Cookie) return [];
+        ValidateApiKey();
+        return new() { [keyParamName] = apiKey };
     }
 }

@@ -25,11 +25,24 @@ public class BearerAuthenticator(string host, string token) : BaseAuthenticator
          * Reject anything outside printable ASCII + TAB so callers see a
          * clear error rather than HTTP header injection from CR/LF or
          * silently-mangled non-ASCII bytes. */
-        return token?.Any(c => c != '\t' && c is < (char)0x20 or >= (char)0x7F) == true
-            ? throw new ArgumentException(
+        if (token?.Any(c => c != '\t' && c is < (char)0x20 or >= (char)0x7F) == true)
+        {
+            throw new ArgumentException(
                 "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
                 nameof(token)
-            )
-            : new() { ["Authorization"] = "Bearer " + token };
+            );
+        }
+        /* Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
+         * from env files are commonly stored already-prefixed; emitting
+         * "Bearer Bearer xyz" would otherwise silently break auth. */
+        string value = token ?? string.Empty;
+        if (
+            value.Length >= 7
+            && value.Substring(0, 7).Equals("Bearer ", StringComparison.OrdinalIgnoreCase)
+        )
+        {
+            value = value.Substring(7);
+        }
+        return new() { ["Authorization"] = "Bearer " + value };
     }
 }
