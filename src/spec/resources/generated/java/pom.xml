@@ -302,7 +302,7 @@
         <junit-version>5.10.2</junit-version>
         <error-prone-version>2.41.0</error-prone-version>
         <nullaway-version>0.12.10</nullaway-version>
-        <spotbugs-plugin-version>4.9.6.2</spotbugs-plugin-version>
+        <spotbugs-plugin-version>4.9.3.2</spotbugs-plugin-version>
         <spotbugs-annotations-version>4.9.6</spotbugs-annotations-version>
         <spotless-version>2.46.1</spotless-version>
         <checkstyle-plugin-version>3.6.0</checkstyle-plugin-version>

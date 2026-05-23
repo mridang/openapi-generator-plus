@@ -28,4 +28,7 @@ return RectorConfig::configure()
         // Readonly-class promotion requires all properties immutable;
         // OAuth2TokenManager mutates accessToken/expiresAt internally.
         \Rector\Php82\Rector\Class_\ReadOnlyClassRector::class,
+        // Same for per-property: OAuth2TokenManager state mutates;
+        // we avoid `readonly` to keep mustache emission uniform.
+        \Rector\Php81\Rector\Property\ReadOnlyPropertyRector::class,
     ]);

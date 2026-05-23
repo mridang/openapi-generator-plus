@@ -383,7 +383,7 @@ class ObjectSerializer
         if (!class_exists($class)) {
             return;
         }
-        // class_exists guarantees ReflectionClass won't throw — no try/catch needed.
+        /* class_exists guarantees ReflectionClass won't throw — no try/catch needed. */
         $reflection = new \ReflectionClass($class);
         foreach ($reflection->getProperties() as $property) {
             $type = $property->getType();

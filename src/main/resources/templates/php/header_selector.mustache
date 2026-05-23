@@ -82,7 +82,7 @@ class HeaderSelector
      */
     private function selectJsonMimeList(array $mimeList): array
     {
-        return array_values(array_filter($mimeList, fn (string $mime): bool => $this->isJsonMime($mime)));
+        return array_values(array_filter($mimeList, $this->isJsonMime(...)));
     }
 
     /**
