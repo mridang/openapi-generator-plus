@@ -45,6 +45,17 @@ defmodule {{moduleName}}.Auth.BearerAuthenticator do
 
   @impl true
   def auth_headers(%__MODULE__{} = self) do
-    %{"Authorization" => "Bearer #{self.token}"}
+    # Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read from
+    # env files are commonly stored already-prefixed; emitting
+    # "Bearer Bearer xyz" would otherwise silently break auth.
+    value =
+      case self.token do
+        <<head::binary-size(7), rest::binary>> ->
+          if String.downcase(head) == "bearer ", do: rest, else: self.token
+        _ ->
+          self.token
+      end
+
+    %{"Authorization" => "Bearer #{value}"}
   end
 end

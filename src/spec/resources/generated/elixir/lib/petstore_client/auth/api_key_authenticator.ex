@@ -34,11 +34,19 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticator do
   """
   @spec new(String.t(), String.t(), String.t(), atom()) :: t()
   def new(host, key_param_name, api_key, location) do
-    # RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
-    # Reject anything outside printable ASCII + TAB so callers see a
-    # clear error rather than (a) HTTP header injection from CR/LF,
-    # or (b) silently-mangled non-ASCII bytes that different HTTP
-    # libs encode differently per language.
+    # Validation applies to ALL locations: empty/whitespace API keys
+    # and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
+    # printable-ASCII rule still applies to HEADER values.
+    if api_key == "" or String.trim(api_key) == "" do
+      raise ArgumentError,
+            "API key value for '#{key_param_name}' must not be empty"
+    end
+
+    if api_key =~ ~r/[\r\n\x00]/ do
+      raise ArgumentError,
+            "API key value for '#{key_param_name}' contains forbidden control characters (CR/LF/NUL)"
+    end
+
     if location == :header and api_key =~ ~r/[^\t\x20-\x7E]/ do
       raise ArgumentError,
             "API key for header '#{key_param_name}' must contain only printable ASCII characters (RFC 7230 §3.2.6)"
