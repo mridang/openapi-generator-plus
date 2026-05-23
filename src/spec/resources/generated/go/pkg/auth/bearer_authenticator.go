@@ -7,7 +7,10 @@
 
 package auth
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // BearerAuthenticator provides HTTP Bearer token authentication.
 type BearerAuthenticator struct {
@@ -44,7 +47,14 @@ func (a *BearerAuthenticator) Host() string {
 
 // AuthHeaders returns the Bearer authentication header.
 func (a *BearerAuthenticator) AuthHeaders() map[string]string {
+	// Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read from
+	// env files are commonly stored already-prefixed; emitting
+	// "Bearer Bearer xyz" would otherwise silently break auth.
+	value := a.token
+	if len(value) >= 7 && strings.EqualFold(value[:7], "Bearer ") {
+		value = value[7:]
+	}
 	return map[string]string{
-		"Authorization": "Bearer " + a.token,
+		"Authorization": "Bearer " + value,
 	}
 }
