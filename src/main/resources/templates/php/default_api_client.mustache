@@ -63,11 +63,15 @@ class DefaultApiClient implements ApiClient
                 $options['timeout'] = $this->transportOptions->timeout / 1000.0;
             }
 
-            if (!$this->transportOptions->followRedirects) {
-                $options['max_redirects'] = 0;
-            } elseif ($this->transportOptions->maxRedirects !== null) {
-                $options['max_redirects'] = $this->transportOptions->maxRedirects;
-            }
+            /* Gap BH: Symfony HttpClient re-sends Authorization / Cookie /
+             * Proxy-Authorization across cross-origin 3xx redirects by
+             * default, which leaks bearer tokens to attacker-controlled
+             * hosts via malicious 302. We disable Symfony's built-in
+             * redirect following entirely (max_redirects = 0) and implement
+             * a manual loop in sendRequest() that strips sensitive headers
+             * when the redirect target's origin (scheme + host + port)
+             * differs from the original request's origin. */
+            $options['max_redirects'] = 0;
 
             $this->client = HttpClient::create($options);
         }
@@ -173,6 +177,47 @@ class DefaultApiClient implements ApiClient
 
         try {
             $response = $this->client->request($method, $url, $options);
+
+            /* Gap BH: manual redirect loop with cross-origin sensitive-
+             * header strip. We've disabled Symfony's built-in redirect
+             * follower (max_redirects = 0 in __construct), so we follow
+             * Location: headers ourselves here, removing Authorization /
+             * Cookie / Proxy-Authorization whenever the next URL's origin
+             * differs from the original. */
+            if ($this->transportOptions->followRedirects) {
+                $maxRedirects = $this->transportOptions->maxRedirects ?? 20;
+                $originalUrl = $url;
+                $hops = 0;
+                while ($hops < $maxRedirects && self::isRedirectStatus($response->getStatusCode())) {
+                    $location = ($response->getHeaders(false)['location'] ?? [null])[0];
+                    if ($location === null) {
+                        break;
+                    }
+                    $nextUrl = self::resolveUrl($url, $location);
+                    if ($nextUrl === null) {
+                        break;
+                    }
+                    $scheme = parse_url($nextUrl, PHP_URL_SCHEME);
+                    if (!in_array(strtolower((string) $scheme), ['http', 'https'], true)) {
+                        break;
+                    }
+                    $crossOrigin = !self::sameOrigin($originalUrl, $nextUrl);
+                    $redirectHeaders = $mergedHeaders;
+                    if ($crossOrigin) {
+                        foreach (array_keys($redirectHeaders) as $hname) {
+                            $lower = strtolower((string) $hname);
+                            if (in_array($lower, ['authorization', 'cookie', 'proxy-authorization'], true)) {
+                                unset($redirectHeaders[$hname]);
+                            }
+                        }
+                    }
+                    $redirectOptions = $options;
+                    $redirectOptions['headers'] = $redirectHeaders;
+                    $url = $nextUrl;
+                    $response = $this->client->request($method, $nextUrl, $redirectOptions);
+                    $hops++;
+                }
+            }
 
             $responseBody = $response->getContent(false);
             $rawHeaders = $response->getHeaders(false);
@@ -412,6 +457,67 @@ class DefaultApiClient implements ApiClient
         $data[8] = chr((ord($data[8]) & 0x3f) | 0x80);
 
         return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
+    }
+
+    /**
+     * Return true for HTTP 3xx redirect status codes that carry a Location header.
+     */
+    private static function isRedirectStatus(int $code): bool
+    {
+        return in_array($code, [301, 302, 303, 307, 308], true);
+    }
+
+    /**
+     * Resolve a (possibly relative) Location header against the previous URL.
+     */
+    private static function resolveUrl(string $base, string $location): ?string
+    {
+        $parsed = parse_url($location);
+        if ($parsed === false) {
+            return null;
+        }
+        if (isset($parsed['scheme'])) {
+            return $location;
+        }
+        $baseParts = parse_url($base);
+        if ($baseParts === false || !isset($baseParts['scheme'], $baseParts['host'])) {
+            return null;
+        }
+        $scheme = $baseParts['scheme'];
+        $host = $baseParts['host'];
+        $port = isset($baseParts['port']) ? ':' . $baseParts['port'] : '';
+        if (str_starts_with($location, '//')) {
+            return $scheme . ':' . $location;
+        }
+        if (str_starts_with($location, '/')) {
+            return $scheme . '://' . $host . $port . $location;
+        }
+        $basePath = $baseParts['path'] ?? '/';
+        $basePath = substr($basePath, 0, (int) strrpos($basePath, '/') + 1) ?: '/';
+
+        return $scheme . '://' . $host . $port . $basePath . $location;
+    }
+
+    /**
+     * Compare two URLs by scheme + host + effective port.
+     */
+    private static function sameOrigin(string $a, string $b): bool
+    {
+        $pa = parse_url($a);
+        $pb = parse_url($b);
+        if ($pa === false || $pb === false) {
+            return false;
+        }
+        if (strtolower($pa['scheme'] ?? '') !== strtolower($pb['scheme'] ?? '')) {
+            return false;
+        }
+        if (strtolower($pa['host'] ?? '') !== strtolower($pb['host'] ?? '')) {
+            return false;
+        }
+        $portA = $pa['port'] ?? (strtolower($pa['scheme'] ?? '') === 'https' ? 443 : 80);
+        $portB = $pb['port'] ?? (strtolower($pb['scheme'] ?? '') === 'https' ? 443 : 80);
+
+        return $portA === $portB;
     }
 
     /**

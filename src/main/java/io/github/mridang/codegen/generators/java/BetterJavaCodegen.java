@@ -572,8 +572,24 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         if (generateTests) {
             final String testFolder =
                     Path.of("src", "test", "java", invokerPackage.replace(".", "/")).toString();
+            final String testAuthFolder =
+                    Path.of(testFolder, "auth").toString();
             final String testAuthOauthFolder =
                     Path.of(testFolder, "auth", "oauth").toString();
+            if (hasBearerAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/BearerAuthenticatorTest.mustache",
+                                testAuthFolder,
+                                "BearerAuthenticatorTest.java"));
+            }
+            if (hasApiKeyAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/ApiKeyAuthenticatorTest.mustache",
+                                testAuthFolder,
+                                "ApiKeyAuthenticatorTest.java"));
+            }
             if (hasAnyOAuth2 || hasOpenIdConnect) {
                 supportingFiles.add(
                         new SupportingFile(

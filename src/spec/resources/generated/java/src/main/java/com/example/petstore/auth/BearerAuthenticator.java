@@ -45,6 +45,16 @@ public class BearerAuthenticator extends BaseAuthenticator {
         }
       }
     }
-    return Collections.singletonMap("Authorization", "Bearer " + token);
+    /* Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
+     * from env files are commonly stored already-prefixed; emitting
+     * "Bearer Bearer xyz" would otherwise silently break auth. */
+    String value = token;
+    if (value != null && value.length() >= 7) {
+      String head = value.substring(0, 7);
+      if ("bearer ".equalsIgnoreCase(head)) {
+        value = value.substring(7);
+      }
+    }
+    return Collections.singletonMap("Authorization", "Bearer " + value);
   }
 }

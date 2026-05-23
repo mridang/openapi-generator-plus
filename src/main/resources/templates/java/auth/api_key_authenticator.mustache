@@ -29,19 +29,35 @@ public class ApiKeyAuthenticator extends BaseAuthenticator {
         return host;
     }
 
-    @Override
-    public Map<String, String> getAuthHeaders() {
-        if (location != ApiKeyLocation.HEADER) {
-            return Collections.emptyMap();
+    private void validateApiKey() {
+        /* Validation applies to ALL locations: empty/whitespace API keys
+         * are always a programmer error; CR/LF/NUL would either inject
+         * HTTP headers (HEADER location) or break URL/cookie construction
+         * (QUERY/COOKIE — even though URL-encoded later, trapping at
+         * construction surfaces the bug clearly). RFC 7230 §3.2.6 printable-
+         * ASCII rule still applies to HEADER values. Validation is lazy
+         * (not in constructor) to avoid SpotBugs CT_CONSTRUCTOR_THROW. */
+        if (apiKey == null || apiKey.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "API key value for '" + keyParamName + "' must not be empty");
         }
-        /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
-         * Reject anything outside printable ASCII + TAB at use time so
-         * callers see a clear error rather than (a) HTTP header injection
-         * from a CR/LF, or (b) silently-mangled non-ASCII bytes that
-         * different HTTP libs encode differently per language. Validation
-         * is lazy (not in the constructor) to avoid SpotBugs
-         * CT_CONSTRUCTOR_THROW on a non-final class. */
-        if (apiKey != null) {
+        boolean allWhitespace = true;
+        for (int i = 0; i < apiKey.length(); i++) {
+            char c = apiKey.charAt(i);
+            if (c == '\r' || c == '\n' || c == '\0') {
+                throw new IllegalArgumentException(
+                        "API key value for '" + keyParamName
+                                + "' contains forbidden control characters (CR/LF/NUL)");
+            }
+            if (!Character.isWhitespace(c)) {
+                allWhitespace = false;
+            }
+        }
+        if (allWhitespace) {
+            throw new IllegalArgumentException(
+                    "API key value for '" + keyParamName + "' must not be empty");
+        }
+        if (location == ApiKeyLocation.HEADER) {
             for (int i = 0; i < apiKey.length(); i++) {
                 char c = apiKey.charAt(i);
                 if (c != '\t' && (c < 0x20 || c >= 0x7F)) {
@@ -51,22 +67,32 @@ public class ApiKeyAuthenticator extends BaseAuthenticator {
                 }
             }
         }
+    }
+
+    @Override
+    public Map<String, String> getAuthHeaders() {
+        if (location != ApiKeyLocation.HEADER) {
+            return Collections.emptyMap();
+        }
+        validateApiKey();
         return Collections.singletonMap(keyParamName, apiKey);
     }
 
     @Override
     public Map<String, String> getQueryParams() {
-        if (location == ApiKeyLocation.QUERY) {
-            return Collections.singletonMap(keyParamName, apiKey);
+        if (location != ApiKeyLocation.QUERY) {
+            return Collections.emptyMap();
         }
-        return Collections.emptyMap();
+        validateApiKey();
+        return Collections.singletonMap(keyParamName, apiKey);
     }
 
     @Override
     public Map<String, String> getCookieParams() {
-        if (location == ApiKeyLocation.COOKIE) {
-            return Collections.singletonMap(keyParamName, apiKey);
+        if (location != ApiKeyLocation.COOKIE) {
+            return Collections.emptyMap();
         }
-        return Collections.emptyMap();
+        validateApiKey();
+        return Collections.singletonMap(keyParamName, apiKey);
     }
 }
