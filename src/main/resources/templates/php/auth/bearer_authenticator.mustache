@@ -32,6 +32,13 @@ class BearerAuthenticator extends BaseAuthenticator
     /** @return array<string, string> */
     public function getAuthHeaders(): array
     {
-        return ['Authorization' => 'Bearer ' . $this->token];
+        /* Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
+         * from env files are commonly stored already-prefixed; emitting
+         * "Bearer Bearer xyz" would otherwise silently break auth. */
+        $value = $this->token;
+        if (strlen($value) >= 7 && strcasecmp(substr($value, 0, 7), 'Bearer ') === 0) {
+            $value = substr($value, 7);
+        }
+        return ['Authorization' => 'Bearer ' . $value];
     }
 }

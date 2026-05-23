@@ -14,11 +14,19 @@ class ApiKeyAuthenticator extends BaseAuthenticator
 
     public function __construct(string $host, string $keyParamName, string $apiKey, ApiKeyLocation $location)
     {
-        /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
-         * Reject anything outside printable ASCII + TAB so callers see
-         * a clear error rather than (a) HTTP header injection from
-         * CR/LF, or (b) silently-mangled non-ASCII bytes that different
-         * HTTP libs encode differently per language. */
+        /* Validation applies to ALL locations: empty/whitespace API keys
+         * and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
+         * printable-ASCII rule still applies to HEADER values. */
+        if ($apiKey === '' || trim($apiKey) === '') {
+            throw new \InvalidArgumentException(
+                "API key value for '{$keyParamName}' must not be empty"
+            );
+        }
+        if (preg_match('/[\r\n\x00]/', $apiKey) === 1) {
+            throw new \InvalidArgumentException(
+                "API key value for '{$keyParamName}' contains forbidden control characters (CR/LF/NUL)"
+            );
+        }
         if (
             $location === ApiKeyLocation::HEADER
             && preg_match('/[^\t\x20-\x7E]/', $apiKey) === 1
