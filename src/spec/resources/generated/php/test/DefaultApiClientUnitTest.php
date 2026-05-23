@@ -135,14 +135,14 @@ class DefaultApiClientUnitTest extends TestCase
             function (string $method, string $url, array $options) use (&$capturedHeaders): MockResponse {
                 $capturedHeaders = [];
                 foreach ($options['normalized_headers'] ?? [] as $values) {
-                    [$name, $value] = explode(': ', $values[0], 2);
+                    [$name, $value] = explode(': ', (string) $values[0], 2);
                     $capturedHeaders[$name] = $value;
                 }
                 return new MockResponse('{}', ['http_code' => 200]);
             }
         );
 
-        $transport = (new TransportOptionsBuilder())
+        $transport = new TransportOptionsBuilder()
             ->userAgent('MyApp/1.0')
             ->build();
         $client = new DefaultApiClient($transport, $mockClient);
@@ -158,7 +158,7 @@ class DefaultApiClientUnitTest extends TestCase
             function (string $method, string $url, array $options) use (&$capturedHeaders): MockResponse {
                 $capturedHeaders = [];
                 foreach ($options['normalized_headers'] ?? [] as $values) {
-                    [$name, $value] = explode(': ', $values[0], 2);
+                    [$name, $value] = explode(': ', (string) $values[0], 2);
                     $capturedHeaders[$name] = $value;
                 }
                 return new MockResponse('{}', ['http_code' => 200]);
@@ -178,14 +178,14 @@ class DefaultApiClientUnitTest extends TestCase
             function (string $method, string $url, array $options) use (&$capturedHeaders): MockResponse {
                 $capturedHeaders = [];
                 foreach ($options['normalized_headers'] ?? [] as $values) {
-                    [$name, $value] = explode(': ', $values[0], 2);
+                    [$name, $value] = explode(': ', (string) $values[0], 2);
                     $capturedHeaders[$name] = $value;
                 }
                 return new MockResponse('{}', ['http_code' => 200]);
             }
         );
 
-        $transport = (new TransportOptionsBuilder())
+        $transport = new TransportOptionsBuilder()
             ->injectRequestId(true)
             ->build();
         $client = new DefaultApiClient($transport, $mockClient);
@@ -206,14 +206,14 @@ class DefaultApiClientUnitTest extends TestCase
             function (string $method, string $url, array $options) use (&$capturedHeaders): MockResponse {
                 $capturedHeaders = [];
                 foreach ($options['normalized_headers'] ?? [] as $values) {
-                    [$name, $value] = explode(': ', $values[0], 2);
+                    [$name, $value] = explode(': ', (string) $values[0], 2);
                     $capturedHeaders[$name] = $value;
                 }
                 return new MockResponse('{}', ['http_code' => 200]);
             }
         );
 
-        $transport = (new TransportOptionsBuilder())
+        $transport = new TransportOptionsBuilder()
             ->injectRequestId(false)
             ->build();
         $client = new DefaultApiClient($transport, $mockClient);
@@ -229,14 +229,14 @@ class DefaultApiClientUnitTest extends TestCase
             function (string $method, string $url, array $options) use (&$capturedHeaders): MockResponse {
                 $capturedHeaders = [];
                 foreach ($options['normalized_headers'] ?? [] as $values) {
-                    [$name, $value] = explode(': ', $values[0], 2);
+                    [$name, $value] = explode(': ', (string) $values[0], 2);
                     $capturedHeaders[$name] = $value;
                 }
                 return new MockResponse('{}', ['http_code' => 200]);
             }
         );
 
-        $transport = (new TransportOptionsBuilder())
+        $transport = new TransportOptionsBuilder()
             ->injectRequestId(true)
             ->build();
         $client = new DefaultApiClient($transport, $mockClient);
@@ -253,7 +253,7 @@ class DefaultApiClientUnitTest extends TestCase
             function (string $method, string $url, array $options) use (&$capturedIds): MockResponse {
                 $requestHeaders = [];
                 foreach ($options['normalized_headers'] ?? [] as $values) {
-                    [$name, $value] = explode(': ', $values[0], 2);
+                    [$name, $value] = explode(': ', (string) $values[0], 2);
                     $requestHeaders[$name] = $value;
                 }
                 $capturedIds[] = $requestHeaders['X-Request-ID'] ?? null;
@@ -264,7 +264,7 @@ class DefaultApiClientUnitTest extends TestCase
             function (string $method, string $url, array $options) use (&$capturedIds): MockResponse {
                 $requestHeaders = [];
                 foreach ($options['normalized_headers'] ?? [] as $values) {
-                    [$name, $value] = explode(': ', $values[0], 2);
+                    [$name, $value] = explode(': ', (string) $values[0], 2);
                     $requestHeaders[$name] = $value;
                 }
                 $capturedIds[] = $requestHeaders['X-Request-ID'] ?? null;
@@ -272,7 +272,7 @@ class DefaultApiClientUnitTest extends TestCase
             }
         );
 
-        $transport = (new TransportOptionsBuilder())
+        $transport = new TransportOptionsBuilder()
             ->injectRequestId(true)
             ->build();
 
@@ -293,14 +293,14 @@ class DefaultApiClientUnitTest extends TestCase
             function (string $method, string $url, array $options) use (&$capturedHeaders): MockResponse {
                 $capturedHeaders = [];
                 foreach ($options['normalized_headers'] ?? [] as $values) {
-                    [$name, $value] = explode(': ', $values[0], 2);
+                    [$name, $value] = explode(': ', (string) $values[0], 2);
                     $capturedHeaders[$name] = $value;
                 }
                 return new MockResponse('{}', ['http_code' => 200]);
             }
         );
 
-        $transport = (new TransportOptionsBuilder())
+        $transport = new TransportOptionsBuilder()
             ->defaultHeader('X-Custom', 'custom-value')
             ->build();
         $client = new DefaultApiClient($transport, $mockClient);
@@ -316,14 +316,14 @@ class DefaultApiClientUnitTest extends TestCase
             function (string $method, string $url, array $options) use (&$capturedHeaders): MockResponse {
                 $capturedHeaders = [];
                 foreach ($options['normalized_headers'] ?? [] as $values) {
-                    [$name, $value] = explode(': ', $values[0], 2);
+                    [$name, $value] = explode(': ', (string) $values[0], 2);
                     $capturedHeaders[$name] = $value;
                 }
                 return new MockResponse('{}', ['http_code' => 200]);
             }
         );
 
-        $transport = (new TransportOptionsBuilder())
+        $transport = new TransportOptionsBuilder()
             ->defaultHeader('Accept', 'text/plain')
             ->build();
         $client = new DefaultApiClient($transport, $mockClient);
@@ -490,7 +490,7 @@ class DefaultApiClientUnitTest extends TestCase
     {
         // Verify the transport accepts a proxy URL embedding user:pass and exposes it.
         // The actual proxy-auth header is constructed by Symfony's underlying CurlHttpClient.
-        $opts = (new TransportOptionsBuilder())
+        $opts = new TransportOptionsBuilder()
             ->proxy('http://user:secret@proxy.example.com:8080')
             ->build();
 

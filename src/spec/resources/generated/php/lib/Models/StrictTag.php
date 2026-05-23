@@ -39,7 +39,7 @@ class StrictTag
         foreach (array_keys($data) as $key) {
             if (!in_array($key, $declared, true)) {
                 throw new \InvalidArgumentException(
-                    "Unknown property '" . (string) $key
+                    "Unknown property '" . $key
                         . "' on StrictTag (unevaluatedProperties:false)"
                 );
             }

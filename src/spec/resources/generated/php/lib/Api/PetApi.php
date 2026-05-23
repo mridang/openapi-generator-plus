@@ -193,7 +193,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet',
+            \PetstoreClient\Models\Pet::class,
             $auth
         );
         return $result;
@@ -251,7 +251,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'multipart/form-data',
-            '\PetstoreClient\Models\Photo[]'
+            \PetstoreClient\Models\Photo[]::class
         );
         return $result;
     }
@@ -302,7 +302,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\PetTreatment',
+            \PetstoreClient\Models\PetTreatment::class,
             $auth
         );
         return $result;
@@ -429,21 +429,19 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/octet-stream'],
             'application/json',
-            '\SplFileObject'
+            \SplFileObject::class
         );
         return $result;
     }
 
     /**
      * Finds Pets by status
-
      * @param FindPetsByStatusOptions $options Options for query, header, form, and cookie parameters
-
      * @return \PetstoreClient\Models\Pet[]
      * @throws \PetstoreClient\ApiException
-     * @deprecated This operation is deprecated.
      * @see https://example.com/docs/filtering Find out more about filtering
      */
+    #[\Deprecated(message: 'This operation is deprecated.')]
     public function findPetsByStatus(FindPetsByStatusOptions $options)
     {
         /** @var \PetstoreClient\Models\Pet[] $result */
@@ -482,7 +480,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet[]'
+            \PetstoreClient\Models\Pet[]::class
         );
         return $result;
     }
@@ -538,7 +536,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet'
+            \PetstoreClient\Models\Pet::class
         );
         return $result;
     }
@@ -594,7 +592,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet'
+            \PetstoreClient\Models\Pet::class
         );
         return $result;
     }
@@ -645,7 +643,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['image/jpeg', 'image/png'],
             'application/json',
-            '\SplFileObject'
+            \SplFileObject::class
         );
         return $result;
     }
@@ -696,7 +694,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            'string'
+            string::class
         );
         return $result;
     }
@@ -707,11 +705,10 @@ class PetApi extends BaseApi
      * @param int $petId ID of pet to return
      * @example 1 Small breed ID
      * @example 42 Large breed ID
-
      * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\ApiException
-     * @deprecated This operation is deprecated.
      */
+    #[\Deprecated(message: 'This operation is deprecated.')]
     public function getPetById(int $petId, ?GetPetByIdServer $server = null)
     {
         /** @var \PetstoreClient\Models\Pet $result */
@@ -758,7 +755,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet'
+            \PetstoreClient\Models\Pet::class
         );
         return $result;
     }
@@ -809,7 +806,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\PetPassport'
+            \PetstoreClient\Models\PetPassport::class
         );
         return $result;
     }
@@ -871,7 +868,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['image/jpeg', 'image/png', 'application/json'],
             'application/json',
-            '\SplFileObject'
+            \SplFileObject::class
         );
         return $result;
     }
@@ -947,7 +944,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet'
+            \PetstoreClient\Models\Pet::class
         );
         return $result;
     }
@@ -1003,7 +1000,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet'
+            \PetstoreClient\Models\Pet::class
         );
         return $result;
     }
@@ -1153,7 +1150,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet'
+            \PetstoreClient\Models\Pet::class
         );
         return $result;
     }
@@ -1209,7 +1206,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'multipart/form-data',
-            '\PetstoreClient\Models\ApiResponse'
+            \PetstoreClient\Models\ApiResponse::class
         );
         return $result;
     }
@@ -1271,7 +1268,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'multipart/form-data',
-            '\PetstoreClient\Models\ApiResponse'
+            \PetstoreClient\Models\ApiResponse::class
         );
         return $result;
     }

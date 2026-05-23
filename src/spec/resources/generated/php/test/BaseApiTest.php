@@ -378,7 +378,7 @@ class BaseApiTest extends TestCase
         $api = new PetApi($client, $config);
         try {
             $api->findPetsByStatus(new FindPetsByStatusOptions());
-        } catch (\Exception $e) {
+        } catch (\Exception) {
             // Response deserialization may fail; we only care about the captured URL
         }
         $this->assertStringContainsString('status=', $client->capturedUrl);

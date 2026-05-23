@@ -176,6 +176,10 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     protected String[] getFormatterCommands() {
         return new String[] {
             "COMPOSER_PROCESS_TIMEOUT=600 composer install --no-interaction --prefer-dist",
+            // Rector --dry-run is what PhpModernizationSpec runs to verify. Run
+            // it in write mode here so generated code is rector-applied before
+            // the spec check runs.
+            "vendor/bin/rector process --no-progress-bar || true",
             "vendor/bin/php-cs-fixer fix --quiet || true",
             "vendor/bin/phpcbf || true",
             "rm -rf vendor"

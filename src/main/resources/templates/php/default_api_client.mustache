@@ -359,7 +359,7 @@ class DefaultApiClient implements ApiClient
                 $aliases = [];
             }
             foreach ($aliases as $alias) {
-                if (in_array(strtolower($alias), array_map('strtolower', $encodings), true)) {
+                if (in_array(strtolower($alias), array_map(strtolower(...), $encodings), true)) {
                     $known = true;
                     break;
                 }
