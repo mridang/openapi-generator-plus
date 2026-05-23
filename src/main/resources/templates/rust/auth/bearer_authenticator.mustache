@@ -43,10 +43,21 @@ impl Authenticator for BearerAuthenticator {
         &'a self,
     ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
         Box::pin(async move {
+            // Dedupe "Bearer " prefix (case-insensitive ASCII): tokens
+            // read from env files are commonly stored already-prefixed;
+            // emitting "Bearer Bearer xyz" would otherwise silently
+            // break auth.
+            let value: &str = if self.token.len() >= 7
+                && self.token.as_bytes()[..7].eq_ignore_ascii_case(b"Bearer ")
+            {
+                &self.token[7..]
+            } else {
+                &self.token
+            };
             let mut headers = HashMap::new();
             headers.insert(
                 "Authorization".to_string(),
-                format!("Bearer {}", self.token),
+                format!("Bearer {}", value),
             );
             headers
         })

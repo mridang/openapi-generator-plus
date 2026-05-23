@@ -33,13 +33,20 @@ impl ApiKeyAuthenticator {
     /// * `api_key` - the API key value
     /// * `location` - where to send the key (header, query, or cookie)
     pub fn new(host: &str, key_param_name: &str, api_key: &str, location: ApiKeyLocation) -> Self {
-        // RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
-        // Reject anything outside printable ASCII + TAB so callers see
-        // a clear error rather than (a) HTTP header injection from
-        // CR/LF, or (b) silently-mangled non-ASCII bytes that different
-        // HTTP libs encode differently per language. panic is appropriate
-        // because this is a programmer error, not a recoverable runtime
-        // condition.
+        // Validation applies to ALL locations: empty/whitespace API keys
+        // and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
+        // printable-ASCII rule still applies to HEADER values. panic is
+        // appropriate because this is a programmer error, not a recoverable
+        // runtime condition.
+        if api_key.is_empty() || api_key.trim().is_empty() {
+            panic!("API key value for '{}' must not be empty", key_param_name);
+        }
+        if api_key.chars().any(|c| c == '\r' || c == '\n' || c == '\0') {
+            panic!(
+                "API key value for '{}' contains forbidden control characters (CR/LF/NUL)",
+                key_param_name
+            );
+        }
         if location == ApiKeyLocation::Header
             && api_key
                 .chars()
