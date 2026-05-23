@@ -219,6 +219,89 @@ func TestOAuth2TokenManager_ThrowsWhenNoApiClientInjected(t *testing.T) {
 	}
 }
 
+func TestOAuth2TokenManager_ExpiresInShortLivedTokenDoesNotStorm(t *testing.T) {
+	// Gap CM: a short-lived token (expires_in < buffer) must produce exactly
+	// ONE network call from a single GetAccessToken invocation.
+	client := newFakeTokenClient(fakeResponse{
+		body:       `{"access_token":"short","expires_in":10}`,
+		statusCode: 200,
+	})
+
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	token, err := manager.GetAccessToken("https://auth.example.com/token", map[string]string{
+		"grant_type": "client_credentials",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if token != "short" {
+		t.Errorf("expected token 'short', got %q", token)
+	}
+	if atomic.LoadInt32(&client.index) != 1 {
+		t.Errorf("expected 1 network call, got %d", atomic.LoadInt32(&client.index))
+	}
+}
+
+func TestOAuth2TokenManager_ExpiresInLongLivedTokenAppliesFullBuffer(t *testing.T) {
+	// Gap CM: long-lived token gets full 30s buffer; second call uses cache.
+	client := newFakeTokenClient(fakeResponse{
+		body:       `{"access_token":"long","expires_in":3600}`,
+		statusCode: 200,
+	})
+
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	params := map[string]string{"grant_type": "client_credentials"}
+
+	first, err := manager.GetAccessToken("https://auth.example.com/token", params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	second, err := manager.GetAccessToken("https://auth.example.com/token", params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if first != "long" || second != "long" {
+		t.Errorf("expected both tokens 'long', got %q and %q", first, second)
+	}
+	if atomic.LoadInt32(&client.index) != 1 {
+		t.Errorf("expected 1 network call (cached), got %d", atomic.LoadInt32(&client.index))
+	}
+}
+
+func TestOAuth2TokenManager_ExpiresInExactlyBufferReturnsZeroBuffer(t *testing.T) {
+	// Gap CM: expires_in == 30 collapses expiry to now, forcing refetch.
+	client := newFakeTokenClient(
+		fakeResponse{body: `{"access_token":"edge1","expires_in":30}`, statusCode: 200},
+		fakeResponse{body: `{"access_token":"edge2","expires_in":30}`, statusCode: 200},
+	)
+
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	params := map[string]string{"grant_type": "client_credentials"}
+
+	first, err := manager.GetAccessToken("https://auth.example.com/token", params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	second, err := manager.GetAccessToken("https://auth.example.com/token", params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if first != "edge1" {
+		t.Errorf("expected first token 'edge1', got %q", first)
+	}
+	if second != "edge2" {
+		t.Errorf("expected second token 'edge2', got %q", second)
+	}
+}
+
 func TestOAuth2TokenManager_ThrowsWhenTokenRequestFails(t *testing.T) {
 	client := newFakeTokenClient(fakeResponse{
 		body:       `{"error":"invalid_client"}`,

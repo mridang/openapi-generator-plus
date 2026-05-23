@@ -152,6 +152,70 @@ describe('OAuth2TokenManager', () => {
     ).rejects.toThrow();
   });
 
+  test('expires_in short-lived token does not storm', async () => {
+    // Gap CM: short-lived token (expires_in < buffer) must produce exactly
+    // one network call from a single getAccessToken invocation.
+    mockClient.responseBody = JSON.stringify({
+      access_token: 'short',
+      expires_in: 10
+    });
+
+    const token = await tokenManager.getAccessToken('https://auth.example.com/token', {
+      grant_type: 'client_credentials'
+    });
+
+    expect(token).toBe('short');
+    expect(mockClient.callCount).toBe(1);
+  });
+
+  test('expires_in long-lived token applies full buffer', async () => {
+    // Gap CM: long-lived token gets the full 30s buffer; second call serves
+    // from cache.
+    mockClient.responseBody = JSON.stringify({
+      access_token: 'long',
+      expires_in: 3600
+    });
+
+    const first = await tokenManager.getAccessToken('https://auth.example.com/token', {
+      grant_type: 'client_credentials'
+    });
+    const second = await tokenManager.getAccessToken('https://auth.example.com/token', {
+      grant_type: 'client_credentials'
+    });
+
+    expect(first).toBe('long');
+    expect(second).toBe('long');
+    expect(mockClient.callCount).toBe(1);
+  });
+
+  test('expires_in exactly buffer returns zero buffer', async () => {
+    // Gap CM: expires_in == 30 collapses expiry to now, forcing refetch.
+    let n = 0;
+    const stepClient: ApiClient = {
+      async sendRequest(): Promise<ApiResponse> {
+        n++;
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ access_token: `edge${n}`, expires_in: 30 }),
+          headers: { 'content-type': 'application/json' }
+        };
+      }
+    };
+    const manager = new OAuth2TokenManager();
+    manager.setApiClient(stepClient);
+
+    const first = await manager.getAccessToken('https://auth.example.com/token', {
+      grant_type: 'client_credentials'
+    });
+    const second = await manager.getAccessToken('https://auth.example.com/token', {
+      grant_type: 'client_credentials'
+    });
+
+    expect(first).toBe('edge1');
+    expect(second).toBe('edge2');
+    expect(n).toBe(2);
+  });
+
   test('coalesces concurrent refresh calls into single token request', async () => {
     let pendingResolve: ((value: ApiResponse) => void) | null = null;
     let networkCalls = 0;

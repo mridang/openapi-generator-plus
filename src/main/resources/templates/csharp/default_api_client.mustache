@@ -393,18 +393,30 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         {
             case byte[] bytes:
             {
+                ValidateMultipartFilename(name);
                 ByteArrayContent content = new(bytes);
                 content.Headers.ContentType =
                     new System.Net.Http.Headers.MediaTypeHeaderValue(GetMimeType(name));
-                multipart.Add(content, name, name);
+                _ = content.Headers.Remove("Content-Disposition");
+                _ = content.Headers.TryAddWithoutValidation(
+                    "Content-Disposition",
+                    "form-data; name=\"" + EscapeQuotedString(name) + "\"; "
+                        + BuildFilenameDirective(name));
+                multipart.Add(content);
                 break;
             }
             case Stream stream:
             {
+                ValidateMultipartFilename(name);
                 StreamContent content = new(stream);
                 content.Headers.ContentType =
                     new System.Net.Http.Headers.MediaTypeHeaderValue(GetMimeType(name));
-                multipart.Add(content, name, name);
+                _ = content.Headers.Remove("Content-Disposition");
+                _ = content.Headers.TryAddWithoutValidation(
+                    "Content-Disposition",
+                    "form-data; name=\"" + EscapeQuotedString(name) + "\"; "
+                        + BuildFilenameDirective(name));
+                multipart.Add(content);
                 break;
             }
             case string s:
@@ -423,6 +435,102 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                 }
                 break;
         }
+    }
+
+    /// <summary>
+    /// Rejects multipart filenames that would allow Content-Disposition
+    /// header injection or smuggling. Throws <see cref="ArgumentException"/>
+    /// when the filename contains CR, LF, or NUL characters.
+    /// </summary>
+    /// <param name="filename">The filename to validate.</param>
+    public static void ValidateMultipartFilename(string? filename)
+    {
+        if (filename is null)
+        {
+            return;
+        }
+        foreach (char c in filename)
+        {
+            if (c == '\r' || c == '\n' || c == '\0')
+            {
+                throw new ArgumentException(
+                    "multipart filename must not contain CR, LF, or NUL characters",
+                    nameof(filename));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Builds the <c>filename=...</c> directive for a multipart
+    /// Content-Disposition part. For ASCII-only filenames emits a
+    /// quote/backslash-escaped <c>filename="..."</c>. For non-ASCII filenames
+    /// additionally emits an RFC 5987 <c>filename*=UTF-8''&lt;pct&gt;</c>
+    /// parameter alongside an ASCII fallback (non-ASCII bytes replaced
+    /// with <c>_</c>).
+    /// </summary>
+    /// <param name="filename">The (validated) filename.</param>
+    /// <returns>The directive string suitable for a Content-Disposition header.</returns>
+    public static string BuildFilenameDirective(string filename)
+    {
+        ArgumentNullException.ThrowIfNull(filename);
+        string escaped = EscapeQuotedString(filename);
+        bool ascii = true;
+        foreach (char c in filename)
+        {
+            if (c > 0x7F)
+            {
+                ascii = false;
+                break;
+            }
+        }
+        if (ascii)
+        {
+            return "filename=\"" + escaped + "\"";
+        }
+        StringBuilder fallback = new();
+        foreach (char c in filename)
+        {
+            char safe = (c > 0x7F || c < 0x20 || c == 0x7F) ? '_' : c;
+            _ = fallback.Append(safe);
+        }
+        string fallbackEscaped = EscapeQuotedString(fallback.ToString());
+        string encoded = Rfc5987EncodeValue(filename);
+        return "filename=\"" + fallbackEscaped + "\"; filename*=UTF-8''" + encoded;
+    }
+
+    private static string EscapeQuotedString(string s)
+    {
+        return s.Replace("\\", "\\\\", StringComparison.Ordinal)
+                .Replace("\"", "\\\"", StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Percent-encodes every byte that is not an RFC 3986 §2.3 unreserved
+    /// character, producing the value-chars production of RFC 5987 §3.2.1.
+    /// </summary>
+    public static string Rfc5987EncodeValue(string s)
+    {
+        ArgumentNullException.ThrowIfNull(s);
+        const string hex = "0123456789ABCDEF";
+        byte[] bytes = Encoding.UTF8.GetBytes(s);
+        StringBuilder sb = new(bytes.Length * 3);
+        foreach (byte b in bytes)
+        {
+            bool isUnreserved =
+                (b >= (byte)'A' && b <= (byte)'Z') ||
+                (b >= (byte)'a' && b <= (byte)'z') ||
+                (b >= (byte)'0' && b <= (byte)'9') ||
+                b == (byte)'-' || b == (byte)'.' || b == (byte)'_' || b == (byte)'~';
+            if (isUnreserved)
+            {
+                _ = sb.Append((char)b);
+                continue;
+            }
+            _ = sb.Append('%');
+            _ = sb.Append(hex[b >> 4]);
+            _ = sb.Append(hex[b & 0x0F]);
+        }
+        return sb.ToString();
     }
 
     /// <summary>

@@ -235,6 +235,83 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert CountingApiClient.call_count(counting_client) == 1
     end
 
+    test "expires_in short-lived token does not storm" do
+      # Gap CM: short-lived token (expires_in < buffer) must produce exactly
+      # ONE network call from a single get_access_token invocation.
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "short", "expires_in" => 10})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      token =
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+          manager,
+          "https://auth.example.com/token",
+          %{"grant_type" => "client_credentials"}
+        )
+
+      assert token == "short"
+      assert FakeApiClient.call_count(fake_client) == 1
+    end
+
+    test "expires_in long-lived token applies full buffer" do
+      # Gap CM: long-lived token gets full 30s buffer; second call uses cache.
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "long", "expires_in" => 3600})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "client_credentials"}
+      token_url = "https://auth.example.com/token"
+
+      first = PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+      second = PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+
+      assert first == "long"
+      assert second == "long"
+      assert FakeApiClient.call_count(fake_client) == 1
+    end
+
+    test "expires_in exactly buffer returns zero buffer" do
+      # Gap CM: expires_in == 30 collapses expiry to now, forcing refetch.
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "edge1", "expires_in" => 30})
+          },
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "edge2", "expires_in" => 30})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "client_credentials"}
+      token_url = "https://auth.example.com/token"
+
+      first = PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+      second = PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+
+      assert first == "edge1"
+      assert second == "edge2"
+      assert FakeApiClient.call_count(fake_client) == 2
+    end
+
     test "throws when token request fails" do
       fake_client =
         FakeApiClient.new([

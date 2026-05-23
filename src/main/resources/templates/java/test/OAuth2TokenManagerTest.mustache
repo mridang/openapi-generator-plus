@@ -145,6 +145,78 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
+    void expiresInShortLivedTokenDoesNotStorm() {
+        // Gap CM: short-lived tokens (expires_in < safety buffer) must not
+        // trigger a refresh storm — a single getAccessToken call must
+        // produce exactly ONE network request, no inner retry loop.
+        AtomicInteger callCount = new AtomicInteger(0);
+        ApiClient client = (method, url, headers, body) -> {
+            callCount.incrementAndGet();
+            return new ApiResponse(200,
+                    "{\"access_token\":\"short\",\"expires_in\":10}", Map.of());
+        };
+
+        OAuth2TokenManager manager = new OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        Map<String, String> params = new HashMap<>();
+        params.put("grant_type", "client_credentials");
+        String token = manager.getAccessToken("https://auth.example.com/token", params);
+
+        assertEquals("short", token);
+        assertEquals(1, callCount.get());
+    }
+
+    @Test
+    void expiresInLongLivedTokenAppliesFullBuffer() {
+        // Gap CM: long-lived tokens get the full 30s safety margin clamped
+        // by min(expires_in, 30). With expires_in=3600 the token must remain
+        // valid (cached) on a second call within the same instant.
+        AtomicInteger callCount = new AtomicInteger(0);
+        ApiClient client = (method, url, headers, body) -> {
+            callCount.incrementAndGet();
+            return new ApiResponse(200,
+                    "{\"access_token\":\"long\",\"expires_in\":3600}", Map.of());
+        };
+
+        OAuth2TokenManager manager = new OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        Map<String, String> params = new HashMap<>();
+        params.put("grant_type", "client_credentials");
+        String first = manager.getAccessToken("https://auth.example.com/token", params);
+        String second = manager.getAccessToken("https://auth.example.com/token", params);
+
+        assertEquals("long", first);
+        assertEquals("long", second);
+        assertEquals(1, callCount.get());
+    }
+
+    @Test
+    void expiresInExactlyBufferReturnsZeroBuffer() {
+        // Gap CM: expires_in == 30 (the buffer) collapses expiry to now.
+        // The next getAccessToken call must therefore refetch.
+        AtomicInteger callCount = new AtomicInteger(0);
+        ApiClient client = (method, url, headers, body) -> {
+            int n = callCount.incrementAndGet();
+            return new ApiResponse(200,
+                    "{\"access_token\":\"edge" + n + "\",\"expires_in\":30}", Map.of());
+        };
+
+        OAuth2TokenManager manager = new OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        Map<String, String> params = new HashMap<>();
+        params.put("grant_type", "client_credentials");
+        String first = manager.getAccessToken("https://auth.example.com/token", params);
+        String second = manager.getAccessToken("https://auth.example.com/token", params);
+
+        assertEquals("edge1", first);
+        assertEquals("edge2", second);
+        assertEquals(2, callCount.get());
+    }
+
+    @Test
     void throwsWhenTokenRequestFails() {
         OAuth2TokenManager manager = new OAuth2TokenManager();
         manager.setApiClient(fakeClient(401, "{\"error\":\"invalid_client\"}"));

@@ -131,6 +131,58 @@ class OAuth2TokenManagerTest extends TestCase
         $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
     }
 
+    public function testExpiresInShortLivedTokenDoesNotStorm(): void
+    {
+        // Gap CM: short-lived token (expires_in < buffer) must produce exactly
+        // ONE network call from a single getAccessToken invocation.
+        $client = new MockTokenApiClient();
+        $client->enqueueResponse($this->makeTokenResponse('short', 10));
+
+        $manager = new OAuth2TokenManager();
+        $manager->setApiClient($client);
+
+        $token = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+        $this->assertSame('short', $token);
+        $this->assertCount(1, $client->capturedRequests);
+    }
+
+    public function testExpiresInLongLivedTokenAppliesFullBuffer(): void
+    {
+        // Gap CM: long-lived token gets full 30s buffer; second call serves
+        // from cache.
+        $client = new MockTokenApiClient();
+        $client->enqueueResponse($this->makeTokenResponse('long', 3600));
+
+        $manager = new OAuth2TokenManager();
+        $manager->setApiClient($client);
+
+        $first = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+        $second = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+        $this->assertSame('long', $first);
+        $this->assertSame('long', $second);
+        $this->assertCount(1, $client->capturedRequests);
+    }
+
+    public function testExpiresInExactlyBufferReturnsZeroBuffer(): void
+    {
+        // Gap CM: expires_in == 30 collapses expiry to now, forcing refetch.
+        $client = new MockTokenApiClient();
+        $client->enqueueResponse($this->makeTokenResponse('edge1', 30));
+        $client->enqueueResponse($this->makeTokenResponse('edge2', 30));
+
+        $manager = new OAuth2TokenManager();
+        $manager->setApiClient($client);
+
+        $first = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+        $second = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+        $this->assertSame('edge1', $first);
+        $this->assertSame('edge2', $second);
+        $this->assertCount(2, $client->capturedRequests);
+    }
+
     public function testThrowsWhenTokenRequestFails(): void
     {
         $client = new MockTokenApiClient();

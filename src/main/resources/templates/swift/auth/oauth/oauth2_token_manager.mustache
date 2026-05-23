@@ -197,11 +197,8 @@ public final class OAuth2TokenManager: @unchecked Sendable {
                 self._refreshToken = refreshToken
             }
             if let expiresIn = parsed.expires_in {
-                if expiresIn > 30 {
-                    self.tokenExpiry = Date().addingTimeInterval(TimeInterval(expiresIn - 30))
-                } else {
-                    self.tokenExpiry = Date()
-                }
+                let bufferSecs = min(expiresIn, 30)
+                self.tokenExpiry = Date().addingTimeInterval(TimeInterval(expiresIn - bufferSecs))
             }
         }
     }

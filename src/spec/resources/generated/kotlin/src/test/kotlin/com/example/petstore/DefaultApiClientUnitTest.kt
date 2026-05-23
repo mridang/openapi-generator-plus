@@ -15,13 +15,12 @@ import io.ktor.http.Headers
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.Assertions.*
 
 class DefaultApiClientUnitTest {
-
     private fun mockClient(
         statusCode: HttpStatusCode = HttpStatusCode.OK,
         body: String = "{}",
@@ -42,7 +41,6 @@ class DefaultApiClientUnitTest {
     @Nested
     @DisplayName("User-Agent injection")
     inner class UserAgentInjection {
-
         @Test
         @DisplayName("injects custom User-Agent header")
         fun injectsCustomUserAgent() {
@@ -83,7 +81,6 @@ class DefaultApiClientUnitTest {
     @Nested
     @DisplayName("X-Request-ID injection")
     inner class RequestIdInjection {
-
         @Test
         @DisplayName("injects X-Request-ID when enabled")
         fun injectsRequestId() {
@@ -176,17 +173,22 @@ class DefaultApiClientUnitTest {
     @Nested
     @DisplayName("multipart filename directive")
     inner class MultipartFilenameDirective {
-
         @Test
         @DisplayName("non-ASCII filename emits RFC 5987 filename* parameter")
         fun multipartFilenameNonAsciiEmitsRFC5987() {
             val directive = buildFilenameDirective("日本.pdf")
-            assertTrue(directive.contains("filename*=UTF-8''"),
-                "non-ASCII filename must emit RFC 5987 filename*= form, got: $directive")
-            assertTrue(directive.contains("%E6%97%A5%E6%9C%AC"),
-                "RFC 5987 value must be percent-encoded UTF-8, got: $directive")
-            assertTrue(directive.startsWith("filename=\""),
-                "must still include an ASCII fallback filename=\"...\", got: $directive")
+            assertTrue(
+                directive.contains("filename*=UTF-8''"),
+                "non-ASCII filename must emit RFC 5987 filename*= form, got: $directive",
+            )
+            assertTrue(
+                directive.contains("%E6%97%A5%E6%9C%AC"),
+                "RFC 5987 value must be percent-encoded UTF-8, got: $directive",
+            )
+            assertTrue(
+                directive.startsWith("filename=\""),
+                "must still include an ASCII fallback filename=\"...\", got: $directive",
+            )
         }
 
         @Test
@@ -194,8 +196,10 @@ class DefaultApiClientUnitTest {
         fun multipartFilenameAsciiOnlyOmitsFilenameStar() {
             val directive = buildFilenameDirective("pet.png")
             assertEquals("filename=\"pet.png\"", directive)
-            assertFalse(directive.contains("filename*="),
-                "ASCII-only filename must not emit filename*=, got: $directive")
+            assertFalse(
+                directive.contains("filename*="),
+                "ASCII-only filename must not emit filename*=, got: $directive",
+            )
         }
 
         @Test
@@ -214,7 +218,6 @@ class DefaultApiClientUnitTest {
     @Nested
     @DisplayName("default headers")
     inner class DefaultHeaders {
-
         @Test
         @DisplayName("includes transport-level default headers")
         fun includesTransportDefaultHeaders() {
@@ -260,7 +263,6 @@ class DefaultApiClientUnitTest {
     @Nested
     @DisplayName("basic HTTP")
     inner class BasicHttp {
-
         @Test
         @DisplayName("sends GET request and returns response")
         fun sendsGetRequestAndReturnsResponse() {
@@ -281,11 +283,13 @@ class DefaultApiClientUnitTest {
             val apiClient = DefaultApiClient(client)
             var response: ApiResponse? = null
             runBlocking {
-                response = apiClient.sendRequest(
-                    "POST", "http://localhost/echo",
-                    mapOf("Content-Type" to "application/json"),
-                    "{\"key\":\"value\"}"
-                )
+                response =
+                    apiClient.sendRequest(
+                        "POST",
+                        "http://localhost/echo",
+                        mapOf("Content-Type" to "application/json"),
+                        "{\"key\":\"value\"}",
+                    )
             }
             assertEquals(200, response!!.statusCode)
             assertTrue(response!!.body.contains("POST"))
@@ -295,22 +299,25 @@ class DefaultApiClientUnitTest {
         @Test
         @DisplayName("returns response headers")
         fun returnsResponseHeaders() {
-            val engine = MockEngine { _ ->
-                respond(
-                    content = "ok",
-                    status = HttpStatusCode.OK,
-                    headers = headersOf("X-Test-Header", "test-value"),
-                )
-            }
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = "ok",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("X-Test-Header", "test-value"),
+                    )
+                }
             val client = HttpClient(engine)
             val apiClient = DefaultApiClient(client)
             var response: ApiResponse? = null
             runBlocking {
                 response = apiClient.sendRequest("GET", "http://localhost/echo", emptyMap(), null)
             }
-            val value = response!!.headers.entries
-                .firstOrNull { it.key.equals("X-Test-Header", ignoreCase = true) }
-                ?.value
+            val value =
+                response!!
+                    .headers.entries
+                    .firstOrNull { it.key.equals("X-Test-Header", ignoreCase = true) }
+                    ?.value
             assertEquals("test-value", value)
         }
 
@@ -356,13 +363,14 @@ class DefaultApiClientUnitTest {
         @Test
         @DisplayName("returns JSON body for vendor JSON content type")
         fun returnsJsonBodyForVendorJsonContentType() {
-            val engine = MockEngine { _ ->
-                respond(
-                    content = "{\"format\":\"vendor\"}",
-                    status = HttpStatusCode.OK,
-                    headers = headersOf("Content-Type", "application/vnd.api+json"),
-                )
-            }
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = "{\"format\":\"vendor\"}",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/vnd.api+json"),
+                    )
+                }
             val client = HttpClient(engine)
             val apiClient = DefaultApiClient(client)
             var response: ApiResponse? = null
@@ -377,67 +385,75 @@ class DefaultApiClientUnitTest {
         @DisplayName("decodes response body with charset from Content-Type")
         fun decodesResponseBodyWithDeclaredCharset() {
             // 0xE9 is "é" in ISO-8859-1; in UTF-8 it would be a replacement char or mojibake.
-            val engine = MockEngine { _ ->
-                respond(
-                    content = byteArrayOf(0xE9.toByte()),
-                    status = HttpStatusCode.OK,
-                    headers = headersOf("Content-Type", "text/plain; charset=ISO-8859-1"),
-                )
-            }
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = byteArrayOf(0xE9.toByte()),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "text/plain; charset=ISO-8859-1"),
+                    )
+                }
             val apiClient = DefaultApiClient(HttpClient(engine))
-            val response = runBlocking {
-                apiClient.sendRequest("GET", "http://localhost/latin1", emptyMap(), null)
-            }
+            val response =
+                runBlocking {
+                    apiClient.sendRequest("GET", "http://localhost/latin1", emptyMap(), null)
+                }
             assertEquals("é", response.body, "ISO-8859-1 body must decode using the declared charset")
         }
 
         @Test
         @DisplayName("defaults to UTF-8 when Content-Type has no charset")
         fun defaultsToUtf8WhenNoCharset() {
-            val engine = MockEngine { _ ->
-                respond(
-                    content = "héllo".toByteArray(Charsets.UTF_8),
-                    status = HttpStatusCode.OK,
-                    headers = headersOf("Content-Type", "text/plain"),
-                )
-            }
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = "héllo".toByteArray(Charsets.UTF_8),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "text/plain"),
+                    )
+                }
             val apiClient = DefaultApiClient(HttpClient(engine))
-            val response = runBlocking {
-                apiClient.sendRequest("GET", "http://localhost/no-charset", emptyMap(), null)
-            }
+            val response =
+                runBlocking {
+                    apiClient.sendRequest("GET", "http://localhost/no-charset", emptyMap(), null)
+                }
             assertEquals("héllo", response.body)
         }
 
         @Test
         @DisplayName("falls back to UTF-8 for unknown charset without throwing")
         fun fallsBackToUtf8ForUnknownCharset() {
-            val engine = MockEngine { _ ->
-                respond(
-                    content = "hello".toByteArray(Charsets.UTF_8),
-                    status = HttpStatusCode.OK,
-                    headers = headersOf("Content-Type", "text/plain; charset=not-a-real-charset"),
-                )
-            }
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = "hello".toByteArray(Charsets.UTF_8),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "text/plain; charset=not-a-real-charset"),
+                    )
+                }
             val apiClient = DefaultApiClient(HttpClient(engine))
-            val response = runBlocking {
-                apiClient.sendRequest("GET", "http://localhost/unknown-charset", emptyMap(), null)
-            }
+            val response =
+                runBlocking {
+                    apiClient.sendRequest("GET", "http://localhost/unknown-charset", emptyMap(), null)
+                }
             assertEquals("hello", response.body, "unknown charset must fall back to UTF-8, never throw")
         }
 
         @Test
         @DisplayName("joins multi-value response headers")
         fun joinsMultiValueResponseHeaders() {
-            val engine = MockEngine { _ ->
-                respond(
-                    content = "ok",
-                    status = HttpStatusCode.OK,
-                    headers = Headers.build {
-                        append("X-Custom-Value", "val1")
-                        append("X-Custom-Value", "val2")
-                    },
-                )
-            }
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = "ok",
+                        status = HttpStatusCode.OK,
+                        headers =
+                            Headers.build {
+                                append("X-Custom-Value", "val1")
+                                append("X-Custom-Value", "val2")
+                            },
+                    )
+                }
             val client = HttpClient(engine)
             val apiClient = DefaultApiClient(client)
             var response: ApiResponse? = null
@@ -445,9 +461,11 @@ class DefaultApiClientUnitTest {
                 response = apiClient.sendRequest("GET", "http://localhost/multi-header", emptyMap(), null)
             }
             assertEquals(200, response!!.statusCode)
-            val value = response!!.headers.entries
-                .firstOrNull { it.key.equals("X-Custom-Value", ignoreCase = true) }
-                ?.value
+            val value =
+                response!!
+                    .headers.entries
+                    .firstOrNull { it.key.equals("X-Custom-Value", ignoreCase = true) }
+                    ?.value
             assertEquals("val1, val2", value)
         }
     }

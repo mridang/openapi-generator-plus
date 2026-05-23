@@ -152,10 +152,12 @@ func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]strin
 	if parsed.RefreshToken != "" {
 		m.refreshToken = parsed.RefreshToken
 	}
-	if parsed.ExpiresIn > 30 {
-		m.tokenExpiry = time.Now().Add(time.Duration(parsed.ExpiresIn-30) * time.Second)
-	} else if parsed.ExpiresIn > 0 {
-		m.tokenExpiry = time.Now()
+	if parsed.ExpiresIn > 0 {
+		bufferSecs := parsed.ExpiresIn
+		if bufferSecs > 30 {
+			bufferSecs = 30
+		}
+		m.tokenExpiry = time.Now().Add(time.Duration(parsed.ExpiresIn-bufferSecs) * time.Second)
 	}
 
 	return nil

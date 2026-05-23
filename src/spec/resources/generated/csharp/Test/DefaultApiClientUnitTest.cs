@@ -448,6 +448,44 @@ public class DefaultApiClientUnitTest
         Assert.Contains("Content-Type: application/pdf", wireText);
     }
 
+    // -- Gap BI: RFC 5987 filename* for non-ASCII multipart filenames --
+
+    [Fact]
+    public void MultipartFilenameNonAsciiEmitsRFC5987()
+    {
+        string directive = DefaultApiClient.BuildFilenameDirective("日本.pdf");
+        Assert.Contains("filename*=UTF-8''", directive);
+        Assert.Contains("%E6%97%A5%E6%9C%AC", directive);
+        Assert.StartsWith("filename=\"", directive);
+    }
+
+    [Fact]
+    public void MultipartFilenameAsciiOnlyOmitsFilenameStar()
+    {
+        string directive = DefaultApiClient.BuildFilenameDirective("pet.png");
+        Assert.Equal("filename=\"pet.png\"", directive);
+        Assert.DoesNotContain("filename*=", directive);
+    }
+
+    [Fact]
+    public void MultipartFilenameCRLFRejected()
+    {
+        Assert.Throws<ArgumentException>(
+            () => DefaultApiClient.ValidateMultipartFilename("a\rb.pdf")
+        );
+        Assert.Throws<ArgumentException>(
+            () => DefaultApiClient.ValidateMultipartFilename("a\nb.pdf")
+        );
+        Assert.Throws<ArgumentException>(
+            () => DefaultApiClient.ValidateMultipartFilename("a\r\nb.pdf")
+        );
+        Assert.Throws<ArgumentException>(
+            () => DefaultApiClient.ValidateMultipartFilename("a\0b.pdf")
+        );
+        // ASCII filenames are accepted
+        DefaultApiClient.ValidateMultipartFilename("pet.png");
+    }
+
     // -- Gap H: response body charset handling --
 
     [Fact]

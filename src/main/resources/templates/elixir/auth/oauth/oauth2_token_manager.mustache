@@ -197,7 +197,8 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
     new_state =
       if Map.has_key?(parsed, "expires_in") do
         expires_in = parsed["expires_in"]
-        expiry = if expires_in > 30, do: System.system_time(:second) + expires_in - 30, else: System.system_time(:second)
+        buffer_secs = min(expires_in, 30)
+        expiry = System.system_time(:second) + expires_in - buffer_secs
         %{new_state | token_expiry: expiry}
       else
         new_state

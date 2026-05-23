@@ -159,6 +159,74 @@ class TestOAuth2TokenManager:
         except RuntimeError:
             pass
 
+    def test_expires_in_short_lived_token_does_not_storm(self) -> None:
+        # Gap CM: a short-lived token (expires_in < 30s safety buffer) must
+        # only trigger ONE network call from a single get_access_token call,
+        # not a storm of retries inside the manager.
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiResponse(
+            status_code=200,
+            body=json.dumps({'access_token': 'short', 'expires_in': 10}),
+            headers={'content-type': 'application/json'},
+        )
+        manager.set_api_client(mock_client)
+
+        token = manager.get_access_token(
+            'https://auth.example.com/token',
+            {'grant_type': 'client_credentials'},
+        )
+
+        assert token == 'short'
+        assert mock_client.send_request.call_count == 1
+
+    def test_expires_in_long_lived_token_applies_full_buffer(self) -> None:
+        # Gap CM: a long-lived token gets the full 30s safety buffer.
+        # A second call inside the same instant must serve from cache.
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiResponse(
+            status_code=200,
+            body=json.dumps({'access_token': 'long', 'expires_in': 3600}),
+            headers={'content-type': 'application/json'},
+        )
+        manager.set_api_client(mock_client)
+
+        params = {'grant_type': 'client_credentials'}
+        first = manager.get_access_token('https://auth.example.com/token', params)
+        second = manager.get_access_token('https://auth.example.com/token', params)
+
+        assert first == 'long'
+        assert second == 'long'
+        assert mock_client.send_request.call_count == 1
+
+    def test_expires_in_exactly_buffer_returns_zero_buffer(self) -> None:
+        # Gap CM: when expires_in == 30 (the buffer), expiry collapses to
+        # now and the next call must refetch.
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.side_effect = [
+            ApiResponse(
+                status_code=200,
+                body=json.dumps({'access_token': 'edge1', 'expires_in': 30}),
+                headers={'content-type': 'application/json'},
+            ),
+            ApiResponse(
+                status_code=200,
+                body=json.dumps({'access_token': 'edge2', 'expires_in': 30}),
+                headers={'content-type': 'application/json'},
+            ),
+        ]
+        manager.set_api_client(mock_client)
+
+        params = {'grant_type': 'client_credentials'}
+        first = manager.get_access_token('https://auth.example.com/token', params)
+        second = manager.get_access_token('https://auth.example.com/token', params)
+
+        assert first == 'edge1'
+        assert second == 'edge2'
+        assert mock_client.send_request.call_count == 2
+
     def test_throws_when_token_request_fails(self) -> None:
         manager = OAuth2TokenManager()
         mock_client = MagicMock()

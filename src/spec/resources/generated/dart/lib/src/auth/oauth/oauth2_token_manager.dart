@@ -165,10 +165,10 @@ class OAuth2TokenManager {
       _refreshToken = newRefreshToken;
     }
     final expiresIn = parsed['expires_in'] as int?;
-    if (expiresIn != null && expiresIn > 30) {
-      _tokenExpiry = DateTime.now().add(Duration(seconds: expiresIn - 30));
-    } else if (expiresIn != null) {
-      _tokenExpiry = DateTime.now();
+    if (expiresIn != null) {
+      final bufferSecs = expiresIn < 30 ? expiresIn : 30;
+      _tokenExpiry =
+          DateTime.now().add(Duration(seconds: expiresIn - bufferSecs));
     }
   }
 }

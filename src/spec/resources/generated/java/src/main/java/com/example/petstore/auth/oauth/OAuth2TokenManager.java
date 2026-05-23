@@ -182,11 +182,8 @@ public class OAuth2TokenManager {
       }
       if (json.has("expires_in")) {
         long expiresIn = json.get("expires_in").asLong();
-        if (expiresIn > 30) {
-          this.tokenExpiry = Instant.now().plusSeconds(expiresIn - 30);
-        } else {
-          this.tokenExpiry = Instant.now();
-        }
+        long bufferSecs = Math.min(expiresIn, 30L);
+        this.tokenExpiry = Instant.now().plusSeconds(expiresIn - bufferSecs);
       }
     } catch (ApiException | IOException e) {
       throw new RuntimeException("Failed to fetch OAuth2 token", e);

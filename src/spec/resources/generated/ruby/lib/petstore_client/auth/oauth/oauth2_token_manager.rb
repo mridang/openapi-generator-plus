@@ -142,7 +142,8 @@ module PetstoreClient
           return unless parsed.key?('expires_in')
 
           expires_in = parsed['expires_in'].to_i
-          @token_expiry = expires_in > 30 ? Time.now.to_f + expires_in - 30 : Time.now.to_f
+          buffer_secs = [expires_in, 30].min
+          @token_expiry = Time.now.to_f + expires_in - buffer_secs
         end
       end
     end

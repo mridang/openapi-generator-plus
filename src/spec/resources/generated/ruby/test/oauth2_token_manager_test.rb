@@ -122,6 +122,54 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
     end
   end
 
+  it 'expires_in short-lived token does not storm' do
+    # Gap CM: short-lived token must produce exactly ONE network call.
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'short', 'expires_in' => 10 } }
+    ])
+    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    token = manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    _(token).must_equal 'short'
+    _(client.call_count).must_equal 1
+  end
+
+  it 'expires_in long-lived token applies full buffer' do
+    # Gap CM: long-lived token gets full 30s buffer; second call serves cache.
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'long', 'expires_in' => 3600 } }
+    ])
+    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    params = { 'grant_type' => 'client_credentials' }
+    first = manager.get_access_token('https://auth.example.com/token', params)
+    second = manager.get_access_token('https://auth.example.com/token', params)
+
+    _(first).must_equal 'long'
+    _(second).must_equal 'long'
+    _(client.call_count).must_equal 1
+  end
+
+  it 'expires_in exactly buffer returns zero buffer' do
+    # Gap CM: expires_in == 30 collapses expiry to now, forcing refetch.
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'edge1', 'expires_in' => 30 } },
+      { status: 200, body: { 'access_token' => 'edge2', 'expires_in' => 30 } }
+    ])
+    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    params = { 'grant_type' => 'client_credentials' }
+    first = manager.get_access_token('https://auth.example.com/token', params)
+    second = manager.get_access_token('https://auth.example.com/token', params)
+
+    _(first).must_equal 'edge1'
+    _(second).must_equal 'edge2'
+    _(client.call_count).must_equal 2
+  end
+
   it 'throws when token request fails' do
     client = FakeTokenClient.new([
       { status: 401, body: { 'error' => 'invalid_client' } }

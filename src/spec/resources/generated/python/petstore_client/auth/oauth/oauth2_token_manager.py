@@ -155,7 +155,8 @@ class OAuth2TokenManager:
             self._refresh_token = token_data['refresh_token']
         if 'expires_in' in token_data:
             expires_in = token_data['expires_in']
-            self._token_expiry = time.time() + expires_in - 30 if expires_in > 30 else time.time()
+            buffer_secs = min(expires_in, 30)
+            self._token_expiry = time.time() + expires_in - buffer_secs
 
     @property
     def refresh_token(self) -> Optional[str]:

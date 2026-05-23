@@ -214,6 +214,66 @@ import Testing
             "expected exactly 1 token-endpoint call for 10 concurrent callers, got \(client.callCount)")
     }
 
+    @Test func testExpiresInShortLivedTokenDoesNotStorm() async throws {
+        // Gap CM: short-lived token (expires_in < 30s buffer) must produce
+        // exactly ONE network call from a single getAccessToken call.
+        let client = CountingMockApiClient(
+            responseBody: "{\"access_token\":\"short\",\"expires_in\":10}",
+            delayNanos: 0
+        )
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let token = try await manager.getAccessToken(
+            tokenURL: "https://auth.example.com/token",
+            params: ["grant_type": "client_credentials"]
+        )
+
+        #expect(token == "short")
+        #expect(client.callCount == 1)
+    }
+
+    @Test func testExpiresInLongLivedTokenAppliesFullBuffer() async throws {
+        // Gap CM: long-lived token gets full 30s buffer; second call uses cache.
+        let client = CountingMockApiClient(
+            responseBody: "{\"access_token\":\"long\",\"expires_in\":3600}",
+            delayNanos: 0
+        )
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let params = ["grant_type": "client_credentials"]
+        let tokenURL = "https://auth.example.com/token"
+
+        let first = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        let second = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+
+        #expect(first == "long")
+        #expect(second == "long")
+        #expect(client.callCount == 1)
+    }
+
+    @Test func testExpiresInExactlyBufferReturnsZeroBuffer() async throws {
+        // Gap CM: expires_in == 30 collapses expiry to now, forcing refetch.
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"edge1\",\"expires_in\":30}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"edge2\",\"expires_in\":30}"))
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let params = ["grant_type": "client_credentials"]
+        let tokenURL = "https://auth.example.com/token"
+
+        let first = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        let second = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+
+        #expect(first == "edge1")
+        #expect(second == "edge2")
+    }
+
     @Test func testThrowsWhenTokenRequestFails() async {
         let client = MockApiClient()
         client.responses.append(makeResponse(body: "{\"error\":\"invalid_client\"}", statusCode: 401))
