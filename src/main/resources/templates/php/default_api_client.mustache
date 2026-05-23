@@ -351,13 +351,7 @@ class DefaultApiClient implements ApiClient
         }
 
         $encodings = mb_list_encodings();
-        $known = false;
-        foreach ($encodings as $supported) {
-            if (strcasecmp($supported, $charset) === 0) {
-                $known = true;
-                break;
-            }
-        }
+        $known = array_any($encodings, fn (string $supported): bool => strcasecmp($supported, $charset) === 0);
         if (!$known) {
             try {
                 $aliases = mb_encoding_aliases($charset);

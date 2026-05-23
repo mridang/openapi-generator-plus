@@ -107,7 +107,7 @@ final class OAuth2TokenManager
                 if ($this->accessToken !== null) {
                     return $this->accessToken;
                 }
-            } catch (\RuntimeException $ignored) {
+            } catch (\RuntimeException) {
                 /* Refresh failed (e.g. refresh token revoked or expired).
                  * Fall back to re-running the original grant below. */
             }
