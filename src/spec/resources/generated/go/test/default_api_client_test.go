@@ -327,6 +327,16 @@ func TestMultipart_MultipartFilenameCRLFRejected(t *testing.T) {
 	}
 }
 
+/* Gap W2: multipart field names containing CR/LF/NUL must be rejected to
+ * prevent Content-Disposition header injection. */
+func TestMultipart_MultipartFieldNameCRLFRejected(t *testing.T) {
+	for _, bad := range []string{"a\rb", "a\nb", "a\r\nInjected: yes", "a\x00b"} {
+		if err := petstore.ValidateMultipartFieldName(bad); err == nil {
+			t.Errorf("expected error rejecting %q, got nil", bad)
+		}
+	}
+}
+
 func TestDefaultApiClient_DecompressesGzipResponse(t *testing.T) {
 	client := petstore.NewDefaultApiClient(nil)
 	resp, err := client.SendRequest("GET", "https://jsonplaceholder.typicode.com/posts/1",

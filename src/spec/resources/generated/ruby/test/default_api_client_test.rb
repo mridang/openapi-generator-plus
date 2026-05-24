@@ -251,6 +251,20 @@ describe PetstoreClient::DefaultApiClient do
 
       _(response).wont_be_nil
     end
+
+    it 'rejects multipart field name with CRLF (Gap W2)' do
+      wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
+
+      client = PetstoreClient::DefaultApiClient.new
+      assert_raises(ArgumentError) do
+        client.send_request(
+          :POST,
+          "#{wiremock_url}/api/test",
+          {},
+          { "name\r\nInjected: yes" => 'value' }
+        )
+      end
+    end
   end
 
   describe 'HTTP compression' do

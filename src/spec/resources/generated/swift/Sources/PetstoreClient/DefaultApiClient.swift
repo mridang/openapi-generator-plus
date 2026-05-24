@@ -237,6 +237,9 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     /// and, when the original filename contains non-ASCII codepoints, an additional
     /// RFC 5987 `filename*=UTF-8''<percent-encoded>` parameter for clients that
     /// support extended encoding.
+    /// Builds a `Content-Disposition` header for a file part. Both
+    /// `name` and `filename` MUST already have been validated/escaped
+    /// via ``sanitizeQuotedHeaderValue`` by the caller.
     static func buildContentDisposition(name: String, filename: String) throws -> String {
         let safeFilename = try sanitizeQuotedHeaderValue(filename)
         let isAscii = filename.unicodeScalars.allSatisfy { $0.isASCII }

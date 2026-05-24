@@ -437,6 +437,14 @@ func buildTransportMultipartBody(formFields map[string]interface{}) (*bytes.Buff
 	writer := multipart.NewWriter(body)
 
 	for fieldName, value := range formFields {
+		// Gap W2: every Content-Disposition header below interpolates
+		// fieldName into a quoted name="..." parameter, so the name
+		// must be validated for CR/LF/NUL and quote-escaped exactly
+		// like the filename has been since Gap BI.
+		if err := ValidateMultipartFieldName(fieldName); err != nil {
+			return nil, "", err
+		}
+		escapedFieldName := escapeQuotes(fieldName)
 		switch v := value.(type) {
 		case []byte:
 			if err := ValidateMultipartFilename(fieldName); err != nil {
@@ -444,7 +452,7 @@ func buildTransportMultipartBody(formFields map[string]interface{}) (*bytes.Buff
 			}
 			partHeader := make(textproto.MIMEHeader)
 			partHeader.Set("Content-Disposition",
-				fmt.Sprintf(`form-data; name="%s"; %s`, fieldName, BuildFilenameDirective(fieldName)))
+				fmt.Sprintf(`form-data; name="%s"; %s`, escapedFieldName, BuildFilenameDirective(fieldName)))
 			partHeader.Set("Content-Type", mimeTypeForFilename(fieldName))
 			part, err := writer.CreatePart(partHeader)
 			if err != nil {
@@ -473,7 +481,7 @@ func buildTransportMultipartBody(formFields map[string]interface{}) (*bytes.Buff
 					}
 					partHeader := make(textproto.MIMEHeader)
 					partHeader.Set("Content-Disposition",
-						fmt.Sprintf(`form-data; name="%s"; %s`, fieldName, BuildFilenameDirective(fieldName)))
+						fmt.Sprintf(`form-data; name="%s"; %s`, escapedFieldName, BuildFilenameDirective(fieldName)))
 					partHeader.Set("Content-Type", mimeTypeForFilename(fieldName))
 					part, err := writer.CreatePart(partHeader)
 					if err != nil {
@@ -489,7 +497,7 @@ func buildTransportMultipartBody(formFields map[string]interface{}) (*bytes.Buff
 					}
 					partHeader := make(textproto.MIMEHeader)
 					partHeader.Set("Content-Disposition",
-						fmt.Sprintf(`form-data; name="%s"`, fieldName))
+						fmt.Sprintf(`form-data; name="%s"`, escapedFieldName))
 					partHeader.Set("Content-Type", "application/json")
 					part, err := writer.CreatePart(partHeader)
 					if err != nil {
@@ -507,7 +515,7 @@ func buildTransportMultipartBody(formFields map[string]interface{}) (*bytes.Buff
 			}
 			partHeader := make(textproto.MIMEHeader)
 			partHeader.Set("Content-Disposition",
-				fmt.Sprintf(`form-data; name="%s"`, fieldName))
+				fmt.Sprintf(`form-data; name="%s"`, escapedFieldName))
 			partHeader.Set("Content-Type", "application/json")
 			part, err := writer.CreatePart(partHeader)
 			if err != nil {

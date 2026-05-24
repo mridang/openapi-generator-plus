@@ -222,6 +222,18 @@ import Testing
         #expect(capturedBody?.contains("Content-Disposition: form-data") ?? false)
     }
 
+    // Gap W2: a multipart field name containing CR/LF/NUL must be rejected to
+    // prevent Content-Disposition header injection.
+    @Test func testMultipartFieldNameWithCrlfRejected() async throws {
+        let client = makeClient { _ in (Data("{}".utf8), 200, [:]) }
+        let badField: [String: Any] = ["name\r\nInjected: yes": "value"]
+        await #expect(throws: (any Error).self) {
+            _ = try await client.sendRequest(
+                method: "POST", url: "https://example.com",
+                headers: [:], body: badField)
+        }
+    }
+
     @Test func testDecompressesGzipResponse() async throws {
         let client = makeClient { _ in
             return (self.jsonBody(), 200, ["Content-Type": "application/json"])

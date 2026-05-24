@@ -350,6 +350,7 @@ module {{moduleName}}
     end
 
     def multipart_part(name, value, boundary) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
+      safe_name = sanitize_multipart_field_name(name)
       if value.respond_to?(:read)
         filename = if value.respond_to?(:path) && value.path
                      File.basename(value.path.to_s)
@@ -361,18 +362,32 @@ module {{moduleName}}
         ensure
           value.close if value.respond_to?(:close)
         end
-        disposition = build_content_disposition(name, filename)
+        disposition = build_content_disposition(safe_name, filename)
         part_mime = sniff_part_mime(filename)
         header = "--#{boundary}\r\n#{disposition}\r\n" \
                  "Content-Type: #{part_mime}\r\n\r\n"
         header.b + data.b + "\r\n".b
       elsif value.respond_to?(:to_hash)
         json_str = JSON.generate(value.to_hash)
-        "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{name}\"\r\n" \
+        "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{safe_name}\"\r\n" \
           "Content-Type: application/json\r\n\r\n#{json_str}\r\n"
       else
-        "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{name}\"\r\n\r\n#{value}\r\n"
+        "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{safe_name}\"\r\n\r\n#{value}\r\n"
       end
+    end
+
+    # Gap W2: validate and escape a multipart form field name before
+    # interpolating it into a Content-Disposition header. Rejects CR/LF/NUL
+    # (header-injection) and backslash-escapes embedded quotes and
+    # backslashes so a malicious field name cannot break out of the
+    # +name="..."+ parameter.
+    def sanitize_multipart_field_name(name)
+      str = name.to_s
+      if str.match?(/[\r\n\0]/)
+        raise ArgumentError,
+              "multipart field name must not contain CR, LF, or NUL bytes: #{str.inspect}"
+      end
+      str.gsub(/([\\"])/) { |c| "\\#{c}" }
     end
 
     # Build a Content-Disposition header value for a multipart file part.

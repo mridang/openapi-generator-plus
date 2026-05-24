@@ -402,6 +402,20 @@ func ValidateMultipartFilename(filename string) error {
 	return nil
 }
 
+/* Gap W2: ValidateMultipartFieldName rejects multipart field names that
+ * would allow Content-Disposition header injection. Returns an error if
+ * the name contains CR, LF, or NUL characters. The caller still needs
+ * to backslash-escape `"` and `\` via escapeQuotes when interpolating
+ * the field name into a quoted-string parameter. */
+func ValidateMultipartFieldName(name string) error {
+	for _, c := range name {
+		if c == '\r' || c == '\n' || c == 0 {
+			return fmt.Errorf("multipart field name must not contain CR, LF, or NUL characters")
+		}
+	}
+	return nil
+}
+
 /* BuildFilenameDirective builds the filename=... directive for a multipart part.
  * For ASCII-only filenames it emits filename="..." with quote/backslash escaping.
  * For non-ASCII filenames it additionally emits an RFC 5987

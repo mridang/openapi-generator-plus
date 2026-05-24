@@ -213,6 +213,23 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert response != nil
   end
 
+  test "rejects multipart field name with CRLF (Gap W2)" do
+    wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
+
+    client = PetstoreClient.DefaultApiClient.new()
+    bad_field = %{"name\r\nInjected: yes" => "value"}
+
+    assert_raise ArgumentError, fn ->
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :post,
+        "#{wiremock_url}/api/test",
+        %{},
+        bad_field
+      )
+    end
+  end
+
   test "decompresses gzip response" do
     client = PetstoreClient.DefaultApiClient.new()
 

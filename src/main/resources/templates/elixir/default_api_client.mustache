@@ -497,18 +497,36 @@ defmodule {{moduleName}}.DefaultApiClient do
   end
 
   defp multipart_part(name, value, boundary) when is_binary(value) do
-    "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{name}\"\r\n\r\n#{value}\r\n"
+    safe = sanitize_multipart_field_name(name)
+    "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{safe}\"\r\n\r\n#{value}\r\n"
   end
 
   defp multipart_part(name, value, boundary) when is_map(value) do
+    safe = sanitize_multipart_field_name(name)
     json_str = Jason.encode!(value)
 
-    "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{name}\"\r\n" <>
+    "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{safe}\"\r\n" <>
       "Content-Type: application/json\r\n\r\n#{json_str}\r\n"
   end
 
   defp multipart_part(name, value, boundary) do
-    "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{name}\"\r\n\r\n#{to_string(value)}\r\n"
+    safe = sanitize_multipart_field_name(name)
+    "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{safe}\"\r\n\r\n#{to_string(value)}\r\n"
+  end
+
+  # Gap W2: validate/escape a multipart form field name before
+  # interpolating it into a Content-Disposition header. Rejects
+  # CR/LF/NUL (header-injection) and backslash-escapes embedded
+  # quotes and backslashes.
+  defp sanitize_multipart_field_name(name) do
+    str = to_string(name)
+
+    if String.contains?(str, ["\r", "\n", <<0>>]) do
+      raise ArgumentError,
+            "multipart field name must not contain CR, LF, or NUL characters (got: #{inspect(str)})"
+    end
+
+    escape_quoted(str)
   end
 
   defp multipart_file_part(name, filename, content, content_type, boundary) do
@@ -536,7 +554,9 @@ defmodule {{moduleName}}.DefaultApiClient do
             "multipart filename must not contain CR, LF, or NUL characters (got: #{inspect(filename)})"
     end
 
-    escaped_name = escape_quoted(to_string(name))
+    # Gap W2: validate the field name to reject CR/LF/NUL header
+    # injection in addition to escaping embedded quotes / backslashes.
+    escaped_name = sanitize_multipart_field_name(name)
 
     if ascii?(filename) do
       "Content-Disposition: form-data; name=\"#{escaped_name}\"; filename=\"#{escape_quoted(filename)}\""
