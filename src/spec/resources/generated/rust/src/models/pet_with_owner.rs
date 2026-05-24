@@ -33,6 +33,9 @@ pub struct PetWithOwner {
     #[serde(rename = "status", skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
     /// Example: `null`
+    #[serde(rename = "location", skip_serializing_if = "Option::is_none")]
+    pub location: Option<Vec<serde_json::Value>>,
+    /// Example: `null`
     #[serde(rename = "ownerName")]
     pub owner_name: String,
     /// Example: `null`
@@ -56,6 +59,7 @@ impl PetWithOwner {
             category: None,
             tags: None,
             status: None,
+            location: None,
             owner_email: None,
         }
     }

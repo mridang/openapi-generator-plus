@@ -9,5 +9,6 @@ module PetstoreClient::Models
     attr_reader photo_urls: Set[String]
     attr_reader tags: Array[Tag]?
     attr_reader status: String?
+    attr_reader location: Array[untyped]?
   end
 end

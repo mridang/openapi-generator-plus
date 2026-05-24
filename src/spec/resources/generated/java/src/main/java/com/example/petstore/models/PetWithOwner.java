@@ -85,6 +85,11 @@ public class PetWithOwner {
   public StatusEnum status;
 
   /** Example: {@code null} */
+  @JsonProperty("location")
+  @Nullable
+  public List<Object> location = new ArrayList<>();
+
+  /** Example: {@code null} */
   @JsonProperty("ownerName")
   public String ownerName;
 
@@ -125,6 +130,7 @@ public class PetWithOwner {
         && java.util.Objects.equals(this.photoUrls, other.photoUrls)
         && java.util.Objects.equals(this.tags, other.tags)
         && java.util.Objects.equals(this.status, other.status)
+        && java.util.Objects.equals(this.location, other.location)
         && java.util.Objects.equals(this.ownerName, other.ownerName)
         && java.util.Objects.equals(this.ownerEmail, other.ownerEmail);
   }
@@ -132,6 +138,6 @@ public class PetWithOwner {
   @Override
   public int hashCode() {
     return java.util.Objects.hash(
-        id, name, category, photoUrls, tags, status, ownerName, ownerEmail);
+        id, name, category, photoUrls, tags, status, location, ownerName, ownerEmail);
   }
 }

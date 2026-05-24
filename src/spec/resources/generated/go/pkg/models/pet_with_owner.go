@@ -21,9 +21,10 @@ type PetWithOwner struct {
 	Tags      *[]Tag      `json:"tags,omitempty"`
 	/* Status pet status in the store */
 	/* Deprecated: This property is deprecated. */
-	Status     *string `json:"status,omitempty"`
-	OwnerName  string  `json:"ownerName"`
-	OwnerEmail *string `json:"ownerEmail,omitempty"`
+	Status     *string        `json:"status,omitempty"`
+	Location   *[]interface{} `json:"location,omitempty"`
+	OwnerName  string         `json:"ownerName"`
+	OwnerEmail *string        `json:"ownerEmail,omitempty"`
 }
 
 // NewPetWithOwner creates a new PetWithOwner instance.

@@ -48,6 +48,9 @@ data class PetWithOwner(
     @SerialName("status")
     val status: StatusEnum? = null,
     /** Example: `null` */
+    @SerialName("location")
+    val location: List<Any>? = mutableListOf(),
+    /** Example: `null` */
     @SerialName("ownerName")
     val ownerName: String,
     /** Example: `null` */

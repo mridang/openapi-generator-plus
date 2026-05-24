@@ -38,6 +38,9 @@ export class PetWithOwner {
   @Expose({ name: 'status' })
   status?: PetWithOwnerStatusEnum;
   /** @example null */
+  @Expose({ name: 'location' })
+  location?: Array<unknown>;
+  /** @example null */
   @Expose({ name: 'ownerName' })
   ownerName!: string;
   /** @example null */
@@ -65,6 +68,9 @@ export class PetWithOwner {
     }
     if (this.photoUrls != null && !Array.isArray(this.photoUrls) && !((this.photoUrls as unknown) instanceof Set)) {
       throw new TypeError(`photoUrls must be an array, got ${typeof this.photoUrls}`);
+    }
+    if (this.location != null && !Array.isArray(this.location) && !((this.location as unknown) instanceof Set)) {
+      throw new TypeError(`location must be an array, got ${typeof this.location}`);
     }
     if (this.ownerName != null && typeof this.ownerName !== 'string') {
       throw new TypeError(`ownerName must be a string, got ${typeof this.ownerName}`);

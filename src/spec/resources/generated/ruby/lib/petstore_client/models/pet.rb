@@ -38,7 +38,8 @@ module PetstoreClient
         category: 'category',
         photo_urls: 'photoUrls',
         tags: 'tags',
-        status: 'status'
+        status: 'status',
+        location: 'location'
       }.freeze
 
       # Inverse mapping from JSON key to ruby attribute name.
@@ -51,7 +52,8 @@ module PetstoreClient
         category: 'Category',
         photo_urls: 'Set<String>',
         tags: 'Array<Tag>',
-        status: 'String'
+        status: 'String',
+        location: 'Array<Object>'
       }.freeze
 
       # Transform incoming hash keys from JSON format to Ruby attribute names.
@@ -73,6 +75,8 @@ module PetstoreClient
       # @example null
       # @deprecated This property is deprecated.
       attribute :status, Types::Any.optional.meta(omittable: true)
+      # @example null
+      attribute :location, Types::Any.optional.meta(omittable: true)
     end
   end
 end

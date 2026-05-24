@@ -37,6 +37,7 @@ class Pet(BaseModel):
     tags: Optional[List[Tag]] = Field(default=None, alias='tags')
     # .. deprecated:: This property is deprecated.
     status: Optional[PetStatusEnum] = Field(default=None, alias='status', description='pet status in the store')
+    location: Optional[List[object]] = Field(default=None, alias='location')
     additional_properties: Dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode='before')

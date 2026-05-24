@@ -24,6 +24,8 @@ public struct Pet: Codable, Sendable {
     /// Example: `null`
     @available(*, deprecated, message: "This property is deprecated.")
     public var status: String?
+    /// Example: `null`
+    public var location: [AnyCodable]?
 
     enum CodingKeys: String, CodingKey {
         case id = "id"
@@ -32,12 +34,13 @@ public struct Pet: Codable, Sendable {
         case photoUrls = "photoUrls"
         case tags = "tags"
         case status = "status"
+        case location = "location"
     }
 
     /// Creates a new Pet instance.
     public init(
         name: String, photoUrls: Set<String>, id: Int64? = nil, category: Category? = nil, tags: [Tag]? = nil,
-        status: String? = nil
+        status: String? = nil, location: [AnyCodable]? = nil
     ) {
         self.name = name
         self.photoUrls = photoUrls
@@ -45,6 +48,7 @@ public struct Pet: Codable, Sendable {
         self.category = category
         self.tags = tags
         self.status = status
+        self.location = location
     }
 
     /// Decodes this instance from the given decoder.
@@ -60,6 +64,7 @@ public struct Pet: Codable, Sendable {
         self.photoUrls = try container.decode(Set<String>.self, forKey: .photoUrls)
         self.tags = try container.decodeIfPresent([Tag].self, forKey: .tags)
         self.status = try container.decodeIfPresent(String.self, forKey: .status)
+        self.location = try container.decodeIfPresent([AnyCodable].self, forKey: .location)
     }
 
     /// Encodes this instance, omitting nil optional fields from the JSON output.
@@ -75,5 +80,6 @@ public struct Pet: Codable, Sendable {
         try container.encode(photoUrls, forKey: .photoUrls)
         try container.encodeIfPresent(tags, forKey: .tags)
         try container.encodeIfPresent(status, forKey: .status)
+        try container.encodeIfPresent(location, forKey: .location)
     }
 }

@@ -76,6 +76,11 @@ public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerNa
 
     /// <example>null</example>
 
+    [JsonPropertyName("location")]
+    public List<Object>? Location { get; set; }
+
+    /// <example>null</example>
+
     [JsonRequired]
     [JsonPropertyName("ownerName")]
     public string OwnerName { get; set; } =
@@ -104,6 +109,7 @@ public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerNa
                     )
                     && EqualityComparer<List<Tag>?>.Default.Equals(this.Tags, other.Tags)
                     && EqualityComparer<StatusEnum?>.Default.Equals(this.Status, other.Status)
+                    && EqualityComparer<List<Object>?>.Default.Equals(this.Location, other.Location)
                     && EqualityComparer<string>.Default.Equals(this.OwnerName, other.OwnerName)
                     && EqualityComparer<string?>.Default.Equals(this.OwnerEmail, other.OwnerEmail)
                 )
@@ -124,6 +130,7 @@ public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerNa
         hash.Add(this.PhotoUrls);
         hash.Add(this.Tags);
         hash.Add(this.Status);
+        hash.Add(this.Location);
         hash.Add(this.OwnerName);
         hash.Add(this.OwnerEmail);
         return hash.ToHashCode();

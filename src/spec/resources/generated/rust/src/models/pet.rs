@@ -32,6 +32,9 @@ pub struct Pet {
     #[deprecated]
     #[serde(rename = "status", skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
+    /// Example: `null`
+    #[serde(rename = "location", skip_serializing_if = "Option::is_none")]
+    pub location: Option<Vec<serde_json::Value>>,
 }
 
 #[allow(deprecated)]
@@ -45,6 +48,7 @@ impl Pet {
             category: None,
             tags: None,
             status: None,
+            location: None,
         }
     }
 }

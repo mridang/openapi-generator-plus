@@ -38,6 +38,7 @@ module PetstoreClient
         photo_urls: 'photoUrls',
         tags: 'tags',
         status: 'status',
+        location: 'location',
         owner_name: 'ownerName',
         owner_email: 'ownerEmail'
       }.freeze
@@ -53,6 +54,7 @@ module PetstoreClient
         photo_urls: 'Set<String>',
         tags: 'Array<Tag>',
         status: 'String',
+        location: 'Array<Object>',
         owner_name: 'String',
         owner_email: 'String'
       }.freeze
@@ -76,6 +78,8 @@ module PetstoreClient
       # @example null
       # @deprecated This property is deprecated.
       attribute :status, Types::Any.optional.meta(omittable: true)
+      # @example null
+      attribute :location, Types::Any.optional.meta(omittable: true)
       # @example null
       attribute :owner_name, Types::Required
       # @example null

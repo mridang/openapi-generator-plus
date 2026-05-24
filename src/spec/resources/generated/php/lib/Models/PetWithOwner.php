@@ -55,6 +55,10 @@ class PetWithOwner
     #[SerializedName('status')]
     public ?PetWithOwnerStatusEnum $status = null;
 
+    /** @var mixed[]|null */
+    #[SerializedName('location')]
+    public ?array $location = null;
+
     /** @example null */
     #[SerializedName('ownerName')]
     public string $ownerName;
@@ -66,6 +70,7 @@ class PetWithOwner
     /**
      * @param string[] $photoUrls
      * @param \PetstoreClient\Models\Tag[]|null $tags
+     * @param mixed[]|null $location
      */
     public function __construct(
         string $name,
@@ -75,6 +80,7 @@ class PetWithOwner
         ?\PetstoreClient\Models\Category $category = null,
         ?array $tags = null,
         ?PetWithOwnerStatusEnum $status = null,
+        ?array $location = null,
         ?string $ownerEmail = null,
     ) {
         $this->id = $id;
@@ -83,6 +89,7 @@ class PetWithOwner
         $this->photoUrls = $photoUrls;
         $this->tags = $tags;
         $this->status = $status;
+        $this->location = $location;
         $this->ownerName = $ownerName;
         $this->ownerEmail = $ownerEmail;
     }

@@ -51,6 +51,9 @@ data class Pet(
     @Deprecated("This property is deprecated.")
     @SerialName("status")
     val status: StatusEnum? = null,
+    /** Example: `null` */
+    @SerialName("location")
+    val location: List<Any>? = mutableListOf(),
 ) {
     @Serializable
     enum class StatusEnum(

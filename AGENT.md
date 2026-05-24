@@ -444,9 +444,32 @@ work to address. Documented as known limitations.
   upstream code: "Maybe it's a const (not yet supported) in openapi
   v3.1 spec."). A `const: "v1"` field generates as a regular settable
   string. Affects: 12.
-- **Gap AZ** — `prefixItems` (tuple arrays): always degraded to
-  homogeneous `List<Object>` / `[]interface{}` / etc. Positional type
-  safety lost — caller must downcast each index. Affects: 12.
+- **Gap AZ (fixed — normalized cross-lang)** — `prefixItems` (tuple
+  arrays). OAS 3.1 / JSON Schema 2020-12 `prefixItems` declares a fixed
+  per-index type sequence, e.g.
+  `prefixItems: [{type: number}, {type: number}, {type: string}]`.
+  No mainstream client codegen has a portable representation for a
+  heterogeneous fixed-arity tuple across all 12 target languages, so
+  this is handled by `NormalizePrefixItemsRule` (invoked from
+  `AbstractBetterCodegen.processOpenAPI`) before the per-language
+  pipeline inspects schemas. The rule walks every schema reachable
+  from components, parameters, request bodies, and responses and
+  rewrites any schema with non-empty `prefixItems` into
+  `type: array, items: {}` (the empty object schema, which every
+  language template maps to its "any" type). The original per-index
+  types are preserved in the schema description as
+  `"Tuple of N positional items: [type1, type2, ...]"`. Resulting
+  per-lang property types: Java `List<Object>`, Kotlin `List<Any>`,
+  C# `List<Object>?`, Go `*[]interface{}`, Rust
+  `Option<Vec<serde_json::Value>>`, Swift `[AnyCodable]?`, Dart
+  `List<Object>?`, Python `Optional[List[object]]`, Node
+  `Array<unknown>`, PHP `?array`, Ruby `Array<Object>`, Elixir
+  `[any()]`. Positional type safety is lost — callers must downcast
+  per index following the docstring. Idiomatic per-lang tuple emission
+  (Python `NamedTuple`, Kotlin `Pair`/data class, Rust tuple struct,
+  Swift typed tuple, etc.) is a follow-up. Exercised by `GeoPoint` in
+  the petstore spec, referenced as `Pet.location`. Affects: 12 (the
+  rule applies uniformly across all SDKs).
 - **Gap BA** — `type: ["string", "null"]` 3.1 syntax: relies entirely
   on swagger-parser auto-converting to `nullable: true`. If the
   conversion is broken upstream, all 12 SDKs fail together (nullable

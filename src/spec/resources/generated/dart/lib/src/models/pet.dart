@@ -32,6 +32,9 @@ class Pet {
   @Deprecated('This property is deprecated.')
   final String? status;
 
+  /// Example: `null`
+  final List<Object>? location;
+
   const Pet({
     this.id,
     required this.name,
@@ -39,6 +42,7 @@ class Pet {
     required this.photoUrls,
     this.tags,
     this.status,
+    this.location,
   });
 
   /// Creates a [Pet] from a JSON map.
@@ -54,6 +58,7 @@ class Pet {
           ?.map((e) => Tag.fromJson(e as Map<String, dynamic>))
           .toList(),
       status: json['status'] as String?,
+      location: (json['location'] as List?)?.map((e) => e as Object).toList(),
     );
   }
 
@@ -76,6 +81,9 @@ class Pet {
     if (status != null) {
       json['status'] = status;
     }
+    if (location != null) {
+      json['location'] = location?.toList();
+    }
     return json;
   }
 
@@ -91,7 +99,8 @@ class Pet {
         category == other.category &&
         photoUrls == other.photoUrls &&
         tags == other.tags &&
-        status == other.status;
+        status == other.status &&
+        location == other.location;
   }
 
   /// hashCode emits Object.hashAll which accepts an arbitrary-length
@@ -99,5 +108,5 @@ class Pet {
   /// represent the 0-var or 1-var cases without special-casing).
   @override
   int get hashCode =>
-      Object.hashAll([id, name, category, photoUrls, tags, status]);
+      Object.hashAll([id, name, category, photoUrls, tags, status, location]);
 }

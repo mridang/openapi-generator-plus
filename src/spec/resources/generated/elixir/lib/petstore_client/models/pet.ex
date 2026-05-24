@@ -17,7 +17,8 @@ defmodule PetstoreClient.Models.Pet do
           category: Category | nil,
           photo_urls: MapSet.t(String.t()) | nil,
           tags: [Tag] | nil,
-          status: String.t() | nil
+          status: String.t() | nil,
+          location: [any()] | nil
         }
 
   @enforce_keys [:name]
@@ -28,7 +29,8 @@ defmodule PetstoreClient.Models.Pet do
     :category,
     :photo_urls,
     :tags,
-    :status
+    :status,
+    :location
   ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."
@@ -40,7 +42,8 @@ defmodule PetstoreClient.Models.Pet do
       category: "category",
       photo_urls: "photoUrls",
       tags: "tags",
-      status: "status"
+      status: "status",
+      location: "location"
     }
   end
 
@@ -59,7 +62,8 @@ defmodule PetstoreClient.Models.Pet do
       category: "Category",
       photo_urls: "MapSet.t(String.t())",
       tags: "[Tag]",
-      status: "String.t()"
+      status: "String.t()",
+      location: "[any()]"
     }
   end
 end

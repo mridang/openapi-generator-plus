@@ -18,6 +18,7 @@ defmodule PetstoreClient.Models.PetWithOwner do
           photo_urls: MapSet.t(String.t()) | nil,
           tags: [Tag] | nil,
           status: String.t() | nil,
+          location: [any()] | nil,
           owner_name: String.t() | nil,
           owner_email: String.t() | nil
         }
@@ -32,6 +33,7 @@ defmodule PetstoreClient.Models.PetWithOwner do
     :photo_urls,
     :tags,
     :status,
+    :location,
     :owner_name,
     :owner_email
   ]
@@ -46,6 +48,7 @@ defmodule PetstoreClient.Models.PetWithOwner do
       photo_urls: "photoUrls",
       tags: "tags",
       status: "status",
+      location: "location",
       owner_name: "ownerName",
       owner_email: "ownerEmail"
     }
@@ -67,6 +70,7 @@ defmodule PetstoreClient.Models.PetWithOwner do
       photo_urls: "MapSet.t(String.t())",
       tags: "[Tag]",
       status: "String.t()",
+      location: "[any()]",
       owner_name: "String.t()",
       owner_email: "String.t()"
     }

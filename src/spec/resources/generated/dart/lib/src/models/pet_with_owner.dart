@@ -33,6 +33,9 @@ class PetWithOwner {
   final String? status;
 
   /// Example: `null`
+  final List<Object>? location;
+
+  /// Example: `null`
   final String ownerName;
 
   /// Example: `null`
@@ -45,6 +48,7 @@ class PetWithOwner {
     required this.photoUrls,
     this.tags,
     this.status,
+    this.location,
     required this.ownerName,
     this.ownerEmail,
   });
@@ -62,6 +66,7 @@ class PetWithOwner {
           ?.map((e) => Tag.fromJson(e as Map<String, dynamic>))
           .toList(),
       status: json['status'] as String?,
+      location: (json['location'] as List?)?.map((e) => e as Object).toList(),
       ownerName: json['ownerName'] as String,
       ownerEmail: json['ownerEmail'] as String?,
     );
@@ -86,6 +91,9 @@ class PetWithOwner {
     if (status != null) {
       json['status'] = status;
     }
+    if (location != null) {
+      json['location'] = location?.toList();
+    }
 
     json['ownerName'] = ownerName;
 
@@ -108,6 +116,7 @@ class PetWithOwner {
         photoUrls == other.photoUrls &&
         tags == other.tags &&
         status == other.status &&
+        location == other.location &&
         ownerName == other.ownerName &&
         ownerEmail == other.ownerEmail;
   }
@@ -116,6 +125,15 @@ class PetWithOwner {
   /// Iterable (Object.hash requires 2+ positional args, so it can't
   /// represent the 0-var or 1-var cases without special-casing).
   @override
-  int get hashCode => Object.hashAll(
-      [id, name, category, photoUrls, tags, status, ownerName, ownerEmail]);
+  int get hashCode => Object.hashAll([
+        id,
+        name,
+        category,
+        photoUrls,
+        tags,
+        status,
+        location,
+        ownerName,
+        ownerEmail
+      ]);
 }

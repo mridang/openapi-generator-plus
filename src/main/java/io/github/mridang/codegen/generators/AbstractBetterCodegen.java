@@ -62,6 +62,8 @@ import org.openapitools.codegen.meta.features.SecurityFeature;
 import org.openapitools.codegen.meta.features.WireFormatFeature;
 import org.openapitools.codegen.utils.ModelUtils;
 
+import io.github.mridang.codegen.rules.NormalizePrefixItemsRule;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -508,6 +510,10 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     @Override
     public void processOpenAPI(OpenAPI openAPI) {
         super.processOpenAPI(openAPI);
+        // Gap AZ — degrade OAS 3.1 `prefixItems` tuple arrays to plain
+        // array-of-Object before the rest of the pipeline inspects schemas.
+        // See NormalizePrefixItemsRule for the chosen cross-language strategy.
+        new NormalizePrefixItemsRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
         detectSecuritySchemes(openAPI);
         additionalProperties.put("hasBasicAuth", hasBasicAuth);
         additionalProperties.put("hasBearerAuth", hasBearerAuth);

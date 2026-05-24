@@ -88,6 +88,11 @@ public class Pet {
   @Nullable
   public StatusEnum status;
 
+  /** Example: {@code null} */
+  @JsonProperty("location")
+  @Nullable
+  public List<Object> location = new ArrayList<>();
+
   @SuppressWarnings("NullAway.Init")
   public Pet() {}
 
@@ -117,11 +122,12 @@ public class Pet {
         && java.util.Objects.equals(this.category, other.category)
         && java.util.Objects.equals(this.photoUrls, other.photoUrls)
         && java.util.Objects.equals(this.tags, other.tags)
-        && java.util.Objects.equals(this.status, other.status);
+        && java.util.Objects.equals(this.status, other.status)
+        && java.util.Objects.equals(this.location, other.location);
   }
 
   @Override
   public int hashCode() {
-    return java.util.Objects.hash(id, name, category, photoUrls, tags, status);
+    return java.util.Objects.hash(id, name, category, photoUrls, tags, status, location);
   }
 }

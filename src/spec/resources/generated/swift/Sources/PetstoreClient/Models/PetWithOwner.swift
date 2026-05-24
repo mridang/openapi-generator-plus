@@ -24,6 +24,8 @@ public struct PetWithOwner: Codable, Sendable {
     @available(*, deprecated, message: "This property is deprecated.")
     public var status: String?
     /// Example: `null`
+    public var location: [AnyCodable]?
+    /// Example: `null`
     public var ownerName: String
     /// Example: `null`
     public var ownerEmail: String?
@@ -35,6 +37,7 @@ public struct PetWithOwner: Codable, Sendable {
         case photoUrls = "photoUrls"
         case tags = "tags"
         case status = "status"
+        case location = "location"
         case ownerName = "ownerName"
         case ownerEmail = "ownerEmail"
     }
@@ -42,7 +45,7 @@ public struct PetWithOwner: Codable, Sendable {
     /// Creates a new PetWithOwner instance.
     public init(
         name: String, photoUrls: Set<String>, ownerName: String, id: Int64? = nil, category: Category? = nil,
-        tags: [Tag]? = nil, status: String? = nil, ownerEmail: String? = nil
+        tags: [Tag]? = nil, status: String? = nil, location: [AnyCodable]? = nil, ownerEmail: String? = nil
     ) {
         self.name = name
         self.photoUrls = photoUrls
@@ -51,6 +54,7 @@ public struct PetWithOwner: Codable, Sendable {
         self.category = category
         self.tags = tags
         self.status = status
+        self.location = location
         self.ownerEmail = ownerEmail
     }
 
@@ -67,6 +71,7 @@ public struct PetWithOwner: Codable, Sendable {
         self.photoUrls = try container.decode(Set<String>.self, forKey: .photoUrls)
         self.tags = try container.decodeIfPresent([Tag].self, forKey: .tags)
         self.status = try container.decodeIfPresent(String.self, forKey: .status)
+        self.location = try container.decodeIfPresent([AnyCodable].self, forKey: .location)
         self.ownerName = try container.decode(String.self, forKey: .ownerName)
         self.ownerEmail = try container.decodeIfPresent(String.self, forKey: .ownerEmail)
     }
@@ -84,6 +89,7 @@ public struct PetWithOwner: Codable, Sendable {
         try container.encode(photoUrls, forKey: .photoUrls)
         try container.encodeIfPresent(tags, forKey: .tags)
         try container.encodeIfPresent(status, forKey: .status)
+        try container.encodeIfPresent(location, forKey: .location)
         try container.encode(ownerName, forKey: .ownerName)
         try container.encodeIfPresent(ownerEmail, forKey: .ownerEmail)
     }

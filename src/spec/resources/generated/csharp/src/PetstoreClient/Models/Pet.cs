@@ -71,6 +71,11 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     [JsonPropertyName("status")]
     public StatusEnum? Status { get; set; }
 
+    /// <example>null</example>
+
+    [JsonPropertyName("location")]
+    public List<Object>? Location { get; set; }
+
     /// <summary>Value-equality based on all declared fields. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in
     /// test assertions.</summary>
@@ -89,6 +94,7 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
                     )
                     && EqualityComparer<List<Tag>?>.Default.Equals(this.Tags, other.Tags)
                     && EqualityComparer<StatusEnum?>.Default.Equals(this.Status, other.Status)
+                    && EqualityComparer<List<Object>?>.Default.Equals(this.Location, other.Location)
                 )
             );
     }
@@ -107,6 +113,7 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
         hash.Add(this.PhotoUrls);
         hash.Add(this.Tags);
         hash.Add(this.Status);
+        hash.Add(this.Location);
         return hash.ToHashCode();
     }
 }

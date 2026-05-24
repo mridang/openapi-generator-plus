@@ -37,6 +37,9 @@ export class Pet {
    */
   @Expose({ name: 'status' })
   status?: PetStatusEnum;
+  /** @example null */
+  @Expose({ name: 'location' })
+  location?: Array<unknown>;
 
   constructor(data?: Partial<Pet>) {
     Object.assign(this, data);
@@ -56,6 +59,9 @@ export class Pet {
     }
     if (this.photoUrls != null && !Array.isArray(this.photoUrls) && !((this.photoUrls as unknown) instanceof Set)) {
       throw new TypeError(`photoUrls must be an array, got ${typeof this.photoUrls}`);
+    }
+    if (this.location != null && !Array.isArray(this.location) && !((this.location as unknown) instanceof Set)) {
+      throw new TypeError(`location must be an array, got ${typeof this.location}`);
     }
     if (this.status != null) {
       const statusValues = Object.values(PetStatusEnum);

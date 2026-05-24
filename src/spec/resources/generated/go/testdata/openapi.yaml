@@ -1065,6 +1065,8 @@ components:
             - available
             - pending
             - sold
+        location:
+          $ref: '#/components/schemas/GeoPoint'
 
     ApiResponse:
       type: object
@@ -1243,3 +1245,19 @@ components:
         name:
           type: string
       unevaluatedProperties: false
+
+    # Gap AZ — OAS 3.1 / JSON Schema 2020-12 `prefixItems` (positional tuple
+    # arrays). Normalized by NormalizePrefixItemsRule into a plain
+    # `type: array, items: {}` (Object / Any / interface{}) with the original
+    # per-index types preserved in the schema description. Heterogeneous
+    # fixed-arity tuples have no portable representation across the 12 target
+    # languages, so we degrade to a homogeneous array; callers must downcast
+    # per index following the docstring.
+    GeoPoint:
+      type: array
+      prefixItems:
+        - type: number
+          format: double
+        - type: number
+          format: double
+        - type: string
