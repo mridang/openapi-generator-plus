@@ -252,6 +252,8 @@ module PetstoreClient
 
     class ApiKeyAuthenticator < BaseAuthenticator
       def initialize: (String, String, String, Symbol) -> void
+      private
+      def validate_api_key!: (String, String, Symbol) -> void
     end
 
     module OAuth

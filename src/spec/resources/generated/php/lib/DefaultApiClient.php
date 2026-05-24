@@ -143,12 +143,12 @@ class DefaultApiClient implements ApiClient
                         $filename = $v->getFilename();
                         self::validateMultipartFilename($filename);
                         $mime = $this->guessMimeType($path !== false ? $path : null, $filename);
-                        // For non-ASCII filenames we must emit an RFC 5987
-                        // `filename*=UTF-8''<pct>` parameter alongside the
-                        // sanitised ASCII fallback. Symfony's DataPart only
-                        // emits a raw `filename=` parameter, so we construct
-                        // the DataPart with the ASCII fallback then mutate
-                        // the Content-Disposition header to add filename*.
+                        /* For non-ASCII filenames we must emit an RFC 5987
+                           `filename*=UTF-8''<pct>` parameter alongside the
+                           sanitised ASCII fallback. Symfony's DataPart only
+                           emits a raw `filename=` parameter, so we construct
+                           the DataPart with the ASCII fallback then mutate
+                           the Content-Disposition header to add filename*. */
                         $isAscii = preg_match('/^[\x00-\x7F]*$/u', $filename) === 1;
                         $effectiveFilename = $isAscii
                             ? $filename

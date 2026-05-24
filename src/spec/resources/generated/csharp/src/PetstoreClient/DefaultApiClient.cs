@@ -493,7 +493,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     /// Builds the <c>filename=...</c> directive for a multipart
     /// Content-Disposition part. For ASCII-only filenames emits a
     /// quote/backslash-escaped <c>filename="..."</c>. For non-ASCII filenames
-    /// additionally emits an RFC 5987 <c>filename*=UTF-8''&lt;pct&gt;</c>
+    /// additionally emits an RFC 5987 <c>filename*=UTF-8''(pct-encoded)</c>
     /// parameter alongside an ASCII fallback (non-ASCII bytes replaced
     /// with <c>_</c>).
     /// </summary>

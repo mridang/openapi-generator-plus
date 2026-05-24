@@ -43,3 +43,13 @@ Style/Lambda:
   Enabled: false
 Metrics/BlockLength:
   Enabled: false
+# Generated SDK methods (same_origin?, validate_api_key!) inherently exceed
+# small thresholds. Real method-design rules (Naming, Layout) stay strict.
+Metrics/MethodLength:
+  Enabled: false
+Metrics/AbcSize:
+  Enabled: false
+Metrics/CyclomaticComplexity:
+  Enabled: false
+Metrics/PerceivedComplexity:
+  Enabled: false
