@@ -172,7 +172,7 @@ class DefaultApiClient implements ApiClient {
         var hops = 0;
         while (hops < maxRedirects &&
             _isRedirectStatus(streamedResponse.statusCode)) {
-          // Drain any unread body to release the connection.
+          /* Drain any unread body to release the connection. */
           await streamedResponse.stream.drain<void>();
           final location = streamedResponse.headers['location'];
           if (location == null || location.isEmpty) break;

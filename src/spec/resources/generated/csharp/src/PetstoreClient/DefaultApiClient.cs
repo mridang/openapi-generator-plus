@@ -111,11 +111,11 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             handler.UseProxy = true;
         }
 
-        // Gap BH: HttpClient's AllowAutoRedirect re-sends Authorization /
-        // Cookie / Proxy-Authorization across cross-origin 3xx redirects by
-        // default, leaking bearer tokens to attacker-controlled hosts via
-        // malicious 302. Disable auto-redirect entirely; SendRequestAsync
-        // follows Location: headers manually with a same-origin check.
+        /* Gap BH: HttpClient's AllowAutoRedirect re-sends Authorization /
+           Cookie / Proxy-Authorization across cross-origin 3xx redirects by
+           default, leaking bearer tokens to attacker-controlled hosts via
+           malicious 302. Disable auto-redirect entirely; SendRequestAsync
+           follows Location: headers manually with a same-origin check. */
         handler.AllowAutoRedirect = false;
 
         _httpClient = new HttpClient(handler, disposeHandler: true);
@@ -233,7 +233,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         {
             response = await _httpClient.SendAsync(request).ConfigureAwait(false);
 
-            // Gap BH: manual redirect loop with cross-origin sensitive-header strip.
+            /* Gap BH: manual redirect loop with cross-origin sensitive-header strip. */
             if (_transportOptions.FollowRedirects)
             {
                 int maxRedirects = _transportOptions.MaxRedirects ?? 50;
@@ -337,23 +337,29 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         return new ApiResponse((int)response.StatusCode, responseBody, responseHeaders);
     }
 
+    private static bool IsRedirectStatus(int code)
+    {
+        return code is 301 or 302 or 303 or 307 or 308;
+    }
+
+    private static bool SameOrigin(Uri a, Uri b)
+    {
+        if (!string.Equals(a.Scheme, b.Scheme, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        if (!string.Equals(a.Host, b.Host, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        return a.Port == b.Port;
+    }
+
     /// <summary>
     /// Lowercases an ASCII string (HTTP header names are tokens restricted to
     /// the ASCII range per RFC 7230 section 3.2.6, so a culture-aware
     /// <c>ToLower</c> is unnecessary and would otherwise trip CA1308).
     /// </summary>
-    private static bool IsRedirectStatus(int code) =>
-        code == 301 || code == 302 || code == 303 || code == 307 || code == 308;
-
-    private static bool SameOrigin(Uri a, Uri b)
-    {
-        if (!string.Equals(a.Scheme, b.Scheme, StringComparison.OrdinalIgnoreCase))
-            return false;
-        if (!string.Equals(a.Host, b.Host, StringComparison.OrdinalIgnoreCase))
-            return false;
-        return a.Port == b.Port;
-    }
-
     private static string AsciiLower(string value)
     {
         char[] chars = value.ToCharArray();

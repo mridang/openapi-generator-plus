@@ -32,9 +32,9 @@ public class BearerAuthenticator: BaseAuthenticator, @unchecked Sendable {
 
     /// Returns the Bearer authentication header.
     override public func authHeaders() async -> [String: String] {
-        // Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
-        // from env files are commonly stored already-prefixed; emitting
-        // "Bearer Bearer xyz" would otherwise silently break auth.
+        /* Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
+           from env files are commonly stored already-prefixed; emitting
+           "Bearer Bearer xyz" would otherwise silently break auth. */
         var value = token
         if value.count >= 7 {
             let head = String(value.prefix(7))

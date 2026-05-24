@@ -48,7 +48,10 @@ public class ApiKeyAuthenticator(
     /// <inheritdoc/>
     public override Dictionary<string, string> GetAuthHeaders()
     {
-        if (location != ApiKeyLocation.Header) return [];
+        if (location != ApiKeyLocation.Header)
+        {
+            return [];
+        }
         ValidateApiKey();
         return new() { [keyParamName] = apiKey };
     }
@@ -56,7 +59,10 @@ public class ApiKeyAuthenticator(
     /// <inheritdoc/>
     public override Dictionary<string, string> GetQueryParams()
     {
-        if (location != ApiKeyLocation.Query) return [];
+        if (location != ApiKeyLocation.Query)
+        {
+            return [];
+        }
         ValidateApiKey();
         return new() { [keyParamName] = apiKey };
     }
@@ -64,7 +70,10 @@ public class ApiKeyAuthenticator(
     /// <inheritdoc/>
     public override Dictionary<string, string> GetCookieParams()
     {
-        if (location != ApiKeyLocation.Cookie) return [];
+        if (location != ApiKeyLocation.Cookie)
+        {
+            return [];
+        }
         ValidateApiKey();
         return new() { [keyParamName] = apiKey };
     }

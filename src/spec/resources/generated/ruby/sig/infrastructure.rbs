@@ -150,6 +150,11 @@ module PetstoreClient
     def multipart_part: (String, untyped, String) -> String
     def build_content_disposition: (String | Symbol, String?) -> String
     def sniff_part_mime: (String?) -> String
+    def redirect_status?: (Integer | String) -> bool
+    def resolve_url: (String, String) -> String?
+    def safe_parse_uri: (String) -> URI::Generic?
+    def same_origin?: (String, String) -> bool
+    def effective_port: (URI::Generic) -> Integer
   end
 
   class SerializationError < StandardError

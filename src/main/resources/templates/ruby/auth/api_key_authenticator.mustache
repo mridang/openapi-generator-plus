@@ -14,21 +14,7 @@ module {{moduleName}}
       # @param location [Symbol] :header, :query, or :cookie
       def initialize(host, key_param_name, api_key, location)
         super()
-        # Validation applies to ALL locations: empty/whitespace API keys
-        # and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
-        # printable-ASCII rule still applies to HEADER values.
-        if api_key.nil? || api_key.empty? || api_key.strip.empty?
-          raise ArgumentError,
-                "API key value for '#{key_param_name}' must not be empty"
-        end
-        if api_key.match?(/[\r\n\x00]/)
-          raise ArgumentError,
-                "API key value for '#{key_param_name}' contains forbidden control characters (CR/LF/NUL)"
-        end
-        if location == ApiKeyLocation::HEADER && api_key.match?(/[^\t\x20-\x7E]/)
-          raise ArgumentError,
-                "API key for header '#{key_param_name}' must contain only printable ASCII characters (RFC 7230 §3.2.6)"
-        end
+        validate_api_key!(key_param_name, api_key, location)
         @host = host
         @key_param_name = key_param_name
         @api_key = api_key
@@ -54,6 +40,26 @@ module {{moduleName}}
         result = {} # : Hash[String, String]
         result[@key_param_name] = @api_key if @location == ApiKeyLocation::COOKIE
         result
+      end
+
+      private
+
+      # Validation applies to ALL locations: empty/whitespace API keys
+      # and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
+      # printable-ASCII rule still applies to HEADER values.
+      def validate_api_key!(key_param_name, api_key, location)
+        if api_key.nil? || api_key.empty? || api_key.strip.empty?
+          raise ArgumentError,
+                "API key value for '#{key_param_name}' must not be empty"
+        end
+        if api_key.match?(/[\r\n\x00]/)
+          raise ArgumentError,
+                "API key value for '#{key_param_name}' contains forbidden control characters (CR/LF/NUL)"
+        end
+        return unless location == ApiKeyLocation::HEADER && api_key.match?(/[^\t\x20-\x7E]/)
+
+        raise ArgumentError,
+              "API key for header '#{key_param_name}' must contain only printable ASCII characters (RFC 7230 §3.2.6)"
       end
     end
   end

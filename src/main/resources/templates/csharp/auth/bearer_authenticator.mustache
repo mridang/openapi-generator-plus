@@ -30,9 +30,9 @@ public class BearerAuthenticator(string host, string token) : BaseAuthenticator
          * from env files are commonly stored already-prefixed; emitting
          * "Bearer Bearer xyz" would otherwise silently break auth. */
         string value = token ?? string.Empty;
-        if (value.Length >= 7 && value.Substring(0, 7).Equals("Bearer ", StringComparison.OrdinalIgnoreCase))
+        if (value.Length >= 7 && value[..7].Equals("Bearer ", StringComparison.OrdinalIgnoreCase))
         {
-            value = value.Substring(7);
+            value = value[7..];
         }
         return new() { ["Authorization"] = "Bearer " + value };
     }
