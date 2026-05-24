@@ -340,20 +340,42 @@ defmodule {{moduleName}}.DefaultApiClient do
           else
             cross_origin = not same_origin?(orig_url, next_url)
 
-            next_headers =
+            # Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
+            #   307 + 308: preserve original method and body.
+            #   303:       force GET, drop the body (and Content-Type/Length).
+            #   301 + 302: historical browser behaviour — switch to GET for
+            #              non-GET/HEAD requests, drop the body.
+            method_str = method |> to_string() |> String.upcase()
+
+            {next_method, next_body} =
+              cond do
+                response.status in [307, 308] -> {method, body}
+                response.status == 303 -> {:get, nil}
+                method_str in ["GET", "HEAD"] -> {method, body}
+                true -> {:get, nil}
+              end
+
+            stripped_headers =
               if cross_origin do
                 strip_sensitive_headers(headers)
               else
                 headers
               end
 
+            next_headers =
+              if next_body == nil do
+                strip_body_headers(stripped_headers)
+              else
+                stripped_headers
+              end
+
             do_request_with_redirects(
               client,
-              method,
+              next_method,
               next_url,
               orig_url,
               next_headers,
-              body,
+              next_body,
               max,
               hops + 1
             )
@@ -424,6 +446,19 @@ defmodule {{moduleName}}.DefaultApiClient do
       String.downcase(to_string(k)) in @sensitive_redirect_headers
     end)
     |> Map.new()
+  end
+
+  defp strip_body_headers(headers) when is_map(headers) do
+    Enum.reject(headers, fn {k, _v} ->
+      String.downcase(to_string(k)) in ["content-type", "content-length"]
+    end)
+    |> Map.new()
+  end
+
+  defp strip_body_headers(headers) when is_list(headers) do
+    Enum.reject(headers, fn {k, _v} ->
+      String.downcase(to_string(k)) in ["content-type", "content-length"]
+    end)
   end
 
   defp prepare_body(nil, headers), do: {nil, Map.delete(headers, "Content-Type")}

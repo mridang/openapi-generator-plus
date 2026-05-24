@@ -261,6 +261,34 @@ async fn test_default_api_client_returns_redirect_when_disabled() {
     assert_eq!(resp.status_code, 302);
 }
 
+/// Gap T3: 303 forces follow-up to GET and drops the body per RFC 7231 §6.4.4.
+#[tokio::test]
+async fn test_default_api_client_redirect_303_switches_to_get_and_drops_body() {
+    let wiremock_url = testcontainers_helper::wiremock_http_url();
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .max_redirects(Some(5))
+        .build();
+    let client = DefaultApiClient::new(Some(transport));
+    let mut headers = HashMap::new();
+    headers.insert("Content-Type".to_string(), "application/json".to_string());
+    let body = petstore::api_client::RequestBody::Bytes(b"hello-body".to_vec());
+    let resp = client
+        .send_request(
+            "POST",
+            &format!("{}/api/redirect-303", wiremock_url),
+            &headers,
+            Some(&body),
+        )
+        .await
+        .expect("unexpected error");
+
+    assert_eq!(resp.status_code, 200);
+    let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
+    assert_eq!(json["method"], "GET");
+    assert_eq!(json["body"], "");
+}
+
 #[tokio::test]
 async fn test_default_api_client_respects_max_redirects_limit() {
     let transport = TransportOptionsBuilder::new()

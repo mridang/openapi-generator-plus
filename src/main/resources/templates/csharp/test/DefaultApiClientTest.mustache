@@ -275,6 +275,32 @@ public class DefaultApiClientTest
         Assert.Equal(302, response.StatusCode);
     }
 
+    /// <summary>
+    /// Gap T3: 303 forces follow-up to GET and drops body per RFC 7231 §6.4.4.
+    /// </summary>
+    [Fact]
+    public async Task Redirect303SwitchesToGetAndDropsBody()
+    {
+        var transport = TransportOptions.Builder()
+            .FollowRedirects(true)
+            .MaxRedirects(5)
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+        var headers = new Dictionary<string, string> { { "Content-Type", "application/json" } };
+        var response = await client.SendRequestAsync(
+            "POST",
+            new Uri(_fixture.WireMockHttpUrl + "/api/redirect-303"),
+            headers,
+            "hello-body"
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        var json = JsonDocument.Parse(response.Body);
+        Assert.Equal("GET", json.RootElement.GetProperty("method").GetString());
+        Assert.Equal("", json.RootElement.GetProperty("body").GetString());
+    }
+
     // -- Max redirects --
 
     [Fact]

@@ -209,6 +209,9 @@ class DefaultApiClient implements ApiClient
                 $maxRedirects = $this->transportOptions->maxRedirects ?? 20;
                 $originalUrl = $url;
                 $hops = 0;
+                $currentMethod = $method;
+                $currentOptions = $options;
+                $currentHeaders = $mergedHeaders;
                 while ($hops < $maxRedirects && self::isRedirectStatus($response->getStatusCode())) {
                     $location = ($response->getHeaders(false)['location'] ?? [null])[0];
                     if ($location === null) {
@@ -223,7 +226,29 @@ class DefaultApiClient implements ApiClient
                         break;
                     }
                     $crossOrigin = !self::sameOrigin($originalUrl, $nextUrl);
-                    $redirectHeaders = $mergedHeaders;
+
+                    /* Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
+                     *   307 + 308: preserve original method and body.
+                     *   303:       force GET, drop the body (and Content-Type/Length).
+                     *   301 + 302: historical browser behaviour — switch to GET for
+                     *              non-GET/HEAD requests, drop the body. */
+                    $statusCode = $response->getStatusCode();
+                    $methodUpper = strtoupper($currentMethod);
+                    if ($statusCode === 307 || $statusCode === 308) {
+                        $nextMethod = $currentMethod;
+                        $dropBody = false;
+                    } elseif ($statusCode === 303) {
+                        $nextMethod = 'GET';
+                        $dropBody = true;
+                    } elseif ($methodUpper === 'GET' || $methodUpper === 'HEAD') {
+                        $nextMethod = $currentMethod;
+                        $dropBody = false;
+                    } else {
+                        $nextMethod = 'GET';
+                        $dropBody = true;
+                    }
+
+                    $redirectHeaders = $currentHeaders;
                     if ($crossOrigin) {
                         foreach (array_keys($redirectHeaders) as $hname) {
                             $lower = strtolower((string) $hname);
@@ -232,10 +257,25 @@ class DefaultApiClient implements ApiClient
                             }
                         }
                     }
-                    $redirectOptions = $options;
+                    if ($dropBody) {
+                        foreach (array_keys($redirectHeaders) as $hname) {
+                            $lower = strtolower((string) $hname);
+                            if ($lower === 'content-type' || $lower === 'content-length') {
+                                unset($redirectHeaders[$hname]);
+                            }
+                        }
+                    }
+
+                    $redirectOptions = $currentOptions;
                     $redirectOptions['headers'] = $redirectHeaders;
+                    if ($dropBody) {
+                        unset($redirectOptions['body']);
+                    }
                     $url = $nextUrl;
-                    $response = $this->client->request($method, $nextUrl, $redirectOptions);
+                    $currentMethod = $nextMethod;
+                    $currentOptions = $redirectOptions;
+                    $currentHeaders = $redirectHeaders;
+                    $response = $this->client->request($nextMethod, $nextUrl, $redirectOptions);
                     $hops++;
                 }
             }

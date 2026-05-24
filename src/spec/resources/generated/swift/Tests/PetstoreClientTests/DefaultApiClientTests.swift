@@ -178,6 +178,38 @@ import Testing
         #expect(client != nil)
     }
 
+    // Gap T3: 303 forces follow-up to GET and drops body per RFC 7231 §6.4.4.
+    // URLSession itself rewrites the method on 303; this test pins that
+    // behaviour from the perspective of DefaultApiClient.
+    @Test func testRedirect303SwitchesToGetAndDropsBody() async throws {
+        let transport = TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
+        let hopCount = HopCounter()
+        var capturedFollowupMethod: String?
+        var capturedFollowupBody: Data?
+        let client = makeClient(transport: transport) { req in
+            let hop = hopCount.increment()
+            if hop == 1 {
+                return (
+                    Data(),
+                    303,
+                    ["Location": "https://example.com/api/echo-method-body"]
+                )
+            }
+            capturedFollowupMethod = req.httpMethod
+            capturedFollowupBody = req.httpBody
+            return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+        }
+        let resp = try await client.sendRequest(
+            method: "POST",
+            url: "https://example.com/api/redirect-303",
+            headers: ["Content-Type": "application/json"],
+            body: "hello-body"
+        )
+        #expect(resp.statusCode == 200)
+        #expect(capturedFollowupMethod == "GET")
+        #expect(capturedFollowupBody == nil || capturedFollowupBody?.isEmpty == true)
+    }
+
     @Test func testSendsMultipartFormData() async throws {
         var capturedContentType: String?
         var capturedBody: String?
@@ -227,6 +259,18 @@ import Testing
             headers: ["Accept-Encoding": "zstd"], body: nil)
         #expect(resp.statusCode == 200)
         #expect(resp.body.contains("userId"))
+    }
+}
+
+/// Thread-safe hop counter for multi-request stub handlers (e.g. redirect tests).
+private final class HopCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = 0
+    func increment() -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        value += 1
+        return value
     }
 }
 

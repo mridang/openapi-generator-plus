@@ -237,6 +237,30 @@ class DefaultApiClientTest extends TestCase
         $this->assertSame(302, $response->statusCode);
     }
 
+    public function testRedirect303SwitchesToGetAndDropsBody(): void
+    {
+        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
+
+        $transport = TransportOptions::builder()
+            ->followRedirects(true)
+            ->maxRedirects(5)
+            ->build();
+
+        $client = new DefaultApiClient($transport);
+        $response = $client->sendRequest(
+            'POST',
+            $wiremockUrl . '/api/redirect-303',
+            ['Content-Type' => 'application/json'],
+            'hello-body'
+        );
+
+        $this->assertSame(200, $response->statusCode);
+        /** @var array<string, mixed> $json */
+        $json = json_decode($response->body, true);
+        $this->assertSame('GET', $json['method']);
+        $this->assertSame('', $json['body']);
+    }
+
     // -- Max redirects --
 
     public function testRespectsMaxRedirectsLimit(): void

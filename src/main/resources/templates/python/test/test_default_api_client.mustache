@@ -136,6 +136,23 @@ class TestRedirectHandling:
 
         assert response.status_code == 302
 
+    def test_redirect_303_switches_to_get_and_drops_body(self, wiremock_http_url: Any) -> None:
+        """Gap T3: 303 forces follow-up to GET and drops body per RFC 7231 §6.4.4."""
+        transport = TransportOptions.builder().follow_redirects(True).max_redirects(5).build()
+        client = DefaultApiClient(transport)
+        response = client.send_request(
+            'POST',
+            wiremock_http_url + '/api/redirect-303',
+            {'Content-Type': 'application/json'},
+            'hello-body',
+        )
+
+        assert response.status_code == 200
+        import json as _json
+        parsed = _json.loads(response.body)
+        assert parsed['method'] == 'GET'
+        assert parsed['body'] == ''
+
 
 class TestMaxRedirects:
     def test_respects_max_redirects_limit(self) -> None:

@@ -168,6 +168,9 @@ export class DefaultApiClient implements ApiClient {
         const maxRedirects = this.transportOptions.maxRedirects ?? 20;
         const sensitive = new Set(['authorization', 'cookie', 'proxy-authorization']);
         let hops = 0;
+        let currentMethod = method;
+        let currentBody: unknown = body;
+        let currentHeaders: Record<string, string> = { ...mergedHeaders };
         while (
           hops < maxRedirects &&
           DefaultApiClient.isRedirectStatus(response.status)
@@ -178,13 +181,50 @@ export class DefaultApiClient implements ApiClient {
           const nextParsed = new URL(nextUrl);
           if (nextParsed.protocol !== 'http:' && nextParsed.protocol !== 'https:') break;
           const crossOrigin = !DefaultApiClient.sameOrigin(originalUrl, nextUrl);
+
+          /* Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
+           *   307 + 308: preserve original method and body.
+           *   303:       force GET, drop the body (and Content-Type/Length).
+           *   301 + 302: historical browser behaviour — switch to GET for
+           *              non-GET/HEAD requests, drop the body. */
+          const statusCode = response.status;
+          let nextMethod: string;
+          let nextBody: unknown;
+          const methodUpper = currentMethod.toUpperCase();
+          if (statusCode === 307 || statusCode === 308) {
+            nextMethod = currentMethod;
+            nextBody = currentBody;
+          } else if (statusCode === 303) {
+            nextMethod = 'GET';
+            nextBody = undefined;
+          } else if (methodUpper === 'GET' || methodUpper === 'HEAD') {
+            nextMethod = currentMethod;
+            nextBody = currentBody;
+          } else {
+            nextMethod = 'GET';
+            nextBody = undefined;
+          }
+
           const redirectHeaders: Record<string, string> = {};
-          for (const [k, v] of Object.entries(mergedHeaders)) {
+          for (const [k, v] of Object.entries(currentHeaders)) {
             if (crossOrigin && sensitive.has(k.toLowerCase())) continue;
+            if (nextBody === undefined
+                && (k.toLowerCase() === 'content-type'
+                    || k.toLowerCase() === 'content-length')) {
+              continue;
+            }
             redirectHeaders[k] = v;
           }
-          const redirectOptions = { ...fetchOptions, headers: redirectHeaders };
+          const redirectOptions = {
+            ...fetchOptions,
+            method: nextMethod,
+            headers: redirectHeaders,
+            body: nextBody
+          };
           currentUrl = nextUrl;
+          currentMethod = nextMethod;
+          currentBody = nextBody;
+          currentHeaders = redirectHeaders;
           response = await fetch(nextUrl, redirectOptions as RequestInit);
           hops++;
         }

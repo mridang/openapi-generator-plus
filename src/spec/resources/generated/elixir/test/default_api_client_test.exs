@@ -165,6 +165,32 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert response.status_code == 302
   end
 
+  test "303 switches to GET and drops body (Gap T3)" do
+    wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
+
+    transport =
+      PetstoreClient.TransportOptions.new(
+        follow_redirects: true,
+        max_redirects: 5
+      )
+
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :post,
+        "#{wiremock_url}/api/redirect-303",
+        %{"Content-Type" => "application/json"},
+        "hello-body"
+      )
+
+    assert response.status_code == 200
+    json = Jason.decode!(response.body)
+    assert json["method"] == "GET"
+    assert json["body"] == ""
+  end
+
   test "respects max_redirects limit" do
     transport =
       PetstoreClient.TransportOptions.new(

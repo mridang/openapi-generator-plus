@@ -95,6 +95,9 @@ module {{moduleName}}
           max_redirects = @transport_options.max_redirects || 20
           original_url = url
           hops = 0
+          current_method = method
+          current_body = serialized_body
+          current_headers = merged.dup
           while hops < max_redirects && redirect_status?(response.status)
             location = response.headers['location']
             break if location.nil? || location.empty?
@@ -106,14 +109,44 @@ module {{moduleName}}
             break unless next_uri && %w[http https].include?(next_uri.scheme)
 
             cross_origin = !same_origin?(original_url, next_url)
-            redirect_headers = merged.dup
+
+            # Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
+            #   307 + 308: preserve original method and body.
+            #   303:       force GET, drop the body (and Content-Type/Length).
+            #   301 + 302: historical browser behaviour — switch to GET for
+            #              non-GET/HEAD requests, drop the body.
+            status_code = response.status.to_i
+            method_str = current_method.to_s.upcase
+            if [307, 308].include?(status_code)
+              next_method = current_method
+              next_body = current_body
+            elsif status_code == 303
+              next_method = :get
+              next_body = nil
+            elsif %w[GET HEAD].include?(method_str)
+              next_method = current_method
+              next_body = current_body
+            else
+              next_method = :get
+              next_body = nil
+            end
+
+            redirect_headers = current_headers.dup
             if cross_origin
               redirect_headers.delete_if do |k, _v|
                 %w[authorization cookie proxy-authorization].include?(k.to_s.downcase)
               end
             end
+            if next_body.nil?
+              redirect_headers.delete_if do |k, _v|
+                %w[content-type content-length].include?(k.to_s.downcase)
+              end
+            end
             url = next_url
-            response = connection.run_request(method.downcase.to_sym, next_url, serialized_body, redirect_headers)
+            current_method = next_method
+            current_body = next_body
+            current_headers = redirect_headers
+            response = connection.run_request(next_method.to_s.downcase.to_sym, next_url, next_body, redirect_headers)
             hops += 1
           end
         end

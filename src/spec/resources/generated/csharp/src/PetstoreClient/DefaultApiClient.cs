@@ -246,6 +246,8 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     "Cookie",
                     "Proxy-Authorization",
                 };
+                string currentMethod = method;
+                object? currentBody = body;
                 while (hops < maxRedirects && IsRedirectStatus((int)response.StatusCode))
                 {
                     if (response.Headers.Location == null)
@@ -260,7 +262,38 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                         break;
                     }
                     bool crossOrigin = !SameOrigin(originalUrl, nextUrl);
-                    HttpRequestMessage next = new(new HttpMethod(method), nextUrl);
+
+                    /* Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
+                       307 + 308: preserve original method and body.
+                       303:       force GET, drop the body (and Content-Type/Length).
+                       301 + 302: historical browser behaviour — switch to GET
+                                  for non-GET/HEAD requests, drop the body. */
+                    int statusCode = (int)response.StatusCode;
+                    string methodUpper = currentMethod.ToUpperInvariant();
+                    string nextMethod;
+                    object? nextBody;
+                    if (statusCode == 307 || statusCode == 308)
+                    {
+                        nextMethod = currentMethod;
+                        nextBody = currentBody;
+                    }
+                    else if (statusCode == 303)
+                    {
+                        nextMethod = "GET";
+                        nextBody = null;
+                    }
+                    else if (methodUpper == "GET" || methodUpper == "HEAD")
+                    {
+                        nextMethod = currentMethod;
+                        nextBody = currentBody;
+                    }
+                    else
+                    {
+                        nextMethod = "GET";
+                        nextBody = null;
+                    }
+
+                    HttpRequestMessage next = new(new HttpMethod(nextMethod), nextUrl);
                     foreach (KeyValuePair<string, string> header in mergedHeaders)
                     {
                         if (
@@ -273,17 +306,28 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                         {
                             continue;
                         }
+                        if (
+                            nextBody == null
+                            && string.Equals(
+                                header.Key,
+                                "Content-Length",
+                                StringComparison.OrdinalIgnoreCase
+                            )
+                        )
+                        {
+                            continue;
+                        }
                         if (crossOrigin && sensitive.Contains(header.Key))
                         {
                             continue;
                         }
                         _ = next.Headers.TryAddWithoutValidation(header.Key, header.Value);
                     }
-                    if (body is byte[] bytes2)
+                    if (nextBody is byte[] bytes2)
                     {
                         next.Content = new ByteArrayContent(bytes2);
                     }
-                    else if (body is string text2)
+                    else if (nextBody is string text2)
                     {
                         next.Content = new StringContent(
                             text2,
@@ -293,6 +337,8 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     }
                     response.Dispose();
                     currentUrl = nextUrl;
+                    currentMethod = nextMethod;
+                    currentBody = nextBody;
                     response = await _httpClient.SendAsync(next).ConfigureAwait(false);
                     next.Dispose();
                     hops++;

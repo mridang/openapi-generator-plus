@@ -138,6 +138,10 @@ impl ApiClient for DefaultApiClient {
                 let mut current_url = original_url.clone();
                 let mut hops = 0usize;
                 let sensitive: [&str; 3] = ["authorization", "cookie", "proxy-authorization"];
+                let mut current_method = method.to_string();
+                let mut current_body: Option<Vec<u8>> = body_bytes.clone();
+                let mut current_headers: std::collections::HashMap<String, String> =
+                    merged.clone();
                 while is_redirect_status(response.status().as_u16()) && hops < max {
                     let location = match response
                         .headers()
@@ -162,19 +166,46 @@ impl ApiClient for DefaultApiClient {
                         Some(orig) => !same_origin(orig, &next_url),
                         None => true,
                     };
-                    let http_method = method.parse::<reqwest::Method>().map_err(|e| {
+
+                    // Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 /
+                    // RFC 7538.
+                    //   307 + 308: preserve original method and body.
+                    //   303:       force GET, drop the body (and Content-Type/Length).
+                    //   301 + 302: historical browser behaviour — switch to GET
+                    //              for non-GET/HEAD requests, drop the body.
+                    let status_code = response.status().as_u16();
+                    let method_upper = current_method.to_uppercase();
+                    let (next_method, next_body): (String, Option<Vec<u8>>) =
+                        if status_code == 307 || status_code == 308 {
+                            (current_method.clone(), current_body.clone())
+                        } else if status_code == 303 {
+                            ("GET".to_string(), None)
+                        } else if method_upper == "GET" || method_upper == "HEAD" {
+                            (current_method.clone(), current_body.clone())
+                        } else {
+                            ("GET".to_string(), None)
+                        };
+
+                    let http_method = next_method.parse::<reqwest::Method>().map_err(|e| {
                         Box::new(e) as Box<dyn std::error::Error + Send + Sync>
                     })?;
                     let mut redirect_builder =
                         self.http_client.request(http_method, next_url.clone());
-                    for (k, v) in &merged {
+                    let mut redirect_headers = current_headers.clone();
+                    if next_body.is_none() {
+                        redirect_headers.retain(|k, _v| {
+                            let lk = k.to_lowercase();
+                            lk != "content-type" && lk != "content-length"
+                        });
+                    }
+                    for (k, v) in &redirect_headers {
                         let lk = k.to_lowercase();
                         if cross_origin && sensitive.iter().any(|s| *s == lk) {
                             continue;
                         }
                         redirect_builder = redirect_builder.header(k.as_str(), v.as_str());
                     }
-                    if let Some(b) = &body_bytes {
+                    if let Some(b) = &next_body {
                         redirect_builder = redirect_builder.body(b.clone());
                     }
                     response = redirect_builder.send().await.map_err(|e| {
@@ -187,6 +218,9 @@ impl ApiClient for DefaultApiClient {
                         )) as Box<dyn std::error::Error + Send + Sync>
                     })?;
                     current_url = Some(next_url);
+                    current_method = next_method;
+                    current_body = next_body;
+                    current_headers = redirect_headers;
                     hops += 1;
                 }
             }

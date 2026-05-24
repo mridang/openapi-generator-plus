@@ -204,6 +204,28 @@ describe PetstoreClient::DefaultApiClient do
 
       _(response.status_code).must_equal(302)
     end
+
+    it '303 switches to GET and drops body (Gap T3)' do
+      wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
+
+      transport = PetstoreClient::TransportOptions.builder
+        .follow_redirects(true)
+        .max_redirects(5)
+        .build
+
+      client = PetstoreClient::DefaultApiClient.new(transport)
+      response = client.send_request(
+        :POST,
+        "#{wiremock_url}/api/redirect-303",
+        { 'Content-Type' => 'application/json' },
+        'hello-body'
+      )
+
+      _(response.status_code).must_equal(200)
+      json = JSON.parse(response.body)
+      _(json['method']).must_equal('GET')
+      _(json['body']).must_equal('')
+    end
   end
 
   describe 'max redirects' do

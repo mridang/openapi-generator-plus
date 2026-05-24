@@ -155,6 +155,9 @@ class DefaultApiClient implements ApiClient {
         final maxRedirects = _transportOptions.maxRedirects ?? 20;
         const sensitive = {'authorization', 'cookie', 'proxy-authorization'};
         var hops = 0;
+        var currentMethod = method;
+        Object? currentBody = body;
+        var currentHeaders = Map<String, String>.from(merged);
         while (hops < maxRedirects && _isRedirectStatus(streamedResponse.statusCode)) {
           /* Drain any unread body to release the connection. */
           await streamedResponse.stream.drain<void>();
@@ -163,18 +166,50 @@ class DefaultApiClient implements ApiClient {
           final nextUri = currentUri.resolve(location);
           if (nextUri.scheme != 'http' && nextUri.scheme != 'https') break;
           final crossOrigin = !_sameOrigin(uri, nextUri);
+
+          /* Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
+           *   307 + 308: preserve original method and body.
+           *   303:       force GET, drop the body (and Content-Type/Length).
+           *   301 + 302: historical browser behaviour — switch to GET for
+           *              non-GET/HEAD requests, drop the body. */
+          final statusCode = streamedResponse.statusCode;
+          final methodUpper = currentMethod.toUpperCase();
+          String nextMethod;
+          Object? nextBody;
+          if (statusCode == 307 || statusCode == 308) {
+            nextMethod = currentMethod;
+            nextBody = currentBody;
+          } else if (statusCode == 303) {
+            nextMethod = 'GET';
+            nextBody = null;
+          } else if (methodUpper == 'GET' || methodUpper == 'HEAD') {
+            nextMethod = currentMethod;
+            nextBody = currentBody;
+          } else {
+            nextMethod = 'GET';
+            nextBody = null;
+          }
+
           final redirectHeaders = <String, String>{};
-          merged.forEach((k, v) {
+          currentHeaders.forEach((k, v) {
             if (crossOrigin && sensitive.contains(k.toLowerCase())) return;
+            if (nextBody == null
+                && (k.toLowerCase() == 'content-type'
+                    || k.toLowerCase() == 'content-length')) {
+              return;
+            }
             redirectHeaders[k] = v;
           });
-          final next = http.Request(method, nextUri);
+          final next = http.Request(nextMethod, nextUri);
           next.headers.addAll(redirectHeaders);
           next.followRedirects = false;
-          if (body is Uint8List) {
-            next.bodyBytes = body;
+          if (nextBody is Uint8List) {
+            next.bodyBytes = nextBody;
           }
           currentUri = nextUri;
+          currentMethod = nextMethod;
+          currentBody = nextBody;
+          currentHeaders = redirectHeaders;
           final p = _httpClient.send(next);
           streamedResponse = _transportOptions.timeout != null
               ? await p.timeout(Duration(milliseconds: _transportOptions.timeout!))

@@ -268,6 +268,9 @@ public final class DefaultApiClient implements ApiClient {
                 int redirectsRemaining = transportOptions.getMaxRedirects();
                 URI originalUri = URI.create(url);
                 Set<String> sensitiveHeaders = Set.of("authorization", "cookie", "proxy-authorization");
+                String currentMethod = method;
+                HttpRequest.BodyPublisher currentBody = bodyPublisher;
+                Map<String, String> currentHeaders = new HashMap<>(mergedHeaders);
                 while (isRedirect(response.statusCode()) && redirectsRemaining > 0) {
                     String location = response.headers()
                             .firstValue("location").orElse(null);
@@ -290,20 +293,59 @@ public final class DefaultApiClient implements ApiClient {
                     boolean sameOrigin = redirectUri.getHost() != null
                             && redirectUri.getHost().equalsIgnoreCase(originalUri.getHost())
                             && redirectUri.getPort() == originalUri.getPort();
+
+                    /* Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
+                     *   307 + 308: preserve original method and body.
+                     *   303:       force GET, drop the body (and Content-Type/Length).
+                     *   301 + 302: historical browser behaviour — switch to GET for
+                     *              non-GET/HEAD requests, drop the body. */
+                    int statusCode = response.statusCode();
+                    String nextMethod;
+                    HttpRequest.BodyPublisher nextBody;
+                    if (statusCode == 307 || statusCode == 308) {
+                        nextMethod = currentMethod;
+                        nextBody = currentBody;
+                    } else if (statusCode == 303) {
+                        nextMethod = "GET";
+                        nextBody = HttpRequest.BodyPublishers.noBody();
+                    } else if ("GET".equalsIgnoreCase(currentMethod)
+                            || "HEAD".equalsIgnoreCase(currentMethod)) {
+                        nextMethod = currentMethod;
+                        nextBody = currentBody;
+                    } else {
+                        nextMethod = "GET";
+                        nextBody = HttpRequest.BodyPublishers.noBody();
+                    }
+
+                    Map<String, String> redirectHeaders = new HashMap<>(currentHeaders);
+                    if (!sameOrigin) {
+                        redirectHeaders.keySet().removeIf(
+                                k -> sensitiveHeaders.contains(k.toLowerCase(Locale.ROOT)));
+                    }
+                    if (nextBody == HttpRequest.BodyPublishers.noBody()
+                            || (statusCode == 303 || statusCode == 301 || statusCode == 302)
+                                    && !"GET".equalsIgnoreCase(currentMethod)
+                                    && !"HEAD".equalsIgnoreCase(currentMethod)) {
+                        redirectHeaders.keySet().removeIf(
+                                k -> "content-type".equalsIgnoreCase(k)
+                                        || "content-length".equalsIgnoreCase(k));
+                    }
+
                     HttpRequest.Builder redirectBuilder = HttpRequest.newBuilder(redirectUri)
-                            .method(method, bodyPublisher);
+                            .method(nextMethod, nextBody);
                     if (transportOptions.getTimeout() != null) {
                         redirectBuilder.timeout(Duration.ofMillis(transportOptions.getTimeout()));
                     }
-                    for (Map.Entry<String, String> entry : mergedHeaders.entrySet()) {
-                        if (!sameOrigin && sensitiveHeaders.contains(entry.getKey().toLowerCase(Locale.ROOT))) {
-                            continue;
-                        }
+                    for (Map.Entry<String, String> entry : redirectHeaders.entrySet()) {
                         redirectBuilder.header(entry.getKey(), entry.getValue());
                     }
                     response = httpClient.send(
                             redirectBuilder.build(),
                             HttpResponse.BodyHandlers.ofByteArray());
+                    currentMethod = nextMethod;
+                    currentBody = nextBody;
+                    currentHeaders = redirectHeaders;
+                    originalUri = redirectUri;
                     redirectsRemaining--;
                 }
             }

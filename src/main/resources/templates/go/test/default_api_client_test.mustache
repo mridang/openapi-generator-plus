@@ -222,6 +222,38 @@ func TestDefaultApiClient_ReturnsRedirectWhenDisabled(t *testing.T) {
 	}
 }
 
+// Gap T3: 303 forces follow-up to GET and drops body per RFC 7231 §6.4.4.
+// Go's net/http already enforces this; the test pins the behaviour.
+func TestDefaultApiClient_Redirect303SwitchesToGetAndDropsBody(t *testing.T) {
+	transport := {{packageName}}.NewTransportOptionsBuilder().
+		FollowRedirects(true).
+		MaxRedirects(5).
+		Build()
+	client := {{packageName}}.NewDefaultApiClient(transport)
+	resp, err := client.SendRequest(
+		"POST",
+		wiremockHTTPURL+"/api/redirect-303",
+		map[string]string{"Content-Type": "application/json"},
+		[]byte("hello-body"),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Fatalf("expected status 200 after 303 redirect, got %d", resp.StatusCode)
+	}
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(resp.Body), &parsed); err != nil {
+		t.Fatalf("invalid json body: %v", err)
+	}
+	if parsed["method"] != "GET" {
+		t.Errorf("expected method GET after 303, got %v", parsed["method"])
+	}
+	if parsed["body"] != "" {
+		t.Errorf("expected body to be empty after 303, got %v", parsed["body"])
+	}
+}
+
 func TestDefaultApiClient_RespectsMaxRedirectsLimit(t *testing.T) {
 	transport := {{packageName}}.NewTransportOptionsBuilder().
 		FollowRedirects(true).

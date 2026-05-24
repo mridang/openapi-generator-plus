@@ -223,6 +223,25 @@ describe('DefaultApiClient', () => {
 
       expect(response.statusCode).toBe(302);
     });
+
+    test('303 switches to GET and drops body (Gap T3)', async () => {
+      const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
+
+      const transport = TransportOptions.builder().followRedirects(true).maxRedirects(5).build();
+
+      const client = new DefaultApiClient(transport);
+      const response = await client.sendRequest(
+        'POST',
+        `${wiremockUrl}/api/redirect-303`,
+        { 'Content-Type': 'application/json' },
+        'hello-body'
+      );
+
+      expect(response.statusCode).toBe(200);
+      const json = JSON.parse(response.body as string);
+      expect(json.method).toBe('GET');
+      expect(json.body).toBe('');
+    });
   });
 
   describe('max redirects', () => {

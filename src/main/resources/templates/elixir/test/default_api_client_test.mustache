@@ -169,6 +169,29 @@ defmodule {{moduleName}}.DefaultApiClientIntegrationTest do
     assert response.status_code == 302
   end
 
+  test "303 switches to GET and drops body (Gap T3)" do
+    wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
+
+    transport = {{moduleName}}.TransportOptions.new(
+      follow_redirects: true,
+      max_redirects: 5
+    )
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+    response =
+      {{moduleName}}.DefaultApiClient.send_request(
+        client,
+        :post,
+        "#{wiremock_url}/api/redirect-303",
+        %{"Content-Type" => "application/json"},
+        "hello-body"
+      )
+
+    assert response.status_code == 200
+    json = Jason.decode!(response.body)
+    assert json["method"] == "GET"
+    assert json["body"] == ""
+  end
+
   test "respects max_redirects limit" do
     transport = {{moduleName}}.TransportOptions.new(
       follow_redirects: true,

@@ -311,6 +311,26 @@ class DefaultApiClientTest {
 
       assertEquals(302, response.statusCode());
     }
+
+    @Test
+    @DisplayName("303 switches to GET and drops body (Gap T3)")
+    void redirect303SwitchesToGetAndDropsBody() throws Exception {
+      String wiremockUrl = WireMockContainer.getHttpUrl();
+
+      TransportOptions transport =
+          TransportOptions.builder().followRedirects(true).maxRedirects(5).build();
+
+      DefaultApiClient client = new DefaultApiClient(transport);
+      Map<String, String> headers = new HashMap<>();
+      headers.put("Content-Type", "application/json");
+      ApiResponse response =
+          client.sendRequest("POST", wiremockUrl + "/api/redirect-303", headers, "hello-body");
+
+      assertEquals(200, response.statusCode());
+      JsonNode json = new ObjectMapper().readTree(response.body());
+      assertEquals("GET", json.get("method").asText());
+      assertEquals("", json.get("body").asText());
+    }
   }
 
   @Nested
