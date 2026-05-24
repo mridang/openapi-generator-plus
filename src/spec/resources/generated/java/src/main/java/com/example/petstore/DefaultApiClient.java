@@ -333,9 +333,9 @@ public final class DefaultApiClient implements ApiClient {
                 .removeIf(k -> sensitiveHeaders.contains(k.toLowerCase(Locale.ROOT)));
           }
           if (nextBody == HttpRequest.BodyPublishers.noBody()
-              || (statusCode == 303 || statusCode == 301 || statusCode == 302)
+              || ((statusCode == 303 || statusCode == 301 || statusCode == 302)
                   && !"GET".equalsIgnoreCase(currentMethod)
-                  && !"HEAD".equalsIgnoreCase(currentMethod)) {
+                  && !"HEAD".equalsIgnoreCase(currentMethod))) {
             redirectHeaders
                 .keySet()
                 .removeIf(
