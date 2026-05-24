@@ -21,6 +21,9 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.JsonUnquotedLiteral
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.contextual
 import kotlinx.serialization.serializer
@@ -229,6 +232,48 @@ class ObjectSerializer(
                 LocalDate.parse(decoder.decodeString(), DateTimeFormatter.ISO_LOCAL_DATE)
         }
 
+        /* Gap AZ: contextual serializer for raw `Any` so properties
+         * generated from OAS 3.1 prefixItems (downgraded to
+         * `items: {}` by NormalizePrefixItemsRule) compile and
+         * (de)serialize without `@Serializer` lookup failures.
+         * Routes everything through JsonElement so any JSON shape
+         * round-trips: numbers, strings, arrays, objects, booleans,
+         * null. */
+        @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+        private object AnySerializer : KSerializer<Any> {
+            override val descriptor = PrimitiveSerialDescriptor("Any", PrimitiveKind.STRING)
+
+            override fun serialize(
+                encoder: Encoder,
+                value: Any,
+            ) {
+                if (encoder is JsonEncoder) {
+                    encoder.encodeJsonElement(toJsonElement(value))
+                } else {
+                    encoder.encodeString(value.toString())
+                }
+            }
+
+            override fun deserialize(decoder: Decoder): Any {
+                if (decoder is JsonDecoder) {
+                    return fromJsonElement(decoder.decodeJsonElement())
+                }
+                return decoder.decodeString()
+            }
+        }
+
+        private fun fromJsonElement(element: JsonElement): Any =
+            when (element) {
+                is JsonNull -> "null"
+                is JsonPrimitive ->
+                    element.booleanOrNull
+                        ?: element.longOrNull
+                        ?: element.doubleOrNull
+                        ?: element.content
+                is JsonObject -> element.mapValues { fromJsonElement(it.value) }
+                is JsonArray -> element.map { fromJsonElement(it) }
+            }
+
         fun createDefaultJson(): Json =
             Json {
                 ignoreUnknownKeys = true
@@ -246,6 +291,7 @@ class ObjectSerializer(
                     SerializersModule {
                         contextual(OffsetDateTimeSerializer)
                         contextual(LocalDateSerializer)
+                        contextual(Any::class, AnySerializer)
                     }
             }
     }

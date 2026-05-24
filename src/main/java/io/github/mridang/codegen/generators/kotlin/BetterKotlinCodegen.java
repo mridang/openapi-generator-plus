@@ -615,4 +615,41 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                         optionsClassName + ".kt")
                 .toString();
     }
+
+    /**
+     * Annotates raw {@code Any} occurrences in a property's data type
+     * with {@code @Contextual} so kotlinx.serialization can serialize
+     * them via the contextual {@code Any} serializer registered in
+     * {@code ObjectSerializer.createDefaultJson()}. Without this,
+     * properties produced by {@code NormalizePrefixItemsRule}
+     * (which downgrades OAS 3.1 {@code prefixItems} to
+     * {@code items: {}}) compile to {@code List<Any>?} and fail
+     * with "Serializer has not been found for type 'Any'". Affects
+     * scalar {@code Any}, {@code List<Any>}, and
+     * {@code Map<String, Any>} forms.
+     */
+    @Override
+    @SuppressWarnings("rawtypes")
+    public CodegenProperty fromProperty(
+            String name, Schema p, boolean required, boolean schemaIsFromAdditionalProperties) {
+        final CodegenProperty property =
+                super.fromProperty(name, p, required, schemaIsFromAdditionalProperties);
+        if (property != null && property.dataType != null) {
+            property.dataType = annotateAnyAsContextual(property.dataType);
+        }
+        return property;
+    }
+
+    /**
+     * Rewrites the bare token {@code Any} in a Kotlin type string to
+     * {@code @Contextual Any}, leaving other identifiers untouched
+     * (e.g. {@code Anywhere}, {@code MyAnyClass}). Idempotent.
+     */
+    private static String annotateAnyAsContextual(String dataType) {
+        if (dataType.contains("@Contextual")) {
+            return dataType;
+        }
+        // Word-boundary replace of bare "Any" not already annotated.
+        return dataType.replaceAll("(?<![A-Za-z0-9_@])Any(?![A-Za-z0-9_])", "@Contextual Any");
+    }
 }

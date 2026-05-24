@@ -13,6 +13,7 @@ package com.example.petstore.models
 import com.example.petstore.Base64ByteArraySerializer
 import com.example.petstore.models.Category
 import com.example.petstore.models.Tag
+import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
@@ -53,7 +54,7 @@ data class Pet(
     val status: StatusEnum? = null,
     /** Example: `null` */
     @SerialName("location")
-    val location: List<Any>? = mutableListOf(),
+    val location: List<@Contextual Any>? = mutableListOf(),
 ) {
     @Serializable
     enum class StatusEnum(
