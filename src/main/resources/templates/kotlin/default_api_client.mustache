@@ -93,14 +93,17 @@ class DefaultApiClient internal constructor(
                 throw ApiException(e.toString(), e)
             }
 
-        // Manual redirect loop for the maxRedirects case: strips sensitive headers
-        // (Authorization, Cookie, Proxy-Authorization) when following a cross-origin
-        // redirect so that credentials are never forwarded to a third-party host.
-        if (transportOptions.followRedirects && transportOptions.maxRedirects != null) {
+        // Gap T1+T2: redirects are ALWAYS handled manually so we can strip
+        // sensitive headers (Authorization, Cookie, Proxy-Authorization) on
+        // cross-origin hops AND preserve the original verb+body per RFC 7231.
+        // When `maxRedirects` is null we cap at 20 hops to avoid pathological loops.
+        if (transportOptions.followRedirects) {
             val sensitiveHeaders = setOf("authorization", "cookie", "proxy-authorization")
-            var redirectsRemaining = transportOptions.maxRedirects!!
+            var redirectsRemaining = transportOptions.maxRedirects ?: 20
             var currentUrl = url
             var currentHeaders: Map<String, String> = mergedHeaders.toMap()
+            var currentMethod = method
+            var currentBody: Any? = body
 
             while (response.status.value in 300..399 && redirectsRemaining > 0) {
                 val location = response.headers[HttpHeaders.Location] ?: break
@@ -130,15 +133,61 @@ class DefaultApiClient internal constructor(
                     keysToRemove.forEach { redirectHeaders.remove(it) }
                 }
 
+                // Gap T2: pick follow-up method+body per RFC 7231 / 7538.
+                // 307 + 308: preserve the original method and body.
+                // 303:       force GET, drop the body (drop Content-Type/Length too).
+                // 301 + 302: historical browser behaviour — switch to GET for non-GET/HEAD
+                //            requests, drop the body. Matches all 11 other SDKs.
+                val statusCode = response.status.value
+                val nextMethod: String
+                val nextBody: Any?
+                when (statusCode) {
+                    307, 308 -> {
+                        nextMethod = currentMethod
+                        nextBody = currentBody
+                    }
+                    303 -> {
+                        nextMethod = "GET"
+                        nextBody = null
+                    }
+                    else -> {
+                        if (currentMethod.equals("GET", ignoreCase = true) ||
+                            currentMethod.equals("HEAD", ignoreCase = true)
+                        ) {
+                            nextMethod = currentMethod
+                            nextBody = currentBody
+                        } else {
+                            nextMethod = "GET"
+                            nextBody = null
+                        }
+                    }
+                }
+
+                if (nextBody == null) {
+                    redirectHeaders.keys
+                        .filter {
+                            it.equals("content-type", ignoreCase = true) ||
+                                it.equals("content-length", ignoreCase = true)
+                        }
+                        .toList()
+                        .forEach { redirectHeaders.remove(it) }
+                }
+
                 currentUrl = redirectUri.toString()
                 currentHeaders = redirectHeaders
+                currentMethod = nextMethod
+                currentBody = nextBody
 
                 response = try {
                     httpClient.request(currentUrl) {
-                        this.method = HttpMethod.Get
+                        this.method = HttpMethod(currentMethod)
                         for ((key, value) in redirectHeaders) {
+                            if (nextBody == null && key.equals("Content-Type", ignoreCase = true)) {
+                                continue
+                            }
                             header(key, value)
                         }
+                        buildRequestBody(this, currentMethod, nextBody, redirectHeaders)
                     }
                 } catch (e: Exception) {
                     throw ApiException(e.toString(), e)

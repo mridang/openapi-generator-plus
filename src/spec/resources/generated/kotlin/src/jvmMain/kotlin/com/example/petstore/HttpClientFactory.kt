@@ -10,7 +10,6 @@ package com.example.petstore
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.ProxyBuilder
 import io.ktor.client.engine.cio.CIO
-import io.ktor.client.plugins.HttpRedirect
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.compression.ContentEncoding
 import io.ktor.http.Url
@@ -65,16 +64,10 @@ internal actual fun buildPlatformHttpClient(options: TransportOptions): HttpClie
             }
         }
 
-        // When maxRedirects is set, DefaultApiClient handles redirects manually in
-        // sendRequest so that sensitive headers (Authorization, Cookie,
-        // Proxy-Authorization) can be stripped on cross-origin hops.
-        // For the unlimited-redirect case (maxRedirects == null), delegate to Ktor.
-        if (options.followRedirects && options.maxRedirects == null) {
-            install(HttpRedirect) {
-                checkHttpMethod = false
-                allowHttpsDowngrade = false
-            }
-        }
+        // Gap T1: redirects are ALWAYS handled manually in DefaultApiClient.sendRequest
+        // so that sensitive headers (Authorization, Cookie, Proxy-Authorization)
+        // are stripped on cross-origin hops. Ktor's stock HttpRedirect plugin does
+        // not strip credentials cross-origin, so we never install it here.
     }
 
 private fun loadCaCertTrustManager(caCertPath: String): X509TrustManager {

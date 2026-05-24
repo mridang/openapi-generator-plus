@@ -294,6 +294,50 @@ class DefaultApiClientTest {
     }
 
     @Nested
+    @DisplayName("redirect method preservation (Gap T2)")
+    inner class RedirectMethodPreservation {
+        @Test
+        @DisplayName("307 preserves method and body (POST stays POST)")
+        fun redirect_307_preserves_method_and_body() {
+            val wiremockUrl = WireMockContainer.getHttpUrl()
+            val client = DefaultApiClient()
+            val response =
+                runBlocking {
+                    client.sendRequest(
+                        "POST",
+                        "$wiremockUrl/api/redirect-307",
+                        mapOf("Content-Type" to "application/json"),
+                        "hello-body",
+                    )
+                }
+            assertEquals(200, response.statusCode)
+            val json = ObjectMapper().readTree(response.body)
+            assertEquals("POST", json.get("method").asText())
+            assertEquals("hello-body", json.get("body").asText())
+        }
+
+        @Test
+        @DisplayName("303 switches to GET and drops body")
+        fun redirect_303_switches_to_get_and_drops_body() {
+            val wiremockUrl = WireMockContainer.getHttpUrl()
+            val client = DefaultApiClient()
+            val response =
+                runBlocking {
+                    client.sendRequest(
+                        "POST",
+                        "$wiremockUrl/api/redirect-303",
+                        mapOf("Content-Type" to "application/json"),
+                        "hello-body",
+                    )
+                }
+            assertEquals(200, response.statusCode)
+            val json = ObjectMapper().readTree(response.body)
+            assertEquals("GET", json.get("method").asText())
+            assertEquals("", json.get("body").asText())
+        }
+    }
+
+    @Nested
     @DisplayName("max redirects")
     inner class MaxRedirects {
         @Test
