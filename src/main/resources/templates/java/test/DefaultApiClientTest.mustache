@@ -390,6 +390,24 @@ class DefaultApiClientTest {
     }
 
     @Nested
+    @DisplayName("client lifecycle (Gap T6)")
+    class ClientLifecycle {
+        @Test
+        @DisplayName("close releases underlying client and blocks new requests")
+        void closeReleasesUnderlyingClient() {
+            DefaultApiClient client = new DefaultApiClient();
+            client.close();
+            // Calling close again is idempotent.
+            client.close();
+            ApiException ex = assertThrows(
+                    ApiException.class,
+                    () -> client.sendRequest(
+                            "GET", "https://example.com", new HashMap<>(), null));
+            assertTrue(ex.getMessage().contains("closed"));
+        }
+    }
+
+    @Nested
     @DisplayName("HTTP compression")
     class HttpCompression {
 

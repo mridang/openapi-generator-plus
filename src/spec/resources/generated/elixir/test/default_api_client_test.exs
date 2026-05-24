@@ -279,4 +279,13 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert response.status_code == 200
     assert String.contains?(response.body, "userId")
   end
+
+  # Gap T6: close/1 is idempotent and returns :ok. Req/Finch owns a
+  # globally supervised connection pool, so per-client teardown is a
+  # no-op; the test pins the contract.
+  test "close releases underlying client (Gap T6)" do
+    client = PetstoreClient.DefaultApiClient.new()
+    assert PetstoreClient.DefaultApiClient.close(client) == :ok
+    assert PetstoreClient.DefaultApiClient.close(client) == :ok
+  end
 end

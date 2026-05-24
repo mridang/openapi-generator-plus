@@ -44,6 +44,26 @@ impl DefaultApiClient {
             http_client,
         }
     }
+
+    /// Gap T6: explicit close hook. `reqwest::Client` is an `Arc`-shared
+    /// handle that releases its connection pool / executor threads when
+    /// the last clone is dropped, so this is documentation-only — callers
+    /// who want deterministic teardown can call `close()` then drop the
+    /// client, or simply rely on `Drop` (see the trait impl below).
+    pub fn close(&self) {
+        /* No-op: see Drop impl. Reqwest handles teardown via Arc<Drop>. */
+    }
+}
+
+impl Drop for DefaultApiClient {
+    /// Gap T6: explicit `Drop` impl documents the lifecycle of the
+    /// underlying `reqwest::Client`. Reqwest tears the pool down via its
+    /// own `Drop` once the last `Arc` clone is released; this impl exists
+    /// to make that contract discoverable to readers and to give us a hook
+    /// for future cleanup if we ever own resources outside reqwest.
+    fn drop(&mut self) {
+        /* No-op: reqwest::Client's internal Drop releases the pool. */
+    }
 }
 
 impl ApiClient for DefaultApiClient {

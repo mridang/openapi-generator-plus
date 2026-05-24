@@ -207,6 +207,9 @@ public final class DefaultApiClient implements ApiClient {
             String method, String url, Map<String, String> headers, @Nullable Object body)
             throws ApiException {
 
+        if (this.closed) {
+            throw new ApiException("ApiClient has been closed");
+        }
         Map<String, String> mergedHeaders = new HashMap<>(transportOptions.getDefaultHeaders());
         mergedHeaders.putAll(headers);
 
@@ -710,4 +713,31 @@ public final class DefaultApiClient implements ApiClient {
         return guess != null ? guess : "application/octet-stream";
     }
 
+    /**
+     * Gap T6: release the underlying {@link HttpClient} (connection pool,
+     * executor threads, sockets). Idempotent. After calling this method the
+     * client must not be reused — subsequent {@link #sendRequest} calls will
+     * fail with an {@link ApiException}.
+     *
+     * <p>JDK 21+ exposes {@code HttpClient#close()} which we invoke
+     * reflectively so this template still compiles on earlier JDKs. On
+     * pre-21 JDKs, {@link HttpClient}'s executor and connection pool are
+     * released only when the JVM exits or the client is GC'd. */
+    @Override
+    public void close() {
+        if (this.closed) {
+            return;
+        }
+        this.closed = true;
+        try {
+            java.lang.reflect.Method m = httpClient.getClass().getMethod("close");
+            m.invoke(httpClient);
+        } catch (NoSuchMethodException ignored) {
+            /* Pre-JDK-21: nothing to call, GC will reap the client. */
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException("Failed to close underlying HttpClient", e);
+        }
+    }
+
+    private volatile boolean closed = false;
 }

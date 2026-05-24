@@ -220,6 +220,17 @@ defmodule {{moduleName}}.DefaultApiClient do
     new() |> send_request(method, url, headers, body)
   end
 
+  @doc """
+  Gap T6: release resources held by the client.
+
+  Req/Finch owns a globally supervised connection pool, so per-client
+  teardown is a no-op. Implemented for parity with the `ApiClient`
+  behaviour and to give callers a forwards-compatible hook.
+  """
+  @impl {{moduleName}}.ApiClient
+  @spec close(t()) :: :ok
+  def close(%__MODULE__{}), do: :ok
+
   # Build the static portion of the Req options (everything that depends on
   # TransportOptions and is fixed for the lifetime of the ApiClient). The
   # per-request options (method, url, headers, body) are merged at the call

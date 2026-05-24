@@ -234,6 +234,14 @@ import Testing
         }
     }
 
+    // Gap T6: close() invokes URLSession.finishTasksAndInvalidate and is
+    // idempotent — calling it twice (or after construction) must not crash.
+    @Test func testCloseReleasesUnderlyingClient() async throws {
+        let client = DefaultApiClient()
+        client.close()
+        client.close()
+    }
+
     @Test func testDecompressesGzipResponse() async throws {
         let client = makeClient { _ in
             return (self.jsonBody(), 200, ["Content-Type": "application/json"])

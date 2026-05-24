@@ -305,6 +305,18 @@ async fn test_default_api_client_respects_max_redirects_limit() {
     );
 }
 
+/// Gap T6: explicit close() and Drop on DefaultApiClient must not panic.
+/// reqwest::Client handles teardown via its own internal Arc<Drop>, so this
+/// test asserts only that calling close() and then dropping the client does
+/// not crash.
+#[tokio::test]
+async fn test_default_api_client_close_releases_underlying_client() {
+    let client = DefaultApiClient::new(None);
+    client.close();
+    client.close();
+    drop(client);
+}
+
 /// Gap BI: non-ASCII multipart filenames must use RFC 5987 filename*=UTF-8''<pct>
 /// rather than raw UTF-8 inside the quoted filename="" form.
 #[test]

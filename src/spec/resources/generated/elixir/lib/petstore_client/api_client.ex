@@ -32,4 +32,15 @@ defmodule PetstoreClient.ApiClient do
               headers :: %{optional(String.t()) => String.t()},
               body :: term() | nil
             ) :: PetstoreClient.ApiResponse.t()
+
+  @doc """
+  Gap T6: release any resources held by the client.
+
+  Default implementations may be a no-op when the underlying HTTP library
+  uses a globally supervised connection pool (as Req/Finch does).
+  Callers should still invoke `close/1` for forwards compatibility with
+  implementations that own per-client state.
+  """
+  @callback close(client :: struct()) :: :ok
+  @optional_callbacks close: 1
 end

@@ -15,4 +15,16 @@ public protocol ApiClient: Sendable {
     /// - Returns: An ``HttpResponse`` with status code, body, and headers.
     /// - Throws: An error if the request fails at the transport level.
     func sendRequest(method: String, url: String, headers: [String: String], body: Any?) async throws -> HttpResponse
+
+    /// Gap T6: release the underlying transport (URLSession connection
+    /// pool, delegate queue). Default implementation is a no-op; the
+    /// `DefaultApiClient` overrides this to call
+    /// `URLSession.finishTasksAndInvalidate()`.
+    func close()
+}
+
+public extension ApiClient {
+    func close() {
+        /* No-op by default. Implementations override to release resources. */
+    }
 }

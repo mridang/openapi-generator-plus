@@ -383,6 +383,14 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
 
         return (URLSession(configuration: config), nil)
     }
+
+    /// Gap T6: release the underlying URLSession's connection pool /
+    /// delegate queue. Calls `finishTasksAndInvalidate()` so in-flight
+    /// requests can complete and the session is permanently invalidated.
+    /// Idempotent — safe to call multiple times.
+    public func close() {
+        session.finishTasksAndInvalidate()
+    }
 }
 
 /// URLSession delegate that handles custom TLS trust evaluation and redirect control.
