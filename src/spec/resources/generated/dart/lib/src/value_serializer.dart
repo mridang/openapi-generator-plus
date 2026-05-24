@@ -102,7 +102,7 @@ Object? serializeStyled(
    * never the joined output. Uri.encodeComponent (not encodeFull) is the
    * correct primitive — it percent-encodes reserved chars inside a segment. */
   final items = isArray && location == 'path'
-      ? rawItems!.map(Uri.encodeComponent).toList()
+      ? rawItems.map(Uri.encodeComponent).toList()
       : rawItems;
   final scalarString = value == null
       ? ''

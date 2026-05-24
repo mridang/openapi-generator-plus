@@ -459,7 +459,7 @@ class ValueSerializerTest extends TestCase
         $this->assertSame('a%20b,c%3Fd', ValueSerializer::serializeStyled('color', ['a b', 'c?d'], 'path', 'array', null, 'simple', false));
     }
 
-    public function test_path_array_item_with_reserved_char_is_percent_encoded(): void
+    public function testPathArrayItemWithReservedCharIsPercentEncoded(): void
     {
         // Gap W1 regression: every per-item path value in a styled array
         // must be percent-encoded BEFORE being joined with the structural

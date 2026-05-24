@@ -158,7 +158,7 @@ class OAuth2AuthCodeAuthenticatorTest extends TestCase
         $this->assertStringContainsString('state=csrf-state-123', $url);
     }
 
-    public function test_auth_headers_before_exchange_returns_recoverable_error(): void
+    public function testAuthHeadersBeforeExchangeReturnsRecoverableError(): void
     {
         $authenticator = new OAuth2AuthorizationCodeAuthenticator(
             'https://api.example.com',
