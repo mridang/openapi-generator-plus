@@ -63,3 +63,13 @@ OpenAPI keywords like `minLength`, `maxLength`, `minimum`, `maximum`,
 validator; client-side enforcement is a DX nicety, not a correctness
 requirement. If you want fast-fail validation before the network
 round trip, plug in a JSON Schema validator library for your language.
+
+### SOCKS proxies
+
+`TransportOptions.proxy()` accepts only `http://` and `https://` URLs.
+Passing a `socks://`, `socks4://`, or `socks5://` scheme throws (or
+panics) at construction time with a clear error. SOCKS support would
+require enabling extra dependencies / feature flags on the underlying
+HTTP library in every one of the 12 SDKs we generate, with non-trivial
+API divergence; we explicitly chose not to. If you need SOCKS, route
+through a local HTTP-CONNECT bridge or configure it at the OS level.

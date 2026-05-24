@@ -270,6 +270,31 @@ ObjectSerializer. Defer until a real consumer hits the issue, since
 petstore CI's Metadata tests currently assert only the fixed-field
 round-trip (extras assertions are weak in the affected langs).
 
+### SOCKS proxies (HTTP/HTTPS only — explicit reject)
+
+All 12 SDKs accept only `http://` and `https://` proxy URLs via
+`TransportOptions.proxy()`. Anything else (`socks5://`, `socks4://`,
+`socks://`) throws/panics with a clear "must use http or https scheme"
+message at construction time. This is enforced uniformly in every
+`transport_options.mustache`.
+
+Why not SOCKS:
+- Underlying HTTP libraries (Java HttpClient, .NET HttpClient, urllib3,
+  reqwest, net/http, Faraday, undici, Symfony HttpClient, Dart http,
+  Req+Finch, Ktor, URLSession) require extra dependencies or feature
+  flags to speak SOCKS — adding it means per-lang library work in all
+  12 SDKs with non-trivial divergence in API surface.
+- Corporate proxies overwhelmingly use HTTP CONNECT; SOCKS is rare in
+  OpenAPI client deployment.
+- The validation is deliberately fail-fast — silently passing a
+  socks5 URL through to the lib would either be silently dropped
+  (lib parses scheme as http) or fail later with an opaque connect
+  error.
+
+If you need SOCKS, configure it at the OS / shell level via standard
+proxy env vars (`SOCKS_PROXY`) and a SOCKS-aware wrapper, or pre-route
+through a local HTTP-CONNECT bridge. Don't audit this as a gap.
+
 ### HTTP/2 negotiation divergence (don't audit)
 
 Some SDK underlying HTTP clients negotiate HTTP/2 by default
