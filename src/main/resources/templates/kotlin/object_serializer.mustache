@@ -63,15 +63,7 @@ class ObjectSerializer(
         return json.encodeToString(serializer(unwrapped::class.java), unwrapped)
     }
 
-    private fun toJsonElement(value: Any?): JsonElement = when (value) {
-        null -> JsonNull
-        is Number -> JsonPrimitive(value)
-        is Boolean -> JsonPrimitive(value)
-        is String -> JsonPrimitive(value)
-        is Map<*, *> -> JsonObject(value.entries.associate { (k, v) -> k.toString() to toJsonElement(v) })
-        is List<*> -> JsonArray(value.map { toJsonElement(it) })
-        else -> JsonPrimitive(value.toString())
-    }
+    private fun toJsonElement(value: Any?): JsonElement = toJsonElementStatic(value)
 
     inline fun <reified T> deserialize(jsonString: String?): T? {
         if (jsonString.isNullOrEmpty()) return null
@@ -211,7 +203,7 @@ class ObjectSerializer(
             override val descriptor = PrimitiveSerialDescriptor("Any", PrimitiveKind.STRING)
             override fun serialize(encoder: Encoder, value: Any) {
                 if (encoder is JsonEncoder) {
-                    encoder.encodeJsonElement(toJsonElement(value))
+                    encoder.encodeJsonElement(toJsonElementStatic(value))
                 } else {
                     encoder.encodeString(value.toString())
                 }
@@ -222,6 +214,19 @@ class ObjectSerializer(
                 }
                 return decoder.decodeString()
             }
+        }
+
+        /* Duplicate of the instance-level toJsonElement so AnySerializer
+         * (which has no enclosing instance) can convert arbitrary values
+         * to JsonElement. Kept private to the companion object. */
+        private fun toJsonElementStatic(value: Any?): JsonElement = when (value) {
+            null -> JsonNull
+            is Number -> JsonPrimitive(value)
+            is Boolean -> JsonPrimitive(value)
+            is String -> JsonPrimitive(value)
+            is Map<*, *> -> JsonObject(value.entries.associate { (k, v) -> k.toString() to toJsonElementStatic(v) })
+            is List<*> -> JsonArray(value.map { toJsonElementStatic(it) })
+            else -> JsonPrimitive(value.toString())
         }
 
         private fun fromJsonElement(element: JsonElement): Any = when (element) {
