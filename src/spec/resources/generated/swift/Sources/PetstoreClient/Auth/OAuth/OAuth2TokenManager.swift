@@ -197,23 +197,68 @@ public final class OAuth2TokenManager: @unchecked Sendable {
             throw URLError(.badServerResponse)
         }
 
+        /* expires_in is decoded via JSONSerialization rather than Decodable so
+         * the parse does not fail when providers send it as a quoted string
+         * (Salesforce, some Apigee deployments) or as a JSON float. */
         struct TokenResponse: Decodable {
             let access_token: String
             let refresh_token: String?
-            let expires_in: Int?
         }
 
         let parsed = try JSONDecoder().decode(TokenResponse.self, from: data)
+        let rawJson = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        let rawExpiresIn = rawJson?["expires_in"]
+        let hasExpiresIn = rawExpiresIn != nil && !(rawExpiresIn is NSNull)
+        let expiresIn = Self.parseExpiresIn(rawExpiresIn)
 
         lock.withLock {
             self.accessToken = parsed.access_token
             if let refreshToken = parsed.refresh_token, !refreshToken.isEmpty {
                 self._refreshToken = refreshToken
             }
-            if let expiresIn = parsed.expires_in {
-                let bufferSecs = min(expiresIn, 30)
-                self.tokenExpiry = Date().addingTimeInterval(TimeInterval(expiresIn - bufferSecs))
+            if hasExpiresIn {
+                /* RFC 6749 §5.1 says expires_in is a JSON number, but real-world
+                 * providers (Salesforce, some Apigee deployments) send a quoted
+                 * string and others send a JSON float. On anything unparseable
+                 * or non-positive, mark the token as immediately stale so the
+                 * next call refetches (preferable to caching forever). */
+                if expiresIn > 0 {
+                    let bufferSecs = min(expiresIn, 30)
+                    self.tokenExpiry = Date().addingTimeInterval(TimeInterval(expiresIn - bufferSecs))
+                } else {
+                    self.tokenExpiry = Date()
+                }
             }
         }
+    }
+
+    /// Defensive parse of the OAuth2 `expires_in` field per RFC 6749 §5.1.
+    ///
+    /// Returns `0` (caller skips caching) when the value is missing,
+    /// unparseable, or non-positive. Accepts integers, floors floats,
+    /// and parses digit strings (e.g. `"3600"` from Salesforce).
+    private static func parseExpiresIn(_ raw: Any?) -> Int {
+        guard let raw = raw else { return 0 }
+        if let n = raw as? Int {
+            return n
+        }
+        if let n = raw as? Int64 {
+            return Int(n)
+        }
+        if let d = raw as? Double {
+            guard d.isFinite else { return 0 }
+            return Int(d.rounded(.down))
+        }
+        if let n = raw as? NSNumber {
+            let d = n.doubleValue
+            guard d.isFinite else { return 0 }
+            return Int(d.rounded(.down))
+        }
+        if let s = raw as? String {
+            let trimmed = s.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty, let d = Double(trimmed), d.isFinite else { return 0 }
+            return Int(d.rounded(.down))
+        }
+        return 0
     }
 }

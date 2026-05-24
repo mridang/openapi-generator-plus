@@ -244,6 +244,80 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
+    fun expiresInAsJsonStringIsAccepted() {
+        // D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
+        // quoted string. The manager must accept it and cache the token; a
+        // second call within the buffer window must serve from cache.
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"str-tok","expires_in":"3600"}""")
+
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val params = mapOf("grant_type" to "client_credentials")
+        val tokenUrl = "https://auth.example.com/token"
+
+        val first = runBlocking { manager.getAccessToken(tokenUrl, params) }
+        val second = runBlocking { manager.getAccessToken(tokenUrl, params) }
+
+        assertEquals("str-tok", first)
+        assertEquals(
+            "str-tok",
+            second,
+            "quoted-string expires_in must produce a valid cached expiry",
+        )
+    }
+
+    @Test
+    fun expiresInAsFloatIsFloored() {
+        // D1: some providers send expires_in as a JSON float (e.g. 3600.5).
+        // The manager must floor it and cache the token.
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"flt-tok","expires_in":3600.5}""")
+
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val params = mapOf("grant_type" to "client_credentials")
+        val tokenUrl = "https://auth.example.com/token"
+
+        val first = runBlocking { manager.getAccessToken(tokenUrl, params) }
+        val second = runBlocking { manager.getAccessToken(tokenUrl, params) }
+
+        assertEquals("flt-tok", first)
+        assertEquals(
+            "flt-tok",
+            second,
+            "float expires_in must floor to a valid cached expiry",
+        )
+    }
+
+    @Test
+    fun expiresInNegativeSkipsCaching() {
+        // D1: a negative expires_in (e.g. -1) must mark the token as
+        // immediately stale so the very next call refetches.
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"neg1","expires_in":-1}""")
+        client.enqueue("""{"access_token":"neg2","expires_in":3600}""")
+
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val params = mapOf("grant_type" to "client_credentials")
+        val tokenUrl = "https://auth.example.com/token"
+
+        val first = runBlocking { manager.getAccessToken(tokenUrl, params) }
+        val second = runBlocking { manager.getAccessToken(tokenUrl, params) }
+
+        assertEquals("neg1", first)
+        assertEquals(
+            "neg2",
+            second,
+            "negative expires_in must not cache; next call must refetch",
+        )
+    }
+
+    @Test
     fun throwsWhenTokenRequestFails() {
         val client = FakeApiClient()
         client.enqueue("""{"error":"invalid_client"}""", statusCode = 401)

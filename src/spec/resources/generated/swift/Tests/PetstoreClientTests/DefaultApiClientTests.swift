@@ -59,6 +59,27 @@ import Testing
         #expect(resp.statusCode == 200)
     }
 
+    // Gap AK: userinfo embedded in the proxy URL must be base64-encoded
+    // and injected as Proxy-Authorization on outbound requests — otherwise
+    // the platform silently drops it and the proxy 407s.
+    @Test func testProxyWithCredentialsInjectsBasicAuthorization() async throws {
+        let transport = try TransportOptionsBuilder()
+            .proxy("http://alice:s3cret@127.0.0.1:3128")
+            .build()
+        var capturedRequest: URLRequest?
+        let client = makeClient(transport: transport) { req in
+            capturedRequest = req
+            return (self.jsonBody(), 200, [:])
+        }
+        _ = try await client.sendRequest(
+            method: "GET", url: "https://example.com", headers: [:], body: nil)
+        #expect(
+            capturedRequest?.value(forHTTPHeaderField: "Proxy-Authorization")
+                == "Basic YWxpY2U6czNjcmV0"
+        )
+        #expect(client.proxyAuthHeader == "Basic YWxpY2U6czNjcmV0")
+    }
+
     @Test func testMakesHttpsRequestThroughProxyWithVerifySslFalse() async throws {
         let transport = try TransportOptionsBuilder()
             .proxy("http://proxy.example.com:8080")
@@ -210,6 +231,52 @@ import Testing
         #expect(capturedFollowupBody == nil || capturedFollowupBody?.isEmpty == true)
     }
 
+    // T-new-3: multipart bodies must be replayed across 307 redirects per
+    // RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
+    // request after a 307 still carries the multipart form parts.
+    @Test func testMultipartBodyReplayedOn307Redirect() async throws {
+        let transport = TransportOptionsBuilder()
+            .followRedirects(true)
+            .maxRedirects(5)
+            .build()
+        let hopCount = HopCounter()
+        var capturedFollowupMethod: String?
+        var capturedFollowupBody: String?
+        var capturedFollowupContentType: String?
+        let client = makeClient(transport: transport) { req in
+            let hop = hopCount.increment()
+            if hop == 1 {
+                return (
+                    Data(),
+                    307,
+                    ["Location": "https://example.com/api/echo-method-body"]
+                )
+            }
+            capturedFollowupMethod = req.httpMethod
+            capturedFollowupContentType = req.value(forHTTPHeaderField: "Content-Type")
+            if let body = req.httpBody {
+                capturedFollowupBody = String(data: body, encoding: .utf8)
+            }
+            return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+        }
+        let formFields: [String: Any] = [
+            "description": "hello",
+            "file": Data("file-content-bytes".utf8),
+        ]
+        _ = try await client.sendRequest(
+            method: "POST",
+            url: "https://example.com/api/redirect-307",
+            headers: [:],
+            body: formFields
+        )
+        #expect(capturedFollowupMethod == "POST")
+        #expect(capturedFollowupContentType?.hasPrefix("multipart/form-data") ?? false)
+        let echoed = capturedFollowupBody ?? ""
+        #expect(echoed.contains("Content-Disposition: form-data; name=\"description\""))
+        #expect(echoed.contains("Content-Disposition: form-data; name=\"file\""))
+        #expect(echoed.contains("file-content-bytes"))
+    }
+
     @Test func testSendsMultipartFormData() async throws {
         var capturedContentType: String?
         var capturedBody: String?
@@ -233,6 +300,19 @@ import Testing
     @Test func testMultipartFieldNameWithCrlfRejected() async throws {
         let client = makeClient { _ in (Data("{}".utf8), 200, [:]) }
         let badField: [String: Any] = ["name\r\nInjected: yes": "value"]
+        await #expect(throws: (any Error).self) {
+            _ = try await client.sendRequest(
+                method: "POST", url: "https://example.com",
+                headers: [:], body: badField)
+        }
+    }
+
+    // W-new-2: multipart field-name validation must run on every branch (not
+    // just binary). Confirm that even for a plain String value, a CR/LF in
+    // the field name is rejected, preventing Content-Disposition smuggling.
+    @Test func multipart_field_name_with_crlf_rejected_on_string_value() async throws {
+        let client = makeClient { _ in (Data("{}".utf8), 200, [:]) }
+        let badField: [String: Any] = ["name\r\nInjected: yes": "string-value"]
         await #expect(throws: (any Error).self) {
             _ = try await client.sendRequest(
                 method: "POST", url: "https://example.com",

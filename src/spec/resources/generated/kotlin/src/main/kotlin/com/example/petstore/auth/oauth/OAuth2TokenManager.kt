@@ -14,9 +14,12 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.longOrNull
+import kotlin.math.floor
 
 /**
  * Manages OAuth2 token lifecycle including fetching, caching, and refreshing tokens.
@@ -175,11 +178,47 @@ class OAuth2TokenManager {
                 this.refreshToken = newRefreshToken
             }
         }
-        val expiresIn = jsonObject["expires_in"]?.jsonPrimitive?.longOrNull
-        if (expiresIn != null) {
-            val bufferSecs = minOf(expiresIn, 30L)
+        val expiresInElement = jsonObject["expires_in"]
+        if (expiresInElement != null && expiresInElement !is JsonNull) {
+            /* RFC 6749 §5.1 says expires_in is a JSON number, but real-world
+             * providers (Salesforce, some Apigee deployments) send a quoted
+             * string and others send a JSON float. Accept ints, floor floats,
+             * parse digit strings; on anything unparseable or non-positive,
+             * mark the token as immediately stale so the next call refetches
+             * (preferable to caching a token of unknown lifetime forever). */
+            val expiresIn = parseExpiresIn(expiresInElement)
             this.tokenExpiryMs =
-                Clock.System.now().toEpochMilliseconds() + (expiresIn - bufferSecs) * 1000L
+                if (expiresIn > 0L) {
+                    val bufferSecs = minOf(expiresIn, 30L)
+                    Clock.System.now().toEpochMilliseconds() + (expiresIn - bufferSecs) * 1000L
+                } else {
+                    Clock.System.now().toEpochMilliseconds()
+                }
         }
+    }
+
+    /**
+     * Defensive parse of the `expires_in` field per RFC 6749 §5.1.
+     *
+     * Returns `0` (caller skips caching) when the value is missing,
+     * unparseable, or non-positive. Accepts integers, floors floats,
+     * and parses digit strings (e.g. `"3600"` from Salesforce).
+     */
+    private fun parseExpiresIn(element: JsonElement?): Long {
+        if (element == null || element is JsonNull) {
+            return 0L
+        }
+        if (element !is JsonPrimitive) {
+            return 0L
+        }
+        val raw = element.content.trim()
+        if (raw.isEmpty()) {
+            return 0L
+        }
+        val asDouble = raw.toDoubleOrNull() ?: return 0L
+        if (asDouble.isNaN() || asDouble.isInfinite()) {
+            return 0L
+        }
+        return floor(asDouble).toLong()
     }
 }

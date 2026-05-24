@@ -182,6 +182,83 @@ describe('OAuth2TokenManager', () => {
     expect(manager.getRefreshToken()).toBe('old_refresh');
   });
 
+  test('expires_in as JSON string is accepted', async () => {
+    // D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
+    // quoted string. The manager must accept it and cache the token; a
+    // second call within the buffer window must serve from cache.
+    mockClient.responseBody = JSON.stringify({
+      access_token: 'str-tok',
+      expires_in: '3600'
+    });
+
+    const first = await tokenManager.getAccessToken('https://auth.example.com/token', {
+      grant_type: 'client_credentials'
+    });
+    const second = await tokenManager.getAccessToken('https://auth.example.com/token', {
+      grant_type: 'client_credentials'
+    });
+
+    expect(first).toBe('str-tok');
+    expect(second).toBe('str-tok');
+    expect(mockClient.callCount).toBe(1);
+  });
+
+  test('expires_in as float is floored', async () => {
+    // D1: some providers send expires_in as a JSON float (e.g. 3600.5).
+    // The manager must floor it and cache the token.
+    mockClient.responseBody = JSON.stringify({
+      access_token: 'flt-tok',
+      expires_in: 3600.5
+    });
+
+    const first = await tokenManager.getAccessToken('https://auth.example.com/token', {
+      grant_type: 'client_credentials'
+    });
+    const second = await tokenManager.getAccessToken('https://auth.example.com/token', {
+      grant_type: 'client_credentials'
+    });
+
+    expect(first).toBe('flt-tok');
+    expect(second).toBe('flt-tok');
+    expect(mockClient.callCount).toBe(1);
+  });
+
+  test('expires_in negative skips caching', async () => {
+    // D1: a negative expires_in (e.g. -1) must mark the token as
+    // immediately stale so the very next call refetches.
+    let n = 0;
+    const stepClient: ApiClient = {
+      async sendRequest(): Promise<ApiResponse> {
+        n++;
+        if (n === 1) {
+          return {
+            statusCode: 200,
+            body: JSON.stringify({ access_token: 'neg1', expires_in: -1 }),
+            headers: { 'content-type': 'application/json' }
+          };
+        }
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ access_token: 'neg2', expires_in: 3600 }),
+          headers: { 'content-type': 'application/json' }
+        };
+      }
+    };
+    const manager = new OAuth2TokenManager();
+    manager.setApiClient(stepClient);
+
+    const first = await manager.getAccessToken('https://auth.example.com/token', {
+      grant_type: 'client_credentials'
+    });
+    const second = await manager.getAccessToken('https://auth.example.com/token', {
+      grant_type: 'client_credentials'
+    });
+
+    expect(first).toBe('neg1');
+    expect(second).toBe('neg2');
+    expect(n).toBe(2);
+  });
+
   test('throws when token request fails', async () => {
     mockClient.responseStatus = 401;
     mockClient.responseBody = JSON.stringify({ error: 'invalid_client' });

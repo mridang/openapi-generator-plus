@@ -155,10 +155,51 @@ class OAuth2TokenManager:
         self._access_token = token_data['access_token']
         if token_data.get('refresh_token'):
             self._refresh_token = token_data['refresh_token']
-        if 'expires_in' in token_data:
-            expires_in = token_data['expires_in']
-            buffer_secs = min(expires_in, 30)
-            self._token_expiry = time.time() + expires_in - buffer_secs
+        if 'expires_in' in token_data and token_data['expires_in'] is not None:
+            # RFC 6749 §5.1 says expires_in is a JSON number, but real-world
+            # providers (Salesforce, some Apigee deployments) send a quoted
+            # string and others send a JSON float. Accept ints, floor floats,
+            # parse digit strings; on anything unparseable or non-positive,
+            # mark the token as immediately stale so the next call refetches
+            # (preferable to caching a token of unknown lifetime forever).
+            expires_in = self._parse_expires_in(token_data['expires_in'])
+            if expires_in > 0:
+                buffer_secs = min(expires_in, 30)
+                self._token_expiry = time.time() + expires_in - buffer_secs
+            else:
+                self._token_expiry = time.time()
+
+    @staticmethod
+    def _parse_expires_in(raw: object) -> int:
+        """Defensively parse the OAuth2 ``expires_in`` value.
+
+        Returns ``0`` (caller skips caching) when the value is missing,
+        unparseable, or non-positive. Accepts ints, floors floats, and
+        parses digit strings (e.g. ``"3600"`` from Salesforce).
+        """
+        if isinstance(raw, bool):
+            # bool is a subclass of int in Python; reject it explicitly.
+            return 0
+        if isinstance(raw, int):
+            return raw
+        if isinstance(raw, float):
+            import math
+            if math.isnan(raw) or math.isinf(raw):
+                return 0
+            return int(math.floor(raw))
+        if isinstance(raw, str):
+            trimmed = raw.strip()
+            if not trimmed:
+                return 0
+            try:
+                parsed = float(trimmed)
+            except ValueError:
+                return 0
+            import math
+            if math.isnan(parsed) or math.isinf(parsed):
+                return 0
+            return int(math.floor(parsed))
+        return 0
 
     @property
     def refresh_token(self) -> Optional[str]:

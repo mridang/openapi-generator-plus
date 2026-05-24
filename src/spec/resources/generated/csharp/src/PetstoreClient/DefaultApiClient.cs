@@ -41,6 +41,42 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     private readonly TransportOptions _transportOptions;
 
     /// <summary>
+    /// `Basic &lt;base64&gt;` Proxy-Authorization value extracted from
+    /// userinfo embedded in the proxy URL, or <c>null</c> when no proxy
+    /// credentials are configured. Exposed for tests and HTTP-aware
+    /// authenticators that need to verify userinfo is propagated and
+    /// not silently dropped (Gap AK).
+    /// </summary>
+    public string? ProxyAuthorizationHeader { get; }
+
+    /// <summary>
+    /// Builds a <c>Basic &lt;base64&gt;</c> Proxy-Authorization value from the
+    /// userinfo embedded in the proxy URL, or returns <c>null</c> when no
+    /// credentials are present. Percent-encoded userinfo is decoded before
+    /// encoding.
+    /// </summary>
+    public static string? BuildProxyAuthorizationHeader(string? proxyUrl)
+    {
+        if (string.IsNullOrEmpty(proxyUrl))
+        {
+            return null;
+        }
+
+        Uri proxyUri = new(proxyUrl);
+        if (string.IsNullOrEmpty(proxyUri.UserInfo))
+        {
+            return null;
+        }
+
+        string[] parts = proxyUri.UserInfo.Split(':', 2);
+        string user = Uri.UnescapeDataString(parts[0]);
+        string pass = parts.Length > 1 ? Uri.UnescapeDataString(parts[1]) : "";
+        string raw = $"{user}:{pass}";
+        string encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(raw));
+        return $"Basic {encoded}";
+    }
+
+    /// <summary>
     /// Create a client with default transport settings.
     /// Equivalent to <c>new DefaultApiClient(TransportOptions.Builder().Build())</c>.
     /// </summary>
@@ -111,6 +147,12 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             handler.UseProxy = true;
         }
 
+        /* Gap AK: keep a Proxy-Authorization preview value alongside the
+         * WebProxy.Credentials so tests (and any HTTP-aware authenticator)
+         * can verify userinfo embedded in the proxy URL is propagated and
+         * not silently dropped. */
+        ProxyAuthorizationHeader = BuildProxyAuthorizationHeader(transportOptions.Proxy);
+
         /* Gap BH: HttpClient's AllowAutoRedirect re-sends Authorization /
            Cookie / Proxy-Authorization across cross-origin 3xx redirects by
            default, leaking bearer tokens to attacker-controlled hosts via
@@ -135,6 +177,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     {
         _httpClient = httpClient;
         _transportOptions = TransportOptions.Builder().Build();
+        ProxyAuthorizationHeader = null;
     }
 
     /// <summary>
@@ -149,6 +192,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         ArgumentNullException.ThrowIfNull(transportOptions);
         _httpClient = httpClient;
         _transportOptions = transportOptions;
+        ProxyAuthorizationHeader = BuildProxyAuthorizationHeader(transportOptions.Proxy);
     }
 
     /// <inheritdoc/>

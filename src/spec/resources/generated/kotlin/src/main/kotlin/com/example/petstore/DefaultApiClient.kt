@@ -31,6 +31,15 @@ class DefaultApiClient internal constructor(
     private val httpClient: HttpClient,
     private val transportOptions: TransportOptions,
 ) : ApiClient {
+    /*
+     * Gap AK: Ktor's CIO engine has no API for proxy basic-auth
+     * credentials, so userinfo embedded in the proxy URL
+     * (`http://user:pass@host:port`) is silently dropped. Extract it
+     * once at construction and inject as a Proxy-Authorization header
+     * on every outbound request below, matching the Java/C# SDKs.
+     */
+    internal val proxyAuthHeader: String? = buildProxyAuthHeader(transportOptions.proxy)
+
     /**
      * Create a client with a pre-configured Ktor [HttpClient].
      *
@@ -79,6 +88,9 @@ class DefaultApiClient internal constructor(
         }
         if ("Accept-Encoding" !in mergedHeaders) {
             mergedHeaders["Accept-Encoding"] = "gzip, deflate"
+        }
+        if (proxyAuthHeader != null) {
+            mergedHeaders["Proxy-Authorization"] = proxyAuthHeader
         }
 
         var response =
@@ -281,6 +293,11 @@ class DefaultApiClient internal constructor(
         fieldName: String,
         value: Any?,
     ) {
+        // W-new-2: validate the field name on every branch (string, number,
+        // boolean, JSON, binary) before it lands in Content-Disposition. Ktor's
+        // FormBuilder.append interpolates the name directly, so CR/LF/NUL must
+        // be rejected even when the value is not a ByteArray.
+        validateMultipartFieldName(fieldName)
         when (value) {
             is ByteArray -> {
                 validateMultipartFilename(fieldName)
@@ -331,6 +348,29 @@ class DefaultApiClient internal constructor(
     override fun close() {
         httpClient.close()
     }
+}
+
+/**
+ * Builds a `Basic <base64>` Proxy-Authorization value from the userinfo
+ * embedded in the proxy URL, or returns null when no credentials are
+ * present. Percent-encoded userinfo is decoded before encoding.
+ */
+internal fun buildProxyAuthHeader(proxyUrl: String?): String? {
+    if (proxyUrl == null) return null
+    val uri =
+        try {
+            java.net.URI(proxyUrl)
+        } catch (_: Exception) {
+            return null
+        }
+    val rawUserInfo = uri.rawUserInfo ?: return null
+    if (rawUserInfo.isEmpty()) return null
+    val decoded = java.net.URLDecoder.decode(rawUserInfo, Charsets.UTF_8)
+    val encoded =
+        java.util.Base64
+            .getEncoder()
+            .encodeToString(decoded.toByteArray(Charsets.UTF_8))
+    return "Basic $encoded"
 }
 
 /** Generates a UUID v4 string without JVM-specific APIs. */
@@ -407,6 +447,25 @@ internal fun isTextContentType(contentType: String): Boolean {
         mediaType == "application/javascript" ||
         mediaType.endsWith("+json") ||
         mediaType.endsWith("+xml")
+}
+
+/**
+ * Rejects multipart form field names that would allow Content-Disposition
+ * header injection or smuggling. Throws [IllegalArgumentException] when the
+ * field name contains CR, LF, or NUL. Must be invoked on every branch of the
+ * multipart builder (string, number, boolean, JSON, binary), not just the
+ * binary path, because the name is interpolated directly into the
+ * `Content-Disposition: form-data; name="..."` header.
+ */
+fun validateMultipartFieldName(fieldName: String?) {
+    if (fieldName == null) return
+    for (c in fieldName) {
+        if (c == '\r' || c == '\n' || c == '\u0000') {
+            throw IllegalArgumentException(
+                "multipart field name must not contain CR, LF, or NUL characters",
+            )
+        }
+    }
 }
 
 /**

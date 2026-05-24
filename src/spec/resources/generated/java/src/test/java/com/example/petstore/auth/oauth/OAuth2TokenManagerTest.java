@@ -271,6 +271,87 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
+  void expiresInAsJsonStringIsAccepted() {
+    // D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
+    // quoted string. The manager must accept it and cache the token; a
+    // second call within the buffer window must serve from cache.
+    AtomicInteger callCount = new AtomicInteger(0);
+    ApiClient client =
+        (method, url, headers, body) -> {
+          callCount.incrementAndGet();
+          return new ApiResponse(
+              200, "{\"access_token\":\"str-tok\",\"expires_in\":\"3600\"}", Map.of());
+        };
+
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "client_credentials");
+
+    String first = manager.getAccessToken("https://auth.example.com/token", params);
+    String second = manager.getAccessToken("https://auth.example.com/token", params);
+
+    assertEquals("str-tok", first);
+    assertEquals("str-tok", second);
+    assertEquals(1, callCount.get(), "quoted-string expires_in must produce a valid cached expiry");
+  }
+
+  @Test
+  void expiresInAsFloatIsFloored() {
+    // D1: some providers send expires_in as a JSON float (e.g. 3600.5).
+    // The manager must floor it and cache the token; a second call within
+    // the buffer window must serve from cache.
+    AtomicInteger callCount = new AtomicInteger(0);
+    ApiClient client =
+        (method, url, headers, body) -> {
+          callCount.incrementAndGet();
+          return new ApiResponse(
+              200, "{\"access_token\":\"flt-tok\",\"expires_in\":3600.5}", Map.of());
+        };
+
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "client_credentials");
+
+    String first = manager.getAccessToken("https://auth.example.com/token", params);
+    String second = manager.getAccessToken("https://auth.example.com/token", params);
+
+    assertEquals("flt-tok", first);
+    assertEquals("flt-tok", second);
+    assertEquals(1, callCount.get(), "float expires_in must floor to a valid cached expiry");
+  }
+
+  @Test
+  void expiresInNegativeSkipsCaching() {
+    // D1: a negative expires_in (e.g. -1) must not produce a future expiry
+    // via underflow. The manager must mark the token as immediately stale
+    // so the very next call refetches.
+    AtomicInteger callCount = new AtomicInteger(0);
+    ApiClient client =
+        (method, url, headers, body) -> {
+          int n = callCount.incrementAndGet();
+          return new ApiResponse(
+              200, "{\"access_token\":\"neg" + n + "\",\"expires_in\":-1}", Map.of());
+        };
+
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "client_credentials");
+
+    String first = manager.getAccessToken("https://auth.example.com/token", params);
+    String second = manager.getAccessToken("https://auth.example.com/token", params);
+
+    assertEquals("neg1", first);
+    assertEquals("neg2", second);
+    assertEquals(2, callCount.get(), "negative expires_in must not cache; next call must refetch");
+  }
+
+  @Test
   void throwsWhenTokenRequestFails() {
     OAuth2TokenManager manager = new OAuth2TokenManager();
     manager.setApiClient(fakeClient(401, "{\"error\":\"invalid_client\"}"));

@@ -164,11 +164,52 @@ class OAuth2TokenManager {
     if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
       _refreshToken = newRefreshToken;
     }
-    final expiresIn = parsed['expires_in'] as int?;
-    if (expiresIn != null) {
-      final bufferSecs = expiresIn < 30 ? expiresIn : 30;
-      _tokenExpiry =
-          DateTime.now().add(Duration(seconds: expiresIn - bufferSecs));
+    if (parsed.containsKey('expires_in') && parsed['expires_in'] != null) {
+      /* RFC 6749 §5.1 says expires_in is a JSON number, but real-world
+       * providers (Salesforce, some Apigee deployments) send a quoted
+       * string and others send a JSON float. Accept ints, floor floats,
+       * parse digit strings; on anything unparseable or non-positive,
+       * mark the token as immediately stale so the next call refetches
+       * (preferable to caching a token of unknown lifetime forever). */
+      final expiresIn = _parseExpiresIn(parsed['expires_in']);
+      if (expiresIn > 0) {
+        final bufferSecs = expiresIn < 30 ? expiresIn : 30;
+        _tokenExpiry =
+            DateTime.now().add(Duration(seconds: expiresIn - bufferSecs));
+      } else {
+        _tokenExpiry = DateTime.now();
+      }
     }
+  }
+
+  /// Defensive parse of the `expires_in` field per RFC 6749 §5.1.
+  /// Returns `0` (caller skips caching) when missing, unparseable, or
+  /// non-positive. Accepts integers, floors floats, and parses digit
+  /// strings (e.g. `"3600"` from Salesforce).
+  int _parseExpiresIn(Object? raw) {
+    if (raw == null) {
+      return 0;
+    }
+    if (raw is int) {
+      return raw;
+    }
+    if (raw is double) {
+      if (raw.isNaN || raw.isInfinite) {
+        return 0;
+      }
+      return raw.floor();
+    }
+    if (raw is String) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) {
+        return 0;
+      }
+      final parsed = double.tryParse(trimmed);
+      if (parsed == null || parsed.isNaN || parsed.isInfinite) {
+        return 0;
+      }
+      return parsed.floor();
+    }
+    return 0;
   }
 }

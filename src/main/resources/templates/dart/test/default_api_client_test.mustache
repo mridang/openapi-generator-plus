@@ -64,6 +64,17 @@ void main() {
       expect(resp.body, contains('success'));
     });
 
+    // Gap AK: userinfo embedded in the proxy URL must be base64-encoded
+    // and surfaced as Proxy-Authorization so the proxy can authenticate
+    // the tunnel — otherwise the proxy 407s.
+    test('proxy_with_credentials_injects_basic_authorization', () async {
+      final transport = TransportOptionsBuilder()
+          .proxy('http://alice:s3cret@127.0.0.1:3128')
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+      expect(client.proxyAuthHeader, equals('Basic YWxpY2U6czNjcmV0'));
+    });
+
     test('makes HTTPS request through proxy with verifySsl=false', () async {
       final transport = TransportOptionsBuilder()
           .proxy(proxyUrl)
@@ -234,6 +245,40 @@ void main() {
       expect(parsed['body'], equals(''));
     });
 
+    // T-new-3: multipart bodies must be replayed across 307 redirects per
+    // RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
+    // request after a 307 still carries the multipart form parts.
+    test('replays multipart body across 307 redirects (T-new-3)', () async {
+      final transport = TransportOptionsBuilder()
+          .followRedirects(true)
+          .maxRedirects(5)
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+      const boundary = 'test-boundary';
+      final body =
+          '--$boundary\r\n'
+          'Content-Disposition: form-data; name="description"\r\n\r\n'
+          'hello\r\n'
+          '--$boundary\r\n'
+          'Content-Disposition: form-data; name="file"; filename="file"\r\n'
+          'Content-Type: application/octet-stream\r\n\r\n'
+          'file-content-bytes\r\n'
+          '--$boundary--\r\n';
+      final resp = await client.sendRequest(
+        'POST',
+        '$wiremockHttpUrl/api/redirect-307',
+        {'Content-Type': 'multipart/form-data; boundary=$boundary'},
+        body,
+      );
+      expect(resp.statusCode, equals(200));
+      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+      expect(parsed['method'], equals('POST'));
+      final echoed = parsed['body'] as String;
+      expect(echoed, contains('Content-Disposition: form-data; name="description"'));
+      expect(echoed, contains('Content-Disposition: form-data; name="file"'));
+      expect(echoed, contains('file-content-bytes'));
+    });
+
     test('respects maxRedirects limit', () async {
       final transport = TransportOptionsBuilder()
           .followRedirects(true)
@@ -258,6 +303,27 @@ void main() {
         body,
       );
       expect(resp, isNotNull);
+    });
+
+    // W-new-2: multipart field name validation must run on every branch, not
+    // just the Uint8List path. Previously the String/num/bool and JSON
+    // branches injected the raw field name into Content-Disposition, opening
+    // a header-smuggling hole. This test uses a String value so it exercises
+    // the non-binary branch.
+    test('multipart_field_name_with_crlf_rejected_on_string_value', () async {
+      final client = DefaultApiClient();
+      final badField = <String, Object?>{
+        'name\r\nInjected: yes': 'value',
+      };
+      expect(
+        () => client.sendRequest(
+          'POST',
+          '$wiremockHttpUrl/api/test',
+          {},
+          badField,
+        ),
+        throwsArgumentError,
+      );
     });
 
     test('decompresses gzip response', () async {

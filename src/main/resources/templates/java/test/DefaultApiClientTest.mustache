@@ -134,6 +134,32 @@ class DefaultApiClientTest {
     }
 
     @Nested
+    @DisplayName("proxy with credentials")
+    class ProxyWithCredentials {
+
+        /*
+         * Gap AK: java.net.http.HttpClient silently drops userinfo embedded
+         * in the proxy URL. Without manual extraction the proxy 407s and
+         * every request fails. We assert that the constructed client has
+         * extracted `alice:s3cret` into a Basic Proxy-Authorization header.
+         */
+        @Test
+        @DisplayName("proxy_with_credentials_injects_basic_authorization")
+        void proxy_with_credentials_injects_basic_authorization() throws Exception {
+            TransportOptions transport = TransportOptions.builder()
+                    .proxy("http://alice:s3cret@127.0.0.1:3128")
+                    .build();
+            DefaultApiClient client = new DefaultApiClient(transport);
+
+            java.lang.reflect.Field field = DefaultApiClient.class.getDeclaredField("proxyAuthHeader");
+            field.setAccessible(true);
+            String actual = (String) field.get(client);
+
+            assertEquals("Basic YWxpY2U6czNjcmV0", actual);
+        }
+    }
+
+    @Nested
     @DisplayName("HTTP proxy with TLS")
     class HttpProxyWithTls {
 
@@ -350,6 +376,45 @@ class DefaultApiClientTest {
             assertEquals("GET", json.get("method").asText());
             assertEquals("", json.get("body").asText());
         }
+
+        /**
+         * T-new-3: multipart bodies must be replayed across 307 redirects per
+         * RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
+         * request after a 307 still carries the multipart form parts.
+         */
+        @Test
+        @DisplayName("307 replays multipart body to redirected location (T-new-3)")
+        void multipartBodyReplayedOn307Redirect() throws Exception {
+            String wiremockUrl = WireMockContainer.getHttpUrl();
+
+            TransportOptions transport = TransportOptions.builder()
+                    .followRedirects(true)
+                    .maxRedirects(5)
+                    .build();
+
+            DefaultApiClient client = new DefaultApiClient(transport);
+            Map<String, Object> formFields = new HashMap<>();
+            formFields.put("description", "hello");
+            formFields.put("file", "file-content-bytes".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+            ApiResponse response = client.sendRequest(
+                    "POST", wiremockUrl + "/api/redirect-307", new HashMap<>(), formFields);
+
+            assertEquals(200, response.statusCode());
+            JsonNode json = new ObjectMapper().readTree(response.body());
+            assertEquals("POST", json.get("method").asText(),
+                    "follow-up request method must remain POST");
+            String echoedBody = json.get("body").asText();
+            assertTrue(
+                    echoedBody.contains("Content-Disposition: form-data; name=\"description\""),
+                    "redirect replay dropped the description part: " + echoedBody);
+            assertTrue(
+                    echoedBody.contains("Content-Disposition: form-data; name=\"file\""),
+                    "redirect replay dropped the file part: " + echoedBody);
+            assertTrue(
+                    echoedBody.contains("file-content-bytes"),
+                    "redirect replay dropped the file bytes: " + echoedBody);
+        }
     }
 
     @Nested
@@ -386,6 +451,28 @@ class DefaultApiClientTest {
                     "POST", wiremockUrl + "/api/test", new HashMap<>(), formFields);
 
             assertNotNull(response);
+        }
+
+        /**
+         * W-new-2: multipart field name validation must run on every branch,
+         * not just the binary (File/byte[]/InputStream) paths. Previously the
+         * String/Number/Boolean and JSON branches injected the raw field name
+         * into Content-Disposition, opening a header-smuggling hole. This test
+         * uses a String value so it exercises the non-binary branch.
+         */
+        @Test
+        @DisplayName("multipart_field_name_with_crlf_rejected_on_string_value")
+        void multipartFieldNameWithCrlfRejectedOnStringValue() {
+            String wiremockUrl = WireMockContainer.getHttpUrl();
+
+            DefaultApiClient client = new DefaultApiClient();
+            Map<String, Object> formFields = new HashMap<>();
+            formFields.put("name\r\nInjected: yes", "value");
+
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () -> client.sendRequest(
+                            "POST", wiremockUrl + "/api/test", new HashMap<>(), formFields));
         }
     }
 

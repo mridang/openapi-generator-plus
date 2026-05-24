@@ -290,6 +290,68 @@ void main() {
               'empty refresh_token in refresh response must not overwrite cached refresh_token');
     });
 
+    test('expires_in as JSON string is accepted', () async {
+      // D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
+      // quoted string. The manager must accept it and cache the token; a
+      // second call within the buffer window must serve from cache.
+      final client = _FakeApiClient();
+      client.enqueue('{"access_token":"str-tok","expires_in":"3600"}');
+
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+
+      final params = {'grant_type': 'client_credentials'};
+      const tokenUrl = 'https://auth.example.com/token';
+
+      final first = await manager.getAccessToken(tokenUrl, params);
+      final second = await manager.getAccessToken(tokenUrl, params);
+
+      expect(first, equals('str-tok'));
+      expect(second, equals('str-tok'));
+      expect(client.requestCount, equals(1));
+    });
+
+    test('expires_in as float is floored', () async {
+      // D1: some providers send expires_in as a JSON float (e.g. 3600.5).
+      // The manager must floor it and cache the token.
+      final client = _FakeApiClient();
+      client.enqueue('{"access_token":"flt-tok","expires_in":3600.5}');
+
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+
+      final params = {'grant_type': 'client_credentials'};
+      const tokenUrl = 'https://auth.example.com/token';
+
+      final first = await manager.getAccessToken(tokenUrl, params);
+      final second = await manager.getAccessToken(tokenUrl, params);
+
+      expect(first, equals('flt-tok'));
+      expect(second, equals('flt-tok'));
+      expect(client.requestCount, equals(1));
+    });
+
+    test('expires_in negative skips caching', () async {
+      // D1: a negative expires_in (e.g. -1) must mark the token as
+      // immediately stale so the very next call refetches.
+      final client = _FakeApiClient();
+      client.enqueue('{"access_token":"neg1","expires_in":-1}');
+      client.enqueue('{"access_token":"neg2","expires_in":3600}');
+
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+
+      final params = {'grant_type': 'client_credentials'};
+      const tokenUrl = 'https://auth.example.com/token';
+
+      final first = await manager.getAccessToken(tokenUrl, params);
+      final second = await manager.getAccessToken(tokenUrl, params);
+
+      expect(first, equals('neg1'));
+      expect(second, equals('neg2'));
+      expect(client.requestCount, equals(2));
+    });
+
     test('throws when token request fails', () async {
       final client = _FakeApiClient();
       client.enqueue('{"error":"invalid_client"}', statusCode: 401);

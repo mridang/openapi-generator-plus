@@ -212,6 +212,74 @@ class OAuth2TokenManagerTest extends TestCase
         );
     }
 
+    public function testExpiresInAsJsonStringIsAccepted(): void
+    {
+        // D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
+        // quoted string. The manager must accept it and cache the token; a
+        // second call within the buffer window must serve from cache.
+        $client = new MockTokenApiClient();
+        $client->enqueueResponse(new ApiResponse(
+            200,
+            (string) json_encode(['access_token' => 'str-tok', 'expires_in' => '3600']),
+            ['Content-Type' => 'application/json']
+        ));
+
+        $manager = new OAuth2TokenManager();
+        $manager->setApiClient($client);
+
+        $first = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+        $second = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+        $this->assertSame('str-tok', $first);
+        $this->assertSame('str-tok', $second);
+        $this->assertCount(1, $client->capturedRequests);
+    }
+
+    public function testExpiresInAsFloatIsFloored(): void
+    {
+        // D1: some providers send expires_in as a JSON float (e.g. 3600.5).
+        // The manager must floor it and cache the token.
+        $client = new MockTokenApiClient();
+        $client->enqueueResponse(new ApiResponse(
+            200,
+            (string) json_encode(['access_token' => 'flt-tok', 'expires_in' => 3600.5]),
+            ['Content-Type' => 'application/json']
+        ));
+
+        $manager = new OAuth2TokenManager();
+        $manager->setApiClient($client);
+
+        $first = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+        $second = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+        $this->assertSame('flt-tok', $first);
+        $this->assertSame('flt-tok', $second);
+        $this->assertCount(1, $client->capturedRequests);
+    }
+
+    public function testExpiresInNegativeSkipsCaching(): void
+    {
+        // D1: a negative expires_in (e.g. -1) must mark the token as
+        // immediately stale so the very next call refetches.
+        $client = new MockTokenApiClient();
+        $client->enqueueResponse(new ApiResponse(
+            200,
+            (string) json_encode(['access_token' => 'neg1', 'expires_in' => -1]),
+            ['Content-Type' => 'application/json']
+        ));
+        $client->enqueueResponse($this->makeTokenResponse('neg2', 3600));
+
+        $manager = new OAuth2TokenManager();
+        $manager->setApiClient($client);
+
+        $first = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+        $second = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+        $this->assertSame('neg1', $first);
+        $this->assertSame('neg2', $second);
+        $this->assertCount(2, $client->capturedRequests);
+    }
+
     public function testThrowsWhenTokenRequestFails(): void
     {
         $client = new MockTokenApiClient();

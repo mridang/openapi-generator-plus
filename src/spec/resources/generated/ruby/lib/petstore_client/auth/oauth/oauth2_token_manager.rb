@@ -142,9 +142,46 @@ module PetstoreClient
           @refresh_token = new_refresh_token if new_refresh_token.is_a?(String) && !new_refresh_token.empty?
           return unless parsed.key?('expires_in')
 
-          expires_in = parsed['expires_in'].to_i
-          buffer_secs = [expires_in, 30].min
-          @token_expiry = Time.now.to_f + expires_in - buffer_secs
+          raw = parsed['expires_in']
+          return if raw.nil?
+
+          # RFC 6749 §5.1 says expires_in is a JSON number, but real-world
+          # providers (Salesforce, some Apigee deployments) send a quoted
+          # string and others send a JSON float. Accept ints, floor floats,
+          # parse digit strings; on anything unparseable or non-positive,
+          # mark the token as immediately stale so the next call refetches
+          # (preferable to caching a token of unknown lifetime forever).
+          expires_in = parse_expires_in(raw)
+
+          @token_expiry =
+            if expires_in.positive?
+              buffer_secs = [expires_in, 30].min
+              Time.now.to_f + expires_in - buffer_secs
+            else
+              Time.now.to_f
+            end
+        end
+
+        def parse_expires_in(raw)
+          case raw
+          when Integer
+            raw
+          when Float
+            return 0 if raw.nan? || raw.infinite?
+
+            raw.floor
+          when String
+            trimmed = raw.strip
+            return 0 if trimmed.empty?
+
+            begin
+              Float(trimmed).floor
+            rescue ArgumentError, TypeError
+              0
+            end
+          else
+            0
+          end
         end
       end
     end

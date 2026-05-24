@@ -66,6 +66,30 @@ func TestDefaultApiClient_MakesHttpRequestThroughProxy(t *testing.T) {
 	}
 }
 
+// Gap AK: userinfo embedded in the proxy URL must be base64-encoded
+// and surfaced as Proxy-Authorization. Go's net/http handles this
+// natively when the *url.URL passed to http.ProxyURL contains userinfo,
+// so we assert TransportOptions preserves the userinfo end-to-end.
+func TestDefaultApiClient_ProxyWithCredentialsInjectsBasicAuthorization(t *testing.T) {
+	transport := petstore.NewTransportOptionsBuilder().
+		Proxy("http://alice:s3cret@127.0.0.1:3128").
+		Build()
+	proxy := transport.Proxy()
+	if proxy == nil {
+		t.Fatal("expected proxy URL to be non-nil")
+	}
+	if proxy.User == nil {
+		t.Fatal("expected proxy URL to carry userinfo")
+	}
+	if got := proxy.User.Username(); got != "alice" {
+		t.Errorf("expected username 'alice', got %q", got)
+	}
+	pw, hasPw := proxy.User.Password()
+	if !hasPw || pw != "s3cret" {
+		t.Errorf("expected password 's3cret', got %q (set=%v)", pw, hasPw)
+	}
+}
+
 func TestDefaultApiClient_MakesHttpsRequestThroughProxyWithVerifySslFalse(t *testing.T) {
 	transport := petstore.NewTransportOptionsBuilder().
 		Proxy(proxyURL).
@@ -260,6 +284,52 @@ func TestDefaultApiClient_Redirect303SwitchesToGetAndDropsBody(t *testing.T) {
 	}
 }
 
+// T-new-3: multipart bodies must be replayed across 307 redirects per
+// RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
+// request after a 307 still carries the multipart form parts.
+func TestDefaultApiClient_MultipartBodyReplayedOn307Redirect(t *testing.T) {
+	transport := petstore.NewTransportOptionsBuilder().
+		FollowRedirects(true).
+		MaxRedirects(5).
+		Build()
+	client := petstore.NewDefaultApiClient(transport)
+	headers := map[string]string{
+		"Content-Type": "multipart/form-data; boundary=test-boundary",
+	}
+	body := []byte("--test-boundary\r\n" +
+		"Content-Disposition: form-data; name=\"description\"\r\n\r\n" +
+		"hello\r\n" +
+		"--test-boundary\r\n" +
+		"Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\n" +
+		"Content-Type: application/octet-stream\r\n\r\n" +
+		"file-content-bytes\r\n" +
+		"--test-boundary--\r\n")
+	resp, err := client.SendRequest("POST", wiremockHTTPURL+"/api/redirect-307", headers, body)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Fatalf("expected status 200 after 307 redirect, got %d", resp.StatusCode)
+	}
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(resp.Body), &parsed); err != nil {
+		t.Fatalf("invalid json body: %v", err)
+	}
+	if parsed["method"] != "POST" {
+		t.Errorf("expected method POST after 307, got %v", parsed["method"])
+	}
+	echoed, _ := parsed["body"].(string)
+	if !strings.Contains(echoed, `Content-Disposition: form-data; name="description"`) {
+		t.Errorf("redirect replay dropped the description part: %q", echoed)
+	}
+	if !strings.Contains(echoed, `Content-Disposition: form-data; name="file"`) {
+		t.Errorf("redirect replay dropped the file part: %q", echoed)
+	}
+	if !strings.Contains(echoed, "file-content-bytes") {
+		t.Errorf("redirect replay dropped the file bytes: %q", echoed)
+	}
+}
+
 func TestDefaultApiClient_RespectsMaxRedirectsLimit(t *testing.T) {
 	transport := petstore.NewTransportOptionsBuilder().
 		FollowRedirects(true).
@@ -334,6 +404,22 @@ func TestMultipart_MultipartFieldNameCRLFRejected(t *testing.T) {
 		if err := petstore.ValidateMultipartFieldName(bad); err == nil {
 			t.Errorf("expected error rejecting %q, got nil", bad)
 		}
+	}
+}
+
+/* W-new-2: multipart field-name validation must run on every branch (string,
+ * number, boolean, JSON, binary), not just the binary path. Confirm that
+ * sending a multipart form whose String-valued field name contains CR/LF
+ * fails end-to-end at SendRequest, not just at the helper. */
+func TestMultipart_FieldNameWithCRLFRejectedOnStringValue(t *testing.T) {
+	client := petstore.NewDefaultApiClient(nil)
+	badFields := map[string]interface{}{
+		"name\r\nInjected: yes": "string-value",
+	}
+	_, err := client.SendRequest("POST", "http://127.0.0.1:1/unused",
+		map[string]string{}, badFields)
+	if err == nil {
+		t.Fatal("expected SendRequest to fail on CR/LF in multipart field name with String value")
 	}
 }
 

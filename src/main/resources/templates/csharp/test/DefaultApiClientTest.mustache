@@ -74,6 +74,21 @@ public class DefaultApiClientTest
         Assert.Contains("success", response.Body);
     }
 
+    // Gap AK: userinfo embedded in the proxy URL must be base64-encoded
+    // and surfaced as Proxy-Authorization so the proxy can authenticate
+    // the tunnel — otherwise the proxy 407s.
+    [Fact]
+    public void ProxyWithCredentialsInjectsBasicAuthorization()
+    {
+        var transport = TransportOptions.Builder()
+            .Proxy("http://alice:s3cret@127.0.0.1:3128")
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+
+        Assert.Equal("Basic YWxpY2U6czNjcmV0", client.ProxyAuthorizationHeader);
+    }
+
     [Fact]
     public async Task MakesHttpsRequestThroughProxyWithVerifySslFalse()
     {
@@ -301,6 +316,41 @@ public class DefaultApiClientTest
         Assert.Equal("", json.RootElement.GetProperty("body").GetString());
     }
 
+    /// <summary>
+    /// T-new-3: multipart bodies must be replayed across 307 redirects per
+    /// RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
+    /// request after a 307 still carries the multipart form parts.
+    /// </summary>
+    [Fact]
+    public async Task MultipartBodyReplayedOn307Redirect()
+    {
+        var transport = TransportOptions.Builder()
+            .FollowRedirects(true)
+            .MaxRedirects(5)
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+        var formData = new Dictionary<string, object>
+        {
+            { "description", "hello" },
+            { "file", System.Text.Encoding.UTF8.GetBytes("file-content-bytes") }
+        };
+        var response = await client.SendRequestAsync(
+            "POST",
+            new Uri(_fixture.WireMockHttpUrl + "/api/redirect-307"),
+            new Dictionary<string, string>(),
+            formData
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        var json = JsonDocument.Parse(response.Body);
+        Assert.Equal("POST", json.RootElement.GetProperty("method").GetString());
+        var echoed = json.RootElement.GetProperty("body").GetString() ?? string.Empty;
+        Assert.Contains("Content-Disposition: form-data; name=\"description\"", echoed);
+        Assert.Contains("Content-Disposition: form-data; name=\"file\"", echoed);
+        Assert.Contains("file-content-bytes", echoed);
+    }
+
     // -- Max redirects --
 
     [Fact]
@@ -335,6 +385,28 @@ public class DefaultApiClientTest
         );
 
         Assert.NotNull(response);
+    }
+
+    /// <summary>
+    /// W-new-2: multipart field-name validation must run on every branch
+    /// (not just binary). Confirm that even for a plain string value, a
+    /// CR/LF in the field name is rejected, preventing Content-Disposition
+    /// smuggling.
+    /// </summary>
+    [Fact]
+    public async Task MultipartFieldNameWithCrlfRejectedOnStringValue()
+    {
+        var client = new DefaultApiClient();
+        var badFields = new Dictionary<string, object>
+        {
+            { "name\r\nInjected: yes", "string-value" }
+        };
+        await Assert.ThrowsAnyAsync<Exception>(async () =>
+            await client.SendRequestAsync(
+                "POST",
+                new Uri(_fixture.WireMockHttpUrl + "/api/test"),
+                new Dictionary<string, string>(),
+                badFields));
     }
 
     // -- HTTP compression --

@@ -401,6 +401,88 @@ async fn test_refresh_token_empty_string_preserves_existing() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn test_expires_in_as_json_string_is_accepted() {
+    // D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
+    // quoted string. The manager must accept it and cache the token; a
+    // second call within the buffer window must serve from cache.
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"str-tok","expires_in":"3600"}"#, 200);
+
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client.clone());
+
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let first = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect("first call should succeed");
+    let second = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect("second call should serve from cache");
+
+    assert_eq!("str-tok", first);
+    assert_eq!("str-tok", second);
+    // Only one response was enqueued; if the cache failed the second call
+    // would panic trying to remove(0) from an empty Vec.
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_expires_in_as_float_is_floored() {
+    // D1: some providers send expires_in as a JSON float (e.g. 3600.5).
+    // The manager must floor it and cache the token.
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"flt-tok","expires_in":3600.5}"#, 200);
+
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client.clone());
+
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let first = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect("first call should succeed");
+    let second = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect("second call should serve from cache");
+
+    assert_eq!("flt-tok", first);
+    assert_eq!("flt-tok", second);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_expires_in_negative_skips_caching() {
+    // D1: a negative expires_in (e.g. -1) must mark the token as
+    // immediately stale so the very next call refetches.
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"neg1","expires_in":-1}"#, 200);
+    client.enqueue(r#"{"access_token":"neg2","expires_in":3600}"#, 200);
+
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client);
+
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let first = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect("first call should succeed");
+    let second = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect("second call should refetch (no cache)");
+
+    assert_eq!("neg1", first);
+    assert_eq!("neg2", second);
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn test_throws_when_token_request_fails() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(r#"{"error":"invalid_client"}"#, 401);

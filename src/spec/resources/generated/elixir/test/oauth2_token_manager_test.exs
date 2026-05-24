@@ -342,6 +342,86 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.refresh_token(manager) == "old_refresh"
     end
 
+    test "expires_in as JSON string is accepted" do
+      # D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
+      # quoted string. The manager must accept it and cache the token; a
+      # second call within the buffer window must serve from cache.
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "str-tok", "expires_in" => "3600"})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "client_credentials"}
+      token_url = "https://auth.example.com/token"
+
+      first = PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+      second = PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+
+      assert first == "str-tok"
+      assert second == "str-tok"
+      assert FakeApiClient.call_count(fake_client) == 1
+    end
+
+    test "expires_in as float is floored" do
+      # D1: some providers send expires_in as a JSON float (e.g. 3600.5).
+      # The manager must floor it and cache the token.
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "flt-tok", "expires_in" => 3600.5})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "client_credentials"}
+      token_url = "https://auth.example.com/token"
+
+      first = PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+      second = PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+
+      assert first == "flt-tok"
+      assert second == "flt-tok"
+      assert FakeApiClient.call_count(fake_client) == 1
+    end
+
+    test "expires_in negative skips caching" do
+      # D1: a negative expires_in (e.g. -1) must mark the token as
+      # immediately stale so the very next call refetches.
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "neg1", "expires_in" => -1})
+          },
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "neg2", "expires_in" => 3600})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "client_credentials"}
+      token_url = "https://auth.example.com/token"
+
+      first = PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+      second = PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+
+      assert first == "neg1"
+      assert second == "neg2"
+      assert FakeApiClient.call_count(fake_client) == 2
+    end
+
     test "throws when token request fails" do
       fake_client =
         FakeApiClient.new([

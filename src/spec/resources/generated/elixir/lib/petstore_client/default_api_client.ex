@@ -27,10 +27,11 @@ defmodule PetstoreClient.DefaultApiClient do
 
   @type t :: %__MODULE__{
           transport_options: PetstoreClient.TransportOptions.t(),
-          base_req: Req.Request.t()
+          base_req: Req.Request.t(),
+          proxy_auth_header: String.t() | nil
         }
 
-  defstruct [:transport_options, :base_req]
+  defstruct [:transport_options, :base_req, :proxy_auth_header]
 
   @doc """
   Creates a new DefaultApiClient with the given transport options.
@@ -46,8 +47,46 @@ defmodule PetstoreClient.DefaultApiClient do
 
     %__MODULE__{
       transport_options: opts,
-      base_req: Req.new(build_static_req_options(opts))
+      base_req: Req.new(build_static_req_options(opts)),
+      proxy_auth_header: build_proxy_auth_header(opts.proxy)
     }
+  end
+
+  # Gap AK: Finch's proxy tuple has no slot for basic-auth credentials,
+  # so userinfo embedded in the proxy URL (`http://user:pass@host:port`)
+  # is silently dropped. Extract it once at construction and inject as
+  # a Proxy-Authorization header on every outbound request, matching
+  # the Java/C# SDKs.
+  defp build_proxy_auth_header(nil) do
+    nil
+  end
+
+  defp build_proxy_auth_header(proxy_url) when is_binary(proxy_url) do
+    case URI.parse(proxy_url).userinfo do
+      nil ->
+        nil
+
+      "" ->
+        nil
+
+      userinfo ->
+        decoded =
+          userinfo
+          |> String.split(":", parts: 2)
+          |> Enum.map(&URI.decode/1)
+          |> Enum.join(":")
+
+        "Basic " <> Base.encode64(decoded)
+    end
+  end
+
+  defp build_proxy_auth_header(_) do
+    nil
+  end
+
+  @doc false
+  def proxy_auth_header(%__MODULE__{proxy_auth_header: header}) do
+    header
   end
 
   @doc """
@@ -85,6 +124,13 @@ defmodule PetstoreClient.DefaultApiClient do
     merged =
       if !Map.has_key?(merged, "Accept-Encoding") do
         Map.put(merged, "Accept-Encoding", "gzip, deflate, br")
+      else
+        merged
+      end
+
+    merged =
+      if client.proxy_auth_header do
+        Map.put(merged, "Proxy-Authorization", client.proxy_auth_header)
       else
         merged
       end

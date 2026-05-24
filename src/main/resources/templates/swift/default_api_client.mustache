@@ -23,12 +23,20 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     private let transportOptions: TransportOptions
     private let session: URLSession
     private let sessionDelegate: SessionDelegate?
+    /* Gap AK: URLSession's connectionProxyDictionary has no key for
+     * proxy basic-auth credentials, so userinfo embedded in the proxy
+     * URL (`http://user:pass@host:port`) is silently dropped by the
+     * platform. Extract it here and inject as a Proxy-Authorization
+     * header on every outbound request below, matching the behaviour
+     * of the Java/C# SDKs. */
+    internal let proxyAuthHeader: String?
 
     /// Creates a client with the given transport settings.
     /// If transportOptions is nil, default transport settings are used.
     public init(transportOptions: TransportOptions? = nil) {
         let opts = transportOptions ?? TransportOptionsBuilder().build()
         self.transportOptions = opts
+        self.proxyAuthHeader = DefaultApiClient.buildProxyAuthHeader(opts.proxy)
         let (session, delegate) = try! DefaultApiClient.buildSession(opts)
         self.session = session
         self.sessionDelegate = delegate
@@ -39,8 +47,22 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     public init(transportOptions: TransportOptions? = nil, session: URLSession) {
         let opts = transportOptions ?? TransportOptionsBuilder().build()
         self.transportOptions = opts
+        self.proxyAuthHeader = DefaultApiClient.buildProxyAuthHeader(opts.proxy)
         self.session = session
         self.sessionDelegate = nil
+    }
+
+    /// Builds a `Basic <base64>` Proxy-Authorization value from the userinfo
+    /// embedded in the proxy URL, or returns nil when no credentials are
+    /// present. Percent-encoded userinfo is decoded before encoding.
+    static func buildProxyAuthHeader(_ proxy: URL?) -> String? {
+        guard let proxy = proxy else { return nil }
+        guard let user = proxy.user, !user.isEmpty else { return nil }
+        let decodedUser = user.removingPercentEncoding ?? user
+        let decodedPass = (proxy.password ?? "").removingPercentEncoding ?? (proxy.password ?? "")
+        let raw = "\(decodedUser):\(decodedPass)"
+        let encoded = Data(raw.utf8).base64EncodedString()
+        return "Basic \(encoded)"
     }
 
     /// Sends an HTTP request with transport-level settings applied.
@@ -71,6 +93,9 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             #else
             merged["Accept-Encoding"] = "gzip, deflate, br"
             #endif
+        }
+        if let proxyAuth = proxyAuthHeader {
+            merged["Proxy-Authorization"] = proxyAuth
         }
 
         var request = URLRequest(url: requestURL)

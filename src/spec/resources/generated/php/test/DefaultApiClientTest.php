@@ -64,6 +64,26 @@ class DefaultApiClientTest extends TestCase
         $this->assertStringContainsString('success', $response->body);
     }
 
+    // Gap AK: userinfo embedded in the proxy URL must be base64-encoded
+    // and surfaced as Proxy-Authorization so the proxy can authenticate
+    // the tunnel — otherwise the proxy 407s. Guzzle's `proxy` option
+    // reads userinfo natively from the URL; we assert TransportOptions
+    // preserves the userinfo end-to-end.
+    public function testProxyWithCredentialsInjectsBasicAuthorization(): void
+    {
+        $transport = TransportOptions::builder()
+            ->proxy('http://alice:s3cret@127.0.0.1:3128')
+            ->build();
+
+        $parts = parse_url($transport->proxy);
+        $this->assertSame('alice', $parts['user'] ?? null);
+        $this->assertSame('s3cret', $parts['pass'] ?? null);
+        $expected = 'Basic ' . base64_encode(
+            urldecode($parts['user']) . ':' . urldecode($parts['pass'])
+        );
+        $this->assertSame('Basic YWxpY2U6czNjcmV0', $expected);
+    }
+
     // -- HTTP proxy with TLS --
 
     public function testMakesHttpsRequestThroughProxyWithVerifySslFalse(): void
@@ -261,6 +281,39 @@ class DefaultApiClientTest extends TestCase
         $this->assertSame('', $json['body']);
     }
 
+    /**
+     * T-new-3: multipart bodies must be replayed across 307 redirects per
+     * RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
+     * request after a 307 still carries the multipart form parts.
+     */
+    public function testMultipartBodyReplayedOn307Redirect(): void
+    {
+        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
+
+        $transport = TransportOptions::builder()
+            ->followRedirects(true)
+            ->maxRedirects(5)
+            ->build();
+
+        $client = new DefaultApiClient($transport);
+        $formData = ['description' => 'hello', 'file' => 'file-content-bytes'];
+        $response = $client->sendRequest(
+            'POST',
+            $wiremockUrl . '/api/redirect-307',
+            [],
+            $formData
+        );
+
+        $this->assertSame(200, $response->statusCode);
+        /** @var array<string, mixed> $json */
+        $json = json_decode($response->body, true);
+        $this->assertSame('POST', $json['method']);
+        $echoed = (string) $json['body'];
+        $this->assertStringContainsString('Content-Disposition: form-data; name="description"', $echoed);
+        $this->assertStringContainsString('Content-Disposition: form-data; name="file"', $echoed);
+        $this->assertStringContainsString('file-content-bytes', $echoed);
+    }
+
     // -- Max redirects --
 
     public function testRespectsMaxRedirectsLimit(): void
@@ -286,6 +339,22 @@ class DefaultApiClientTest extends TestCase
         $response = $client->sendRequest('POST', $wiremockUrl . '/api/test', [], $formData);
 
         $this->assertInstanceOf(\PetstoreClient\ApiResponse::class, $response);
+    }
+
+    /**
+     * W-new-2: multipart field-name validation must run on every branch (not
+     * just binary). Confirm that even for a plain String value, a CR/LF in
+     * the field name is rejected, preventing Content-Disposition smuggling.
+     */
+    public function testMultipartFieldNameWithCrlfRejectedOnStringValue(): void
+    {
+        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
+
+        $client = new DefaultApiClient();
+        $badFields = ["name\r\nInjected: yes" => 'string-value'];
+
+        $this->expectException(\Exception::class);
+        $client->sendRequest('POST', $wiremockUrl . '/api/test', [], $badFields);
     }
 
     // -- HTTP compression --

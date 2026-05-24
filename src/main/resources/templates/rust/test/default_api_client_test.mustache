@@ -60,6 +60,29 @@ async fn test_default_api_client_makes_http_request_through_proxy() {
     assert!(resp.body.contains("success"));
 }
 
+// Gap AK: userinfo embedded in the proxy URL must be base64-encoded
+// and surfaced as Proxy-Authorization so the proxy can authenticate
+// the tunnel — otherwise the proxy 407s. reqwest's `Proxy::all` reads
+// userinfo natively from the URL; we assert TransportOptions preserves
+// the userinfo end-to-end.
+#[tokio::test]
+async fn test_default_api_client_proxy_with_credentials_injects_basic_authorization() {
+    use base64::{engine::general_purpose::STANDARD, Engine as _};
+    use reqwest::Url;
+
+    let transport = TransportOptionsBuilder::new()
+        .proxy("http://alice:s3cret@127.0.0.1:3128")
+        .build();
+
+    let proxy = transport.proxy().expect("proxy must be set");
+    let parsed = Url::parse(proxy).expect("proxy url must parse");
+    assert_eq!(parsed.username(), "alice");
+    assert_eq!(parsed.password(), Some("s3cret"));
+    let raw = format!("{}:{}", parsed.username(), parsed.password().unwrap_or(""));
+    let encoded = STANDARD.encode(raw.as_bytes());
+    assert_eq!(format!("Basic {}", encoded), "Basic YWxpY2U6czNjcmV0");
+}
+
 #[tokio::test]
 async fn test_default_api_client_makes_https_request_through_proxy_with_verify_ssl_false() {
     let wiremock_url = testcontainers_helper::wiremock_internal_https_url();
@@ -250,6 +273,61 @@ async fn test_default_api_client_redirect_303_switches_to_get_and_drops_body() {
     assert_eq!(json["body"], "");
 }
 
+/// T-new-3: multipart body must be replayed across 307 redirects per
+/// RFC 7231 §6.4.7 / RFC 7538. Regression test: prior to T-new-3 the
+/// Rust client pre-serialized only `RequestBody::Bytes`, so multipart
+/// uploads that hit a 307 were silently re-sent without a body.
+#[tokio::test]
+async fn test_default_api_client_multipart_body_replayed_on_307_redirect() {
+    let wiremock_url = testcontainers_helper::wiremock_http_url();
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .max_redirects(Some(5))
+        .build();
+    let client = DefaultApiClient::new(Some(transport));
+
+    let mut fields: HashMap<String, {{packageName}}::api_client::MultipartValue> = HashMap::new();
+    fields.insert(
+        "description".to_string(),
+        {{packageName}}::api_client::MultipartValue::Text("hello".to_string()),
+    );
+    fields.insert(
+        "file".to_string(),
+        {{packageName}}::api_client::MultipartValue::Bytes(b"file-content-bytes".to_vec()),
+    );
+    let body = {{packageName}}::api_client::RequestBody::Multipart(fields);
+
+    let resp = client
+        .send_request(
+            "POST",
+            &format!("{}/api/redirect-307", wiremock_url),
+            &HashMap::new(),
+            Some(&body),
+        )
+        .await
+        .expect("unexpected error");
+
+    assert_eq!(resp.status_code, 200);
+    let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
+    assert_eq!(json["method"], "POST", "follow-up request method must remain POST");
+    let echoed_body = json["body"].as_str().unwrap_or("");
+    assert!(
+        echoed_body.contains("Content-Disposition: form-data; name=\"description\""),
+        "redirect replay dropped the description part: {}",
+        echoed_body
+    );
+    assert!(
+        echoed_body.contains("Content-Disposition: form-data; name=\"file\""),
+        "redirect replay dropped the file part: {}",
+        echoed_body
+    );
+    assert!(
+        echoed_body.contains("file-content-bytes"),
+        "redirect replay dropped the file bytes: {}",
+        echoed_body
+    );
+}
+
 #[tokio::test]
 async fn test_default_api_client_respects_max_redirects_limit() {
     let transport = TransportOptionsBuilder::new()
@@ -303,6 +381,34 @@ fn test_multipart_filename_crlf_rejected() {
             "expected error for {:?}", bad);
     }
     assert!({{packageName}}::default_api_client::validate_multipart_filename("pet.png").is_ok());
+}
+
+/// W-new-2: multipart field-name validation must run on every branch (text
+/// and bytes), not just the binary branch. Previously the text branch wrote
+/// the raw field name into Content-Disposition, opening a header-smuggling
+/// hole. This test asserts the validator rejects CR/LF/NUL for a String value
+/// scenario.
+#[test]
+fn test_multipart_field_name_with_crlf_rejected_on_string_value() {
+    for bad in &["name\rInjected: yes", "name\nInjected: yes", "name\r\nInjected: yes", "name\0Injected"] {
+        assert!({{packageName}}::default_api_client::validate_multipart_field_name(bad).is_err(),
+            "expected validate_multipart_field_name to reject {:?}", bad);
+    }
+    assert!({{packageName}}::default_api_client::validate_multipart_field_name("description").is_ok());
+
+    /* End-to-end: when a String (text) multipart field has a CR/LF in its
+     * name, serialize_multipart_body must NOT emit a part with the bad name
+     * embedded in Content-Disposition. The current implementation drops the
+     * bad field silently rather than panic. */
+    let mut fields = std::collections::HashMap::new();
+    fields.insert(
+        "name\r\nInjected: yes".to_string(),
+        {{packageName}}::api_client::MultipartValue::Text("value".to_string()),
+    );
+    let body = {{packageName}}::default_api_client::serialize_multipart_body(&fields, "boundary");
+    let body_str = String::from_utf8_lossy(&body);
+    assert!(!body_str.contains("Injected: yes"),
+        "serialize_multipart_body must not emit the injected header: {}", body_str);
 }
 
 #[tokio::test]

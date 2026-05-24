@@ -57,6 +57,28 @@ describe {{moduleName}}::DefaultApiClient do
     end
   end
 
+  describe 'proxy with credentials' do
+    # Gap AK: userinfo embedded in the proxy URL must be base64-encoded
+    # and surfaced as Proxy-Authorization so the proxy can authenticate
+    # the tunnel — otherwise the proxy 407s. Faraday reads userinfo
+    # natively from the URL; we assert TransportOptions preserves the
+    # userinfo end-to-end.
+    it 'proxy_with_credentials_injects_basic_authorization' do
+      require 'base64'
+      require 'uri'
+
+      transport = {{moduleName}}::TransportOptions.builder
+        .proxy('http://alice:s3cret@127.0.0.1:3128')
+        .build
+
+      uri = URI.parse(transport.proxy)
+      _(uri.user).must_equal('alice')
+      _(uri.password).must_equal('s3cret')
+      encoded = Base64.strict_encode64("#{URI.decode_www_form_component(uri.user)}:#{URI.decode_www_form_component(uri.password)}")
+      _("Basic #{encoded}").must_equal('Basic YWxpY2U6czNjcmV0')
+    end
+  end
+
   describe 'HTTP proxy with TLS' do
     it 'makes HTTPS request through proxy with verify_ssl=false' do
       wiremock_url = ENV.fetch('WIREMOCK_INTERNAL_HTTPS_URL')
@@ -226,6 +248,30 @@ describe {{moduleName}}::DefaultApiClient do
       _(json['method']).must_equal('GET')
       _(json['body']).must_equal('')
     end
+
+    # T-new-3: multipart bodies must be replayed across 307 redirects per
+    # RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
+    # request after a 307 still carries the multipart form parts.
+    it 'replays multipart body across 307 redirects (T-new-3)' do
+      wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
+
+      transport = {{moduleName}}::TransportOptions.builder
+        .follow_redirects(true)
+        .max_redirects(5)
+        .build
+
+      client = {{moduleName}}::DefaultApiClient.new(transport)
+      form_data = { 'description' => 'hello', 'file' => 'file-content-bytes' }
+      response = client.send_request(:POST, "#{wiremock_url}/api/redirect-307", {}, form_data)
+
+      _(response.status_code).must_equal(200)
+      json = JSON.parse(response.body)
+      _(json['method']).must_equal('POST')
+      echoed = json['body']
+      _(echoed.include?('Content-Disposition: form-data; name="description"')).must_equal(true)
+      _(echoed.include?('Content-Disposition: form-data; name="file"')).must_equal(true)
+      _(echoed.include?('file-content-bytes')).must_equal(true)
+    end
   end
 
   describe 'max redirects' do
@@ -262,6 +308,23 @@ describe {{moduleName}}::DefaultApiClient do
           "#{wiremock_url}/api/test",
           {},
           { "name\r\nInjected: yes" => 'value' }
+        )
+      end
+    end
+
+    # W-new-2: multipart field-name validation must run on every branch (not
+    # just binary). Confirm that even for a plain String value, a CR/LF in
+    # the field name is rejected, preventing Content-Disposition smuggling.
+    it 'multipart_field_name_with_crlf_rejected_on_string_value' do
+      wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
+
+      client = {{moduleName}}::DefaultApiClient.new
+      assert_raises(ArgumentError) do
+        client.send_request(
+          :POST,
+          "#{wiremock_url}/api/test",
+          {},
+          { "name\r\nInjected: yes" => 'string-value' }
         )
       end
     end

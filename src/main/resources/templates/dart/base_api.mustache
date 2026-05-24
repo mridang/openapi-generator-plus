@@ -272,26 +272,34 @@ class BaseApi {
     String name,
     Object? value,
   ) {
+    // W-new-2: validate the field name on every branch (string, number,
+    // boolean, JSON, binary) before it lands in Content-Disposition. The name
+    // is interpolated directly into `Content-Disposition: form-data;
+    // name="..."`, so CR/LF/NUL must be rejected even when the value is not
+    // binary, and quote/backslash must be escaped so a malicious name cannot
+    // break out of the `name="..."` parameter.
+    validateMultipartFieldName(name);
+    final safeName = escapeMultipartFieldName(name);
     if (value is List<int>) {
       final mimeType = lookupMimeType(name) ?? 'application/octet-stream';
       parts.add(utf8.encode(
-        '--$boundary\r\nContent-Disposition: form-data; name="$name"; filename="$name"\r\nContent-Type: $mimeType\r\n\r\n',
+        '--$boundary\r\nContent-Disposition: form-data; name="$safeName"; filename="$safeName"\r\nContent-Type: $mimeType\r\n\r\n',
       ));
       parts.add(value);
       parts.add(utf8.encode('\r\n'));
     } else if (value is String || value is num || value is bool) {
       parts.add(utf8.encode(
-        '--$boundary\r\nContent-Disposition: form-data; name="$name"\r\n\r\n$value\r\n',
+        '--$boundary\r\nContent-Disposition: form-data; name="$safeName"\r\n\r\n$value\r\n',
       ));
     } else if (value is Map) {
       final json = jsonEncode(value);
       parts.add(utf8.encode(
-        '--$boundary\r\nContent-Disposition: form-data; name="$name"\r\nContent-Type: application/json\r\n\r\n$json\r\n',
+        '--$boundary\r\nContent-Disposition: form-data; name="$safeName"\r\nContent-Type: application/json\r\n\r\n$json\r\n',
       ));
     } else if (value != null) {
       final serialized = serialize(value);
       parts.add(utf8.encode(
-        '--$boundary\r\nContent-Disposition: form-data; name="$name"\r\nContent-Type: application/json\r\n\r\n$serialized\r\n',
+        '--$boundary\r\nContent-Disposition: form-data; name="$safeName"\r\nContent-Type: application/json\r\n\r\n$serialized\r\n',
       ));
     }
   }

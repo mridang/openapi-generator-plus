@@ -183,13 +183,61 @@ public class OAuth2TokenManager {
           this.refreshToken = newRefreshToken;
         }
       }
-      if (json.has("expires_in")) {
-        long expiresIn = json.get("expires_in").asLong();
-        long bufferSecs = Math.min(expiresIn, 30L);
-        this.tokenExpiry = Instant.now().plusSeconds(expiresIn - bufferSecs);
+      if (json.has("expires_in") && !json.get("expires_in").isNull()) {
+        /* RFC 6749 §5.1 says expires_in is a JSON number, but real-world
+         * providers (Salesforce, some Apigee deployments) send a quoted
+         * string and others send a JSON float. Accept ints, floor floats,
+         * parse digit strings; on anything unparseable or non-positive,
+         * mark the token as immediately stale so the next call refetches
+         * (preferable to caching a token of unknown lifetime forever). */
+        long expiresIn = parseExpiresIn(json.get("expires_in"));
+        if (expiresIn > 0L) {
+          long bufferSecs = Math.min(expiresIn, 30L);
+          this.tokenExpiry = Instant.now().plusSeconds(expiresIn - bufferSecs);
+        } else {
+          this.tokenExpiry = Instant.now();
+        }
       }
     } catch (ApiException | IOException e) {
       throw new RuntimeException("Failed to fetch OAuth2 token", e);
     }
+  }
+
+  /**
+   * Defensive parse of the {@code expires_in} field per RFC 6749 §5.1.
+   *
+   * <p>Returns {@code 0} (caller skips caching) when the value is missing, unparseable, or
+   * non-positive. Accepts integers, floors floats, and parses digit strings (e.g. {@code "3600"}
+   * from Salesforce).
+   *
+   * @param node the JSON node holding {@code expires_in}
+   * @return the parsed lifetime in seconds, or {@code 0} when unusable
+   */
+  private static long parseExpiresIn(JsonNode node) {
+    if (node == null || node.isNull()) {
+      return 0L;
+    }
+    if (node.isIntegralNumber()) {
+      return node.longValue();
+    }
+    if (node.isFloatingPointNumber()) {
+      double d = node.doubleValue();
+      if (Double.isNaN(d) || Double.isInfinite(d)) {
+        return 0L;
+      }
+      return (long) Math.floor(d);
+    }
+    if (node.isTextual()) {
+      String text = node.textValue().trim();
+      if (text.isEmpty()) {
+        return 0L;
+      }
+      try {
+        return (long) Math.floor(Double.parseDouble(text));
+      } catch (NumberFormatException nfe) {
+        return 0L;
+      }
+    }
+    return 0L;
   }
 }

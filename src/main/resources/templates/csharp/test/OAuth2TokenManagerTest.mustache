@@ -287,6 +287,71 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
+    public async Task ExpiresInAsJsonStringIsAccepted()
+    {
+        // D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
+        // quoted string. The manager must accept it and cache the token; a
+        // second call within the buffer window must serve from cache.
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"str-tok\",\"expires_in\":\"3600\"}");
+
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
+        var tokenUrl = new Uri("https://auth.example.com/token");
+
+        string first = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        string second = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+
+        Assert.Equal("str-tok", first);
+        Assert.Equal("str-tok", second);
+    }
+
+    [Fact]
+    public async Task ExpiresInAsFloatIsFloored()
+    {
+        // D1: some providers send expires_in as a JSON float (e.g. 3600.5).
+        // The manager must floor it and cache the token.
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"flt-tok\",\"expires_in\":3600.5}");
+
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
+        var tokenUrl = new Uri("https://auth.example.com/token");
+
+        string first = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        string second = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+
+        Assert.Equal("flt-tok", first);
+        Assert.Equal("flt-tok", second);
+    }
+
+    [Fact]
+    public async Task ExpiresInNegativeSkipsCaching()
+    {
+        // D1: a negative expires_in (e.g. -1) must mark the token as
+        // immediately stale so the very next call refetches.
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"neg1\",\"expires_in\":-1}");
+        client.Enqueue("{\"access_token\":\"neg2\",\"expires_in\":3600}");
+
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
+        var tokenUrl = new Uri("https://auth.example.com/token");
+
+        string first = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        string second = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+
+        Assert.Equal("neg1", first);
+        Assert.Equal("neg2", second);
+    }
+
+    [Fact]
     public async Task ThrowsWhenTokenRequestFails()
     {
         var client = new FakeApiClient();

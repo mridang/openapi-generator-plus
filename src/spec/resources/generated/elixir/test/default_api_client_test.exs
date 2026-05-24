@@ -42,6 +42,17 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert String.contains?(response.body, "success")
   end
 
+  # Gap AK: userinfo embedded in the proxy URL must be base64-encoded
+  # and surfaced as Proxy-Authorization so the proxy can authenticate
+  # the tunnel — otherwise the proxy 407s.
+  test "proxy_with_credentials_injects_basic_authorization" do
+    transport =
+      PetstoreClient.TransportOptions.new(proxy: "http://alice:s3cret@127.0.0.1:3128")
+
+    client = PetstoreClient.DefaultApiClient.new(transport)
+    assert client.proxy_auth_header == "Basic YWxpY2U6czNjcmV0"
+  end
+
   @tag :skip
   test "makes HTTPS request through proxy with verify_ssl=false" do
     wiremock_url = System.fetch_env!("WIREMOCK_INTERNAL_HTTPS_URL")
@@ -191,6 +202,39 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert json["body"] == ""
   end
 
+  # T-new-3: multipart bodies must be replayed across 307 redirects per
+  # RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
+  # request after a 307 still carries the multipart form parts.
+  test "replays multipart body across 307 redirects (T-new-3)" do
+    wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
+
+    transport =
+      PetstoreClient.TransportOptions.new(
+        follow_redirects: true,
+        max_redirects: 5
+      )
+
+    client = PetstoreClient.DefaultApiClient.new(transport)
+    form_data = %{"description" => "hello", "file" => "file-content-bytes"}
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :post,
+        "#{wiremock_url}/api/redirect-307",
+        %{},
+        form_data
+      )
+
+    assert response.status_code == 200
+    json = Jason.decode!(response.body)
+    assert json["method"] == "POST"
+    echoed = json["body"]
+    assert String.contains?(echoed, "Content-Disposition: form-data; name=\"description\"")
+    assert String.contains?(echoed, "Content-Disposition: form-data; name=\"file\"")
+    assert String.contains?(echoed, "file-content-bytes")
+  end
+
   test "respects max_redirects limit" do
     transport =
       PetstoreClient.TransportOptions.new(
@@ -218,6 +262,26 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
 
     client = PetstoreClient.DefaultApiClient.new()
     bad_field = %{"name\r\nInjected: yes" => "value"}
+
+    assert_raise ArgumentError, fn ->
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :post,
+        "#{wiremock_url}/api/test",
+        %{},
+        bad_field
+      )
+    end
+  end
+
+  # W-new-2: multipart field-name validation must run on every branch (not
+  # just binary). Confirm that even for a plain String value, a CR/LF in the
+  # field name is rejected, preventing Content-Disposition smuggling.
+  test "multipart_field_name_with_crlf_rejected_on_string_value" do
+    wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
+
+    client = PetstoreClient.DefaultApiClient.new()
+    bad_field = %{"name\r\nInjected: yes" => "string-value"}
 
     assert_raise ArgumentError, fn ->
       PetstoreClient.DefaultApiClient.send_request(

@@ -151,10 +151,51 @@ export class OAuth2TokenManager {
     if (typeof json.refresh_token === 'string' && json.refresh_token.length > 0) {
       this.refreshToken = json.refresh_token;
     }
-    if (json.expires_in) {
-      const expiresIn = json.expires_in as number;
-      const bufferSecs = Math.min(expiresIn, 30);
-      this.tokenExpiry = Date.now() + (expiresIn - bufferSecs) * 1000;
+    if (json.expires_in !== undefined && json.expires_in !== null) {
+      /* RFC 6749 §5.1 says expires_in is a JSON number, but real-world
+       * providers (Salesforce, some Apigee deployments) send a quoted
+       * string and others send a JSON float. Accept ints, floor floats,
+       * parse digit strings; on anything unparseable or non-positive,
+       * mark the token as immediately stale so the next call refetches
+       * (preferable to caching a token of unknown lifetime forever). */
+      const expiresIn = OAuth2TokenManager.parseExpiresIn(json.expires_in);
+      if (expiresIn > 0) {
+        const bufferSecs = Math.min(expiresIn, 30);
+        this.tokenExpiry = Date.now() + (expiresIn - bufferSecs) * 1000;
+      } else {
+        this.tokenExpiry = Date.now();
+      }
     }
+  }
+
+  /**
+   * Defensive parse of the `expires_in` field per RFC 6749 §5.1.
+   *
+   * Returns `0` (caller skips caching) when the value is missing,
+   * unparseable, or non-positive. Accepts integers, floors floats,
+   * and parses digit strings (e.g. `"3600"` from Salesforce).
+   */
+  private static parseExpiresIn(raw: unknown): number {
+    if (raw === null || raw === undefined) {
+      return 0;
+    }
+    if (typeof raw === 'number') {
+      if (!Number.isFinite(raw)) {
+        return 0;
+      }
+      return Math.floor(raw);
+    }
+    if (typeof raw === 'string') {
+      const trimmed = raw.trim();
+      if (trimmed.length === 0) {
+        return 0;
+      }
+      const parsed = Number(trimmed);
+      if (!Number.isFinite(parsed)) {
+        return 0;
+      }
+      return Math.floor(parsed);
+    }
+    return 0;
   }
 }

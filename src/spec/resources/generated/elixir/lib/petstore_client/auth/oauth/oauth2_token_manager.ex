@@ -200,15 +200,66 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
       end
 
     new_state =
-      if Map.has_key?(parsed, "expires_in") do
-        expires_in = parsed["expires_in"]
-        buffer_secs = min(expires_in, 30)
-        expiry = System.system_time(:second) + expires_in - buffer_secs
-        %{new_state | token_expiry: expiry}
-      else
-        new_state
+      cond do
+        not Map.has_key?(parsed, "expires_in") ->
+          new_state
+
+        is_nil(parsed["expires_in"]) ->
+          new_state
+
+        true ->
+          # RFC 6749 §5.1 says expires_in is a JSON number, but real-world
+          # providers (Salesforce, some Apigee deployments) send a quoted
+          # string and others send a JSON float. Accept ints, floor floats,
+          # parse digit strings; on anything unparseable or non-positive,
+          # mark the token as immediately stale so the next call refetches
+          # (preferable to caching a token of unknown lifetime forever).
+          case parse_expires_in(parsed["expires_in"]) do
+            expires_in when expires_in > 0 ->
+              buffer_secs = min(expires_in, 30)
+              expiry = System.system_time(:second) + expires_in - buffer_secs
+              %{new_state | token_expiry: expiry}
+
+            _ ->
+              %{new_state | token_expiry: System.system_time(:second)}
+          end
       end
 
     new_state
+  end
+
+  defp parse_expires_in(value) when is_integer(value) do
+    value
+  end
+
+  defp parse_expires_in(value) when is_float(value) do
+    # Erlang/Elixir floats cannot represent NaN/Infinity, and Jason rejects
+    # them during decode, so a plain floor is safe here.
+    trunc(:math.floor(value))
+  end
+
+  defp parse_expires_in(value) when is_binary(value) do
+    trimmed = String.trim(value)
+
+    cond do
+      trimmed == "" ->
+        0
+
+      true ->
+        case Integer.parse(trimmed) do
+          {n, ""} ->
+            n
+
+          _ ->
+            case Float.parse(trimmed) do
+              {f, ""} -> trunc(:math.floor(f))
+              _ -> 0
+            end
+        end
+    end
+  end
+
+  defp parse_expires_in(_) do
+    0
   end
 end

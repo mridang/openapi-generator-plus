@@ -115,42 +115,46 @@ impl ApiClient for DefaultApiClient {
             if !merged.contains_key("X-Request-ID") && self.transport_options.inject_request_id() {
                 merged.insert("X-Request-ID".to_string(), Uuid::new_v4().to_string());
             }
+            // T-new-3: Pre-serialize the body to a Vec<u8> up-front so we can
+            // replay it across 307/308 redirects per RFC 7231 §6.4.7 / RFC 7538.
+            // Multipart bodies are serialized here (rather than handed to
+            // reqwest::multipart::Form, which is not Clone) so the same bytes
+            // and boundary can be re-sent on the follow-up request.
+            let body_bytes: Option<Vec<u8>> = match &body {
+                Some(RequestBody::Bytes(b)) => Some(b.clone()),
+                Some(RequestBody::Multipart(fields)) => {
+                    let boundary = format!("----RustFormBoundary{}", Uuid::new_v4().simple());
+                    let serialized = serialize_multipart_body(fields, &boundary);
+                    // Force the multipart Content-Type (with the boundary we
+                    // generated) onto the outgoing request; if the caller set
+                    // a Content-Type it would not contain our boundary, so the
+                    // server could not parse the body.
+                    merged.insert(
+                        "Content-Type".to_string(),
+                        format!("multipart/form-data; boundary={}", boundary),
+                    );
+                    Some(serialized)
+                }
+                None => None,
+            };
+
+            /* Do not send Content-Type when there is no request body */
+            if body_bytes.is_none() {
+                merged.remove("Content-Type");
+            }
+
             let http_method = method
                 .parse::<reqwest::Method>()
                 .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
 
             let mut request_builder = self.http_client.request(http_method, &url);
 
-            /* Do not send Content-Type when there is no request body */
-            if body.is_none() {
-                merged.remove("Content-Type");
-            }
-
             for (k, v) in &merged {
                 request_builder = request_builder.header(k.as_str(), v.as_str());
             }
 
-            // Clone the body bytes up-front so we can replay them on a redirect.
-            // Multipart bodies are not currently replayed across redirects
-            // (reqwest::multipart::Form is not Clone); for those we send once
-            // and accept whatever the first hop returns.
-            let body_bytes: Option<Vec<u8>> = match &body {
-                Some(RequestBody::Bytes(b)) => Some(b.clone()),
-                _ => None,
-            };
-
-            match body {
-                Some(RequestBody::Bytes(bytes)) => {
-                    request_builder = request_builder.body(bytes);
-                }
-                Some(RequestBody::Multipart(fields)) => {
-                    let mut form = reqwest::multipart::Form::new();
-                    for (name, value) in fields {
-                        form = add_multipart_field(form, &name, value);
-                    }
-                    request_builder = request_builder.multipart(form);
-                }
-                None => {}
+            if let Some(bytes) = &body_bytes {
+                request_builder = request_builder.body(bytes.clone());
             }
 
             let mut response = request_builder.send().await.map_err(|e| {
@@ -340,36 +344,82 @@ pub(crate) fn same_origin(a: &reqwest::Url, b: &reqwest::Url) -> bool {
     a.port_or_known_default() == b.port_or_known_default()
 }
 
-/// Adds a single field to a multipart form, handling bytes, text, and lists.
-fn add_multipart_field(
-    form: reqwest::multipart::Form,
-    name: &str,
-    value: MultipartValue,
-) -> reqwest::multipart::Form {
+/// T-new-3: Serializes a multipart/form-data body to bytes using the supplied
+/// boundary string. Performed eagerly (rather than handing fields to
+/// `reqwest::multipart::Form`, which is not `Clone`) so the body can be
+/// replayed verbatim across 307/308 redirects per RFC 7231 §6.4.7 / RFC 7538.
+///
+/// Each field is emitted as:
+///   --<boundary>CRLF
+///   Content-Disposition: form-data; name="<name>"[; filename="<name>"]CRLF
+///   Content-Type: <mime>CRLF       (only for bytes parts)
+///   CRLF
+///   <value bytes>CRLF
+/// followed by the closing `--<boundary>--CRLF` delimiter.
+pub fn serialize_multipart_body(
+    fields: &HashMap<String, MultipartValue>,
+    boundary: &str,
+) -> Vec<u8> {
+    let mut out: Vec<u8> = Vec::new();
+    for (name, value) in fields {
+        append_multipart_field(&mut out, boundary, name, value);
+    }
+    out.extend_from_slice(b"--");
+    out.extend_from_slice(boundary.as_bytes());
+    out.extend_from_slice(b"--\r\n");
+    out
+}
+
+/// Appends a single multipart field (recursing into List variants) to the
+/// in-progress body buffer. Bytes parts are written as file uploads with a
+/// filename directive derived from the field name; text parts are written
+/// without a Content-Type header.
+fn append_multipart_field(out: &mut Vec<u8>, boundary: &str, name: &str, value: &MultipartValue) {
+    /* W-new-2: validate the field name on every branch (text and bytes)
+     * before it lands in Content-Disposition. The name is interpolated
+     * directly into `Content-Disposition: form-data; name="..."`, so
+     * CR/LF/NUL must be rejected even when the value is text, and
+     * quote/backslash must be escaped so a malicious name cannot break out
+     * of the `name="..."` parameter. */
+    if validate_multipart_field_name(name).is_err() {
+        return;
+    }
+    let safe_name = escape_multipart_field_name(name);
     match value {
         MultipartValue::Bytes(bytes) => {
             if validate_multipart_filename(name).is_err() {
-                return form;
+                return;
             }
             let mime = mime_for_filename(name);
-            // Reqwest's `Part::file_name` only emits a raw quoted `filename="..."`,
-            // which is non-conformant for non-ASCII bytes. We always set the
-            // filename via file_name() (so reqwest still emits the ASCII fallback),
-            // but verify that the directive produced by build_filename_directive
-            // is what we want — see unit tests.
-            let part = reqwest::multipart::Part::bytes(bytes)
-                .file_name(name.to_string())
-                .mime_str(mime)
-                .unwrap_or_else(|_| reqwest::multipart::Part::bytes(vec![]));
-            form.part(name.to_string(), part)
+            let filename_directive = build_filename_directive(name);
+            out.extend_from_slice(b"--");
+            out.extend_from_slice(boundary.as_bytes());
+            out.extend_from_slice(b"\r\n");
+            out.extend_from_slice(b"Content-Disposition: form-data; name=\"");
+            out.extend_from_slice(safe_name.as_bytes());
+            out.extend_from_slice(b"\"; ");
+            out.extend_from_slice(filename_directive.as_bytes());
+            out.extend_from_slice(b"\r\n");
+            out.extend_from_slice(b"Content-Type: ");
+            out.extend_from_slice(mime.as_bytes());
+            out.extend_from_slice(b"\r\n\r\n");
+            out.extend_from_slice(bytes);
+            out.extend_from_slice(b"\r\n");
         }
-        MultipartValue::Text(text) => form.text(name.to_string(), text),
+        MultipartValue::Text(text) => {
+            out.extend_from_slice(b"--");
+            out.extend_from_slice(boundary.as_bytes());
+            out.extend_from_slice(b"\r\n");
+            out.extend_from_slice(b"Content-Disposition: form-data; name=\"");
+            out.extend_from_slice(safe_name.as_bytes());
+            out.extend_from_slice(b"\"\r\n\r\n");
+            out.extend_from_slice(text.as_bytes());
+            out.extend_from_slice(b"\r\n");
+        }
         MultipartValue::List(items) => {
-            let mut f = form;
             for item in items {
-                f = add_multipart_field(f, name, item);
+                append_multipart_field(out, boundary, name, item);
             }
-            f
         }
     }
 }
@@ -385,6 +435,28 @@ pub fn validate_multipart_filename(filename: &str) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+/// Rejects multipart form field names that would allow Content-Disposition
+/// header injection or smuggling. Returns Err for names containing CR, LF, or
+/// NUL. Must run on every branch of `append_multipart_field` because the name
+/// is interpolated directly into `Content-Disposition: form-data; name="..."`.
+pub fn validate_multipart_field_name(name: &str) -> Result<(), String> {
+    for c in name.chars() {
+        if c == '\r' || c == '\n' || c == '\0' {
+            return Err(
+                "multipart field name must not contain CR, LF, or NUL characters".to_string(),
+            );
+        }
+    }
+    Ok(())
+}
+
+/// Backslash-escapes embedded `"` and `\` in a multipart field name so a
+/// malicious name cannot break out of the `name="..."` parameter. Caller must
+/// have already validated CR/LF/NUL via `validate_multipart_field_name`.
+pub fn escape_multipart_field_name(name: &str) -> String {
+    name.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
 /// Builds the `filename=...` directive for a multipart Content-Disposition

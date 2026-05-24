@@ -37,6 +37,25 @@ class TestHttpProxy:
         assert 'success' in response.body
 
 
+class TestProxyWithCredentials:
+    # Gap AK: userinfo embedded in the proxy URL must be base64-encoded
+    # and surfaced as Proxy-Authorization so the proxy can authenticate
+    # the tunnel — otherwise the proxy 407s. urllib3.ProxyManager reads
+    # userinfo natively from the URL; we assert TransportOptions
+    # preserves the userinfo end-to-end.
+    def test_proxy_with_credentials_injects_basic_authorization(self) -> None:
+        import base64
+        from urllib.parse import urlparse, unquote
+
+        transport = TransportOptions.builder().proxy('http://alice:s3cret@127.0.0.1:3128').build()
+        parsed = urlparse(transport.proxy)
+        assert parsed.username == 'alice'
+        assert parsed.password == 's3cret'
+        raw = f'{unquote(parsed.username)}:{unquote(parsed.password)}'
+        encoded = base64.b64encode(raw.encode('utf-8')).decode('ascii')
+        assert f'Basic {encoded}' == 'Basic YWxpY2U6czNjcmV0'
+
+
 class TestHttpProxyWithTls:
     def test_makes_https_request_through_proxy_with_verify_ssl_false(self, wiremock_internal_https_url: Any, proxy_url: Any) -> None:
         transport = TransportOptions.builder().proxy(proxy_url).verify_ssl(False).build()
@@ -151,6 +170,30 @@ class TestRedirectHandling:
         assert parsed['method'] == 'GET'
         assert parsed['body'] == ''
 
+    def test_multipart_body_replayed_on_307_redirect(self, wiremock_http_url: Any) -> None:
+        """T-new-3: multipart bodies must be replayed across 307 redirects per
+        RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
+        request after a 307 still carries the multipart form parts."""
+        transport = TransportOptions.builder().follow_redirects(True).max_redirects(5).build()
+        client = DefaultApiClient(transport)
+        form_data = {'description': 'hello', 'file': b'file-content-bytes'}
+        response = client.send_request(
+            'POST',
+            wiremock_http_url + '/api/redirect-307',
+            {},
+            form_data,
+        )
+
+        assert response.status_code == 200
+        import json as _json
+
+        parsed = _json.loads(response.body)
+        assert parsed['method'] == 'POST', 'follow-up request method must remain POST'
+        echoed = parsed['body']
+        assert 'Content-Disposition: form-data; name="description"' in echoed, f'redirect replay dropped the description part: {echoed!r}'
+        assert 'Content-Disposition: form-data; name="file"' in echoed, f'redirect replay dropped the file part: {echoed!r}'
+        assert 'file-content-bytes' in echoed, f'redirect replay dropped the file bytes: {echoed!r}'
+
 
 class TestMaxRedirects:
     def test_respects_max_redirects_limit(self) -> None:
@@ -166,6 +209,15 @@ class TestMultipartBody:
         form_data = {'description': 'A test file', 'file': b'file content'}
         response = client.send_request('POST', wiremock_http_url + '/api/test', {}, form_data)
         assert response is not None
+
+    def test_multipart_field_name_with_crlf_rejected_on_string_value(self, wiremock_http_url: Any) -> None:
+        """W-new-2: multipart field-name validation must run on every branch
+        (not just binary). Even for a plain str value, a CR/LF in the field
+        name must be rejected to prevent Content-Disposition smuggling."""
+        client = DefaultApiClient()
+        bad_fields = {'name\r\nInjected: yes': 'string-value'}
+        with pytest.raises(Exception):
+            client.send_request('POST', wiremock_http_url + '/api/test', {}, bad_fields)
 
 
 class TestHttpCompression:

@@ -185,6 +185,62 @@ describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
     _(manager.refresh_token).must_equal 'old_refresh'
   end
 
+  it 'expires_in as JSON string is accepted' do
+    # D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
+    # quoted string. The manager must accept it and cache the token; a
+    # second call within the buffer window must serve from cache.
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'str-tok', 'expires_in' => '3600' } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    params = { 'grant_type' => 'client_credentials' }
+    first = manager.get_access_token('https://auth.example.com/token', params)
+    second = manager.get_access_token('https://auth.example.com/token', params)
+
+    _(first).must_equal 'str-tok'
+    _(second).must_equal 'str-tok'
+    _(client.call_count).must_equal 1
+  end
+
+  it 'expires_in as float is floored' do
+    # D1: some providers send expires_in as a JSON float (e.g. 3600.5).
+    # The manager must floor it and cache the token.
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'flt-tok', 'expires_in' => 3600.5 } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    params = { 'grant_type' => 'client_credentials' }
+    first = manager.get_access_token('https://auth.example.com/token', params)
+    second = manager.get_access_token('https://auth.example.com/token', params)
+
+    _(first).must_equal 'flt-tok'
+    _(second).must_equal 'flt-tok'
+    _(client.call_count).must_equal 1
+  end
+
+  it 'expires_in negative skips caching' do
+    # D1: a negative expires_in (e.g. -1) must mark the token as
+    # immediately stale so the very next call refetches.
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'neg1', 'expires_in' => -1 } },
+      { status: 200, body: { 'access_token' => 'neg2', 'expires_in' => 3600 } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    params = { 'grant_type' => 'client_credentials' }
+    first = manager.get_access_token('https://auth.example.com/token', params)
+    second = manager.get_access_token('https://auth.example.com/token', params)
+
+    _(first).must_equal 'neg1'
+    _(second).must_equal 'neg2'
+    _(client.call_count).must_equal 2
+  end
+
   it 'throws when token request fails' do
     client = FakeTokenClient.new([
       { status: 401, body: { 'error' => 'invalid_client' } }

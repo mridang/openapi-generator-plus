@@ -44,6 +44,12 @@ import 'transport_options.dart';
 class DefaultApiClient implements ApiClient {
   final TransportOptions _transportOptions;
   final http.Client _httpClient;
+  /* Gap AK: dart:io's HttpClient has no API for proxy basic-auth
+   * credentials, so userinfo embedded in the proxy URL
+   * (`http://user:pass@host:port`) is silently dropped. Extract it
+   * once at construction and inject as a Proxy-Authorization header
+   * on every outbound request below, matching the Java/C# SDKs. */
+  final String? _proxyAuthHeader;
 
   /// Creates a client with the given transport settings.
   ///
@@ -58,7 +64,28 @@ class DefaultApiClient implements ApiClient {
             transportOptions ?? TransportOptionsBuilder().build(),
         _httpClient = httpClient ??
             _createHttpClient(
-                transportOptions ?? TransportOptionsBuilder().build());
+                transportOptions ?? TransportOptionsBuilder().build()),
+        _proxyAuthHeader = _buildProxyAuthHeader(
+            (transportOptions ?? TransportOptionsBuilder().build()).proxy);
+
+  /// Builds a `Basic <base64>` Proxy-Authorization value from the userinfo
+  /// embedded in the proxy URL, or returns null when no credentials are
+  /// present. Percent-encoded userinfo is decoded before encoding.
+  static String? _buildProxyAuthHeader(Uri? proxy) {
+    if (proxy == null) return null;
+    if (proxy.userInfo.isEmpty) return null;
+    final parts = proxy.userInfo.split(':');
+    final user = Uri.decodeComponent(parts[0]);
+    final pass =
+        parts.length > 1 ? Uri.decodeComponent(parts.sublist(1).join(':')) : '';
+    final encoded = base64Encode(utf8.encode('$user:$pass'));
+    return 'Basic $encoded';
+  }
+
+  /// Returns the Proxy-Authorization header value extracted from the proxy
+  /// URL's userinfo, or null when no credentials are configured. Exposed
+  /// for tests that need to verify userinfo is propagated rather than dropped.
+  String? get proxyAuthHeader => _proxyAuthHeader;
 
   /// Creates an [IOClient] configured from the given [TransportOptions].
   ///
@@ -78,8 +105,26 @@ class DefaultApiClient implements ApiClient {
     }
 
     if (options.proxy != null) {
-      ioClient.findProxy =
-          (_) => 'PROXY ${options.proxy!.host}:${options.proxy!.port}';
+      final proxy = options.proxy!;
+      ioClient.findProxy = (_) => 'PROXY ${proxy.host}:${proxy.port}';
+      /* Wire basic-auth into dart:io's per-proxy auth store so the
+       * underlying HttpClient sends Proxy-Authorization on the CONNECT
+       * tunnel (needed for HTTPS through an authenticating proxy).
+       * sendRequest also sets the header on plain HTTP requests via
+       * _proxyAuthHeader for parity with Java/C#. */
+      if (proxy.userInfo.isNotEmpty) {
+        final parts = proxy.userInfo.split(':');
+        final user = Uri.decodeComponent(parts[0]);
+        final pass = parts.length > 1
+            ? Uri.decodeComponent(parts.sublist(1).join(':'))
+            : '';
+        ioClient.addProxyCredentials(
+          proxy.host,
+          proxy.port,
+          '',
+          HttpClientBasicCredentials(user, pass),
+        );
+      }
     }
 
     if (options.timeout != null) {
@@ -116,6 +161,10 @@ class DefaultApiClient implements ApiClient {
 
     if (!merged.containsKey('Accept-Encoding')) {
       merged['Accept-Encoding'] = _supportedEncodings();
+    }
+
+    if (_proxyAuthHeader != null) {
+      merged['Proxy-Authorization'] = _proxyAuthHeader!;
     }
 
     final uri = Uri.parse(url);
@@ -295,6 +344,11 @@ class DefaultApiClient implements ApiClient {
     String name,
     Object value,
   ) {
+    // W-new-2: validate the field name on every branch (string, number,
+    // boolean, JSON, binary) before it lands in Content-Disposition. The
+    // http.MultipartRequest builds the header from `name` directly, so
+    // CR/LF/NUL must be rejected even when the value is not Uint8List.
+    validateMultipartFieldName(name);
     if (value is Uint8List) {
       validateMultipartFilename(name);
       final mimeType = lookupMimeType(name) ?? 'application/octet-stream';
@@ -465,6 +519,29 @@ void validateMultipartFilename(String? filename) {
           'multipart filename must not contain CR, LF, or NUL characters');
     }
   }
+}
+
+/// Rejects multipart form field names that would allow Content-Disposition
+/// header injection or smuggling. Throws [ArgumentError] when the field name
+/// contains CR, LF, or NUL. Must be invoked on every branch of the multipart
+/// builder (string, number, boolean, JSON, binary), not just the binary path,
+/// because the name is interpolated directly into the
+/// `Content-Disposition: form-data; name="..."` header.
+void validateMultipartFieldName(String? name) {
+  if (name == null) return;
+  for (final c in name.codeUnits) {
+    if (c == 0x0D || c == 0x0A || c == 0x00) {
+      throw ArgumentError(
+          'multipart field name must not contain CR, LF, or NUL characters');
+    }
+  }
+}
+
+/// Backslash-escapes embedded `"` and `\` in a multipart field name so a
+/// malicious name cannot break out of the `name="..."` parameter. Caller must
+/// have already validated CR/LF/NUL via [validateMultipartFieldName].
+String escapeMultipartFieldName(String name) {
+  return name.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
 }
 
 /// Builds the `filename=...` directive for a multipart Content-Disposition

@@ -326,6 +326,91 @@ func TestOAuth2TokenManager_RefreshTokenEmptyStringPreservesExisting(t *testing.
 	}
 }
 
+func TestOAuth2TokenManager_ExpiresInAsJsonStringIsAccepted(t *testing.T) {
+	// D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
+	// quoted string. The manager must accept it and cache the token; a
+	// second call within the buffer window must serve from cache.
+	client := newFakeTokenClient(fakeResponse{
+		body:       `{"access_token":"str-tok","expires_in":"3600"}`,
+		statusCode: 200,
+	})
+
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	params := map[string]string{"grant_type": "client_credentials"}
+	first, err := manager.GetAccessToken("https://auth.example.com/token", params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	second, err := manager.GetAccessToken("https://auth.example.com/token", params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if first != "str-tok" || second != "str-tok" {
+		t.Errorf("expected both tokens 'str-tok', got %q and %q", first, second)
+	}
+	if atomic.LoadInt32(&client.index) != 1 {
+		t.Errorf("expected 1 network call (string expires_in must cache), got %d", atomic.LoadInt32(&client.index))
+	}
+}
+
+func TestOAuth2TokenManager_ExpiresInAsFloatIsFloored(t *testing.T) {
+	// D1: some providers send expires_in as a JSON float (e.g. 3600.5).
+	// The manager must floor it and cache the token.
+	client := newFakeTokenClient(fakeResponse{
+		body:       `{"access_token":"flt-tok","expires_in":3600.5}`,
+		statusCode: 200,
+	})
+
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	params := map[string]string{"grant_type": "client_credentials"}
+	first, err := manager.GetAccessToken("https://auth.example.com/token", params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	second, err := manager.GetAccessToken("https://auth.example.com/token", params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if first != "flt-tok" || second != "flt-tok" {
+		t.Errorf("expected both tokens 'flt-tok', got %q and %q", first, second)
+	}
+	if atomic.LoadInt32(&client.index) != 1 {
+		t.Errorf("expected 1 network call (float expires_in must cache), got %d", atomic.LoadInt32(&client.index))
+	}
+}
+
+func TestOAuth2TokenManager_ExpiresInNegativeSkipsCaching(t *testing.T) {
+	// D1: a negative expires_in (e.g. -1) must mark the token as
+	// immediately stale so the very next call refetches.
+	client := newFakeTokenClient(
+		fakeResponse{body: `{"access_token":"neg1","expires_in":-1}`, statusCode: 200},
+		fakeResponse{body: `{"access_token":"neg2","expires_in":3600}`, statusCode: 200},
+	)
+
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	params := map[string]string{"grant_type": "client_credentials"}
+	first, err := manager.GetAccessToken("https://auth.example.com/token", params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	second, err := manager.GetAccessToken("https://auth.example.com/token", params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if first != "neg1" {
+		t.Errorf("expected first token 'neg1', got %q", first)
+	}
+	if second != "neg2" {
+		t.Errorf("expected second token 'neg2' (negative expires_in forces refetch), got %q", second)
+	}
+}
+
 func TestOAuth2TokenManager_ThrowsWhenTokenRequestFails(t *testing.T) {
 	client := newFakeTokenClient(fakeResponse{
 		body:       `{"error":"invalid_client"}`,

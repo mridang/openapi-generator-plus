@@ -105,6 +105,28 @@ class DefaultApiClientTest {
     }
 
     @Nested
+    @DisplayName("proxy with credentials")
+    inner class ProxyWithCredentials {
+        /*
+         * Gap AK: Ktor's CIO engine has no API for proxy basic-auth, so
+         * userinfo embedded in the proxy URL is silently dropped. We assert
+         * that the constructed client has extracted `alice:s3cret` into a
+         * Basic Proxy-Authorization header value.
+         */
+        @Test
+        @DisplayName("proxy_with_credentials_injects_basic_authorization")
+        fun proxy_with_credentials_injects_basic_authorization() {
+            val transport =
+                TransportOptions
+                    .builder()
+                    .proxy("http://alice:s3cret@127.0.0.1:3128")
+                    .build()
+            val client = DefaultApiClient(transport)
+            assertEquals("Basic YWxpY2U6czNjcmV0", client.proxyAuthHeader)
+        }
+    }
+
+    @Nested
     @DisplayName("HTTP proxy with TLS")
     inner class HttpProxyWithTls {
         @Test
@@ -335,6 +357,38 @@ class DefaultApiClientTest {
         }
 
         @Test
+        @DisplayName("307 replays multipart body to redirected location (T-new-3)")
+        fun multipart_body_replayed_on_307_redirect() {
+            val wiremockUrl = WireMockContainer.getHttpUrl()
+            val client = DefaultApiClient()
+            val formFields =
+                mapOf<String, Any?>(
+                    "description" to "hello",
+                    "file" to "file-content-bytes".toByteArray(),
+                )
+            val response =
+                runBlocking {
+                    client.sendRequest("POST", "$wiremockUrl/api/redirect-307", emptyMap(), formFields)
+                }
+            assertEquals(200, response.statusCode)
+            val json = ObjectMapper().readTree(response.body)
+            assertEquals("POST", json.get("method").asText())
+            val echoedBody = json.get("body").asText()
+            assertTrue(
+                echoedBody.contains("Content-Disposition: form-data; name=\"description\""),
+                "redirect replay dropped the description part: $echoedBody",
+            )
+            assertTrue(
+                echoedBody.contains("Content-Disposition: form-data; name=\"file\""),
+                "redirect replay dropped the file part: $echoedBody",
+            )
+            assertTrue(
+                echoedBody.contains("file-content-bytes"),
+                "redirect replay dropped the file bytes: $echoedBody",
+            )
+        }
+
+        @Test
         @DisplayName("303 switches to GET and drops body")
         fun redirect_303_switches_to_get_and_drops_body() {
             val wiremockUrl = WireMockContainer.getHttpUrl()
@@ -391,6 +445,24 @@ class DefaultApiClientTest {
                     client.sendRequest("POST", "$wiremockUrl/api/test", emptyMap(), formFields)
                 }
             assertNotNull(response)
+        }
+
+        // W-new-2: multipart field name validation must run on every branch,
+        // not just the ByteArray path. Previously String/Number/Boolean and
+        // JSON values injected the raw field name into Content-Disposition,
+        // opening a header-smuggling hole. This test uses a String value so
+        // it exercises the non-binary branch.
+        @Test
+        @DisplayName("multipart_field_name_with_crlf_rejected_on_string_value")
+        fun multipart_field_name_with_crlf_rejected_on_string_value() {
+            val wiremockUrl = WireMockContainer.getHttpUrl()
+            val client = DefaultApiClient()
+            val badField = mapOf<String, Any?>("name\r\nInjected: yes" to "value")
+            assertThrows(IllegalArgumentException::class.java) {
+                runBlocking {
+                    client.sendRequest("POST", "$wiremockUrl/api/test", emptyMap(), badField)
+                }
+            }
         }
     }
 

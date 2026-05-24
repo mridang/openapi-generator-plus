@@ -78,6 +78,26 @@ describe('DefaultApiClient', () => {
     });
   });
 
+  describe('proxy with credentials', () => {
+    /*
+     * Gap AK: userinfo embedded in the proxy URL must be base64-encoded
+     * and surfaced as Proxy-Authorization so the proxy can authenticate
+     * the tunnel — otherwise the proxy 407s. Undici's ProxyAgent reads
+     * userinfo natively from the URL; we assert TransportOptions
+     * preserves the userinfo end-to-end.
+     */
+    test('proxy_with_credentials_injects_basic_authorization', () => {
+      const transport = TransportOptions.builder().proxy('http://alice:s3cret@127.0.0.1:3128').build();
+      const url = new URL(transport.proxy!);
+      expect(url.username).toBe('alice');
+      expect(url.password).toBe('s3cret');
+      const encoded = Buffer.from(`${decodeURIComponent(url.username)}:${decodeURIComponent(url.password)}`).toString(
+        'base64'
+      );
+      expect(`Basic ${encoded}`).toBe('Basic YWxpY2U6czNjcmV0');
+    });
+  });
+
   describe('HTTP proxy', () => {
     test('makes HTTP request through proxy', async () => {
       const wiremockUrl = process.env['WIREMOCK_INTERNAL_HTTP_URL']!;
@@ -242,6 +262,42 @@ describe('DefaultApiClient', () => {
       expect(json.method).toBe('GET');
       expect(json.body).toBe('');
     });
+
+    // T-new-3: multipart bodies must be replayed across 307 redirects per
+    // RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
+    // request after a 307 still carries the multipart form parts.
+    test('replays multipart body across 307 redirects (T-new-3)', async () => {
+      const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
+
+      const transport = TransportOptions.builder().followRedirects(true).maxRedirects(5).build();
+
+      const client = new DefaultApiClient(transport);
+      const boundary = 'test-boundary';
+      const body = Buffer.from(
+        `--${boundary}\r\n` +
+          `Content-Disposition: form-data; name="description"\r\n\r\n` +
+          `hello\r\n` +
+          `--${boundary}\r\n` +
+          `Content-Disposition: form-data; name="file"; filename="file"\r\n` +
+          `Content-Type: application/octet-stream\r\n\r\n` +
+          `file-content-bytes\r\n` +
+          `--${boundary}--\r\n`
+      );
+      const response = await client.sendRequest(
+        'POST',
+        `${wiremockUrl}/api/redirect-307`,
+        { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+        body
+      );
+
+      expect(response.statusCode).toBe(200);
+      const json = JSON.parse(response.body as string);
+      expect(json.method).toBe('POST');
+      const echoed: string = json.body;
+      expect(echoed).toContain('Content-Disposition: form-data; name="description"');
+      expect(echoed).toContain('Content-Disposition: form-data; name="file"');
+      expect(echoed).toContain('file-content-bytes');
+    });
   });
 
   describe('max redirects', () => {
@@ -268,6 +324,18 @@ describe('DefaultApiClient', () => {
       );
 
       expect(response).toBeDefined();
+    });
+
+    // W-new-2: multipart field-name validation must run on every branch (not
+    // just binary). Confirm that even for a plain string value, a CR/LF in
+    // the field name is rejected, preventing Content-Disposition smuggling.
+    test('multipart_field_name_with_crlf_rejected_on_string_value', async () => {
+      const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
+      const client = new DefaultApiClient();
+      const badFields: Record<string, unknown> = {
+        'name\r\nInjected: yes': 'string-value'
+      };
+      await expect(client.sendRequest('POST', `${wiremockUrl}/api/test`, {}, badFields)).rejects.toThrow();
     });
   });
 

@@ -4,7 +4,10 @@ package oauth
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/url"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -139,10 +142,13 @@ func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]strin
 		return fmt.Errorf("token request failed with status %d", resp.StatusCode)
 	}
 
+	/* expires_in is read as json.RawMessage so the whole parse does not
+	 * fail when providers send it as a quoted string (Salesforce, some
+	 * Apigee deployments) or as a JSON float. See parseExpiresIn below. */
 	var parsed struct {
-		AccessToken  string `json:"access_token"`
-		RefreshToken string `json:"refresh_token"`
-		ExpiresIn    int    `json:"expires_in"`
+		AccessToken  string          `json:"access_token"`
+		RefreshToken string          `json:"refresh_token"`
+		ExpiresIn    json.RawMessage `json:"expires_in"`
 	}
 	if err := json.Unmarshal([]byte(resp.Body), &parsed); err != nil {
 		return fmt.Errorf("failed to parse token response: %w", err)
@@ -152,13 +158,58 @@ func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]strin
 	if parsed.RefreshToken != "" {
 		m.refreshToken = parsed.RefreshToken
 	}
-	if parsed.ExpiresIn > 0 {
-		bufferSecs := parsed.ExpiresIn
-		if bufferSecs > 30 {
-			bufferSecs = 30
+	if len(parsed.ExpiresIn) > 0 && string(parsed.ExpiresIn) != "null" {
+		expiresIn := parseExpiresIn(parsed.ExpiresIn)
+		if expiresIn > 0 {
+			bufferSecs := expiresIn
+			if bufferSecs > 30 {
+				bufferSecs = 30
+			}
+			m.tokenExpiry = time.Now().Add(time.Duration(expiresIn-bufferSecs) * time.Second)
+		} else {
+			// Unparseable or non-positive expires_in: mark the token as
+			// immediately stale so the next call refetches.
+			m.tokenExpiry = time.Now()
 		}
-		m.tokenExpiry = time.Now().Add(time.Duration(parsed.ExpiresIn-bufferSecs) * time.Second)
 	}
 
 	return nil
+}
+
+// parseExpiresIn performs a defensive parse of the OAuth2 "expires_in" field
+// (RFC 6749 §5.1). Returns 0 (caller skips caching) when the value is missing,
+// unparseable, or non-positive. Accepts integers, floors floats, and parses
+// digit strings (e.g. "3600" from Salesforce).
+func parseExpiresIn(raw json.RawMessage) int64 {
+	if len(raw) == 0 {
+		return 0
+	}
+	// Try integer first.
+	var asInt int64
+	if err := json.Unmarshal(raw, &asInt); err == nil {
+		return asInt
+	}
+	// Try float (handles 3600.5).
+	var asFloat float64
+	if err := json.Unmarshal(raw, &asFloat); err == nil {
+		if math.IsNaN(asFloat) || math.IsInf(asFloat, 0) {
+			return 0
+		}
+		return int64(math.Floor(asFloat))
+	}
+	// Try string (handles "3600").
+	var asStr string
+	if err := json.Unmarshal(raw, &asStr); err == nil {
+		trimmed := strings.TrimSpace(asStr)
+		if trimmed == "" {
+			return 0
+		}
+		if v, err := strconv.ParseFloat(trimmed, 64); err == nil {
+			if math.IsNaN(v) || math.IsInf(v, 0) {
+				return 0
+			}
+			return int64(math.Floor(v))
+		}
+	}
+	return 0
 }

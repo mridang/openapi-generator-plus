@@ -97,10 +97,17 @@ impl OAuth2TokenManager {
         if !inner.access_token.is_empty() {
             match inner.token_expiry {
                 None => return Ok(inner.access_token.clone()),
-                Some(expiry) if Instant::now() < expiry - EXPIRY_SAFETY_MARGIN => {
-                    return Ok(inner.access_token.clone());
+                Some(expiry) => {
+                    /* checked_sub guards against Instant arithmetic underflow
+                     * when expiry is already in the (recent) past — this
+                     * happens on the synthetic "immediately stale" marker we
+                     * write for unparseable/non-positive expires_in values. */
+                    if let Some(deadline) = expiry.checked_sub(EXPIRY_SAFETY_MARGIN) {
+                        if Instant::now() < deadline {
+                            return Ok(inner.access_token.clone());
+                        }
+                    }
                 }
-                _ => {}
             }
         }
 
@@ -195,10 +202,26 @@ impl OAuth2TokenManager {
                 inner.refresh_token = refresh.to_string();
             }
         }
-        if let Some(expires_in) = parsed.get("expires_in").and_then(|v| v.as_u64()) {
-            let buffer_secs = expires_in.min(30);
-            inner.token_expiry =
-                Some(Instant::now() + Duration::from_secs(expires_in - buffer_secs));
+        if let Some(expires_in_value) = parsed.get("expires_in") {
+            if !expires_in_value.is_null() {
+                /* RFC 6749 §5.1 says expires_in is a JSON number, but real-world
+                 * providers (Salesforce, some Apigee deployments) send a quoted
+                 * string and others send a JSON float. Accept ints, floor floats,
+                 * parse digit strings; on anything unparseable or non-positive,
+                 * mark the token as immediately stale so the next call refetches
+                 * (preferable to caching a token of unknown lifetime forever). */
+                let expires_in = parse_expires_in(Some(expires_in_value));
+                if expires_in > 0 {
+                    let buffer_secs = expires_in.min(30);
+                    inner.token_expiry =
+                        Some(Instant::now() + Duration::from_secs(expires_in - buffer_secs));
+                } else {
+                    /* Setting expiry to "now" makes the safe cache check
+                     * (`now < expiry - margin` with checked_sub) yield
+                     * "expired" so the next call refetches. */
+                    inner.token_expiry = Some(Instant::now());
+                }
+            }
         }
 
         Ok(inner.access_token.clone())
@@ -225,6 +248,46 @@ impl OAuth2TokenManager {
  * trait object can be constructed without those bounds. The wrapping
  * `RwLock` / `Mutex` ensures interior access is synchronised; callers must
  * supply a Send + Sync `ApiClient`, which our `DefaultApiClient` is. */
+
+/// Defensive parse of the OAuth2 `expires_in` field per RFC 6749 §5.1.
+///
+/// Returns `0` (caller skips caching) when the value is missing, unparseable,
+/// or non-positive. Accepts integers, floors floats, and parses digit strings
+/// (e.g. `"3600"` from Salesforce).
+fn parse_expires_in(value: Option<&serde_json::Value>) -> u64 {
+    let value = match value {
+        Some(v) => v,
+        None => return 0,
+    };
+    if let Some(n) = value.as_u64() {
+        return n;
+    }
+    if let Some(n) = value.as_i64() {
+        if n <= 0 {
+            return 0;
+        }
+        return n as u64;
+    }
+    if let Some(f) = value.as_f64() {
+        if !f.is_finite() || f <= 0.0 {
+            return 0;
+        }
+        return f.floor() as u64;
+    }
+    if let Some(s) = value.as_str() {
+        let trimmed = s.trim();
+        if trimmed.is_empty() {
+            return 0;
+        }
+        if let Ok(f) = trimmed.parse::<f64>() {
+            if !f.is_finite() || f <= 0.0 {
+                return 0;
+            }
+            return f.floor() as u64;
+        }
+    }
+    0
+}
 
 /// Percent-encodes a string for use in application/x-www-form-urlencoded bodies.
 fn urlencoding(s: &str) -> String {

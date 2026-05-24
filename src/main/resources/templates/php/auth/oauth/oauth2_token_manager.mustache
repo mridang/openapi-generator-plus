@@ -178,13 +178,57 @@ final class OAuth2TokenManager
             if (isset($responseBody['refresh_token']) && $responseBody['refresh_token'] !== '') {
                 $this->refreshToken = $responseBody['refresh_token'];
             }
-            if (isset($responseBody['expires_in'])) {
-                $expiresIn = $responseBody['expires_in'];
-                $bufferSecs = min($expiresIn, 30);
-                $this->tokenExpiry = microtime(true) + $expiresIn - $bufferSecs;
+            if (array_key_exists('expires_in', $responseBody) && $responseBody['expires_in'] !== null) {
+                /* RFC 6749 §5.1 says expires_in is a JSON number, but real-world
+                 * providers (Salesforce, some Apigee deployments) send a quoted
+                 * string and others send a JSON float. Accept ints, floor floats,
+                 * parse digit strings; on anything unparseable or non-positive,
+                 * mark the token as immediately stale so the next call refetches
+                 * (preferable to caching a token of unknown lifetime forever). */
+                $expiresIn = self::parseExpiresIn($responseBody['expires_in']);
+                if ($expiresIn > 0) {
+                    $bufferSecs = min($expiresIn, 30);
+                    $this->tokenExpiry = microtime(true) + $expiresIn - $bufferSecs;
+                } else {
+                    $this->tokenExpiry = microtime(true);
+                }
             }
         } catch (ApiException $e) {
             throw new \RuntimeException('Failed to fetch OAuth2 token', 0, $e);
         }
+    }
+
+    /**
+     * Defensive parse of the OAuth2 `expires_in` field per RFC 6749 §5.1.
+     *
+     * Returns `0` (caller skips caching) when the value is missing,
+     * unparseable, or non-positive. Accepts integers, floors floats,
+     * and parses digit strings (e.g. `"3600"` from Salesforce).
+     *
+     * @param mixed $raw the raw JSON-decoded value
+     */
+    private static function parseExpiresIn(mixed $raw): int
+    {
+        if (is_int($raw)) {
+            return $raw;
+        }
+        if (is_float($raw)) {
+            if (is_nan($raw) || is_infinite($raw)) {
+                return 0;
+            }
+            return (int) floor($raw);
+        }
+        if (is_string($raw)) {
+            $trimmed = trim($raw);
+            if ($trimmed === '' || !is_numeric($trimmed)) {
+                return 0;
+            }
+            $parsed = (float) $trimmed;
+            if (is_nan($parsed) || is_infinite($parsed)) {
+                return 0;
+            }
+            return (int) floor($parsed);
+        }
+        return 0;
     }
 }

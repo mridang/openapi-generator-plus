@@ -226,11 +226,78 @@ public sealed class OAuth2TokenManager
                 RefreshToken = newRefreshToken;
             }
         }
-        if (root.TryGetProperty("expires_in", out JsonElement expiresIn))
+        if (
+            root.TryGetProperty("expires_in", out JsonElement expiresIn)
+            && expiresIn.ValueKind != JsonValueKind.Null
+        )
         {
-            int seconds = expiresIn.GetInt32();
-            int bufferSecs = Math.Min(seconds, 30);
-            _tokenExpiry = DateTimeOffset.UtcNow.AddSeconds(seconds - bufferSecs);
+            /* RFC 6749 §5.1 says expires_in is a JSON number, but real-world
+             * providers (Salesforce, some Apigee deployments) send a quoted
+             * string and others send a JSON float. Accept ints, floor floats,
+             * parse digit strings; on anything unparseable or non-positive,
+             * mark the token as immediately stale so the next call refetches
+             * (preferable to caching a token of unknown lifetime forever). */
+            long seconds = ParseExpiresIn(expiresIn);
+            if (seconds > 0L)
+            {
+                long bufferSecs = Math.Min(seconds, 30L);
+                _tokenExpiry = DateTimeOffset.UtcNow.AddSeconds(seconds - bufferSecs);
+            }
+            else
+            {
+                _tokenExpiry = DateTimeOffset.UtcNow;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Defensive parse of the <c>expires_in</c> field per RFC 6749 §5.1.
+    /// Returns <c>0</c> (caller skips caching) when missing, unparseable, or
+    /// non-positive. Accepts integers, floors floats, and parses digit strings
+    /// (e.g. <c>"3600"</c> from Salesforce).
+    /// </summary>
+    private static long ParseExpiresIn(JsonElement element)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Number:
+                if (element.TryGetInt64(out long asInt))
+                {
+                    return asInt;
+                }
+                if (element.TryGetDouble(out double asDouble))
+                {
+                    if (double.IsNaN(asDouble) || double.IsInfinity(asDouble))
+                    {
+                        return 0L;
+                    }
+                    return (long)Math.Floor(asDouble);
+                }
+                return 0L;
+            case JsonValueKind.String:
+                string? text = element.GetString()?.Trim();
+                if (string.IsNullOrEmpty(text))
+                {
+                    return 0L;
+                }
+                if (
+                    double.TryParse(
+                        text,
+                        System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out double parsed
+                    )
+                )
+                {
+                    if (double.IsNaN(parsed) || double.IsInfinity(parsed))
+                    {
+                        return 0L;
+                    }
+                    return (long)Math.Floor(parsed);
+                }
+                return 0L;
+            default:
+                return 0L;
         }
     }
 

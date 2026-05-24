@@ -577,6 +577,8 @@ public final class DefaultApiClient implements ApiClient {
 
   private void addMultipartField(
       List<byte[]> byteArrays, String boundary, String fieldName, Object value) {
+    validateMultipartFieldName(fieldName);
+    String safeName = escapeMultipartFieldName(fieldName);
     byte[] separator =
         ("--" + boundary + "\r\nContent-Disposition: form-data; name=")
             .getBytes(StandardCharsets.UTF_8);
@@ -596,7 +598,7 @@ public final class DefaultApiClient implements ApiClient {
       }
       byteArrays.add(
           ("\""
-                  + fieldName
+                  + safeName
                   + "\"; "
                   + buildFilenameDirective(fileName)
                   + "\r\n"
@@ -613,7 +615,7 @@ public final class DefaultApiClient implements ApiClient {
       validateMultipartFilename(fieldName);
       byteArrays.add(
           ("\""
-                  + fieldName
+                  + safeName
                   + "\"; "
                   + buildFilenameDirective(fieldName)
                   + "\r\n"
@@ -625,7 +627,7 @@ public final class DefaultApiClient implements ApiClient {
       try (stream) {
         byteArrays.add(
             ("\""
-                    + fieldName
+                    + safeName
                     + "\"; "
                     + buildFilenameDirective(fieldName)
                     + "\r\n"
@@ -636,12 +638,12 @@ public final class DefaultApiClient implements ApiClient {
         throw new RuntimeException("Failed to read stream: " + fieldName, e);
       }
     } else if (value instanceof String || value instanceof Number || value instanceof Boolean) {
-      byteArrays.add(("\"" + fieldName + "\"\r\n\r\n" + value).getBytes(StandardCharsets.UTF_8));
+      byteArrays.add(("\"" + safeName + "\"\r\n\r\n" + value).getBytes(StandardCharsets.UTF_8));
     } else {
       try {
         String json = MULTIPART_MAPPER.writeValueAsString(value);
         byteArrays.add(
-            ("\"" + fieldName + "\"\r\nContent-Type: application/json\r\n\r\n" + json)
+            ("\"" + safeName + "\"\r\nContent-Type: application/json\r\n\r\n" + json)
                 .getBytes(StandardCharsets.UTF_8));
       } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
         throw new RuntimeException(
@@ -672,6 +674,45 @@ public final class DefaultApiClient implements ApiClient {
             "Multipart filename must not contain CR, LF, or NUL characters");
       }
     }
+  }
+
+  /**
+   * Reject multipart field names that would allow header injection or smuggling.
+   *
+   * <p>Field names are interpolated directly into a {@code Content-Disposition} header value as the
+   * {@code name="..."} parameter, so CR/LF/NUL characters could split the header and inject
+   * arbitrary new headers or a new request body. This must be enforced on every branch (string,
+   * number, boolean, JSON, binary) of {@link #addMultipartField}, not just the binary paths.
+   *
+   * @param fieldName the proposed multipart field name
+   * @throws IllegalArgumentException if the field name contains CR, LF, or NUL
+   */
+  static void validateMultipartFieldName(String fieldName) {
+    if (fieldName == null) {
+      return;
+    }
+    for (int i = 0; i < fieldName.length(); i++) {
+      char c = fieldName.charAt(i);
+      if (c == '\r' || c == '\n' || c == '\0') {
+        throw new IllegalArgumentException(
+            "Multipart field name must not contain CR, LF, or NUL characters");
+      }
+    }
+  }
+
+  /**
+   * Backslash-escape embedded {@code "} and {@code \} in a multipart field name so a malicious name
+   * cannot break out of the {@code name="..."} parameter. Caller must have already invoked {@link
+   * #validateMultipartFieldName(String)} to reject CR/LF/NUL.
+   *
+   * @param fieldName the (already-validated) field name
+   * @return the field name with quote and backslash escaped
+   */
+  static String escapeMultipartFieldName(String fieldName) {
+    if (fieldName == null) {
+      return "";
+    }
+    return fieldName.replace("\\", "\\\\").replace("\"", "\\\"");
   }
 
   /**
