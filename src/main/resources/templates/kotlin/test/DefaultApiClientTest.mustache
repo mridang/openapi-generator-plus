@@ -40,6 +40,22 @@ class DefaultApiClientTest {
     inner class CustomCaBundle {
 
         @Test
+        @DisplayName("invalid CA cert path surfaces an error (Gap T4)")
+        fun invalid_ca_cert_path_returns_error() {
+            val transport = TransportOptions.builder()
+                .caCertPath("/nonexistent/path/does/not/exist.pem")
+                .build()
+            // Behaviour must be an audible failure (exception), NOT a silent
+            // fallback to the system trust store.
+            assertThrows(Exception::class.java) {
+                val client = DefaultApiClient(transport)
+                runBlocking {
+                    client.sendRequest("GET", "https://example.com/", emptyMap(), null)
+                }
+            }
+        }
+
+        @Test
         @DisplayName("makes HTTPS request with custom CA cert")
         fun makesHttpsRequestWithCustomCaCert() {
             val wiremockUrl = WireMockContainer.getHttpsUrl()

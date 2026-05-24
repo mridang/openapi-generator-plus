@@ -241,11 +241,19 @@ fn build_http_client(opts: &TransportOptions) -> Client {
     builder = builder.danger_accept_invalid_certs(!opts.verify_ssl());
 
     if let Some(ca_path) = opts.ca_cert_path() {
-        if let Ok(ca_bytes) = std::fs::read(ca_path) {
-            if let Ok(cert) = reqwest::Certificate::from_pem(&ca_bytes) {
-                builder = builder.add_root_certificate(cert);
-            }
-        }
+        // Gap T4: surface CA-cert load/parse failures rather than silently
+        // falling back to the system trust store. If the user explicitly
+        // asked for SSL pinning we must not pretend it succeeded.
+        let ca_bytes = std::fs::read(ca_path).unwrap_or_else(|e| {
+            panic!("failed to read CA certificate from {:?}: {}", ca_path, e)
+        });
+        let cert = reqwest::Certificate::from_pem(&ca_bytes).unwrap_or_else(|e| {
+            panic!(
+                "failed to parse CA certificate from {:?}: {}",
+                ca_path, e
+            )
+        });
+        builder = builder.add_root_certificate(cert);
     }
 
     if let Some(proxy_url) = opts.proxy() {

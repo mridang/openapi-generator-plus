@@ -179,12 +179,18 @@ func buildHTTPClient(opts *TransportOptions) *http.Client {
 	}
 
 	if opts.CACertPath() != "" {
+		// Gap T4: surface CA-cert load failures rather than silently falling
+		// back to the system trust store. If the user explicitly asked for
+		// SSL pinning we must not pretend it succeeded.
 		caCert, err := os.ReadFile(opts.CACertPath())
-		if err == nil {
-			caCertPool := x509.NewCertPool()
-			caCertPool.AppendCertsFromPEM(caCert)
-			tlsConfig.RootCAs = caCertPool
+		if err != nil {
+			panic(fmt.Sprintf("failed to read CA certificate from %q: %v", opts.CACertPath(), err))
 		}
+		caCertPool := x509.NewCertPool()
+		if !caCertPool.AppendCertsFromPEM(caCert) {
+			panic(fmt.Sprintf("failed to parse CA certificate from %q: no PEM blocks found or unparseable", opts.CACertPath()))
+		}
+		tlsConfig.RootCAs = caCertPool
 	}
 
 	transport.TLSClientConfig = tlsConfig
