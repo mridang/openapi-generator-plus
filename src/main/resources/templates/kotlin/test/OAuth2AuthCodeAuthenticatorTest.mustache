@@ -117,4 +117,27 @@ class OAuth2AuthCodeAuthenticatorTest {
 
         assertEquals("https://api.example.com", auth.getHost())
     }
+
+    @Test
+    fun `auth_headers_before_exchange_returns_recoverable_error`() {
+        val auth = createAuthenticator()
+
+        // Calling getAuthHeaders before exchangeCode is a precondition
+        // violation. It must surface as a catchable exception so callers
+        // can recover -- not as a process crash.
+        var caught: Throwable? = null
+        try {
+            runBlocking { auth.getAuthHeaders() }
+        } catch (t: Throwable) {
+            caught = t
+        }
+        assertNotNull(caught, "expected getAuthHeaders to throw before exchangeCode")
+        assertTrue(
+            caught is IllegalStateException,
+            "expected IllegalStateException, got " + caught!!::class.java.name
+        )
+
+        // Caller continues normally after catching -- no process crash.
+        assertEquals("https://api.example.com", auth.getHost())
+    }
 }

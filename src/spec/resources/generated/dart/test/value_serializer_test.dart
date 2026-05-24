@@ -364,10 +364,12 @@ void main() {
       expect(result, equals('blue'));
     });
 
-    test('serializeStyled simple path does not URL-encode', () {
+    test('serializeStyled simple path URL-encodes value', () {
+      // Gap W1: simple-style path values must be percent-encoded so reserved
+      // characters (space, '/', '?', '#') don't leak into the URL.
       final result = serializeStyled(
           'name', 'hello world', 'path', 'string', '', 'simple', false);
-      expect(result, equals('hello world'));
+      expect(result, equals('hello%20world'));
     });
 
     test('serializeStyled form explode single-element array', () {
@@ -448,6 +450,24 @@ void main() {
         final result = serializeStyled(
             'color', ['a b', 'c?d'], 'path', 'array', '', 'simple', false);
         expect(result, equals('a%20b,c%3Fd'));
+      });
+
+      test('path_array_item_with_reserved_char_is_percent_encoded', () {
+        // Gap W1 regression: every per-item path value in a styled array
+        // must be percent-encoded BEFORE being joined with the structural
+        // separator. Otherwise '/', '?', '#', space leak into the URL.
+        final items = ['a/b', 'c'];
+        expect(
+            serializeStyled(
+                'name', items, 'path', 'array', '', 'simple', false),
+            equals('a%2Fb,c'));
+        expect(
+            serializeStyled('name', items, 'path', 'array', '', 'label', true),
+            equals('.a%2Fb.c'));
+        expect(
+            serializeStyled(
+                'name', items, 'path', 'array', '', 'matrix', false),
+            equals(';name=a%2Fb,c'));
       });
 
       test('matrix style encodes value', () {

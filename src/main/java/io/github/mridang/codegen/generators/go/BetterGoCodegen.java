@@ -397,6 +397,13 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                             "test/client_test.mustache",
                             "test",
                             "client_test.go"));
+            if (hasBasicAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/basic_authenticator_test.mustache",
+                                "test",
+                                "basic_authenticator_test.go"));
+            }
             supportingFiles.add(
                     new SupportingFile(
                             "test/oauth2_token_manager_test.mustache",

@@ -1,0 +1,35 @@
+{{>api_info}}
+
+use {{packageName}}::auth::Authenticator;
+use {{packageName}}::auth::BasicAuthenticator;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_valid_credentials_produce_basic_header() {
+    let auth = BasicAuthenticator::new("https://api.example.com", "alice", "s3cret");
+    let headers = auth.auth_headers().await;
+    assert_eq!(
+        headers.get("Authorization").map(|s| s.as_str()),
+        Some("Basic YWxpY2U6czNjcmV0")
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[should_panic]
+async fn test_rejects_username_with_crlf() {
+    let auth = BasicAuthenticator::new("https://api.example.com", "alice\r\n", "s3cret");
+    let _ = auth.auth_headers().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[should_panic]
+async fn test_rejects_password_with_nul() {
+    let auth = BasicAuthenticator::new("https://api.example.com", "alice", "s3c\0ret");
+    let _ = auth.auth_headers().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[should_panic]
+async fn test_rejects_username_with_colon() {
+    let auth = BasicAuthenticator::new("https://api.example.com", "ali:ce", "s3cret");
+    let _ = auth.auth_headers().await;
+}

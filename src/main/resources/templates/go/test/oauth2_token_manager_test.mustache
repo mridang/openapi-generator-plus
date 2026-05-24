@@ -296,6 +296,36 @@ func TestOAuth2TokenManager_ExpiresInExactlyBufferReturnsZeroBuffer(t *testing.T
 	}
 }
 
+func TestOAuth2TokenManager_RefreshTokenEmptyStringPreservesExisting(t *testing.T) {
+	// Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
+	// MUST NOT clobber the cached refresh_token.
+	client := newFakeTokenClient(
+		fakeResponse{body: `{"access_token":"old_access","refresh_token":"old_refresh","expires_in":1}`, statusCode: 200},
+		fakeResponse{body: `{"access_token":"new_access","expires_in":3600,"refresh_token":""}`, statusCode: 200},
+	)
+
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	params := map[string]string{"grant_type": "authorization_code"}
+
+	if _, err := manager.GetAccessToken("https://auth.example.com/token", params); err != nil {
+		t.Fatalf("unexpected error on seed call: %v", err)
+	}
+	if manager.RefreshToken() != "old_refresh" {
+		t.Fatalf("expected seeded refresh token 'old_refresh', got %q", manager.RefreshToken())
+	}
+
+	// Second call: access token near-expiry triggers refresh via "old_refresh".
+	// Server replies with empty refresh_token which must not overwrite cache.
+	if _, err := manager.GetAccessToken("https://auth.example.com/token", params); err != nil {
+		t.Fatalf("unexpected error on refresh: %v", err)
+	}
+	if manager.RefreshToken() != "old_refresh" {
+		t.Errorf("empty refresh_token in refresh response must not overwrite cached refresh_token; got %q", manager.RefreshToken())
+	}
+}
+
 func TestOAuth2TokenManager_ThrowsWhenTokenRequestFails(t *testing.T) {
 	client := newFakeTokenClient(fakeResponse{
 		body:       `{"error":"invalid_client"}`,

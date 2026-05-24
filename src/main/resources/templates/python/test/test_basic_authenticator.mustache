@@ -1,0 +1,27 @@
+{{>api_info}}
+import pytest
+
+from {{packageName}}.auth.basic_authenticator import BasicAuthenticator
+
+
+class TestBasicAuthenticator:
+
+    def test_valid_credentials_produce_basic_header(self) -> None:
+        auth = BasicAuthenticator(host='https://api.example.com', username='alice', password='s3cret')
+        headers = auth.get_auth_headers()
+        assert headers['Authorization'] == 'Basic YWxpY2U6czNjcmV0'
+
+    def test_rejects_username_with_crlf(self) -> None:
+        auth = BasicAuthenticator(host='https://api.example.com', username='alice\r\n', password='s3cret')
+        with pytest.raises(ValueError):
+            auth.get_auth_headers()
+
+    def test_rejects_password_with_nul(self) -> None:
+        auth = BasicAuthenticator(host='https://api.example.com', username='alice', password='s3c\x00ret')
+        with pytest.raises(ValueError):
+            auth.get_auth_headers()
+
+    def test_rejects_username_with_colon(self) -> None:
+        auth = BasicAuthenticator(host='https://api.example.com', username='ali:ce', password='s3cret')
+        with pytest.raises(ValueError):
+            auth.get_auth_headers()

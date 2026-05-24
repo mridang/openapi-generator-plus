@@ -406,6 +406,22 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == "a%20b,c%3Fd"
     end
 
+    test "path_array_item_with_reserved_char_is_percent_encoded" do
+      # Gap W1 regression: every per-item path value in a styled array
+      # must be percent-encoded BEFORE being joined with the structural
+      # separator. Otherwise '/', '?', '#', space leak into the URL.
+      items = ["a/b", "c"]
+
+      assert PetstoreClient.ValueSerializer.serialize_styled("name", items, :path, "array", nil, "simple", false) ==
+               "a%2Fb,c"
+
+      assert PetstoreClient.ValueSerializer.serialize_styled("name", items, :path, "array", nil, "label", true) ==
+               ".a%2Fb.c"
+
+      assert PetstoreClient.ValueSerializer.serialize_styled("name", items, :path, "array", nil, "matrix", false) ==
+               ";name=a%2Fb,c"
+    end
+
     test "matrix style encodes value" do
       result = PetstoreClient.ValueSerializer.serialize_styled("color", "a b", :path, "string", nil, "matrix", false)
       assert result == ";color=a%20b"

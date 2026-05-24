@@ -383,6 +383,45 @@ async fn test_expires_in_exactly_buffer_returns_zero_buffer() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn test_refresh_token_empty_string_preserves_existing() {
+    // Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
+    // MUST NOT clobber the cached refresh_token.
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"access_token":"old_access","refresh_token":"old_refresh","expires_in":1}"#,
+        200,
+    );
+    client.enqueue(
+        r#"{"access_token":"new_access","expires_in":3600,"refresh_token":""}"#,
+        200,
+    );
+
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client);
+
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "authorization_code".to_string());
+
+    manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect("seed call should succeed");
+    assert_eq!("old_refresh", manager.refresh_token().await);
+
+    // Second call: access token near-expiry triggers refresh via "old_refresh".
+    // Server replies with empty refresh_token which must not overwrite cache.
+    manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect("refresh call should succeed");
+    assert_eq!(
+        "old_refresh",
+        manager.refresh_token().await,
+        "empty refresh_token in refresh response must not overwrite cached refresh_token"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn test_throws_when_token_request_fails() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(r#"{"error":"invalid_client"}"#, 401);

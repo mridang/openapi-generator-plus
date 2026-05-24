@@ -170,7 +170,10 @@ class OAuth2TokenManager {
             jsonObject["access_token"]?.jsonPrimitive?.content
                 ?: throw RuntimeException("Token response missing access_token field")
         if (jsonObject.containsKey("refresh_token")) {
-            this.refreshToken = jsonObject["refresh_token"]?.jsonPrimitive?.content
+            val newRefreshToken = jsonObject["refresh_token"]?.jsonPrimitive?.content
+            if (!newRefreshToken.isNullOrEmpty()) {
+                this.refreshToken = newRefreshToken
+            }
         }
         val expiresIn = jsonObject["expires_in"]?.jsonPrimitive?.longOrNull
         if (expiresIn != null) {

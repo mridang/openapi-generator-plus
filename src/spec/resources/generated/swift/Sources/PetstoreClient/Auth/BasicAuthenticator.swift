@@ -10,14 +10,14 @@ import Foundation
 /// BasicAuthenticator provides HTTP Basic authentication.
 public class BasicAuthenticator: BaseAuthenticator, @unchecked Sendable {
     private let _host: String
-    private let authHeader: String
+    private let username: String
+    private let password: String
 
     /// Creates a new Basic authenticator.
     public init(host: String, username: String, password: String) {
         self._host = host
-        let credentials = "\(username):\(password)"
-        let encoded = Data(credentials.utf8).base64EncodedString()
-        self.authHeader = "Basic \(encoded)"
+        self.username = username
+        self.password = password
         super.init()
     }
 
@@ -28,6 +28,33 @@ public class BasicAuthenticator: BaseAuthenticator, @unchecked Sendable {
 
     /// Returns the Basic authentication header.
     override public func authHeaders() async -> [String: String] {
-        return ["Authorization": authHeader]
+        /* RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field
+         * separator) and neither user-id nor password may carry CR/LF/NUL
+         * (header-injection / smuggling vectors common when credentials
+         * are read from .env files or interactive prompts).
+         * preconditionFailure is appropriate because this is a programmer
+         * error, matching the Bearer authenticator's pattern. */
+        for s in username.unicodeScalars {
+            if s.value == 0x0D || s.value == 0x0A || s.value == 0x00 {
+                preconditionFailure(
+                    "Basic auth username must not contain CR, LF, or NUL characters"
+                )
+            }
+            if s.value == 0x3A {
+                preconditionFailure(
+                    "Basic auth username must not contain ':' (RFC 7617 §2)"
+                )
+            }
+        }
+        for s in password.unicodeScalars {
+            if s.value == 0x0D || s.value == 0x0A || s.value == 0x00 {
+                preconditionFailure(
+                    "Basic auth password must not contain CR, LF, or NUL characters"
+                )
+            }
+        }
+        let credentials = "\(username):\(password)"
+        let encoded = Data(credentials.utf8).base64EncodedString()
+        return ["Authorization": "Basic \(encoded)"]
     }
 }

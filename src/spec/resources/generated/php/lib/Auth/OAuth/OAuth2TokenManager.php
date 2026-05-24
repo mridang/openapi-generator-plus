@@ -189,7 +189,7 @@ final class OAuth2TokenManager
             /** @var array{access_token: string, refresh_token?: string, expires_in?: int} $responseBody */
             $responseBody = json_decode($response->body, true);
             $this->accessToken = $responseBody['access_token'];
-            if (isset($responseBody['refresh_token'])) {
+            if (isset($responseBody['refresh_token']) && $responseBody['refresh_token'] !== '') {
                 $this->refreshToken = $responseBody['refresh_token'];
             }
             if (isset($responseBody['expires_in'])) {

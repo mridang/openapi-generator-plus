@@ -7,6 +7,15 @@
 
 import Foundation
 
+/// Error raised by ``OAuth2AuthorizationCodeAuthenticator`` when the caller
+/// violates the documented usage contract (e.g. requesting headers before
+/// exchanging an authorization code). Callers can catch this to recover
+/// gracefully instead of being terminated by a `fatalError`.
+public enum OAuth2AuthorizationCodeError: Error, Equatable {
+    /// `authHeadersOrThrow()` was called before `exchangeCode(_:)`.
+    case codeNotExchanged
+}
+
 /// OAuth2AuthorizationCodeAuthenticator provides OAuth2 authorization code flow authentication.
 ///
 /// Conforms to ``HttpAwareAuthenticator`` so that token exchange requests use the
@@ -99,10 +108,18 @@ public class OAuth2AuthorizationCodeAuthenticator: BaseAuthenticator, HttpAwareA
         tokenExchanged = true
     }
 
-    /// Returns the Bearer authentication header with a valid access token.
-    override public func authHeaders() async -> [String: String] {
+    /// Returns the Bearer authentication header with a valid access token,
+    /// or throws if the caller violated the usage contract (e.g.
+    /// ``exchangeCode(_:)`` was never called) or if token refresh failed.
+    ///
+    /// Use this method when you need to distinguish "no auth available
+    /// because the caller forgot to exchange the code" from "no auth
+    /// available because the token endpoint is unreachable". The protocol
+    /// method ``authHeaders()`` collapses both cases to an empty dictionary
+    /// so that ``Authenticator`` conformance can stay non-throwing.
+    public func authHeadersOrThrow() async throws -> [String: String] {
         guard tokenExchanged else {
-            fatalError("Must call exchangeCode before making API requests")
+            throw OAuth2AuthorizationCodeError.codeNotExchanged
         }
 
         let params: [String: String] = [
@@ -110,9 +127,18 @@ public class OAuth2AuthorizationCodeAuthenticator: BaseAuthenticator, HttpAwareA
             "refresh_token": tokenManager.refreshToken,
         ]
 
-        guard let accessToken = try? await tokenManager.getAccessToken(tokenURL: refreshURL, params: params) else {
-            return [:]
-        }
+        let accessToken = try await tokenManager.getAccessToken(tokenURL: refreshURL, params: params)
         return ["Authorization": "Bearer \(accessToken)"]
+    }
+
+    /// Returns the Bearer authentication header with a valid access token.
+    ///
+    /// Returns an empty dictionary if ``exchangeCode(_:)`` has not been
+    /// called yet or if token refresh fails -- the resulting unauthenticated
+    /// request will then surface as a 401 from the server, which callers
+    /// already handle. Use ``authHeadersOrThrow()`` instead when you need
+    /// to recover from the precondition failure programmatically.
+    override public func authHeaders() async -> [String: String] {
+        return (try? await authHeadersOrThrow()) ?? [:]
     }
 }

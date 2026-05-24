@@ -152,8 +152,8 @@ export class OAuth2TokenManager {
     }
     const json = JSON.parse(response.body) as Record<string, unknown>;
     this.accessToken = json.access_token as string;
-    if (json.refresh_token) {
-      this.refreshToken = json.refresh_token as string;
+    if (typeof json.refresh_token === 'string' && json.refresh_token.length > 0) {
+      this.refreshToken = json.refresh_token;
     }
     if (json.expires_in) {
       const expiresIn = json.expires_in as number;

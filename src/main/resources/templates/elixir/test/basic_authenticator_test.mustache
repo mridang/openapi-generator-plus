@@ -1,0 +1,39 @@
+{{#generateTests}}
+defmodule {{moduleName}}.Auth.BasicAuthenticatorTest do
+  use ExUnit.Case, async: true
+
+  alias {{moduleName}}.Auth.BasicAuthenticator
+
+  describe "BasicAuthenticator" do
+    test "valid credentials produce basic header" do
+      auth = BasicAuthenticator.new("https://api.example.com", "alice", "s3cret")
+      headers = BasicAuthenticator.auth_headers(auth)
+      assert headers["Authorization"] == "Basic YWxpY2U6czNjcmV0"
+    end
+
+    test "rejects username with crlf" do
+      auth = BasicAuthenticator.new("https://api.example.com", "alice\r\n", "s3cret")
+
+      assert_raise ArgumentError, fn ->
+        BasicAuthenticator.auth_headers(auth)
+      end
+    end
+
+    test "rejects password with nul" do
+      auth = BasicAuthenticator.new("https://api.example.com", "alice", "s3c\0ret")
+
+      assert_raise ArgumentError, fn ->
+        BasicAuthenticator.auth_headers(auth)
+      end
+    end
+
+    test "rejects username with colon" do
+      auth = BasicAuthenticator.new("https://api.example.com", "ali:ce", "s3cret")
+
+      assert_raise ArgumentError, fn ->
+        BasicAuthenticator.auth_headers(auth)
+      end
+    end
+  end
+end
+{{/generateTests}}

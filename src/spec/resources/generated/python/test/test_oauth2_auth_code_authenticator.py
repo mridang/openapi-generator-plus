@@ -128,3 +128,19 @@ class TestOAuth2AuthorizationCodeAuthenticator:
         auth = _create_authenticator()
 
         assert auth.get_host() == 'https://api.example.com'
+
+    def test_auth_headers_before_exchange_returns_recoverable_error(self) -> None:
+        auth = _create_authenticator()
+
+        # Calling get_auth_headers before exchange_code is a precondition
+        # violation. It must surface as a catchable exception so callers
+        # can recover -- not as a process crash.
+        caught: RuntimeError | None = None
+        try:
+            auth.get_auth_headers()
+        except RuntimeError as e:
+            caught = e
+        assert caught is not None, 'expected get_auth_headers to raise before exchange_code'
+
+        # Caller continues normally after catching -- no process crash.
+        assert auth.get_host() == 'https://api.example.com'

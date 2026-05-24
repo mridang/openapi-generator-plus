@@ -133,6 +133,17 @@ final class ValueSerializer
             ? array_map($stringifier, $value)
             : [$stringifier($value)];
 
+        /* Per RFC 6570 / OAS 3.0: in `path` parameters each item must be
+         * percent-encoded BEFORE being joined with the structural separator
+         * (',' for simple/label/matrix-no-explode, '.' for label-explode,
+         * etc.). Otherwise an item containing '/', '?', '#', space, ... would
+         * leak through and produce a malformed URL. The separators themselves
+         * (`,`, `;`, `=`) are sub-delimiters and must remain literal, so we
+         * encode the items before joining, never after. */
+        if ($location === 'path') {
+            $items = array_map('rawurlencode', $items);
+        }
+
         return match ($style) {
             'matrix' => self::serializeMatrix($paramName, $items, $explode),
             'label' => self::serializeLabel($items, $explode),

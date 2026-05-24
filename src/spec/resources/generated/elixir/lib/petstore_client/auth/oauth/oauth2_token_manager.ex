@@ -194,10 +194,9 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
     new_state = %{state | access_token: parsed["access_token"]}
 
     new_state =
-      if Map.has_key?(parsed, "refresh_token") do
-        %{new_state | refresh_token: parsed["refresh_token"]}
-      else
-        new_state
+      case parsed["refresh_token"] do
+        rt when is_binary(rt) and rt != "" -> %{new_state | refresh_token: rt}
+        _ -> new_state
       end
 
     new_state =

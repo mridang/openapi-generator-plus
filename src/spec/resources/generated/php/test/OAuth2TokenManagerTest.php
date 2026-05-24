@@ -183,6 +183,35 @@ class OAuth2TokenManagerTest extends TestCase
         $this->assertCount(2, $client->capturedRequests);
     }
 
+    public function testRefreshTokenEmptyStringPreservesExisting(): void
+    {
+        // Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
+        // MUST NOT clobber the cached refresh_token.
+        $client = new MockTokenApiClient();
+        // Seed: initial token grant returns refresh_token "old_refresh" with a
+        // short-lived access token so the next call triggers a refresh.
+        $client->enqueueResponse($this->makeTokenResponse('old_access', 1, 'old_refresh'));
+        // Refresh response: explicit empty refresh_token must not overwrite cache.
+        $client->enqueueResponse(new ApiResponse(
+            200,
+            (string) json_encode(['access_token' => 'new_access', 'expires_in' => 3600, 'refresh_token' => '']),
+            ['Content-Type' => 'application/json']
+        ));
+
+        $manager = new OAuth2TokenManager();
+        $manager->setApiClient($client);
+
+        $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'authorization_code']);
+        $this->assertSame('old_refresh', $manager->getRefreshToken());
+
+        $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'authorization_code']);
+        $this->assertSame(
+            'old_refresh',
+            $manager->getRefreshToken(),
+            'empty refresh_token in refresh response must not overwrite cached refresh_token'
+        );
+    }
+
     public function testThrowsWhenTokenRequestFails(): void
     {
         $client = new MockTokenApiClient();

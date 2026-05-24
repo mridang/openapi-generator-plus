@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use {{packageName}}::api_client::{ApiClient, RequestBody};
 use {{packageName}}::api_response::ApiResponse;
+use {{packageName}}::auth::oauth::AuthCodeNotExchangedError;
 use {{packageName}}::auth::oauth::OAuth2AuthorizationCodeAuthenticator;
 use {{packageName}}::auth::Authenticator;
 use {{packageName}}::auth::HttpAwareAuthenticator;
@@ -143,10 +144,34 @@ async fn test_includes_refresh_token_on_refresh() {
 }
 
 #[tokio::test]
-#[should_panic(expected = "must call exchange_code")]
 async fn test_throws_before_exchange_code_called() {
     let auth = create_authenticator();
-    auth.auth_headers().await;
+
+    // auth_headers (trait method) must NOT panic if exchange_code was never
+    // called -- it now soft-fails to an empty map so the resulting request
+    // surfaces as a 401 instead of crashing the process. Callers that want
+    // a precise error use try_auth_headers.
+    let headers = auth.auth_headers().await;
+    assert!(headers.is_empty(), "expected empty headers before exchange_code, got {:?}", headers);
+}
+
+#[tokio::test]
+async fn test_auth_headers_before_exchange_returns_recoverable_error() {
+    let auth = create_authenticator();
+
+    // Construct without exchange_code, then prove the precondition
+    // violation is catchable: try_auth_headers returns a typed error the
+    // caller can downcast and recover from.
+    let result = auth.try_auth_headers().await;
+    let err = result.expect_err("expected try_auth_headers to return Err before exchange_code");
+    assert!(
+        err.downcast_ref::<AuthCodeNotExchangedError>().is_some(),
+        "expected AuthCodeNotExchangedError, got {:?}",
+        err
+    );
+
+    // Caller continues normally after catching -- no process crash.
+    assert_eq!("https://api.example.com", auth.host());
 }
 
 #[test]

@@ -573,6 +573,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     @Override
     protected List<OAuthTestFileSpec> getOAuthTestFileSpecs() {
         return List.of(
+                new OAuthTestFileSpec("test/BasicAuthenticatorTest.mustache", "test", "BasicAuthenticatorTest.php", OAuthTestCondition.BASIC),
                 new OAuthTestFileSpec("test/MockTokenApiClient.mustache", "test", "MockTokenApiClient.php", OAuthTestCondition.ANY_OAUTH2_OR_OIDC),
                 new OAuthTestFileSpec("test/OAuth2TokenManagerTest.mustache", "test", "OAuth2TokenManagerTest.php", OAuthTestCondition.ANY_OAUTH2_OR_OIDC),
                 new OAuthTestFileSpec("test/OAuth2AuthCodeAuthenticatorTest.mustache", "test", "OAuth2AuthCodeAuthenticatorTest.php", OAuthTestCondition.AUTH_CODE),

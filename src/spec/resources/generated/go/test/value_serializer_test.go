@@ -594,6 +594,23 @@ func TestPathEncodingParity_SimpleStyleArrayEncodesEachItem(t *testing.T) {
 	}
 }
 
+// Gap W1 regression: every per-item path value in a styled array must be
+// percent-encoded BEFORE being joined with the structural separator.
+// Otherwise '/', '?', '#', space leak into the URL.
+func Test_path_array_item_with_reserved_char_is_percent_encoded(t *testing.T) {
+	items := []string{"a/b", "c"}
+
+	if got := petstore.SerializeStyled("name", items, "path", "array", "", "simple", false); got != "a%2Fb,c" {
+		t.Errorf("simple: expected 'a%%2Fb,c', got %v", got)
+	}
+	if got := petstore.SerializeStyled("name", items, "path", "array", "", "label", true); got != ".a%2Fb.c" {
+		t.Errorf("label explode: expected '.a%%2Fb.c', got %v", got)
+	}
+	if got := petstore.SerializeStyled("name", items, "path", "array", "", "matrix", false); got != ";name=a%2Fb,c" {
+		t.Errorf("matrix: expected ';name=a%%2Fb,c', got %v", got)
+	}
+}
+
 func TestPathEncodingParity_MatrixStyleEncodesValue(t *testing.T) {
 	result := petstore.SerializeStyled("color", "a b", "path", "string", "", "matrix", false)
 	if result != ";color=a%20b" {

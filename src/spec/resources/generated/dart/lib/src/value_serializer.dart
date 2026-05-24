@@ -90,52 +90,69 @@ Object? serializeStyled(
     return serializeValue(value, location, schemaType, collectionFormat);
   }
 
-  final items = _toStringList(value);
-  final isArray = items != null;
+  final rawItems = _toStringList(value);
+  final isArray = rawItems != null;
+
+  /* Per RFC 6570 / OAS 3.0: in `path` parameters each item must be
+   * percent-encoded BEFORE being joined with the structural separator
+   * (',' for simple/label/matrix-no-explode, '.' for label-explode, etc.).
+   * Otherwise an item containing '/', '?', '#', space, ... would leak through
+   * and produce a malformed URL. The separators themselves (`,`, `;`, `=`)
+   * are sub-delimiters and must remain literal, so we encode the items here,
+   * never the joined output. Uri.encodeComponent (not encodeFull) is the
+   * correct primitive — it percent-encodes reserved chars inside a segment. */
+  final items = isArray && location == 'path'
+      ? rawItems!.map(Uri.encodeComponent).toList()
+      : rawItems;
+  final scalarString = value == null
+      ? ''
+      : (location == 'path'
+          ? Uri.encodeComponent(stringify(value))
+          : stringify(value));
 
   switch (style) {
     case 'matrix':
       if (value == null) return location == 'query' ? null : '';
       if (isArray) {
         if (explode) {
-          return items.map((v) => ';$paramName=$v').join();
+          return items!.map((v) => ';$paramName=$v').join();
         }
-        return ';$paramName=${items.join(",")}';
+        return ';$paramName=${items!.join(",")}';
       }
-      return ';$paramName=${stringify(value)}';
+      return ';$paramName=$scalarString';
 
     case 'label':
       if (value == null) return location == 'query' ? null : '';
       if (isArray) {
         if (explode) {
-          return '.${items.join(".")}';
+          return '.${items!.join(".")}';
         }
-        return '.${items.join(",")}';
+        return '.${items!.join(",")}';
       }
-      return '.${stringify(value)}';
+      return '.$scalarString';
 
     case 'spaceDelimited':
       if (value == null) return location == 'query' ? null : '';
-      if (isArray) return items.join(' ');
+      if (isArray) return items!.join(' ');
       return stringify(value);
 
     case 'pipeDelimited':
       if (value == null) return location == 'query' ? null : '';
-      if (isArray) return items.join('|');
+      if (isArray) return items!.join('|');
       return stringify(value);
 
     case 'form':
       if (value == null) return location == 'query' ? null : '';
       if (isArray) {
-        if (explode) return items;
-        return items.join(',');
+        if (explode) return items!;
+        return items!.join(',');
       }
       return stringify(value);
 
     case 'simple':
       if (value == null) return location == 'query' ? null : '';
-      if (isArray) return items.join(',');
-      return stringify(value);
+      if (isArray) return items!.join(',');
+      return scalarString;
 
     default:
       return serializeValue(value, location, schemaType, collectionFormat);

@@ -119,5 +119,26 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
 
       assert PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.host(auth) == "https://api.example.com"
     end
+
+    test "auth_headers_before_exchange_returns_recoverable_error" do
+      auth = create_authenticator()
+
+      # Calling auth_headers before exchange_code is a precondition
+      # violation. It must surface as a catchable exception so callers
+      # can recover -- not as a process crash.
+      caught =
+        try do
+          PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.auth_headers(auth)
+          nil
+        rescue
+          e in RuntimeError -> e
+        end
+
+      assert caught != nil, "expected auth_headers to raise before exchange_code"
+
+      # Caller continues normally after rescuing -- no process crash.
+      assert PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.host(auth) ==
+               "https://api.example.com"
+    end
   end
 end

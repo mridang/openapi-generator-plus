@@ -224,7 +224,11 @@ public sealed class OAuth2TokenManager
             ?? throw new InvalidOperationException("Token response missing access_token");
         if (root.TryGetProperty("refresh_token", out JsonElement refreshTokenElement))
         {
-            RefreshToken = refreshTokenElement.GetString();
+            string? newRefreshToken = refreshTokenElement.GetString();
+            if (!string.IsNullOrEmpty(newRefreshToken))
+            {
+                RefreshToken = newRefreshToken;
+            }
         }
         if (root.TryGetProperty("expires_in", out JsonElement expiresIn))
         {

@@ -586,6 +586,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     protected List<OAuthTestFileSpec> getOAuthTestFileSpecs() {
         return List.of(
+                new OAuthTestFileSpec("test/basic-authenticator.test.mustache", "test", "basic-authenticator.test.ts", OAuthTestCondition.BASIC),
                 new OAuthTestFileSpec("test/oauth2-token-manager.test.mustache", "test", "oauth2-token-manager.test.ts", OAuthTestCondition.ANY_OAUTH2_OR_OIDC),
                 new OAuthTestFileSpec("test/oauth2-auth-code-authenticator.test.mustache", "test", "oauth2-auth-code-authenticator.test.ts", OAuthTestCondition.AUTH_CODE),
                 new OAuthTestFileSpec("test/oauth2-implicit-authenticator.test.mustache", "test", "oauth2-implicit-authenticator.test.ts", OAuthTestCondition.IMPLICIT),

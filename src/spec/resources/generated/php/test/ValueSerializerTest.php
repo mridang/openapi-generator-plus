@@ -356,9 +356,11 @@ class ValueSerializerTest extends TestCase
         $this->assertSame('', ValueSerializer::serializeStyled('id', null, 'path', 'string', null, 'simple', true));
     }
 
-    public function testSimpleScalarDoesNotUrlEncode(): void
+    public function testSimpleScalarPathIsUrlEncoded(): void
     {
-        $this->assertSame('hello world', ValueSerializer::serializeStyled('id', 'hello world', 'path', 'string', null, 'simple', false));
+        // Gap W1: simple-style path values must be percent-encoded so reserved
+        // characters (space, '/', '?', '#') don't leak into the URL.
+        $this->assertSame('hello%20world', ValueSerializer::serializeStyled('id', 'hello world', 'path', 'string', null, 'simple', false));
     }
 
     // -- serializeStyled: null style falls back to location default --
@@ -455,6 +457,17 @@ class ValueSerializerTest extends TestCase
     public function testPathEncodingParitySimpleStyleArrayEncodesEachItem(): void
     {
         $this->assertSame('a%20b,c%3Fd', ValueSerializer::serializeStyled('color', ['a b', 'c?d'], 'path', 'array', null, 'simple', false));
+    }
+
+    public function test_path_array_item_with_reserved_char_is_percent_encoded(): void
+    {
+        // Gap W1 regression: every per-item path value in a styled array
+        // must be percent-encoded BEFORE being joined with the structural
+        // separator. Otherwise '/', '?', '#', space leak into the URL.
+        $items = ['a/b', 'c'];
+        $this->assertSame('a%2Fb,c', ValueSerializer::serializeStyled('name', $items, 'path', 'array', null, 'simple', false));
+        $this->assertSame('.a%2Fb.c', ValueSerializer::serializeStyled('name', $items, 'path', 'array', null, 'label', true));
+        $this->assertSame(';name=a%2Fb,c', ValueSerializer::serializeStyled('name', $items, 'path', 'array', null, 'matrix', false));
     }
 
     public function testPathEncodingParityMatrixStyleEncodesValue(): void

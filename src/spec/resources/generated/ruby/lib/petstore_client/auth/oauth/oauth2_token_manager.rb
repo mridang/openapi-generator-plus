@@ -138,7 +138,8 @@ module PetstoreClient
 
         def apply_token_response(parsed)
           @access_token = parsed['access_token']
-          @refresh_token = parsed['refresh_token'] if parsed.key?('refresh_token')
+          new_refresh_token = parsed['refresh_token']
+          @refresh_token = new_refresh_token if new_refresh_token.is_a?(String) && !new_refresh_token.empty?
           return unless parsed.key?('expires_in')
 
           expires_in = parsed['expires_in'].to_i

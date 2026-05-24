@@ -286,6 +286,34 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
+    public async Task RefreshTokenEmptyStringPreservesExisting()
+    {
+        // Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
+        // MUST NOT clobber the cached refresh_token.
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"access_token\":\"old_access\",\"refresh_token\":\"old_refresh\",\"expires_in\":1}"
+        );
+        client.Enqueue(
+            "{\"access_token\":\"new_access\",\"expires_in\":3600,\"refresh_token\":\"\"}"
+        );
+
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var parameters = new Dictionary<string, string> { ["grant_type"] = "authorization_code" };
+        var tokenUrl = new Uri("https://auth.example.com/token");
+
+        await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        Assert.Equal("old_refresh", manager.RefreshToken);
+
+        // Second call: access token near-expiry, refresh fires with "old_refresh";
+        // server replies with empty refresh_token which must not clobber the cache.
+        await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        Assert.Equal("old_refresh", manager.RefreshToken);
+    }
+
+    [Fact]
     public async Task ThrowsWhenTokenRequestFails()
     {
         var client = new FakeApiClient();

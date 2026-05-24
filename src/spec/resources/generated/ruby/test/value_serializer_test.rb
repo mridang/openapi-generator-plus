@@ -398,6 +398,19 @@ describe PetstoreClient::ValueSerializer do
       _(result).must_equal('a%20b,c%3Fd')
     end
 
+    it 'path_array_item_with_reserved_char_is_percent_encoded' do
+      # Gap W1 regression: every per-item path value in a styled array
+      # must be percent-encoded BEFORE being joined with the structural
+      # separator. Otherwise '/', '?', '#', space leak into the URL.
+      items = ['a/b', 'c']
+      _(PetstoreClient::ValueSerializer.serialize_styled('name', items, :path, 'array', nil, 'simple', false))
+        .must_equal('a%2Fb,c')
+      _(PetstoreClient::ValueSerializer.serialize_styled('name', items, :path, 'array', nil, 'label', true))
+        .must_equal('.a%2Fb.c')
+      _(PetstoreClient::ValueSerializer.serialize_styled('name', items, :path, 'array', nil, 'matrix', false))
+        .must_equal(';name=a%2Fb,c')
+    end
+
     it 'matrix style encodes value' do
       result = PetstoreClient::ValueSerializer.serialize_styled('color', 'a b', :path, 'string', nil, 'matrix', false)
       _(result).must_equal(';color=a%20b')

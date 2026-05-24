@@ -112,4 +112,21 @@ class OAuth2AuthCodeAuthenticatorTest {
 
         assertEquals("https://api.example.com", auth.getHost());
     }
+
+    @Test
+    void auth_headers_before_exchange_returns_recoverable_error() {
+        OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+
+        // Calling getAuthHeaders before exchangeCode is a precondition
+        // violation. It must surface as a catchable exception so callers
+        // can recover -- not as a process crash.
+        IllegalStateException caught = assertThrows(
+                IllegalStateException.class,
+                () -> auth.getAuthHeaders(),
+                "expected getAuthHeaders to throw before exchangeCode");
+        assertNotNull(caught);
+
+        // Caller continues normally after catching -- no process crash.
+        assertEquals("https://api.example.com", auth.getHost());
+    }
 }

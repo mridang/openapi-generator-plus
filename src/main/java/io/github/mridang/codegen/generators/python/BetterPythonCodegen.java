@@ -574,6 +574,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     @Override
     protected List<OAuthTestFileSpec> getOAuthTestFileSpecs() {
         return List.of(
+                new OAuthTestFileSpec("test/test_basic_authenticator.mustache", "test", "test_basic_authenticator.py", OAuthTestCondition.BASIC),
                 new OAuthTestFileSpec("test/test_oauth2_token_manager.mustache", "test", "test_oauth2_token_manager.py", OAuthTestCondition.ANY_OAUTH2_OR_OIDC),
                 new OAuthTestFileSpec("test/test_oauth2_auth_code_authenticator.mustache", "test", "test_oauth2_auth_code_authenticator.py", OAuthTestCondition.AUTH_CODE),
                 new OAuthTestFileSpec("test/test_oauth2_implicit_authenticator.mustache", "test", "test_oauth2_implicit_authenticator.py", OAuthTestCondition.IMPLICIT),

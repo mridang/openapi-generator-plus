@@ -1,0 +1,40 @@
+{{>api_info}}
+
+package {{invokerPackage}}.auth;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+
+class BasicAuthenticatorTest {
+
+    @Test
+    void validCredentialsProduceBasicHeader() {
+        BasicAuthenticator auth =
+                new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
+        Map<String, String> headers = auth.getAuthHeaders();
+        assertEquals("Basic YWxpY2U6czNjcmV0", headers.get("Authorization"));
+    }
+
+    @Test
+    void rejectsUsernameWithCrlf() {
+        BasicAuthenticator auth =
+                new BasicAuthenticator("https://api.example.com", "alice\r\n", "s3cret");
+        assertThrows(IllegalArgumentException.class, auth::getAuthHeaders);
+    }
+
+    @Test
+    void rejectsPasswordWithNul() {
+        BasicAuthenticator auth =
+                new BasicAuthenticator("https://api.example.com", "alice", "s3c\0ret");
+        assertThrows(IllegalArgumentException.class, auth::getAuthHeaders);
+    }
+
+    @Test
+    void rejectsUsernameWithColon() {
+        BasicAuthenticator auth =
+                new BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret");
+        assertThrows(IllegalArgumentException.class, auth::getAuthHeaders);
+    }
+}

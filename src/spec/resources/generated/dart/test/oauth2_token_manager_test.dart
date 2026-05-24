@@ -264,6 +264,32 @@ void main() {
       expect(client.requestCount, equals(2));
     });
 
+    test('refresh_token empty string preserves existing', () async {
+      // Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
+      // MUST NOT clobber the cached refresh_token.
+      final client = _FakeApiClient();
+      client.enqueue(
+          '{"access_token":"old_access","refresh_token":"old_refresh","expires_in":1}');
+      client.enqueue(
+          '{"access_token":"new_access","expires_in":3600,"refresh_token":""}');
+
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+
+      final params = {'grant_type': 'authorization_code'};
+      const tokenUrl = 'https://auth.example.com/token';
+
+      await manager.getAccessToken(tokenUrl, params);
+      expect(manager.refreshToken, equals('old_refresh'));
+
+      // Second call: access token near-expiry triggers refresh; the response
+      // contains an empty refresh_token which must not overwrite the cache.
+      await manager.getAccessToken(tokenUrl, params);
+      expect(manager.refreshToken, equals('old_refresh'),
+          reason:
+              'empty refresh_token in refresh response must not overwrite cached refresh_token');
+    });
+
     test('throws when token request fails', () async {
       final client = _FakeApiClient();
       client.enqueue('{"error":"invalid_client"}', statusCode: 401);

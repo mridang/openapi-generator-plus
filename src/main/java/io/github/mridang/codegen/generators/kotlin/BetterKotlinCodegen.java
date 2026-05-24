@@ -400,7 +400,15 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                             "test/ComposedSchemaTest.mustache",
                             testModelsFolder,
                             "ComposedSchemaTest.kt"));
+            final String testBasicAuthFolder = Path.of(testFolder, "auth").toString();
             final String testAuthFolder = Path.of(testFolder, "auth", "oauth").toString();
+            if (hasBasicAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/BasicAuthenticatorTest.mustache",
+                                testBasicAuthFolder,
+                                "BasicAuthenticatorTest.kt"));
+            }
             supportingFiles.add(
                     new SupportingFile(
                             "test/OAuth2TokenManagerTest.mustache",

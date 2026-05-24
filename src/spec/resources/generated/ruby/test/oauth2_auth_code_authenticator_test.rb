@@ -97,4 +97,20 @@ describe PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
   it 'getHost returns configured host' do
     _(auth.host).must_equal 'https://api.example.com'
   end
+
+  it 'auth_headers_before_exchange_returns_recoverable_error' do
+    # Calling auth_headers before exchange_code is a precondition violation.
+    # It must surface as a catchable exception so callers can recover --
+    # not as a process crash.
+    caught = nil
+    begin
+      auth.auth_headers
+    rescue RuntimeError => e
+      caught = e
+    end
+    _(caught).wont_be_nil
+
+    # Caller continues normally after rescuing -- no process crash.
+    _(auth.host).must_equal 'https://api.example.com'
+  end
 end

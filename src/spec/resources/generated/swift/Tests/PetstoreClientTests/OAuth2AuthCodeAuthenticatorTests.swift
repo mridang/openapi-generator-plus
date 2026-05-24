@@ -106,14 +106,36 @@ import Testing
         #expect(headers["Authorization"] == "Bearer tok2")
     }
 
-    @Test func testThrowsBeforeExchangeCodeCalled() {
+    @Test func testThrowsBeforeExchangeCodeCalled() async {
         let auth = createAuthenticator()
 
-        // authHeaders() calls fatalError before exchangeCode -- we verify the precondition
-        // by checking that no token is available without exchange
+        // authHeaders() (the protocol method) must NOT crash if exchangeCode
+        // was never called -- it now soft-fails to an empty dictionary so
+        // the resulting request surfaces as a 401 instead of terminating the
+        // process. Callers that want a precise error use authHeadersOrThrow.
+        let headers = await auth.authHeaders()
+        #expect(headers.isEmpty)
+    }
+
+    @Test func test_auth_headers_before_exchange_returns_recoverable_error() async {
+        let auth = createAuthenticator()
+
+        // Construct without exchangeCode, then prove the precondition
+        // violation is catchable: authHeadersOrThrow throws a typed error
+        // the caller can match on and recover from.
+        var caught: OAuth2AuthorizationCodeError? = nil
+        do {
+            _ = try await auth.authHeadersOrThrow()
+            Issue.record("expected authHeadersOrThrow to throw before exchangeCode")
+        } catch let error as OAuth2AuthorizationCodeError {
+            caught = error
+        } catch {
+            Issue.record("expected OAuth2AuthorizationCodeError, got \(error)")
+        }
+        #expect(caught == .codeNotExchanged)
+
+        // Caller continues normally after catching -- no process crash.
         #expect(auth.host() == "https://api.example.com")
-        // Note: In Swift, fatalError cannot be caught in Swift Testing without a custom assertion.
-        // We verify the authenticator state is consistent before exchange.
     }
 
     @Test func testGetHostReturnsConfiguredHost() {

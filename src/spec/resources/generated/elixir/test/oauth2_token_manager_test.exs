@@ -312,6 +312,36 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert FakeApiClient.call_count(fake_client) == 2
     end
 
+    test "refresh_token empty string preserves existing" do
+      # Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
+      # MUST NOT clobber the cached refresh_token.
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "old_access", "refresh_token" => "old_refresh", "expires_in" => 1})
+          },
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "new_access", "expires_in" => 3600, "refresh_token" => ""})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "authorization_code"}
+      token_url = "https://auth.example.com/token"
+
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.refresh_token(manager) == "old_refresh"
+
+      # Second call: access token near-expiry triggers refresh; the response
+      # contains an empty refresh_token which must not clobber the cached value.
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.refresh_token(manager) == "old_refresh"
+    end
+
     test "throws when token request fails" do
       fake_client =
         FakeApiClient.new([

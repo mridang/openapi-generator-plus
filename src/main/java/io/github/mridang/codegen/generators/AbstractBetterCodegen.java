@@ -751,7 +751,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         /** Password authenticator test. */
         PASSWORD,
         /** OpenID Connect authenticator test. */
-        OIDC
+        OIDC,
+        /** HTTP Basic authenticator test. */
+        BASIC
     }
 
     /** Descriptor for a single OAuth test supporting file. */
@@ -887,6 +889,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     shouldAdd = hasOAuth2Password;
                 } else if (spec.condition() == OAuthTestCondition.OIDC) {
                     shouldAdd = hasOpenIdConnect;
+                } else if (spec.condition() == OAuthTestCondition.BASIC) {
+                    shouldAdd = hasBasicAuth;
                 } else {
                     shouldAdd = false;
                 }

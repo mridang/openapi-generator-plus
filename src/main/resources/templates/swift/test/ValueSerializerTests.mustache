@@ -433,6 +433,19 @@ import Testing
         #expect(result as? String == "a%20b,c%3Fd")
     }
 
+    // Gap W1 regression: every per-item path value in a styled array must be
+    // percent-encoded BEFORE being joined with the structural separator.
+    // Otherwise '/', '?', '#', space leak into the URL.
+    @Test func test_path_array_item_with_reserved_char_is_percent_encoded() {
+        let items: [String] = ["a/b", "c"]
+        let simple = ValueSerializer.serializeStyled("name", value: items, location: "path", schemaType: "array", collectionFormat: "", style: "simple", explode: false)
+        #expect(simple as? String == "a%2Fb,c")
+        let label = ValueSerializer.serializeStyled("name", value: items, location: "path", schemaType: "array", collectionFormat: "", style: "label", explode: true)
+        #expect(label as? String == ".a%2Fb.c")
+        let matrix = ValueSerializer.serializeStyled("name", value: items, location: "path", schemaType: "array", collectionFormat: "", style: "matrix", explode: false)
+        #expect(matrix as? String == ";name=a%2Fb,c")
+    }
+
     @Test func testPathEncodingParityMatrixStyleEncodesValue() {
         let result = ValueSerializer.serializeStyled("color", value: "a b", location: "path", schemaType: "string", collectionFormat: "", style: "matrix", explode: false)
         #expect(result as? String == ";color=a%20b")

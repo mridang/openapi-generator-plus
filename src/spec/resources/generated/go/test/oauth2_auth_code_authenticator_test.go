@@ -8,6 +8,7 @@
 package petstore_test
 
 import (
+	"errors"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -152,13 +153,43 @@ func TestOAuth2AuthCode_IncludesRefreshTokenOnRefresh(t *testing.T) {
 func TestOAuth2AuthCode_ThrowsBeforeExchangeCodeCalled(t *testing.T) {
 	authObj := createAuthCodeAuthenticator()
 
+	// AuthHeaders (interface method) must NOT panic if ExchangeCode was
+	// never called -- it now soft-fails to an empty map so the resulting
+	// request surfaces as a 401 instead of crashing the process. Callers
+	// that want a precise error use AuthHeadersOrError.
 	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic when calling AuthHeaders before ExchangeCode")
+		if r := recover(); r != nil {
+			t.Fatalf("AuthHeaders must not panic before ExchangeCode, got: %v", r)
 		}
 	}()
 
-	authObj.AuthHeaders()
+	headers := authObj.AuthHeaders()
+	if len(headers) != 0 {
+		t.Errorf("expected empty headers before ExchangeCode, got %v", headers)
+	}
+}
+
+func TestOAuth2AuthCode_auth_headers_before_exchange_returns_recoverable_error(t *testing.T) {
+	authObj := createAuthCodeAuthenticator()
+
+	// Construct without ExchangeCode, then prove the precondition
+	// violation is catchable: AuthHeadersOrError returns a sentinel error
+	// the caller can match on with errors.Is and recover from.
+	headers, err := authObj.AuthHeadersOrError()
+	if err == nil {
+		t.Fatal("expected AuthHeadersOrError to return error before ExchangeCode")
+	}
+	if headers != nil {
+		t.Errorf("expected nil headers on error, got %v", headers)
+	}
+	if !errors.Is(err, oauth.ErrAuthCodeNotExchanged) {
+		t.Errorf("expected ErrAuthCodeNotExchanged, got %v", err)
+	}
+
+	// Caller continues normally after catching -- no process crash.
+	if authObj.Host() != "https://api.example.com" {
+		t.Errorf("expected host 'https://api.example.com', got %q", authObj.Host())
+	}
 }
 
 func TestOAuth2AuthCode_GetHostReturnsConfiguredHost(t *testing.T) {

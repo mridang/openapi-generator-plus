@@ -495,6 +495,18 @@ public class ValueSerializerTest
     }
 
     [Fact]
+    public void path_array_item_with_reserved_char_is_percent_encoded()
+    {
+        // Gap W1 regression: every per-item path value in a styled array
+        // must be percent-encoded BEFORE being joined with the structural
+        // separator. Otherwise '/', '?', '#', space leak into the URL.
+        var items = new List<object> { "a/b", "c" };
+        Assert.Equal("a%2Fb,c", ValueSerializer.SerializeStyled("name", items, "path", "array", null, "simple", false));
+        Assert.Equal(".a%2Fb.c", ValueSerializer.SerializeStyled("name", items, "path", "array", null, "label", true));
+        Assert.Equal(";name=a%2Fb,c", ValueSerializer.SerializeStyled("name", items, "path", "array", null, "matrix", false));
+    }
+
+    [Fact]
     public void PathEncodingParityMatrixStyleEncodesValue()
     {
         Assert.Equal(";color=a%20b", ValueSerializer.SerializeStyled("color", "a b", "path", "string", null, "matrix", false));

@@ -187,7 +187,9 @@ impl OAuth2TokenManager {
             inner.access_token = token.to_string();
         }
         if let Some(refresh) = parsed.get("refresh_token").and_then(|v| v.as_str()) {
-            inner.refresh_token = refresh.to_string();
+            if !refresh.is_empty() {
+                inner.refresh_token = refresh.to_string();
+            }
         }
         if let Some(expires_in) = parsed.get("expires_in").and_then(|v| v.as_u64()) {
             let buffer_secs = expires_in.min(30);

@@ -227,6 +227,43 @@ class TestOAuth2TokenManager:
         assert second == 'edge2'
         assert mock_client.send_request.call_count == 2
 
+    def test_refresh_token_empty_string_preserves_existing(self) -> None:
+        # Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
+        # MUST NOT clobber the cached refresh_token.
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.side_effect = [
+            ApiResponse(
+                status_code=200,
+                body=json.dumps({
+                    'access_token': 'old_access',
+                    'refresh_token': 'old_refresh',
+                    'expires_in': 1,
+                }),
+                headers={'content-type': 'application/json'},
+            ),
+            ApiResponse(
+                status_code=200,
+                body=json.dumps({
+                    'access_token': 'new_access',
+                    'expires_in': 3600,
+                    'refresh_token': '',
+                }),
+                headers={'content-type': 'application/json'},
+            ),
+        ]
+        manager.set_api_client(mock_client)
+
+        params = {'grant_type': 'authorization_code'}
+        manager.get_access_token('https://auth.example.com/token', params)
+        assert manager.refresh_token == 'old_refresh'
+
+        # Second call refreshes (access expired); empty refresh_token in
+        # response must not overwrite cached refresh_token.
+        manager.get_access_token('https://auth.example.com/token', params)
+        assert manager.refresh_token == 'old_refresh', \
+            'empty refresh_token in refresh response must not overwrite cached refresh_token'
+
     def test_throws_when_token_request_fails(self) -> None:
         manager = OAuth2TokenManager()
         mock_client = MagicMock()

@@ -12,7 +12,8 @@ import 'base_authenticator.dart';
 /// BasicAuthenticator provides HTTP Basic authentication.
 class BasicAuthenticator extends BaseAuthenticator {
   final String _host;
-  final String _authHeader;
+  final String _username;
+  final String _password;
 
   /// Creates a new Basic authenticator.
   BasicAuthenticator({
@@ -20,14 +21,47 @@ class BasicAuthenticator extends BaseAuthenticator {
     required String username,
     required String password,
   })  : _host = host,
-        _authHeader =
-            'Basic ${base64Encode(utf8.encode('$username:$password'))}';
+        _username = username,
+        _password = password;
 
   @override
   String host() => _host;
 
   @override
-  Map<String, String> authHeaders() => {
-        'Authorization': _authHeader,
-      };
+  Map<String, String> authHeaders() {
+    /* RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field
+     * separator) and neither user-id nor password may carry CR/LF/NUL
+     * (header-injection / smuggling vectors common when credentials are
+     * read from .env files or interactive prompts). */
+    for (final c in _username.codeUnits) {
+      if (c == 0x0D || c == 0x0A || c == 0x00) {
+        throw ArgumentError.value(
+          _username,
+          'username',
+          'Basic auth username must not contain CR, LF, or NUL characters',
+        );
+      }
+      if (c == 0x3A) {
+        throw ArgumentError.value(
+          _username,
+          'username',
+          "Basic auth username must not contain ':' (RFC 7617 §2)",
+        );
+      }
+    }
+    for (final c in _password.codeUnits) {
+      if (c == 0x0D || c == 0x0A || c == 0x00) {
+        throw ArgumentError.value(
+          _password,
+          'password',
+          'Basic auth password must not contain CR, LF, or NUL characters',
+        );
+      }
+    }
+    final authHeader =
+        'Basic ${base64Encode(utf8.encode('$_username:$_password'))}';
+    return {
+      'Authorization': authHeader,
+    };
+  }
 }

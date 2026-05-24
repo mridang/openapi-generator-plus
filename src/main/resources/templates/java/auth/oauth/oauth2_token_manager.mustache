@@ -176,7 +176,10 @@ public class OAuth2TokenManager {
             JsonNode json = objectMapper.readTree(response.body());
             this.accessToken = json.get("access_token").asText();
             if (json.has("refresh_token")) {
-                this.refreshToken = json.get("refresh_token").asText();
+                String newRefreshToken = json.get("refresh_token").asText();
+                if (newRefreshToken != null && !newRefreshToken.isEmpty()) {
+                    this.refreshToken = newRefreshToken;
+                }
             }
             if (json.has("expires_in")) {
                 long expiresIn = json.get("expires_in").asLong();

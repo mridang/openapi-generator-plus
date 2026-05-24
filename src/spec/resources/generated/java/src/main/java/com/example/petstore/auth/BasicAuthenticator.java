@@ -15,15 +15,13 @@ import java.util.Map;
 public class BasicAuthenticator extends BaseAuthenticator {
 
   private final String host;
-  private final String authHeader;
+  private final String username;
+  private final String password;
 
   public BasicAuthenticator(String host, String username, String password) {
     this.host = host;
-    this.authHeader =
-        "Basic "
-            + Base64.getEncoder()
-                .encodeToString(
-                    (username + ":" + password).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    this.username = username;
+    this.password = password;
   }
 
   @Override
@@ -33,6 +31,40 @@ public class BasicAuthenticator extends BaseAuthenticator {
 
   @Override
   public Map<String, String> getAuthHeaders() {
+    /* RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field
+     * separator) and neither user-id nor password may carry CR/LF/NUL
+     * (header-injection / smuggling vectors common when credentials
+     * are read from .env files or interactive prompts). Validation is
+     * lazy (not in the constructor) to avoid SpotBugs
+     * CT_CONSTRUCTOR_THROW on a non-final class. */
+    if (username != null) {
+      for (int i = 0; i < username.length(); i++) {
+        char c = username.charAt(i);
+        if (c == '\r' || c == '\n' || c == '\0') {
+          throw new IllegalArgumentException(
+              "Basic auth username must not contain CR, LF, or NUL characters");
+        }
+        if (c == ':') {
+          throw new IllegalArgumentException(
+              "Basic auth username must not contain ':' (RFC 7617 §2)");
+        }
+      }
+    }
+    if (password != null) {
+      for (int i = 0; i < password.length(); i++) {
+        char c = password.charAt(i);
+        if (c == '\r' || c == '\n' || c == '\0') {
+          throw new IllegalArgumentException(
+              "Basic auth password must not contain CR, LF, or NUL characters");
+        }
+      }
+    }
+    String credentials =
+        (username == null ? "" : username) + ":" + (password == null ? "" : password);
+    String authHeader =
+        "Basic "
+            + Base64.getEncoder()
+                .encodeToString(credentials.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     return Collections.singletonMap("Authorization", authHeader);
   }
 }

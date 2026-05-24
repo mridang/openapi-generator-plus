@@ -227,6 +227,50 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
+  void refreshTokenEmptyStringPreservesExisting() {
+    // Gap A3 (RFC 6749 §6): when the refresh response omits or returns an
+    // empty refresh_token, the cached refresh_token MUST be preserved.
+    var responses =
+        new Object() {
+          int call = 0;
+        };
+    ApiClient client =
+        (method, url, headers, body) -> {
+          responses.call++;
+          if (responses.call == 1) {
+            // Seed with refresh_token "old_refresh" and a short-lived access token.
+            return new ApiResponse(
+                200,
+                "{\"access_token\":\"old_access\",\"refresh_token\":\"old_refresh\",\"expires_in\":1}",
+                Map.of());
+          }
+          // Refresh response: empty refresh_token MUST NOT clobber the cached one.
+          return new ApiResponse(
+              200,
+              "{\"access_token\":\"new_access\",\"expires_in\":3600,\"refresh_token\":\"\"}",
+              Map.of());
+        };
+
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "authorization_code");
+
+    manager.getAccessToken("https://auth.example.com/token", params);
+    assertEquals("old_refresh", manager.getRefreshToken());
+
+    // Second call: access token is near-expiry (expires_in=1 minus buffer => already expired);
+    // the manager should attempt a refresh using "old_refresh" and receive a response
+    // containing an empty refresh_token. The cached refresh token must survive.
+    manager.getAccessToken("https://auth.example.com/token", params);
+    assertEquals(
+        "old_refresh",
+        manager.getRefreshToken(),
+        "empty refresh_token in refresh response must not overwrite cached refresh_token");
+  }
+
+  @Test
   void throwsWhenTokenRequestFails() {
     OAuth2TokenManager manager = new OAuth2TokenManager();
     manager.setApiClient(fakeClient(401, "{\"error\":\"invalid_client\"}"));

@@ -165,6 +165,26 @@ describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
     _(client.call_count).must_equal 2
   end
 
+  it 'refresh_token empty string preserves existing' do
+    # Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
+    # MUST NOT clobber the cached refresh_token.
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'old_access', 'refresh_token' => 'old_refresh', 'expires_in' => 1 } },
+      { status: 200, body: { 'access_token' => 'new_access', 'expires_in' => 3600, 'refresh_token' => '' } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    params = { 'grant_type' => 'authorization_code' }
+    manager.get_access_token('https://auth.example.com/token', params)
+    _(manager.refresh_token).must_equal 'old_refresh'
+
+    # Second call: access token near-expiry triggers refresh; server replies
+    # with empty refresh_token which must not overwrite the cached value.
+    manager.get_access_token('https://auth.example.com/token', params)
+    _(manager.refresh_token).must_equal 'old_refresh'
+  end
+
   it 'throws when token request fails' do
     client = FakeTokenClient.new([
       { status: 401, body: { 'error' => 'invalid_client' } }

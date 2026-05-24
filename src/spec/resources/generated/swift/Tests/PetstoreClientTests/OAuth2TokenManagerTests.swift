@@ -274,6 +274,32 @@ import Testing
         #expect(second == "edge2")
     }
 
+    @Test func testRefreshTokenEmptyStringPreservesExisting() async throws {
+        // Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
+        // MUST NOT clobber the cached refresh_token.
+        let client = MockApiClient()
+        client.responses.append(
+            makeResponse(body: "{\"access_token\":\"old_access\",\"refresh_token\":\"old_refresh\",\"expires_in\":1}"))
+        client.responses.append(
+            makeResponse(body: "{\"access_token\":\"new_access\",\"expires_in\":3600,\"refresh_token\":\"\"}"))
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let params = ["grant_type": "authorization_code"]
+        let tokenURL = "https://auth.example.com/token"
+
+        _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        #expect(manager.refreshToken == "old_refresh")
+
+        // Second call: access token near-expiry triggers refresh via "old_refresh".
+        // Server replies with empty refresh_token which must not overwrite cache.
+        _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        #expect(
+            manager.refreshToken == "old_refresh",
+            "empty refresh_token in refresh response must not overwrite cached refresh_token")
+    }
+
     @Test func testThrowsWhenTokenRequestFails() async {
         let client = MockApiClient()
         client.responses.append(makeResponse(body: "{\"error\":\"invalid_client\"}", statusCode: 401))

@@ -201,6 +201,31 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
+    fun refreshTokenEmptyStringPreservesExisting() {
+        // Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
+        // MUST NOT clobber the cached refresh_token.
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"old_access","refresh_token":"old_refresh","expires_in":1}""")
+        client.enqueue("""{"access_token":"new_access","expires_in":3600,"refresh_token":""}""")
+
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val params = mapOf("grant_type" to "authorization_code")
+        val tokenUrl = "https://auth.example.com/token"
+
+        runBlocking { manager.getAccessToken(tokenUrl, params) }
+        assertEquals("old_refresh", manager.getRefreshToken())
+
+        // Second call: access token is near-expiry, manager refreshes using
+        // "old_refresh"; the response contains an empty refresh_token which
+        // must NOT overwrite the cached value.
+        runBlocking { manager.getAccessToken(tokenUrl, params) }
+        assertEquals("old_refresh", manager.getRefreshToken(),
+            "empty refresh_token in refresh response must not overwrite cached refresh_token")
+    }
+
+    @Test
     fun throwsWhenTokenRequestFails() {
         val client = FakeApiClient()
         client.enqueue("""{"error":"invalid_client"}""", statusCode = 401)

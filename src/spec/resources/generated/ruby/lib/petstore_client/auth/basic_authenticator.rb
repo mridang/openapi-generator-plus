@@ -21,12 +21,30 @@ module PetstoreClient
       def initialize(host, username, password)
         super()
         @host = host
-        @auth_header = "Basic #{Base64.strict_encode64("#{username}:#{password}")}"
+        @username = username
+        @password = password
       end
 
       # @return [Hash{String => String}]
       def auth_headers
-        { 'Authorization' => @auth_header }
+        # RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field
+        # separator) and neither user-id nor password may carry CR/LF/NUL
+        # (header-injection / smuggling vectors common when credentials
+        # are read from .env files or interactive prompts).
+        if @username.match?(/[\r\n\x00]/)
+          raise ArgumentError,
+            'Basic auth username must not contain CR, LF, or NUL characters'
+        end
+        if @username.include?(':')
+          raise ArgumentError,
+            "Basic auth username must not contain ':' (RFC 7617 §2)"
+        end
+        if @password.match?(/[\r\n\x00]/)
+          raise ArgumentError,
+            'Basic auth password must not contain CR, LF, or NUL characters'
+        end
+        auth_header = "Basic #{Base64.strict_encode64("#{@username}:#{@password}")}"
+        { 'Authorization' => auth_header }
       end
     end
   end

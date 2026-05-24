@@ -366,6 +366,13 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                             "test/ComposedSchemaTests.mustache",
                             testDir,
                             "ComposedSchemaTests.swift"));
+            if (hasBasicAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/BasicAuthenticatorTests.mustache",
+                                testDir,
+                                "BasicAuthenticatorTests.swift"));
+            }
             supportingFiles.add(
                     new SupportingFile(
                             "test/OAuth2TokenManagerTests.mustache",

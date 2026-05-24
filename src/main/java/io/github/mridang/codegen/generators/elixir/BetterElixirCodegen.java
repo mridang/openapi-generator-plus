@@ -375,6 +375,13 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                             "test/composed_schema_test.mustache",
                             "test",
                             "composed_schema_test.exs"));
+            if (hasBasicAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/basic_authenticator_test.mustache",
+                                "test",
+                                "basic_authenticator_test.exs"));
+            }
             supportingFiles.add(
                     new SupportingFile(
                             "test/oauth2_token_manager_test.mustache",

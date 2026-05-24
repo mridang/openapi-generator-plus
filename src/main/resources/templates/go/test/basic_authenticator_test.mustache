@@ -1,0 +1,46 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"testing"
+
+	"{{packageName}}/pkg/auth"
+)
+
+func TestBasicAuthenticator_ValidCredentialsProduceBasicHeader(t *testing.T) {
+	a := auth.NewBasicAuthenticator("https://api.example.com", "alice", "s3cret")
+	headers := a.AuthHeaders()
+	if got, want := headers["Authorization"], "Basic YWxpY2U6czNjcmV0"; got != want {
+		t.Fatalf("Authorization header = %q, want %q", got, want)
+	}
+}
+
+func TestBasicAuthenticator_RejectsUsernameWithCrlf(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected panic for CRLF in username")
+		}
+	}()
+	a := auth.NewBasicAuthenticator("https://api.example.com", "alice\r\n", "s3cret")
+	a.AuthHeaders()
+}
+
+func TestBasicAuthenticator_RejectsPasswordWithNul(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected panic for NUL in password")
+		}
+	}()
+	a := auth.NewBasicAuthenticator("https://api.example.com", "alice", "s3c\x00ret")
+	a.AuthHeaders()
+}
+
+func TestBasicAuthenticator_RejectsUsernameWithColon(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected panic for ':' in username")
+		}
+	}()
+	a := auth.NewBasicAuthenticator("https://api.example.com", "ali:ce", "s3cret")
+	a.AuthHeaders()
+}

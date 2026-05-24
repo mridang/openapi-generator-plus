@@ -1,0 +1,36 @@
+{{>api_info}}
+namespace {{invokerPackage}}\Test;
+
+use PHPUnit\Framework\TestCase;
+use {{invokerPackage}}\Auth\BasicAuthenticator;
+
+class BasicAuthenticatorTest extends TestCase
+{
+    public function testValidCredentialsProduceBasicHeader(): void
+    {
+        $auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
+        $headers = $auth->getAuthHeaders();
+        $this->assertSame('Basic YWxpY2U6czNjcmV0', $headers['Authorization']);
+    }
+
+    public function testRejectsUsernameWithCrlf(): void
+    {
+        $auth = new BasicAuthenticator('https://api.example.com', "alice\r\n", 's3cret');
+        $this->expectException(\InvalidArgumentException::class);
+        $auth->getAuthHeaders();
+    }
+
+    public function testRejectsPasswordWithNul(): void
+    {
+        $auth = new BasicAuthenticator('https://api.example.com', 'alice', "s3c\0ret");
+        $this->expectException(\InvalidArgumentException::class);
+        $auth->getAuthHeaders();
+    }
+
+    public function testRejectsUsernameWithColon(): void
+    {
+        $auth = new BasicAuthenticator('https://api.example.com', 'ali:ce', 's3cret');
+        $this->expectException(\InvalidArgumentException::class);
+        $auth->getAuthHeaders();
+    }
+}

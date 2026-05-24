@@ -576,6 +576,13 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                     Path.of(testFolder, "auth").toString();
             final String testAuthOauthFolder =
                     Path.of(testFolder, "auth", "oauth").toString();
+            if (hasBasicAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/BasicAuthenticatorTest.mustache",
+                                testAuthFolder,
+                                "BasicAuthenticatorTest.java"));
+            }
             if (hasBearerAuth) {
                 supportingFiles.add(
                         new SupportingFile(

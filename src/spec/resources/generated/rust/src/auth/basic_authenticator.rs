@@ -17,16 +17,17 @@ use super::Authenticator;
 /// BasicAuthenticator provides HTTP Basic authentication.
 pub struct BasicAuthenticator {
     host: String,
-    auth_header: String,
+    username: String,
+    password: String,
 }
 
 impl BasicAuthenticator {
     /// Creates a new Basic authenticator.
     pub fn new(host: &str, username: &str, password: &str) -> Self {
-        let encoded = STANDARD.encode(format!("{}:{}", username, password));
         Self {
             host: host.to_string(),
-            auth_header: format!("Basic {}", encoded),
+            username: username.to_string(),
+            password: password.to_string(),
         }
     }
 }
@@ -36,12 +37,33 @@ impl Authenticator for BasicAuthenticator {
         &self.host
     }
 
+    /// # Panics
+    ///
+    /// RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field separator)
+    /// and neither user-id nor password may carry CR/LF/NUL (header-injection
+    /// / smuggling vectors common when credentials are read from .env files
+    /// or interactive prompts). Panics because this is a programmer error,
+    /// not a recoverable runtime condition.
     fn auth_headers<'a>(
         &'a self,
     ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
         Box::pin(async move {
+            for c in self.username.chars() {
+                if c == '\r' || c == '\n' || c == '\0' {
+                    panic!("Basic auth username must not contain CR, LF, or NUL characters");
+                }
+                if c == ':' {
+                    panic!("Basic auth username must not contain ':' (RFC 7617 §2)");
+                }
+            }
+            for c in self.password.chars() {
+                if c == '\r' || c == '\n' || c == '\0' {
+                    panic!("Basic auth password must not contain CR, LF, or NUL characters");
+                }
+            }
+            let encoded = STANDARD.encode(format!("{}:{}", self.username, self.password));
             let mut headers = HashMap::new();
-            headers.insert("Authorization".to_string(), self.auth_header.clone());
+            headers.insert("Authorization".to_string(), format!("Basic {}", encoded));
             headers
         })
     }

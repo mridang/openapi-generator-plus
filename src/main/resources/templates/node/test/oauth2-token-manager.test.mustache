@@ -136,6 +136,52 @@ describe('OAuth2TokenManager', () => {
     ).rejects.toThrow();
   });
 
+  test('refresh_token empty string preserves existing', async () => {
+    // Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
+    // MUST NOT clobber the cached refresh_token.
+    let n = 0;
+    const stepClient: ApiClient = {
+      async sendRequest(): Promise<ApiResponse> {
+        n++;
+        if (n === 1) {
+          return {
+            statusCode: 200,
+            body: JSON.stringify({
+              access_token: 'old_access',
+              refresh_token: 'old_refresh',
+              expires_in: 1
+            }),
+            headers: { 'content-type': 'application/json' }
+          };
+        }
+        return {
+          statusCode: 200,
+          body: JSON.stringify({
+            access_token: 'new_access',
+            expires_in: 3600,
+            refresh_token: ''
+          }),
+          headers: { 'content-type': 'application/json' }
+        };
+      }
+    };
+
+    const manager = new OAuth2TokenManager();
+    manager.setApiClient(stepClient);
+
+    await manager.getAccessToken('https://auth.example.com/token', {
+      grant_type: 'authorization_code'
+    });
+    expect(manager.getRefreshToken()).toBe('old_refresh');
+
+    // Second call: access token near-expiry triggers refresh; the response
+    // contains an empty refresh_token which must NOT clobber the cache.
+    await manager.getAccessToken('https://auth.example.com/token', {
+      grant_type: 'authorization_code'
+    });
+    expect(manager.getRefreshToken()).toBe('old_refresh');
+  });
+
   test('throws when token request fails', async () => {
     mockClient.responseStatus = 401;
     mockClient.responseBody = JSON.stringify({ error: 'invalid_client' });

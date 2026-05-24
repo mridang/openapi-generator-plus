@@ -265,6 +265,15 @@ class TestPathEncodingParity:
     def test_simple_style_array_encodes_each_item(self) -> None:
         assert ValueSerializer.serialize_styled('color', ['a b', 'c?d'], 'path', 'array', None, 'simple', False) == 'a%20b,c%3Fd'
 
+    def test_path_array_item_with_reserved_char_is_percent_encoded(self) -> None:
+        # Gap W1 regression: every per-item path value in a styled array
+        # must be percent-encoded BEFORE being joined with the structural
+        # separator. Otherwise '/', '?', '#', space leak into the URL.
+        items = ['a/b', 'c']
+        assert ValueSerializer.serialize_styled('name', items, 'path', 'array', None, 'simple', False) == 'a%2Fb,c'
+        assert ValueSerializer.serialize_styled('name', items, 'path', 'array', None, 'label', True) == '.a%2Fb.c'
+        assert ValueSerializer.serialize_styled('name', items, 'path', 'array', None, 'matrix', False) == ';name=a%2Fb,c'
+
     def test_matrix_style_encodes_value(self) -> None:
         assert ValueSerializer.serialize_styled('color', 'a b', 'path', 'string', None, 'matrix', False) == ';color=a%20b'
 

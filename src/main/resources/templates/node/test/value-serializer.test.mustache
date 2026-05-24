@@ -345,6 +345,16 @@ describe('ValueSerializer', () => {
       expect(ValueSerializer.serializeStyled('color', ['a b', 'c?d'], 'path', 'array', null, 'simple', false)).toBe('a%20b,c%3Fd');
     });
 
+    test('path_array_item_with_reserved_char_is_percent_encoded', () => {
+      // Gap W1 regression: every per-item path value in a styled array
+      // must be percent-encoded BEFORE being joined with the structural
+      // separator. Otherwise '/', '?', '#', space leak into the URL.
+      const items = ['a/b', 'c'];
+      expect(ValueSerializer.serializeStyled('name', items, 'path', 'array', null, 'simple', false)).toBe('a%2Fb,c');
+      expect(ValueSerializer.serializeStyled('name', items, 'path', 'array', null, 'label', true)).toBe('.a%2Fb.c');
+      expect(ValueSerializer.serializeStyled('name', items, 'path', 'array', null, 'matrix', false)).toBe(';name=a%2Fb,c');
+    });
+
     test('matrix style encodes value', () => {
       expect(ValueSerializer.serializeStyled('color', 'a b', 'path', 'string', null, 'matrix', false)).toBe(';color=a%20b');
     });

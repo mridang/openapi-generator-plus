@@ -121,4 +121,30 @@ describe('OAuth2AuthorizationCodeAuthenticator', () => {
   test('getHost returns configured host', () => {
     expect(authenticator.getHost()).toBe('https://api.example.com');
   });
+
+  test('auth_headers_before_exchange_returns_recoverable_error', async () => {
+    // Fresh authenticator without exchangeCode -- the test must demonstrate
+    // the precondition violation surfaces as a catchable rejection so
+    // callers can recover, not as a process crash.
+    const fresh = new OAuth2AuthorizationCodeAuthenticator(
+      'https://api.example.com',
+      'my-client-id',
+      'my-client-secret',
+      'https://auth.example.com/authorize',
+      'https://auth.example.com/token',
+      'https://myapp.example.com/callback',
+      ['read', 'write']
+    );
+
+    let caught: unknown = null;
+    try {
+      await fresh.getAuthHeadersAsync();
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(Error);
+
+    // Caller continues normally after catching -- no process crash.
+    expect(fresh.getHost()).toBe('https://api.example.com');
+  });
 });

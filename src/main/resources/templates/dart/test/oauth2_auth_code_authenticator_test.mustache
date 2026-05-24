@@ -113,6 +113,26 @@ void main() {
 
       expect(auth.host(), equals('https://api.example.com'));
     });
+
+    test('auth_headers_before_exchange_returns_recoverable_error', () {
+      final auth = _createAuthenticator();
+
+      // Calling authHeaders before exchangeCode is a precondition violation.
+      // It must surface as a catchable error so callers can recover --
+      // not as a process crash.
+      Object? caught;
+      try {
+        auth.authHeaders();
+      } on StateError catch (e) {
+        caught = e;
+      }
+      expect(caught, isNotNull,
+          reason: 'expected authHeaders to throw before exchangeCode');
+      expect(caught, isA<StateError>());
+
+      // Caller continues normally after catching -- no process crash.
+      expect(auth.host(), equals('https://api.example.com'));
+    });
   });
 }
 {{/generateTests}}

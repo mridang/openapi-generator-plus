@@ -710,6 +710,50 @@ fn test_path_encoding_parity_simple_style_array_encodes_each_item() {
     assert_eq!(unwrap_single(result), "a%20b,c%3Fd");
 }
 
+// Gap W1 regression: every per-item path value in a styled array must be
+// percent-encoded BEFORE being joined with the structural separator.
+// Otherwise '/', '?', '#', space leak into the URL.
+#[test]
+fn test_path_array_item_with_reserved_char_is_percent_encoded() {
+    let items: Vec<String> = vec!["a/b".into(), "c".into()];
+
+    let simple = value_serializer::serialize_styled(
+        "name",
+        None,
+        Some(&items),
+        "path",
+        "array",
+        "",
+        "simple",
+        false,
+    );
+    assert_eq!(unwrap_single(simple), "a%2Fb,c");
+
+    let label = value_serializer::serialize_styled(
+        "name",
+        None,
+        Some(&items),
+        "path",
+        "array",
+        "",
+        "label",
+        true,
+    );
+    assert_eq!(unwrap_single(label), ".a%2Fb.c");
+
+    let matrix = value_serializer::serialize_styled(
+        "name",
+        None,
+        Some(&items),
+        "path",
+        "array",
+        "",
+        "matrix",
+        false,
+    );
+    assert_eq!(unwrap_single(matrix), ";name=a%2Fb,c");
+}
+
 #[test]
 fn test_path_encoding_parity_matrix_style_encodes_value() {
     let result = value_serializer::serialize_styled(

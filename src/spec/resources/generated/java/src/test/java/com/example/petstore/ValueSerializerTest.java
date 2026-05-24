@@ -167,6 +167,24 @@ class ValueSerializerTest {
     }
 
     @Test
+    @DisplayName("path_array_item_with_reserved_char_is_percent_encoded")
+    void path_array_item_with_reserved_char_is_percent_encoded() {
+      // Gap W1 regression: every per-item path value in a styled array
+      // must be percent-encoded BEFORE being joined with the structural
+      // separator. Otherwise '/', '?', '#', space leak into the URL.
+      List<String> items = Arrays.asList("a/b", "c");
+      assertEquals(
+          "a%2Fb,c",
+          ValueSerializer.serializeStyled("name", items, "path", "array", null, "simple", false));
+      assertEquals(
+          ".a%2Fb.c",
+          ValueSerializer.serializeStyled("name", items, "path", "array", null, "label", true));
+      assertEquals(
+          ";name=a%2Fb,c",
+          ValueSerializer.serializeStyled("name", items, "path", "array", null, "matrix", false));
+    }
+
+    @Test
     @DisplayName("empty string returns empty string")
     void emptyStringReturnsEmpty() {
       assertEquals("", ValueSerializer.serialize("", "path", "string", null));

@@ -157,4 +157,31 @@ class OAuth2AuthCodeAuthenticatorTest extends TestCase
 
         $this->assertStringContainsString('state=csrf-state-123', $url);
     }
+
+    public function test_auth_headers_before_exchange_returns_recoverable_error(): void
+    {
+        $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+            'https://api.example.com',
+            'my-client-id',
+            'my-client-secret',
+            'https://auth.example.com/authorize',
+            'https://auth.example.com/token',
+            'https://app.example.com/callback',
+            []
+        );
+
+        // Calling getAuthHeaders before exchangeCode is a precondition
+        // violation. It must surface as a catchable exception so callers
+        // can recover -- not as a fatal process crash.
+        $caught = null;
+        try {
+            $authenticator->getAuthHeaders();
+        } catch (\RuntimeException $e) {
+            $caught = $e;
+        }
+        $this->assertNotNull($caught, 'expected getAuthHeaders to throw before exchangeCode');
+
+        // Caller continues normally after catching -- no process crash.
+        $this->assertSame('https://api.example.com', $authenticator->getHost());
+    }
 }

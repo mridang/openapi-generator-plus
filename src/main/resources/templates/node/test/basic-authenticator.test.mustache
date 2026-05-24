@@ -1,0 +1,26 @@
+{{>api_info}}
+
+import { BasicAuthenticator } from '../src/auth/basic-authenticator{{importFileExtension}}';
+
+describe('BasicAuthenticator', () => {
+  it('valid credentials produce basic header', () => {
+    const auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
+    const headers = auth.getAuthHeaders();
+    expect(headers['Authorization']).toBe('Basic YWxpY2U6czNjcmV0');
+  });
+
+  it('rejects username with crlf', () => {
+    const auth = new BasicAuthenticator('https://api.example.com', 'alice\r\n', 's3cret');
+    expect(() => auth.getAuthHeaders()).toThrow();
+  });
+
+  it('rejects password with nul', () => {
+    const auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3c\0ret');
+    expect(() => auth.getAuthHeaders()).toThrow();
+  });
+
+  it('rejects username with colon', () => {
+    const auth = new BasicAuthenticator('https://api.example.com', 'ali:ce', 's3cret');
+    expect(() => auth.getAuthHeaders()).toThrow();
+  });
+});

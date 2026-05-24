@@ -14,16 +14,17 @@ import (
 // BasicAuthenticator provides HTTP Basic authentication.
 type BasicAuthenticator struct {
 	BaseAuthenticator
-	host       string
-	authHeader string
+	host     string
+	username string
+	password string
 }
 
 // NewBasicAuthenticator creates a new Basic authenticator.
 func NewBasicAuthenticator(host, username, password string) *BasicAuthenticator {
-	encoded := base64.StdEncoding.EncodeToString([]byte(username + ":" + password))
 	return &BasicAuthenticator{
-		host:       host,
-		authHeader: "Basic " + encoded,
+		host:     host,
+		username: username,
+		password: password,
 	}
 }
 
@@ -33,8 +34,28 @@ func (a *BasicAuthenticator) Host() string {
 }
 
 // AuthHeaders returns the Basic authentication header.
+//
+// RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field separator)
+// and neither user-id nor password may carry CR/LF/NUL (header-injection
+// / smuggling vectors common when credentials are read from .env files
+// or interactive prompts). panic is appropriate because this is a
+// programmer error, not a recoverable runtime condition.
 func (a *BasicAuthenticator) AuthHeaders() map[string]string {
+	for _, c := range a.username {
+		if c == '\r' || c == '\n' || c == '\x00' {
+			panic("Basic auth username must not contain CR, LF, or NUL characters")
+		}
+		if c == ':' {
+			panic("Basic auth username must not contain ':' (RFC 7617 §2)")
+		}
+	}
+	for _, c := range a.password {
+		if c == '\r' || c == '\n' || c == '\x00' {
+			panic("Basic auth password must not contain CR, LF, or NUL characters")
+		}
+	}
+	encoded := base64.StdEncoding.EncodeToString([]byte(a.username + ":" + a.password))
 	return map[string]string{
-		"Authorization": a.authHeader,
+		"Authorization": "Basic " + encoded,
 	}
 }
