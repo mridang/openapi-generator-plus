@@ -1,0 +1,17 @@
+{
+  "request": {
+    "method": "ANY",
+    "url": "/api/echo-method-body"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "transformers": ["response-template"],
+    "jsonBody": {
+      "method": "{{request.method}}",
+      "body": "{{{request.body}}}"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "request": {
+    "method": "ANY",
+    "url": "/api/redirect-303"
+  },
+  "response": {
+    "status": 303,
+    "headers": {
+      "Location": "/api/echo-method-body"
+    }
+  }
+}

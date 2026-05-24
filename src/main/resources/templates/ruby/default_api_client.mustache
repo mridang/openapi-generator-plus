@@ -117,13 +117,9 @@ module {{moduleName}}
             #              non-GET/HEAD requests, drop the body.
             status_code = response.status.to_i
             method_str = current_method.to_s.upcase
-            if [307, 308].include?(status_code)
-              next_method = current_method
-              next_body = current_body
-            elsif status_code == 303
-              next_method = :get
-              next_body = nil
-            elsif %w[GET HEAD].include?(method_str)
+            preserve_method = [307, 308].include?(status_code) ||
+                              %w[GET HEAD].include?(method_str)
+            if preserve_method && status_code != 303
               next_method = current_method
               next_body = current_body
             else
