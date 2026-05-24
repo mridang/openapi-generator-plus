@@ -26,8 +26,16 @@ export class ApiKeyAuthenticator extends BaseAuthenticator {
     if (apiKey.length === 0 || apiKey.trim().length === 0) {
       throw new Error(`API key value for '${keyParamName}' must not be empty`);
     }
-    if (/[\r\n\x00]/.test(apiKey)) {
-      throw new Error(`API key value for '${keyParamName}' contains forbidden control characters (CR/LF/NUL)`);
+    /* RFC 7230 §3.2.4 — CR/LF in header values enables HTTP header
+     * splitting; NUL terminates C strings in many downstream HTTP
+     * libraries. Reject all three via explicit char-code checks
+     * rather than a control-char regex (avoids eslint
+     * `no-control-regex` which flags literal \x00 in patterns). */
+    for (let i = 0; i < apiKey.length; i++) {
+      const code = apiKey.charCodeAt(i);
+      if (code === 0x0d || code === 0x0a || code === 0x00) {
+        throw new Error(`API key value for '${keyParamName}' contains forbidden control characters (CR/LF/NUL)`);
+      }
     }
     if (location === ApiKeyLocation.HEADER && /[^\t\x20-\x7E]/.test(apiKey)) {
       throw new Error(

@@ -530,8 +530,10 @@ class DefaultApiClientUnitTest extends TestCase
                 // expected
             }
         }
-        // ASCII filename should not throw
+        /* ASCII filename should not throw; record one assertion so PHPUnit
+         * doesn't flag the test as risky. Avoids PHPStan's
+         * method.alreadyNarrowedType complaint on assertTrue(true). */
         DefaultApiClient::validateMultipartFilename('pet.png');
-        $this->assertTrue(true);
+        $this->addToAssertionCount(1);
     }
 }

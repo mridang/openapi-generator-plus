@@ -47,7 +47,7 @@ fn test_client_bearer_rejects_non_ascii() {
 }
 
 #[test]
-#[should_panic(expected = "printable ASCII")]
+#[should_panic(expected = "control characters")]
 fn test_client_api_key_header_rejects_crlf() {
     // RFC 7230 §3.2.6 — ApiKeyAuthenticator's Header location must
     // reject anything outside printable ASCII + TAB to prevent header

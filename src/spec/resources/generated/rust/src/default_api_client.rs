@@ -292,7 +292,7 @@ fn add_multipart_field(
 ) -> reqwest::multipart::Form {
     match value {
         MultipartValue::Bytes(bytes) => {
-            if let Err(_) = validate_multipart_filename(name) {
+            if validate_multipart_filename(name).is_err() {
                 return form;
             }
             let mime = mime_for_filename(name);

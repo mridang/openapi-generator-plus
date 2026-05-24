@@ -283,13 +283,16 @@ module {{moduleName}}
       nil
     end
 
-    # Compare two URLs by scheme + host + effective port.
+    # Compare two URLs by scheme + host + effective port. Use to_s to coerce
+    # nil components to "" — keeps cyclomatic complexity below rubocop's
+    # default threshold (avoids relying on the global Metrics/CyclomaticComplexity
+    # disable, which has proven unreliable inside the CI rubocop docker image).
     def same_origin?(url_a, url_b)
       uri_a = safe_parse_uri(url_a)
       uri_b = safe_parse_uri(url_b)
       return false if uri_a.nil? || uri_b.nil?
-      return false unless uri_a.scheme&.downcase == uri_b.scheme&.downcase
-      return false unless uri_a.host&.downcase == uri_b.host&.downcase
+      return false unless uri_a.scheme.to_s.downcase == uri_b.scheme.to_s.downcase
+      return false unless uri_a.host.to_s.downcase == uri_b.host.to_s.downcase
 
       effective_port(uri_a) == effective_port(uri_b)
     end
