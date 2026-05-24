@@ -727,9 +727,9 @@ public final class DefaultApiClient implements ApiClient {
    * Idempotent. After calling this method the client must not be reused — subsequent {@link
    * #sendRequest} calls will fail with an {@link ApiException}.
    *
-   * <p>JDK 21+ exposes {@code HttpClient#close()} which we invoke reflectively so this template
-   * still compiles on earlier JDKs. On pre-21 JDKs, {@link HttpClient}'s executor and connection
-   * pool are released only when the JVM exits or the client is GC'd.
+   * <p>Calls {@link HttpClient#close()} (JDK 21+ public API). On JDK 25 the implementation class is
+   * in {@code jdk.internal.net.http} which isn't reflectively accessible — invoking on the public
+   * interface sidesteps the access check.
    */
   @Override
   public void close() {
@@ -737,14 +737,7 @@ public final class DefaultApiClient implements ApiClient {
       return;
     }
     this.closed = true;
-    try {
-      java.lang.reflect.Method m = httpClient.getClass().getMethod("close");
-      m.invoke(httpClient);
-    } catch (NoSuchMethodException ignored) {
-      /* Pre-JDK-21: nothing to call, GC will reap the client. */
-    } catch (ReflectiveOperationException e) {
-      throw new RuntimeException("Failed to close underlying HttpClient", e);
-    }
+    httpClient.close();
   }
 
   private volatile boolean closed = false;
