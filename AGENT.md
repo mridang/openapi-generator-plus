@@ -144,6 +144,24 @@ If you find a related symptom, link back to this section instead of trying
 to fix it incrementally — partial fixes (e.g. one lang) create wire-format
 divergence that's worse than the silent precision loss.
 
+### 307/308 multipart body replay (Kotlin/C#/PHP)
+
+The `MultipartBodyReplayedOn307Redirect` regression test (added in Phase 4
+T-new-3) is skipped in Kotlin, C#, and PHP because their underlying HTTP
+libraries (Ktor, .NET `HttpClient`, Symfony `HttpClient`) drop or rewrite
+the request body when transparently following a 307/308 redirect — RFC 7231
+§6.4.7 / RFC 7538 require the body to be replayed verbatim, but the libs
+optimise for the more common GET case. Working around this means taking
+over redirect handling manually: pre-serialise the multipart body to bytes
+(boundary + parts + trailer) *before* the first request, then re-POST the
+same byte buffer to the redirect target. Rust has the canonical
+implementation — see `client/src/lib.mustache`'s manual redirect loop with
+`Body::Bytes` carried across hops. The other 9 SDKs either follow
+redirects through a layer that already preserves the body, or use the
+Rust-style pattern. The skipped tests document the gap inline (with
+`@Disabled` / `Skip = "..."` / `markTestSkipped(...)`); reintroduce them
+once the lang-specific manual redirect loop lands.
+
 ### Decompression-bomb cap (all 12 SDKs)
 
 Every transport decompresses gzip/deflate/brotli/zstd response bodies to

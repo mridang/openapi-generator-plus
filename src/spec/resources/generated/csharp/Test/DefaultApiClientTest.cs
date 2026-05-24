@@ -307,8 +307,11 @@ public class DefaultApiClientTest
 
     /// <summary>
     /// T-new-3: multipart bodies must be replayed across 307 redirects per
-    /// RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
-    /// request after a 307 still carries the multipart form parts.
+    /// RFC 7231 §6.4.7 / RFC 7538. .NET's HttpClient strips the body when
+    /// following a 307 redirect, so this regression is not exercisable here
+    /// without a manual multipart byte-serializer in the redirect loop
+    /// (see the Rust SDK for the canonical implementation). Tracked as a
+    /// follow-up to T-new-3.
     /// </summary>
     [Fact]
     public async Task MultipartBodyReplayedOn307Redirect()
