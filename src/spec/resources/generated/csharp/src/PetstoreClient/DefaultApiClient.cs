@@ -41,7 +41,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     private readonly TransportOptions _transportOptions;
 
     /// <summary>
-    /// `Basic &lt;base64&gt;` Proxy-Authorization value extracted from
+    /// The <c>Basic [base64]</c> Proxy-Authorization value extracted from
     /// userinfo embedded in the proxy URL, or <c>null</c> when no proxy
     /// credentials are configured. Exposed for tests and HTTP-aware
     /// authenticators that need to verify userinfo is propagated and
@@ -50,12 +50,12 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     public string? ProxyAuthorizationHeader { get; }
 
     /// <summary>
-    /// Builds a <c>Basic &lt;base64&gt;</c> Proxy-Authorization value from the
+    /// Builds a <c>Basic [base64]</c> Proxy-Authorization value from the
     /// userinfo embedded in the proxy URL, or returns <c>null</c> when no
     /// credentials are present. Percent-encoded userinfo is decoded before
     /// encoding.
     /// </summary>
-    public static string? BuildProxyAuthorizationHeader(string? proxyUrl)
+    internal static string? BuildProxyAuthorizationHeader(string? proxyUrl)
     {
         if (string.IsNullOrEmpty(proxyUrl))
         {

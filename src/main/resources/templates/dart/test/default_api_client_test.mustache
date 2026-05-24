@@ -264,19 +264,19 @@ void main() {
           'Content-Type: application/octet-stream\r\n\r\n'
           'file-content-bytes\r\n'
           '--$boundary--\r\n';
+      /* wiremock's bodyPatterns matches the replayed multipart parts; 200
+       is returned only when the multipart body arrives intact at the
+       redirect target. */
       final resp = await client.sendRequest(
         'POST',
-        '$wiremockHttpUrl/api/redirect-307',
+        '$wiremockHttpUrl/api/redirect-307-multipart',
         {'Content-Type': 'multipart/form-data; boundary=$boundary'},
         body,
       );
       expect(resp.statusCode, equals(200));
       final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
       expect(parsed['method'], equals('POST'));
-      final echoed = parsed['body'] as String;
-      expect(echoed, contains('Content-Disposition: form-data; name="description"'));
-      expect(echoed, contains('Content-Disposition: form-data; name="file"'));
-      expect(echoed, contains('file-content-bytes'));
+      expect(parsed['replayed'], isTrue);
     });
 
     test('respects maxRedirects limit', () async {

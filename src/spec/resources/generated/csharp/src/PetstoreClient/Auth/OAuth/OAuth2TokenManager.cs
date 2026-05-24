@@ -300,6 +300,12 @@ public sealed class OAuth2TokenManager
                     return (long)Math.Floor(parsed);
                 }
                 return 0L;
+            case JsonValueKind.Undefined:
+            case JsonValueKind.Object:
+            case JsonValueKind.Array:
+            case JsonValueKind.True:
+            case JsonValueKind.False:
+            case JsonValueKind.Null:
             default:
                 return 0L;
         }

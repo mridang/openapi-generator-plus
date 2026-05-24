@@ -381,9 +381,12 @@ describe('DefaultApiClient', () => {
           `file-content-bytes\r\n` +
           `--${boundary}--\r\n`
       );
+      // wiremock's bodyPatterns matches the replayed multipart parts; 200
+      // is returned only when the multipart body arrives intact at the
+      // redirect target.
       const response = await client.sendRequest(
         'POST',
-        `${wiremockUrl}/api/redirect-307`,
+        `${wiremockUrl}/api/redirect-307-multipart`,
         { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
         body
       );
@@ -391,10 +394,7 @@ describe('DefaultApiClient', () => {
       expect(response.statusCode).toBe(200);
       const json = JSON.parse(response.body as string);
       expect(json.method).toBe('POST');
-      const echoed: string = json.body;
-      expect(echoed).toContain('Content-Disposition: form-data; name="description"');
-      expect(echoed).toContain('Content-Disposition: form-data; name="file"');
-      expect(echoed).toContain('file-content-bytes');
+      expect(json.replayed).toBe(true);
     });
   });
 

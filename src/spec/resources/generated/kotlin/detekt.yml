@@ -62,3 +62,24 @@ exceptions:
     active: false
   InstanceOfCheckForException:
     active: false
+
+# Generated code emits long argument lists for auth/transport/options
+# constructors that don't fit detekt's default formatting rules.
+# Also, generated SDK classes are intentionally public — they form the
+# library's API surface — so LibraryEntitiesShouldNotBePublic and the
+# related data-class/binary-compat rules are not applicable here.
+formatting:
+  ParameterListWrapping:
+    active: false
+  ArgumentListWrapping:
+    active: false
+  MaximumLineLength:
+    active: false
+
+libraries:
+  LibraryEntitiesShouldNotBePublic:
+    active: false
+  ForbiddenPublicDataClass:
+    active: false
+  LibraryCodeMustSpecifyReturnType:
+    active: false

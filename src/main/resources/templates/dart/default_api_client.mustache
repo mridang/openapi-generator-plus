@@ -152,8 +152,9 @@ class DefaultApiClient implements ApiClient {
       merged['Accept-Encoding'] = _supportedEncodings();
     }
 
-    if (_proxyAuthHeader != null) {
-      merged['Proxy-Authorization'] = _proxyAuthHeader!;
+    final proxyAuth = _proxyAuthHeader;
+    if (proxyAuth != null) {
+      merged['Proxy-Authorization'] = proxyAuth;
     }
 
     final uri = Uri.parse(url);
@@ -327,10 +328,11 @@ class DefaultApiClient implements ApiClient {
     String name,
     Object value,
   ) {
-    // W-new-2: validate the field name on every branch (string, number,
-    // boolean, JSON, binary) before it lands in Content-Disposition. The
-    // http.MultipartRequest builds the header from `name` directly, so
-    // CR/LF/NUL must be rejected even when the value is not Uint8List.
+    /* W-new-2: validate the field name on every branch (string, number,
+     * boolean, JSON, binary) before it lands in Content-Disposition. The
+     * http.MultipartRequest builds the header from `name` directly, so
+     * CR/LF/NUL must be rejected even when the value is not Uint8List.
+     */
     validateMultipartFieldName(name);
     if (value is Uint8List) {
       validateMultipartFilename(name);

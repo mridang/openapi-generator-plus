@@ -397,23 +397,19 @@ class DefaultApiClientTest {
             formFields.put("description", "hello");
             formFields.put("file", "file-content-bytes".getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
+            // wiremock's bodyPatterns matches the replayed multipart parts; 200
+            // is returned only when the multipart body arrives intact at the
+            // redirect target.
             ApiResponse response = client.sendRequest(
-                    "POST", wiremockUrl + "/api/redirect-307", new HashMap<>(), formFields);
+                    "POST", wiremockUrl + "/api/redirect-307-multipart", new HashMap<>(), formFields);
 
             assertEquals(200, response.statusCode());
             JsonNode json = new ObjectMapper().readTree(response.body());
             assertEquals("POST", json.get("method").asText(),
                     "follow-up request method must remain POST");
-            String echoedBody = json.get("body").asText();
             assertTrue(
-                    echoedBody.contains("Content-Disposition: form-data; name=\"description\""),
-                    "redirect replay dropped the description part: " + echoedBody);
-            assertTrue(
-                    echoedBody.contains("Content-Disposition: form-data; name=\"file\""),
-                    "redirect replay dropped the file part: " + echoedBody);
-            assertTrue(
-                    echoedBody.contains("file-content-bytes"),
-                    "redirect replay dropped the file bytes: " + echoedBody);
+                    json.get("replayed").asBoolean(),
+                    "redirect target must confirm multipart body replay");
         }
     }
 

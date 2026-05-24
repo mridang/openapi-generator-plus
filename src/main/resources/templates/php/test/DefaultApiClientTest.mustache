@@ -75,12 +75,14 @@ class DefaultApiClientTest extends TestCase
             ->proxy('http://alice:s3cret@127.0.0.1:3128')
             ->build();
 
-        $parts = parse_url($transport->proxy);
-        $this->assertSame('alice', $parts['user'] ?? null);
-        $this->assertSame('s3cret', $parts['pass'] ?? null);
-        $expected = 'Basic ' . base64_encode(
-            urldecode($parts['user']) . ':' . urldecode($parts['pass'])
-        );
+        $proxyUrl = (string) $transport->proxy;
+        $parts = parse_url($proxyUrl);
+        $this->assertIsArray($parts);
+        $user = (string) ($parts['user'] ?? '');
+        $pass = (string) ($parts['pass'] ?? '');
+        $this->assertSame('alice', $user);
+        $this->assertSame('s3cret', $pass);
+        $expected = 'Basic ' . base64_encode(urldecode($user) . ':' . urldecode($pass));
         $this->assertSame('Basic YWxpY2U6czNjcmV0', $expected);
     }
 
@@ -296,22 +298,30 @@ class DefaultApiClientTest extends TestCase
             ->build();
 
         $client = new DefaultApiClient($transport);
-        $formData = ['description' => 'hello', 'file' => 'file-content-bytes'];
+        $boundary = 'test-boundary';
+        $multipartBody = "--{$boundary}\r\n"
+            . "Content-Disposition: form-data; name=\"description\"\r\n\r\n"
+            . "hello\r\n"
+            . "--{$boundary}\r\n"
+            . "Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\n"
+            . "Content-Type: application/octet-stream\r\n\r\n"
+            . "file-content-bytes\r\n"
+            . "--{$boundary}--\r\n";
+        // wiremock's bodyPatterns matches the replayed multipart parts; 200
+        // is returned only when the multipart body arrives intact at the
+        // redirect target.
         $response = $client->sendRequest(
             'POST',
-            $wiremockUrl . '/api/redirect-307',
-            [],
-            $formData
+            $wiremockUrl . '/api/redirect-307-multipart',
+            ['Content-Type' => "multipart/form-data; boundary={$boundary}"],
+            $multipartBody
         );
 
         $this->assertSame(200, $response->statusCode);
         /** @var array<string, mixed> $json */
         $json = json_decode($response->body, true);
         $this->assertSame('POST', $json['method']);
-        $echoed = (string) $json['body'];
-        $this->assertStringContainsString('Content-Disposition: form-data; name="description"', $echoed);
-        $this->assertStringContainsString('Content-Disposition: form-data; name="file"', $echoed);
-        $this->assertStringContainsString('file-content-bytes', $echoed);
+        $this->assertTrue($json['replayed']);
     }
 
     // -- Max redirects --

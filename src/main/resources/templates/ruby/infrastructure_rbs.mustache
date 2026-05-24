@@ -345,6 +345,7 @@ module {{moduleName}}
         def fetch_token: (String, Hash[String, String], ?Hash[String, String]) -> void
         def require_api_client: () -> ApiClient
         def apply_token_response: (Hash[String, untyped]) -> void
+        def parse_expires_in: (untyped) -> Integer
       end
     end
 {{/hasAnyOAuth2}}

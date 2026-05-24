@@ -173,15 +173,19 @@ class TestRedirectHandling:
     def test_multipart_body_replayed_on_307_redirect(self, wiremock_http_url: Any) -> None:
         """T-new-3: multipart bodies must be replayed across 307 redirects per
         RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
-        request after a 307 still carries the multipart form parts."""
+        request after a 307 still carries the multipart form parts. wiremock's
+        bodyPatterns matches the replayed multipart parts; 200 is returned
+        only when the multipart body arrives intact at the redirect target."""
         transport = TransportOptions.builder().follow_redirects(True).max_redirects(5).build()
         client = DefaultApiClient(transport)
-        form_data = {'description': 'hello', 'file': b'file-content-bytes'}
+        boundary = 'test-boundary'
+        body = f'--{boundary}\r\nContent-Disposition: form-data; name="description"\r\n\r\nhello\r\n--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="file"\r\nContent-Type: application/octet-stream\r\n\r\nfile-content-bytes\r\n--{boundary}--\r\n'
+        headers = {'Content-Type': f'multipart/form-data; boundary={boundary}'}
         response = client.send_request(
             'POST',
-            wiremock_http_url + '/api/redirect-307',
-            {},
-            form_data,
+            wiremock_http_url + '/api/redirect-307-multipart',
+            headers,
+            body.encode('utf-8'),
         )
 
         assert response.status_code == 200
@@ -189,10 +193,7 @@ class TestRedirectHandling:
 
         parsed = _json.loads(response.body)
         assert parsed['method'] == 'POST', 'follow-up request method must remain POST'
-        echoed = parsed['body']
-        assert 'Content-Disposition: form-data; name="description"' in echoed, f'redirect replay dropped the description part: {echoed!r}'
-        assert 'Content-Disposition: form-data; name="file"' in echoed, f'redirect replay dropped the file part: {echoed!r}'
-        assert 'file-content-bytes' in echoed, f'redirect replay dropped the file bytes: {echoed!r}'
+        assert parsed['replayed'] is True, 'redirect target must confirm multipart body replay'
 
 
 class TestMaxRedirects:

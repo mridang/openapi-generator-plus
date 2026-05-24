@@ -289,12 +289,13 @@ class BaseApi {
     String name,
     Object? value,
   ) {
-    // W-new-2: validate the field name on every branch (string, number,
-    // boolean, JSON, binary) before it lands in Content-Disposition. The name
-    // is interpolated directly into `Content-Disposition: form-data;
-    // name="..."`, so CR/LF/NUL must be rejected even when the value is not
-    // binary, and quote/backslash must be escaped so a malicious name cannot
-    // break out of the `name="..."` parameter.
+    /* W-new-2: validate the field name on every branch (string, number,
+     * boolean, JSON, binary) before it lands in Content-Disposition. The name
+     * is interpolated directly into `Content-Disposition: form-data;
+     * name="..."`, so CR/LF/NUL must be rejected even when the value is not
+     * binary, and quote/backslash must be escaped so a malicious name cannot
+     * break out of the `name="..."` parameter.
+     */
     validateMultipartFieldName(name);
     final safeName = escapeMultipartFieldName(name);
     if (value is List<int>) {

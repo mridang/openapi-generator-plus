@@ -366,25 +366,24 @@ class DefaultApiClientTest {
                     "description" to "hello",
                     "file" to "file-content-bytes".toByteArray(),
                 )
+            // wiremock's bodyPatterns matches the replayed multipart parts; 200
+            // is returned only when the multipart body arrives intact at the
+            // redirect target.
             val response =
                 runBlocking {
-                    client.sendRequest("POST", "$wiremockUrl/api/redirect-307", emptyMap(), formFields)
+                    client.sendRequest(
+                        "POST",
+                        "$wiremockUrl/api/redirect-307-multipart",
+                        emptyMap(),
+                        formFields,
+                    )
                 }
             assertEquals(200, response.statusCode)
             val json = ObjectMapper().readTree(response.body)
             assertEquals("POST", json.get("method").asText())
-            val echoedBody = json.get("body").asText()
             assertTrue(
-                echoedBody.contains("Content-Disposition: form-data; name=\"description\""),
-                "redirect replay dropped the description part: $echoedBody",
-            )
-            assertTrue(
-                echoedBody.contains("Content-Disposition: form-data; name=\"file\""),
-                "redirect replay dropped the file part: $echoedBody",
-            )
-            assertTrue(
-                echoedBody.contains("file-content-bytes"),
-                "redirect replay dropped the file bytes: $echoedBody",
+                json.get("replayed").asBoolean(),
+                "redirect target must confirm multipart body replay",
             )
         }
 
@@ -458,11 +457,19 @@ class DefaultApiClientTest {
             val wiremockUrl = WireMockContainer.getHttpUrl()
             val client = DefaultApiClient()
             val badField = mapOf<String, Any?>("name\r\nInjected: yes" to "value")
-            assertThrows(IllegalArgumentException::class.java) {
-                runBlocking {
-                    client.sendRequest("POST", "$wiremockUrl/api/test", emptyMap(), badField)
+            // sendRequest wraps the validation IllegalArgumentException in an
+            // ApiException; assert the wrapped cause type so the W-new-2 guard
+            // is verified on the non-binary (string-value) branch.
+            val thrown =
+                assertThrows(ApiException::class.java) {
+                    runBlocking {
+                        client.sendRequest("POST", "$wiremockUrl/api/test", emptyMap(), badField)
+                    }
                 }
-            }
+            assertTrue(
+                thrown.cause is IllegalArgumentException,
+                "expected IllegalArgumentException as cause, got ${thrown.cause}",
+            )
         }
     }
 

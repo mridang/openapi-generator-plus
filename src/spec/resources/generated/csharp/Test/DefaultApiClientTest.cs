@@ -321,9 +321,12 @@ public class DefaultApiClientTest
             { "description", "hello" },
             { "file", System.Text.Encoding.UTF8.GetBytes("file-content-bytes") },
         };
+        // wiremock's bodyPatterns matches the replayed multipart parts; 200
+        // is returned only when the multipart body arrives intact at the
+        // redirect target.
         var response = await client.SendRequestAsync(
             "POST",
-            new Uri(_fixture.WireMockHttpUrl + "/api/redirect-307"),
+            new Uri(_fixture.WireMockHttpUrl + "/api/redirect-307-multipart"),
             new Dictionary<string, string>(),
             formData
         );
@@ -331,10 +334,7 @@ public class DefaultApiClientTest
         Assert.Equal(200, response.StatusCode);
         var json = JsonDocument.Parse(response.Body);
         Assert.Equal("POST", json.RootElement.GetProperty("method").GetString());
-        var echoed = json.RootElement.GetProperty("body").GetString() ?? string.Empty;
-        Assert.Contains("Content-Disposition: form-data; name=\"description\"", echoed);
-        Assert.Contains("Content-Disposition: form-data; name=\"file\"", echoed);
-        Assert.Contains("file-content-bytes", echoed);
+        Assert.True(json.RootElement.GetProperty("replayed").GetBoolean());
     }
 
     // -- Max redirects --

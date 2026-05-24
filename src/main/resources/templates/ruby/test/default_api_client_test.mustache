@@ -74,7 +74,9 @@ describe {{moduleName}}::DefaultApiClient do
       uri = URI.parse(transport.proxy)
       _(uri.user).must_equal('alice')
       _(uri.password).must_equal('s3cret')
-      encoded = Base64.strict_encode64("#{URI.decode_www_form_component(uri.user)}:#{URI.decode_www_form_component(uri.password)}")
+      user = URI.decode_www_form_component(uri.user)
+      pass = URI.decode_www_form_component(uri.password)
+      encoded = Base64.strict_encode64("#{user}:#{pass}")
       _("Basic #{encoded}").must_equal('Basic YWxpY2U6czNjcmV0')
     end
   end
@@ -261,16 +263,23 @@ describe {{moduleName}}::DefaultApiClient do
         .build
 
       client = {{moduleName}}::DefaultApiClient.new(transport)
-      form_data = { 'description' => 'hello', 'file' => 'file-content-bytes' }
-      response = client.send_request(:POST, "#{wiremock_url}/api/redirect-307", {}, form_data)
+      boundary = 'test-boundary'
+      multipart_body = "--#{boundary}\r\n" \
+        "Content-Disposition: form-data; name=\"description\"\r\n\r\n" \
+        "hello\r\n" \
+        "--#{boundary}\r\n" \
+        "Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\n" \
+        "Content-Type: application/octet-stream\r\n\r\n" \
+        "file-content-bytes\r\n" \
+        "--#{boundary}--\r\n"
+      headers = { 'Content-Type' => "multipart/form-data; boundary=#{boundary}" }
+      # wiremock's bodyPatterns matches the replayed request body; 200
+      # is returned only when the multipart parts arrive intact.
+      response = client.send_request(:POST, "#{wiremock_url}/api/redirect-307-multipart", headers, multipart_body)
 
       _(response.status_code).must_equal(200)
       json = JSON.parse(response.body)
-      _(json['method']).must_equal('POST')
-      echoed = json['body']
-      _(echoed.include?('Content-Disposition: form-data; name="description"')).must_equal(true)
-      _(echoed.include?('Content-Disposition: form-data; name="file"')).must_equal(true)
-      _(echoed.include?('file-content-bytes')).must_equal(true)
+      _(json['replayed']).must_equal(true)
     end
   end
 

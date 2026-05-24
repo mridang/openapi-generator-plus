@@ -1,0 +1,24 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "/api/echo-method-bodylength",
+    "bodyPatterns": [
+      {
+        "contains": "name=\"description\""
+      },
+      {
+        "contains": "name=\"file\""
+      },
+      {
+        "contains": "file-content-bytes"
+      }
+    ]
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": "{\"method\":\"POST\",\"replayed\":true}"
+  }
+}

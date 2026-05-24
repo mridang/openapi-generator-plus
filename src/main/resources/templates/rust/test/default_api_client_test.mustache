@@ -297,10 +297,13 @@ async fn test_default_api_client_multipart_body_replayed_on_307_redirect() {
     );
     let body = {{packageName}}::api_client::RequestBody::Multipart(fields);
 
+    // wiremock's bodyPatterns matches the replayed multipart parts; 200
+    // is returned only when the multipart body arrives intact at the
+    // redirect target.
     let resp = client
         .send_request(
             "POST",
-            &format!("{}/api/redirect-307", wiremock_url),
+            &format!("{}/api/redirect-307-multipart", wiremock_url),
             &HashMap::new(),
             Some(&body),
         )
@@ -310,22 +313,7 @@ async fn test_default_api_client_multipart_body_replayed_on_307_redirect() {
     assert_eq!(resp.status_code, 200);
     let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
     assert_eq!(json["method"], "POST", "follow-up request method must remain POST");
-    let echoed_body = json["body"].as_str().unwrap_or("");
-    assert!(
-        echoed_body.contains("Content-Disposition: form-data; name=\"description\""),
-        "redirect replay dropped the description part: {}",
-        echoed_body
-    );
-    assert!(
-        echoed_body.contains("Content-Disposition: form-data; name=\"file\""),
-        "redirect replay dropped the file part: {}",
-        echoed_body
-    );
-    assert!(
-        echoed_body.contains("file-content-bytes"),
-        "redirect replay dropped the file bytes: {}",
-        echoed_body
-    );
+    assert_eq!(json["replayed"], true, "redirect target must confirm body replay");
 }
 
 #[tokio::test]

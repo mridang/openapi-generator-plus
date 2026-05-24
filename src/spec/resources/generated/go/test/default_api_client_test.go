@@ -304,7 +304,10 @@ func TestDefaultApiClient_MultipartBodyReplayedOn307Redirect(t *testing.T) {
 		"Content-Type: application/octet-stream\r\n\r\n" +
 		"file-content-bytes\r\n" +
 		"--test-boundary--\r\n")
-	resp, err := client.SendRequest("POST", wiremockHTTPURL+"/api/redirect-307", headers, body)
+	// wiremock's bodyPatterns matches the replayed multipart parts; 200
+	// is returned only when the multipart body arrives intact at the
+	// redirect target.
+	resp, err := client.SendRequest("POST", wiremockHTTPURL+"/api/redirect-307-multipart", headers, body)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -318,15 +321,8 @@ func TestDefaultApiClient_MultipartBodyReplayedOn307Redirect(t *testing.T) {
 	if parsed["method"] != "POST" {
 		t.Errorf("expected method POST after 307, got %v", parsed["method"])
 	}
-	echoed, _ := parsed["body"].(string)
-	if !strings.Contains(echoed, `Content-Disposition: form-data; name="description"`) {
-		t.Errorf("redirect replay dropped the description part: %q", echoed)
-	}
-	if !strings.Contains(echoed, `Content-Disposition: form-data; name="file"`) {
-		t.Errorf("redirect replay dropped the file part: %q", echoed)
-	}
-	if !strings.Contains(echoed, "file-content-bytes") {
-		t.Errorf("redirect replay dropped the file bytes: %q", echoed)
+	if parsed["replayed"] != true {
+		t.Errorf("expected replayed=true, got %v", parsed["replayed"])
 	}
 }
 

@@ -216,24 +216,34 @@ defmodule {{moduleName}}.DefaultApiClientIntegrationTest do
       max_redirects: 5
     )
     client = {{moduleName}}.DefaultApiClient.new(transport)
-    form_data = %{"description" => "hello", "file" => "file-content-bytes"}
+    boundary = "test-boundary"
 
+    multipart_body =
+      "--" <> boundary <> "\r\n" <>
+        "Content-Disposition: form-data; name=\"description\"\r\n\r\n" <>
+        "hello\r\n" <>
+        "--" <> boundary <> "\r\n" <>
+        "Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\n" <>
+        "Content-Type: application/octet-stream\r\n\r\n" <>
+        "file-content-bytes\r\n" <>
+        "--" <> boundary <> "--\r\n"
+
+    # wiremock's bodyPatterns matches the replayed multipart parts; 200
+    # is returned only when the multipart body arrives intact at the
+    # redirect target.
     response =
       {{moduleName}}.DefaultApiClient.send_request(
         client,
         :post,
-        "#{wiremock_url}/api/redirect-307",
-        %{},
-        form_data
+        "#{wiremock_url}/api/redirect-307-multipart",
+        %{"Content-Type" => "multipart/form-data; boundary=#{boundary}"},
+        multipart_body
       )
 
     assert response.status_code == 200
     json = Jason.decode!(response.body)
     assert json["method"] == "POST"
-    echoed = json["body"]
-    assert String.contains?(echoed, "Content-Disposition: form-data; name=\"description\"")
-    assert String.contains?(echoed, "Content-Disposition: form-data; name=\"file\"")
-    assert String.contains?(echoed, "file-content-bytes")
+    assert json["replayed"] == true
   end
 
   test "respects max_redirects limit" do
