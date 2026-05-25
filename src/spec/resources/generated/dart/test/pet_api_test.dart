@@ -204,7 +204,13 @@ void main() {
 
     test('addPetPhotos', () async {
       final api = _newPetApiForIntegration();
-      await api.addPetPhotos(1, null);
+      final options = AddPetPhotosOptions(
+        files: [
+          [1, 2, 3]
+        ],
+        metadata: PhotoMetadata(caption: 'test'),
+      );
+      await api.addPetPhotos(1, options);
     }, skip: 'Prism does not validate multipart array fields correctly');
 
     test('downloadPetDocument', () async {
@@ -272,7 +278,8 @@ void main() {
             .build();
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        final result = await api.uploadPetCertificate(1, null);
+        final result = await api.uploadPetCertificate(
+            1, UploadPetCertificateOptions(file: [1, 2, 3]));
         expect(result, isNotNull);
       } finally {
         await server.close();
