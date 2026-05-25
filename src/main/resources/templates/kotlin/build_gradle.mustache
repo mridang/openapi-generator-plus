@@ -121,13 +121,13 @@ tasks.named<Test>("jvmTest") {
     // the host build.
     maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
     reports.junitXml.outputLocation.set(file(".out/reports"))
-    /* Pass Docker env vars to the forked test JVM for DinD support */
+    // Pass Docker env vars to the forked test JVM for DinD support
     listOf(
         "DOCKER_HOST",
         "TESTCONTAINERS_HOST_OVERRIDE",
         "TC_HOST",
         "TESTCONTAINERS_RYUK_DISABLED",
-        "HOST_APP_PATH"
+        "HOST_APP_PATH",
     ).forEach { key ->
         System.getenv(key)?.let { environment(key, it) }
     }

@@ -27,23 +27,25 @@ describe('Metadata model (typed additionalProperties)', () => {
     };
     const metadata = ObjectSerializer.deserialize(json, Metadata);
     expect(metadata).toBeDefined();
-    expect(metadata!.createdAt).toBe('2024-01-01T00:00:00Z');
+    expect(metadata!.createdAt instanceof Date).toBe(true);
+    expect(metadata!.createdAt!.toISOString()).toBe('2024-01-01T00:00:00.000Z');
   });
 
   test('round-trip preserves additional properties', () => {
     const original = new Metadata({
-      createdAt: '2024-01-15T10:30:00Z'
+      createdAt: new Date('2024-01-15T10:30:00Z')
     });
     (original as Record<string, unknown>)['customField'] = 'test-value';
     const serialized = ObjectSerializer.serialize(original);
     expect(typeof serialized).toBe('string');
     const deserialized = ObjectSerializer.deserialize(JSON.parse(serialized), Metadata);
     expect(deserialized).toBeDefined();
-    expect(deserialized!.createdAt).toBe('2024-01-15T10:30:00Z');
+    expect(deserialized!.createdAt instanceof Date).toBe(true);
+    expect(deserialized!.createdAt!.toISOString()).toBe('2024-01-15T10:30:00.000Z');
   });
 
   test('compiles with typed additional properties index signature', () => {
-    const metadata = new Metadata({ createdAt: '2024-01-01T00:00:00Z' });
+    const metadata = new Metadata({ createdAt: new Date('2024-01-01T00:00:00Z') });
     const additionalValue: string = (metadata as Record<string, string>)['anyKey'] ?? '';
     expect(typeof additionalValue).toBe('string');
   });

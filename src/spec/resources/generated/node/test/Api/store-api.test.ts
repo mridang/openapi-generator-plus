@@ -38,7 +38,7 @@ describe('StoreApi', () => {
       id: 1,
       petId: 12345,
       quantity: 1,
-      shipDate: new Date().toISOString(),
+      shipDate: new Date(),
       status: OrderStatusEnum.Placed,
       complete: false
     };
@@ -101,7 +101,7 @@ describe('StoreApi error handling', () => {
         id: 1,
         petId: 12345,
         quantity: 1,
-        shipDate: new Date().toISOString(),
+        shipDate: new Date(),
         status: OrderStatusEnum.Placed,
         complete: false
       };

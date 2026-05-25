@@ -36,10 +36,23 @@ style:
     active: false
   WildcardImport:
     active: false
+  # `throw IllegalStateException(...)` is used in OAuth2 authenticators
+  # for guard clauses that read clearer than `check { ... }` /
+  # `error(...)` — preserve the explicit exception throw style.
+  UseCheckOrError:
+    active: false
   # Generated code mixes long URL/template/header lines and minor empty
   # blocks (e.g. close() no-op for resource-clean APIs). These are
   # cosmetic — disable so detekt doesn't fail the lint gate on them.
   MaxLineLength:
+    active: false
+  # Generated dispatch helpers (e.g. ValueSerializer.serialize) accept a
+  # `schemaType` arg for parity with the cross-lang interface but several
+  # branches don't consult it. Removing the parameter would diverge the
+  # Kotlin signature from the other 11 SDKs.
+  UnusedParameter:
+    active: false
+  UnusedPrivateMember:
     active: false
 
 empty-blocks:
@@ -75,6 +88,18 @@ formatting:
     active: false
   MaximumLineLength:
     active: false
+  # Generated code does `import package.*` for model barrels and re-imports
+  # idiomatically; both are intentional for the OpenAPI-generated surface.
+  NoWildcardImports:
+    active: false
+  NoUnusedImports:
+    active: false
+  # Indentation in generated method bodies follows Mustache template
+  # boundaries rather than detekt's strict 4-space rule; the kotlin
+  # compiler accepts it and ktfmt-style normalisation would require
+  # re-templating every generated file.
+  Indentation:
+    active: false
 
 libraries:
   LibraryEntitiesShouldNotBePublic:
@@ -83,3 +108,16 @@ libraries:
     active: false
   LibraryCodeMustSpecifyReturnType:
     active: false
+
+# Generated parameter / property names map 1:1 onto OpenAPI schema property
+# names, which may include OAS-style identifiers (snake_case, x-prefixed
+# extensions, etc.) that don't fit camelCase. The wire-format identifier
+# is authoritative; renaming would break JSON (de)serialisation. Naming
+# rules stay enforced for hand-written .mustache prose, just not for the
+# generated identifier surface.
+naming:
+  VariableNaming:
+    active: false
+  ConstructorParameterNaming:
+    active: false
+

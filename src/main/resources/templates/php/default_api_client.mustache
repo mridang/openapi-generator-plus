@@ -64,13 +64,14 @@ class DefaultApiClient implements ApiClient
                 $options['timeout'] = $timeoutSeconds;
                 /* Also bound the TCP connect phase. Symfony HttpClient's
                  * `timeout` is an inactivity timer once the socket is
-                 * connected, so without `max_duration` (Symfony) /
-                 * `connect_timeout` (Guzzle) a hung DNS lookup or TCP SYN
-                 * with no response can stall indefinitely. We set both so
-                 * the call cannot exceed the caller's bound regardless of
-                 * the underlying HTTP client implementation. */
+                 * connected, so without `max_duration` a hung DNS lookup
+                 * or TCP SYN with no response can stall indefinitely. We
+                 * set `max_duration` to bound the total request lifetime.
+                 * (`connect_timeout` is a Guzzle-only option; Symfony
+                 * HttpClient rejects it with an InvalidArgumentException
+                 * and exposes no per-phase connect timeout — bounding the
+                 * total duration is the closest portable equivalent.) */
                 $options['max_duration'] = $timeoutSeconds;
-                $options['connect_timeout'] = $timeoutSeconds;
             }
 
             /* Gap BH: Symfony HttpClient re-sends Authorization / Cookie /

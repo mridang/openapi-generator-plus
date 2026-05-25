@@ -407,7 +407,7 @@ class DefaultApiClientTest extends TestCase
      * client sends an empty body and Content-Length: 0 explicitly on
      * body-bearing verbs.
      */
-    public function test_post_with_null_body_sends_content_length_zero(): void
+    public function testPostWithNullBodySendsContentLengthZero(): void
     {
         $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
         $client = new DefaultApiClient();
@@ -419,7 +419,8 @@ class DefaultApiClientTest extends TestCase
         );
 
         $this->assertSame(200, $response->statusCode);
-        $payload = json_decode($response->body, true);
+        /** @var array<string, mixed> $payload */
+        $payload = (array) json_decode($response->body, true);
         $this->assertSame('0', $payload['content-length']);
     }
 }

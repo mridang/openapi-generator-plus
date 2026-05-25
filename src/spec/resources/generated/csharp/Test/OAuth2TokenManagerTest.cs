@@ -387,7 +387,7 @@ public class OAuth2TokenManagerTest
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);
 
-        await Assert.ThrowsAsync<HttpRequestException>(
+        await Assert.ThrowsAsync<OAuth2ServerError>(
             () =>
                 manager.GetAccessTokenAsync(
                     new Uri("https://auth.example.com/token"),
