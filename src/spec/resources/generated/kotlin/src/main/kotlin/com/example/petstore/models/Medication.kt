@@ -11,20 +11,16 @@
 package com.example.petstore.models
 
 import com.example.petstore.Base64ByteArraySerializer
-import kotlinx.serialization.Contextual
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
-import kotlinx.serialization.json.JsonClassDiscriminator
 
 @Serializable
 data class Medication(
-  /** Example: `null` */
-  @SerialName("drugName")
-  val drugName: String,
-  /** Example: `null` */
-  @SerialName("dosage")
-  val dosage: String? = null
-) {
-}
+    /** Example: `null` */
+    @SerialName("drugName")
+    val drugName: String,
+    /** Example: `null` */
+    @SerialName("dosage")
+    val dosage: String? = null,
+)

@@ -14,9 +14,8 @@ open class ApiKeyAuthenticator(
     private val host: String,
     private val keyParamName: String,
     private val apiKey: String,
-    private val location: ApiKeyLocation
+    private val location: ApiKeyLocation,
 ) : BaseAuthenticator() {
-
     init {
         // Validation applies to ALL locations: empty/whitespace API keys
         // and CR/LF/NUL are always programmer errors regardless of where
@@ -24,19 +23,19 @@ open class ApiKeyAuthenticator(
         // printable-ASCII rule still applies to HEADER values.
         if (apiKey.isEmpty() || apiKey.isBlank()) {
             throw IllegalArgumentException(
-                "API key value for '$keyParamName' must not be empty"
+                "API key value for '$keyParamName' must not be empty",
             )
         }
         if (apiKey.any { c -> c == '\r' || c == '\n' || c == '\u0000' }) {
             throw IllegalArgumentException(
-                "API key value for '$keyParamName' contains forbidden control characters (CR/LF/NUL)"
+                "API key value for '$keyParamName' contains forbidden control characters (CR/LF/NUL)",
             )
         }
         if (location == ApiKeyLocation.HEADER &&
             apiKey.any { c -> c != '\t' && (c.code < 0x20 || c.code >= 0x7F) }
         ) {
             throw IllegalArgumentException(
-                "API key for header '$keyParamName' must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+                "API key for header '$keyParamName' must contain only printable ASCII characters (RFC 7230 §3.2.6)",
             )
         }
     }
@@ -46,8 +45,7 @@ open class ApiKeyAuthenticator(
     override suspend fun getAuthHeaders(): Map<String, String> =
         if (location == ApiKeyLocation.HEADER) mapOf(keyParamName to apiKey) else emptyMap()
 
-    override fun getQueryParams(): Map<String, String> =
-        if (location == ApiKeyLocation.QUERY) mapOf(keyParamName to apiKey) else emptyMap()
+    override fun getQueryParams(): Map<String, String> = if (location == ApiKeyLocation.QUERY) mapOf(keyParamName to apiKey) else emptyMap()
 
     override fun getCookieParams(): Map<String, String> =
         if (location == ApiKeyLocation.COOKIE) mapOf(keyParamName to apiKey) else emptyMap()

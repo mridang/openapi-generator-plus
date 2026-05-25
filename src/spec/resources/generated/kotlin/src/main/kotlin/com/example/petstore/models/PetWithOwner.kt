@@ -10,70 +10,72 @@
 
 package com.example.petstore.models
 
+import com.example.petstore.Base64ByteArraySerializer
 import com.example.petstore.models.Category
 import com.example.petstore.models.Tag
-import kotlin.collections.List
-import kotlin.collections.Set
-import com.example.petstore.Base64ByteArraySerializer
 import kotlinx.serialization.Contextual
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
-import kotlinx.serialization.json.JsonClassDiscriminator
+import kotlin.collections.List
+import kotlin.collections.Set
 
 /** A pet record extended with owner information */
 @Serializable
 data class PetWithOwner(
-  /** Example: `10` */
-  @SerialName("id")
-  val id: Long? = null,
-  /** Example: `doggie` */
-  @SerialName("name")
-  val name: String,
-  /** Example: `null` */
-  @SerialName("category")
-  val category: Category? = null,
-  /** Example: `null` */
-  @SerialName("photoUrls")
-  val photoUrls: Set<String> = mutableSetOf(),
-  /** Example: `null` */
-  @SerialName("tags")
-  val tags: List<Tag>? = mutableListOf(),
-  /**
-   * pet status in the store
-   *
-   * Example: `null`
-   *
-   * @deprecated This property is deprecated.
-   */
-  @Deprecated("This property is deprecated.")
-  @SerialName("status")
-  val status: StatusEnum? = null,
-  /** Example: `null` */
-  @SerialName("location")
-  val location: List<@Contextual Any>? = mutableListOf(),
-  /** Example: `null` */
-  @SerialName("ownerName")
-  val ownerName: String,
-  /** Example: `null` */
-  @SerialName("ownerEmail")
-  val ownerEmail: String? = null
+    /** Example: `10` */
+    @SerialName("id")
+    val id: Long? = null,
+    /** Example: `doggie` */
+    @SerialName("name")
+    val name: String,
+    /** Example: `null` */
+    @SerialName("category")
+    val category: Category? = null,
+    /** Example: `null` */
+    @SerialName("photoUrls")
+    val photoUrls: Set<String> = mutableSetOf(),
+    /** Example: `null` */
+    @SerialName("tags")
+    val tags: List<Tag>? = mutableListOf(),
+    /**
+     * pet status in the store
+     *
+     * Example: `null`
+     *
+     * @deprecated This property is deprecated.
+     */
+    @Deprecated("This property is deprecated.")
+    @SerialName("status")
+    val status: StatusEnum? = null,
+    /** Example: `null` */
+    @SerialName("location")
+    val location: List<@Contextual Any>? = mutableListOf(),
+    /** Example: `null` */
+    @SerialName("ownerName")
+    val ownerName: String,
+    /** Example: `null` */
+    @SerialName("ownerEmail")
+    val ownerEmail: String? = null,
 ) {
+    @Serializable
+    enum class StatusEnum(
+        val value: String,
+    ) {
+        @SerialName("available")
+        AVAILABLE("available"),
 
-  @Serializable
-  enum class StatusEnum(val value: String) {
-    @SerialName("available")
-    AVAILABLE("available"),
-    @SerialName("pending")
-    PENDING("pending"),
-    @SerialName("sold")
-    SOLD("sold");
+        @SerialName("pending")
+        PENDING("pending"),
 
-    companion object {
-      fun fromValue(value: String): StatusEnum =
-        entries.firstOrNull { it.value == value }
-          ?: throw IllegalArgumentException("Unexpected value '$value'")
+        @SerialName("sold")
+        SOLD("sold"),
+        ;
+
+        companion object {
+            fun fromValue(value: String): StatusEnum =
+                entries.firstOrNull { it.value == value }
+                    ?: throw IllegalArgumentException("Unexpected value '$value'")
+        }
     }
-  }
 }

@@ -17,7 +17,7 @@ interface ApiClient : AutoCloseable {
         method: String,
         url: String,
         headers: Map<String, String>,
-        body: Any?
+        body: Any?,
     ): ApiResponse
 
     /**

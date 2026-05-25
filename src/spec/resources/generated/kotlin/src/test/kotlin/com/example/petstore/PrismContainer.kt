@@ -16,29 +16,29 @@ import java.nio.file.Path
  * Singleton Prism mock server container shared across all test classes.
  */
 object PrismContainer {
-
     private val INSTANCE: GenericContainer<*>
 
     init {
-        INSTANCE = GenericContainer("stoplight/prism:5")
-            .withExposedPorts(4010)
-            .withCopyFileToContainer(
-                MountableFile.forHostPath(Path.of("/app/src/test/resources/openapi.yaml")),
-                "/tmp/openapi.yaml"
-            )
-            .withCommand("mock", "-m", "false", "-h", "0.0.0.0", "/tmp/openapi.yaml")
-            // Same as the Java/Python/PHP setup — Wait.forListeningPort can return
-            // before Prism is actually serving requests, leading to the first burst
-            // of tests racing the server boot.
-            .waitingFor(Wait.forLogMessage(".*Prism is listening.*", 1))
-            .withStartupTimeout(java.time.Duration.ofMinutes(2))
-            .withLabel("com.mridang.openapi.testcontainer", "true")
+        INSTANCE =
+            GenericContainer("stoplight/prism:5")
+                .withExposedPorts(4010)
+                .withCopyFileToContainer(
+                    MountableFile.forHostPath(Path.of("/app/src/test/resources/openapi.yaml")),
+                    "/tmp/openapi.yaml",
+                ).withCommand("mock", "-m", "false", "-h", "0.0.0.0", "/tmp/openapi.yaml")
+                // Same as the Java/Python/PHP setup — Wait.forListeningPort can return
+                // before Prism is actually serving requests, leading to the first burst
+                // of tests racing the server boot.
+                .waitingFor(Wait.forLogMessage(".*Prism is listening.*", 1))
+                .withStartupTimeout(java.time.Duration.ofMinutes(2))
+                .withLabel("com.mridang.openapi.testcontainer", "true")
         INSTANCE.start()
-        Runtime.getRuntime().addShutdownHook(Thread {
-            if (INSTANCE.isRunning) INSTANCE.stop()
-        })
+        Runtime.getRuntime().addShutdownHook(
+            Thread {
+                if (INSTANCE.isRunning) INSTANCE.stop()
+            },
+        )
     }
 
-    fun getBaseUrl(): String =
-        "http://${INSTANCE.host}:${INSTANCE.getMappedPort(4010)}"
+    fun getBaseUrl(): String = "http://${INSTANCE.host}:${INSTANCE.getMappedPort(4010)}"
 }

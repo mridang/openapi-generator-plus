@@ -16,7 +16,8 @@ actual object TraceContextUtil {
                 .getPropagators()
                 .textMapPropagator
                 .inject(
-                    io.opentelemetry.context.Context.current(),
+                    io.opentelemetry.context.Context
+                        .current(),
                     headers,
                 ) { carrier, key, value -> carrier?.put(key, value) }
         } catch (_: LinkageError) {

@@ -11,20 +11,16 @@
 package com.example.petstore.models
 
 import com.example.petstore.Base64ByteArraySerializer
-import kotlinx.serialization.Contextual
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
-import kotlinx.serialization.json.JsonClassDiscriminator
 
 @Serializable
 data class DryFood(
-  /** Example: `null` */
-  @SerialName("foodType")
-  val foodType: String = "dry",
-  /** Example: `null` */
-  @SerialName("weightKg")
-  val weightKg: Double
-) {
-}
+    /** Example: `null` */
+    @SerialName("foodType")
+    val foodType: String = "dry",
+    /** Example: `null` */
+    @SerialName("weightKg")
+    val weightKg: Double,
+)

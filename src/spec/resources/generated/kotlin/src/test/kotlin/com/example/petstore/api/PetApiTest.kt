@@ -10,13 +10,13 @@
 package com.example.petstore.api
 
 import com.example.petstore.*
-import com.example.petstore.auth.AdminBasicAuthenticator
-import com.example.petstore.auth.PetStoreBearerAuthenticator
 import com.example.petstore.api.options.AddPetPhotosOptions
 import com.example.petstore.api.options.FindPetsByStatusOptions
 import com.example.petstore.api.options.GetPetTagOptions
 import com.example.petstore.api.options.UploadPetCertificateOptions
 import com.example.petstore.api.options.UploadPetDocumentOptions
+import com.example.petstore.auth.AdminBasicAuthenticator
+import com.example.petstore.auth.PetStoreBearerAuthenticator
 import com.example.petstore.models.*
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -32,7 +32,6 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
 class PetApiTest {
-
     companion object {
         private fun getBaseUrl(): String = PrismContainer.getBaseUrl()
 
@@ -42,7 +41,8 @@ class PetApiTest {
         // in this suite) exhausts Prism's connection limits and causes
         // EOFException / Connection refused cascades.
         private val sharedConfig: Configuration by lazy {
-            Configuration.builder()
+            Configuration
+                .builder()
                 .baseUrl(getBaseUrl())
                 .defaultHeader("Authorization", "Bearer test-token")
                 .build()
@@ -52,30 +52,32 @@ class PetApiTest {
         }
     }
 
-    private val bearerAuth = PetStoreBearerAuthenticator(
-        getBaseUrl(),
-        "test-token"
-    )
+    private val bearerAuth =
+        PetStoreBearerAuthenticator(
+            getBaseUrl(),
+            "test-token",
+        )
 
-    private val basicAuth = AdminBasicAuthenticator(
-        getBaseUrl(),
-        "admin",
-        "password"
-    )
+    private val basicAuth =
+        AdminBasicAuthenticator(
+            getBaseUrl(),
+            "admin",
+            "password",
+        )
 
     @Nested
     @DisplayName("Integration tests")
     inner class IntegrationTests {
-
         private val api: PetApi get() = sharedApi
 
         @Test
         @DisplayName("addPet creates a new pet")
         fun testAddPet() {
-            val pet = Pet(
-                name = "TestDog",
-                photoUrls = setOf("http://example.com/photo.jpg")
-            )
+            val pet =
+                Pet(
+                    name = "TestDog",
+                    photoUrls = setOf("http://example.com/photo.jpg"),
+                )
 
             val result = runBlocking { api.addPet(bearerAuth, pet) }
 
@@ -86,10 +88,11 @@ class PetApiTest {
         @Test
         @DisplayName("addPet with HttpInfo returns status and headers")
         fun testAddPetWithHttpInfo() {
-            val pet = Pet(
-                name = "TestDog",
-                photoUrls = setOf("http://example.com/photo.jpg")
-            )
+            val pet =
+                Pet(
+                    name = "TestDog",
+                    photoUrls = setOf("http://example.com/photo.jpg"),
+                )
 
             val result = runBlocking { api.addPetWithHttpInfo(bearerAuth, pet) }
 
@@ -121,10 +124,11 @@ class PetApiTest {
         @Test
         @DisplayName("updatePet updates an existing pet")
         fun testUpdatePet() {
-            val pet = Pet(
-                name = "UpdatedDog",
-                photoUrls = setOf("http://example.com/updated.jpg")
-            )
+            val pet =
+                Pet(
+                    name = "UpdatedDog",
+                    photoUrls = setOf("http://example.com/updated.jpg"),
+                )
 
             val result = runBlocking { api.updatePet(1L, pet) }
 
@@ -134,10 +138,11 @@ class PetApiTest {
         @Test
         @DisplayName("updatePet with HttpInfo returns status")
         fun testUpdatePetWithHttpInfo() {
-            val pet = Pet(
-                name = "UpdatedDog",
-                photoUrls = setOf("http://example.com/updated.jpg")
-            )
+            val pet =
+                Pet(
+                    name = "UpdatedDog",
+                    photoUrls = setOf("http://example.com/updated.jpg"),
+                )
 
             val result = runBlocking { api.updatePetWithHttpInfo(1L, pet) }
 
@@ -163,11 +168,12 @@ class PetApiTest {
         @Test
         @DisplayName("findPetsByStatus returns a list of pets")
         fun testFindPetsByStatus() {
-            val result = runBlocking {
-                api.findPetsByStatus(
-                    FindPetsByStatusOptions().status("available")
-                )
-            }
+            val result =
+                runBlocking {
+                    api.findPetsByStatus(
+                        FindPetsByStatusOptions().status("available"),
+                    )
+                }
 
             assertNotNull(result)
             assertTrue(result!!.isNotEmpty())
@@ -176,11 +182,12 @@ class PetApiTest {
         @Test
         @DisplayName("findPetsByStatus with HttpInfo returns status")
         fun testFindPetsByStatusWithHttpInfo() {
-            val result = runBlocking {
-                api.findPetsByStatusWithHttpInfo(
-                    FindPetsByStatusOptions().status("available")
-                )
-            }
+            val result =
+                runBlocking {
+                    api.findPetsByStatusWithHttpInfo(
+                        FindPetsByStatusOptions().status("available"),
+                    )
+                }
 
             assertNotNull(result)
             assertTrue(result.statusCode in 200..299)
@@ -268,9 +275,10 @@ class PetApiTest {
         @DisplayName("uploadPetDocument uploads with classification fields")
         fun testUploadPetDocument() {
             val fileBytes = "fake-doc-data".toByteArray()
-            val options = UploadPetDocumentOptions(fileBytes)
-                .documentType("vaccination_record")
-                .notes("Annual checkup")
+            val options =
+                UploadPetDocumentOptions(fileBytes)
+                    .documentType("vaccination_record")
+                    .notes("Annual checkup")
             val result = runBlocking { api.uploadPetDocument(1L, options) }
 
             assertNotNull(result)
@@ -305,11 +313,16 @@ class PetApiTest {
         @Disabled("Prism does not support matrix/label style parameters")
         @DisplayName("getPetTag sends styled path and query parameters")
         fun testGetPetTag() {
-            val result = runBlocking {
-                api.getPetTag(5L, "cute", GetPetTagOptions()
-                    .colors(listOf("blue", "black"))
-                    .sizes(listOf("S", "M")))
-            }
+            val result =
+                runBlocking {
+                    api.getPetTag(
+                        5L,
+                        "cute",
+                        GetPetTagOptions()
+                            .colors(listOf("blue", "black"))
+                            .sizes(listOf("S", "M")),
+                    )
+                }
 
             assertNotNull(result)
         }
@@ -327,7 +340,6 @@ class PetApiTest {
     @Nested
     @DisplayName("Mock tests")
     inner class MockTests {
-
         @Test
         @DisplayName("setPetAvatar sends binary body")
         fun testSetPetAvatarMock() {

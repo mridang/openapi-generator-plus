@@ -15,18 +15,18 @@ import kotlin.math.pow
  * Content negotiation logic for Accept and Content-Type headers.
  */
 class HeaderSelector {
-
-    private val jsonMimePattern = Regex(
-        "^application/(json|[\\w!#\$&.+\\-^_]+\\+json)\\s*(;|$)",
-        RegexOption.IGNORE_CASE
-    )
+    private val jsonMimePattern =
+        Regex(
+            "^application/(json|[\\w!#\$&.+\\-^_]+\\+json)\\s*(;|$)",
+            RegexOption.IGNORE_CASE,
+        )
 
     private val weightPattern = Regex("(.*)\\s*;\\s*q=(1(?:\\.0+)?|0\\.\\d+)$")
 
     fun selectHeaders(
         accept: Array<String>?,
         contentType: String?,
-        isMultipart: Boolean
+        isMultipart: Boolean,
     ): MutableMap<String, String> {
         val headers = mutableMapOf<String, String>()
 
@@ -61,7 +61,7 @@ class HeaderSelector {
 
     private fun getAcceptHeaderWithAdjustedWeight(
         accept: List<String>,
-        headersWithJson: List<String>
+        headersWithJson: List<String>,
     ): String {
         val withApplicationJson = mutableListOf<HeaderData>()
         val withJson = mutableListOf<HeaderData>()
@@ -105,7 +105,7 @@ class HeaderSelector {
     private fun adjustWeight(
         headers: MutableList<HeaderData>,
         currentWeight: IntArray,
-        hasMoreThan28: Boolean
+        hasMoreThan28: Boolean,
     ): List<String> {
         headers.sortByDescending { it.weight }
         val result = mutableListOf<String>()
@@ -121,7 +121,10 @@ class HeaderSelector {
         return result
     }
 
-    private fun buildAcceptHeader(header: String, weight: Int): String {
+    private fun buildAcceptHeader(
+        header: String,
+        weight: Int,
+    ): String {
         if (weight == 1000) return header
         val cleanHeader = header.replace(Regex("[;\\s]+$"), "")
         var weightStr = "%.3f".format(weight / 1000.0).trimEnd('0')
@@ -129,11 +132,17 @@ class HeaderSelector {
         return "$cleanHeader;q=$weightStr"
     }
 
-    fun getNextWeight(currentWeight: Int, hasMoreThan28Headers: Boolean): Int {
+    fun getNextWeight(
+        currentWeight: Int,
+        hasMoreThan28Headers: Boolean,
+    ): Int {
         if (currentWeight <= 1) return 1
         if (hasMoreThan28Headers) return currentWeight - 1
         return currentWeight - 10.0.pow(floor(log10((currentWeight - 1).toDouble()))).toInt()
     }
 
-    private data class HeaderData(val header: String, val weight: Int)
+    private data class HeaderData(
+        val header: String,
+        val weight: Int,
+    )
 }
