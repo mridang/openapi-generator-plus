@@ -85,13 +85,13 @@ class {{classname}} extends BaseApi {
   /// [{{paramName}}] {{description}}
 {{/description}}
 {{/allParams}}
-{{#allParams}}{{#vendorExtensions.examples}}
+{{#allParams}}{{#vendorExtensions.pluralExamples}}
   /// ### `{{paramName}}` — {{summary}}
   /// {{description}}
   /// ```json
   /// {{value}}
   /// ```
-{{/vendorExtensions.examples}}{{/allParams}}
+{{/vendorExtensions.pluralExamples}}{{/allParams}}
   Future<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}> {{operationId}}({{#pathParams}}{{{dataType}}} {{paramName}}, {{/pathParams}}{{#bodyParam}}{{^required}}{{{dataType}}}? {{/required}}{{#required}}{{{dataType}}} {{/required}}{{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}{{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.hasRequiredOptions}}?{{/vendorExtensions.hasRequiredOptions}} options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.hasRequiredOptions}}?{{/vendorExtensions.hasRequiredOptions}} options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.hasRequiredOptions}}?{{/vendorExtensions.hasRequiredOptions}} options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.hasRequiredOptions}}?{{/vendorExtensions.hasRequiredOptions}} options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}{{vendorExtensions.op.serverClassName}}? server, {{/-first}}{{/servers}}{Authenticator? auth}) async {
 {{#returnType}}
     final result = await {{operationId}}WithHTTPInfo({{#pathParams}}{{paramName}}, {{/pathParams}}{{#bodyParam}}{{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server, {{/-first}}{{/servers}}auth: auth);

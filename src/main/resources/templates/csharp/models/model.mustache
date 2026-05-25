@@ -221,9 +221,9 @@ public class {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/
 {{#example}}
     /// <example>{{{.}}}</example>
 {{/example}}
-{{#vendorExtensions.examples}}
+{{#vendorExtensions.pluralExamples}}
     /// <example>{{summary}}: {{value}}</example>
-{{/vendorExtensions.examples}}
+{{/vendorExtensions.pluralExamples}}
 {{#isReadOnly}}
     /// <remarks>This property is read-only.</remarks>
 {{/isReadOnly}}
@@ -340,9 +340,9 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
 {{#example}}
     /// <example>{{{.}}}</example>
 {{/example}}
-{{#vendorExtensions.examples}}
+{{#vendorExtensions.pluralExamples}}
     /// <example>{{summary}}: {{value}}</example>
-{{/vendorExtensions.examples}}
+{{/vendorExtensions.pluralExamples}}
 {{#isReadOnly}}
     /// <remarks>This property is read-only.</remarks>
 {{/isReadOnly}}

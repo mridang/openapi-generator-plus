@@ -2423,7 +2423,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      * schema (OAS 3.1 schema-level {@code examples} list, or the
      * {@code x-examples} extension that callers may use on OAS 3.0 schemas)
      * and stores a Mustache-friendly list under
-     * {@code property.vendorExtensions["examples"]}.
+     * {@code property.vendorExtensions["pluralExamples"]}. Templates read
+     * the list via {@code {{#vendorExtensions.pluralExamples}}}.
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
     protected static void capturePropertyPluralExamples(
@@ -2454,14 +2455,15 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             if (property.vendorExtensions == null) {
                 property.vendorExtensions = new HashMap<>();
             }
-            property.vendorExtensions.put("examples", examples);
+            property.vendorExtensions.put("pluralExamples", examples);
         }
     }
 
     /**
      * Converts the OAS named {@code examples} map carried on each
      * {@link CodegenParameter} into a Mustache-friendly list under
-     * {@code parameter.vendorExtensions["examples"]}.
+     * {@code parameter.vendorExtensions["pluralExamples"]}. Templates read
+     * the list via {@code {{#vendorExtensions.pluralExamples}}}.
      */
     protected static void capturePluralExamplesForParameters(
             List<CodegenParameter> params) {
@@ -2479,7 +2481,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             if (param.vendorExtensions == null) {
                 param.vendorExtensions = new HashMap<>();
             }
-            param.vendorExtensions.put("examples", list);
+            param.vendorExtensions.put("pluralExamples", list);
         }
     }
 
@@ -2719,17 +2721,18 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         }
         final Map<String, Object> d = decoratorMap(param.vendorExtensions, PARAM_DECORATOR_NS);
 
-        // P6 — Plural examples (promoted from vendorExtensions.examples)
+        // P6 — Plural examples (mirror of vendorExtensions.pluralExamples)
         List<Map<String, Object>> examples = Collections.emptyList();
         if (param.examples != null && !param.examples.isEmpty()) {
             examples = buildPluralExamplesList(param.examples);
         }
-        // Mirror legacy site: capturePluralExamplesForParameters already wrote
-        // vendorExtensions.examples — read it back so this method is order-independent.
+        // Mirror the flat-key write done by capturePluralExamplesForParameters
+        // so this method is order-independent: if the flat write already ran,
+        // pick up its value rather than re-deriving.
         if (examples.isEmpty()) {
-            final Object legacy = param.vendorExtensions.get("examples");
-            if (legacy instanceof List) {
-                examples = (List<Map<String, Object>>) legacy;
+            final Object flat = param.vendorExtensions.get("pluralExamples");
+            if (flat instanceof List) {
+                examples = (List<Map<String, Object>>) flat;
             }
         }
         d.put("pluralExamples", examples);
@@ -2780,11 +2783,11 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         }
         final Map<String, Object> d = decoratorMap(property.vendorExtensions, PROP_DECORATOR_NS);
 
-        // M5 — Plural examples (mirror of legacy vendorExtensions.examples)
+        // M5 — Plural examples (mirror of vendorExtensions.pluralExamples)
         List<Map<String, Object>> examples = Collections.emptyList();
-        final Object legacy = property.vendorExtensions.get("examples");
-        if (legacy instanceof List) {
-            examples = (List<Map<String, Object>>) legacy;
+        final Object flat = property.vendorExtensions.get("pluralExamples");
+        if (flat instanceof List) {
+            examples = (List<Map<String, Object>>) flat;
         }
         d.put("pluralExamples", examples);
         d.put("hasPluralExamples", !examples.isEmpty());

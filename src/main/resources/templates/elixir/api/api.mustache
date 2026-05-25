@@ -106,21 +106,21 @@ defmodule {{moduleName}}.Api.{{classname}} do
   ## Parameters
   {{#pathParams}}
     * `{{paramName}}` - {{{dataType}}}{{#description}} - {{.}}{{/description}}
-  {{#vendorExtensions.examples}}
+  {{#vendorExtensions.pluralExamples}}
 
   ### `{{paramName}}` example — {{summary}}
 
       {{value}}
-  {{/vendorExtensions.examples}}
+  {{/vendorExtensions.pluralExamples}}
   {{/pathParams}}
   {{#bodyParam}}
     * `{{paramName}}` - {{{dataType}}}{{#description}} - {{.}}{{/description}}
-  {{#vendorExtensions.examples}}
+  {{#vendorExtensions.pluralExamples}}
 
   ### `{{paramName}}` example — {{summary}}
 
       {{value}}
-  {{/vendorExtensions.examples}}
+  {{/vendorExtensions.pluralExamples}}
   {{/bodyParam}}
   {{#queryParams}}{{#-first}}
     * `options` - Optional parameters (query, header, form, cookie).

@@ -332,13 +332,13 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   {{/example}}
   {{/description}}
   {{/deprecated}}
-  {{#vendorExtensions.examples}}
+  {{#vendorExtensions.pluralExamples}}
   /// ## {{summary}}
   /// {{description}}
   /// ```json
   /// {{value}}
   /// ```
-  {{/vendorExtensions.examples}}
+  {{/vendorExtensions.pluralExamples}}
   {{#isReadOnly}}
   @JsonProperty(value = "{{baseName}}", access = JsonProperty.Access.READ_ONLY)
   {{/isReadOnly}}

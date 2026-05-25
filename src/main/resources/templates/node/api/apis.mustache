@@ -85,39 +85,39 @@ export class {{classname}} extends BaseApi {
 {{/hasAuthMethods}}
 {{#pathParams}}
    * @param {{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
-{{#vendorExtensions.examples}}
+{{#vendorExtensions.pluralExamples}}
    * @example {{summary}} - {{value}}
-{{/vendorExtensions.examples}}
+{{/vendorExtensions.pluralExamples}}
 {{/pathParams}}
 {{#bodyParam}}
    * @param {{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
-{{#vendorExtensions.examples}}
+{{#vendorExtensions.pluralExamples}}
    * @example {{summary}} - {{value}}
-{{/vendorExtensions.examples}}
+{{/vendorExtensions.pluralExamples}}
 {{/bodyParam}}
 {{#queryParams}}
    * @param options.{{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
-{{#vendorExtensions.examples}}
+{{#vendorExtensions.pluralExamples}}
    * @example {{summary}} - {{value}}
-{{/vendorExtensions.examples}}
+{{/vendorExtensions.pluralExamples}}
 {{/queryParams}}
 {{#headerParams}}
    * @param options.{{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
-{{#vendorExtensions.examples}}
+{{#vendorExtensions.pluralExamples}}
    * @example {{summary}} - {{value}}
-{{/vendorExtensions.examples}}
+{{/vendorExtensions.pluralExamples}}
 {{/headerParams}}
 {{#formParams}}
    * @param options.{{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
-{{#vendorExtensions.examples}}
+{{#vendorExtensions.pluralExamples}}
    * @example {{summary}} - {{value}}
-{{/vendorExtensions.examples}}
+{{/vendorExtensions.pluralExamples}}
 {{/formParams}}
 {{#cookieParams}}
    * @param options.{{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
-{{#vendorExtensions.examples}}
+{{#vendorExtensions.pluralExamples}}
    * @example {{summary}} - {{value}}
-{{/vendorExtensions.examples}}
+{{/vendorExtensions.pluralExamples}}
 {{/cookieParams}}
 {{#returnType}}
    * @return {{{returnType}}}

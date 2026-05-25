@@ -231,9 +231,9 @@ class {{classname}}(
   {{/example}}
   {{/description}}
   {{/deprecated}}
-  {{#vendorExtensions.examples}}
+  {{#vendorExtensions.pluralExamples}}
   /* Example "{{summary}}" — {{description}}; value: {{value}} */
-  {{/vendorExtensions.examples}}
+  {{/vendorExtensions.pluralExamples}}
   @SerialName("{{baseName}}")
 {{#isDateTime}}  @Contextual
 {{/isDateTime}}{{#isDate}}  @Contextual

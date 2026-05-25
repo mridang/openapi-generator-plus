@@ -262,9 +262,9 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{#example}}
      * @example {{{.}}}
 {{/example}}
-{{#vendorExtensions.examples}}
+{{#vendorExtensions.pluralExamples}}
      * @example {{value}} {{summary}}
-{{/vendorExtensions.examples}}
+{{/vendorExtensions.pluralExamples}}
 {{#isReadOnly}}
      * @readonly
 {{/isReadOnly}}
@@ -306,9 +306,9 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{#example}}
     /** @example {{{.}}} */
 {{/example}}
-{{#vendorExtensions.examples}}
+{{#vendorExtensions.pluralExamples}}
     /** @example {{value}} {{summary}} */
-{{/vendorExtensions.examples}}
+{{/vendorExtensions.pluralExamples}}
 {{#isReadOnly}}
     /** @readonly */
 {{/isReadOnly}}

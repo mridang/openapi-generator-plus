@@ -190,9 +190,9 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{#example}}
    * @example {{{.}}}
 {{/example}}
-{{#vendorExtensions.examples}}
+{{#vendorExtensions.pluralExamples}}
    * @example {{summary}} - {{value}}
-{{/vendorExtensions.examples}}
+{{/vendorExtensions.pluralExamples}}
 {{#isReadOnly}}
    * @readonly
 {{/isReadOnly}}
@@ -212,9 +212,9 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{#example}}
   /** @example {{{.}}} */
 {{/example}}
-{{#vendorExtensions.examples}}
+{{#vendorExtensions.pluralExamples}}
   /** @example {{summary}} - {{value}} */
-{{/vendorExtensions.examples}}
+{{/vendorExtensions.pluralExamples}}
 {{#isReadOnly}}
   /** @readonly */
 {{/isReadOnly}}

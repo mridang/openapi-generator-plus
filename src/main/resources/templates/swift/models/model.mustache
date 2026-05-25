@@ -49,13 +49,13 @@ public struct {{classname}}: Codable, Sendable {
 {{#example}}
     /// Example: `{{{.}}}`
 {{/example}}
-{{#vendorExtensions.examples}}
+{{#vendorExtensions.pluralExamples}}
     /// ## {{summary}}
     /// {{description}}
     /// ```json
     /// {{value}}
     /// ```
-{{/vendorExtensions.examples}}
+{{/vendorExtensions.pluralExamples}}
 {{#deprecated}}
     @available(*, deprecated, message: "This property is deprecated.")
 {{/deprecated}}

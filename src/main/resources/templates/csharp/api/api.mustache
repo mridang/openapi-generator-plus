@@ -128,15 +128,15 @@ public class {{classname}} : BaseApi
 {{/hasAuthMethods}}
     {{#pathParams}}
     /// <param name="{{paramName}}">{{description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
-    {{#vendorExtensions.examples}}
+    {{#vendorExtensions.pluralExamples}}
     /// <example>{{summary}}: {{value}}</example>
-    {{/vendorExtensions.examples}}
+    {{/vendorExtensions.pluralExamples}}
     {{/pathParams}}
     {{#bodyParam}}
     /// <param name="{{paramName}}">{{description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
-    {{#vendorExtensions.examples}}
+    {{#vendorExtensions.pluralExamples}}
     /// <example>{{summary}}: {{value}}</example>
-    {{/vendorExtensions.examples}}
+    {{/vendorExtensions.pluralExamples}}
     {{/bodyParam}}
 {{#queryParams}}
 {{#-first}}

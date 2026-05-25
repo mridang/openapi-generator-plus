@@ -105,9 +105,9 @@ func New{{classname}}(apiClient ApiClient, config *Configuration, authenticator 
 // param {{paramName}}: {{description}}
 {{/description}}
 {{/allParams}}
-{{#allParams}}{{#vendorExtensions.examples}}
+{{#allParams}}{{#vendorExtensions.pluralExamples}}
 // Example for `{{paramName}}` — {{summary}}: {{value}}
-{{/vendorExtensions.examples}}{{/allParams}}
+{{/vendorExtensions.pluralExamples}}{{/allParams}}
 func (a *{{classname}}) {{operationId}}({{#hasAuthMethods}}auth Authenticator, {{/hasAuthMethods}}{{#pathParams}}{{paramName}} {{{dataType}}}, {{/pathParams}}{{#bodyParam}}{{paramName}} {{^required}}*{{/required}}{{{dataType}}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server {{vendorExtensions.op.serverClassName}}, {{/-first}}{{/servers}}) ({{#returnType}}*{{{.}}}, {{/returnType}}error) {
 	result, err := a.{{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth, {{/hasAuthMethods}}{{#pathParams}}{{paramName}}, {{/pathParams}}{{#bodyParam}}{{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server, {{/-first}}{{/servers}})
 	if err != nil {

@@ -81,13 +81,13 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{/description}}
 {{/allParams}}
 {{/allParams.0}}
-{{#allParams}}{{#vendorExtensions.examples}}
+{{#allParams}}{{#vendorExtensions.pluralExamples}}
     /// ### `{{paramName}}` — {{summary}}
     /// {{description}}
     /// ```json
     /// {{value}}
     /// ```
-{{/vendorExtensions.examples}}{{/allParams}}
+{{/vendorExtensions.pluralExamples}}{{/allParams}}
     public func {{operationId}}({{#pathParams}}{{paramName}}: {{{dataType}}}, {{/pathParams}}{{#bodyParam}}{{paramName}}: {{^required}}{{{dataType}}}?{{/required}}{{#required}}{{{dataType}}}{{/required}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options: {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.hasRequiredOptions}}? = nil{{/vendorExtensions.hasRequiredOptions}}, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options: {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.hasRequiredOptions}}? = nil{{/vendorExtensions.hasRequiredOptions}}, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options: {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.hasRequiredOptions}}? = nil{{/vendorExtensions.hasRequiredOptions}}, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options: {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.hasRequiredOptions}}? = nil{{/vendorExtensions.hasRequiredOptions}}, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server: (any {{vendorExtensions.op.serverClassName}})? = nil, {{/-first}}{{/servers}}{{#hasAuthMethods}}auth: Authenticator? = nil{{/hasAuthMethods}}) async throws{{#returnType}} -> {{{.}}}{{/returnType}} {
         let result = try await {{operationId}}WithHTTPInfo({{#pathParams}}{{paramName}}: {{paramName}}, {{/pathParams}}{{#bodyParam}}{{paramName}}: {{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options: options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options: options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options: options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options: options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server: server, {{/-first}}{{/servers}}{{#hasAuthMethods}}auth: auth{{/hasAuthMethods}})
 {{#returnType}}

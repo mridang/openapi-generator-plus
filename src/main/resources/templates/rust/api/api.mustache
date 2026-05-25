@@ -111,12 +111,12 @@ impl {{classname}} {
     /// * `{{paramName}}`: {{description}}
 {{/description}}
 {{/allParams}}
-{{#allParams}}{{#vendorExtensions.examples}}    /// ### `{{paramName}}` — {{summary}}
+{{#allParams}}{{#vendorExtensions.pluralExamples}}    /// ### `{{paramName}}` — {{summary}}
     /// {{description}}
     /// ```json
     /// {{value}}
     /// ```
-{{/vendorExtensions.examples}}{{/allParams}}    pub async fn {{operationId}}(
+{{/vendorExtensions.pluralExamples}}{{/allParams}}    pub async fn {{operationId}}(
         &self,
 {{#hasAuthMethods}}
         auth: Option<&dyn Authenticator>,
