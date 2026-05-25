@@ -93,16 +93,16 @@ class {{classname}}(BaseApi):
         {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
 {{/bodyParam}}
 {{#queryParams}}{{#-first}}
-        options: Optional[{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options] = None,
+        options: Optional[{{vendorExtensions.op.optionsClassName}}] = None,
 {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
-        options: Optional[{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options] = None,
+        options: Optional[{{vendorExtensions.op.optionsClassName}}] = None,
 {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
-        options: Optional[{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options] = None,
+        options: Optional[{{vendorExtensions.op.optionsClassName}}] = None,
 {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
-        options: Optional[{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options] = None,
+        options: Optional[{{vendorExtensions.op.optionsClassName}}] = None,
 {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
 {{#servers}}{{#-first}}
-        server: Optional['{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server'] = None,
+        server: Optional['{{vendorExtensions.op.serverClassName}}'] = None,
 {{/-first}}{{/servers}}
         base_url: Optional[str] = None,
 {{#hasAuthMethods}}
@@ -212,16 +212,16 @@ class {{classname}}(BaseApi):
         {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
 {{/bodyParam}}
 {{#queryParams}}{{#-first}}
-        options: Optional[{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options] = None,
+        options: Optional[{{vendorExtensions.op.optionsClassName}}] = None,
 {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
-        options: Optional[{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options] = None,
+        options: Optional[{{vendorExtensions.op.optionsClassName}}] = None,
 {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
-        options: Optional[{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options] = None,
+        options: Optional[{{vendorExtensions.op.optionsClassName}}] = None,
 {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
-        options: Optional[{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options] = None,
+        options: Optional[{{vendorExtensions.op.optionsClassName}}] = None,
 {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
 {{#servers}}{{#-first}}
-        server: Optional['{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server'] = None,
+        server: Optional['{{vendorExtensions.op.serverClassName}}'] = None,
 {{/-first}}{{/servers}}
         base_url: Optional[str] = None,
 {{#hasAuthMethods}}

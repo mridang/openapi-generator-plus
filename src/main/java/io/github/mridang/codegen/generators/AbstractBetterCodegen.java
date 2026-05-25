@@ -2608,6 +2608,83 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         d.put("hasCookieParams", op.cookieParams != null && !op.cookieParams.isEmpty());
         d.put("hasPathParams", op.pathParams != null && !op.pathParams.isEmpty());
         d.put("hasBodyParam", op.bodyParam != null);
+
+        // Propagate the op decorator reference onto every parameter so templates
+        // can read {{vendorExtensions.op.optionsClassName}} from inside a
+        // parameter sub-scope (e.g. {{#queryParams}}{{#-first}}…{{/-first}}
+        // {{/queryParams}}). JMustache resolves vendorExtensions against the
+        // innermost scope only, so without this mirror the op-level decorator
+        // is invisible to parameter-scoped template blocks.
+        propagateOpDecoratorToParams(op, d);
+    }
+
+    /**
+     * Copies the operation-level decorator sub-map reference onto every
+     * parameter's {@code vendorExtensions["op"]} key so templates inside
+     * parameter scopes can read it.
+     */
+    private static void propagateOpDecoratorToParams(
+            CodegenOperation op, Map<String, Object> opDeco) {
+        propagateOpDecoratorToList(op.allParams, opDeco);
+        propagateOpDecoratorToList(op.queryParams, opDeco);
+        propagateOpDecoratorToList(op.headerParams, opDeco);
+        propagateOpDecoratorToList(op.formParams, opDeco);
+        propagateOpDecoratorToList(op.cookieParams, opDeco);
+        propagateOpDecoratorToList(op.pathParams, opDeco);
+        propagateOpDecoratorToList(op.bodyParams, opDeco);
+        if (op.bodyParam != null) {
+            if (op.bodyParam.vendorExtensions == null) {
+                op.bodyParam.vendorExtensions = new HashMap<>();
+            }
+            op.bodyParam.vendorExtensions.put(OP_DECORATOR_NS, opDeco);
+        }
+        // CodegenServer ships with a non-null empty vendorExtensions map by
+        // default, which means jmustache stops walking the context chain at
+        // the server scope when resolving {{vendorExtensions.op.foo}}. Mirror
+        // the op decorator onto each server so templates inside
+        // {{#servers}}…{{/servers}} can still reach it.
+        if (op.servers != null) {
+            for (final CodegenServer s : op.servers) {
+                if (s == null) {
+                    continue;
+                }
+                if (s.vendorExtensions == null) {
+                    s.vendorExtensions = new HashMap<>();
+                }
+                s.vendorExtensions.put(OP_DECORATOR_NS, opDeco);
+            }
+        }
+        // CodegenSecurity (authMethods) likewise has a non-null
+        // vendorExtensions; mirror so templates inside {{#authMethods}}…
+        // {{/authMethods}} can read the op decorator.
+        if (op.authMethods != null) {
+            for (final CodegenSecurity am : op.authMethods) {
+                if (am == null) {
+                    continue;
+                }
+                if (am.vendorExtensions == null) {
+                    am.vendorExtensions = new HashMap<>();
+                }
+                am.vendorExtensions.put(OP_DECORATOR_NS, opDeco);
+            }
+        }
+    }
+
+    /** Helper for {@link #propagateOpDecoratorToParams}. */
+    private static void propagateOpDecoratorToList(
+            List<CodegenParameter> params, Map<String, Object> opDeco) {
+        if (params == null) {
+            return;
+        }
+        for (final CodegenParameter p : params) {
+            if (p == null) {
+                continue;
+            }
+            if (p.vendorExtensions == null) {
+                p.vendorExtensions = new HashMap<>();
+            }
+            p.vendorExtensions.put(OP_DECORATOR_NS, opDeco);
+        }
     }
 
     /**

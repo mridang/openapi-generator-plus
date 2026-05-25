@@ -128,16 +128,16 @@ impl {{classname}} {
         {{paramName}}: {{^required}}Option<{{/required}}{{{dataType}}}{{^required}}>{{/required}},
 {{/bodyParam}}
 {{#queryParams}}{{#-first}}
-        options: Option<&{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options>,
+        options: Option<&{{vendorExtensions.op.optionsClassName}}>,
 {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
-        options: Option<&{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options>,
+        options: Option<&{{vendorExtensions.op.optionsClassName}}>,
 {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
-        options: Option<&{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options>,
+        options: Option<&{{vendorExtensions.op.optionsClassName}}>,
 {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
-        options: Option<&{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options>,
+        options: Option<&{{vendorExtensions.op.optionsClassName}}>,
 {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
 {{#servers}}{{#-first}}
-        server: Option<&dyn {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server>,
+        server: Option<&dyn {{vendorExtensions.op.serverClassName}}>,
 {{/-first}}{{/servers}}
     ) -> Result<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.{{operationId}}_with_http_info(
@@ -185,16 +185,16 @@ impl {{classname}} {
         {{paramName}}: {{^required}}Option<{{/required}}{{{dataType}}}{{^required}}>{{/required}},
 {{/bodyParam}}
 {{#queryParams}}{{#-first}}
-        options: Option<&{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options>,
+        options: Option<&{{vendorExtensions.op.optionsClassName}}>,
 {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
-        options: Option<&{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options>,
+        options: Option<&{{vendorExtensions.op.optionsClassName}}>,
 {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
-        options: Option<&{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options>,
+        options: Option<&{{vendorExtensions.op.optionsClassName}}>,
 {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
-        options: Option<&{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options>,
+        options: Option<&{{vendorExtensions.op.optionsClassName}}>,
 {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
 {{#servers}}{{#-first}}
-        server: Option<&dyn {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server>,
+        server: Option<&dyn {{vendorExtensions.op.serverClassName}}>,
 {{/-first}}{{/servers}}
     ) -> Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>> {
 {{#pathParams}}
