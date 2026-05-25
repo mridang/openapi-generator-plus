@@ -51,14 +51,14 @@ module PetstoreClient
     end
     class PetApi < BaseApi
       def initialize: (?::PetstoreClient::ApiClient? api_client, ?::PetstoreClient::Configuration config, ?::PetstoreClient::Auth::Authenticator? authenticator) -> void
-      def add_pet: (::PetstoreClient::Auth::Authenticator auth, Models::Pet pet) -> Models::Pet
-      def add_pet_with_http_info: (::PetstoreClient::Auth::Authenticator auth, Models::Pet pet) -> ::PetstoreClient::ApiResult[Models::Pet]
+      def add_pet: (Models::Pet pet, ?auth: ::PetstoreClient::Auth::Authenticator?) -> Models::Pet
+      def add_pet_with_http_info: (Models::Pet pet, ?auth: ::PetstoreClient::Auth::Authenticator?) -> ::PetstoreClient::ApiResult[Models::Pet]
       def add_pet_photos: (Integer pet_id, Options::AddPetPhotosOptions options) -> Array[Models::Photo]
       def add_pet_photos_with_http_info: (Integer pet_id, Options::AddPetPhotosOptions options) -> ::PetstoreClient::ApiResult[Array[Models::Photo]]
-      def add_pet_treatment: (::PetstoreClient::Auth::Authenticator auth, Integer pet_id, Models::PetTreatment pet_treatment) -> Models::PetTreatment
-      def add_pet_treatment_with_http_info: (::PetstoreClient::Auth::Authenticator auth, Integer pet_id, Models::PetTreatment pet_treatment) -> ::PetstoreClient::ApiResult[Models::PetTreatment]
-      def delete_pet: (::PetstoreClient::Auth::Authenticator auth, Integer pet_id, Options::DeletePetOptions options) -> void
-      def delete_pet_with_http_info: (::PetstoreClient::Auth::Authenticator auth, Integer pet_id, Options::DeletePetOptions options) -> ::PetstoreClient::ApiResult[nil]
+      def add_pet_treatment: (Integer pet_id, Models::PetTreatment pet_treatment, ?auth: ::PetstoreClient::Auth::Authenticator?) -> Models::PetTreatment
+      def add_pet_treatment_with_http_info: (Integer pet_id, Models::PetTreatment pet_treatment, ?auth: ::PetstoreClient::Auth::Authenticator?) -> ::PetstoreClient::ApiResult[Models::PetTreatment]
+      def delete_pet: (Integer pet_id, Options::DeletePetOptions options, ?auth: ::PetstoreClient::Auth::Authenticator?) -> void
+      def delete_pet_with_http_info: (Integer pet_id, Options::DeletePetOptions options, ?auth: ::PetstoreClient::Auth::Authenticator?) -> ::PetstoreClient::ApiResult[nil]
       def download_pet_document: (Integer pet_id, Integer document_id) -> File
       def download_pet_document_with_http_info: (Integer pet_id, Integer document_id) -> ::PetstoreClient::ApiResult[File]
       def find_pets_by_status: (Options::FindPetsByStatusOptions options) -> Array[Models::Pet]

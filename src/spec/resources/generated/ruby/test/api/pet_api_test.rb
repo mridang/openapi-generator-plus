@@ -25,7 +25,7 @@ describe PetstoreClient::Api::PetApi do
         status: 'available'
       )
 
-      result = @api.add_pet(@auth, pet)
+      result = @api.add_pet(pet, auth: @auth)
 
       _(result).wont_be_nil
       _(result.name).wont_be_nil
@@ -69,7 +69,7 @@ describe PetstoreClient::Api::PetApi do
 
   describe '#delete_pet' do
     it 'deletes a pet' do
-      @api.delete_pet(@auth, 1)
+      @api.delete_pet(1, auth: @auth)
     end
   end
 
@@ -262,7 +262,7 @@ describe PetstoreClient::Api::PetApi do
           status: 'available'
         )
 
-        result = @api.add_pet_with_http_info(@auth, pet)
+        result = @api.add_pet_with_http_info(pet, auth: @auth)
 
         _(result).wont_be_nil
         _(result.status_code).must_be :>=, 200

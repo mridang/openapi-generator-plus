@@ -134,18 +134,18 @@ module PetstoreClient
 
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
-      def add_pet(auth, pet)
+      def add_pet(pet, auth: nil)
         if pet.nil?
           raise ArgumentError,
             "Missing the required parameter 'pet' when calling PetApi.add_pet"
         end
 
-        add_pet_with_http_info(auth, pet).data
+        add_pet_with_http_info(pet, auth: auth).data
       end
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def add_pet_with_http_info(auth, pet)
+      def add_pet_with_http_info(pet, auth: nil)
         if pet.nil?
           raise ArgumentError,
             "Missing the required parameter 'pet' when calling PetApi.add_pet"
@@ -219,7 +219,7 @@ module PetstoreClient
 
       # @return [PetTreatment]
       # @raise [ApiError] if fails to make API call
-      def add_pet_treatment(auth, pet_id, pet_treatment)
+      def add_pet_treatment(pet_id, pet_treatment, auth: nil)
         if pet_id.nil?
           raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.add_pet_treatment"
@@ -230,12 +230,12 @@ module PetstoreClient
             "Missing the required parameter 'pet_treatment' when calling PetApi.add_pet_treatment"
         end
 
-        add_pet_treatment_with_http_info(auth, pet_id, pet_treatment).data
+        add_pet_treatment_with_http_info(pet_id, pet_treatment, auth: auth).data
       end
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def add_pet_treatment_with_http_info(auth, pet_id, pet_treatment)
+      def add_pet_treatment_with_http_info(pet_id, pet_treatment, auth: nil)
         if pet_id.nil?
           raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.add_pet_treatment"
@@ -271,18 +271,18 @@ module PetstoreClient
 
       # @return [nil]
       # @raise [ApiError] if fails to make API call
-      def delete_pet(auth, pet_id, options = nil)
+      def delete_pet(pet_id, options = nil, auth: nil)
         if pet_id.nil?
           raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.delete_pet"
         end
 
-        delete_pet_with_http_info(auth, pet_id, options).data
+        delete_pet_with_http_info(pet_id, options, auth: auth).data
       end
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def delete_pet_with_http_info(auth, pet_id, options = nil)
+      def delete_pet_with_http_info(pet_id, options = nil, auth: nil)
         if pet_id.nil?
           raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.delete_pet"
