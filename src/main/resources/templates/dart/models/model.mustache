@@ -115,20 +115,30 @@ class {{classname}} {
   const {{classname}}({
 {{#vars}}
 {{#required}}
+{{#isEnum}}
+    required this.{{name}},
+{{/isEnum}}
+{{^isEnum}}
 {{#defaultValue}}
     this.{{name}} = {{{defaultValue}}},
 {{/defaultValue}}
 {{^defaultValue}}
     required this.{{name}},
 {{/defaultValue}}
+{{/isEnum}}
 {{/required}}
 {{^required}}
+{{#isEnum}}
+    this.{{name}},
+{{/isEnum}}
+{{^isEnum}}
 {{#defaultValue}}
     this.{{name}} = {{{defaultValue}}},
 {{/defaultValue}}
 {{^defaultValue}}
     this.{{name}},
 {{/defaultValue}}
+{{/isEnum}}
 {{/required}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
@@ -217,12 +227,7 @@ class {{classname}} {
 {{/required}}
 {{^required}}
 {{#isEnum}}
-{{#defaultValue}}
-      {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as String) : {{{defaultValue}}},
-{{/defaultValue}}
-{{^defaultValue}}
       {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as String) : null,
-{{/defaultValue}}
 {{/isEnum}}
 {{^isEnum}}
 {{#isArray}}

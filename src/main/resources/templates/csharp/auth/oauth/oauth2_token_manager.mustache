@@ -367,10 +367,20 @@ public sealed class OAuth2TokenManager
 /// <see cref="OAuth2ServerError"/> (which represents RFC 6749 §5.2 error
 /// responses on 4xx/5xx) so callers can recover differently.
 /// </summary>
+/* CA1710: idiomatic .NET would name this OAuth2TokenException, but the name
+   is shared verbatim across all 12 SDK languages for parity (Python's
+   OAuth2TokenError, Ruby's OAuth2TokenError, etc.). Cross-language rename
+   would be a breaking API change for downstream consumers. */
+/* CA1032: extra constructors (parameterless / message+inner) are unused;
+   we only ever throw this from one site with a fixed-shape message. */
+/* IDE0290: primary-constructor form makes the XML doc less natural. */
+#pragma warning disable CA1710, CA1032, IDE0290
 public sealed class OAuth2TokenError : Exception
 {
+    /// <summary>Creates a new <see cref="OAuth2TokenError"/> with the given message.</summary>
     public OAuth2TokenError(string message) : base(message) { }
 }
+#pragma warning restore CA1710, CA1032, IDE0290
 
 /// <summary>
 /// Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
@@ -381,14 +391,27 @@ public sealed class OAuth2TokenError : Exception
 /// original response payload for diagnostics when the body is not a
 /// well-formed OAuth2 error object.
 /// </summary>
+/* CA1710: kept as -Error for cross-language naming parity (see above). */
+/* CA1032: only thrown from one site; extra constructors are unused. */
+/* CA1054/CA1056: error_uri in RFC 6749 §5.2 is a freeform URI string from
+   the OAuth2 server response — keep as `string` to round-trip verbatim
+   what the server sent without forcing System.Uri's stricter parsing. */
+/* IDE0290: primary-constructor form is awkward with the BuildMessage call. */
+#pragma warning disable CA1710, CA1032, CA1054, CA1056, IDE0290
 public sealed class OAuth2ServerError : Exception
 {
+    /// <summary>HTTP status code returned by the token endpoint.</summary>
     public int StatusCode { get; }
+    /// <summary>OAuth2 error code from the response body (RFC 6749 §5.2).</summary>
     public string? Code { get; }
+    /// <summary>Optional human-readable error description.</summary>
     public string? Description { get; }
+    /// <summary>Optional URL to a page describing the error.</summary>
     public string? Uri { get; }
+    /// <summary>Raw response body for diagnostics.</summary>
     public string RawBody { get; }
 
+    /// <summary>Creates a new <see cref="OAuth2ServerError"/>.</summary>
     public OAuth2ServerError(
         int statusCode,
         string? code,
@@ -418,3 +441,4 @@ public sealed class OAuth2ServerError : Exception
         return $"Token request failed with status {statusCode}: {code}";
     }
 }
+#pragma warning restore CA1710, CA1032, CA1054, CA1056, IDE0290

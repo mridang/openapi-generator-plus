@@ -456,10 +456,10 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{#vars}}
 {{#isArray}}
 {{#uniqueItems}}
-        // uniqueItems:true — dedupe at construction so PHP's
-        // associative-array semantics don't leak duplicates that the
-        // schema forbids. array_values() re-indexes after array_unique()
-        // strips duplicates, producing a clean 0-based list.
+        /* uniqueItems:true — dedupe at construction so PHP's
+           associative-array semantics don't leak duplicates that the
+           schema forbids. array_values() re-indexes after array_unique()
+           strips duplicates, producing a clean 0-based list. */
         $this->{{name}} = {{^required}}${{name}} === null ? null : {{/required}}array_values(array_unique(${{name}}, SORT_REGULAR));
 {{/uniqueItems}}
 {{^uniqueItems}}

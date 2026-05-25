@@ -98,11 +98,11 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         {
             AutomaticDecompression = DecompressionMethods.All,
             CheckCertificateRevocationList = true,
-            // Disable the default per-handler cookie jar so that a
-            // Set-Cookie returned by one request is not silently
-            // replayed on the next request. The other 11 SDKs are
-            // stateless by default; this brings C# into line so
-            // callers see consistent behavior across languages.
+            /* Disable the default per-handler cookie jar so that a
+               Set-Cookie returned by one request is not silently
+               replayed on the next request. The other 11 SDKs are
+               stateless by default; this brings C# into line so
+               callers see consistent behavior across languages. */
             UseCookies = false,
         };
 
@@ -303,8 +303,8 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             /* Gap BH: manual redirect loop with cross-origin sensitive-header strip. */
             if (_transportOptions.FollowRedirects)
             {
-                // Default to 20 hops when caller does not configure an
-                // explicit cap — unified across all 12 SDKs.
+                /* Default to 20 hops when caller does not configure an
+                   explicit cap — unified across all 12 SDKs. */
                 int maxRedirects = _transportOptions.MaxRedirects ?? 20;
                 Uri originalUrl = url;
                 Uri currentUrl = url;

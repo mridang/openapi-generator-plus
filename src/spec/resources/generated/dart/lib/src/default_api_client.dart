@@ -204,11 +204,11 @@ class DefaultApiClient implements ApiClient {
       if (body is Uint8List) {
         standardRequest.bodyBytes = body;
       } else if (body == null) {
-        // Some servers / WAFs treat POST/PUT/PATCH with no body and no
-        // Content-Length as malformed (411 Length Required). Setting
-        // bodyBytes to an empty list forces dart:http to emit an
-        // explicit `Content-Length: 0`, matching Kotlin's
-        // `ByteArray(0)` and the other 11 SDKs.
+        /* Some servers / WAFs treat POST/PUT/PATCH with no body and no
+           Content-Length as malformed (411 Length Required). Setting
+           bodyBytes to an empty list forces dart:http to emit an
+           explicit `Content-Length: 0`, matching Kotlin's
+           `ByteArray(0)` and the other 11 SDKs. */
         final upper = method.toUpperCase();
         if (upper == 'POST' || upper == 'PUT' || upper == 'PATCH') {
           standardRequest.bodyBytes = Uint8List(0);

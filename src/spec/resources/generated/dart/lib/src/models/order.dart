@@ -63,7 +63,7 @@ class Order {
     this.petId,
     this.quantity,
     this.shipDate,
-    this.status = 'placed',
+    this.status,
     this.complete,
   });
 
@@ -78,7 +78,7 @@ class Order {
           : null,
       status: json['status'] != null
           ? OrderStatusEnum.fromJson(json['status'] as String)
-          : 'placed',
+          : null,
       complete: json['complete'] as bool?,
     );
   }
