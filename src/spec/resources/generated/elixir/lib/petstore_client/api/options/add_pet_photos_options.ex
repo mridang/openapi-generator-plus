@@ -11,8 +11,8 @@ defmodule PetstoreClient.Api.Options.AddPetPhotosOptions do
   """
 
   @type t :: %__MODULE__{
-          files: term(),
-          metadata: term()
+          files: list(binary()),
+          metadata: PhotoMetadata.t()
         }
 
   defstruct files: nil,

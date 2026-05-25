@@ -54,7 +54,7 @@ describe('TraceContextUtil', () => {
     const headers: Record<string, string> = {
       Authorization: 'Bearer token',
       'Content-Type': 'application/json',
-      'X-Request-ID': 'abc-123'
+      'X-Request-ID': 'abc-123',
     };
     injectTraceContext(headers);
     expect(Object.keys(headers).length).toBe(3);

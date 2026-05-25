@@ -16,8 +16,10 @@ defmodule PetstoreClient.Models.SetPetAvatarRequest do
           mime_type: String.t() | nil
         }
 
-  @enforce_keys [:data]
-  @enforce_keys [:mime_type]
+  @enforce_keys [
+    :data,
+    :mime_type
+  ]
   defstruct [
     :data,
     :mime_type

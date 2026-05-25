@@ -434,7 +434,9 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
       PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
 
-      assert_raise RuntimeError, fn ->
+      # Group B fix: token endpoint 4xx responses now raise the typed
+      # OAuth2ServerError (RFC 6749 §5.2), not a generic RuntimeError.
+      assert_raise PetstoreClient.Auth.OAuth.OAuth2ServerError, fn ->
         PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
           manager,
           "https://auth.example.com/token",

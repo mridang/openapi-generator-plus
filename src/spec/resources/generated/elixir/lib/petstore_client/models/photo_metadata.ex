@@ -14,7 +14,7 @@ defmodule PetstoreClient.Models.PhotoMetadata do
   @type t :: %__MODULE__{
           caption: String.t() | nil,
           is_primary: boolean() | nil,
-          taken_at: String.t() | nil,
+          taken_at: DateTime.t() | nil,
           location: PhotoMetadataLocation | nil
         }
 
@@ -48,7 +48,7 @@ defmodule PetstoreClient.Models.PhotoMetadata do
     %{
       caption: "String.t()",
       is_primary: "boolean()",
-      taken_at: "String.t()",
+      taken_at: "DateTime.t()",
       location: "PhotoMetadataLocation"
     }
   end

@@ -346,7 +346,7 @@ describe('OAuth2TokenManager', () => {
     class SlowMockApiClient implements ApiClient {
       async sendRequest(): Promise<ApiResponse> {
         networkCalls++;
-        return new Promise<ApiResponse>((resolve) => {
+        return new Promise<ApiResponse>(resolve => {
           pendingResolve = resolve;
         });
       }
@@ -362,7 +362,7 @@ describe('OAuth2TokenManager', () => {
     );
 
     // Allow the queued microtasks to schedule.
-    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise(resolve => setImmediate(resolve));
 
     expect(networkCalls).toBe(1);
     expect(pendingResolve).not.toBeNull();
@@ -373,7 +373,7 @@ describe('OAuth2TokenManager', () => {
     });
 
     const tokens = await Promise.all(requests);
-    expect(tokens.every((t) => t === 'concurrent-token')).toBe(true);
+    expect(tokens.every(t => t === 'concurrent-token')).toBe(true);
     expect(networkCalls).toBe(1);
   });
 
@@ -401,7 +401,7 @@ describe('OAuth2TokenManager', () => {
       )
     );
 
-    expect(tokens.every((t) => t === 'second-token')).toBe(true);
+    expect(tokens.every(t => t === 'second-token')).toBe(true);
     // exactly one additional network call (callCount went 1 -> 2)
     expect(mockClient.callCount).toBe(2);
   });

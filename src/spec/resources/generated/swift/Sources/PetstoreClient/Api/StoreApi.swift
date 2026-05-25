@@ -12,6 +12,9 @@ import Foundation
 public final class StoreApi: BaseApi, @unchecked Sendable {
 
     /// Delete purchase order by ID
+    ///
+    /// - Parameters:
+    ///   - orderId: ID of the order to delete
 
     public func deleteOrder(orderId: Int64, ) async throws {
         let result = try await deleteOrderWithHTTPInfo(orderId: orderId, )
@@ -87,6 +90,9 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     }
 
     /// Find purchase order by ID
+    ///
+    /// - Parameters:
+    ///   - orderId: ID of order to return
 
     public func getOrderById(orderId: Int64, ) async throws -> Order {
         let result = try await getOrderByIdWithHTTPInfo(orderId: orderId, )
@@ -129,6 +135,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     }
 
     /// Place an order for a pet
+    ///
+    /// - Parameters:
 
     public func placeOrder(order: Order?, ) async throws -> Order {
         let result = try await placeOrderWithHTTPInfo(order: order, )

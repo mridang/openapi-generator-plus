@@ -53,10 +53,13 @@ export class DefaultApiClient implements ApiClient {
   constructor(transportOptions?: TransportOptions) {
     this.transportOptions = transportOptions ?? TransportOptions.builder().build();
 
-    const needsTls = this.transportOptions.caCertPath != null || !this.transportOptions.verifySsl;
+    const needsTls =
+      this.transportOptions.caCertPath != null || !this.transportOptions.verifySsl;
     const tlsOptions = needsTls
       ? {
-          ca: this.transportOptions.caCertPath ? fs.readFileSync(this.transportOptions.caCertPath) : undefined,
+          ca: this.transportOptions.caCertPath
+            ? fs.readFileSync(this.transportOptions.caCertPath)
+            : undefined,
           rejectUnauthorized: this.transportOptions.verifySsl,
           /* Gap AM: verifySsl=false must disable BOTH cert-chain AND
            * hostname verification (curl -k semantics). undici's
@@ -64,13 +67,13 @@ export class DefaultApiClient implements ApiClient {
            * matches the hostname against the cert's CN/SAN by default.
            * Setting `checkServerIdentity` to a no-op makes the two
            * checks symmetric. */
-          checkServerIdentity: this.transportOptions.verifySsl ? undefined : () => undefined
+          checkServerIdentity: this.transportOptions.verifySsl ? undefined : () => undefined,
         }
       : undefined;
 
     if (this.transportOptions.proxy) {
       const proxyOpts: Record<string, unknown> = {
-        uri: this.transportOptions.proxy
+        uri: this.transportOptions.proxy,
       };
       if (tlsOptions) {
         proxyOpts.requestTls = tlsOptions;
@@ -81,7 +84,7 @@ export class DefaultApiClient implements ApiClient {
       this.dispatcher = new ProxyAgent(proxyOpts as unknown as ConstructorParameters<typeof ProxyAgent>[0]);
     } else if (needsTls) {
       const agentOpts: Record<string, unknown> = {
-        connect: tlsOptions
+        connect: tlsOptions,
       };
       if (this.transportOptions.maxRedirects != null) {
         agentOpts.maxRedirections = this.transportOptions.maxRedirects;
@@ -89,7 +92,7 @@ export class DefaultApiClient implements ApiClient {
       this.dispatcher = new Agent(agentOpts as ConstructorParameters<typeof Agent>[0]);
     } else if (this.transportOptions.maxRedirects != null) {
       this.dispatcher = new Agent({
-        maxRedirections: this.transportOptions.maxRedirects
+        maxRedirections: this.transportOptions.maxRedirects,
       } as ConstructorParameters<typeof Agent>[0]);
     }
   }
@@ -137,6 +140,14 @@ export class DefaultApiClient implements ApiClient {
       body = await this.buildMultipartBody(body as Record<string, unknown>, boundary);
     } else if (body == null) {
       delete mergedHeaders['Content-Type'];
+      /* Some servers / WAFs treat POST/PUT/PATCH with no body and no
+       * Content-Length as malformed (411 Length Required) or behave
+       * inconsistently. Set Content-Length: 0 explicitly on body-bearing
+       * verbs to match Kotlin's `ByteArray(0)` and the other 11 SDKs. */
+      const upperMethod = method.toUpperCase();
+      if (upperMethod === 'POST' || upperMethod === 'PUT' || upperMethod === 'PATCH') {
+        mergedHeaders['Content-Length'] = '0';
+      }
     }
 
     /* Gap BH: undici's automatic redirect following re-sends
@@ -173,7 +184,10 @@ export class DefaultApiClient implements ApiClient {
         let currentMethod = method;
         let currentBody: unknown = body;
         let currentHeaders: Record<string, string> = { ...mergedHeaders };
-        while (hops < maxRedirects && DefaultApiClient.isRedirectStatus(response.status)) {
+        while (
+          hops < maxRedirects &&
+          DefaultApiClient.isRedirectStatus(response.status)
+        ) {
           const location = response.headers.get('location');
           if (location == null || location.length === 0) break;
           const nextUrl = new URL(location, currentUrl).toString();
@@ -207,10 +221,9 @@ export class DefaultApiClient implements ApiClient {
           const redirectHeaders: Record<string, string> = {};
           for (const [k, v] of Object.entries(currentHeaders)) {
             if (crossOrigin && sensitive.has(k.toLowerCase())) continue;
-            if (
-              nextBody === undefined &&
-              (k.toLowerCase() === 'content-type' || k.toLowerCase() === 'content-length')
-            ) {
+            if (nextBody === undefined
+                && (k.toLowerCase() === 'content-type'
+                    || k.toLowerCase() === 'content-length')) {
               continue;
             }
             redirectHeaders[k] = v;
@@ -230,7 +243,14 @@ export class DefaultApiClient implements ApiClient {
         }
       }
     } catch (error) {
-      throw new ApiError(0, error instanceof Error ? error.message : String(error), {}, null, null, { cause: error });
+      throw new ApiError(
+        0,
+        error instanceof Error ? error.message : String(error),
+        {},
+        null,
+        null,
+        { cause: error }
+      );
     }
 
     const responseBytes = Buffer.from(await response.arrayBuffer());
@@ -326,8 +346,9 @@ export class DefaultApiClient implements ApiClient {
       const buf = Buffer.from(await value.arrayBuffer());
       const filename = (value as Blob & { name?: string }).name ?? name;
       const disposition = DefaultApiClient.buildContentDisposition(name, filename);
-      const mimeType =
-        value.type && value.type.length > 0 ? value.type : DefaultApiClient.mimeTypeForFilename(filename);
+      const mimeType = value.type && value.type.length > 0
+        ? value.type
+        : DefaultApiClient.mimeTypeForFilename(filename);
       const header = `--${boundary}\r\nContent-Disposition: ${disposition}\r\nContent-Type: ${mimeType}\r\n\r\n`;
       return Buffer.concat([Buffer.from(header, 'utf-8'), buf, Buffer.from('\r\n', 'utf-8')]);
     }
@@ -360,12 +381,7 @@ export class DefaultApiClient implements ApiClient {
    */
   static decodeBody(buf: Buffer, contentType?: string): string {
     const m = /charset=([^;]+)/i.exec(contentType ?? '');
-    const cs = m
-      ? m[1]
-          .trim()
-          .toLowerCase()
-          .replace(/^["']|["']$/g, '')
-      : 'utf-8';
+    const cs = m ? m[1].trim().toLowerCase().replace(/^["']|["']$/g, '') : 'utf-8';
     try {
       return new TextDecoder(cs, { fatal: false }).decode(buf);
     } catch {
@@ -380,37 +396,37 @@ export class DefaultApiClient implements ApiClient {
    * is unknown.
    */
   private static readonly EXTENSION_MIME_TYPES: Record<string, string> = {
-    png: 'image/png',
-    jpg: 'image/jpeg',
-    jpeg: 'image/jpeg',
-    gif: 'image/gif',
-    webp: 'image/webp',
-    bmp: 'image/bmp',
-    svg: 'image/svg+xml',
-    tif: 'image/tiff',
-    tiff: 'image/tiff',
-    ico: 'image/x-icon',
-    pdf: 'application/pdf',
-    json: 'application/json',
-    xml: 'application/xml',
-    zip: 'application/zip',
-    gz: 'application/gzip',
-    tar: 'application/x-tar',
-    txt: 'text/plain',
-    csv: 'text/csv',
-    html: 'text/html',
-    htm: 'text/html',
-    css: 'text/css',
-    js: 'application/javascript',
-    mp3: 'audio/mpeg',
-    wav: 'audio/wav',
-    mp4: 'video/mp4',
-    webm: 'video/webm',
-    mov: 'video/quicktime',
-    doc: 'application/msword',
-    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    xls: 'application/vnd.ms-excel',
-    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    'png': 'image/png',
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'gif': 'image/gif',
+    'webp': 'image/webp',
+    'bmp': 'image/bmp',
+    'svg': 'image/svg+xml',
+    'tif': 'image/tiff',
+    'tiff': 'image/tiff',
+    'ico': 'image/x-icon',
+    'pdf': 'application/pdf',
+    'json': 'application/json',
+    'xml': 'application/xml',
+    'zip': 'application/zip',
+    'gz': 'application/gzip',
+    'tar': 'application/x-tar',
+    'txt': 'text/plain',
+    'csv': 'text/csv',
+    'html': 'text/html',
+    'htm': 'text/html',
+    'css': 'text/css',
+    'js': 'application/javascript',
+    'mp3': 'audio/mpeg',
+    'wav': 'audio/wav',
+    'mp4': 'video/mp4',
+    'webm': 'video/webm',
+    'mov': 'video/quicktime',
+    'doc': 'application/msword',
+    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'xls': 'application/vnd.ms-excel',
+    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
   };
 
   /**
@@ -447,14 +463,16 @@ export class DefaultApiClient implements ApiClient {
     let asciiFallback = '';
     for (const ch of filename) {
       const code = ch.codePointAt(0)!;
-      if (code >= 0x20 && code <= 0x7e) {
+      if (code >= 0x20 && code <= 0x7E) {
         asciiFallback += ch;
       } else {
         isAscii = false;
         asciiFallback += '_';
       }
     }
-    const escapedFilename = asciiFallback.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    const escapedFilename = asciiFallback
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '\\"');
     let header = `form-data; name="${escapedName}"; filename="${escapedFilename}"`;
     if (!isAscii) {
       header += `; filename*=UTF-8''${encodeURIComponent(filename)}`;
@@ -473,7 +491,7 @@ export class DefaultApiClient implements ApiClient {
   private static assertNoControlChars(value: string, label: string): void {
     for (let i = 0; i < value.length; i++) {
       const code = value.charCodeAt(i);
-      if (code === 0x0a || code === 0x0d || code === 0x00) {
+      if (code === 0x0A || code === 0x0D || code === 0x00) {
         throw new Error(`Invalid ${label}: contains CR, LF, or NUL`);
       }
     }
@@ -519,8 +537,8 @@ export class DefaultApiClient implements ApiClient {
       const ub = new URL(b);
       if (ua.protocol !== ub.protocol) return false;
       if (ua.hostname.toLowerCase() !== ub.hostname.toLowerCase()) return false;
-      const portA = ua.port !== '' ? ua.port : ua.protocol === 'https:' ? '443' : '80';
-      const portB = ub.port !== '' ? ub.port : ub.protocol === 'https:' ? '443' : '80';
+      const portA = ua.port !== '' ? ua.port : (ua.protocol === 'https:' ? '443' : '80');
+      const portB = ub.port !== '' ? ub.port : (ub.protocol === 'https:' ? '443' : '80');
       return portA === portB;
     } catch {
       return false;

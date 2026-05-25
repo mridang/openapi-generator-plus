@@ -27,7 +27,8 @@ export class PetPassport {
   scans?: Array<string>;
   /** @example null */
   @Expose({ name: 'issuedAt' })
-  issuedAt?: string;
+  @Type(() => Date)
+  issuedAt?: Date;
   /**
    * Embedded chip data (OAS 3.1 contentEncoding form)
    * @example null

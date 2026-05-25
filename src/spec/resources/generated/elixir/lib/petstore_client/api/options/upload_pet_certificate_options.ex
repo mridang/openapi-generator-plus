@@ -11,7 +11,7 @@ defmodule PetstoreClient.Api.Options.UploadPetCertificateOptions do
   """
 
   @type t :: %__MODULE__{
-          file: term()
+          file: binary()
         }
 
   defstruct file: nil

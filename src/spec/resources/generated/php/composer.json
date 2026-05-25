@@ -1,5 +1,6 @@
 {
     "license": "MIT",
+    "version": "1.0.0",
     "require": {
         "php": ">=8.4",
         "ext-curl": "*",
@@ -21,6 +22,7 @@
         "slevomat/coding-standard": "^8.16",
         "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
         "rector/rector": "^2.4",
+        "phpdocumentor/phpdocumentor": "^3.0",
         "testcontainers/testcontainers": "dev-main"
     },
     "config": {

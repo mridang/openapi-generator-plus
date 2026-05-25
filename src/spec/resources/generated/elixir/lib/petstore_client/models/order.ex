@@ -15,9 +15,9 @@ defmodule PetstoreClient.Models.Order do
           id: integer() | nil,
           pet_id: integer() | nil,
           quantity: integer() | nil,
-          ship_date: String.t() | nil,
+          ship_date: DateTime.t() | nil,
           complete: boolean() | nil,
-          status: String.t() | nil
+          status: :placed | :approved | :delivered | nil
         }
 
   defstruct [
@@ -55,7 +55,7 @@ defmodule PetstoreClient.Models.Order do
       id: "integer()",
       pet_id: "integer()",
       quantity: "integer()",
-      ship_date: "String.t()",
+      ship_date: "DateTime.t()",
       complete: "boolean()",
       status: "String.t()"
     }

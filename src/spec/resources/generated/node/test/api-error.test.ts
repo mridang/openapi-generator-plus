@@ -34,7 +34,12 @@ describe('ApiError', () => {
 
   describe('getTypedErrorBody', () => {
     test('deserializes the raw body into the requested class', () => {
-      const err = new ApiError<unknown>(400, 'bad request', {}, '{"id":42,"name":"Dogs"}');
+      const err = new ApiError<unknown>(
+        400,
+        'bad request',
+        {},
+        '{"id":42,"name":"Dogs"}'
+      );
       const typed = err.getTypedErrorBody(Category);
       expect(typed).not.toBeNull();
       expect(typed).toBeInstanceOf(Category);
@@ -48,7 +53,12 @@ describe('ApiError', () => {
     });
 
     test('ignores extraneous fields not declared on the model', () => {
-      const err = new ApiError<unknown>(422, 'unprocessable', {}, '{"id":1,"name":"Cat","extra":"drop-me"}');
+      const err = new ApiError<unknown>(
+        422,
+        'unprocessable',
+        {},
+        '{"id":1,"name":"Cat","extra":"drop-me"}'
+      );
       const typed = err.getTypedErrorBody(Category);
       expect(typed).not.toBeNull();
       expect(typed!.id).toBe(1);

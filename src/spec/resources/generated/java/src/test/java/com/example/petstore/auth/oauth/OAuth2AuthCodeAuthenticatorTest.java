@@ -140,4 +140,30 @@ class OAuth2AuthCodeAuthenticatorTest {
     // Caller continues normally after catching -- no process crash.
     assertEquals("https://api.example.com", auth.getHost());
   }
+
+  @Test
+  void authorize_url_with_existing_query_string_uses_amp_separator() {
+    // RFC 6749 §3.1: the authorization endpoint URI MAY already include a
+    // query component (e.g. tenant-scoped Auth0 URLs that bake `audience`
+    // into the configured authorization_url). The builder must use '&' as
+    // the separator so existing params are preserved alongside the OAuth2
+    // ones, not '?' which would corrupt the URL.
+    OAuth2AuthorizationCodeAuthenticator auth =
+        new OAuth2AuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            "https://x.auth0.com/authorize?audience=api",
+            "https://x.auth0.com/oauth/token",
+            "https://app.example.com/callback",
+            List.of("read"));
+
+    String url = auth.buildAuthorizationUrl(null);
+
+    assertTrue(url.contains("audience=api"), "existing query param must be preserved: " + url);
+    assertTrue(url.contains("response_type=code"), "response_type param must be appended: " + url);
+    // Sanity: there must be exactly one '?' in the result.
+    long questionMarks = url.chars().filter(ch -> ch == '?').count();
+    assertEquals(1L, questionMarks, "result must contain exactly one '?': " + url);
+  }
 }

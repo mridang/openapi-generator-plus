@@ -11,8 +11,8 @@ defmodule PetstoreClient.Api.Options.FindPetsByStatusOptions do
   """
 
   @type t :: %__MODULE__{
-          status: term(),
-          filter: term()
+          status: String.t() | nil,
+          filter: map() | nil
         }
 
   defstruct status: nil,

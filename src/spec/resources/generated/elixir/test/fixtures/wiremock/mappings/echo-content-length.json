@@ -1,0 +1,17 @@
+{
+  "request": {
+    "method": "ANY",
+    "url": "/api/echo-content-length"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "transformers": ["response-template"],
+    "jsonBody": {
+      "method": "{{request.method}}",
+      "content-length": "{{request.headers.Content-Length}}"
+    }
+  }
+}

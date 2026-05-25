@@ -7,6 +7,8 @@
 
 package com.example.petstore
 
+import com.example.petstore.auth.oauth.OAuth2ServerError
+import com.example.petstore.auth.oauth.OAuth2TokenError
 import com.example.petstore.auth.oauth.OAuth2TokenManager
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -333,5 +335,53 @@ class OAuth2TokenManagerTest {
                 )
             }
         }
+    }
+
+    @Test
+    fun `token_response_missing_access_token_throws_typed_error`() {
+        // A 2xx response whose body omits access_token must surface as the
+        // typed OAuth2TokenError, not silently cache an empty token.
+        val client = FakeApiClient()
+        client.enqueue("""{"refresh_token":"x"}""")
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val ex =
+            assertThrows(OAuth2TokenError::class.java) {
+                runBlocking {
+                    manager.getAccessToken(
+                        "https://auth.example.com/token",
+                        mapOf("grant_type" to "client_credentials"),
+                    )
+                }
+            }
+        assertNotNull(ex.message)
+    }
+
+    @Test
+    fun `token_endpoint_error_response_parsed_to_typed_error`() {
+        // RFC 6749 §5.2: a 4xx response with a JSON error object must surface
+        // as a typed OAuth2ServerError carrying code/description/uri.
+        val client = FakeApiClient()
+        client.enqueue(
+            """{"error":"invalid_grant","error_description":"refresh token expired","error_uri":"https://docs.example.com/errors/invalid_grant"}""",
+            statusCode = 400,
+        )
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val ex =
+            assertThrows(OAuth2ServerError::class.java) {
+                runBlocking {
+                    manager.getAccessToken(
+                        "https://auth.example.com/token",
+                        mapOf("grant_type" to "client_credentials"),
+                    )
+                }
+            }
+        assertEquals(400, ex.statusCode)
+        assertEquals("invalid_grant", ex.code)
+        assertEquals("refresh token expired", ex.description)
+        assertEquals("https://docs.example.com/errors/invalid_grant", ex.uri)
     }
 }

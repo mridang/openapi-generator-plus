@@ -11,6 +11,36 @@ import 'category.dart';
 import 'tag.dart';
 
 /// PetWithOwner A pet record extended with owner information
+/// Typed enum for PetWithOwner.status.
+enum PetWithOwnerStatusEnum {
+  /// Represents the value 'available'.
+  available('available'),
+
+  /// Represents the value 'pending'.
+  pending('pending'),
+
+  /// Represents the value 'sold'.
+  sold('sold'),
+  ;
+
+  final String value;
+  const PetWithOwnerStatusEnum(this.value);
+
+  /// Returns the enum value matching the given [value], or throws.
+  static PetWithOwnerStatusEnum fromJson(String value) {
+    return PetWithOwnerStatusEnum.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () =>
+          throw ArgumentError('Unknown PetWithOwnerStatusEnum value: $value'),
+    );
+  }
+
+  String toJson() => value;
+
+  @override
+  String toString() => value;
+}
+
 class PetWithOwner {
   /// Example: `10`
   final int? id;
@@ -30,7 +60,7 @@ class PetWithOwner {
   /// pet status in the store
   /// Example: `null`
   @Deprecated('This property is deprecated.')
-  final String? status;
+  final PetWithOwnerStatusEnum? status;
 
   /// Example: `null`
   final List<Object>? location;
@@ -65,7 +95,9 @@ class PetWithOwner {
       tags: (json['tags'] as List?)
           ?.map((e) => Tag.fromJson(e as Map<String, dynamic>))
           .toList(),
-      status: json['status'] as String?,
+      status: json['status'] != null
+          ? PetWithOwnerStatusEnum.fromJson(json['status'] as String)
+          : null,
       location: (json['location'] as List?)?.map((e) => e as Object).toList(),
       ownerName: json['ownerName'] as String,
       ownerEmail: json['ownerEmail'] as String?,
@@ -89,7 +121,7 @@ class PetWithOwner {
       json['tags'] = tags?.map((e) => e.toJson()).toList();
     }
     if (status != null) {
-      json['status'] = status;
+      json['status'] = status?.toJson();
     }
     if (location != null) {
       json['location'] = location?.toList();

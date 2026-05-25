@@ -151,7 +151,7 @@ type {{classname}} struct {
 func New{{classname}}({{#requiredVars}}{{nameInCamelCase}} {{{dataType}}}{{^-last}}, {{/-last}}{{/requiredVars}}) *{{classname}} {
 {{#optionalVars}}
 {{#defaultValue}}
-	var default{{name}} {{{dataType}}} = {{{defaultValue}}}
+	var default{{name}} {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} = {{{defaultValue}}}
 {{/defaultValue}}
 {{/optionalVars}}
 	return &{{classname}}{

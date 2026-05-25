@@ -1,5 +1,4 @@
 <?php
-
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -83,12 +82,10 @@ final class OAuth2TokenManager
      */
     public function getAccessToken(string $tokenUrl, array $params, array $extraHeaders = []): string
     {
-        if (
-            $this->accessToken !== null && (
+        if ($this->accessToken !== null && (
             $this->tokenExpiry === null
             || microtime(true) < ($this->tokenExpiry - self::EXPIRY_SAFETY_MARGIN_S)
-            )
-        ) {
+        )) {
             return $this->accessToken;
         }
         if ($this->refreshToken !== null && $this->refreshToken !== '') {
@@ -174,20 +171,32 @@ final class OAuth2TokenManager
             );
         }
 
-        $headers = array_merge(['Content-Type' => 'application/x-www-form-urlencoded'], $extraHeaders);
+        $headers = array_merge(
+            ['Content-Type' => 'application/x-www-form-urlencoded', 'Accept' => 'application/json'],
+            $extraHeaders
+        );
         $body = http_build_query($params);
 
         try {
             $response = $this->apiClient->sendRequest('POST', $tokenUrl, $headers, $body);
             if ($response->statusCode < 200 || $response->statusCode >= 300) {
-                throw new \RuntimeException(
-                    'Token request failed with status ' . $response->statusCode
-                    . ': ' . $response->body
-                );
+                /* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
+                 * `error` (required), `error_description`, `error_uri`. Parse
+                 * them into a typed OAuth2ServerError so callers can recover.
+                 * Fall back to the raw body when the response is not a valid
+                 * error object. */
+                throw self::parseOAuth2ServerError($response->statusCode, $response->body);
             }
 
-            /** @var array{access_token: string, refresh_token?: string, expires_in?: int} $responseBody */
+            /** @var array{access_token?: string, refresh_token?: string, expires_in?: int}|null $responseBody */
             $responseBody = json_decode($response->body, true);
+            if (!is_array($responseBody)
+                || !isset($responseBody['access_token'])
+                || !is_string($responseBody['access_token'])
+                || $responseBody['access_token'] === ''
+            ) {
+                throw new OAuth2TokenError('Token response missing or empty access_token field');
+            }
             $this->accessToken = $responseBody['access_token'];
             if (isset($responseBody['refresh_token']) && $responseBody['refresh_token'] !== '') {
                 $this->refreshToken = $responseBody['refresh_token'];
@@ -221,6 +230,26 @@ final class OAuth2TokenManager
      *
      * @param mixed $raw the raw JSON-decoded value
      */
+    /**
+     * Parse an RFC 6749 §5.2 OAuth2 error response body into a typed
+     * {@see OAuth2ServerError}. Falls back to a generic error using the raw
+     * body when the body is not a valid OAuth2 error object.
+     */
+    private static function parseOAuth2ServerError(int $statusCode, string $body): OAuth2ServerError
+    {
+        $parsed = json_decode($body, true);
+        if (is_array($parsed) && isset($parsed['error']) && is_string($parsed['error']) && $parsed['error'] !== '') {
+            $description = isset($parsed['error_description']) && is_string($parsed['error_description'])
+                ? $parsed['error_description']
+                : null;
+            $uri = isset($parsed['error_uri']) && is_string($parsed['error_uri'])
+                ? $parsed['error_uri']
+                : null;
+            return new OAuth2ServerError($statusCode, $parsed['error'], $description, $uri, $body);
+        }
+        return new OAuth2ServerError($statusCode, null, null, null, $body);
+    }
+
     private static function parseExpiresIn(mixed $raw): int
     {
         if (is_int($raw)) {
@@ -244,5 +273,43 @@ final class OAuth2TokenManager
             return (int) floor($parsed);
         }
         return 0;
+    }
+}
+
+/**
+ * Thrown when the OAuth2 token endpoint returns a 2xx response whose body
+ * is missing or contains an empty `access_token` field. Distinct from
+ * {@see OAuth2ServerError} (which represents RFC 6749 §5.2 error responses
+ * on 4xx/5xx) so callers can recover differently.
+ */
+class OAuth2TokenError extends \RuntimeException
+{
+}
+
+/**
+ * Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
+ * `code` field carries the OAuth2 error code (e.g. `invalid_grant`,
+ * `invalid_client`); `description` and `uri` are the optional
+ * human-readable description and a URL to a page describing the error.
+ * `rawBody` preserves the original response payload for diagnostics when
+ * the body is not a well-formed OAuth2 error object.
+ */
+class OAuth2ServerError extends \RuntimeException
+{
+    public function __construct(
+        public readonly int $statusCode,
+        public readonly ?string $code,
+        public readonly ?string $description,
+        public readonly ?string $uri,
+        public readonly string $rawBody,
+    ) {
+        if ($code === null) {
+            $message = 'Token request failed with status ' . $statusCode . ': ' . $rawBody;
+        } elseif ($description !== null) {
+            $message = 'Token request failed with status ' . $statusCode . ': ' . $code . ' -- ' . $description;
+        } else {
+            $message = 'Token request failed with status ' . $statusCode . ': ' . $code;
+        }
+        parent::__construct($message);
     }
 }

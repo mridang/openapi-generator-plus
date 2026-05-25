@@ -81,6 +81,17 @@ module PetstoreClient
       elsif body.nil?
         merged.delete('Content-Type')
         serialized_body = nil
+        # Some servers / WAFs treat POST/PUT/PATCH with no body and no
+        # Content-Length as malformed (411 Length Required) or behave
+        # inconsistently. Send an empty-string body on body-bearing
+        # verbs so Faraday/Net::HTTP emit an explicit
+        # `Content-Length: 0`, matching Kotlin's `ByteArray(0)` and the
+        # other 11 SDKs.
+        upper = method.to_s.upcase
+        if %w[POST PUT PATCH].include?(upper)
+          serialized_body = ''
+          merged['Content-Length'] ||= '0'
+        end
       else
         serialized_body = body
       end

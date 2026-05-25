@@ -16,7 +16,9 @@ defmodule PetstoreClient.Models.Surgery do
           duration_minutes: integer() | nil
         }
 
-  @enforce_keys [:procedure_name]
+  @enforce_keys [
+    :procedure_name
+  ]
   defstruct [
     :procedure_name,
     :duration_minutes

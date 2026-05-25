@@ -57,10 +57,12 @@ public class OAuth2ImplicitAuthenticator: BaseAuthenticator, HttpAwareAuthentica
     /// - Returns: The authorization URL string.
     public func buildAuthorizationURL(state: String = "") -> String {
         var components = URLComponents(string: authorizationURL)!
-        var items: [URLQueryItem] = [
-            URLQueryItem(name: "response_type", value: "token"),
-            URLQueryItem(name: "client_id", value: clientID),
-        ]
+        /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
+         * a query component. Preserve existing query items instead of
+         * overwriting them. */
+        var items: [URLQueryItem] = components.queryItems ?? []
+        items.append(URLQueryItem(name: "response_type", value: "token"))
+        items.append(URLQueryItem(name: "client_id", value: clientID))
         if !scopes.isEmpty {
             items.append(URLQueryItem(name: "scope", value: scopes.joined(separator: " ")))
         }

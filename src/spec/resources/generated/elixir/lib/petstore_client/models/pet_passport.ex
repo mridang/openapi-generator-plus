@@ -15,7 +15,7 @@ defmodule PetstoreClient.Models.PetPassport do
           pet: Pet | nil,
           thumbnail: binary() | nil,
           scans: [binary()] | nil,
-          issued_at: String.t() | nil,
+          issued_at: DateTime.t() | nil,
           biometric_chip: String.t() | nil
         }
 
@@ -52,7 +52,7 @@ defmodule PetstoreClient.Models.PetPassport do
       pet: "Pet",
       thumbnail: "binary()",
       scans: "[binary()]",
-      issued_at: "String.t()",
+      issued_at: "DateTime.t()",
       biometric_chip: "String.t()"
     }
   end

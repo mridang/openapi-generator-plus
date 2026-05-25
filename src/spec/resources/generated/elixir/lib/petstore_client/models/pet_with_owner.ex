@@ -17,15 +17,17 @@ defmodule PetstoreClient.Models.PetWithOwner do
           category: Category | nil,
           photo_urls: MapSet.t(String.t()) | nil,
           tags: [Tag] | nil,
-          status: String.t() | nil,
+          status: :available | :pending | :sold | nil,
           location: [any()] | nil,
           owner_name: String.t() | nil,
           owner_email: String.t() | nil
         }
 
-  @enforce_keys [:name]
-  @enforce_keys [:photo_urls]
-  @enforce_keys [:owner_name]
+  @enforce_keys [
+    :name,
+    :photo_urls,
+    :owner_name
+  ]
   defstruct [
     :id,
     :name,

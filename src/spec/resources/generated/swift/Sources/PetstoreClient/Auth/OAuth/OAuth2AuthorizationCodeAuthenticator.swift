@@ -80,11 +80,14 @@ public class OAuth2AuthorizationCodeAuthenticator: BaseAuthenticator, HttpAwareA
     /// - Returns: The authorization URL string.
     public func buildAuthorizationURL(state: String = "") -> String {
         var components = URLComponents(string: authorizationURL)!
-        var items: [URLQueryItem] = [
-            URLQueryItem(name: "response_type", value: "code"),
-            URLQueryItem(name: "client_id", value: clientID),
-            URLQueryItem(name: "redirect_uri", value: redirectURI),
-        ]
+        /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
+         * a query component (e.g. tenant-scoped Auth0 URLs like
+         * https://x.auth0.com/authorize?audience=api). Preserve existing
+         * query items instead of overwriting them. */
+        var items: [URLQueryItem] = components.queryItems ?? []
+        items.append(URLQueryItem(name: "response_type", value: "code"))
+        items.append(URLQueryItem(name: "client_id", value: clientID))
+        items.append(URLQueryItem(name: "redirect_uri", value: redirectURI))
         if !scopes.isEmpty {
             items.append(URLQueryItem(name: "scope", value: scopes.joined(separator: " ")))
         }

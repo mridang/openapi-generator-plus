@@ -76,7 +76,11 @@ module PetstoreClient
           }
           params['scope'] = @scopes.join(' ') unless @scopes.empty?
           params['state'] = state if state
-          "#{@authorization_url}?#{URI.encode_www_form(params)}"
+          # RFC 6749 §3.1: the authorization endpoint URI MAY already include
+          # a query component. Use '&' as the separator when one is already
+          # present so existing params are preserved, '?' otherwise.
+          separator = @authorization_url.include?('?') ? '&' : '?'
+          "#{@authorization_url}#{separator}#{URI.encode_www_form(params)}"
         end
 
         # Exchange an authorization code for an access token.

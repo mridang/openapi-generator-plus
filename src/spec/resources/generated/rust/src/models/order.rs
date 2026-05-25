@@ -57,7 +57,11 @@ impl Order {
             pet_id: None,
             quantity: None,
             ship_date: None,
-            status: Some(String::from("placed")),
+            // Default value for enum-typed optional fields not auto-set:
+            // upstream defaultValue is the raw string from the spec
+            // (e.g. "placed"), but the field type is the typed enum
+            // (e.g. OrderStatusEnum). Caller must set explicitly.
+            status: None,
             complete: None,
         }
     }

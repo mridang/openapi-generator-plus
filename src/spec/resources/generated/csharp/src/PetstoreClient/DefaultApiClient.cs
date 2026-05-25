@@ -98,6 +98,12 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         {
             AutomaticDecompression = DecompressionMethods.All,
             CheckCertificateRevocationList = true,
+            // Disable the default per-handler cookie jar so that a
+            // Set-Cookie returned by one request is not silently
+            // replayed on the next request. The other 11 SDKs are
+            // stateless by default; this brings C# into line so
+            // callers see consistent behavior across languages.
+            UseCookies = false,
         };
 
         if (!transportOptions.VerifySsl)
@@ -271,6 +277,23 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     System.Net.Http.Headers.MediaTypeHeaderValue.Parse(contentType);
             }
         }
+        else if (
+            string.Equals(method, "POST", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(method, "PUT", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(method, "PATCH", StringComparison.OrdinalIgnoreCase)
+        )
+        {
+            /* Some servers / WAFs treat POST/PUT/PATCH with no body and
+             * no Content-Length as malformed (411 Length Required) or
+             * behave inconsistently. Attach an empty ByteArrayContent so
+             * HttpClient emits an explicit `Content-Length: 0` header,
+             * matching Kotlin's `ByteArray(0)` and the other 11 SDKs.
+             * Clear the auto-inserted Content-Type since we have no
+             * actual body content. */
+            ByteArrayContent emptyContent = new([]);
+            emptyContent.Headers.ContentType = null;
+            request.Content = emptyContent;
+        }
 
         HttpResponseMessage response;
         try
@@ -280,7 +303,9 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             /* Gap BH: manual redirect loop with cross-origin sensitive-header strip. */
             if (_transportOptions.FollowRedirects)
             {
-                int maxRedirects = _transportOptions.MaxRedirects ?? 50;
+                // Default to 20 hops when caller does not configure an
+                // explicit cap — unified across all 12 SDKs.
+                int maxRedirects = _transportOptions.MaxRedirects ?? 20;
                 Uri originalUrl = url;
                 Uri currentUrl = url;
                 int hops = 0;

@@ -134,7 +134,16 @@ impl {{classname}} {
 {{/isDiscriminator}}
 {{^isDiscriminator}}
 {{#defaultValue}}
+{{^isEnum}}
             {{name}}: Some({{{defaultValue}}}),
+{{/isEnum}}
+{{#isEnum}}
+            // Default value for enum-typed optional fields not auto-set:
+            // upstream defaultValue is the raw string from the spec
+            // (e.g. "placed"), but the field type is the typed enum
+            // (e.g. OrderStatusEnum). Caller must set explicitly.
+            {{name}}: None,
+{{/isEnum}}
 {{/defaultValue}}
 {{^defaultValue}}
             {{name}}: None,

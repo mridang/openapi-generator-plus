@@ -152,7 +152,9 @@ impl ApiClient for DefaultApiClient {
                  * `ByteArray(0)` and the other 11 SDKs. */
                 let upper = method.to_ascii_uppercase();
                 if upper == "POST" || upper == "PUT" || upper == "PATCH" {
-                    request_builder = request_builder.body(Vec::<u8>::new());
+                    request_builder = request_builder
+                        .body(Vec::<u8>::new())
+                        .header("Content-Length", "0");
                 }
             }
 

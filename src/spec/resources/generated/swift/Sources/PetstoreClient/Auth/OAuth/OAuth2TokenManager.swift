@@ -170,27 +170,41 @@ public final class OAuth2TokenManager: @unchecked Sendable {
         /* Percent-encode both key and value per RFC 6749 §B / RFC 3986
          * (form-urlencoded body). Raw concatenation would corrupt the
          * request when client_secret, username, or password contains any
-         * of `=`, `&`, `+`, `%`, or space. */
+         * of `=`, `&`, `+`, `%`, or space.
+         *
+         * After percent-encoding, replace `%20` with `+` to match the
+         * application/x-www-form-urlencoded convention used by every other
+         * SDK (C# csharp/auth/oauth/oauth2_token_manager.mustache:189) and
+         * by every standard urlencode library (Go url.Values.Encode, Java
+         * URLEncoder, Python urlencode, etc.). Strict OAuth2 servers
+         * (Salesforce, GitHub) interpret `%20` and `+` differently in
+         * form-urlencoded bodies. */
         let unreserved = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
         let body = params.map { entry -> String in
-            let key = entry.key.addingPercentEncoding(withAllowedCharacters: unreserved) ?? entry.key
-            let value = entry.value.addingPercentEncoding(withAllowedCharacters: unreserved) ?? entry.value
+            let key = (entry.key.addingPercentEncoding(withAllowedCharacters: unreserved) ?? entry.key)
+                .replacingOccurrences(of: "%20", with: "+")
+            let value = (entry.value.addingPercentEncoding(withAllowedCharacters: unreserved) ?? entry.value)
+                .replacingOccurrences(of: "%20", with: "+")
             return "\(key)=\(value)"
         }.joined(separator: "&")
         let bodyData = body.data(using: .utf8)
 
-        var headers = ["Content-Type": "application/x-www-form-urlencoded"]
+        var headers = [
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json",
+        ]
         for (key, value) in extraHeaders {
             headers[key] = value
         }
         let response = try await client.sendRequest(method: "POST", url: tokenURL, headers: headers, body: bodyData)
 
         guard response.statusCode >= 200 && response.statusCode < 300 else {
-            throw NSError(
-                domain: "OAuth2TokenManager", code: response.statusCode,
-                userInfo: [
-                    NSLocalizedDescriptionKey: "Token request failed with status \(response.statusCode)"
-                ])
+            /* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
+             * `error` (required), `error_description`, `error_uri`. Parse
+             * them into a typed OAuth2ServerError so callers can catch
+             * them specifically. Fall back to the raw body when the
+             * response is not a valid error object. */
+            throw Self.parseOAuth2ServerError(statusCode: response.statusCode, body: response.body)
         }
 
         guard let data = response.body.data(using: .utf8) else {
@@ -201,18 +215,23 @@ public final class OAuth2TokenManager: @unchecked Sendable {
          * the parse does not fail when providers send it as a quoted string
          * (Salesforce, some Apigee deployments) or as a JSON float. */
         struct TokenResponse: Decodable {
-            let access_token: String
+            let access_token: String?
             let refresh_token: String?
         }
 
         let parsed = try JSONDecoder().decode(TokenResponse.self, from: data)
+        guard let accessTokenValue = parsed.access_token, !accessTokenValue.isEmpty else {
+            throw OAuth2TokenError.missingAccessToken(
+                "Token response missing or empty access_token field"
+            )
+        }
         let rawJson = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         let rawExpiresIn = rawJson?["expires_in"]
         let hasExpiresIn = rawExpiresIn != nil && !(rawExpiresIn is NSNull)
         let expiresIn = Self.parseExpiresIn(rawExpiresIn)
 
         lock.withLock {
-            self.accessToken = parsed.access_token
+            self.accessToken = accessTokenValue
             if let refreshToken = parsed.refresh_token, !refreshToken.isEmpty {
                 self._refreshToken = refreshToken
             }
@@ -230,6 +249,34 @@ public final class OAuth2TokenManager: @unchecked Sendable {
                 }
             }
         }
+    }
+
+    /// Parse an RFC 6749 §5.2 OAuth2 error response body into a typed
+    /// ``OAuth2ServerError``. Falls back to a generic error using the raw
+    /// body when the body is not a valid OAuth2 error object.
+    private static func parseOAuth2ServerError(statusCode: Int, body: String) -> OAuth2ServerError {
+        guard let data = body.data(using: .utf8),
+            let parsed = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let code = parsed["error"] as? String,
+            !code.isEmpty
+        else {
+            return OAuth2ServerError(
+                statusCode: statusCode,
+                code: nil,
+                description: nil,
+                uri: nil,
+                rawBody: body
+            )
+        }
+        let description = parsed["error_description"] as? String
+        let uri = parsed["error_uri"] as? String
+        return OAuth2ServerError(
+            statusCode: statusCode,
+            code: code,
+            description: description,
+            uri: uri,
+            rawBody: body
+        )
     }
 
     /// Defensive parse of the OAuth2 `expires_in` field per RFC 6749 §5.1.
@@ -260,5 +307,47 @@ public final class OAuth2TokenManager: @unchecked Sendable {
             return Int(d.rounded(.down))
         }
         return 0
+    }
+}
+
+/// Thrown when the OAuth2 token endpoint returns a 2xx response whose body
+/// is missing or contains an empty `access_token` field. Distinct from
+/// ``OAuth2ServerError`` (which represents RFC 6749 §5.2 error responses
+/// on 4xx/5xx) so callers can recover differently via `catch`.
+public enum OAuth2TokenError: Error, Equatable {
+    case missingAccessToken(String)
+}
+
+/// Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
+/// `code` field carries the OAuth2 error code (e.g. `invalid_grant`,
+/// `invalid_client`); `description` and `uri` are the optional
+/// human-readable description and a URL to a page describing the error.
+/// `rawBody` preserves the original response payload for diagnostics when
+/// the body is not a well-formed OAuth2 error object.
+public struct OAuth2ServerError: Error, Equatable {
+    public let statusCode: Int
+    public let code: String?
+    public let description: String?
+    public let uri: String?
+    public let rawBody: String
+
+    public init(statusCode: Int, code: String?, description: String?, uri: String?, rawBody: String) {
+        self.statusCode = statusCode
+        self.code = code
+        self.description = description
+        self.uri = uri
+        self.rawBody = rawBody
+    }
+}
+
+extension OAuth2ServerError: LocalizedError {
+    public var errorDescription: String? {
+        if code == nil {
+            return "Token request failed with status \(statusCode): \(rawBody)"
+        }
+        if let description = description {
+            return "Token request failed with status \(statusCode): \(code ?? "") — \(description)"
+        }
+        return "Token request failed with status \(statusCode): \(code ?? "")"
     }
 }

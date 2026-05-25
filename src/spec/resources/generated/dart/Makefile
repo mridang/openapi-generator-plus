@@ -1,4 +1,4 @@
-.PHONY: all get test analyze format docs clean
+.PHONY: all get test lint analyze format docs clean
 
 all: get
 
@@ -11,7 +11,9 @@ test:
 	dart run coverage:format_coverage --lcov --in=.out/coverage --out=.out/coverage.xml --report-on=lib
 
 analyze:
-	dart analyze
+	dart analyze --fatal-warnings --fatal-infos
+
+lint: analyze
 
 format:
 	dart format .

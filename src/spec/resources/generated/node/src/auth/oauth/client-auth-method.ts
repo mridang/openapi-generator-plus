@@ -13,5 +13,5 @@ export enum ClientAuthMethod {
   /** Send credentials as form parameters in the request body (default). */
   Body = 'body',
   /** Send credentials via HTTP Basic Authorization header. */
-  Basic = 'basic'
+  Basic = 'basic',
 }

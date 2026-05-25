@@ -25,7 +25,9 @@ export class StrictTag {
     const declared = new Set<string>(['id', 'name']);
     for (const key of Object.keys(raw)) {
       if (!declared.has(key)) {
-        throw new Error("Unknown property '" + key + "' on StrictTag (unevaluatedProperties:false)");
+        throw new Error(
+          "Unknown property '" + key
+            + "' on StrictTag (unevaluatedProperties:false)");
       }
     }
     return new StrictTag(raw as Partial<StrictTag>);

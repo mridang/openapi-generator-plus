@@ -8,6 +8,13 @@
 import Foundation
 
 /// PetWithOwner A pet record extended with owner information
+/// Typed enum for PetWithOwner.status.
+public enum PetWithOwnerStatusEnum: String, Codable, Sendable, CaseIterable {
+    case available = "available"
+    case pending = "pending"
+    case sold = "sold"
+}
+
 public struct PetWithOwner: Codable, Sendable {
     /// Example: `10`
     public var id: Int64?
@@ -22,7 +29,7 @@ public struct PetWithOwner: Codable, Sendable {
     /// pet status in the store
     /// Example: `null`
     @available(*, deprecated, message: "This property is deprecated.")
-    public var status: String?
+    public var status: PetWithOwnerStatusEnum?
     /// Example: `null`
     public var location: [AnyCodable]?
     /// Example: `null`
@@ -45,7 +52,8 @@ public struct PetWithOwner: Codable, Sendable {
     /// Creates a new PetWithOwner instance.
     public init(
         name: String, photoUrls: Set<String>, ownerName: String, id: Int64? = nil, category: Category? = nil,
-        tags: [Tag]? = nil, status: String? = nil, location: [AnyCodable]? = nil, ownerEmail: String? = nil
+        tags: [Tag]? = nil, status: PetWithOwnerStatusEnum? = nil, location: [AnyCodable]? = nil,
+        ownerEmail: String? = nil
     ) {
         self.name = name
         self.photoUrls = photoUrls
@@ -70,7 +78,7 @@ public struct PetWithOwner: Codable, Sendable {
         self.category = try container.decodeIfPresent(Category.self, forKey: .category)
         self.photoUrls = try container.decode(Set<String>.self, forKey: .photoUrls)
         self.tags = try container.decodeIfPresent([Tag].self, forKey: .tags)
-        self.status = try container.decodeIfPresent(String.self, forKey: .status)
+        self.status = try container.decodeIfPresent(PetWithOwnerStatusEnum.self, forKey: .status)
         self.location = try container.decodeIfPresent([AnyCodable].self, forKey: .location)
         self.ownerName = try container.decode(String.self, forKey: .ownerName)
         self.ownerEmail = try container.decodeIfPresent(String.self, forKey: .ownerEmail)

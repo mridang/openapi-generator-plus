@@ -11,7 +11,7 @@ defmodule PetstoreClient.Api.Options.DeletePetOptions do
   """
 
   @type t :: %__MODULE__{
-          api_key: term()
+          api_key: String.t() | nil
         }
 
   defstruct api_key: nil

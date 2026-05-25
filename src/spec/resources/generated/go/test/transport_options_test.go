@@ -8,9 +8,8 @@
 package petstore_test
 
 import (
+	petstore "petstore/pkg"
 	"testing"
-
-	"petstore/pkg"
 )
 
 func TestTransportOptions_VerifySslDefaultsToTrue(t *testing.T) {

@@ -94,7 +94,11 @@ export class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
     if (state) {
       params.set('state', state);
     }
-    return `${this.authorizationUrl}?${params.toString()}`;
+    /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
+     * a query component. Use '&' as the separator when one is already
+     * present so existing params are preserved, '?' otherwise. */
+    const separator = this.authorizationUrl.includes('?') ? '&' : '?';
+    return `${this.authorizationUrl}${separator}${params.toString()}`;
   }
 
   /**
@@ -150,7 +154,7 @@ export class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
     }
     const params: Record<string, string> = {
       grant_type: 'refresh_token',
-      refresh_token: this.tokenManager.getRefreshToken() ?? ''
+      refresh_token: this.tokenManager.getRefreshToken() ?? '',
     };
     const token = await this.tokenManager.getAccessToken(this.refreshUrl, params);
     return { Authorization: `Bearer ${token}` };

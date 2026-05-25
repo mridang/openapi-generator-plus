@@ -373,4 +373,20 @@ describe PetstoreClient::DefaultApiClient do
       _(response.body).must_include('userId')
     end
   end
+
+  describe 'null-body Content-Length' do
+    # Regression: POST/PUT/PATCH with body == nil must emit an explicit
+    # Content-Length: 0. Some servers / WAFs reject body-bearing verbs
+    # with no Content-Length (411 Length Required). The client sends an
+    # empty body and Content-Length: 0 explicitly on body-bearing verbs.
+    it 'post_with_null_body_sends_content_length_zero' do
+      wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
+      client = PetstoreClient::DefaultApiClient.new
+      response = client.send_request(:POST, "#{wiremock_url}/api/echo-content-length", {}, nil)
+
+      _(response.status_code).must_equal(200)
+      json = JSON.parse(response.body)
+      _(json['content-length']).must_equal('0')
+    end
+  end
 end

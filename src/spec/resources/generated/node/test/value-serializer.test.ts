@@ -144,21 +144,15 @@ describe('ValueSerializer', () => {
 
   describe('serializeStyled - matrix style', () => {
     test('scalar returns semicolon-prefixed name=value', () => {
-      expect(ValueSerializer.serializeStyled('color', 'blue', 'path', 'string', null, 'matrix', true)).toBe(
-        ';color=blue'
-      );
+      expect(ValueSerializer.serializeStyled('color', 'blue', 'path', 'string', null, 'matrix', true)).toBe(';color=blue');
     });
 
     test('array with explode false joins with comma', () => {
-      expect(ValueSerializer.serializeStyled('color', ['blue', 'black'], 'path', 'array', null, 'matrix', false)).toBe(
-        ';color=blue,black'
-      );
+      expect(ValueSerializer.serializeStyled('color', ['blue', 'black'], 'path', 'array', null, 'matrix', false)).toBe(';color=blue,black');
     });
 
     test('array with explode true repeats name', () => {
-      expect(ValueSerializer.serializeStyled('color', ['blue', 'black'], 'path', 'array', null, 'matrix', true)).toBe(
-        ';color=blue;color=black'
-      );
+      expect(ValueSerializer.serializeStyled('color', ['blue', 'black'], 'path', 'array', null, 'matrix', true)).toBe(';color=blue;color=black');
     });
 
     test('null returns empty string', () => {
@@ -172,15 +166,11 @@ describe('ValueSerializer', () => {
     });
 
     test('array with explode false joins with dot then comma', () => {
-      expect(ValueSerializer.serializeStyled('color', ['blue', 'black'], 'path', 'array', null, 'label', false)).toBe(
-        '.blue,black'
-      );
+      expect(ValueSerializer.serializeStyled('color', ['blue', 'black'], 'path', 'array', null, 'label', false)).toBe('.blue,black');
     });
 
     test('array with explode true joins with dot separator', () => {
-      expect(ValueSerializer.serializeStyled('color', ['blue', 'black'], 'path', 'array', null, 'label', true)).toBe(
-        '.blue.black'
-      );
+      expect(ValueSerializer.serializeStyled('color', ['blue', 'black'], 'path', 'array', null, 'label', true)).toBe('.blue.black');
     });
 
     test('null returns empty string', () => {
@@ -190,43 +180,31 @@ describe('ValueSerializer', () => {
 
   describe('serializeStyled - spaceDelimited style', () => {
     test('array joins with space', () => {
-      expect(
-        ValueSerializer.serializeStyled('color', ['blue', 'black'], 'query', 'array', null, 'spaceDelimited', false)
-      ).toBe('blue black');
+      expect(ValueSerializer.serializeStyled('color', ['blue', 'black'], 'query', 'array', null, 'spaceDelimited', false)).toBe('blue black');
     });
 
     test('scalar returns stringified value', () => {
-      expect(ValueSerializer.serializeStyled('color', 'blue', 'query', 'string', null, 'spaceDelimited', false)).toBe(
-        'blue'
-      );
+      expect(ValueSerializer.serializeStyled('color', 'blue', 'query', 'string', null, 'spaceDelimited', false)).toBe('blue');
     });
   });
 
   describe('serializeStyled - pipeDelimited style', () => {
     test('array joins with pipe', () => {
-      expect(
-        ValueSerializer.serializeStyled('color', ['blue', 'black'], 'query', 'array', null, 'pipeDelimited', false)
-      ).toBe('blue|black');
+      expect(ValueSerializer.serializeStyled('color', ['blue', 'black'], 'query', 'array', null, 'pipeDelimited', false)).toBe('blue|black');
     });
 
     test('scalar returns stringified value', () => {
-      expect(ValueSerializer.serializeStyled('color', 'blue', 'query', 'string', null, 'pipeDelimited', false)).toBe(
-        'blue'
-      );
+      expect(ValueSerializer.serializeStyled('color', 'blue', 'query', 'string', null, 'pipeDelimited', false)).toBe('blue');
     });
   });
 
   describe('serializeStyled - form style with explode', () => {
     test('array with explode false joins with comma', () => {
-      expect(ValueSerializer.serializeStyled('color', ['blue', 'black'], 'query', 'array', null, 'form', false)).toBe(
-        'blue,black'
-      );
+      expect(ValueSerializer.serializeStyled('color', ['blue', 'black'], 'query', 'array', null, 'form', false)).toBe('blue,black');
     });
 
     test('array with explode true returns list', () => {
-      expect(ValueSerializer.serializeStyled('color', ['blue', 'black'], 'query', 'array', null, 'form', true)).toEqual(
-        ['blue', 'black']
-      );
+      expect(ValueSerializer.serializeStyled('color', ['blue', 'black'], 'query', 'array', null, 'form', true)).toEqual(['blue', 'black']);
     });
 
     test('scalar with explode true returns string not list', () => {
@@ -250,9 +228,7 @@ describe('ValueSerializer', () => {
     });
 
     test('array joins with comma', () => {
-      expect(ValueSerializer.serializeStyled('id', ['3', '4', '5'], 'path', 'array', null, 'simple', false)).toBe(
-        '3,4,5'
-      );
+      expect(ValueSerializer.serializeStyled('id', ['3', '4', '5'], 'path', 'array', null, 'simple', false)).toBe('3,4,5');
     });
 
     test('null returns empty string', () => {
@@ -260,9 +236,7 @@ describe('ValueSerializer', () => {
     });
 
     test('scalar URL-encodes path value', () => {
-      expect(ValueSerializer.serializeStyled('id', 'hello world', 'path', 'string', null, 'simple', false)).toBe(
-        'hello%20world'
-      );
+      expect(ValueSerializer.serializeStyled('id', 'hello world', 'path', 'string', null, 'simple', false)).toBe('hello%20world');
     });
   });
 
@@ -373,9 +347,7 @@ describe('ValueSerializer', () => {
     });
 
     test('simple style array encodes each item', () => {
-      expect(ValueSerializer.serializeStyled('color', ['a b', 'c?d'], 'path', 'array', null, 'simple', false)).toBe(
-        'a%20b,c%3Fd'
-      );
+      expect(ValueSerializer.serializeStyled('color', ['a b', 'c?d'], 'path', 'array', null, 'simple', false)).toBe('a%20b,c%3Fd');
     });
 
     test('path_array_item_with_reserved_char_is_percent_encoded', () => {
@@ -385,15 +357,11 @@ describe('ValueSerializer', () => {
       const items = ['a/b', 'c'];
       expect(ValueSerializer.serializeStyled('name', items, 'path', 'array', null, 'simple', false)).toBe('a%2Fb,c');
       expect(ValueSerializer.serializeStyled('name', items, 'path', 'array', null, 'label', true)).toBe('.a%2Fb.c');
-      expect(ValueSerializer.serializeStyled('name', items, 'path', 'array', null, 'matrix', false)).toBe(
-        ';name=a%2Fb,c'
-      );
+      expect(ValueSerializer.serializeStyled('name', items, 'path', 'array', null, 'matrix', false)).toBe(';name=a%2Fb,c');
     });
 
     test('matrix style encodes value', () => {
-      expect(ValueSerializer.serializeStyled('color', 'a b', 'path', 'string', null, 'matrix', false)).toBe(
-        ';color=a%20b'
-      );
+      expect(ValueSerializer.serializeStyled('color', 'a b', 'path', 'string', null, 'matrix', false)).toBe(';color=a%20b');
     });
 
     test('label style encodes value', () => {
@@ -408,7 +376,9 @@ describe('ValueSerializer', () => {
       // Gap W — empty-string path values silently produce malformed
       // URLs like `/pet//details`; reject at serialization time so
       // callers see the real error rather than a downstream 404.
-      expect(() => ValueSerializer.serializeStyled('id', '', 'path', 'string', null, 'simple', false)).toThrow();
+      expect(() =>
+        ValueSerializer.serializeStyled('id', '', 'path', 'string', null, 'simple', false)
+      ).toThrow();
     });
   });
 

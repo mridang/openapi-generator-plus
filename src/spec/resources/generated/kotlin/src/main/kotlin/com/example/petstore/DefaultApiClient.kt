@@ -143,7 +143,7 @@ class DefaultApiClient internal constructor(
                 val sameOrigin =
                     redirectUri.host != null &&
                         redirectUri.host.equals(originalUri.host, ignoreCase = true) &&
-                        redirectUri.port == originalUri.port
+                        effectivePort(redirectUri) == effectivePort(originalUri)
 
                 val redirectHeaders = currentHeaders.toMutableMap()
                 if (!sameOrigin) {
@@ -371,6 +371,21 @@ internal fun buildProxyAuthHeader(proxyUrl: String?): String? {
             .getEncoder()
             .encodeToString(decoded.toByteArray(Charsets.UTF_8))
     return "Basic $encoded"
+}
+
+/**
+ * Normalize a URI port, returning the default-port value (443 for https,
+ * 80 for http) when the URI does not specify an explicit port. Used by
+ * the same-origin redirect check so that `https://host/x` and
+ * `https://host:443/x` compare equal — without this, a redirect that
+ * only adds the implicit default port would incorrectly be treated as
+ * cross-origin and strip sensitive headers (Authorization, Cookie,
+ * Proxy-Authorization).
+ */
+internal fun effectivePort(uri: java.net.URI): Int {
+    val port = uri.port
+    if (port != -1) return port
+    return if ("https".equals(uri.scheme, ignoreCase = true)) 443 else 80
 }
 
 /** Generates a UUID v4 string without JVM-specific APIs. */

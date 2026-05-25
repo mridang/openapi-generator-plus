@@ -363,4 +363,55 @@ class OAuth2TokenManagerTest {
         RuntimeException.class,
         () -> manager.getAccessToken("https://auth.example.com/token", params));
   }
+
+  @Test
+  void token_response_missing_access_token_throws_typed_error() {
+    // A 2xx response whose body omits access_token (e.g. only refresh_token)
+    // must surface as the typed OAuth2TokenError, not silently cache an
+    // empty/null token. RuntimeException remains catchable for callers
+    // that don't distinguish the failure kind.
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(fakeClient(200, "{\"refresh_token\":\"x\"}"));
+
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "client_credentials");
+
+    RuntimeException ex =
+        assertThrows(
+            RuntimeException.class,
+            () -> manager.getAccessToken("https://auth.example.com/token", params));
+    assertTrue(
+        ex instanceof OAuth2TokenManager.OAuth2TokenError,
+        "expected OAuth2TokenError, got " + ex.getClass().getName());
+  }
+
+  @Test
+  void token_endpoint_error_response_parsed_to_typed_error() {
+    // RFC 6749 §5.2: a 4xx response with a JSON error object must surface
+    // as a typed OAuth2ServerError carrying code/description/uri so callers
+    // can branch on the OAuth2 error code without re-parsing the body.
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(
+        fakeClient(
+            400,
+            "{\"error\":\"invalid_grant\","
+                + "\"error_description\":\"refresh token expired\","
+                + "\"error_uri\":\"https://docs.example.com/errors/invalid_grant\"}"));
+
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "client_credentials");
+
+    RuntimeException ex =
+        assertThrows(
+            RuntimeException.class,
+            () -> manager.getAccessToken("https://auth.example.com/token", params));
+    assertTrue(
+        ex instanceof OAuth2TokenManager.OAuth2ServerError,
+        "expected OAuth2ServerError, got " + ex.getClass().getName());
+    OAuth2TokenManager.OAuth2ServerError serverError = (OAuth2TokenManager.OAuth2ServerError) ex;
+    assertEquals(400, serverError.getStatusCode());
+    assertEquals("invalid_grant", serverError.getCode());
+    assertEquals("refresh token expired", serverError.getDescription());
+    assertEquals("https://docs.example.com/errors/invalid_grant", serverError.getUri());
+  }
 }

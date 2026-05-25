@@ -14,14 +14,13 @@ import (
 // Tag Tags are deprecated, use categories instead
 // Deprecated: This schema is deprecated.
 type Tag struct {
-	Id *int64 `json:"id,omitempty"`
+	Id   *int64  `json:"id,omitempty"`
 	Name *string `json:"name,omitempty"`
 }
 
 // NewTag creates a new Tag instance.
 func NewTag() *Tag {
-	return &Tag{
-	}
+	return &Tag{}
 }
 
 // MarshalJSON implements the json.Marshaler interface.

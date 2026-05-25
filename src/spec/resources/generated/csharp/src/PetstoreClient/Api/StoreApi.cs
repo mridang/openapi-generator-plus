@@ -7,7 +7,6 @@
 
 #pragma warning disable CA1002 // Do not expose generic lists
 #pragma warning disable CA1056 // URI properties should not be strings
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
 using PetstoreClient.Auth;
 using PetstoreClient.Models;
@@ -26,12 +25,20 @@ public class StoreApi : BaseApi
 
     private static readonly string[] PlaceOrderAccepts = ["application/json"];
 
+    /// <summary>Initializes a new instance of <see cref="StoreApi"/> with defaults.</summary>
     public StoreApi()
         : base() { }
 
+    /// <summary>Initializes a new instance of <see cref="StoreApi"/> with the given client and configuration.</summary>
+    /// <param name="apiClient">The HTTP client used to make API calls.</param>
+    /// <param name="config">The configuration for the API client.</param>
     public StoreApi(IApiClient apiClient, Configuration config)
         : base(apiClient, config) { }
 
+    /// <summary>Initializes a new instance of <see cref="StoreApi"/> with the given client, configuration, and default authenticator.</summary>
+    /// <param name="apiClient">The HTTP client used to make API calls.</param>
+    /// <param name="config">The configuration for the API client.</param>
+    /// <param name="authenticator">Optional default authenticator applied when none is passed per-operation.</param>
     public StoreApi(IApiClient apiClient, Configuration config, IAuthenticator? authenticator)
         : base(apiClient, config, authenticator) { }
 
@@ -49,6 +56,8 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Delete purchase order by ID (with HTTP info)
     /// </summary>
+    /// <param name="orderId">ID of the order to delete</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<object?>> DeleteOrderWithHttpInfoAsync(long orderId)
     {
@@ -102,6 +111,7 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns pet inventories by status (with HTTP info)
     /// </summary>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Dictionary<string, int>>> GetInventoryWithHttpInfoAsync()
     {
@@ -140,6 +150,8 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Find purchase order by ID (with HTTP info)
     /// </summary>
+    /// <param name="orderId">ID of order to return</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Order>> GetOrderByIdWithHttpInfoAsync(long orderId)
     {
@@ -194,6 +206,8 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Place an order for a pet (with HTTP info)
     /// </summary>
+    /// <param name="order"></param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Order>> PlaceOrderWithHttpInfoAsync(Order? order)
     {

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
+use PHPUnit\Framework\TestCase;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\TransportOptions;
-use PHPUnit\Framework\TestCase;
 
 class DefaultApiClientTest extends TestCase
 {
@@ -398,5 +398,28 @@ class DefaultApiClientTest extends TestCase
 
         $this->assertSame(200, $response->statusCode);
         $this->assertStringContainsString('userId', $response->body);
+    }
+
+    /*
+     * Regression: POST/PUT/PATCH with body == null must emit an
+     * explicit Content-Length: 0. Some servers / WAFs reject body-
+     * bearing verbs with no Content-Length (411 Length Required). The
+     * client sends an empty body and Content-Length: 0 explicitly on
+     * body-bearing verbs.
+     */
+    public function test_post_with_null_body_sends_content_length_zero(): void
+    {
+        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
+        $client = new DefaultApiClient();
+        $response = $client->sendRequest(
+            'POST',
+            $wiremockUrl . '/api/echo-content-length',
+            [],
+            null
+        );
+
+        $this->assertSame(200, $response->statusCode);
+        $payload = json_decode($response->body, true);
+        $this->assertSame('0', $payload['content-length']);
     }
 }

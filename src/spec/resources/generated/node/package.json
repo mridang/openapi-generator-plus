@@ -1,5 +1,6 @@
 {
-  "private": true,
+  "name": "",
+  "version": "1.0.0",
   "license": "MIT",
   "engines": {
     "node": ">=22"
@@ -36,6 +37,7 @@
     "@typescript-eslint/parser": "^8.0",
     "typescript-eslint": "^8.0",
     "prettier": "^3.0",
+    "typedoc": "^0.25.0",
     "testcontainers": "^10.0"
   }
 }

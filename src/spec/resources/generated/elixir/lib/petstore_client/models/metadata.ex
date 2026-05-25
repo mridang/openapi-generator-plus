@@ -12,7 +12,7 @@ defmodule PetstoreClient.Models.Metadata do
   """
 
   @type t :: %__MODULE__{
-          created_at: String.t() | nil
+          created_at: DateTime.t() | nil
         }
 
   defstruct [
@@ -37,7 +37,7 @@ defmodule PetstoreClient.Models.Metadata do
   @spec openapi_types() :: %{atom() => String.t()}
   def openapi_types do
     %{
-      created_at: "String.t()"
+      created_at: "DateTime.t()"
     }
   end
 

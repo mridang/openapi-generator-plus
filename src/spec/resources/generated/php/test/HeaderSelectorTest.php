@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
-use PetstoreClient\HeaderSelector;
 use PHPUnit\Framework\TestCase;
+use PetstoreClient\HeaderSelector;
 
 class HeaderSelectorTest extends TestCase
 {

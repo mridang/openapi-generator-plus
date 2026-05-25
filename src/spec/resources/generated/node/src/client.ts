@@ -71,7 +71,9 @@ export class Client {
       authenticator.setApiClient(apiClient);
     }
 
-    const config = Configuration.builder().baseUrl(authenticator.getHost()).build();
+    const config = Configuration.builder()
+      .baseUrl(authenticator.getHost())
+      .build();
     this.Pet = new PetApi(apiClient, config, authenticator);
     this.Store = new StoreApi(apiClient, config, authenticator);
   }
@@ -84,7 +86,11 @@ export class Client {
    * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
    * @returns configured client instance
    */
-  static withToken(host: string, accessToken: string, transportOptions?: TransportOptions): Client {
+  static withToken(
+    host: string,
+    accessToken: string,
+    transportOptions?: TransportOptions,
+  ): Client {
     return transportOptions
       ? new Client(new BearerAuthenticator(host, accessToken), transportOptions)
       : new Client(new BearerAuthenticator(host, accessToken));

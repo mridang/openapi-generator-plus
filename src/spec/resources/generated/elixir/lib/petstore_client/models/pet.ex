@@ -17,12 +17,14 @@ defmodule PetstoreClient.Models.Pet do
           category: Category | nil,
           photo_urls: MapSet.t(String.t()) | nil,
           tags: [Tag] | nil,
-          status: String.t() | nil,
+          status: :available | :pending | :sold | nil,
           location: [any()] | nil
         }
 
-  @enforce_keys [:name]
-  @enforce_keys [:photo_urls]
+  @enforce_keys [
+    :name,
+    :photo_urls
+  ]
   defstruct [
     :id,
     :name,

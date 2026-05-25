@@ -77,7 +77,7 @@ module PetstoreClient
       # pet status in the store
       # @example null
       # @deprecated This property is deprecated.
-      attribute :status, Types::Any.optional.meta(omittable: true)
+      attribute :status, Types::String.enum('available', 'pending', 'sold').optional.meta(omittable: true)
       # @example null
       attribute :location, Types::Any.optional.meta(omittable: true)
       # @example null

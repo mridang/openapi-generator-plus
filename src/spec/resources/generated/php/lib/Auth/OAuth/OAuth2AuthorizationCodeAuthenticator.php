@@ -1,5 +1,4 @@
 <?php
-
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -128,7 +127,12 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator implements 
             $params['state'] = $state;
         }
 
-        return $this->authorizationUrl . '?' . http_build_query($params);
+        /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
+         * a query component. Use '&' as the separator when one is already
+         * present so existing params are preserved, '?' otherwise. */
+        $separator = str_contains($this->authorizationUrl, '?') ? '&' : '?';
+
+        return $this->authorizationUrl . $separator . http_build_query($params);
     }
 
     /**

@@ -95,7 +95,17 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator do
         params
       end
 
-    "#{self.authorization_url}?#{URI.encode_query(params)}"
+    # RFC 6749 §3.1: the authorization endpoint URI MAY already include
+    # a query component. Use '&' as the separator when one is already
+    # present so existing params are preserved, '?' otherwise.
+    separator =
+      if String.contains?(self.authorization_url, "?") do
+        "&"
+      else
+        "?"
+      end
+
+    "#{self.authorization_url}#{separator}#{URI.encode_query(params)}"
   end
 
   @impl PetstoreClient.Auth.Authenticator

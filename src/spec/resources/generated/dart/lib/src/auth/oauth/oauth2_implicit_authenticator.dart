@@ -70,7 +70,11 @@ class OAuth2ImplicitAuthenticator extends BaseAuthenticator
         .map((e) =>
             '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
         .join('&');
-    return '$_authorizationUrl?$query';
+    /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
+     * a query component. Use '&' as the separator when one is already
+     * present so existing params are preserved, '?' otherwise. */
+    final separator = _authorizationUrl.contains('?') ? '&' : '?';
+    return '$_authorizationUrl$separator$query';
   }
 
   @override

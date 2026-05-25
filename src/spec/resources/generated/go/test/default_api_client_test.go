@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"petstore/pkg"
+	petstore "petstore/pkg"
 )
 
 func TestDefaultApiClient_MakesHttpsRequestWithVerifySslFalse(t *testing.T) {
@@ -470,6 +470,7 @@ func TestDefaultApiClient_DecompressesZstdResponse(t *testing.T) {
 // assert the proxy demands credentials. We instead verify that:
 //   - the transport accepts a proxy URL with embedded userinfo, and
 //   - the resulting request still flows through the proxy successfully.
+//
 // Skipped if the Squid container is unavailable.
 func TestDefaultApiClient_MakesRequestThroughProxyWithBasicAuth(t *testing.T) {
 	if proxyURL == "" {

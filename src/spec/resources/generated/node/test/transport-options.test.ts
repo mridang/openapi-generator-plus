@@ -78,7 +78,9 @@ describe('TransportOptions', () => {
   });
 
   test('followRedirects defaults to true with null maxRedirects', () => {
-    const opts = TransportOptions.builder().followRedirects(true).build();
+    const opts = TransportOptions.builder()
+      .followRedirects(true)
+      .build();
 
     expect(opts.followRedirects).toBe(true);
     expect(opts.maxRedirects).toBeNull();
@@ -91,7 +93,9 @@ describe('TransportOptions', () => {
   });
 
   test('null proxy URL is accepted', () => {
-    const opts = TransportOptions.builder().proxy(null).build();
+    const opts = TransportOptions.builder()
+      .proxy(null)
+      .build();
     expect(opts.proxy).toBeNull();
   });
 
@@ -111,7 +115,10 @@ describe('TransportOptions', () => {
   });
 
   test('accumulates headers from defaultHeader calls', () => {
-    const opts = TransportOptions.builder().defaultHeader('X-First', 'one').defaultHeader('X-Second', 'two').build();
+    const opts = TransportOptions.builder()
+      .defaultHeader('X-First', 'one')
+      .defaultHeader('X-Second', 'two')
+      .build();
 
     expect(Object.keys(opts.defaultHeaders)).toHaveLength(2);
     expect(opts.defaultHeaders['X-First']).toBe('one');
@@ -133,7 +140,9 @@ describe('TransportOptions', () => {
   test('modifying source map does not affect built options', () => {
     const headers: Record<string, string> = { 'X-Original': 'original' };
 
-    const opts = TransportOptions.builder().defaultHeaders(headers).build();
+    const opts = TransportOptions.builder()
+      .defaultHeaders(headers)
+      .build();
 
     headers['X-Added'] = 'added';
 
@@ -179,7 +188,9 @@ describe('TransportOptions', () => {
 
   describe('ProxyConfigTests', () => {
     test('setting proxy URL is preserved on read-back', () => {
-      const opts = TransportOptions.builder().proxy('http://proxy.example.com:8080').build();
+      const opts = TransportOptions.builder()
+        .proxy('http://proxy.example.com:8080')
+        .build();
       expect(opts.proxy).toBe('http://proxy.example.com:8080');
     });
 

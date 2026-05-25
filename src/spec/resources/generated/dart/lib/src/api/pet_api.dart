@@ -161,6 +161,7 @@ class PetApi extends BaseApi {
             apiClient: apiClient, config: config, authenticator: authenticator);
 
   /// Add a new pet to the store
+  /// [pet] Create a new pet in the store
 
   Future<Pet> addPet(Pet pet, {Authenticator? auth}) async {
     final result = await addPetWithHTTPInfo(pet, auth: auth);
@@ -282,6 +283,8 @@ class PetApi extends BaseApi {
   }
 
   /// Deletes a pet
+  /// [petId] Pet id to delete
+  /// [apiKey] Session cookie used for authentication
 
   Future<void> deletePet(int petId, DeletePetOptions? options,
       {Authenticator? auth}) async {
@@ -374,6 +377,9 @@ class PetApi extends BaseApi {
 
   /// Finds Pets by status
   @Deprecated('This operation is deprecated.')
+
+  /// [status] Status values that need to be considered for filter
+  /// [filter] Filter criteria as key-value pairs
 
   /// ### `status` — Available only
   /// Show only pets currently in stock
@@ -606,6 +612,8 @@ class PetApi extends BaseApi {
   /// Find pet by ID
   /// Returns a single pet
   @Deprecated('This operation is deprecated.')
+
+  /// [petId] ID of pet to return
 
   /// ### `petId` — Small breed ID
   /// A common small-breed pet identifier
@@ -930,6 +938,8 @@ class PetApi extends BaseApi {
   }
 
   /// Update an existing pet
+  /// [petId] ID of pet to update
+  /// [pet] Pet object that needs to be updated
 
   Future<Pet> updatePet(int petId, Pet pet, {Authenticator? auth}) async {
     final result = await updatePetWithHTTPInfo(petId, pet, auth: auth);

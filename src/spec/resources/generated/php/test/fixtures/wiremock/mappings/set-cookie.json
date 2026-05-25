@@ -1,0 +1,14 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "/api/set-cookie"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Set-Cookie": "session-id=test-session-value; Path=/"
+    },
+    "body": "{\"set\":true}"
+  }
+}

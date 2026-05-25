@@ -176,15 +176,17 @@ public final class DefaultApiClient implements ApiClient {
 
       if (!transportOptions.isFollowRedirects()) {
         builder.followRedirects(HttpClient.Redirect.NEVER);
-      } else if (transportOptions.getMaxRedirects() != null) {
+      } else {
         /*
-         * Java's HttpClient does not support max redirect counts natively,
-         * so we disable automatic redirects and handle them manually in
-         * sendRequest when a maxRedirects limit is configured.
+         * Java's HttpClient does not support a configurable max
+         * redirect count natively, so we always disable automatic
+         * redirects when followRedirects=true and handle them
+         * manually in sendRequest. This lets us cap hops at the
+         * configured maxRedirects (or the unified 20-hop default
+         * across all 12 SDKs) and strip sensitive headers on
+         * cross-origin hops.
          */
         builder.followRedirects(HttpClient.Redirect.NEVER);
-      } else {
-        builder.followRedirects(HttpClient.Redirect.NORMAL);
       }
 
       if (transportOptions.getTimeout() != null) {
@@ -231,6 +233,14 @@ public final class DefaultApiClient implements ApiClient {
 
     HttpRequest.BodyPublisher bodyPublisher;
     if (body == null) {
+      /* HttpRequest.BodyPublishers.noBody() reports contentLength == 0,
+       * which causes java.net.http to emit `Content-Length: 0` on the
+       * wire for body-bearing methods (POST/PUT/PATCH) — matching
+       * Kotlin's explicit `ByteArray(0)` and avoiding the 411 Length
+       * Required responses some WAFs return for an absent
+       * Content-Length on those verbs. Content-Length is a JDK
+       * restricted header so we cannot (and need not) set it
+       * manually via builder.header(). */
       bodyPublisher = HttpRequest.BodyPublishers.noBody();
     } else if (body instanceof Map) {
       String boundary = UUID.randomUUID().toString();
@@ -273,8 +283,9 @@ public final class DefaultApiClient implements ApiClient {
        * underlying HttpClient has automatic redirects disabled in this
        * case, so we follow Location headers ourselves up to the limit.
        */
-      if (transportOptions.isFollowRedirects() && transportOptions.getMaxRedirects() != null) {
-        int redirectsRemaining = transportOptions.getMaxRedirects();
+      if (transportOptions.isFollowRedirects()) {
+        int redirectsRemaining =
+            transportOptions.getMaxRedirects() != null ? transportOptions.getMaxRedirects() : 20;
         URI originalUri = URI.create(url);
         Set<String> sensitiveHeaders = Set.of("authorization", "cookie", "proxy-authorization");
         String currentMethod = method;
@@ -301,7 +312,7 @@ public final class DefaultApiClient implements ApiClient {
           boolean sameOrigin =
               redirectUri.getHost() != null
                   && redirectUri.getHost().equalsIgnoreCase(originalUri.getHost())
-                  && redirectUri.getPort() == originalUri.getPort();
+                  && effectivePort(redirectUri) == effectivePort(originalUri);
 
           /* Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
            *   307 + 308: preserve original method and body.
@@ -408,6 +419,20 @@ public final class DefaultApiClient implements ApiClient {
         || statusCode == 303
         || statusCode == 307
         || statusCode == 308;
+  }
+
+  /**
+   * Normalize a URI port, returning the default-port value (443 for https, 80 for http) when the
+   * URI does not specify an explicit port. Used by the same-origin check so that, for example,
+   * {@code https://host/x} and {@code https://host:443/x} compare equal and sensitive headers are
+   * not stripped on a redirect that only adds the implicit default port.
+   */
+  private static int effectivePort(URI uri) {
+    int port = uri.getPort();
+    if (port != -1) {
+      return port;
+    }
+    return "https".equalsIgnoreCase(uri.getScheme()) ? 443 : 80;
   }
 
   private static final Pattern CHARSET_PATTERN =

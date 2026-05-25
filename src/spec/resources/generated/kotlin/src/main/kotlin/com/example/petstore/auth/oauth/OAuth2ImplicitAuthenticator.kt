@@ -47,7 +47,11 @@ open class OAuth2ImplicitAuthenticator(
      */
     fun buildAuthorizationUrl(state: String? = null): String {
         val url = StringBuilder(authorizationUrl)
-        url.append("?response_type=token")
+        /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
+         * a query component. Use '&' as the separator when one is already
+         * present so existing params are preserved, '?' otherwise. */
+        url.append(if (authorizationUrl.contains('?')) '&' else '?')
+        url.append("response_type=token")
         url.append("&client_id=").append(encode(clientId))
         if (scopes.isNotEmpty()) {
             url.append("&scope=").append(encode(scopes.joinToString(" ")))

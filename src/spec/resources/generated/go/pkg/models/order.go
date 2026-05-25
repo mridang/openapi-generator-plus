@@ -18,8 +18,8 @@ import (
 type OrderStatusEnum string
 
 const (
-	OrderStatusEnumPlaced OrderStatusEnum = "placed"
-	OrderStatusEnumApproved OrderStatusEnum = "approved"
+	OrderStatusEnumPlaced    OrderStatusEnum = "placed"
+	OrderStatusEnumApproved  OrderStatusEnum = "approved"
 	OrderStatusEnumDelivered OrderStatusEnum = "delivered"
 )
 
@@ -50,18 +50,18 @@ func (v *OrderStatusEnum) UnmarshalJSON(data []byte) error {
 }
 
 type Order struct {
-	Id *int64 `json:"id,omitempty"`
-	PetId *int64 `json:"petId,omitempty"`
-	Quantity *int32 `json:"quantity,omitempty"`
+	Id       *int64     `json:"id,omitempty"`
+	PetId    *int64     `json:"petId,omitempty"`
+	Quantity *int32     `json:"quantity,omitempty"`
 	ShipDate *time.Time `json:"shipDate,omitempty"`
 	/* Status Order Status */
-	Status *OrderStatusEnum `json:"status,omitempty"`
-	Complete *bool `json:"complete,omitempty"`
+	Status   *OrderStatusEnum `json:"status,omitempty"`
+	Complete *bool            `json:"complete,omitempty"`
 }
 
 // NewOrder creates a new Order instance.
 func NewOrder() *Order {
-	var defaultStatus string = "placed"
+	var defaultStatus OrderStatusEnum = "placed"
 	return &Order{
 		Status: &defaultStatus,
 	}

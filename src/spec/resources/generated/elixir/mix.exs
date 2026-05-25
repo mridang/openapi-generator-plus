@@ -53,6 +53,7 @@ defmodule PetstoreClient.MixProject do
       {:junit_formatter, "~> 3.4", only: :test},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.30", only: :dev, runtime: false},
       {:testcontainers, "~> 1.12", only: :test}
     ]
   end

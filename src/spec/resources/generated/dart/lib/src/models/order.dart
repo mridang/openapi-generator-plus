@@ -8,6 +8,36 @@
 import 'dart:convert';
 
 /// Order is a model class generated from the OpenAPI schema.
+/// Typed enum for Order.status.
+enum OrderStatusEnum {
+  /// Represents the value 'placed'.
+  placed('placed'),
+
+  /// Represents the value 'approved'.
+  approved('approved'),
+
+  /// Represents the value 'delivered'.
+  delivered('delivered'),
+  ;
+
+  final String value;
+  const OrderStatusEnum(this.value);
+
+  /// Returns the enum value matching the given [value], or throws.
+  static OrderStatusEnum fromJson(String value) {
+    return OrderStatusEnum.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () =>
+          throw ArgumentError('Unknown OrderStatusEnum value: $value'),
+    );
+  }
+
+  String toJson() => value;
+
+  @override
+  String toString() => value;
+}
+
 class Order {
   /// Example: `10`
   final int? id;
@@ -23,7 +53,7 @@ class Order {
 
   /// Order Status
   /// Example: `approved`
-  final String? status;
+  final OrderStatusEnum? status;
 
   /// Example: `null`
   final bool? complete;
@@ -46,7 +76,9 @@ class Order {
       shipDate: json['shipDate'] != null
           ? DateTime.parse(json['shipDate'] as String)
           : null,
-      status: json['status'] != null ? json['status'] as String : 'placed',
+      status: json['status'] != null
+          ? OrderStatusEnum.fromJson(json['status'] as String)
+          : 'placed',
       complete: json['complete'] as bool?,
     );
   }
@@ -70,7 +102,7 @@ class Order {
           .replaceFirst(RegExp(r'(\.\d+)?Z$'), '+00:00');
     }
     if (status != null) {
-      json['status'] = status;
+      json['status'] = status?.toJson();
     }
     if (complete != null) {
       json['complete'] = complete;

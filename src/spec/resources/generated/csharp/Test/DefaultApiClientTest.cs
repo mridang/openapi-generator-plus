@@ -420,4 +420,59 @@ public class DefaultApiClientTest
         Assert.Contains("userId", response.Body);
     }
 #pragma warning restore xUnit1004
+
+    /*
+     * Regression: POST/PUT/PATCH with body == null must emit an explicit
+     * Content-Length: 0. Some servers / WAFs reject body-bearing verbs
+     * with no Content-Length (411 Length Required). We attach an empty
+     * ByteArrayContent so HttpClient emits the header.
+     */
+    [Fact]
+    public async Task postWithNullBodySendsContentLengthZero()
+    {
+        var client = new DefaultApiClient();
+        var response = await client.SendRequestAsync(
+            "POST",
+            new Uri(_fixture.WireMockHttpUrl + "/api/echo-content-length"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        using JsonDocument doc = JsonDocument.Parse(response.Body);
+        Assert.Equal("0", doc.RootElement.GetProperty("content-length").GetString());
+    }
+
+    /*
+     * Regression: HttpClientHandler's default per-handler cookie jar
+     * would silently replay a Set-Cookie from the previous response on
+     * the next request. The other 11 SDKs are stateless. We disable
+     * the cookie jar (UseCookies = false); this test asserts the
+     * Cookie header is not present on a follow-up request after a
+     * Set-Cookie response.
+     */
+    [Fact]
+    public async Task setCookieResponseNotReplayedOnNextRequest()
+    {
+        var client = new DefaultApiClient();
+
+        var first = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.WireMockHttpUrl + "/api/set-cookie"),
+            new Dictionary<string, string>(),
+            null
+        );
+        Assert.Equal(200, first.StatusCode);
+
+        var second = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.WireMockHttpUrl + "/api/echo-cookie"),
+            new Dictionary<string, string>(),
+            null
+        );
+        Assert.Equal(200, second.StatusCode);
+        using JsonDocument doc = JsonDocument.Parse(second.Body);
+        string cookieEcho = doc.RootElement.GetProperty("cookie").GetString() ?? "";
+        Assert.DoesNotContain("session-id", cookieEcho);
+    }
 }

@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"petstore/pkg"
+	petstore "petstore/pkg"
 )
 
 // ── SerializeValue by location ──

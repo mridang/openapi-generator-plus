@@ -25,5 +25,6 @@ group :development, :test do
   gem 'simplecov-cobertura', require: false
   gem 'steep', require: false
   gem 'testcontainers', '~> 0.2'
+  gem 'yard', require: false
   gem 'zstd-ruby', '~> 1.5'
 end

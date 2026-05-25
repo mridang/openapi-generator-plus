@@ -16,7 +16,9 @@ defmodule PetstoreClient.Models.WetFood do
           food_type: String.t() | nil
         }
 
-  @enforce_keys [:volume_ml]
+  @enforce_keys [
+    :volume_ml
+  ]
   defstruct [
     :volume_ml,
     food_type: "wet"

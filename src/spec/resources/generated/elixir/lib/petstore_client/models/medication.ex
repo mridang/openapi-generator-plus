@@ -16,7 +16,9 @@ defmodule PetstoreClient.Models.Medication do
           dosage: String.t() | nil
         }
 
-  @enforce_keys [:drug_name]
+  @enforce_keys [
+    :drug_name
+  ]
   defstruct [
     :drug_name,
     :dosage

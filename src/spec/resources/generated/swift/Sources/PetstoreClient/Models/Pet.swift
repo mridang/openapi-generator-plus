@@ -9,6 +9,13 @@ import Foundation
 
 /// Pet is a model class generated from the OpenAPI schema.
 /// See https://example.com/docs/pet Learn more about the Pet model
+/// Typed enum for Pet.status.
+public enum PetStatusEnum: String, Codable, Sendable, CaseIterable {
+    case available = "available"
+    case pending = "pending"
+    case sold = "sold"
+}
+
 public struct Pet: Codable, Sendable {
     /// Example: `10`
     public var id: Int64?
@@ -23,7 +30,7 @@ public struct Pet: Codable, Sendable {
     /// pet status in the store
     /// Example: `null`
     @available(*, deprecated, message: "This property is deprecated.")
-    public var status: String?
+    public var status: PetStatusEnum?
     /// Example: `null`
     public var location: [AnyCodable]?
 
@@ -40,7 +47,7 @@ public struct Pet: Codable, Sendable {
     /// Creates a new Pet instance.
     public init(
         name: String, photoUrls: Set<String>, id: Int64? = nil, category: Category? = nil, tags: [Tag]? = nil,
-        status: String? = nil, location: [AnyCodable]? = nil
+        status: PetStatusEnum? = nil, location: [AnyCodable]? = nil
     ) {
         self.name = name
         self.photoUrls = photoUrls
@@ -63,7 +70,7 @@ public struct Pet: Codable, Sendable {
         self.category = try container.decodeIfPresent(Category.self, forKey: .category)
         self.photoUrls = try container.decode(Set<String>.self, forKey: .photoUrls)
         self.tags = try container.decodeIfPresent([Tag].self, forKey: .tags)
-        self.status = try container.decodeIfPresent(String.self, forKey: .status)
+        self.status = try container.decodeIfPresent(PetStatusEnum.self, forKey: .status)
         self.location = try container.decodeIfPresent([AnyCodable].self, forKey: .location)
     }
 

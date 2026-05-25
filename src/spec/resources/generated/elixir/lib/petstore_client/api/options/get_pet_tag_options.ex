@@ -11,9 +11,9 @@ defmodule PetstoreClient.Api.Options.GetPetTagOptions do
   """
 
   @type t :: %__MODULE__{
-          colors: term(),
-          sizes: term(),
-          filter: term()
+          colors: list(String.t()) | nil,
+          sizes: list(String.t()) | nil,
+          filter: String.t() | nil
         }
 
   defstruct colors: nil,

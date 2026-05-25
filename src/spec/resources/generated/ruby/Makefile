@@ -9,7 +9,7 @@ test: install
 	bundle exec rake test
 
 lint: install
-	bundle exec rubocop --format simple
+	bundle exec rubocop --format simple --fail-fast
 
 format: install
 	bundle exec rubocop -A

@@ -8,6 +8,13 @@
 import Foundation
 
 /// Order is a model class generated from the OpenAPI schema.
+/// Typed enum for Order.status.
+public enum OrderStatusEnum: String, Codable, Sendable, CaseIterable {
+    case placed = "placed"
+    case approved = "approved"
+    case delivered = "delivered"
+}
+
 public struct Order: Codable, Sendable {
     /// Example: `10`
     public var id: Int64?
@@ -19,7 +26,7 @@ public struct Order: Codable, Sendable {
     public var shipDate: Date?
     /// Order Status
     /// Example: `approved`
-    public var status: String?
+    public var status: OrderStatusEnum?
     /// Example: `null`
     public var complete: Bool?
 
@@ -34,8 +41,8 @@ public struct Order: Codable, Sendable {
 
     /// Creates a new Order instance.
     public init(
-        id: Int64? = nil, petId: Int64? = nil, quantity: Int? = nil, shipDate: Date? = nil, status: String? = "placed",
-        complete: Bool? = nil
+        id: Int64? = nil, petId: Int64? = nil, quantity: Int? = nil, shipDate: Date? = nil,
+        status: OrderStatusEnum? = "placed", complete: Bool? = nil
     ) {
         self.id = id
         self.petId = petId
@@ -56,7 +63,7 @@ public struct Order: Codable, Sendable {
         self.petId = try container.decodeIfPresent(Int64.self, forKey: .petId)
         self.quantity = try container.decodeIfPresent(Int.self, forKey: .quantity)
         self.shipDate = try container.decodeIfPresent(Date.self, forKey: .shipDate)
-        self.status = try container.decodeIfPresent(String.self, forKey: .status)
+        self.status = try container.decodeIfPresent(OrderStatusEnum.self, forKey: .status)
         self.complete = try container.decodeIfPresent(Bool.self, forKey: .complete)
     }
 

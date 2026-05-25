@@ -69,7 +69,11 @@ export class OAuth2ImplicitAuthenticator implements HttpAwareAuthenticator {
     if (state) {
       params.set('state', state);
     }
-    return `${this.authorizationUrl}?${params.toString()}`;
+    /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
+     * a query component. Use '&' as the separator when one is already
+     * present so existing params are preserved, '?' otherwise. */
+    const separator = this.authorizationUrl.includes('?') ? '&' : '?';
+    return `${this.authorizationUrl}${separator}${params.toString()}`;
   }
 
   /**

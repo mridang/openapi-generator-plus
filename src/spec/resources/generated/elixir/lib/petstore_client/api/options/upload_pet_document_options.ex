@@ -11,9 +11,9 @@ defmodule PetstoreClient.Api.Options.UploadPetDocumentOptions do
   """
 
   @type t :: %__MODULE__{
-          file: term(),
-          document_type: term(),
-          notes: term()
+          file: binary(),
+          document_type: String.t() | nil,
+          notes: String.t() | nil
         }
 
   defstruct file: nil,

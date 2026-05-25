@@ -17,7 +17,8 @@ export class PhotoMetadata {
   isPrimary?: boolean;
   /** @example null */
   @Expose({ name: 'takenAt' })
-  takenAt?: string;
+  @Type(() => Date)
+  takenAt?: Date;
   /** @example null */
   @Expose({ name: 'location' })
   @Type(() => PhotoMetadataLocation)

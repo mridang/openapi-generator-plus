@@ -137,6 +137,19 @@ defmodule PetstoreClient.DefaultApiClient do
 
     {serialized_body, merged} = prepare_body(body, merged)
 
+    # Some servers / WAFs treat POST/PUT/PATCH with no body and no
+    # Content-Length as malformed (411 Length Required) or behave
+    # inconsistently. Send an empty-string body on body-bearing verbs
+    # so Finch / Req emits an explicit `Content-Length: 0`, matching
+    # Kotlin's `ByteArray(0)` and the other 11 SDKs.
+    {serialized_body, merged} =
+      if serialized_body == nil and
+           String.upcase(to_string(method)) in ["POST", "PUT", "PATCH"] do
+        {"", Map.put_new(merged, "Content-Length", "0")}
+      else
+        {serialized_body, merged}
+      end
+
     # Gap BH: Req re-sends Authorization / Cookie / Proxy-Authorization
     # across cross-origin 3xx redirects by default, which leaks bearer
     # tokens to attacker-controlled hosts via malicious 302. We've

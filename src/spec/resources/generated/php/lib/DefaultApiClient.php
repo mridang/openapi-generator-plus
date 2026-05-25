@@ -1,5 +1,4 @@
 <?php
-
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -72,7 +71,17 @@ class DefaultApiClient implements ApiClient
             }
 
             if ($this->transportOptions->timeout !== null) {
-                $options['timeout'] = $this->transportOptions->timeout / 1000.0;
+                $timeoutSeconds = $this->transportOptions->timeout / 1000.0;
+                $options['timeout'] = $timeoutSeconds;
+                /* Also bound the TCP connect phase. Symfony HttpClient's
+                 * `timeout` is an inactivity timer once the socket is
+                 * connected, so without `max_duration` (Symfony) /
+                 * `connect_timeout` (Guzzle) a hung DNS lookup or TCP SYN
+                 * with no response can stall indefinitely. We set both so
+                 * the call cannot exceed the caller's bound regardless of
+                 * the underlying HTTP client implementation. */
+                $options['max_duration'] = $timeoutSeconds;
+                $options['connect_timeout'] = $timeoutSeconds;
             }
 
             /* Gap BH: Symfony HttpClient re-sends Authorization / Cookie /
@@ -203,6 +212,15 @@ class DefaultApiClient implements ApiClient
         } else {
             if ($body === null) {
                 unset($mergedHeaders['Content-Type']);
+                /* Some servers / WAFs treat POST/PUT/PATCH with no body
+                 * and no Content-Length as malformed (411 Length
+                 * Required) or behave inconsistently. Emit an explicit
+                 * `Content-Length: 0` on body-bearing verbs to match
+                 * Kotlin's `ByteArray(0)` and the other 11 SDKs. */
+                $upperMethod = strtoupper($method);
+                if ($upperMethod === 'POST' || $upperMethod === 'PUT' || $upperMethod === 'PATCH') {
+                    $mergedHeaders['Content-Length'] = '0';
+                }
             }
             $options = [
                 'headers' => $mergedHeaders,
@@ -210,6 +228,11 @@ class DefaultApiClient implements ApiClient
 
             if ($body !== null) {
                 $options['body'] = $body;
+            } else {
+                $upperMethod = strtoupper($method);
+                if ($upperMethod === 'POST' || $upperMethod === 'PUT' || $upperMethod === 'PATCH') {
+                    $options['body'] = '';
+                }
             }
         }
 

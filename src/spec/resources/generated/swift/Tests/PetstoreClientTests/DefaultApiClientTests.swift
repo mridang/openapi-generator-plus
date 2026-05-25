@@ -360,6 +360,31 @@ import Testing
         #expect(resp.statusCode == 200)
         #expect(resp.body.contains("userId"))
     }
+
+    // Regression: POST/PUT/PATCH with body == nil must emit an
+    // explicit Content-Length: 0. Some servers / WAFs reject body-
+    // bearing verbs with no Content-Length (411 Length Required). The
+    // client attaches an empty Data on body-bearing verbs so
+    // URLSession emits the header.
+    @Test func post_with_null_body_sends_content_length_zero() async throws {
+        var capturedRequest: URLRequest?
+        var capturedBody: Data?
+        let client = makeClient { req in
+            capturedRequest = req
+            capturedBody = req.httpBody
+            return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+        }
+        _ = try await client.sendRequest(
+            method: "POST", url: "https://example.com",
+            headers: [:], body: nil)
+        // URLSession derives Content-Length from httpBody.count, so the
+        // presence of an empty Data on the request is what we assert
+        // (the URLProtocol stub does not echo the on-wire headers
+        // back, but httpBody.count drives the header value).
+        #expect(capturedBody != nil, "POST with null body must attach an empty Data")
+        #expect(capturedBody?.count == 0, "attached body must be zero-length")
+        #expect(capturedRequest?.httpMethod == "POST")
+    }
 }
 
 /// Thread-safe hop counter for multi-request stub handlers (e.g. redirect tests).

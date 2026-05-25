@@ -11,6 +11,35 @@ import 'category.dart';
 import 'tag.dart';
 
 /// Pet is a model class generated from the OpenAPI schema.
+/// Typed enum for Pet.status.
+enum PetStatusEnum {
+  /// Represents the value 'available'.
+  available('available'),
+
+  /// Represents the value 'pending'.
+  pending('pending'),
+
+  /// Represents the value 'sold'.
+  sold('sold'),
+  ;
+
+  final String value;
+  const PetStatusEnum(this.value);
+
+  /// Returns the enum value matching the given [value], or throws.
+  static PetStatusEnum fromJson(String value) {
+    return PetStatusEnum.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () => throw ArgumentError('Unknown PetStatusEnum value: $value'),
+    );
+  }
+
+  String toJson() => value;
+
+  @override
+  String toString() => value;
+}
+
 class Pet {
   /// Example: `10`
   final int? id;
@@ -30,7 +59,7 @@ class Pet {
   /// pet status in the store
   /// Example: `null`
   @Deprecated('This property is deprecated.')
-  final String? status;
+  final PetStatusEnum? status;
 
   /// Example: `null`
   final List<Object>? location;
@@ -57,7 +86,9 @@ class Pet {
       tags: (json['tags'] as List?)
           ?.map((e) => Tag.fromJson(e as Map<String, dynamic>))
           .toList(),
-      status: json['status'] as String?,
+      status: json['status'] != null
+          ? PetStatusEnum.fromJson(json['status'] as String)
+          : null,
       location: (json['location'] as List?)?.map((e) => e as Object).toList(),
     );
   }
@@ -79,7 +110,7 @@ class Pet {
       json['tags'] = tags?.map((e) => e.toJson()).toList();
     }
     if (status != null) {
-      json['status'] = status;
+      json['status'] = status?.toJson();
     }
     if (location != null) {
       json['location'] = location?.toList();

@@ -551,7 +551,8 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 "oneOfAnyOf", "hasFmtImport",
                 "isEnum", "hasFmtImport",
                 "hasInlineEnum", "hasFmtImport",
-                "hasRequired", "hasFmtImport");
+                "hasRequired", "hasFmtImport",
+                "isUnevaluatedPropertiesFalse", "hasFmtImport");
     }
 
     /** {@inheritDoc} */

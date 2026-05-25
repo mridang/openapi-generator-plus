@@ -89,3 +89,36 @@ require enabling extra dependencies / feature flags on the underlying
 HTTP library in every one of the 12 SDKs we generate, with non-trivial
 API divergence; we explicitly chose not to. If you need SOCKS, route
 through a local HTTP-CONNECT bridge or configure it at the OS level.
+
+### Per-call cancellation
+
+No generated operation method accepts a per-call cancellation handle.
+In-flight requests can only be terminated by waiting for the configured
+`TransportOptions` request timeout to fire — there is no way to abort
+mid-flight from the caller side. If you need fine-grained per-call
+cancellation, wrap the SDK call in your language's standard concurrency
+primitives (a `Future` you cancel externally, a `Task` you orphan, an
+`asyncio` task you cancel, etc.) and rely on the timeout to break the
+underlying socket.
+
+### `LICENSE` file is not auto-emitted
+
+The package manifest declares MIT, but no `LICENSE` / `LICENSE.md` file
+is generated alongside the sources. Drop the appropriate license text
+into the generated tree as part of your release pipeline before
+publishing to a registry — most registries warn or block on a missing
+file, and the GitHub license auto-detect cannot pick up a manifest-only
+declaration.
+
+### UTF-8 BOM is not stripped from JSON response bodies
+
+Most other SDKs in this generator family (Python, Ruby, Node, Go, Rust,
+Swift, Dart, PHP, Kotlin, Elixir) explicitly strip a leading UTF-8 BOM
+(`U+FEFF`) before parsing JSON. The C# SDK does not — it relies on
+`System.Text.Json.JsonSerializer` defaults, which do not strip BOM from
+`string` input. This is rare in practice (Windows-emitted JSON from
+`Out-File -Encoding utf8` pre-PowerShell 6, Notepad, etc.) and most
+servers strip it before sending, but if you hit it you will get a
+`JsonException` on the very first token. Pre-trim the BOM at the caller
+layer (`s.StartsWith("\uFEFF") ? s.Substring(1) : s`) if you control a
+problematic upstream.

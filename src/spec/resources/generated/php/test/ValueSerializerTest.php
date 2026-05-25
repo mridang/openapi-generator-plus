@@ -6,8 +6,8 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
-use PetstoreClient\ValueSerializer;
 use PHPUnit\Framework\TestCase;
+use PetstoreClient\ValueSerializer;
 
 class ValueSerializerTest extends TestCase
 {

@@ -25,6 +25,7 @@ class StoreApi extends BaseApi {
             apiClient: apiClient, config: config, authenticator: authenticator);
 
   /// Delete purchase order by ID
+  /// [orderId] ID of the order to delete
 
   Future<void> deleteOrder(int orderId, {Authenticator? auth}) async {
     await deleteOrderWithHTTPInfo(orderId, auth: auth);
@@ -92,6 +93,7 @@ class StoreApi extends BaseApi {
   }
 
   /// Find purchase order by ID
+  /// [orderId] ID of order to return
 
   Future<Order> getOrderById(int orderId, {Authenticator? auth}) async {
     final result = await getOrderByIdWithHTTPInfo(orderId, auth: auth);

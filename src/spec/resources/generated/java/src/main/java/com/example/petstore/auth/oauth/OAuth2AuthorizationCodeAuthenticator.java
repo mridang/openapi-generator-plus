@@ -113,7 +113,13 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
    */
   public String buildAuthorizationUrl(@Nullable String state) {
     StringBuilder url = new StringBuilder(authorizationUrl);
-    url.append("?response_type=code");
+    /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
+     * a query component (e.g. tenant-scoped Auth0 URLs like
+     * https://x.auth0.com/authorize?audience=api). Use '&' as the
+     * separator when one is already present so existing params are
+     * preserved, '?' otherwise. */
+    url.append(authorizationUrl.indexOf('?') >= 0 ? '&' : '?');
+    url.append("response_type=code");
     url.append("&client_id=").append(encode(clientId));
     url.append("&redirect_uri=").append(encode(redirectUri));
     if (!scopes.isEmpty()) {

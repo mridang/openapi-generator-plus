@@ -118,6 +118,15 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             request.httpBody = data
         } else {
             merged.removeValue(forKey: "Content-Type")
+            // Some servers / WAFs treat POST/PUT/PATCH with no body and
+            // no Content-Length as malformed (411 Length Required) or
+            // behave inconsistently. Attach an empty Data on body-bearing
+            // verbs so URLSession emits an explicit `Content-Length: 0`,
+            // matching Kotlin's `ByteArray(0)` and the other 11 SDKs.
+            let upperMethod = method.uppercased()
+            if upperMethod == "POST" || upperMethod == "PUT" || upperMethod == "PATCH" {
+                request.httpBody = Data()
+            }
         }
 
         for (k, v) in merged {
@@ -518,12 +527,15 @@ private final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTas
             completionHandler(nil)
             return
         }
-        if let limit = maxRedirects {
-            let count = redirectCount.increment()
-            if count > limit {
-                completionHandler(nil)
-                return
-            }
+        // Cap at the caller-configured limit, falling back to the
+        // unified 20-hop default across all 12 SDKs. URLSession otherwise
+        // follows up to its built-in cap of 16, but the explicit cap
+        // makes the limit observable and consistent across languages.
+        let limit = maxRedirects ?? 20
+        let count = redirectCount.increment()
+        if count > limit {
+            completionHandler(nil)
+            return
         }
         /* Refuse non-HTTP(S) redirect schemes (javascript:, file:, data:,
          * etc.). URLSession will hand the proposed request to this delegate

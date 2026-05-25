@@ -67,7 +67,7 @@ type GetMultiServerPetInfoServerRegional struct {
 // GetUrl returns the server URL.
 func (s GetMultiServerPetInfoServerRegional) GetUrl() string {
 	url := "https://{region}.example.com/v1"
-	url = strings.ReplaceAll(url, "{" + "region" + "}", string(s.Region))
+	url = strings.ReplaceAll(url, "{"+"region"+"}", string(s.Region))
 	return url
 }
 
@@ -114,14 +114,14 @@ const (
 // Staging server
 type GetStagingPetInfoServerStagingServer struct {
 	Environment GetStagingPetInfoServerEnvironment
-	Version GetStagingPetInfoServerVersion
+	Version     GetStagingPetInfoServerVersion
 }
 
 // GetUrl returns the server URL.
 func (s GetStagingPetInfoServerStagingServer) GetUrl() string {
 	url := "https://{environment}.example.com/api/{version}"
-	url = strings.ReplaceAll(url, "{" + "environment" + "}", string(s.Environment))
-	url = strings.ReplaceAll(url, "{" + "version" + "}", string(s.Version))
+	url = strings.ReplaceAll(url, "{"+"environment"+"}", string(s.Environment))
+	url = strings.ReplaceAll(url, "{"+"version"+"}", string(s.Version))
 	return url
 }
 
@@ -167,7 +167,7 @@ func (a *PetApi) AddPetWithHTTPInfo(auth Authenticator, pet Pet) (*ApiResult[Pet
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{ "application/json" },
+		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "Pet",
 		auth:         auth,
@@ -242,7 +242,7 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *AddPetPhotosOpti
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{ "application/json" },
+		accepts:      []string{"application/json"},
 		contentType:  "multipart/form-data",
 		returnType:   "[]Photo",
 		auth:         nil,
@@ -311,7 +311,7 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(auth Authenticator, petId int64, pe
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{ "application/json" },
+		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "PetTreatment",
 		auth:         auth,
@@ -356,7 +356,7 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(auth Authenticator, petId int64, pe
 // param petId: Pet id to delete
 // param apiKey: Session cookie used for authentication
 
-func (a *PetApi) DeletePet(auth Authenticator, petId int64, options *DeletePetOptions) (error) {
+func (a *PetApi) DeletePet(auth Authenticator, petId int64, options *DeletePetOptions) error {
 	result, err := a.DeletePetWithHTTPInfo(auth, petId, options)
 	if err != nil {
 		return err
@@ -390,7 +390,7 @@ func (a *PetApi) DeletePetWithHTTPInfo(auth Authenticator, petId int64, options 
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{  },
+		accepts:      []string{},
 		contentType:  "application/json",
 		returnType:   "",
 		auth:         auth,
@@ -437,7 +437,7 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) 
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{ "application/octet-stream" },
+		accepts:      []string{"application/octet-stream"},
 		contentType:  "application/json",
 		returnType:   "*os.File",
 		auth:         nil,
@@ -525,7 +525,7 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *FindPetsByStatusOptions) 
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{ "application/json" },
+		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "[]Pet",
 		auth:         nil,
@@ -600,7 +600,7 @@ func (a *PetApi) GetExternalPetInfoWithHTTPInfo(petId int64, server GetExternalP
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{ "application/json" },
+		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "Pet",
 		auth:         nil,
@@ -675,7 +675,7 @@ func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(petId int64, server GetMultiS
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{ "application/json" },
+		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "Pet",
 		auth:         nil,
@@ -745,7 +745,7 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(petId int64) (*ApiResult[*os.File], er
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{ "image/jpeg", "image/png" },
+		accepts:      []string{"image/jpeg", "image/png"},
 		contentType:  "application/json",
 		returnType:   "*os.File",
 		auth:         nil,
@@ -815,7 +815,7 @@ func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(petId int64) (*ApiResult[[]by
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{ "application/json" },
+		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "[]byte",
 		auth:         nil,
@@ -897,7 +897,7 @@ func (a *PetApi) GetPetByIdWithHTTPInfo(petId int64, server GetPetByIdServer) (*
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{ "application/json" },
+		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "Pet",
 		auth:         nil,
@@ -967,7 +967,7 @@ func (a *PetApi) GetPetPassportWithHTTPInfo(petId int64) (*ApiResult[PetPassport
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{ "application/json" },
+		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "PetPassport",
 		auth:         nil,
@@ -1038,7 +1038,7 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{ "image/jpeg", "image/png", "application/json" },
+		accepts:      []string{"image/jpeg", "image/png", "application/json"},
 		contentType:  "application/json",
 		returnType:   "*os.File",
 		auth:         nil,
@@ -1124,7 +1124,7 @@ func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *Get
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{ "application/json" },
+		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "Pet",
 		auth:         nil,
@@ -1199,7 +1199,7 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(petId int64, server GetStagingPet
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{ "application/json" },
+		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "Pet",
 		auth:         nil,
@@ -1243,7 +1243,7 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(petId int64, server GetStagingPet
 // SetPetAvatar Set the pet's profile photo
 // Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
 
-func (a *PetApi) SetPetAvatar(petId int64, body *os.File) (error) {
+func (a *PetApi) SetPetAvatar(petId int64, body *os.File) error {
 	result, err := a.SetPetAvatarWithHTTPInfo(petId, body)
 	if err != nil {
 		return err
@@ -1270,7 +1270,7 @@ func (a *PetApi) SetPetAvatarWithHTTPInfo(petId int64, body *os.File) (*ApiResul
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{  },
+		accepts:      []string{},
 		contentType:  "image/jpeg",
 		returnType:   "",
 		auth:         nil,
@@ -1290,7 +1290,7 @@ func (a *PetApi) SetPetAvatarWithHTTPInfo(petId int64, body *os.File) (*ApiResul
 // SetPetAvatarThumbnail Set the pet's avatar thumbnail as base64
 // Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
 
-func (a *PetApi) SetPetAvatarThumbnail(petId int64, setPetAvatarThumbnailRequest SetPetAvatarThumbnailRequest) (error) {
+func (a *PetApi) SetPetAvatarThumbnail(petId int64, setPetAvatarThumbnailRequest SetPetAvatarThumbnailRequest) error {
 	result, err := a.SetPetAvatarThumbnailWithHTTPInfo(petId, setPetAvatarThumbnailRequest)
 	if err != nil {
 		return err
@@ -1317,7 +1317,7 @@ func (a *PetApi) SetPetAvatarThumbnailWithHTTPInfo(petId int64, setPetAvatarThum
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{  },
+		accepts:      []string{},
 		contentType:  "application/json",
 		returnType:   "",
 		auth:         nil,
@@ -1364,7 +1364,7 @@ func (a *PetApi) UpdatePetWithHTTPInfo(petId int64, pet Pet) (*ApiResult[Pet], e
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{ "application/json" },
+		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "Pet",
 		auth:         nil,
@@ -1438,7 +1438,7 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *UploadPe
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{ "application/json" },
+		accepts:      []string{"application/json"},
 		contentType:  "multipart/form-data",
 		returnType:   "ApiResponse",
 		auth:         nil,
@@ -1518,7 +1518,7 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *UploadPetDo
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{ "application/json" },
+		accepts:      []string{"application/json"},
 		contentType:  "multipart/form-data",
 		returnType:   "ApiResponse",
 		auth:         nil,

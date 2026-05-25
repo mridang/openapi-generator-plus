@@ -6,7 +6,7 @@ import (
 
 // UploadPetDocumentOptions holds optional parameters for the UploadPetDocument operation.
 type UploadPetDocumentOptions struct {
-	File *os.File
+	File         *os.File
 	DocumentType *string
-	Notes *string
+	Notes        *string
 }

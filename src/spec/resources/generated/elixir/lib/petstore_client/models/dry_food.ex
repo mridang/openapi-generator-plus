@@ -16,7 +16,9 @@ defmodule PetstoreClient.Models.DryFood do
           food_type: String.t() | nil
         }
 
-  @enforce_keys [:weight_kg]
+  @enforce_keys [
+    :weight_kg
+  ]
   defstruct [
     :weight_kg,
     food_type: "dry"

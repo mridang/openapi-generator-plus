@@ -1,5 +1,4 @@
 <?php
-
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -76,7 +75,11 @@ class Pet
         $this->id = $id;
         $this->name = $name;
         $this->category = $category;
-        $this->photoUrls = $photoUrls;
+        // uniqueItems:true — dedupe at construction so PHP's
+        // associative-array semantics don't leak duplicates that the
+        // schema forbids. array_values() re-indexes after array_unique()
+        // strips duplicates, producing a clean 0-based list.
+        $this->photoUrls = array_values(array_unique($photoUrls, SORT_REGULAR));
         $this->tags = $tags;
         $this->status = $status;
         $this->location = $location;

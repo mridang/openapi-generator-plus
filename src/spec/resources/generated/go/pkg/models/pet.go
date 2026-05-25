@@ -19,8 +19,8 @@ type PetStatusEnum string
 
 const (
 	PetStatusEnumAvailable PetStatusEnum = "available"
-	PetStatusEnumPending PetStatusEnum = "pending"
-	PetStatusEnumSold PetStatusEnum = "sold"
+	PetStatusEnumPending   PetStatusEnum = "pending"
+	PetStatusEnumSold      PetStatusEnum = "sold"
 )
 
 // AllPetStatusEnumValues returns all allowed values.
@@ -50,21 +50,21 @@ func (v *PetStatusEnum) UnmarshalJSON(data []byte) error {
 }
 
 type Pet struct {
-	Id *int64 `json:"id,omitempty"`
-	Name string `json:"name"`
-	Category *Category `json:"category,omitempty"`
+	Id        *int64      `json:"id,omitempty"`
+	Name      string      `json:"name"`
+	Category  *Category   `json:"category,omitempty"`
 	PhotoUrls Set[string] `json:"photoUrls"`
-	Tags *[]Tag `json:"tags,omitempty"`
+	Tags      *[]Tag      `json:"tags,omitempty"`
 	/* Status pet status in the store */
 	/* Deprecated: This property is deprecated. */
-	Status *PetStatusEnum `json:"status,omitempty"`
+	Status   *PetStatusEnum `json:"status,omitempty"`
 	Location *[]interface{} `json:"location,omitempty"`
 }
 
 // NewPet creates a new Pet instance.
 func NewPet(name string, photoUrls Set[string]) *Pet {
 	return &Pet{
-		Name: name,
+		Name:      name,
 		PhotoUrls: photoUrls,
 	}
 }

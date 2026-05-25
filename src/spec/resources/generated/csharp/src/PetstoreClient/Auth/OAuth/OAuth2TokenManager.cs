@@ -135,7 +135,7 @@ public sealed class OAuth2TokenManager
                     return _accessToken;
                 }
             }
-            catch (HttpRequestException)
+            catch (Exception ex) when (ex is HttpRequestException or OAuth2ServerError)
             {
                 /* Refresh failed (e.g. refresh token revoked or expired).
                  * Fall back to re-running the original grant below. */
@@ -197,6 +197,7 @@ public sealed class OAuth2TokenManager
         Dictionary<string, string> headers = new()
         {
             ["Content-Type"] = "application/x-www-form-urlencoded",
+            ["Accept"] = "application/json",
         };
         if (extraHeaders is not null)
         {
@@ -212,16 +213,26 @@ public sealed class OAuth2TokenManager
 
         if (response.StatusCode is < 200 or >= 300)
         {
-            throw new HttpRequestException(
-                $"Token request failed with status {response.StatusCode}: {response.Body}"
-            );
+            /* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
+             * `error` (required), `error_description`, `error_uri`. Parse
+             * them into a typed OAuth2ServerError so callers can catch
+             * them specifically. Fall back to the raw body when the
+             * response is not a valid error object. */
+            throw ParseOAuth2ServerError(response.StatusCode, response.Body);
         }
 
         using JsonDocument doc = JsonDocument.Parse(response.Body);
         JsonElement root = doc.RootElement;
-        _accessToken =
-            root.GetProperty("access_token").GetString()
-            ?? throw new InvalidOperationException("Token response missing access_token");
+        string? accessTokenValue =
+            root.TryGetProperty("access_token", out JsonElement accessTokenElement)
+            && accessTokenElement.ValueKind == JsonValueKind.String
+                ? accessTokenElement.GetString()
+                : null;
+        if (string.IsNullOrEmpty(accessTokenValue))
+        {
+            throw new OAuth2TokenError("Token response missing or empty access_token field");
+        }
+        _accessToken = accessTokenValue;
         if (root.TryGetProperty("refresh_token", out JsonElement refreshTokenElement))
         {
             string? newRefreshToken = refreshTokenElement.GetString();
@@ -252,6 +263,47 @@ public sealed class OAuth2TokenManager
                 _tokenExpiry = DateTimeOffset.UtcNow;
             }
         }
+    }
+
+    /// <summary>
+    /// Parse an RFC 6749 §5.2 OAuth2 error response body into a typed
+    /// <see cref="OAuth2ServerError"/>. Falls back to a generic error using
+    /// the raw body when the body is not a valid OAuth2 error object.
+    /// </summary>
+    private static OAuth2ServerError ParseOAuth2ServerError(int statusCode, string body)
+    {
+        try
+        {
+            using JsonDocument doc = JsonDocument.Parse(body);
+            JsonElement root = doc.RootElement;
+            if (
+                root.ValueKind == JsonValueKind.Object
+                && root.TryGetProperty("error", out JsonElement errorElement)
+                && errorElement.ValueKind == JsonValueKind.String
+            )
+            {
+                string? code = errorElement.GetString();
+                if (!string.IsNullOrEmpty(code))
+                {
+                    string? description =
+                        root.TryGetProperty("error_description", out JsonElement descElement)
+                        && descElement.ValueKind == JsonValueKind.String
+                            ? descElement.GetString()
+                            : null;
+                    string? uri =
+                        root.TryGetProperty("error_uri", out JsonElement uriElement)
+                        && uriElement.ValueKind == JsonValueKind.String
+                            ? uriElement.GetString()
+                            : null;
+                    return new OAuth2ServerError(statusCode, code, description, uri, body);
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            /* Not a JSON body; fall through and report the raw body. */
+        }
+        return new OAuth2ServerError(statusCode, null, null, null, body);
     }
 
     /// <summary>
@@ -313,4 +365,68 @@ public sealed class OAuth2TokenManager
 
     /// <summary>Gets the refresh token returned by the token endpoint, if any.</summary>
     public string? RefreshToken { get; private set; }
+}
+
+/// <summary>
+/// Thrown when the OAuth2 token endpoint returns a 2xx response whose body
+/// is missing or contains an empty <c>access_token</c> field. Distinct from
+/// <see cref="OAuth2ServerError"/> (which represents RFC 6749 §5.2 error
+/// responses on 4xx/5xx) so callers can recover differently.
+/// </summary>
+public sealed class OAuth2TokenError : Exception
+{
+    public OAuth2TokenError(string message)
+        : base(message) { }
+}
+
+/// <summary>
+/// Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
+/// <see cref="Code"/> property carries the OAuth2 error code (e.g.
+/// <c>invalid_grant</c>, <c>invalid_client</c>); <see cref="Description"/>
+/// and <see cref="Uri"/> are the optional human-readable description and a
+/// URL to a page describing the error. <see cref="RawBody"/> preserves the
+/// original response payload for diagnostics when the body is not a
+/// well-formed OAuth2 error object.
+/// </summary>
+public sealed class OAuth2ServerError : Exception
+{
+    public int StatusCode { get; }
+    public string? Code { get; }
+    public string? Description { get; }
+    public string? Uri { get; }
+    public string RawBody { get; }
+
+    public OAuth2ServerError(
+        int statusCode,
+        string? code,
+        string? description,
+        string? uri,
+        string rawBody
+    )
+        : base(BuildMessage(statusCode, code, description, rawBody))
+    {
+        StatusCode = statusCode;
+        Code = code;
+        Description = description;
+        Uri = uri;
+        RawBody = rawBody;
+    }
+
+    private static string BuildMessage(
+        int statusCode,
+        string? code,
+        string? description,
+        string rawBody
+    )
+    {
+        if (code is null)
+        {
+            return $"Token request failed with status {statusCode}: {rawBody}";
+        }
+        if (description is not null)
+        {
+            return $"Token request failed with status {statusCode}: {code} — {description}";
+        }
+        return $"Token request failed with status {statusCode}: {code}";
+    }
 }

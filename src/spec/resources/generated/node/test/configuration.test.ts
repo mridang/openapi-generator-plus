@@ -34,28 +34,32 @@ describe('Configuration', () => {
   });
 
   test('builder sets baseUrl', () => {
-    const config = Configuration.builder().baseUrl('https://custom.example.com').build();
+    const config = Configuration.builder()
+      .baseUrl('https://custom.example.com')
+      .build();
 
     expect(config.baseUrl).toBe('https://custom.example.com');
   });
 
   test('builder sets single default header', () => {
-    const config = Configuration.builder().defaultHeader('Authorization', 'Bearer token123').build();
+    const config = Configuration.builder()
+      .defaultHeader('Authorization', 'Bearer token123')
+      .build();
 
-    expect(config.defaultHeaders).toEqual({ Authorization: 'Bearer token123' });
+    expect(config.defaultHeaders).toEqual({ 'Authorization': 'Bearer token123' });
   });
 
   test('builder sets multiple default headers', () => {
     const config = Configuration.builder()
       .defaultHeaders({
-        Authorization: 'Bearer token123',
-        'X-Custom': 'value'
+        'Authorization': 'Bearer token123',
+        'X-Custom': 'value',
       })
       .build();
 
     expect(config.defaultHeaders).toEqual({
-      Authorization: 'Bearer token123',
-      'X-Custom': 'value'
+      'Authorization': 'Bearer token123',
+      'X-Custom': 'value',
     });
   });
 
@@ -86,10 +90,14 @@ describe('Configuration', () => {
   });
 
   test('server resolves URL with default variables', () => {
-    const server = new ServerConfiguration('https://{env}.example.com/api/{version}', 'Test server', {
-      env: new ServerVariable('api', null, ['api', 'staging']),
-      version: new ServerVariable('v3', null, ['v2', 'v3'])
-    });
+    const server = new ServerConfiguration(
+      'https://{env}.example.com/api/{version}',
+      'Test server',
+      {
+        env: new ServerVariable('api', null, ['api', 'staging']),
+        version: new ServerVariable('v3', null, ['v2', 'v3']),
+      },
+    );
 
     const config = Configuration.builder().server(server).build();
 
@@ -97,28 +105,41 @@ describe('Configuration', () => {
   });
 
   test('server resolves URL with variable overrides', () => {
-    const server = new ServerConfiguration('https://{env}.example.com/api/{version}', null, {
-      env: new ServerVariable('api', null, ['api', 'staging']),
-      version: new ServerVariable('v3', null, ['v2', 'v3'])
-    });
+    const server = new ServerConfiguration(
+      'https://{env}.example.com/api/{version}',
+      null,
+      {
+        env: new ServerVariable('api', null, ['api', 'staging']),
+        version: new ServerVariable('v3', null, ['v2', 'v3']),
+      },
+    );
 
-    const config = Configuration.builder().server(server, { env: 'staging', version: 'v2' }).build();
+    const config = Configuration.builder()
+      .server(server, { env: 'staging', version: 'v2' })
+      .build();
 
     expect(config.baseUrl).toBe('https://staging.example.com/api/v2');
   });
 
   test('invalid enum value throws', () => {
-    const server = new ServerConfiguration('https://{env}.example.com', null, {
-      env: new ServerVariable('api', null, ['api', 'staging'])
-    });
+    const server = new ServerConfiguration(
+      'https://{env}.example.com',
+      null,
+      { env: new ServerVariable('api', null, ['api', 'staging']) },
+    );
 
-    expect(() => Configuration.builder().server(server, { env: 'invalid' }).build()).toThrow();
+    expect(() =>
+      Configuration.builder().server(server, { env: 'invalid' }).build(),
+    ).toThrow();
   });
 
   test('baseUrl overrides server', () => {
     const server = new ServerConfiguration('https://api.example.com', null, {});
 
-    const config = Configuration.builder().server(server).baseUrl('https://override.example.com').build();
+    const config = Configuration.builder()
+      .server(server)
+      .baseUrl('https://override.example.com')
+      .build();
 
     expect(config.baseUrl).toBe('https://override.example.com');
   });
@@ -138,7 +159,9 @@ describe('Configuration', () => {
   });
 
   test('setDefault changes the default', () => {
-    const custom = Configuration.builder().baseUrl('https://custom.example.com').build();
+    const custom = Configuration.builder()
+      .baseUrl('https://custom.example.com')
+      .build();
 
     Configuration.setDefault(custom);
 
@@ -147,7 +170,9 @@ describe('Configuration', () => {
   });
 
   test('configuration is immutable', () => {
-    const config = Configuration.builder().defaultHeader('X-Key', 'value').build();
+    const config = Configuration.builder()
+      .defaultHeader('X-Key', 'value')
+      .build();
 
     expect(Object.isFrozen(config.defaultHeaders)).toBe(true);
   });

@@ -507,4 +507,67 @@ class DefaultApiClientTest {
       assertTrue(response.body().contains("userId"));
     }
   }
+
+  @Nested
+  @DisplayName("redirect default-port normalization")
+  class RedirectDefaultPortNormalization {
+
+    /*
+     * Regression: same-origin check on redirect previously compared raw
+     * URI.getPort() values, so a redirect from `https://host/x` (port -1)
+     * to `https://host:443/y` (port 443) was treated as cross-origin and
+     * the Authorization header was stripped. effectivePort(...) normalizes
+     * the omitted port to the scheme's default so the two URIs compare
+     * equal and credentials survive the hop.
+     */
+    @Test
+    @DisplayName("redirect_to_explicit_default_port_preserves_authorization")
+    void redirectToExplicitDefaultPortPreservesAuthorization() throws Exception {
+      java.lang.reflect.Method method =
+          DefaultApiClient.class.getDeclaredMethod("effectivePort", java.net.URI.class);
+      method.setAccessible(true);
+
+      int httpsImplicit = (int) method.invoke(null, java.net.URI.create("https://host/x"));
+      int httpsExplicit = (int) method.invoke(null, java.net.URI.create("https://host:443/y"));
+      int httpImplicit = (int) method.invoke(null, java.net.URI.create("http://host/x"));
+      int httpExplicit = (int) method.invoke(null, java.net.URI.create("http://host:80/y"));
+      int httpsCustom = (int) method.invoke(null, java.net.URI.create("https://host:8443/y"));
+
+      assertEquals(443, httpsImplicit, "implicit https port must normalize to 443");
+      assertEquals(443, httpsExplicit, "explicit :443 must round-trip as 443");
+      assertEquals(80, httpImplicit, "implicit http port must normalize to 80");
+      assertEquals(80, httpExplicit, "explicit :80 must round-trip as 80");
+      assertEquals(8443, httpsCustom, "non-default ports must round-trip unchanged");
+    }
+  }
+
+  @Nested
+  @DisplayName("null-body Content-Length")
+  class NullBodyContentLength {
+
+    /*
+     * Regression: POST/PUT/PATCH with body == null must emit an explicit
+     * Content-Length: 0. Some servers / WAFs reject body-bearing verbs
+     * with no Content-Length (411 Length Required). java.net.http's
+     * BodyPublishers.noBody() reports contentLength == 0 so the JDK
+     * emits the header for us — assert it lands on the wire.
+     */
+    @Test
+    @DisplayName("post_with_null_body_sends_content_length_zero")
+    void postWithNullBodySendsContentLengthZero() throws Exception {
+      String wiremockUrl = WireMockContainer.getHttpUrl();
+
+      DefaultApiClient client = new DefaultApiClient();
+      ApiResponse response =
+          client.sendRequest(
+              "POST", wiremockUrl + "/api/echo-content-length", new HashMap<>(), null);
+
+      assertEquals(200, response.statusCode());
+      JsonNode json = new ObjectMapper().readTree(response.body());
+      assertEquals(
+          "0",
+          json.get("content-length").asText(),
+          "POST with null body must emit Content-Length: 0");
+    }
+  }
 }

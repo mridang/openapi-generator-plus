@@ -23,7 +23,7 @@ beforeAll(async () => {
     if (req.url === '/vendor-json') {
       const response = JSON.stringify({ format: 'vendor' });
       res.writeHead(200, {
-        'Content-Type': 'application/vnd.api+json'
+        'Content-Type': 'application/vnd.api+json',
       });
       res.end(response);
       return;
@@ -38,7 +38,10 @@ beforeAll(async () => {
     if (req.url === '/echo-headers') {
       const response = JSON.stringify(
         Object.fromEntries(
-          Object.entries(req.headers).map(([k, v]) => [k, Array.isArray(v) ? v.join(', ') : (v ?? '')])
+          Object.entries(req.headers).map(([k, v]) => [
+            k,
+            Array.isArray(v) ? v.join(', ') : v ?? '',
+          ])
         )
       );
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -52,13 +55,13 @@ beforeAll(async () => {
       const response = JSON.stringify({ method: req.method, body });
       res.writeHead(200, {
         'Content-Type': 'application/json',
-        'X-Test-Header': 'test-value'
+        'X-Test-Header': 'test-value',
       });
       res.end(response);
     });
   });
 
-  await new Promise<void>((resolve) => {
+  await new Promise<void>(resolve => {
     server.listen(0, '127.0.0.1', resolve);
   });
 
@@ -67,7 +70,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await new Promise<void>((resolve) => server.close(() => resolve()));
+  await new Promise<void>(resolve => server.close(() => resolve()));
 });
 
 describe('DefaultApiClient unit', () => {
@@ -210,7 +213,12 @@ describe('DefaultApiClient unit', () => {
   it('caller headers override transport default headers', async () => {
     const transport = TransportOptions.builder().defaultHeader('Accept', 'text/plain').build();
     const client = new DefaultApiClient(transport);
-    const response = await client.sendRequest('GET', `${baseUrl}/echo-headers`, { Accept: 'application/json' }, null);
+    const response = await client.sendRequest(
+      'GET',
+      `${baseUrl}/echo-headers`,
+      { 'Accept': 'application/json' },
+      null
+    );
     expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
     expect(body['accept']).toBe('application/json');
@@ -219,34 +227,46 @@ describe('DefaultApiClient unit', () => {
 
 describe('DefaultApiClient.decodeBody charset handling', () => {
   it('decodes ISO-8859-1 when declared via Content-Type charset', () => {
-    const buf = Buffer.from([0xe9]);
-    expect(DefaultApiClient.decodeBody(buf, 'text/plain; charset=ISO-8859-1')).toBe('é');
+    const buf = Buffer.from([0xE9]);
+    expect(
+      DefaultApiClient.decodeBody(buf, 'text/plain; charset=ISO-8859-1')
+    ).toBe('é');
   });
 
   it('defaults to UTF-8 when no charset is declared', () => {
-    const buf = Buffer.from([0xc3, 0xa9]);
+    const buf = Buffer.from([0xC3, 0xA9]);
     expect(DefaultApiClient.decodeBody(buf, 'text/plain')).toBe('é');
   });
 
   it('falls back to UTF-8 when an unknown charset is declared', () => {
-    const buf = Buffer.from([0xc3, 0xa9]);
-    expect(() => DefaultApiClient.decodeBody(buf, 'text/plain; charset=not-a-real-charset')).not.toThrow();
-    expect(DefaultApiClient.decodeBody(buf, 'text/plain; charset=not-a-real-charset')).toBe('é');
+    const buf = Buffer.from([0xC3, 0xA9]);
+    expect(() =>
+      DefaultApiClient.decodeBody(buf, 'text/plain; charset=not-a-real-charset')
+    ).not.toThrow();
+    expect(
+      DefaultApiClient.decodeBody(buf, 'text/plain; charset=not-a-real-charset')
+    ).toBe('é');
   });
 
   it('handles quoted charset values', () => {
-    const buf = Buffer.from([0xe9]);
-    expect(DefaultApiClient.decodeBody(buf, 'text/plain; charset="ISO-8859-1"')).toBe('é');
+    const buf = Buffer.from([0xE9]);
+    expect(
+      DefaultApiClient.decodeBody(buf, 'text/plain; charset="ISO-8859-1"')
+    ).toBe('é');
   });
 });
 
 describe('DefaultApiClient.buildContentDisposition multipart filename safety', () => {
   it('throws on filename containing CR/LF (header-injection attempt)', () => {
-    expect(() => DefaultApiClient.buildContentDisposition('file', 'a\r\nX-Injected: yes')).toThrow();
+    expect(() =>
+      DefaultApiClient.buildContentDisposition('file', 'a\r\nX-Injected: yes')
+    ).toThrow();
   });
 
   it('throws on filename containing NUL', () => {
-    expect(() => DefaultApiClient.buildContentDisposition('file', `a${String.fromCharCode(0)}b.txt`)).toThrow();
+    expect(() =>
+      DefaultApiClient.buildContentDisposition('file', `a${String.fromCharCode(0)}b.txt`)
+    ).toThrow();
   });
 
   it('backslash-escapes quotes and backslashes in filename', () => {
@@ -277,12 +297,18 @@ describe('DefaultApiClient proxy authentication', () => {
   // Proxy-Authorization header on the CONNECT/HTTP request.
   test.skip('forwards basic credentials from proxy URL to upstream proxy', async () => {
     const wiremockUrl = process.env['WIREMOCK_INTERNAL_HTTP_URL']!;
-    const proxyHostPort = (process.env['PROXY_URL'] ?? '').replace(/^https?:\/\//, '');
+    const proxyHostPort = (process.env['PROXY_URL'] ?? '')
+      .replace(/^https?:\/\//, '');
     const proxyUrl = `http://user:pass@${proxyHostPort}`;
 
     const transport = TransportOptions.builder().proxy(proxyUrl).build();
     const client = new DefaultApiClient(transport);
-    const response = await client.sendRequest('GET', `${wiremockUrl}/api/test`, {}, null);
+    const response = await client.sendRequest(
+      'GET',
+      `${wiremockUrl}/api/test`,
+      {},
+      null
+    );
     expect(response.statusCode).toBe(200);
   });
 });
