@@ -2484,6 +2484,361 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     // =========================================================================
+    // Decorator pass — operation / parameter / property properties
+    //
+    // Lifts repetitive Mustache conditionals into Java by attaching
+    // first-class derived properties to vendorExtensions. Templates read them
+    // via {{vendorExtensions.op.foo}}, {{vendorExtensions.param.foo}}, and
+    // {{vendorExtensions.prop.foo}} — namespaced sub-maps avoid collisions
+    // with spec-supplied x-extensions. Populated unconditionally so the
+    // decorator pass alone is a no-op on output (templates choose whether
+    // to consume the derived fields).
+    // =========================================================================
+
+    /** Namespace key under {@code op.vendorExtensions} for operation-level decorators. */
+    private static final String OP_DECORATOR_NS = "op";
+
+    /** Namespace key under {@code param.vendorExtensions} for parameter-level decorators. */
+    private static final String PARAM_DECORATOR_NS = "param";
+
+    /** Namespace key under {@code prop.vendorExtensions} for property-level decorators. */
+    private static final String PROP_DECORATOR_NS = "prop";
+
+    /**
+     * Returns the decorator sub-map under {@code vendorExtensions[ns]},
+     * creating both the outer {@code vendorExtensions} map and the inner
+     * decorator sub-map on demand. Used by the three populate* methods to
+     * keep decorator properties out of the spec-supplied vendor-extension
+     * namespace.
+     */
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> decoratorMap(
+            Map<String, Object> vendorExtensions, String ns) {
+        Object existing = vendorExtensions.get(ns);
+        if (existing instanceof Map) {
+            return (Map<String, Object>) existing;
+        }
+        final Map<String, Object> created = new HashMap<>();
+        vendorExtensions.put(ns, created);
+        return created;
+    }
+
+    /**
+     * Populates operation-level decorator properties on
+     * {@code op.vendorExtensions["op"]}. Idempotent — safe to invoke
+     * multiple times per operation. Templates consume via
+     * {@code {{vendorExtensions.op.<name>}}}.
+     *
+     * <p>Properties populated:
+     * <ul>
+     *   <li>{@code effectiveConsumes} — request Content-Type (first of
+     *       {@code consumes} or {@code "application/json"} as a default)</li>
+     *   <li>{@code effectiveProduces} — response Accept (first of
+     *       {@code produces} or {@code "application/json"} as a default)</li>
+     *   <li>{@code optionsClassName} — {@code Pascalcase(operationId) + "Options"}</li>
+     *   <li>{@code serverClassName} — {@code Pascalcase(operationId) + "Server"}</li>
+     *   <li>{@code apiClassName} — {@code Pascalcase(operationId) + "Api"}</li>
+     *   <li>{@code optionsParamRequired} — true iff any options-eligible
+     *       parameter is {@code required} (replaces legacy
+     *       {@code vendorExtensions.hasRequiredOptions})</li>
+     *   <li>{@code hasOptionsParam} — true iff the operation has any
+     *       options-eligible parameter (query/header/form/cookie)</li>
+     *   <li>{@code hasPerOperationServer} — true iff {@code op.servers} is
+     *       non-empty</li>
+     *   <li>{@code requestBodyKind} — one of {@code "none" | "json" |
+     *       "form" | "multipart" | "binary" | "text" | "other"}</li>
+     *   <li>{@code returnKind} — one of {@code "void" | "primitive" |
+     *       "model" | "container"}</li>
+     *   <li>{@code hasReturnType} — true iff {@code returnType != null}</li>
+     *   <li>{@code hasQueryParams|hasHeaderParams|hasFormParams|
+     *        hasCookieParams|hasPathParams|hasBodyParam} — convenience
+     *        booleans equivalent to the {@code op.<list>.isEmpty()}
+     *        complement</li>
+     * </ul>
+     */
+    @SuppressWarnings("unchecked")
+    protected void populateOperationDecorators(CodegenOperation op) {
+        if (op == null) {
+            return;
+        }
+        if (op.vendorExtensions == null) {
+            op.vendorExtensions = new HashMap<>();
+        }
+        final Map<String, Object> d = decoratorMap(op.vendorExtensions, OP_DECORATOR_NS);
+
+        // O1 / O2 — Effective Content-Type and Accept
+        final String effectiveConsumes = effectiveMediaType(op.consumes);
+        final String effectiveProduces = effectiveMediaType(op.produces);
+        d.put("effectiveConsumes", effectiveConsumes);
+        d.put("effectiveProduces", effectiveProduces);
+
+        // O3 / O4 / O5 — Derived class names from operationId
+        final String opId = op.operationId == null ? "" : op.operationId;
+        final String pascal = NamingConvention.PASCAL_CASE.apply(opId);
+        d.put("optionsClassName", pascal + "Options");
+        d.put("serverClassName", pascal + "Server");
+        d.put("apiClassName", pascal + "Api");
+
+        // O6 — Options-param required flag (promoted from vendorExtensions.hasRequiredOptions)
+        final List<CodegenParameter> optionsParams = collectOptionsParams(op);
+        boolean anyRequired = false;
+        for (final CodegenParameter p : optionsParams) {
+            if (p.required) {
+                anyRequired = true;
+                break;
+            }
+        }
+        d.put("optionsParamRequired", anyRequired);
+        d.put("hasOptionsParam", !optionsParams.isEmpty());
+
+        // O7 — Per-operation server presence
+        d.put("hasPerOperationServer", op.servers != null && !op.servers.isEmpty());
+
+        // O8 — Request-body kind (none/json/form/multipart/binary/text/other)
+        d.put("requestBodyKind", deriveRequestBodyKind(op));
+
+        // O10 — Return kind classification
+        d.put("returnKind", deriveReturnKind(op));
+        d.put("hasReturnType", op.returnType != null);
+
+        // Convenience booleans (mirrors the {{#list}}{{#-first}}…{{/-first}}{{/list}} pattern)
+        d.put("hasQueryParams", op.queryParams != null && !op.queryParams.isEmpty());
+        d.put("hasHeaderParams", op.headerParams != null && !op.headerParams.isEmpty());
+        d.put("hasFormParams", op.formParams != null && !op.formParams.isEmpty());
+        d.put("hasCookieParams", op.cookieParams != null && !op.cookieParams.isEmpty());
+        d.put("hasPathParams", op.pathParams != null && !op.pathParams.isEmpty());
+        d.put("hasBodyParam", op.bodyParam != null);
+    }
+
+    /**
+     * Populates parameter-level decorator properties on
+     * {@code param.vendorExtensions["param"]}. Templates consume via
+     * {@code {{vendorExtensions.param.<name>}}}.
+     *
+     * <p>Properties populated:
+     * <ul>
+     *   <li>{@code pluralExamples} — Mustache-friendly list of named
+     *       examples (replaces legacy
+     *       {@code vendorExtensions.examples})</li>
+     *   <li>{@code hasPluralExamples} — true iff the list is non-empty</li>
+     *   <li>{@code serializationMode} — one of {@code "form" | "deepObject" |
+     *       "spaceDelimited" | "pipeDelimited" | "default"}</li>
+     *   <li>{@code pathSerialisationKind} — one of {@code "scalar" | "array" |
+     *       "object"} for path parameters; {@code "none"} otherwise</li>
+     *   <li>{@code requiresPathEncoding} — true iff path-param value should
+     *       be percent-encoded (always true today; reserved for future
+     *       passthrough modes)</li>
+     *   <li>{@code isScalar} — true iff parameter is a primitive scalar
+     *       (not container, not model)</li>
+     * </ul>
+     */
+    @SuppressWarnings("unchecked")
+    protected void populateParameterDecorators(CodegenParameter param) {
+        if (param == null) {
+            return;
+        }
+        if (param.vendorExtensions == null) {
+            param.vendorExtensions = new HashMap<>();
+        }
+        final Map<String, Object> d = decoratorMap(param.vendorExtensions, PARAM_DECORATOR_NS);
+
+        // P6 — Plural examples (promoted from vendorExtensions.examples)
+        List<Map<String, Object>> examples = Collections.emptyList();
+        if (param.examples != null && !param.examples.isEmpty()) {
+            examples = buildPluralExamplesList(param.examples);
+        }
+        // Mirror legacy site: capturePluralExamplesForParameters already wrote
+        // vendorExtensions.examples — read it back so this method is order-independent.
+        if (examples.isEmpty()) {
+            final Object legacy = param.vendorExtensions.get("examples");
+            if (legacy instanceof List) {
+                examples = (List<Map<String, Object>>) legacy;
+            }
+        }
+        d.put("pluralExamples", examples);
+        d.put("hasPluralExamples", !examples.isEmpty());
+
+        // P1 — Serialization mode (style/explode/deepObject 4-way nest)
+        d.put("serializationMode", deriveSerializationMode(param));
+
+        // P2 / P3 — Path serialisation kind + encoding requirement
+        d.put("pathSerialisationKind", derivePathSerialisationKind(param));
+        d.put("requiresPathEncoding", param.isPathParam);
+
+        // Scalar/container/model classification (P4 family)
+        d.put(
+                "isScalar",
+                !param.isContainer
+                        && !param.isModel
+                        && !param.isFile
+                        && !param.isBinary);
+    }
+
+    /**
+     * Populates property-level decorator properties on
+     * {@code prop.vendorExtensions["prop"]}. Invoked from
+     * {@link #postProcessAllModels} for every property of every model so
+     * the decorator pass runs strictly before the operation pass.
+     * Templates consume via {@code {{vendorExtensions.prop.<name>}}}.
+     *
+     * <p>Properties populated:
+     * <ul>
+     *   <li>{@code pluralExamples} — Mustache-friendly list of named
+     *       examples (mirrors {@code param.vendorExtensions.examples}
+     *       so model templates can share the same render block)</li>
+     *   <li>{@code hasPluralExamples} — true iff the list is non-empty</li>
+     *   <li>{@code isScalar} — true iff property is a primitive scalar</li>
+     *   <li>{@code isContainerOfModel} — true iff property is a container
+     *       whose items reference a model</li>
+     * </ul>
+     */
+    @SuppressWarnings("unchecked")
+    protected void populatePropertyDecorators(
+            CodegenProperty property, List<Object> allModels) {
+        if (property == null) {
+            return;
+        }
+        if (property.vendorExtensions == null) {
+            property.vendorExtensions = new HashMap<>();
+        }
+        final Map<String, Object> d = decoratorMap(property.vendorExtensions, PROP_DECORATOR_NS);
+
+        // M5 — Plural examples (mirror of legacy vendorExtensions.examples)
+        List<Map<String, Object>> examples = Collections.emptyList();
+        final Object legacy = property.vendorExtensions.get("examples");
+        if (legacy instanceof List) {
+            examples = (List<Map<String, Object>>) legacy;
+        }
+        d.put("pluralExamples", examples);
+        d.put("hasPluralExamples", !examples.isEmpty());
+
+        d.put(
+                "isScalar",
+                !property.isContainer
+                        && !property.isModel
+                        && !property.isFile
+                        && !property.isBinary);
+        final boolean isContainerOfModel =
+                property.isContainer
+                        && property.items != null
+                        && property.items.isModel;
+        d.put("isContainerOfModel", isContainerOfModel);
+    }
+
+    /**
+     * Returns the first media-type from {@code consumesOrProduces} or
+     * {@code "application/json"} if the list is null/empty. Mirrors the
+     * Mustache idiom
+     * {@code {{#list.0}}{{mediaType}}{{/list.0}}{{^list}}application/json{{/list}}}.
+     */
+    private static String effectiveMediaType(List<Map<String, String>> list) {
+        if (list != null && !list.isEmpty()) {
+            final Map<String, String> first = list.get(0);
+            final String mt = first == null ? null : first.get("mediaType");
+            if (mt != null && !mt.isEmpty()) {
+                return mt;
+            }
+        }
+        return "application/json";
+    }
+
+    /**
+     * Classifies an operation's request body into one of
+     * {@code "none" | "json" | "form" | "multipart" | "binary" |
+     * "text" | "other"} based on declared {@code consumes} media-types
+     * and the presence of {@code formParams}.
+     */
+    private static String deriveRequestBodyKind(CodegenOperation op) {
+        if (op.bodyParam == null && (op.formParams == null || op.formParams.isEmpty())) {
+            return "none";
+        }
+        if (op.isMultipart) {
+            return "multipart";
+        }
+        if (op.formParams != null && !op.formParams.isEmpty()) {
+            return "form";
+        }
+        if (op.bodyParam != null && op.bodyParam.isBinary) {
+            return "binary";
+        }
+        final String mt = effectiveMediaType(op.consumes).toLowerCase(Locale.ROOT);
+        if (mt.contains("json")) {
+            return "json";
+        }
+        if (mt.startsWith("text/")) {
+            return "text";
+        }
+        if (mt.contains("form-urlencoded")) {
+            return "form";
+        }
+        if (mt.contains("multipart")) {
+            return "multipart";
+        }
+        return "other";
+    }
+
+    /**
+     * Classifies an operation's return type into one of
+     * {@code "void" | "primitive" | "model" | "container"}.
+     */
+    private static String deriveReturnKind(CodegenOperation op) {
+        if (op.returnType == null) {
+            return "void";
+        }
+        if (op.isArray || op.isMap || op.returnContainer != null) {
+            return "container";
+        }
+        if (op.returnBaseType != null && !op.returnBaseType.isEmpty()
+                && Character.isUpperCase(op.returnBaseType.charAt(0))) {
+            return "model";
+        }
+        return "primitive";
+    }
+
+    /**
+     * Classifies a parameter's serialization style + explode combo into
+     * one of {@code "form" | "deepObject" | "spaceDelimited" |
+     * "pipeDelimited" | "default"}. Used by query-param templates that
+     * currently nest 3-4 levels of style/explode conditionals.
+     */
+    private static String deriveSerializationMode(CodegenParameter param) {
+        if (param.isDeepObject) {
+            return "deepObject";
+        }
+        final String style = param.style;
+        if (style == null) {
+            return "default";
+        }
+        switch (style) {
+            case "form":
+                return "form";
+            case "spaceDelimited":
+                return "spaceDelimited";
+            case "pipeDelimited":
+                return "pipeDelimited";
+            default:
+                return "default";
+        }
+    }
+
+    /**
+     * Classifies a path parameter's value shape into one of
+     * {@code "scalar" | "array" | "object" | "none"}.
+     */
+    private static String derivePathSerialisationKind(CodegenParameter param) {
+        if (!param.isPathParam) {
+            return "none";
+        }
+        if (param.isArray) {
+            return "array";
+        }
+        if (param.isMap || param.isModel) {
+            return "object";
+        }
+        return "scalar";
+    }
+
+    // =========================================================================
     // Gap 17 — File content fixup declarations
     // =========================================================================
 
@@ -2774,6 +3129,20 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     if (op.bodyParam != null) {
                         capturePluralExamplesForParameters(
                                 Collections.singletonList(op.bodyParam));
+                    }
+                }
+                // Decorator pass — attaches derived properties to vendorExtensions.
+                // Runs AFTER generateOptionsFilesForOps so optionsParamRequired
+                // observes the same options-eligible parameter set.
+                for (final CodegenOperation op : ops) {
+                    populateOperationDecorators(op);
+                    if (op.allParams != null) {
+                        for (final CodegenParameter p : op.allParams) {
+                            populateParameterDecorators(p);
+                        }
+                    }
+                    if (op.bodyParam != null) {
+                        populateParameterDecorators(op.bodyParam);
                     }
                 }
             }
@@ -3666,6 +4035,30 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
         final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
         final Map<String, String> typeImportMap = getPropertyTypeImportMap();
+        // Decorator pass over model properties — runs BEFORE the
+        // operation-level decorator pass (postProcessAllModels precedes
+        // postProcessOperationsWithModels in the codegen pipeline).
+        final List<Object> allModelsForDecorator = new ArrayList<>();
+        for (final ModelsMap modelsMap : result.values()) {
+            for (final ModelMap modelMap : modelsMap.getModels()) {
+                allModelsForDecorator.add(modelMap.getModel());
+            }
+        }
+        for (final ModelsMap modelsMap : result.values()) {
+            for (final ModelMap modelMap : modelsMap.getModels()) {
+                final CodegenModel model = modelMap.getModel();
+                if (model.vars != null) {
+                    for (final CodegenProperty prop : model.vars) {
+                        populatePropertyDecorators(prop, allModelsForDecorator);
+                    }
+                }
+                if (model.allVars != null) {
+                    for (final CodegenProperty prop : model.allVars) {
+                        populatePropertyDecorators(prop, allModelsForDecorator);
+                    }
+                }
+            }
+        }
         for (final ModelsMap modelsMap : result.values()) {
             for (final ModelMap modelMap : modelsMap.getModels()) {
                 final CodegenModel model = modelMap.getModel();
