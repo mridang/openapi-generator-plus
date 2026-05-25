@@ -140,10 +140,7 @@ class DefaultApiClient internal constructor(
                 ) {
                     throw ApiException("Refusing to follow redirect to non-HTTP(S) URL: $redirectUri")
                 }
-                val sameOrigin =
-                    redirectUri.host != null &&
-                        redirectUri.host.equals(originalUri.host, ignoreCase = true) &&
-                        effectivePort(redirectUri) == effectivePort(originalUri)
+                val sameOrigin = sameOrigin(originalUri, redirectUri)
 
                 val redirectHeaders = currentHeaders.toMutableMap()
                 if (!sameOrigin) {
@@ -387,6 +384,23 @@ internal fun effectivePort(uri: java.net.URI): Int {
     if (port != -1) return port
     return if ("https".equals(uri.scheme, ignoreCase = true)) 443 else 80
 }
+
+/**
+ * Decide whether two URIs share the same origin (scheme + host + effective
+ * port) for forwarding sensitive headers across a redirect. The scheme MUST
+ * match: redirecting from `https://host/x` to `http://host/x` is a TLS
+ * downgrade and must drop the Authorization header.
+ */
+internal fun sameOrigin(
+    originalUri: java.net.URI,
+    redirectUri: java.net.URI,
+): Boolean =
+    redirectUri.host != null &&
+        redirectUri.scheme != null &&
+        originalUri.scheme != null &&
+        redirectUri.scheme.equals(originalUri.scheme, ignoreCase = true) &&
+        redirectUri.host.equals(originalUri.host, ignoreCase = true) &&
+        effectivePort(redirectUri) == effectivePort(originalUri)
 
 /** Generates a UUID v4 string without JVM-specific APIs. */
 internal fun generateRequestId(): String {

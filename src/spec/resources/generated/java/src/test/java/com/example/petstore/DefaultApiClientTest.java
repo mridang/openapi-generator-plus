@@ -539,6 +539,55 @@ class DefaultApiClientTest {
       assertEquals(80, httpExplicit, "explicit :80 must round-trip as 80");
       assertEquals(8443, httpsCustom, "non-default ports must round-trip unchanged");
     }
+
+    /*
+     * Security regression: a 30x from `https://host/x` to `http://host/x`
+     * is a TLS downgrade; the Authorization (and other sensitive) headers
+     * MUST be stripped on the follow-up. Previously sameOrigin() only
+     * compared host + port and so happily forwarded the Authorization
+     * over plain HTTP. This unit test verifies that sameOrigin() now
+     * rejects redirects that change the scheme even when host + port
+     * line up (e.g. a server that listens on the same port for both
+     * schemes — uncommon but legal).
+     */
+    @Test
+    @DisplayName("https_to_http_same_host_strips_authorization")
+    void httpsToHttpSameHostStripsAuthorization() throws Exception {
+      java.lang.reflect.Method method =
+          DefaultApiClient.class.getDeclaredMethod(
+              "sameOrigin", java.net.URI.class, java.net.URI.class);
+      method.setAccessible(true);
+
+      boolean httpsToHttp =
+          (boolean)
+              method.invoke(
+                  null,
+                  java.net.URI.create("https://host:8443/x"),
+                  java.net.URI.create("http://host:8443/y"));
+      boolean httpToHttps =
+          (boolean)
+              method.invoke(
+                  null,
+                  java.net.URI.create("http://host:8080/x"),
+                  java.net.URI.create("https://host:8080/y"));
+      boolean sameScheme =
+          (boolean)
+              method.invoke(
+                  null,
+                  java.net.URI.create("https://host:8443/x"),
+                  java.net.URI.create("https://host:8443/y"));
+      boolean sameSchemeImplicitPort =
+          (boolean)
+              method.invoke(
+                  null,
+                  java.net.URI.create("https://host/x"),
+                  java.net.URI.create("https://host:443/y"));
+
+      assertFalse(httpsToHttp, "https→http redirect MUST be cross-origin (TLS downgrade)");
+      assertFalse(httpToHttps, "http→https redirect MUST be cross-origin (scheme changes)");
+      assertTrue(sameScheme, "same-scheme same-host same-port must be same-origin");
+      assertTrue(sameSchemeImplicitPort, "implicit default port must compare equal to explicit");
+    }
   }
 
   @Nested

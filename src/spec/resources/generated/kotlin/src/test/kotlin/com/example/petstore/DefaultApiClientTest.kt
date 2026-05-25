@@ -570,6 +570,46 @@ class DefaultApiClientTest {
                 "non-default ports must round-trip unchanged",
             )
         }
+
+        /*
+         * Security regression: a 30x from `https://host/x` to `http://host/x`
+         * is a TLS downgrade; the Authorization (and other sensitive) headers
+         * MUST be stripped on the follow-up. Previously sameOrigin() only
+         * compared host + port and so happily forwarded the Authorization
+         * over plain HTTP.
+         */
+        @Test
+        @DisplayName("https_to_http_same_host_strips_authorization")
+        fun https_to_http_same_host_strips_authorization() {
+            assertFalse(
+                sameOrigin(
+                    java.net.URI("https://host:8443/x"),
+                    java.net.URI("http://host:8443/y"),
+                ),
+                "https→http redirect MUST be cross-origin (TLS downgrade)",
+            )
+            assertFalse(
+                sameOrigin(
+                    java.net.URI("http://host:8080/x"),
+                    java.net.URI("https://host:8080/y"),
+                ),
+                "http→https redirect MUST be cross-origin (scheme changes)",
+            )
+            assertTrue(
+                sameOrigin(
+                    java.net.URI("https://host:8443/x"),
+                    java.net.URI("https://host:8443/y"),
+                ),
+                "same-scheme same-host same-port must be same-origin",
+            )
+            assertTrue(
+                sameOrigin(
+                    java.net.URI("https://host/x"),
+                    java.net.URI("https://host:443/y"),
+                ),
+                "implicit default port must compare equal to explicit",
+            )
+        }
     }
 
     @Nested
