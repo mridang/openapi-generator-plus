@@ -53,36 +53,45 @@ public final class OAuth2TokenManager: @unchecked Sendable {
     /// regardless of caller concurrency.
     public func getAccessToken(tokenURL: String, params: [String: String], extraHeaders: [String: String] = [:]) async throws -> String {
         /* Fast path under the lock: return the cached token if still fresh, or
-         * piggy-back on an already-running refresh task. */
-        lock.lock()
-        if !accessToken.isEmpty && Date() < tokenExpiry.addingTimeInterval(-Self.expirySafetyMargin) {
-            let cached = accessToken
-            lock.unlock()
-            return cached
+         * piggy-back on an already-running refresh task. NSLock's lock()/unlock()
+         * are unavailable in async contexts under Swift 6 strict concurrency, so
+         * we route the entire critical section through withLock and split the
+         * outcome (cached token / existing refresh task / new refresh task) into
+         * a small enum that the surrounding async code can dispatch on. */
+        enum FastPath {
+            case cached(String)
+            case existing(Task<String, Error>)
+            case start(Task<String, Error>)
         }
-        if let existing = inflightRefresh {
-            lock.unlock()
-            return try await existing.value
+        let outcome: FastPath = lock.withLock {
+            if !accessToken.isEmpty && Date() < tokenExpiry.addingTimeInterval(-Self.expirySafetyMargin) {
+                return .cached(accessToken)
+            }
+            if let existing = inflightRefresh {
+                return .existing(existing)
+            }
+            let currentRefreshToken = _refreshToken
+            let task = Task<String, Error> { [self] in
+                try await performRefresh(
+                    tokenURL: tokenURL,
+                    params: params,
+                    extraHeaders: extraHeaders,
+                    currentRefreshToken: currentRefreshToken
+                )
+            }
+            inflightRefresh = task
+            return .start(task)
         }
-
-        /* No fresh token and no in-flight refresh -- start one and publish the
-         * Task to the instance so concurrent callers find it. */
-        let currentRefreshToken = _refreshToken
-        let task = Task<String, Error> { [self] in
-            try await performRefresh(
-                tokenURL: tokenURL,
-                params: params,
-                extraHeaders: extraHeaders,
-                currentRefreshToken: currentRefreshToken
-            )
-        }
-        inflightRefresh = task
-        lock.unlock()
 
         /* performRefresh always clears inflightRefresh via defer, so we don't
          * need to clear it here -- doing so could accidentally clear a newer
          * refresh task that started after ours completed. */
-        return try await task.value
+        switch outcome {
+        case .cached(let token):
+            return token
+        case .existing(let task), .start(let task):
+            return try await task.value
+        }
     }
 
     /// Performs the actual token fetch (refresh first if a refresh token is

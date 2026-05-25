@@ -8,7 +8,7 @@
 import Foundation
 
 /// SetPetAvatarThumbnailRequest is a union type (oneOf).
-public struct SetPetAvatarThumbnailRequest: Codable, Sendable {
+public struct SetPetAvatarThumbnailRequest: Codable, @unchecked Sendable {
     private let _value: Any
 
     public init(from decoder: Decoder) throws {

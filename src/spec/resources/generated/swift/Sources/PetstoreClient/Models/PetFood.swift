@@ -8,7 +8,7 @@
 import Foundation
 
 /// PetFood Food for pets, discriminated by foodType
-public struct PetFood: Codable, Sendable {
+public struct PetFood: Codable, @unchecked Sendable {
     private let _value: Any
 
     public init(from decoder: Decoder) throws {

@@ -35,11 +35,16 @@ public struct {{serverTypeName}}{{variantName}}: {{serverTypeName}} {
     }
 
     public func getUrl() -> String {
+{{#serverVariables.0}}
         var url = "{{url}}"
 {{#serverVariables}}
         url = url.replacingOccurrences(of: "{" + "{{name}}" + "}", with: {{#hasEnumValues}}{{camelName}}.rawValue{{/hasEnumValues}}{{^hasEnumValues}}{{camelName}}{{/hasEnumValues}})
 {{/serverVariables}}
         return url
+{{/serverVariables.0}}
+{{^serverVariables.0}}
+        return "{{url}}"
+{{/serverVariables.0}}
     }
 }
 {{/variants}}
@@ -113,6 +118,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{/required}}
 {{/pathParams}}
 
+{{#pathParams.0}}
         var path = "{{{path}}}"
 {{#pathParams}}
 {{#isDate}}
@@ -124,18 +130,31 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 <%={{ }}=%>
 {{/isDate}}
 {{/pathParams}}
-{{#servers}}
-{{#-first}}
+{{#servers.0}}
         if let server = server {
             let serverUrl = server.getUrl()
             if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
                 path = serverUrl + path
             }
         }
-{{/-first}}
-{{/servers}}
+{{/servers.0}}
+{{/pathParams.0}}
+{{^pathParams.0}}
+{{#servers.0}}
+        var path = "{{{path}}}"
+        if let server = server {
+            let serverUrl = server.getUrl()
+            if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
+                path = serverUrl + path
+            }
+        }
+{{/servers.0}}
+{{^servers.0}}
+        let path = "{{{path}}}"
+{{/servers.0}}
+{{/pathParams.0}}
 
-        var queryParams: [String: Any?] = [:]
+        {{#queryParams.0}}var{{/queryParams.0}}{{^queryParams.0}}let{{/queryParams.0}} queryParams: [String: Any?] = [:]
 {{#queryParams}}
 {{#isAllowEmptyValue}}
 {{#vendorExtensions.hasRequiredOptions}}
@@ -169,7 +188,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
         do {
             let val = options.{{paramName}}
 {{#isDeepObject}}
-            if let dict = val as? [String: Any] {
+            if let dict = (val as Any) as? [String: Any] {
                 for (k, v) in ValueSerializer.serializeDeepObject("{{baseName}}", value: dict) {
                     queryParams[k] = v
                 }
@@ -190,7 +209,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{^required}}
         if let val = options.{{paramName}} {
 {{#isDeepObject}}
-            if let dict = val as? [String: Any] {
+            if let dict = (val as Any) as? [String: Any] {
                 for (k, v) in ValueSerializer.serializeDeepObject("{{baseName}}", value: dict) {
                     queryParams[k] = v
                 }
@@ -212,7 +231,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{^vendorExtensions.hasRequiredOptions}}
         if let options = options, let val = options.{{paramName}} {
 {{#isDeepObject}}
-            if let dict = val as? [String: Any] {
+            if let dict = (val as Any) as? [String: Any] {
                 for (k, v) in ValueSerializer.serializeDeepObject("{{baseName}}", value: dict) {
                     queryParams[k] = v
                 }
@@ -233,7 +252,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{/isAllowEmptyValue}}
 {{/queryParams}}
 
-        var headerParams: [String: String] = [:]
+        {{#headerParams.0}}var{{/headerParams.0}}{{^headerParams.0}}{{#hasCookieParams}}var{{/hasCookieParams}}{{^hasCookieParams}}let{{/hasCookieParams}}{{/headerParams.0}} headerParams: [String: String] = [:]
 {{#headerParams}}
 {{#vendorExtensions.hasRequiredOptions}}
 {{#required}}

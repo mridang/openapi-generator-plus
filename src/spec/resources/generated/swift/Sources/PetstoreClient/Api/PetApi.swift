@@ -20,8 +20,7 @@ public struct GetExternalPetInfoServerServer0: GetExternalPetInfoServer {
     }
 
     public func getUrl() -> String {
-        var url = "https://external-api.example.com/v1"
-        return url
+        return "https://external-api.example.com/v1"
     }
 }
 
@@ -45,8 +44,7 @@ public struct GetMultiServerPetInfoServerPrimary: GetMultiServerPetInfoServer {
     }
 
     public func getUrl() -> String {
-        var url = "https://primary.example.com/v1"
-        return url
+        return "https://primary.example.com/v1"
     }
 }
 
@@ -78,8 +76,7 @@ public struct GetPetByIdServerCDNBackedReadEndpointForPetDetails: GetPetByIdServ
     }
 
     public func getUrl() -> String {
-        var url = "https://cdn.petstore.io/v3"
-        return url
+        return "https://cdn.petstore.io/v3"
     }
 }
 
@@ -145,11 +142,11 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     /// Performs the addPet operation and returns the full API result.
     public func addPetWithHTTPInfo(pet: Pet, auth: Authenticator? = nil) async throws -> ApiResult<Pet> {
 
-        var path = "/pet"
+        let path = "/pet"
 
-        var queryParams: [String: Any?] = [:]
+        let queryParams: [String: Any?] = [:]
 
-        var headerParams: [String: String] = [:]
+        let headerParams: [String: String] = [:]
 
         let requestBody: Any? = pet
 
@@ -192,9 +189,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         var path = "/pet/{petId}/photos"
         path = replacePathParam(path, name: "petId", value: "\(petId)")
 
-        var queryParams: [String: Any?] = [:]
+        let queryParams: [String: Any?] = [:]
 
-        var headerParams: [String: String] = [:]
+        let headerParams: [String: String] = [:]
 
         var formBody: [String: String] = [:]
         if let options = options {
@@ -243,9 +240,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         var path = "/pet/{petId}/treatment"
         path = replacePathParam(path, name: "petId", value: "\(petId)")
 
-        var queryParams: [String: Any?] = [:]
+        let queryParams: [String: Any?] = [:]
 
-        var headerParams: [String: String] = [:]
+        let headerParams: [String: String] = [:]
 
         let requestBody: Any? = petTreatment
 
@@ -281,7 +278,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         var path = "/pet/{petId}"
         path = replacePathParam(path, name: "petId", value: "\(petId)")
 
-        var queryParams: [String: Any?] = [:]
+        let queryParams: [String: Any?] = [:]
 
         var headerParams: [String: String] = [:]
         var cookieParts: [String] = []
@@ -334,9 +331,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         path = replacePathParam(path, name: "petId", value: "\(petId)")
         path = replacePathParam(path, name: "documentId", value: "\(documentId)")
 
-        var queryParams: [String: Any?] = [:]
+        let queryParams: [String: Any?] = [:]
 
-        var headerParams: [String: String] = [:]
+        let headerParams: [String: String] = [:]
 
         let requestBody: Any? = nil
 
@@ -391,7 +388,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     /// Performs the findPetsByStatus operation and returns the full API result.
     public func findPetsByStatusWithHTTPInfo(options: FindPetsByStatusOptions? = nil, ) async throws -> ApiResult<[Pet]> {
 
-        var path = "/pet/findByStatus"
+        let path = "/pet/findByStatus"
 
         var queryParams: [String: Any?] = [:]
         if let options = options {
@@ -402,14 +399,14 @@ public final class PetApi: BaseApi, @unchecked Sendable {
             }
         }
         if let options = options, let val = options.filter {
-            if let dict = val as? [String: Any] {
+            if let dict = (val as Any) as? [String: Any] {
                 for (k, v) in ValueSerializer.serializeDeepObject("filter", value: dict) {
                     queryParams[k] = v
                 }
             }
         }
 
-        var headerParams: [String: String] = [:]
+        let headerParams: [String: String] = [:]
 
         let requestBody: Any? = nil
 
@@ -457,9 +454,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
             }
         }
 
-        var queryParams: [String: Any?] = [:]
+        let queryParams: [String: Any?] = [:]
 
-        var headerParams: [String: String] = [:]
+        let headerParams: [String: String] = [:]
 
         let requestBody: Any? = nil
 
@@ -507,9 +504,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
             }
         }
 
-        var queryParams: [String: Any?] = [:]
+        let queryParams: [String: Any?] = [:]
 
-        var headerParams: [String: String] = [:]
+        let headerParams: [String: String] = [:]
 
         let requestBody: Any? = nil
 
@@ -552,9 +549,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         var path = "/pet/{petId}/avatar"
         path = replacePathParam(path, name: "petId", value: "\(petId)")
 
-        var queryParams: [String: Any?] = [:]
+        let queryParams: [String: Any?] = [:]
 
-        var headerParams: [String: String] = [:]
+        let headerParams: [String: String] = [:]
 
         let requestBody: Any? = nil
 
@@ -597,9 +594,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         var path = "/pet/{petId}/avatar/thumbnail"
         path = replacePathParam(path, name: "petId", value: "\(petId)")
 
-        var queryParams: [String: Any?] = [:]
+        let queryParams: [String: Any?] = [:]
 
-        var headerParams: [String: String] = [:]
+        let headerParams: [String: String] = [:]
 
         let requestBody: Any? = nil
 
@@ -662,9 +659,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
             }
         }
 
-        var queryParams: [String: Any?] = [:]
+        let queryParams: [String: Any?] = [:]
 
-        var headerParams: [String: String] = [:]
+        let headerParams: [String: String] = [:]
 
         let requestBody: Any? = nil
 
@@ -707,9 +704,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         var path = "/pet/{petId}/passport"
         path = replacePathParam(path, name: "petId", value: "\(petId)")
 
-        var queryParams: [String: Any?] = [:]
+        let queryParams: [String: Any?] = [:]
 
-        var headerParams: [String: String] = [:]
+        let headerParams: [String: String] = [:]
 
         let requestBody: Any? = nil
 
@@ -753,9 +750,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         path = replacePathParam(path, name: "petId", value: "\(petId)")
         path = replacePathParam(path, name: "photoId", value: "\(photoId)")
 
-        var queryParams: [String: Any?] = [:]
+        let queryParams: [String: Any?] = [:]
 
-        var headerParams: [String: String] = [:]
+        let headerParams: [String: String] = [:]
 
         let requestBody: Any? = nil
 
@@ -816,7 +813,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
             }
         }
 
-        var headerParams: [String: String] = [:]
+        let headerParams: [String: String] = [:]
 
         let requestBody: Any? = nil
 
@@ -864,9 +861,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
             }
         }
 
-        var queryParams: [String: Any?] = [:]
+        let queryParams: [String: Any?] = [:]
 
-        var headerParams: [String: String] = [:]
+        let headerParams: [String: String] = [:]
 
         let requestBody: Any? = nil
 
@@ -901,9 +898,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         var path = "/pet/{petId}/avatar"
         path = replacePathParam(path, name: "petId", value: "\(petId)")
 
-        var queryParams: [String: Any?] = [:]
+        let queryParams: [String: Any?] = [:]
 
-        var headerParams: [String: String] = [:]
+        let headerParams: [String: String] = [:]
 
         let requestBody: Any? = body
 
@@ -938,9 +935,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         var path = "/pet/{petId}/avatar/thumbnail"
         path = replacePathParam(path, name: "petId", value: "\(petId)")
 
-        var queryParams: [String: Any?] = [:]
+        let queryParams: [String: Any?] = [:]
 
-        var headerParams: [String: String] = [:]
+        let headerParams: [String: String] = [:]
 
         let requestBody: Any? = setPetAvatarThumbnailRequest
 
@@ -984,9 +981,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         var path = "/pet/{petId}"
         path = replacePathParam(path, name: "petId", value: "\(petId)")
 
-        var queryParams: [String: Any?] = [:]
+        let queryParams: [String: Any?] = [:]
 
-        var headerParams: [String: String] = [:]
+        let headerParams: [String: String] = [:]
 
         let requestBody: Any? = pet
 
@@ -1029,9 +1026,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         var path = "/pet/{petId}/certificate"
         path = replacePathParam(path, name: "petId", value: "\(petId)")
 
-        var queryParams: [String: Any?] = [:]
+        let queryParams: [String: Any?] = [:]
 
-        var headerParams: [String: String] = [:]
+        let headerParams: [String: String] = [:]
 
         var formBody: [String: String] = [:]
         if let options = options {
@@ -1078,9 +1075,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         var path = "/pet/{petId}/documents"
         path = replacePathParam(path, name: "petId", value: "\(petId)")
 
-        var queryParams: [String: Any?] = [:]
+        let queryParams: [String: Any?] = [:]
 
-        var headerParams: [String: String] = [:]
+        let headerParams: [String: String] = [:]
 
         var formBody: [String: String] = [:]
         if let options = options {

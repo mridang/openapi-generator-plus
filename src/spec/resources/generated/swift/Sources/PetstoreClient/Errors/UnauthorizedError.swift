@@ -8,4 +8,4 @@
 import Foundation
 
 /// UnauthorizedError represents an HTTP 401 Unauthorized error.
-public class UnauthorizedError: ClientError {}
+public class UnauthorizedError: ClientError, @unchecked Sendable {}

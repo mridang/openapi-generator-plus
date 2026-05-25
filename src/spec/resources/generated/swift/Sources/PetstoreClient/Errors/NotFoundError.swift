@@ -8,4 +8,4 @@
 import Foundation
 
 /// NotFoundError represents an HTTP 404 Not Found error.
-public class NotFoundError: ClientError {}
+public class NotFoundError: ClientError, @unchecked Sendable {}

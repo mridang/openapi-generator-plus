@@ -81,7 +81,7 @@ public struct {{classname}}: Codable, Sendable {
 
 {{#hasVars}}
     /// Creates a new {{classname}} instance.
-    public init({{#requiredVars}}{{nameInCamelCase}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{nameInCamelCase}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{^defaultValue}} = nil{{/defaultValue}}{{^-last}}, {{/-last}}{{/optionalVars}}) {
+    public init({{#requiredVars}}{{nameInCamelCase}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^isEnum}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{/isEnum}}{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{nameInCamelCase}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?{{#isEnum}} = nil{{/isEnum}}{{^isEnum}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{^defaultValue}} = nil{{/defaultValue}}{{/isEnum}}{{^-last}}, {{/-last}}{{/optionalVars}}) {
 {{#requiredVars}}
         self.{{name}} = {{nameInCamelCase}}
 {{/requiredVars}}
@@ -250,7 +250,7 @@ private struct DynamicCodingKey: CodingKey {
 {{#isDeprecated}}
 @available(*, deprecated, message: "This schema is deprecated.")
 {{/isDeprecated}}
-public struct {{classname}}: Codable, Sendable {
+public struct {{classname}}: Codable, @unchecked Sendable {
     private let _value: Any
 
     public init(from decoder: Decoder) throws {
@@ -334,7 +334,7 @@ public struct {{classname}}: Codable, Sendable {
 {{#isDeprecated}}
 @available(*, deprecated, message: "This schema is deprecated.")
 {{/isDeprecated}}
-public struct {{classname}}: Codable, Sendable {
+public struct {{classname}}: Codable, @unchecked Sendable {
     private let _value: Any
 
     public init(from decoder: Decoder) throws {

@@ -8,4 +8,4 @@
 import Foundation
 
 /// ConflictError represents an HTTP 409 Conflict error.
-public class ConflictError: ClientError {}
+public class ConflictError: ClientError, @unchecked Sendable {}

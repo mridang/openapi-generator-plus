@@ -8,4 +8,4 @@
 import Foundation
 
 /// ForbiddenError represents an HTTP 403 Forbidden error.
-public class ForbiddenError: ClientError {}
+public class ForbiddenError: ClientError, @unchecked Sendable {}

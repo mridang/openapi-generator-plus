@@ -23,7 +23,21 @@ let package = Package(
             name: "PetstoreClient",
             path: "Sources",
             swiftSettings: [
-                .unsafeFlags(["-warnings-as-errors"], .when(configuration: .debug))
+                /* Promote warnings to errors EXCEPT deprecation warnings. The
+                   generated models reference their own deprecated members
+                   inside synthesized init/encode/decode methods; there is
+                   no per-call suppression idiom in Swift, so the build would
+                   fail wholesale whenever any property/schema is marked
+                   `deprecated: true` in the OpenAPI spec. `-Wwarning`
+                   downgrades the named diagnostic group back to a warning
+                   even with `-warnings-as-errors` set globally (Swift 5.10+). */
+                .unsafeFlags(
+                    [
+                        "-warnings-as-errors",
+                        "-Wwarning", "DeprecatedDeclaration"
+                    ],
+                    .when(configuration: .debug)
+                )
             ]
         ),
         .testTarget(

@@ -8,4 +8,4 @@
 import Foundation
 
 /// BadRequestError represents an HTTP 400 Bad Request error.
-public class BadRequestError: ClientError {}
+public class BadRequestError: ClientError, @unchecked Sendable {}

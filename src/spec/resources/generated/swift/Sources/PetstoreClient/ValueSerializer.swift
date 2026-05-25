@@ -87,7 +87,6 @@ public enum ValueSerializer {
         }
 
         let items = toStringArray(value)
-        let isArray = items != nil
 
         let encodeIfPath: (String) -> String = { location == "path" ? ValueSerializer.encodePathSegment($0) : $0 }
 

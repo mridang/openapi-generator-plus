@@ -8,4 +8,4 @@
 import Foundation
 
 /// ServerError represents an HTTP 5xx server error.
-public class ServerError: ApiError {}
+public class ServerError: ApiError, @unchecked Sendable {}

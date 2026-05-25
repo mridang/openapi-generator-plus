@@ -15,12 +15,13 @@ Gem::Specification.new do |s|
   s.description = '{{#appDescription}}{{{appDescription}}}{{/appDescription}}{{^appDescription}}{{appName}} Ruby Gem{{/appDescription}}'
   s.license     = 'MIT'
   s.required_ruby_version = '>= 3.4'
+  s.metadata['rubygems_mfa_required'] = 'true'
 
-  s.add_runtime_dependency 'dry-struct', '~> 1.6'
-  s.add_runtime_dependency 'dry-types', '~> 1.7'
-  s.add_runtime_dependency 'faraday', '~> 2.0'
-  s.add_runtime_dependency 'faraday-follow_redirects', '~> 0.3'
-  s.add_runtime_dependency 'oj', '~> 3.0'
+  s.add_dependency 'dry-struct', '~> 1.6'
+  s.add_dependency 'dry-types', '~> 1.7'
+  s.add_dependency 'faraday', '~> 2.0'
+  s.add_dependency 'faraday-follow_redirects', '~> 0.3'
+  s.add_dependency 'oj', '~> 3.0'
 
   s.files = Dir['lib/**/*', 'sig/**/*', 'README.md', 'Gemfile', '{{gemName}}.gemspec']
   s.require_paths = ['lib']

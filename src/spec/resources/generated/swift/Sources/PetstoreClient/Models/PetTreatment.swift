@@ -8,7 +8,7 @@
 import Foundation
 
 /// PetTreatment A treatment that can match a medication, a surgery, or both
-public struct PetTreatment: Codable, Sendable {
+public struct PetTreatment: Codable, @unchecked Sendable {
     private let _value: Any
 
     public init(from decoder: Decoder) throws {

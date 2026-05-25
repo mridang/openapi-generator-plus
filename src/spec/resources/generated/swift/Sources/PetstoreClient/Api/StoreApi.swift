@@ -27,9 +27,9 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
         var path = "/store/order/{orderId}"
         path = replacePathParam(path, name: "orderId", value: "\(orderId)")
 
-        var queryParams: [String: Any?] = [:]
+        let queryParams: [String: Any?] = [:]
 
-        var headerParams: [String: String] = [:]
+        let headerParams: [String: String] = [:]
 
         let requestBody: Any? = nil
 
@@ -66,11 +66,11 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     /// Performs the getInventory operation and returns the full API result.
     public func getInventoryWithHTTPInfo() async throws -> ApiResult<[String: Int]> {
 
-        var path = "/store/inventory"
+        let path = "/store/inventory"
 
-        var queryParams: [String: Any?] = [:]
+        let queryParams: [String: Any?] = [:]
 
-        var headerParams: [String: String] = [:]
+        let headerParams: [String: String] = [:]
 
         let requestBody: Any? = nil
 
@@ -113,9 +113,9 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
         var path = "/store/order/{orderId}"
         path = replacePathParam(path, name: "orderId", value: "\(orderId)")
 
-        var queryParams: [String: Any?] = [:]
+        let queryParams: [String: Any?] = [:]
 
-        var headerParams: [String: String] = [:]
+        let headerParams: [String: String] = [:]
 
         let requestBody: Any? = nil
 
@@ -154,11 +154,11 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     /// Performs the placeOrder operation and returns the full API result.
     public func placeOrderWithHTTPInfo(order: Order?, ) async throws -> ApiResult<Order> {
 
-        var path = "/store/order"
+        let path = "/store/order"
 
-        var queryParams: [String: Any?] = [:]
+        let queryParams: [String: Any?] = [:]
 
-        var headerParams: [String: String] = [:]
+        let headerParams: [String: String] = [:]
 
         let requestBody: Any? = order
 

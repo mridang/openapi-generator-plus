@@ -8,4 +8,4 @@
 import Foundation
 
 /// ClientError represents an HTTP 4xx client error.
-public class ClientError: ApiError {}
+public class ClientError: ApiError, @unchecked Sendable {}

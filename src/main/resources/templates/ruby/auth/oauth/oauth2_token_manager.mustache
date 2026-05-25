@@ -13,6 +13,7 @@ module {{moduleName}}
       # Uses the shared {ApiClient} instance so that token exchange requests
       # honour the same transport configuration (proxy, TLS, timeouts) as
       # regular API calls.
+      # rubocop:disable Metrics/ClassLength
       class OAuth2TokenManager
         # Safety margin (in seconds) applied to token expiry checks so that
         # we refresh slightly before the token actually expires, avoiding a
@@ -207,6 +208,8 @@ module {{moduleName}}
           end
         end
       end
+
+      # rubocop:enable Metrics/ClassLength
 
       # Raised when the OAuth2 token endpoint returns a 2xx response whose
       # body is missing or contains an empty +access_token+ field. Distinct
