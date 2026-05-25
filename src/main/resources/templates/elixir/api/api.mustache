@@ -297,7 +297,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
     {{moduleName}}.Api.BaseApi.invoke_api_for_result(
       api, :{{httpMethod}}, path, query_params, header_params, request_body,
       [{{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}}],
-      {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}},
+      "{{vendorExtensions.op.effectiveConsumes}}",
       {{#returnType}}"{{{.}}}"{{/returnType}}{{^returnType}}nil{{/returnType}},
       auth
     )

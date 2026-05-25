@@ -315,7 +315,7 @@ public class {{classname}} extends BaseApi {
                 headerParams,
                 {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
                 new String[] { {{#produces}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/produces}}},
-                {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}},
+                "{{vendorExtensions.op.effectiveConsumes}}",
                 {{#returnType}}{{operationId}}TypeRef{{/returnType}}{{^returnType}}null{{/returnType}},
                 {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}null{{/hasAuthMethods}});
     }

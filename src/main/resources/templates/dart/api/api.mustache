@@ -291,7 +291,7 @@ class {{classname}} extends BaseApi {
       headerParams: headerParams,
       body: requestBody,
       accepts: [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
-      contentType: {{#consumes.0}}'{{mediaType}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
+      contentType: '{{vendorExtensions.op.effectiveConsumes}}',
       returnType: '{{#returnType}}{{{.}}}{{/returnType}}',
       auth: auth,
 {{#returnType}}

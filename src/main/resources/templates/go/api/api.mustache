@@ -238,7 +238,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 		headerParams: headerParams,
 		body:         requestBody,
 		accepts:      []string{ {{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}} },
-		contentType:  {{#consumes.0}}"{{mediaType}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}},
+		contentType:  "{{vendorExtensions.op.effectiveConsumes}}",
 		returnType:   "{{#returnType}}{{{.}}}{{/returnType}}",
 		auth:         {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}nil{{/hasAuthMethods}},
 	})

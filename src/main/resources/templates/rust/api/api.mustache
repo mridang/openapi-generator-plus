@@ -404,7 +404,7 @@ impl {{classname}} {
             header_params,
             body: request_body,
             accepts: vec![{{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}}],
-            content_type: {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}},
+            content_type: "{{vendorExtensions.op.effectiveConsumes}}",
             return_type: "{{#returnType}}{{{.}}}{{/returnType}}",
             {{#hasAuthMethods}}auth,{{/hasAuthMethods}}{{^hasAuthMethods}}auth: None,{{/hasAuthMethods}}
         };

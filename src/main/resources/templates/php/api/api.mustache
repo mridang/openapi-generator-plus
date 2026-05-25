@@ -290,7 +290,7 @@ class {{classname}} extends BaseApi
             $headerParams,
             $requestBody,
             [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
-            {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
+            '{{vendorExtensions.op.effectiveConsumes}}',
             '{{{returnType}}}'{{#hasAuthMethods}},
             $auth{{/hasAuthMethods}}
         );
@@ -440,7 +440,7 @@ class {{classname}} extends BaseApi
             $headerParams,
             $requestBody,
             [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
-            {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
+            '{{vendorExtensions.op.effectiveConsumes}}',
             null{{#hasAuthMethods}},
             $auth{{/hasAuthMethods}}
         );

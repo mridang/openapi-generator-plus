@@ -251,7 +251,7 @@ module {{moduleName}}
         invoke_api_for_result(
           :{{httpMethod}}, path, query_params, header_params, request_body,
           [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
-          {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
+          '{{vendorExtensions.op.effectiveConsumes}}',
           {{#returnType}}'{{{.}}}'{{/returnType}}{{^returnType}}nil{{/returnType}},
           {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}nil{{/hasAuthMethods}}
         )
