@@ -174,7 +174,10 @@ final class PetApiTests {
     @Test(.disabled("Prism does not validate multipart array fields correctly"))
     func testAddPetPhotos() async throws {
         let api = petApiForIntegration()
-        _ = try await api.addPetPhotos(petId: 1, options: nil)
+        let photoData = Data("fake-photo-bytes".utf8)
+        let metadata = PhotoMetadata(caption: "test")
+        let options = AddPetPhotosOptions(files: [photoData], metadata: metadata)
+        _ = try await api.addPetPhotos(petId: 1, options: options)
     }
 
     @Test func testDownloadPetDocument() async throws {
@@ -228,7 +231,8 @@ final class PetApiTests {
 
     @Test func testUploadMultipartMock() async throws {
         let mockApi = petApiForMock(statusCode: 200, body: "{\"code\":200,\"type\":\"\",\"message\":\"success\"}")
-        let result = try await mockApi.uploadPetCertificate(petId: 1, options: nil)
+        let fakeCert = Data("fake-cert".utf8)
+        let result = try await mockApi.uploadPetCertificate(petId: 1, options: UploadPetCertificateOptions(file: fakeCert))
         #expect(result != nil)
     }
 

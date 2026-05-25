@@ -196,7 +196,7 @@ class PetApi extends BaseApi {
   /// Add photos to the pet's gallery
   /// Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
 
-  Future<List<Photo>> addPetPhotos(int petId, AddPetPhotosOptions? options,
+  Future<List<Photo>> addPetPhotos(int petId, AddPetPhotosOptions options,
       {Authenticator? auth}) async {
     final result = await addPetPhotosWithHTTPInfo(petId, options, auth: auth);
     return result.data as List<Photo>;
@@ -204,7 +204,7 @@ class PetApi extends BaseApi {
 
   /// Performs the addPetPhotos operation and returns the full API result.
   Future<ApiResult<List<Photo>>> addPetPhotosWithHTTPInfo(
-      int petId, AddPetPhotosOptions? options,
+      int petId, AddPetPhotosOptions options,
       {Authenticator? auth}) async {
     var path = '/pet/{petId}/photos';
     path = path.replaceAll(
@@ -218,12 +218,8 @@ class PetApi extends BaseApi {
     final headerParams = <String, String>{};
 
     final formBody = <String, String>{};
-    if (options != null) {
-      formBody['files'] = '${options.files}';
-    }
-    if (options != null) {
-      formBody['metadata'] = '${options.metadata}';
-    }
+    formBody['files'] = '${options.files}';
+    formBody['metadata'] = '${options.metadata}';
     final Object? requestBody = formBody;
 
     return invokeApiForResult<List<Photo>>(
@@ -980,7 +976,7 @@ class PetApi extends BaseApi {
   /// Attaches a single adoption certificate document. No metadata fields are required alongside the file.
 
   Future<ApiResponse> uploadPetCertificate(
-      int petId, UploadPetCertificateOptions? options,
+      int petId, UploadPetCertificateOptions options,
       {Authenticator? auth}) async {
     final result =
         await uploadPetCertificateWithHTTPInfo(petId, options, auth: auth);
@@ -989,7 +985,7 @@ class PetApi extends BaseApi {
 
   /// Performs the uploadPetCertificate operation and returns the full API result.
   Future<ApiResult<ApiResponse>> uploadPetCertificateWithHTTPInfo(
-      int petId, UploadPetCertificateOptions? options,
+      int petId, UploadPetCertificateOptions options,
       {Authenticator? auth}) async {
     var path = '/pet/{petId}/certificate';
     path = path.replaceAll(
@@ -1003,9 +999,7 @@ class PetApi extends BaseApi {
     final headerParams = <String, String>{};
 
     final formBody = <String, String>{};
-    if (options != null) {
-      formBody['file'] = '${options.file}';
-    }
+    formBody['file'] = '${options.file}';
     final Object? requestBody = formBody;
 
     return invokeApiForResult<ApiResponse>(
@@ -1027,7 +1021,7 @@ class PetApi extends BaseApi {
   /// Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
 
   Future<ApiResponse> uploadPetDocument(
-      int petId, UploadPetDocumentOptions? options,
+      int petId, UploadPetDocumentOptions options,
       {Authenticator? auth}) async {
     final result =
         await uploadPetDocumentWithHTTPInfo(petId, options, auth: auth);
@@ -1036,7 +1030,7 @@ class PetApi extends BaseApi {
 
   /// Performs the uploadPetDocument operation and returns the full API result.
   Future<ApiResult<ApiResponse>> uploadPetDocumentWithHTTPInfo(
-      int petId, UploadPetDocumentOptions? options,
+      int petId, UploadPetDocumentOptions options,
       {Authenticator? auth}) async {
     var path = '/pet/{petId}/documents';
     path = path.replaceAll(
@@ -1050,13 +1044,11 @@ class PetApi extends BaseApi {
     final headerParams = <String, String>{};
 
     final formBody = <String, String>{};
-    if (options != null) {
-      formBody['file'] = '${options.file}';
-    }
-    if (options != null && options.documentType != null) {
+    formBody['file'] = '${options.file}';
+    if (options.documentType != null) {
       formBody['documentType'] = '${options.documentType}';
     }
-    if (options != null && options.notes != null) {
+    if (options.notes != null) {
       formBody['notes'] = '${options.notes}';
     }
     final Object? requestBody = formBody;

@@ -160,7 +160,7 @@ export class PetApi extends BaseApi {
    * @return Array<Photo>
    * @throws {ApiError} if fails to make API call
    */
-  async addPetPhotos(petId: number, options?: AddPetPhotosOptions): Promise<Array<Photo>> {
+  async addPetPhotos(petId: number, options: AddPetPhotosOptions): Promise<Array<Photo>> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling addPetPhotos');
     }
@@ -177,7 +177,7 @@ export class PetApi extends BaseApi {
    * Add photos to the pet's gallery (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async addPetPhotosWithHttpInfo(petId: number, options?: AddPetPhotosOptions): Promise<ApiResult<Array<Photo>>> {
+  async addPetPhotosWithHttpInfo(petId: number, options: AddPetPhotosOptions): Promise<ApiResult<Array<Photo>>> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling addPetPhotos');
     }
@@ -1063,7 +1063,7 @@ export class PetApi extends BaseApi {
    * @return ApiResponse
    * @throws {ApiError} if fails to make API call
    */
-  async uploadPetCertificate(petId: number, options?: UploadPetCertificateOptions): Promise<ApiResponse> {
+  async uploadPetCertificate(petId: number, options: UploadPetCertificateOptions): Promise<ApiResponse> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling uploadPetCertificate');
     }
@@ -1079,7 +1079,7 @@ export class PetApi extends BaseApi {
    */
   async uploadPetCertificateWithHttpInfo(
     petId: number,
-    options?: UploadPetCertificateOptions
+    options: UploadPetCertificateOptions
   ): Promise<ApiResult<ApiResponse>> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling uploadPetCertificate');
@@ -1124,7 +1124,7 @@ export class PetApi extends BaseApi {
    * @return ApiResponse
    * @throws {ApiError} if fails to make API call
    */
-  async uploadPetDocument(petId: number, options?: UploadPetDocumentOptions): Promise<ApiResponse> {
+  async uploadPetDocument(petId: number, options: UploadPetDocumentOptions): Promise<ApiResponse> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling uploadPetDocument');
     }
@@ -1140,7 +1140,7 @@ export class PetApi extends BaseApi {
    */
   async uploadPetDocumentWithHttpInfo(
     petId: number,
-    options?: UploadPetDocumentOptions
+    options: UploadPetDocumentOptions
   ): Promise<ApiResult<ApiResponse>> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling uploadPetDocument');

@@ -170,7 +170,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     ///
     /// - Parameters:
 
-    public func addPetPhotos(petId: Int64, options: AddPetPhotosOptions? = nil, ) async throws -> [Photo] {
+    public func addPetPhotos(petId: Int64, options: AddPetPhotosOptions, ) async throws -> [Photo] {
         let result = try await addPetPhotosWithHTTPInfo(petId: petId, options: options, )
         guard let data = result.data else {
             throw ApiError(
@@ -184,7 +184,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the addPetPhotos operation and returns the full API result.
-    public func addPetPhotosWithHTTPInfo(petId: Int64, options: AddPetPhotosOptions? = nil, ) async throws -> ApiResult<[Photo]> {
+    public func addPetPhotosWithHTTPInfo(petId: Int64, options: AddPetPhotosOptions, ) async throws -> ApiResult<[Photo]> {
 
         var path = "/pet/{petId}/photos"
         path = replacePathParam(path, name: "petId", value: "\(petId)")
@@ -194,12 +194,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         let headerParams: [String: String] = [:]
 
         var formBody: [String: String] = [:]
-        if let options = options {
-            formBody["files"] = "\(options.files)"
-        }
-        if let options = options {
-            formBody["metadata"] = "\(options.metadata)"
-        }
+        formBody["files"] = "\(options.files)"
+        formBody["metadata"] = "\(options.metadata)"
         let requestBody: Any? = formBody
 
         let params = InvokeAPIParams(
@@ -1007,7 +1003,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     ///
     /// - Parameters:
 
-    public func uploadPetCertificate(petId: Int64, options: UploadPetCertificateOptions? = nil, ) async throws -> ApiResponse {
+    public func uploadPetCertificate(petId: Int64, options: UploadPetCertificateOptions, ) async throws -> ApiResponse {
         let result = try await uploadPetCertificateWithHTTPInfo(petId: petId, options: options, )
         guard let data = result.data else {
             throw ApiError(
@@ -1021,7 +1017,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the uploadPetCertificate operation and returns the full API result.
-    public func uploadPetCertificateWithHTTPInfo(petId: Int64, options: UploadPetCertificateOptions? = nil, ) async throws -> ApiResult<ApiResponse> {
+    public func uploadPetCertificateWithHTTPInfo(petId: Int64, options: UploadPetCertificateOptions, ) async throws -> ApiResult<ApiResponse> {
 
         var path = "/pet/{petId}/certificate"
         path = replacePathParam(path, name: "petId", value: "\(petId)")
@@ -1031,9 +1027,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         let headerParams: [String: String] = [:]
 
         var formBody: [String: String] = [:]
-        if let options = options {
-            formBody["file"] = "\(options.file)"
-        }
+        formBody["file"] = "\(options.file)"
         let requestBody: Any? = formBody
 
         let params = InvokeAPIParams(
@@ -1056,7 +1050,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     ///
     /// - Parameters:
 
-    public func uploadPetDocument(petId: Int64, options: UploadPetDocumentOptions? = nil, ) async throws -> ApiResponse {
+    public func uploadPetDocument(petId: Int64, options: UploadPetDocumentOptions, ) async throws -> ApiResponse {
         let result = try await uploadPetDocumentWithHTTPInfo(petId: petId, options: options, )
         guard let data = result.data else {
             throw ApiError(
@@ -1070,7 +1064,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the uploadPetDocument operation and returns the full API result.
-    public func uploadPetDocumentWithHTTPInfo(petId: Int64, options: UploadPetDocumentOptions? = nil, ) async throws -> ApiResult<ApiResponse> {
+    public func uploadPetDocumentWithHTTPInfo(petId: Int64, options: UploadPetDocumentOptions, ) async throws -> ApiResult<ApiResponse> {
 
         var path = "/pet/{petId}/documents"
         path = replacePathParam(path, name: "petId", value: "\(petId)")
@@ -1080,13 +1074,11 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         let headerParams: [String: String] = [:]
 
         var formBody: [String: String] = [:]
-        if let options = options {
-            formBody["file"] = "\(options.file)"
-        }
-        if let options = options, let val = options.documentType {
+        formBody["file"] = "\(options.file)"
+        if let val = options.documentType {
             formBody["documentType"] = "\(val)"
         }
-        if let options = options, let val = options.notes {
+        if let val = options.notes {
             formBody["notes"] = "\(val)"
         }
         let requestBody: Any? = formBody

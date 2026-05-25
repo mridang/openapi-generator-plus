@@ -88,7 +88,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
     /// {{value}}
     /// ```
 {{/vendorExtensions.pluralExamples}}{{/allParams}}
-    public func {{operationId}}({{#pathParams}}{{paramName}}: {{{dataType}}}, {{/pathParams}}{{#bodyParam}}{{paramName}}: {{^required}}{{{dataType}}}?{{/required}}{{#required}}{{{dataType}}}{{/required}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options: {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.hasRequiredOptions}}? = nil{{/vendorExtensions.hasRequiredOptions}}, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options: {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.hasRequiredOptions}}? = nil{{/vendorExtensions.hasRequiredOptions}}, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options: {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.hasRequiredOptions}}? = nil{{/vendorExtensions.hasRequiredOptions}}, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options: {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.hasRequiredOptions}}? = nil{{/vendorExtensions.hasRequiredOptions}}, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server: (any {{vendorExtensions.op.serverClassName}})? = nil, {{/-first}}{{/servers}}{{#hasAuthMethods}}auth: Authenticator? = nil{{/hasAuthMethods}}) async throws{{#returnType}} -> {{{.}}}{{/returnType}} {
+    public func {{operationId}}({{#pathParams}}{{paramName}}: {{{dataType}}}, {{/pathParams}}{{#bodyParam}}{{paramName}}: {{^required}}{{{dataType}}}?{{/required}}{{#required}}{{{dataType}}}{{/required}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options: {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.op.optionsParamRequired}}? = nil{{/vendorExtensions.op.optionsParamRequired}}, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options: {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.op.optionsParamRequired}}? = nil{{/vendorExtensions.op.optionsParamRequired}}, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options: {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.op.optionsParamRequired}}? = nil{{/vendorExtensions.op.optionsParamRequired}}, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options: {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.op.optionsParamRequired}}? = nil{{/vendorExtensions.op.optionsParamRequired}}, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server: (any {{vendorExtensions.op.serverClassName}})? = nil, {{/-first}}{{/servers}}{{#hasAuthMethods}}auth: Authenticator? = nil{{/hasAuthMethods}}) async throws{{#returnType}} -> {{{.}}}{{/returnType}} {
         let result = try await {{operationId}}WithHTTPInfo({{#pathParams}}{{paramName}}: {{paramName}}, {{/pathParams}}{{#bodyParam}}{{paramName}}: {{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options: options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options: options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options: options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options: options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server: server, {{/-first}}{{/servers}}{{#hasAuthMethods}}auth: auth{{/hasAuthMethods}})
 {{#returnType}}
         guard let data = result.data else {
@@ -107,7 +107,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the {{operationId}} operation and returns the full API result.
-    public func {{operationId}}WithHTTPInfo({{#pathParams}}{{paramName}}: {{{dataType}}}, {{/pathParams}}{{#bodyParam}}{{paramName}}: {{^required}}{{{dataType}}}?{{/required}}{{#required}}{{{dataType}}}{{/required}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options: {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.hasRequiredOptions}}? = nil{{/vendorExtensions.hasRequiredOptions}}, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options: {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.hasRequiredOptions}}? = nil{{/vendorExtensions.hasRequiredOptions}}, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options: {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.hasRequiredOptions}}? = nil{{/vendorExtensions.hasRequiredOptions}}, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options: {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.hasRequiredOptions}}? = nil{{/vendorExtensions.hasRequiredOptions}}, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server: (any {{vendorExtensions.op.serverClassName}})? = nil, {{/-first}}{{/servers}}{{#hasAuthMethods}}auth: Authenticator? = nil{{/hasAuthMethods}}) async throws -> ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}Void{{/returnType}}> {
+    public func {{operationId}}WithHTTPInfo({{#pathParams}}{{paramName}}: {{{dataType}}}, {{/pathParams}}{{#bodyParam}}{{paramName}}: {{^required}}{{{dataType}}}?{{/required}}{{#required}}{{{dataType}}}{{/required}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options: {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.op.optionsParamRequired}}? = nil{{/vendorExtensions.op.optionsParamRequired}}, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options: {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.op.optionsParamRequired}}? = nil{{/vendorExtensions.op.optionsParamRequired}}, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options: {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.op.optionsParamRequired}}? = nil{{/vendorExtensions.op.optionsParamRequired}}, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options: {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.op.optionsParamRequired}}? = nil{{/vendorExtensions.op.optionsParamRequired}}, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server: (any {{vendorExtensions.op.serverClassName}})? = nil, {{/-first}}{{/servers}}{{#hasAuthMethods}}auth: Authenticator? = nil{{/hasAuthMethods}}) async throws -> ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}Void{{/returnType}}> {
 {{#pathParams}}
 {{#required}}
 {{#isString}}
@@ -157,7 +157,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
         {{#queryParams.0}}var{{/queryParams.0}}{{^queryParams.0}}let{{/queryParams.0}} queryParams: [String: Any?] = [:]
 {{#queryParams}}
 {{#isAllowEmptyValue}}
-{{#vendorExtensions.hasRequiredOptions}}
+{{#vendorExtensions.op.optionsParamRequired}}
 {{#required}}
         do {
             let val = options.{{paramName}}
@@ -171,8 +171,8 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
             queryParams["{{baseName}}"] = ""
         }
 {{/required}}
-{{/vendorExtensions.hasRequiredOptions}}
-{{^vendorExtensions.hasRequiredOptions}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
         if let options = options {
             if let val = options.{{paramName}} {
                 queryParams["{{baseName}}"] = ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}})
@@ -180,10 +180,10 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
                 queryParams["{{baseName}}"] = ""
             }
         }
-{{/vendorExtensions.hasRequiredOptions}}
+{{/vendorExtensions.op.optionsParamRequired}}
 {{/isAllowEmptyValue}}
 {{^isAllowEmptyValue}}
-{{#vendorExtensions.hasRequiredOptions}}
+{{#vendorExtensions.op.optionsParamRequired}}
 {{#required}}
         do {
             let val = options.{{paramName}}
@@ -227,8 +227,8 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{/isDeepObject}}
         }
 {{/required}}
-{{/vendorExtensions.hasRequiredOptions}}
-{{^vendorExtensions.hasRequiredOptions}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
         if let options = options, let val = options.{{paramName}} {
 {{#isDeepObject}}
             if let dict = (val as Any) as? [String: Any] {
@@ -248,13 +248,13 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{/content}}
 {{/isDeepObject}}
         }
-{{/vendorExtensions.hasRequiredOptions}}
+{{/vendorExtensions.op.optionsParamRequired}}
 {{/isAllowEmptyValue}}
 {{/queryParams}}
 
         {{#headerParams.0}}var{{/headerParams.0}}{{^headerParams.0}}{{#hasCookieParams}}var{{/hasCookieParams}}{{^hasCookieParams}}let{{/hasCookieParams}}{{/headerParams.0}} headerParams: [String: String] = [:]
 {{#headerParams}}
-{{#vendorExtensions.hasRequiredOptions}}
+{{#vendorExtensions.op.optionsParamRequired}}
 {{#required}}
         headerParams["{{baseName}}"] = "\(ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "header", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"
 {{/required}}
@@ -263,17 +263,17 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
             headerParams["{{baseName}}"] = "\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "header", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"
         }
 {{/required}}
-{{/vendorExtensions.hasRequiredOptions}}
-{{^vendorExtensions.hasRequiredOptions}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
         if let options = options, let val = options.{{paramName}} {
             headerParams["{{baseName}}"] = "\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "header", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"
         }
-{{/vendorExtensions.hasRequiredOptions}}
+{{/vendorExtensions.op.optionsParamRequired}}
 {{/headerParams}}
 {{#hasCookieParams}}
         var cookieParts: [String] = []
 {{#cookieParams}}
-{{#vendorExtensions.hasRequiredOptions}}
+{{#vendorExtensions.op.optionsParamRequired}}
 {{#required}}
         cookieParts.append("{{baseName}}=\(ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")")
 {{/required}}
@@ -282,12 +282,12 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
             cookieParts.append("{{baseName}}=\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")")
         }
 {{/required}}
-{{/vendorExtensions.hasRequiredOptions}}
-{{^vendorExtensions.hasRequiredOptions}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
         if let options = options, let val = options.{{paramName}} {
             cookieParts.append("{{baseName}}=\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")")
         }
-{{/vendorExtensions.hasRequiredOptions}}
+{{/vendorExtensions.op.optionsParamRequired}}
 {{/cookieParams}}
         if !cookieParts.isEmpty {
             headerParams["Cookie"] = cookieParts.joined(separator: "; ")
@@ -298,26 +298,26 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
         var formBody: [String: String] = [:]
 {{#formParams}}
 {{#required}}
-{{#vendorExtensions.hasRequiredOptions}}
+{{#vendorExtensions.op.optionsParamRequired}}
         formBody["{{baseName}}"] = "\(options.{{paramName}})"
-{{/vendorExtensions.hasRequiredOptions}}
-{{^vendorExtensions.hasRequiredOptions}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
         if let options = options {
             formBody["{{baseName}}"] = "\(options.{{paramName}})"
         }
-{{/vendorExtensions.hasRequiredOptions}}
+{{/vendorExtensions.op.optionsParamRequired}}
 {{/required}}
 {{^required}}
-{{#vendorExtensions.hasRequiredOptions}}
+{{#vendorExtensions.op.optionsParamRequired}}
         if let val = options.{{paramName}} {
             formBody["{{baseName}}"] = "\(val)"
         }
-{{/vendorExtensions.hasRequiredOptions}}
-{{^vendorExtensions.hasRequiredOptions}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
         if let options = options, let val = options.{{paramName}} {
             formBody["{{baseName}}"] = "\(val)"
         }
-{{/vendorExtensions.hasRequiredOptions}}
+{{/vendorExtensions.op.optionsParamRequired}}
 {{/required}}
 {{/formParams}}
         let requestBody: Any? = formBody

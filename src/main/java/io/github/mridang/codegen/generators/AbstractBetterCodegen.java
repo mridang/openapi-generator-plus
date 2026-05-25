@@ -3405,20 +3405,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             if (optionsParams.isEmpty()) {
                 continue;
             }
-            // Flag whether any Options-class field is required, so language
-            // templates can drop the trailing `?` / `= nil` sigil and force
-            // the caller to pass an Options instance (compile-time check).
-            boolean anyRequiredOption = false;
-            for (final CodegenParameter p : optionsParams) {
-                if (p.required) {
-                    anyRequiredOption = true;
-                    break;
-                }
-            }
-            if (op.vendorExtensions == null) {
-                op.vendorExtensions = new HashMap<>();
-            }
-            op.vendorExtensions.put("hasRequiredOptions", anyRequiredOption);
+            // Whether any Options-class field is required is exposed to
+            // templates via the operation decorator's
+            // {@code vendorExtensions.op.optionsParamRequired} flag (populated
+            // by {@link #populateOperationDecorators}). Templates use it to
+            // drop the trailing {@code ?} / {@code = nil} sigil and force the
+            // caller to pass an Options instance (compile-time check).
             final String className =
                     NamingConvention.PASCAL_CASE.apply(op.operationId) + "Options";
             final String content = generateOptionsFileContent(op, optionsParams, className);
