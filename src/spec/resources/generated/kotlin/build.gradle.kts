@@ -112,6 +112,12 @@ tasks.named<Test>("jvmTest") {
     // per test (24+ in PetApiTest alone) and 512m caused GC pauses long
     // enough that ktor request timeouts surfaced as ConnectException.
     maxHeapSize = "1024m"
+    // Run test classes in parallel JVM forks. Each fork is its own JVM
+    // so testcontainers (WireMock, Squid, Prism) and Ktor clients live
+    // in isolation per fork — no shared-state races possible. Cap at
+    // half the CPU count to leave headroom for the Docker daemon and
+    // the host build.
+    maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
     reports.junitXml.outputLocation.set(file(".out/reports"))
     /* Pass Docker env vars to the forked test JVM for DinD support */
     listOf(
