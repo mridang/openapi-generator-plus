@@ -1,4 +1,5 @@
 <?php
+
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -11,8 +12,6 @@
 declare(strict_types=1);
 
 namespace PetstoreClient\Api\Options;
-
-use PetstoreClient\Models\PhotoMetadata;
 
 /**
  * Options for the addPetPhotos operation.

@@ -17,8 +17,5 @@ format: install
 analyze: install
 	vendor/bin/phpstan analyse
 
-docs: install
-	vendor/bin/phpdoc run -d lib -t docs
-
 clean:
 	rm -rf vendor .phpunit.result.cache docs

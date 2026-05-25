@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
-use PHPUnit\Framework\TestCase;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\TransportOptionsBuilder;
+use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 

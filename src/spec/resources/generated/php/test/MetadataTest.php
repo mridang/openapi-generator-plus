@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
-use PHPUnit\Framework\TestCase;
-use PetstoreClient\ObjectSerializer;
 use PetstoreClient\Models\Metadata;
+use PetstoreClient\ObjectSerializer;
+use PHPUnit\Framework\TestCase;
 
 class MetadataTest extends TestCase
 {
