@@ -31,7 +31,7 @@ class TestPetApi:
     async def test_add_pet(self) -> None:
         pet = Pet(id=12345, name='TestDog', photoUrls={'http://example.com/photo.jpg'}, status=PetStatusEnum.AVAILABLE)
 
-        result = await self.api.add_pet(self.auth, pet)
+        result = await self.api.add_pet(pet, auth=self.auth)
 
         assert result is not None
         assert result.name is not None
@@ -58,7 +58,7 @@ class TestPetApi:
         assert result is not None
 
     async def test_delete_pet(self) -> None:
-        await self.api.delete_pet(self.auth, 1, None)
+        await self.api.delete_pet(1, None, auth=self.auth)
 
         assert True
 
@@ -217,7 +217,7 @@ class TestPetApiErrorHandling:
         per_call_auth = BearerAuthenticator(base_url, 'per-call-token')
 
         pet = Pet(id=1, name='OverrideDog', photoUrls={'http://example.com/p.jpg'})
-        await api.add_pet(per_call_auth, pet)
+        await api.add_pet(pet, auth=per_call_auth)
 
         assert captured.get('Authorization') == 'Bearer per-call-token'
 
@@ -242,7 +242,7 @@ class TestPetApiWithHttpInfo:
     async def test_add_pet_with_http_info(self) -> None:
         pet = Pet(id=99, name='HttpInfoDog', photoUrls={'http://example.com/photo.jpg'}, status=PetStatusEnum.AVAILABLE)
 
-        result = await self.api.add_pet_with_http_info(self.auth, pet)
+        result = await self.api.add_pet_with_http_info(pet, auth=self.auth)
 
         assert result is not None
         assert 200 <= result.status_code < 300

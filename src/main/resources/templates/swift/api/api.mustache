@@ -83,7 +83,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
     /// {{value}}
     /// ```
 {{/vendorExtensions.examples}}{{/allParams}}
-    public func {{operationId}}({{#pathParams}}{{paramName}}: {{{dataType}}}, {{/pathParams}}{{#bodyParam}}{{paramName}}: {{^required}}{{{dataType}}}?{{/required}}{{#required}}{{{dataType}}}{{/required}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? = nil, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? = nil, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? = nil, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? = nil, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server: (any {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server)? = nil, {{/-first}}{{/servers}}{{#hasAuthMethods}}auth: Authenticator? = nil{{/hasAuthMethods}}) async throws{{#returnType}} -> {{{.}}}{{/returnType}} {
+    public func {{operationId}}({{#pathParams}}{{paramName}}: {{{dataType}}}, {{/pathParams}}{{#bodyParam}}{{paramName}}: {{^required}}{{{dataType}}}?{{/required}}{{#required}}{{{dataType}}}{{/required}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{^vendorExtensions.hasRequiredOptions}}? = nil{{/vendorExtensions.hasRequiredOptions}}, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{^vendorExtensions.hasRequiredOptions}}? = nil{{/vendorExtensions.hasRequiredOptions}}, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{^vendorExtensions.hasRequiredOptions}}? = nil{{/vendorExtensions.hasRequiredOptions}}, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{^vendorExtensions.hasRequiredOptions}}? = nil{{/vendorExtensions.hasRequiredOptions}}, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server: (any {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server)? = nil, {{/-first}}{{/servers}}{{#hasAuthMethods}}auth: Authenticator? = nil{{/hasAuthMethods}}) async throws{{#returnType}} -> {{{.}}}{{/returnType}} {
         let result = try await {{operationId}}WithHTTPInfo({{#pathParams}}{{paramName}}: {{paramName}}, {{/pathParams}}{{#bodyParam}}{{paramName}}: {{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options: options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options: options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options: options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options: options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server: server, {{/-first}}{{/servers}}{{#hasAuthMethods}}auth: auth{{/hasAuthMethods}})
 {{#returnType}}
         guard let data = result.data else {
@@ -102,7 +102,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the {{operationId}} operation and returns the full API result.
-    public func {{operationId}}WithHTTPInfo({{#pathParams}}{{paramName}}: {{{dataType}}}, {{/pathParams}}{{#bodyParam}}{{paramName}}: {{^required}}{{{dataType}}}?{{/required}}{{#required}}{{{dataType}}}{{/required}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? = nil, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? = nil, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? = nil, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? = nil, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server: (any {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server)? = nil, {{/-first}}{{/servers}}{{#hasAuthMethods}}auth: Authenticator? = nil{{/hasAuthMethods}}) async throws -> ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}Void{{/returnType}}> {
+    public func {{operationId}}WithHTTPInfo({{#pathParams}}{{paramName}}: {{{dataType}}}, {{/pathParams}}{{#bodyParam}}{{paramName}}: {{^required}}{{{dataType}}}?{{/required}}{{#required}}{{{dataType}}}{{/required}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{^vendorExtensions.hasRequiredOptions}}? = nil{{/vendorExtensions.hasRequiredOptions}}, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{^vendorExtensions.hasRequiredOptions}}? = nil{{/vendorExtensions.hasRequiredOptions}}, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{^vendorExtensions.hasRequiredOptions}}? = nil{{/vendorExtensions.hasRequiredOptions}}, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{^vendorExtensions.hasRequiredOptions}}? = nil{{/vendorExtensions.hasRequiredOptions}}, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server: (any {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server)? = nil, {{/-first}}{{/servers}}{{#hasAuthMethods}}auth: Authenticator? = nil{{/hasAuthMethods}}) async throws -> ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}Void{{/returnType}}> {
 {{#pathParams}}
 {{#required}}
 {{#isString}}
@@ -138,6 +138,22 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
         var queryParams: [String: Any?] = [:]
 {{#queryParams}}
 {{#isAllowEmptyValue}}
+{{#vendorExtensions.hasRequiredOptions}}
+{{#required}}
+        do {
+            let val = options.{{paramName}}
+            queryParams["{{baseName}}"] = ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}})
+        }
+{{/required}}
+{{^required}}
+        if let val = options.{{paramName}} {
+            queryParams["{{baseName}}"] = ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}})
+        } else {
+            queryParams["{{baseName}}"] = ""
+        }
+{{/required}}
+{{/vendorExtensions.hasRequiredOptions}}
+{{^vendorExtensions.hasRequiredOptions}}
         if let options = options {
             if let val = options.{{paramName}} {
                 queryParams["{{baseName}}"] = ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}})
@@ -145,8 +161,55 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
                 queryParams["{{baseName}}"] = ""
             }
         }
+{{/vendorExtensions.hasRequiredOptions}}
 {{/isAllowEmptyValue}}
 {{^isAllowEmptyValue}}
+{{#vendorExtensions.hasRequiredOptions}}
+{{#required}}
+        do {
+            let val = options.{{paramName}}
+{{#isDeepObject}}
+            if let dict = val as? [String: Any] {
+                for (k, v) in ValueSerializer.serializeDeepObject("{{baseName}}", value: dict) {
+                    queryParams[k] = v
+                }
+            }
+{{/isDeepObject}}
+{{^isDeepObject}}
+{{#content}}
+            if let jsonData = try? JSONEncoder().encode(val) {
+                queryParams["{{baseName}}"] = String(data: jsonData, encoding: .utf8)
+            }
+{{/content}}
+{{^content}}
+            queryParams["{{baseName}}"] = ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}})
+{{/content}}
+{{/isDeepObject}}
+        }
+{{/required}}
+{{^required}}
+        if let val = options.{{paramName}} {
+{{#isDeepObject}}
+            if let dict = val as? [String: Any] {
+                for (k, v) in ValueSerializer.serializeDeepObject("{{baseName}}", value: dict) {
+                    queryParams[k] = v
+                }
+            }
+{{/isDeepObject}}
+{{^isDeepObject}}
+{{#content}}
+            if let jsonData = try? JSONEncoder().encode(val) {
+                queryParams["{{baseName}}"] = String(data: jsonData, encoding: .utf8)
+            }
+{{/content}}
+{{^content}}
+            queryParams["{{baseName}}"] = ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}})
+{{/content}}
+{{/isDeepObject}}
+        }
+{{/required}}
+{{/vendorExtensions.hasRequiredOptions}}
+{{^vendorExtensions.hasRequiredOptions}}
         if let options = options, let val = options.{{paramName}} {
 {{#isDeepObject}}
             if let dict = val as? [String: Any] {
@@ -166,21 +229,46 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{/content}}
 {{/isDeepObject}}
         }
+{{/vendorExtensions.hasRequiredOptions}}
 {{/isAllowEmptyValue}}
 {{/queryParams}}
 
         var headerParams: [String: String] = [:]
 {{#headerParams}}
+{{#vendorExtensions.hasRequiredOptions}}
+{{#required}}
+        headerParams["{{baseName}}"] = "\(ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "header", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"
+{{/required}}
+{{^required}}
+        if let val = options.{{paramName}} {
+            headerParams["{{baseName}}"] = "\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "header", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"
+        }
+{{/required}}
+{{/vendorExtensions.hasRequiredOptions}}
+{{^vendorExtensions.hasRequiredOptions}}
         if let options = options, let val = options.{{paramName}} {
             headerParams["{{baseName}}"] = "\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "header", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"
         }
+{{/vendorExtensions.hasRequiredOptions}}
 {{/headerParams}}
 {{#hasCookieParams}}
         var cookieParts: [String] = []
 {{#cookieParams}}
+{{#vendorExtensions.hasRequiredOptions}}
+{{#required}}
+        cookieParts.append("{{baseName}}=\(ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")")
+{{/required}}
+{{^required}}
+        if let val = options.{{paramName}} {
+            cookieParts.append("{{baseName}}=\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")")
+        }
+{{/required}}
+{{/vendorExtensions.hasRequiredOptions}}
+{{^vendorExtensions.hasRequiredOptions}}
         if let options = options, let val = options.{{paramName}} {
             cookieParts.append("{{baseName}}=\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")")
         }
+{{/vendorExtensions.hasRequiredOptions}}
 {{/cookieParams}}
         if !cookieParts.isEmpty {
             headerParams["Cookie"] = cookieParts.joined(separator: "; ")
@@ -191,14 +279,26 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
         var formBody: [String: String] = [:]
 {{#formParams}}
 {{#required}}
+{{#vendorExtensions.hasRequiredOptions}}
+        formBody["{{baseName}}"] = "\(options.{{paramName}})"
+{{/vendorExtensions.hasRequiredOptions}}
+{{^vendorExtensions.hasRequiredOptions}}
         if let options = options {
             formBody["{{baseName}}"] = "\(options.{{paramName}})"
         }
+{{/vendorExtensions.hasRequiredOptions}}
 {{/required}}
 {{^required}}
+{{#vendorExtensions.hasRequiredOptions}}
+        if let val = options.{{paramName}} {
+            formBody["{{baseName}}"] = "\(val)"
+        }
+{{/vendorExtensions.hasRequiredOptions}}
+{{^vendorExtensions.hasRequiredOptions}}
         if let options = options, let val = options.{{paramName}} {
             formBody["{{baseName}}"] = "\(val)"
         }
+{{/vendorExtensions.hasRequiredOptions}}
 {{/required}}
 {{/formParams}}
         let requestBody: Any? = formBody

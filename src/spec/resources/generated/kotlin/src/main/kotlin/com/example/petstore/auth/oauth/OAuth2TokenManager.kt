@@ -13,14 +13,14 @@ import io.ktor.http.encodeURLQueryComponent
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
-import kotlinx.serialization.json.Json
+import kotlin.math.floor
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlin.math.floor
 
 /**
  * Manages OAuth2 token lifecycle including fetching, caching, and refreshing tokens.
@@ -30,6 +30,7 @@ import kotlin.math.floor
  * API calls.
  */
 class OAuth2TokenManager {
+
     private companion object {
         /** Safety margin (in milliseconds) applied to token expiry checks
          *  so that we refresh slightly before the token actually expires,
@@ -58,10 +59,7 @@ class OAuth2TokenManager {
     @Volatile
     private var refreshToken: String? = null
 
-    private fun isTokenValid(
-        token: String?,
-        expiry: Long?,
-    ): Boolean {
+    private fun isTokenValid(token: String?, expiry: Long?): Boolean {
         if (token == null) return false
         if (expiry == null) return true
         return Clock.System.now().toEpochMilliseconds() < expiry - EXPIRY_SAFETY_MARGIN_MS
@@ -95,13 +93,12 @@ class OAuth2TokenManager {
             }
             val currentRefreshToken = refreshToken
             if (!currentRefreshToken.isNullOrEmpty()) {
-                val refreshParams =
-                    buildMap {
-                        put("grant_type", "refresh_token")
-                        put("refresh_token", currentRefreshToken)
-                        params["client_id"]?.let { put("client_id", it) }
-                        params["client_secret"]?.let { put("client_secret", it) }
-                    }
+                val refreshParams = buildMap {
+                    put("grant_type", "refresh_token")
+                    put("refresh_token", currentRefreshToken)
+                    params["client_id"]?.let { put("client_id", it) }
+                    params["client_secret"]?.let { put("client_secret", it) }
+                }
                 try {
                     fetchToken(tokenUrl, refreshParams, extraHeaders)
                     accessToken?.let { return@withLock it }
@@ -160,11 +157,10 @@ class OAuth2TokenManager {
                 "${k.encodeURLQueryComponent(spaceToPlus = true)}=${v.encodeURLQueryComponent(spaceToPlus = true)}"
             }
 
-        val headers =
-            mapOf(
-                "Content-Type" to "application/x-www-form-urlencoded",
-                "Accept" to "application/json",
-            ) + extraHeaders
+        val headers = mapOf(
+            "Content-Type" to "application/x-www-form-urlencoded",
+            "Accept" to "application/json",
+        ) + extraHeaders
 
         val response: ApiResponse = client.sendRequest("POST", tokenUrl, headers, body)
         if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -212,10 +208,7 @@ class OAuth2TokenManager {
      * [OAuth2ServerError]. Falls back to a generic error using the raw body
      * when the body is not a valid OAuth2 error object.
      */
-    private fun parseOAuth2ServerError(
-        statusCode: Int,
-        body: String,
-    ): OAuth2ServerError {
+    private fun parseOAuth2ServerError(statusCode: Int, body: String): OAuth2ServerError {
         try {
             val root = json.parseToJsonElement(body).jsonObject
             val code = root["error"]?.jsonPrimitive?.contentOrNull
@@ -225,7 +218,7 @@ class OAuth2TokenManager {
                 return OAuth2ServerError(statusCode, code, description, uri, body)
             }
         } catch (_: Exception) {
-            // Not a JSON body; fall through and report the raw body.
+            /* Not a JSON body; fall through and report the raw body. */
         }
         return OAuth2ServerError(statusCode, null, null, null, body)
     }
@@ -262,9 +255,7 @@ class OAuth2TokenManager {
  * [OAuth2ServerError] (which represents RFC 6749 §5.2 error responses on
  * 4xx/5xx) so callers can recover differently.
  */
-class OAuth2TokenError(
-    message: String,
-) : RuntimeException(message)
+class OAuth2TokenError(message: String) : RuntimeException(message)
 
 /**
  * Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
@@ -282,12 +273,7 @@ class OAuth2ServerError(
     val rawBody: String,
 ) : RuntimeException(buildMessage(statusCode, code, description, rawBody)) {
     private companion object {
-        fun buildMessage(
-            statusCode: Int,
-            code: String?,
-            description: String?,
-            rawBody: String,
-        ): String =
+        fun buildMessage(statusCode: Int, code: String?, description: String?, rawBody: String): String =
             when {
                 code == null -> "Token request failed with status $statusCode: $rawBody"
                 description != null -> "Token request failed with status $statusCode: $code — $description"

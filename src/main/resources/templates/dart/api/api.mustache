@@ -92,7 +92,7 @@ class {{classname}} extends BaseApi {
   /// {{value}}
   /// ```
 {{/vendorExtensions.examples}}{{/allParams}}
-  Future<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}> {{operationId}}({{#pathParams}}{{{dataType}}} {{paramName}}, {{/pathParams}}{{#bodyParam}}{{^required}}{{{dataType}}}? {{/required}}{{#required}}{{{dataType}}} {{/required}}{{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server? server, {{/-first}}{{/servers}}{Authenticator? auth}) async {
+  Future<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}> {{operationId}}({{#pathParams}}{{{dataType}}} {{paramName}}, {{/pathParams}}{{#bodyParam}}{{^required}}{{{dataType}}}? {{/required}}{{#required}}{{{dataType}}} {{/required}}{{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{^vendorExtensions.hasRequiredOptions}}?{{/vendorExtensions.hasRequiredOptions}} options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{^vendorExtensions.hasRequiredOptions}}?{{/vendorExtensions.hasRequiredOptions}} options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{^vendorExtensions.hasRequiredOptions}}?{{/vendorExtensions.hasRequiredOptions}} options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{^vendorExtensions.hasRequiredOptions}}?{{/vendorExtensions.hasRequiredOptions}} options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server? server, {{/-first}}{{/servers}}{Authenticator? auth}) async {
 {{#returnType}}
     final result = await {{operationId}}WithHTTPInfo({{#pathParams}}{{paramName}}, {{/pathParams}}{{#bodyParam}}{{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server, {{/-first}}{{/servers}}auth: auth);
     return result.data as {{{returnType}}};
@@ -103,7 +103,7 @@ class {{classname}} extends BaseApi {
   }
 
   /// Performs the {{operationId}} operation and returns the full API result.
-  Future<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}>> {{operationId}}WithHTTPInfo({{#pathParams}}{{{dataType}}} {{paramName}}, {{/pathParams}}{{#bodyParam}}{{^required}}{{{dataType}}}? {{/required}}{{#required}}{{{dataType}}} {{/required}}{{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server? server, {{/-first}}{{/servers}}{Authenticator? auth}) async {
+  Future<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}>> {{operationId}}WithHTTPInfo({{#pathParams}}{{{dataType}}} {{paramName}}, {{/pathParams}}{{#bodyParam}}{{^required}}{{{dataType}}}? {{/required}}{{#required}}{{{dataType}}} {{/required}}{{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{^vendorExtensions.hasRequiredOptions}}?{{/vendorExtensions.hasRequiredOptions}} options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{^vendorExtensions.hasRequiredOptions}}?{{/vendorExtensions.hasRequiredOptions}} options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{^vendorExtensions.hasRequiredOptions}}?{{/vendorExtensions.hasRequiredOptions}} options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{^vendorExtensions.hasRequiredOptions}}?{{/vendorExtensions.hasRequiredOptions}} options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server? server, {{/-first}}{{/servers}}{Authenticator? auth}) async {
 
     var path = '{{{path}}}';
 {{#pathParams}}
@@ -128,6 +128,19 @@ class {{classname}} extends BaseApi {
     final queryParams = <String, Object?>{};
 {{#queryParams}}
 {{#isAllowEmptyValue}}
+{{#vendorExtensions.hasRequiredOptions}}
+{{#required}}
+    queryParams['{{baseName}}'] = serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}});
+{{/required}}
+{{^required}}
+    if (options.{{paramName}} != null) {
+      queryParams['{{baseName}}'] = serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}});
+    } else {
+      queryParams['{{baseName}}'] = '';
+    }
+{{/required}}
+{{/vendorExtensions.hasRequiredOptions}}
+{{^vendorExtensions.hasRequiredOptions}}
     if (options != null) {
       if (options.{{paramName}} != null) {
         queryParams['{{baseName}}'] = serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}});
@@ -135,8 +148,44 @@ class {{classname}} extends BaseApi {
         queryParams['{{baseName}}'] = '';
       }
     }
+{{/vendorExtensions.hasRequiredOptions}}
 {{/isAllowEmptyValue}}
 {{^isAllowEmptyValue}}
+{{#vendorExtensions.hasRequiredOptions}}
+{{#required}}
+{{#isDeepObject}}
+    serializeDeepObject('{{baseName}}', options.{{paramName}} as Map<String, Object?>?).forEach((k, v) {
+      queryParams[k] = v;
+    });
+{{/isDeepObject}}
+{{^isDeepObject}}
+{{#content}}
+    queryParams['{{baseName}}'] = serialize(options.{{paramName}});
+{{/content}}
+{{^content}}
+    queryParams['{{baseName}}'] = serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}});
+{{/content}}
+{{/isDeepObject}}
+{{/required}}
+{{^required}}
+    if (options.{{paramName}} != null) {
+{{#isDeepObject}}
+      serializeDeepObject('{{baseName}}', options.{{paramName}} as Map<String, Object?>?).forEach((k, v) {
+        queryParams[k] = v;
+      });
+{{/isDeepObject}}
+{{^isDeepObject}}
+{{#content}}
+      queryParams['{{baseName}}'] = serialize(options.{{paramName}});
+{{/content}}
+{{^content}}
+      queryParams['{{baseName}}'] = serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}});
+{{/content}}
+{{/isDeepObject}}
+    }
+{{/required}}
+{{/vendorExtensions.hasRequiredOptions}}
+{{^vendorExtensions.hasRequiredOptions}}
     if (options != null && options.{{paramName}} != null) {
 {{#isDeepObject}}
       serializeDeepObject('{{baseName}}', options.{{paramName}} as Map<String, Object?>?).forEach((k, v) {
@@ -152,21 +201,46 @@ class {{classname}} extends BaseApi {
 {{/content}}
 {{/isDeepObject}}
     }
+{{/vendorExtensions.hasRequiredOptions}}
 {{/isAllowEmptyValue}}
 {{/queryParams}}
 
     final headerParams = <String, String>{};
 {{#headerParams}}
+{{#vendorExtensions.hasRequiredOptions}}
+{{#required}}
+    headerParams['{{baseName}}'] = '${serializeStyled('{{baseName}}', options.{{paramName}}, 'header', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}';
+{{/required}}
+{{^required}}
+    if (options.{{paramName}} != null) {
+      headerParams['{{baseName}}'] = '${serializeStyled('{{baseName}}', options.{{paramName}}, 'header', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}';
+    }
+{{/required}}
+{{/vendorExtensions.hasRequiredOptions}}
+{{^vendorExtensions.hasRequiredOptions}}
     if (options != null && options.{{paramName}} != null) {
       headerParams['{{baseName}}'] = '${serializeStyled('{{baseName}}', options.{{paramName}}, 'header', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}';
     }
+{{/vendorExtensions.hasRequiredOptions}}
 {{/headerParams}}
 {{#hasCookieParams}}
     final cookieParts = <String>[];
 {{#cookieParams}}
+{{#vendorExtensions.hasRequiredOptions}}
+{{#required}}
+    cookieParts.add('{{baseName}}=${serializeStyled('{{baseName}}', options.{{paramName}}, 'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}');
+{{/required}}
+{{^required}}
+    if (options.{{paramName}} != null) {
+      cookieParts.add('{{baseName}}=${serializeStyled('{{baseName}}', options.{{paramName}}, 'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}');
+    }
+{{/required}}
+{{/vendorExtensions.hasRequiredOptions}}
+{{^vendorExtensions.hasRequiredOptions}}
     if (options != null && options.{{paramName}} != null) {
       cookieParts.add('{{baseName}}=${serializeStyled('{{baseName}}', options.{{paramName}}, 'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}');
     }
+{{/vendorExtensions.hasRequiredOptions}}
 {{/cookieParams}}
     if (cookieParts.isNotEmpty) {
       headerParams['Cookie'] = cookieParts.join('; ');
@@ -177,14 +251,26 @@ class {{classname}} extends BaseApi {
     final formBody = <String, String>{};
 {{#formParams}}
 {{#required}}
+{{#vendorExtensions.hasRequiredOptions}}
+    formBody['{{baseName}}'] = '${options.{{paramName}}}';
+{{/vendorExtensions.hasRequiredOptions}}
+{{^vendorExtensions.hasRequiredOptions}}
     if (options != null) {
       formBody['{{baseName}}'] = '${options.{{paramName}}}';
     }
+{{/vendorExtensions.hasRequiredOptions}}
 {{/required}}
 {{^required}}
+{{#vendorExtensions.hasRequiredOptions}}
+    if (options.{{paramName}} != null) {
+      formBody['{{baseName}}'] = '${options.{{paramName}}}';
+    }
+{{/vendorExtensions.hasRequiredOptions}}
+{{^vendorExtensions.hasRequiredOptions}}
     if (options != null && options.{{paramName}} != null) {
       formBody['{{baseName}}'] = '${options.{{paramName}}}';
     }
+{{/vendorExtensions.hasRequiredOptions}}
 {{/required}}
 {{/formParams}}
     final Object? requestBody = formBody;

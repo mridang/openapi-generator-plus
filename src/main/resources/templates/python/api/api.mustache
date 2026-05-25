@@ -86,9 +86,6 @@ class {{classname}}(BaseApi):
 
     async def {{operationId}}(
         self,
-{{#hasAuthMethods}}
-        auth: Authenticator,
-{{/hasAuthMethods}}
 {{#pathParams}}
         {{paramName}}: {{{dataType}}},
 {{/pathParams}}
@@ -108,6 +105,9 @@ class {{classname}}(BaseApi):
         server: Optional['{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server'] = None,
 {{/-first}}{{/servers}}
         base_url: Optional[str] = None,
+{{#hasAuthMethods}}
+        auth: Optional[Authenticator] = None,
+{{/hasAuthMethods}}
     ) -> {{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}:
         """{{summary}}
 {{#notes}}
@@ -196,7 +196,8 @@ class {{classname}}(BaseApi):
 
 {{/required}}
 {{/cookieParams}}
-        result = await self.{{operationId}}_with_http_info({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, server=server{{/-first}}{{/servers}}{{#hasAuthMethods}}, base_url=base_url{{/hasAuthMethods}}{{^hasAuthMethods}}{{#allParams.0}}, base_url=base_url{{/allParams.0}}{{^allParams.0}}{{#servers.0}}, base_url=base_url{{/servers.0}}{{^servers.0}}base_url=base_url{{/servers.0}}{{/allParams.0}}{{/hasAuthMethods}})
+        result = await self.{{operationId}}_with_http_info({{#pathParams}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}{{#allParams.0}}, {{/allParams.0}}server=server{{/-first}}{{/servers}}{{#allParams.0}}, base_url=base_url{{/allParams.0}}{{^allParams.0}}{{#servers.0}}, base_url=base_url{{/servers.0}}{{^servers.0}}base_url=base_url{{/servers.0}}{{/allParams.0}}{{#hasAuthMethods}}, auth=auth{{/hasAuthMethods}})
+
 {{#returnType}}
         assert result.data is not None
 {{/returnType}}
@@ -204,9 +205,6 @@ class {{classname}}(BaseApi):
 
     async def {{operationId}}_with_http_info(
         self,
-{{#hasAuthMethods}}
-        auth: Authenticator,
-{{/hasAuthMethods}}
 {{#pathParams}}
         {{paramName}}: {{{dataType}}},
 {{/pathParams}}
@@ -226,6 +224,9 @@ class {{classname}}(BaseApi):
         server: Optional['{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server'] = None,
 {{/-first}}{{/servers}}
         base_url: Optional[str] = None,
+{{#hasAuthMethods}}
+        auth: Optional[Authenticator] = None,
+{{/hasAuthMethods}}
     ) -> 'ApiResult[{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}]':
         """{{summary}} (with HTTP info)
 {{#notes}}

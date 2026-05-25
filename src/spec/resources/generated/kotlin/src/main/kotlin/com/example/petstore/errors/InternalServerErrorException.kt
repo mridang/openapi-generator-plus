@@ -14,5 +14,5 @@ class InternalServerErrorException(
     message: String,
     responseHeaders: Map<String, String>?,
     responseBody: String?,
-    errorBody: Any? = null,
+    errorBody: Any? = null
 ) : ServerException(500, message, responseHeaders, responseBody, errorBody)

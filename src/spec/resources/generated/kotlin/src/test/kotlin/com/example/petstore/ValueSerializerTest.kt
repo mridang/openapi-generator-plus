@@ -7,13 +7,14 @@
 
 package com.example.petstore
 
+import java.time.LocalDate
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import java.time.LocalDate
 
 class ValueSerializerTest {
+
     /**
      * N3/W3 parity: `format: date` path parameters must emit a date-only
      * string (YYYY-MM-DD), not a full ISO datetime. Kotlin models
@@ -23,6 +24,7 @@ class ValueSerializerTest {
     @Nested
     @DisplayName("format:date path parameter emits YYYY-MM-DD")
     inner class FormatDatePathParamTests {
+
         @Test
         @DisplayName("LocalDate in path returns YYYY-MM-DD")
         fun localDateInPathReturnsDateOnly() {
@@ -37,14 +39,8 @@ class ValueSerializerTest {
             assertEquals(
                 "2024-01-15",
                 ValueSerializer.serializeStyled(
-                    "since",
-                    date,
-                    "path",
-                    "string",
-                    null,
-                    "simple",
-                    false,
-                ),
+                    "since", date, "path", "string", null, "simple", false
+                )
             )
         }
     }
@@ -56,6 +52,7 @@ class ValueSerializerTest {
     @Nested
     @DisplayName("path encoding parity")
     inner class PathEncodingParityTests {
+
         @Test
         @DisplayName("ASCII-safe pass-through")
         fun asciiSafePassThrough() {
@@ -131,27 +128,16 @@ class ValueSerializerTest {
         @Test
         @DisplayName("matrix style with reserved char in value")
         fun matrixStyleEncodesValue() {
-            assertEquals(
-                ";id=a%20b",
-                ValueSerializer.serializeStyled("id", "a b", "path", "string", null, "matrix", false),
-            )
+            assertEquals(";id=a%20b",
+                ValueSerializer.serializeStyled("id", "a b", "path", "string", null, "matrix", false))
         }
 
         @Test
         @DisplayName("simple style array with reserved chars")
         fun simpleStyleArrayEncodesEachItem() {
-            assertEquals(
-                "a%20b,c%3Fd",
-                ValueSerializer.serializeStyled(
-                    "ids",
-                    listOf("a b", "c?d"),
-                    "path",
-                    "array",
-                    null,
-                    "simple",
-                    false,
-                ),
-            )
+            assertEquals("a%20b,c%3Fd",
+                ValueSerializer.serializeStyled("ids", listOf("a b", "c?d"),
+                    "path", "array", null, "simple", false))
         }
 
         @Test
@@ -161,18 +147,12 @@ class ValueSerializerTest {
             // must be percent-encoded BEFORE being joined with the structural
             // separator. Otherwise '/', '?', '#', space leak into the URL.
             val items = listOf("a/b", "c")
-            assertEquals(
-                "a%2Fb,c",
-                ValueSerializer.serializeStyled("name", items, "path", "array", null, "simple", false),
-            )
-            assertEquals(
-                ".a%2Fb.c",
-                ValueSerializer.serializeStyled("name", items, "path", "array", null, "label", true),
-            )
-            assertEquals(
-                ";name=a%2Fb,c",
-                ValueSerializer.serializeStyled("name", items, "path", "array", null, "matrix", false),
-            )
+            assertEquals("a%2Fb,c",
+                ValueSerializer.serializeStyled("name", items, "path", "array", null, "simple", false))
+            assertEquals(".a%2Fb.c",
+                ValueSerializer.serializeStyled("name", items, "path", "array", null, "label", true))
+            assertEquals(";name=a%2Fb,c",
+                ValueSerializer.serializeStyled("name", items, "path", "array", null, "matrix", false))
         }
 
         @Test
@@ -191,6 +171,7 @@ class ValueSerializerTest {
     @Nested
     @DisplayName("serialize - query location")
     inner class QuerySerializeTests {
+
         @Test
         @DisplayName("string returns as-is")
         fun stringReturnsAsIs() {
@@ -291,6 +272,7 @@ class ValueSerializerTest {
     @Nested
     @DisplayName("serialize - path location")
     inner class PathSerializeTests {
+
         @Test
         @DisplayName("string returns URL-encoded value")
         fun stringReturnsUrlEncodedValue() {
@@ -337,6 +319,7 @@ class ValueSerializerTest {
     @Nested
     @DisplayName("serialize - header location")
     inner class HeaderSerializeTests {
+
         @Test
         @DisplayName("string returns as-is")
         fun stringReturnsAsIs() {
@@ -383,6 +366,7 @@ class ValueSerializerTest {
     @Nested
     @DisplayName("serialize - cookie location")
     inner class CookieSerializeTests {
+
         @Test
         @DisplayName("string returns as-is")
         fun stringReturnsAsIs() {
@@ -399,6 +383,7 @@ class ValueSerializerTest {
     @Nested
     @DisplayName("serialize - form location")
     inner class FormSerializeTests {
+
         @Test
         @DisplayName("null returns empty string")
         fun nullReturnsEmptyString() {
@@ -433,6 +418,7 @@ class ValueSerializerTest {
     @Nested
     @DisplayName("serializeStyled - matrix style")
     inner class MatrixStyleTests {
+
         @Test
         @DisplayName("scalar returns semicolon-prefixed name=value")
         fun scalarReturnsSemicolonPrefixedNameValue() {
@@ -442,19 +428,13 @@ class ValueSerializerTest {
         @Test
         @DisplayName("array with explode false joins with comma")
         fun arrayExplodeFalseJoinsWithComma() {
-            assertEquals(
-                ";color=blue,black",
-                ValueSerializer.serializeStyled("color", listOf("blue", "black"), "path", "array", null, "matrix", false),
-            )
+            assertEquals(";color=blue,black", ValueSerializer.serializeStyled("color", listOf("blue", "black"), "path", "array", null, "matrix", false))
         }
 
         @Test
         @DisplayName("array with explode true repeats name")
         fun arrayExplodeTrueRepeatsName() {
-            assertEquals(
-                ";color=blue;color=black",
-                ValueSerializer.serializeStyled("color", listOf("blue", "black"), "path", "array", null, "matrix", true),
-            )
+            assertEquals(";color=blue;color=black", ValueSerializer.serializeStyled("color", listOf("blue", "black"), "path", "array", null, "matrix", true))
         }
 
         @Test
@@ -467,6 +447,7 @@ class ValueSerializerTest {
     @Nested
     @DisplayName("serializeStyled - label style")
     inner class LabelStyleTests {
+
         @Test
         @DisplayName("scalar returns dot-prefixed value")
         fun scalarReturnsDotPrefixedValue() {
@@ -476,19 +457,13 @@ class ValueSerializerTest {
         @Test
         @DisplayName("array with explode false joins with comma")
         fun arrayExplodeFalseJoinsWithComma() {
-            assertEquals(
-                ".blue,black",
-                ValueSerializer.serializeStyled("color", listOf("blue", "black"), "path", "array", null, "label", false),
-            )
+            assertEquals(".blue,black", ValueSerializer.serializeStyled("color", listOf("blue", "black"), "path", "array", null, "label", false))
         }
 
         @Test
         @DisplayName("array with explode true joins with dot separator")
         fun arrayExplodeTrueJoinsWithDot() {
-            assertEquals(
-                ".blue.black",
-                ValueSerializer.serializeStyled("color", listOf("blue", "black"), "path", "array", null, "label", true),
-            )
+            assertEquals(".blue.black", ValueSerializer.serializeStyled("color", listOf("blue", "black"), "path", "array", null, "label", true))
         }
 
         @Test
@@ -501,6 +476,7 @@ class ValueSerializerTest {
     @Nested
     @DisplayName("serializeStyled - simple style")
     inner class SimpleStyleTests {
+
         @Test
         @DisplayName("scalar returns stringified value")
         fun scalarReturnsStringifiedValue() {
@@ -530,22 +506,17 @@ class ValueSerializerTest {
     @Nested
     @DisplayName("serializeStyled - form style")
     inner class FormStyleTests {
+
         @Test
         @DisplayName("array with explode true returns list")
         fun arrayExplodeTrueReturnsList() {
-            assertEquals(
-                listOf("blue", "black"),
-                ValueSerializer.serializeStyled("color", listOf("blue", "black"), "query", "array", null, "form", true),
-            )
+            assertEquals(listOf("blue", "black"), ValueSerializer.serializeStyled("color", listOf("blue", "black"), "query", "array", null, "form", true))
         }
 
         @Test
         @DisplayName("array with explode false joins with comma")
         fun arrayExplodeFalseJoinsWithComma() {
-            assertEquals(
-                "blue,black",
-                ValueSerializer.serializeStyled("color", listOf("blue", "black"), "query", "array", null, "form", false),
-            )
+            assertEquals("blue,black", ValueSerializer.serializeStyled("color", listOf("blue", "black"), "query", "array", null, "form", false))
         }
 
         @Test
@@ -570,13 +541,11 @@ class ValueSerializerTest {
     @Nested
     @DisplayName("serializeStyled - spaceDelimited style")
     inner class SpaceDelimitedStyleTests {
+
         @Test
         @DisplayName("array joins with space")
         fun arrayJoinsWithSpace() {
-            assertEquals(
-                "blue black",
-                ValueSerializer.serializeStyled("color", listOf("blue", "black"), "query", "array", null, "spaceDelimited", false),
-            )
+            assertEquals("blue black", ValueSerializer.serializeStyled("color", listOf("blue", "black"), "query", "array", null, "spaceDelimited", false))
         }
 
         @Test
@@ -589,13 +558,11 @@ class ValueSerializerTest {
     @Nested
     @DisplayName("serializeStyled - pipeDelimited style")
     inner class PipeDelimitedStyleTests {
+
         @Test
         @DisplayName("array joins with pipe")
         fun arrayJoinsWithPipe() {
-            assertEquals(
-                "blue|black",
-                ValueSerializer.serializeStyled("color", listOf("blue", "black"), "query", "array", null, "pipeDelimited", false),
-            )
+            assertEquals("blue|black", ValueSerializer.serializeStyled("color", listOf("blue", "black"), "query", "array", null, "pipeDelimited", false))
         }
 
         @Test
@@ -608,6 +575,7 @@ class ValueSerializerTest {
     @Nested
     @DisplayName("serializeDeepObject")
     inner class DeepObjectTests {
+
         @Test
         @DisplayName("basic map returns bracketed keys")
         fun basicMapReturnsBracketedKeys() {
@@ -627,6 +595,7 @@ class ValueSerializerTest {
     @Nested
     @DisplayName("unknown/empty style fallback")
     inner class FallbackTests {
+
         @Test
         @DisplayName("null style falls back to location-based serialization")
         fun nullStyleFallsBack() {

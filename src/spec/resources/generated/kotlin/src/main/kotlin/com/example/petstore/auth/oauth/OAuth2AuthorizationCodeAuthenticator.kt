@@ -33,8 +33,9 @@ open class OAuth2AuthorizationCodeAuthenticator(
     private val tokenUrl: String,
     private val redirectUri: String,
     private val scopes: List<String>,
-    private val refreshUrl: String? = null,
+    private val refreshUrl: String? = null
 ) : HttpAwareAuthenticator {
+
     internal val tokenManager = OAuth2TokenManager()
     private val effectiveRefreshUrl: String = refreshUrl ?: tokenUrl
 
@@ -75,14 +76,13 @@ open class OAuth2AuthorizationCodeAuthenticator(
      * @param code the authorization code from the callback
      */
     suspend fun exchangeCode(code: String) {
-        val params =
-            mutableMapOf(
-                "grant_type" to "authorization_code",
-                "code" to code,
-                "client_id" to clientId,
-                "client_secret" to clientSecret,
-                "redirect_uri" to redirectUri,
-            )
+        val params = mutableMapOf(
+            "grant_type" to "authorization_code",
+            "code" to code,
+            "client_id" to clientId,
+            "client_secret" to clientSecret,
+            "redirect_uri" to redirectUri
+        )
         tokenManager.getAccessToken(tokenUrl, params)
         tokenExchanged = true
     }
@@ -91,14 +91,14 @@ open class OAuth2AuthorizationCodeAuthenticator(
 
     override suspend fun getAuthHeaders(): Map<String, String> {
         check(tokenExchanged) { "Must call exchangeCode() before making API requests" }
-        val params =
-            mutableMapOf(
-                "grant_type" to "refresh_token",
-                "refresh_token" to (tokenManager.getRefreshToken() ?: ""),
-            )
+        val params = mutableMapOf(
+            "grant_type" to "refresh_token",
+            "refresh_token" to (tokenManager.getRefreshToken() ?: "")
+        )
         val token = tokenManager.getAccessToken(effectiveRefreshUrl, params)
         return mapOf("Authorization" to "Bearer $token")
     }
 
-    private fun encode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8)
+    private fun encode(value: String): String =
+        URLEncoder.encode(value, StandardCharsets.UTF_8)
 }

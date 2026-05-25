@@ -29,8 +29,9 @@ open class OAuth2ImplicitAuthenticator(
     private val host: String,
     private val clientId: String,
     private val authorizationUrl: String,
-    private val scopes: List<String>,
+    private val scopes: List<String>
 ) : HttpAwareAuthenticator {
+
     @Volatile
     private var accessToken: String? = null
 
@@ -74,11 +75,11 @@ open class OAuth2ImplicitAuthenticator(
     override fun getHost(): String = host
 
     override suspend fun getAuthHeaders(): Map<String, String> {
-        val token =
-            accessToken
-                ?: throw IllegalStateException("Must call setAccessToken() before making API requests")
+        val token = accessToken
+            ?: throw IllegalStateException("Must call setAccessToken() before making API requests")
         return mapOf("Authorization" to "Bearer $token")
     }
 
-    private fun encode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8)
+    private fun encode(value: String): String =
+        URLEncoder.encode(value, StandardCharsets.UTF_8)
 }

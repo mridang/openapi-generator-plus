@@ -45,6 +45,7 @@ class StoreApi(BaseApi):
             raise ValueError("Missing the required parameter 'order_id'")
 
         result = await self.delete_order_with_http_info(order_id, base_url=base_url)
+
         return result.data
 
     async def delete_order_with_http_info(
@@ -92,6 +93,7 @@ class StoreApi(BaseApi):
         :raises ApiException: if fails to make API call
         """
         result = await self.get_inventory_with_http_info(base_url=base_url)
+
         assert result.data is not None
         return result.data
 
@@ -139,6 +141,7 @@ class StoreApi(BaseApi):
             raise ValueError("Missing the required parameter 'order_id'")
 
         result = await self.get_order_by_id_with_http_info(order_id, base_url=base_url)
+
         assert result.data is not None
         return result.data
 
@@ -189,6 +192,7 @@ class StoreApi(BaseApi):
         :raises ApiException: if fails to make API call
         """
         result = await self.place_order_with_http_info(order, base_url=base_url)
+
         assert result.data is not None
         return result.data
 

@@ -16,29 +16,29 @@ import java.time.Duration
  * Singleton Squid proxy container shared across all test classes.
  */
 object SquidContainer {
+
     private val INSTANCE: GenericContainer<*>
 
     init {
         // Force WireMockContainer initialization so the shared network is created first.
         WireMockContainer.getHttpUrl()
 
-        INSTANCE =
-            GenericContainer("ubuntu/squid:5.2-22.04_beta")
-                .withExposedPorts(3128)
-                .withCopyFileToContainer(
-                    MountableFile.forHostPath(Path.of("/app/src/test/resources/proxy/squid.conf")),
-                    "/etc/squid/squid.conf",
-                ).withNetwork(WireMockContainer.PROXY_NETWORK)
-                .withStartupTimeout(Duration.ofSeconds(120))
-                .withLabel("com.mridang.openapi.testcontainer", "true")
+        INSTANCE = GenericContainer("ubuntu/squid:5.2-22.04_beta")
+            .withExposedPorts(3128)
+            .withCopyFileToContainer(
+                MountableFile.forHostPath(Path.of("/app/src/test/resources/proxy/squid.conf")),
+                "/etc/squid/squid.conf"
+            )
+            .withNetwork(WireMockContainer.PROXY_NETWORK)
+            .withStartupTimeout(Duration.ofSeconds(120))
+            .withLabel("com.mridang.openapi.testcontainer", "true")
         INSTANCE.start()
-        Runtime.getRuntime().addShutdownHook(
-            Thread {
-                if (INSTANCE.isRunning) INSTANCE.stop()
-            },
-        )
+        Runtime.getRuntime().addShutdownHook(Thread {
+            if (INSTANCE.isRunning) INSTANCE.stop()
+        })
         Thread.sleep(3000)
     }
 
-    fun getProxyUrl(): String = "http://${INSTANCE.host}:${INSTANCE.getMappedPort(3128)}"
+    fun getProxyUrl(): String =
+        "http://${INSTANCE.host}:${INSTANCE.getMappedPort(3128)}"
 }

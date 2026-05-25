@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test
 import java.util.LinkedList
 
 class OAuth2ClientCredentialsAuthenticatorTest {
+
     private class FakeApiClient : ApiClient {
         private val responses = LinkedList<ApiResponse>()
         var lastBody: String? = null
@@ -24,10 +25,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
         var lastHeaders: Map<String, String> = emptyMap()
             private set
 
-        fun enqueue(
-            body: String,
-            statusCode: Int = 200,
-        ) {
+        fun enqueue(body: String, statusCode: Int = 200) {
             responses.add(ApiResponse(statusCode, body, emptyMap()))
         }
 
@@ -35,7 +33,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
             method: String,
             url: String,
             headers: Map<String, String>,
-            body: Any?,
+            body: Any?
         ): ApiResponse {
             lastUrl = url
             lastHeaders = headers
@@ -44,14 +42,15 @@ class OAuth2ClientCredentialsAuthenticatorTest {
         }
     }
 
-    private fun createAuthenticator(): OAuth2ClientCredentialsAuthenticator =
-        OAuth2ClientCredentialsAuthenticator(
+    private fun createAuthenticator(): OAuth2ClientCredentialsAuthenticator {
+        return OAuth2ClientCredentialsAuthenticator(
             host = "https://api.example.com",
             clientId = "my-client-id",
             clientSecret = "my-client-secret",
             tokenUrl = "https://auth.example.com/token",
-            scopes = listOf("read", "write"),
+            scopes = listOf("read", "write")
         )
+    }
 
     @Test
     fun sendsClientCredentialsGrantType() {
@@ -91,11 +90,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
 
         runBlocking { auth.getAuthHeaders() }
 
-        assertTrue(
-            client.lastBody!!.contains("scope=read+write") ||
-                client.lastBody!!.contains("scope=read%20write") ||
-                client.lastBody!!.contains("scope=read write"),
-        )
+        assertTrue(client.lastBody!!.contains("scope=read+write") || client.lastBody!!.contains("scope=read%20write") || client.lastBody!!.contains("scope=read write"))
     }
 
     @Test
@@ -141,15 +136,14 @@ class OAuth2ClientCredentialsAuthenticatorTest {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"at","expires_in":3600}""")
 
-        val auth =
-            OAuth2ClientCredentialsAuthenticator(
-                host = "https://api.example.com",
-                clientId = "id+with/special",
-                clientSecret = "secret&with=stuff",
-                tokenUrl = "https://auth.example.com/token",
-                scopes = listOf("read"),
-                clientAuthMethod = ClientAuthMethod.BASIC,
-            )
+        val auth = OAuth2ClientCredentialsAuthenticator(
+            host = "https://api.example.com",
+            clientId = "id+with/special",
+            clientSecret = "secret&with=stuff",
+            tokenUrl = "https://auth.example.com/token",
+            scopes = listOf("read"),
+            clientAuthMethod = ClientAuthMethod.BASIC
+        )
         auth.setApiClient(client)
 
         runBlocking { auth.getAuthHeaders() }
@@ -157,13 +151,10 @@ class OAuth2ClientCredentialsAuthenticatorTest {
         val authHeader = client.lastHeaders["Authorization"]
         assertNotNull(authHeader)
         assertTrue(authHeader!!.startsWith("Basic "))
-        val decoded =
-            String(
-                java.util.Base64
-                    .getDecoder()
-                    .decode(authHeader.substring("Basic ".length)),
-                Charsets.UTF_8,
-            )
+        val decoded = String(
+            java.util.Base64.getDecoder().decode(authHeader.substring("Basic ".length)),
+            Charsets.UTF_8
+        )
         // Expected: form-urlencoded id ':' form-urlencoded secret
         assertEquals("id%2Bwith%2Fspecial:secret%26with%3Dstuff", decoded)
     }

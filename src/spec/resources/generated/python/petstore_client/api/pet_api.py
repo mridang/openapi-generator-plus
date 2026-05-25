@@ -159,9 +159,9 @@ class PetApi(BaseApi):
 
     async def add_pet(
         self,
-        auth: Authenticator,
         pet: Pet,
         base_url: Optional[str] = None,
+        auth: Optional[Authenticator] = None,
     ) -> Pet:
         """Add a new pet to the store
         :param auth: authenticator for this operation
@@ -173,15 +173,16 @@ class PetApi(BaseApi):
         if pet is None:
             raise ValueError("Missing the required parameter 'pet'")
 
-        result = await self.add_pet_with_http_info(auth, pet, base_url=base_url)
+        result = await self.add_pet_with_http_info(pet, base_url=base_url, auth=auth)
+
         assert result.data is not None
         return result.data
 
     async def add_pet_with_http_info(
         self,
-        auth: Authenticator,
         pet: Pet,
         base_url: Optional[str] = None,
+        auth: Optional[Authenticator] = None,
     ) -> 'ApiResult[Pet]':
         """Add a new pet to the store (with HTTP info)
         :param auth: authenticator for this operation
@@ -238,6 +239,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'metadata'")
 
         result = await self.add_pet_photos_with_http_info(pet_id, options, base_url=base_url)
+
         assert result.data is not None
         return result.data
 
@@ -292,10 +294,10 @@ class PetApi(BaseApi):
 
     async def add_pet_treatment(
         self,
-        auth: Authenticator,
         pet_id: int,
         pet_treatment: PetTreatment,
         base_url: Optional[str] = None,
+        auth: Optional[Authenticator] = None,
     ) -> PetTreatment:
         """Record a treatment for a pet
         :param auth: authenticator for this operation
@@ -311,16 +313,17 @@ class PetApi(BaseApi):
         if pet_treatment is None:
             raise ValueError("Missing the required parameter 'pet_treatment'")
 
-        result = await self.add_pet_treatment_with_http_info(auth, pet_id, pet_treatment, base_url=base_url)
+        result = await self.add_pet_treatment_with_http_info(pet_id, pet_treatment, base_url=base_url, auth=auth)
+
         assert result.data is not None
         return result.data
 
     async def add_pet_treatment_with_http_info(
         self,
-        auth: Authenticator,
         pet_id: int,
         pet_treatment: PetTreatment,
         base_url: Optional[str] = None,
+        auth: Optional[Authenticator] = None,
     ) -> 'ApiResult[PetTreatment]':
         """Record a treatment for a pet (with HTTP info)
         :param auth: authenticator for this operation
@@ -359,10 +362,10 @@ class PetApi(BaseApi):
 
     async def delete_pet(
         self,
-        auth: Authenticator,
         pet_id: int,
         options: Optional[DeletePetOptions] = None,
         base_url: Optional[str] = None,
+        auth: Optional[Authenticator] = None,
     ) -> None:
         """Deletes a pet
         :param auth: authenticator for this operation
@@ -375,15 +378,16 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        result = await self.delete_pet_with_http_info(auth, pet_id, options, base_url=base_url)
+        result = await self.delete_pet_with_http_info(pet_id, options, base_url=base_url, auth=auth)
+
         return result.data
 
     async def delete_pet_with_http_info(
         self,
-        auth: Authenticator,
         pet_id: int,
         options: Optional[DeletePetOptions] = None,
         base_url: Optional[str] = None,
+        auth: Optional[Authenticator] = None,
     ) -> 'ApiResult[None]':
         """Deletes a pet (with HTTP info)
         :param auth: authenticator for this operation
@@ -444,6 +448,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'document_id'")
 
         result = await self.download_pet_document_with_http_info(pet_id, document_id, base_url=base_url)
+
         assert result.data is not None
         return result.data
 
@@ -506,6 +511,7 @@ class PetApi(BaseApi):
             `Find out more about filtering <https://example.com/docs/filtering>`_
         """
         result = await self.find_pets_by_status_with_http_info(options, base_url=base_url)
+
         assert result.data is not None
         return result.data
 
@@ -564,6 +570,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         result = await self.get_external_pet_info_with_http_info(pet_id, server=server, base_url=base_url)
+
         assert result.data is not None
         return result.data
 
@@ -623,6 +630,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         result = await self.get_multi_server_pet_info_with_http_info(pet_id, server=server, base_url=base_url)
+
         assert result.data is not None
         return result.data
 
@@ -682,6 +690,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         result = await self.get_pet_avatar_with_http_info(pet_id, base_url=base_url)
+
         assert result.data is not None
         return result.data
 
@@ -737,6 +746,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         result = await self.get_pet_avatar_thumbnail_with_http_info(pet_id, base_url=base_url)
+
         assert result.data is not None
         return result.data
 
@@ -801,6 +811,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         result = await self.get_pet_by_id_with_http_info(pet_id, server=server, base_url=base_url)
+
         assert result.data is not None
         return result.data
 
@@ -861,6 +872,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         result = await self.get_pet_passport_with_http_info(pet_id, base_url=base_url)
+
         assert result.data is not None
         return result.data
 
@@ -921,6 +933,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'photo_id'")
 
         result = await self.get_pet_photo_with_http_info(pet_id, photo_id, base_url=base_url)
+
         assert result.data is not None
         return result.data
 
@@ -989,6 +1002,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'tag_name'")
 
         result = await self.get_pet_tag_with_http_info(pet_id, tag_name, options, base_url=base_url)
+
         assert result.data is not None
         return result.data
 
@@ -1061,6 +1075,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         result = await self.get_staging_pet_info_with_http_info(pet_id, server=server, base_url=base_url)
+
         assert result.data is not None
         return result.data
 
@@ -1124,6 +1139,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'body'")
 
         result = await self.set_pet_avatar_with_http_info(pet_id, body, base_url=base_url)
+
         return result.data
 
     async def set_pet_avatar_with_http_info(
@@ -1187,6 +1203,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'set_pet_avatar_thumbnail_request'")
 
         result = await self.set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request, base_url=base_url)
+
         return result.data
 
     async def set_pet_avatar_thumbnail_with_http_info(
@@ -1250,6 +1267,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet'")
 
         result = await self.update_pet_with_http_info(pet_id, pet, base_url=base_url)
+
         assert result.data is not None
         return result.data
 
@@ -1315,6 +1333,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'file'")
 
         result = await self.upload_pet_certificate_with_http_info(pet_id, options, base_url=base_url)
+
         assert result.data is not None
         return result.data
 
@@ -1384,6 +1403,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'file'")
 
         result = await self.upload_pet_document_with_http_info(pet_id, options, base_url=base_url)
+
         assert result.data is not None
         return result.data
 

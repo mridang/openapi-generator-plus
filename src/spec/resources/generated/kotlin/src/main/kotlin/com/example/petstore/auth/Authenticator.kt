@@ -12,10 +12,7 @@ package com.example.petstore.auth
  */
 interface Authenticator {
     fun getHost(): String
-
     suspend fun getAuthHeaders(): Map<String, String>
-
     fun getQueryParams(): Map<String, String> = emptyMap()
-
     fun getCookieParams(): Map<String, String> = emptyMap()
 }

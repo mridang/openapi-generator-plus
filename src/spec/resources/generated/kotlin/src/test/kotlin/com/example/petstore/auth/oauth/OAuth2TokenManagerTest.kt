@@ -21,6 +21,7 @@ import java.util.LinkedList
 import java.util.concurrent.atomic.AtomicInteger
 
 class OAuth2TokenManagerTest {
+
     private class FakeApiClient : ApiClient {
         private val responses = LinkedList<ApiResponse>()
         var lastBody: String? = null
@@ -28,10 +29,7 @@ class OAuth2TokenManagerTest {
         var lastUrl: String? = null
             private set
 
-        fun enqueue(
-            body: String,
-            statusCode: Int = 200,
-        ) {
+        fun enqueue(body: String, statusCode: Int = 200) {
             responses.add(ApiResponse(statusCode, body, emptyMap()))
         }
 
@@ -39,7 +37,7 @@ class OAuth2TokenManagerTest {
             method: String,
             url: String,
             headers: Map<String, String>,
-            body: Any?,
+            body: Any?
         ): ApiResponse {
             lastUrl = url
             lastBody = body?.toString()
@@ -55,13 +53,12 @@ class OAuth2TokenManagerTest {
         val manager = OAuth2TokenManager()
         manager.apiClient = client
 
-        val token =
-            runBlocking {
-                manager.getAccessToken(
-                    "https://auth.example.com/token",
-                    mapOf("grant_type" to "client_credentials"),
-                )
-            }
+        val token = runBlocking {
+            manager.getAccessToken(
+                "https://auth.example.com/token",
+                mapOf("grant_type" to "client_credentials")
+            )
+        }
 
         assertEquals("tok123", token)
     }
@@ -77,7 +74,7 @@ class OAuth2TokenManagerTest {
         runBlocking {
             manager.getAccessToken(
                 "https://auth.example.com/token",
-                mapOf("grant_type" to "authorization_code"),
+                mapOf("grant_type" to "authorization_code")
             )
         }
 
@@ -126,13 +123,12 @@ class OAuth2TokenManagerTest {
         val manager = OAuth2TokenManager()
         manager.setAccessToken("manual-token")
 
-        val token =
-            runBlocking {
-                manager.getAccessToken(
-                    "https://auth.example.com/token",
-                    emptyMap(),
-                )
-            }
+        val token = runBlocking {
+            manager.getAccessToken(
+                "https://auth.example.com/token",
+                emptyMap()
+            )
+        }
 
         assertEquals("manual-token", token)
     }
@@ -165,7 +161,7 @@ class OAuth2TokenManagerTest {
             runBlocking {
                 manager.getAccessToken(
                     "https://auth.example.com/token",
-                    mapOf("grant_type" to "client_credentials"),
+                    mapOf("grant_type" to "client_credentials")
                 )
             }
         }
@@ -177,43 +173,37 @@ class OAuth2TokenManagerTest {
         // The Mutex + double-checked locking inside the manager must coalesce them
         // into exactly one network round-trip to the token endpoint.
         val networkCalls = AtomicInteger(0)
-        val client =
-            object : ApiClient {
-                override suspend fun sendRequest(
-                    method: String,
-                    url: String,
-                    headers: Map<String, String>,
-                    body: Any?,
-                ): ApiResponse {
-                    networkCalls.incrementAndGet()
-                    // Tiny suspension to widen the race window for other coroutines.
-                    delay(50)
-                    return ApiResponse(200, """{"access_token":"shared-tok","expires_in":3600}""", emptyMap())
-                }
+        val client = object : ApiClient {
+            override suspend fun sendRequest(
+                method: String,
+                url: String,
+                headers: Map<String, String>,
+                body: Any?
+            ): ApiResponse {
+                networkCalls.incrementAndGet()
+                // Tiny suspension to widen the race window for other coroutines.
+                delay(50)
+                return ApiResponse(200, """{"access_token":"shared-tok","expires_in":3600}""", emptyMap())
             }
+        }
         val manager = OAuth2TokenManager()
         manager.apiClient = client
 
-        val tokens =
-            runBlocking {
-                coroutineScope {
-                    (1..10)
-                        .map {
-                            async {
-                                manager.getAccessToken(
-                                    "https://auth.example.com/token",
-                                    mapOf("grant_type" to "client_credentials"),
-                                )
-                            }
-                        }.awaitAll()
-                }
+        val tokens = runBlocking {
+            coroutineScope {
+                (1..10).map {
+                    async {
+                        manager.getAccessToken(
+                            "https://auth.example.com/token",
+                            mapOf("grant_type" to "client_credentials")
+                        )
+                    }
+                }.awaitAll()
             }
+        }
 
-        assertEquals(
-            1,
-            networkCalls.get(),
-            "single-flight refresh must coalesce concurrent callers into one token request",
-        )
+        assertEquals(1, networkCalls.get(),
+            "single-flight refresh must coalesce concurrent callers into one token request")
         assertTrue(tokens.all { it == "shared-tok" }, "all callers must observe the same token")
     }
 
@@ -238,11 +228,8 @@ class OAuth2TokenManagerTest {
         // "old_refresh"; the response contains an empty refresh_token which
         // must NOT overwrite the cached value.
         runBlocking { manager.getAccessToken(tokenUrl, params) }
-        assertEquals(
-            "old_refresh",
-            manager.getRefreshToken(),
-            "empty refresh_token in refresh response must not overwrite cached refresh_token",
-        )
+        assertEquals("old_refresh", manager.getRefreshToken(),
+            "empty refresh_token in refresh response must not overwrite cached refresh_token")
     }
 
     @Test
@@ -263,11 +250,8 @@ class OAuth2TokenManagerTest {
         val second = runBlocking { manager.getAccessToken(tokenUrl, params) }
 
         assertEquals("str-tok", first)
-        assertEquals(
-            "str-tok",
-            second,
-            "quoted-string expires_in must produce a valid cached expiry",
-        )
+        assertEquals("str-tok", second,
+            "quoted-string expires_in must produce a valid cached expiry")
     }
 
     @Test
@@ -287,11 +271,8 @@ class OAuth2TokenManagerTest {
         val second = runBlocking { manager.getAccessToken(tokenUrl, params) }
 
         assertEquals("flt-tok", first)
-        assertEquals(
-            "flt-tok",
-            second,
-            "float expires_in must floor to a valid cached expiry",
-        )
+        assertEquals("flt-tok", second,
+            "float expires_in must floor to a valid cached expiry")
     }
 
     @Test
@@ -312,11 +293,8 @@ class OAuth2TokenManagerTest {
         val second = runBlocking { manager.getAccessToken(tokenUrl, params) }
 
         assertEquals("neg1", first)
-        assertEquals(
-            "neg2",
-            second,
-            "negative expires_in must not cache; next call must refetch",
-        )
+        assertEquals("neg2", second,
+            "negative expires_in must not cache; next call must refetch")
     }
 
     @Test
@@ -331,7 +309,7 @@ class OAuth2TokenManagerTest {
             runBlocking {
                 manager.getAccessToken(
                     "https://auth.example.com/token",
-                    mapOf("grant_type" to "client_credentials"),
+                    mapOf("grant_type" to "client_credentials")
                 )
             }
         }
@@ -346,15 +324,14 @@ class OAuth2TokenManagerTest {
         val manager = OAuth2TokenManager()
         manager.apiClient = client
 
-        val ex =
-            assertThrows(OAuth2TokenError::class.java) {
-                runBlocking {
-                    manager.getAccessToken(
-                        "https://auth.example.com/token",
-                        mapOf("grant_type" to "client_credentials"),
-                    )
-                }
+        val ex = assertThrows(OAuth2TokenError::class.java) {
+            runBlocking {
+                manager.getAccessToken(
+                    "https://auth.example.com/token",
+                    mapOf("grant_type" to "client_credentials")
+                )
             }
+        }
         assertNotNull(ex.message)
     }
 
@@ -370,15 +347,14 @@ class OAuth2TokenManagerTest {
         val manager = OAuth2TokenManager()
         manager.apiClient = client
 
-        val ex =
-            assertThrows(OAuth2ServerError::class.java) {
-                runBlocking {
-                    manager.getAccessToken(
-                        "https://auth.example.com/token",
-                        mapOf("grant_type" to "client_credentials"),
-                    )
-                }
+        val ex = assertThrows(OAuth2ServerError::class.java) {
+            runBlocking {
+                manager.getAccessToken(
+                    "https://auth.example.com/token",
+                    mapOf("grant_type" to "client_credentials")
+                )
             }
+        }
         assertEquals(400, ex.statusCode)
         assertEquals("invalid_grant", ex.code)
         assertEquals("refresh token expired", ex.description)
