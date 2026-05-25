@@ -293,44 +293,16 @@ class DefaultApiClientTest extends TestCase
      */
     public function testMultipartBodyReplayedOn307Redirect(): void
     {
+        /* Skipped: Symfony HttpClient strips body on 307; multipart replay
+         * requires a manual byte-serializer like Rust impl - tracked as
+         * follow-up to T-new-3 (see AGENT.md "307/308 multipart body
+         * replay"). Original assertion body removed to avoid PHPStan
+         * deadCode.unreachable; the test only marks itself skipped. */
         $this->markTestSkipped(
             'Symfony HttpClient strips body on 307; multipart replay requires '
-            . 'manual byte-serializer like Rust impl — tracked as follow-up '
+            . 'manual byte-serializer like Rust impl - tracked as follow-up '
             . 'to T-new-3'
         );
-
-        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
-
-        $transport = TransportOptions::builder()
-            ->followRedirects(true)
-            ->maxRedirects(5)
-            ->build();
-
-        $client = new DefaultApiClient($transport);
-        $boundary = 'test-boundary';
-        $multipartBody = "--{$boundary}\r\n"
-            . "Content-Disposition: form-data; name=\"description\"\r\n\r\n"
-            . "hello\r\n"
-            . "--{$boundary}\r\n"
-            . "Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\n"
-            . "Content-Type: application/octet-stream\r\n\r\n"
-            . "file-content-bytes\r\n"
-            . "--{$boundary}--\r\n";
-        // wiremock's bodyPatterns matches the replayed multipart parts; 200
-        // is returned only when the multipart body arrives intact at the
-        // redirect target.
-        $response = $client->sendRequest(
-            'POST',
-            $wiremockUrl . '/api/redirect-307-multipart',
-            ['Content-Type' => "multipart/form-data; boundary={$boundary}"],
-            $multipartBody
-        );
-
-        $this->assertSame(200, $response->statusCode);
-        /** @var array<string, mixed> $json */
-        $json = json_decode($response->body, true);
-        $this->assertSame('POST', $json['method']);
-        $this->assertTrue($json['replayed']);
     }
 
     // -- Max redirects --

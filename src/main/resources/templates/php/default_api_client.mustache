@@ -117,6 +117,11 @@ class DefaultApiClient implements ApiClient
             unset($mergedHeaders['Content-Type']);
             $formFields = [];
             foreach ($body as $name => $value) {
+                /* W-new-2: reject field-NAME CR/LF/NUL up-front to prevent
+                 * Content-Disposition header injection — Symfony's
+                 * FormDataPart trusts caller-supplied keys verbatim, so
+                 * we validate before it serialises the part. */
+                self::validateMultipartFieldName((string) $name);
                 $values = is_array($value) ? $value : [$value];
                 $parts = [];
                 foreach ($values as $v) {
@@ -658,6 +663,24 @@ class DefaultApiClient implements ApiClient
         if (preg_match("/[\r\n\0]/", $filename) === 1) {
             throw new \InvalidArgumentException(
                 'multipart filename must not contain CR, LF, or NUL characters'
+            );
+        }
+    }
+
+    /**
+     * Validates a multipart form field NAME. CR/LF/NUL in the name would
+     * inject a forged header line into the `Content-Disposition: form-data;
+     * name="..."` segment. Symfony's FormDataPart trusts caller-supplied
+     * keys verbatim so we guard before handing them over (W-new-2).
+     *
+     * @param string $name the field name to validate
+     * @throws \InvalidArgumentException when the name contains CR/LF/NUL
+     */
+    public static function validateMultipartFieldName(string $name): void
+    {
+        if (preg_match("/[\r\n\0]/", $name) === 1) {
+            throw new \InvalidArgumentException(
+                'multipart field name must not contain CR, LF, or NUL characters'
             );
         }
     }
