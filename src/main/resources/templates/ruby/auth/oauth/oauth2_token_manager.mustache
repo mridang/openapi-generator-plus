@@ -115,12 +115,35 @@ module {{moduleName}}
         # @raise [RuntimeError] if no API client has been injected or the request fails
         def fetch_token(token_url, params, extra_headers = {})
           client = require_api_client
-          headers = { 'Content-Type' => 'application/x-www-form-urlencoded' }.merge(extra_headers)
+          headers = {
+            'Content-Type' => 'application/x-www-form-urlencoded',
+            'Accept' => 'application/json'
+          }.merge(extra_headers)
           response = client.send_request(:post, token_url, headers, URI.encode_www_form(params))
           status = response.status_code
-          raise "Token request failed with status #{status}" unless (200..299).cover?(status)
+          # RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
+          # `error` (required), `error_description`, `error_uri`. Parse them
+          # into a typed OAuth2ServerError so callers can recover via rescue.
+          # Fall back to the raw body when the response is not a valid error
+          # object.
+          raise parse_oauth2_server_error(status, response.body) unless (200..299).cover?(status)
 
           apply_token_response(JSON.parse(response.body))
+        end
+
+        def parse_oauth2_server_error(status_code, body)
+          parsed = begin
+            JSON.parse(body)
+          rescue JSON::ParserError
+            nil
+          end
+          if parsed.is_a?(Hash) && parsed['error'].is_a?(String) && !parsed['error'].empty?
+            description = parsed['error_description'].is_a?(String) ? parsed['error_description'] : nil
+            uri = parsed['error_uri'].is_a?(String) ? parsed['error_uri'] : nil
+            OAuth2ServerError.new(status_code, parsed['error'], description, uri, body)
+          else
+            OAuth2ServerError.new(status_code, nil, nil, nil, body)
+          end
         end
 
         def require_api_client
@@ -132,7 +155,12 @@ module {{moduleName}}
         end
 
         def apply_token_response(parsed)
-          @access_token = parsed['access_token']
+          access_token = parsed['access_token']
+          unless access_token.is_a?(String) && !access_token.empty?
+            raise OAuth2TokenError, 'Token response missing or empty access_token field'
+          end
+
+          @access_token = access_token
           new_refresh_token = parsed['refresh_token']
           @refresh_token = new_refresh_token if new_refresh_token.is_a?(String) && !new_refresh_token.empty?
           return unless parsed.key?('expires_in')
@@ -176,6 +204,44 @@ module {{moduleName}}
             end
           else
             0
+          end
+        end
+      end
+
+      # Raised when the OAuth2 token endpoint returns a 2xx response whose
+      # body is missing or contains an empty +access_token+ field. Distinct
+      # from {OAuth2ServerError} (which represents RFC 6749 §5.2 error
+      # responses on 4xx/5xx) so callers can rescue them separately.
+      class OAuth2TokenError < RuntimeError
+      end
+
+      # Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
+      # +code+ attribute carries the OAuth2 error code (e.g. +invalid_grant+,
+      # +invalid_client+); +description+ and +uri+ are the optional
+      # human-readable description and a URL to a page describing the error.
+      # +raw_body+ preserves the original response payload for diagnostics
+      # when the body is not a well-formed OAuth2 error object.
+      class OAuth2ServerError < RuntimeError
+        attr_reader :status_code, :code, :description, :uri, :raw_body
+
+        def initialize(status_code, code, description, uri, raw_body)
+          @status_code = status_code
+          @code = code
+          @description = description
+          @uri = uri
+          @raw_body = raw_body
+          super(build_message)
+        end
+
+        private
+
+        def build_message
+          if @code.nil?
+            "Token request failed with status #{@status_code}: #{@raw_body}"
+          elsif @description
+            "Token request failed with status #{@status_code}: #{@code} -- #{@description}"
+          else
+            "Token request failed with status #{@status_code}: #{@code}"
           end
         end
       end

@@ -199,3 +199,33 @@ func TestOAuth2AuthCode_GetHostReturnsConfiguredHost(t *testing.T) {
 		t.Errorf("expected host 'https://api.example.com', got %q", authObj.Host())
 	}
 }
+
+func TestOAuth2AuthorizationCodeAuthenticator_AuthorizeURLWithExistingQueryStringUsesAmpSeparator(t *testing.T) {
+	// RFC 6749 §3.1: the authorization endpoint URI MAY already include a
+	// query component (e.g. tenant-scoped Auth0 URLs that bake `audience`
+	// into the configured authorization_url). The builder must use '&' as
+	// the separator so existing params are preserved alongside the OAuth2
+	// ones, not '?' which would corrupt the URL.
+	authObj := oauth.NewOAuth2AuthorizationCodeAuthenticator(
+		"https://api.example.com",
+		"my-client-id",
+		"my-client-secret",
+		"https://x.auth0.com/authorize?audience=api",
+		"https://x.auth0.com/oauth/token",
+		"https://app.example.com/callback",
+		[]string{"read"},
+		"",
+	)
+
+	url := authObj.BuildAuthorizationURL("")
+
+	if !strings.Contains(url, "audience=api") {
+		t.Errorf("existing query param must be preserved: %q", url)
+	}
+	if !strings.Contains(url, "response_type=code") {
+		t.Errorf("response_type must be appended: %q", url)
+	}
+	if count := strings.Count(url, "?"); count != 1 {
+		t.Errorf("result must contain exactly one '?', got %d: %q", count, url)
+	}
+}

@@ -89,7 +89,11 @@ class OAuth2AuthorizationCodeAuthenticator(HttpAwareAuthenticator):
             params['scope'] = ' '.join(self._scopes)
         if state:
             params['state'] = state
-        return f'{self._authorization_url}?{urlencode(params)}'
+        # RFC 6749 §3.1: the authorization endpoint URI MAY already include
+        # a query component. Use '&' as the separator when one is already
+        # present so existing params are preserved, '?' otherwise.
+        separator = '&' if '?' in self._authorization_url else '?'
+        return f'{self._authorization_url}{separator}{urlencode(params)}'
 
     def exchange_code(self, code: str) -> None:
         """Exchange an authorization code for an access token.

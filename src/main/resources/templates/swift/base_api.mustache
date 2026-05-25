@@ -76,12 +76,18 @@ open class BaseApi: @unchecked Sendable {
              * pass through raw instead. */
             let cookies = auth.cookieParams()
             if !cookies.isEmpty {
-                let cookieStr = cookies.map { (k, v) -> String in
+                let cookieStr = try cookies.map { (k, v) -> String in
                     if !BaseApi.isValidCookieName(k) {
-                        preconditionFailure("Cookie name '\(k)' contains characters forbidden by RFC 6265")
+                        throw ApiError(
+                            statusCode: 0,
+                            message: "Cookie name '\(k)' contains characters forbidden by RFC 6265"
+                        )
                     }
                     if !BaseApi.isValidCookieValue(v) {
-                        preconditionFailure("Cookie value for '\(k)' contains characters forbidden by RFC 6265")
+                        throw ApiError(
+                            statusCode: 0,
+                            message: "Cookie value for '\(k)' contains characters forbidden by RFC 6265"
+                        )
                     }
                     return "\(k)=\(v)"
                 }.joined(separator: "; ")

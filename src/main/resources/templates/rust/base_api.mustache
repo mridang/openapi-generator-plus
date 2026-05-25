@@ -23,6 +23,7 @@ use crate::errors::unauthorized_error::UnauthorizedError;
 use crate::errors::unprocessable_entity_error::UnprocessableEntityError;
 use crate::header_selector::HeaderSelector;
 use crate::trace_context_util;
+use crate::utils::form_url_encode;
 
 /// InvokeApiParams holds parameters for the invoke_api call.
 pub struct InvokeApiParams<'a> {
@@ -396,15 +397,21 @@ pub fn serialize_body(
     }
 
     if content_type == "application/x-www-form-urlencoded" {
-        /* Body arrives as JSON-serialized HashMap; re-encode as URL form data */
+        /* Body arrives as JSON-serialized HashMap; re-encode as URL form data.
+         * Uses the shared form_url_encode helper (utils::form_url_encode) so
+         * the byte-level escape set matches the OAuth2 token-endpoint helper
+         * exactly — space becomes `+`, every non-unreserved byte becomes
+         * %XX. The `urlencoding` crate emits `%20` for space, which is valid
+         * RFC 3986 query syntax but inconsistent with the OAuth body
+         * encoder, so we deliberately do not use it here. */
         let params: std::collections::HashMap<String, String> = serde_json::from_slice(&body)?;
         let encoded: Vec<String> = params
             .iter()
             .map(|(k, v)| {
                 format!(
                     "{}={}",
-                    urlencoding::encode(k),
-                    urlencoding::encode(v)
+                    form_url_encode(k),
+                    form_url_encode(v)
                 )
             })
             .collect();

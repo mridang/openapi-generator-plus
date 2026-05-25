@@ -13,6 +13,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -151,19 +152,27 @@ class OAuth2TokenManager {
                 "${k.encodeURLQueryComponent(spaceToPlus = true)}=${v.encodeURLQueryComponent(spaceToPlus = true)}"
             }
 
-        val headers = mapOf("Content-Type" to "application/x-www-form-urlencoded") + extraHeaders
+        val headers = mapOf(
+            "Content-Type" to "application/x-www-form-urlencoded",
+            "Accept" to "application/json",
+        ) + extraHeaders
 
         val response: ApiResponse = client.sendRequest("POST", tokenUrl, headers, body)
         if (response.statusCode < 200 || response.statusCode >= 300) {
-            throw RuntimeException(
-                "Token request failed with status ${response.statusCode}: ${response.body}",
-            )
+            /* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
+             * `error` (required), `error_description`, `error_uri`. Parse
+             * them into a typed OAuth2ServerError so callers can recover.
+             * Fall back to the raw body when the response is not a valid
+             * error object. */
+            throw parseOAuth2ServerError(response.statusCode, response.body)
         }
 
         val jsonObject = json.parseToJsonElement(response.body).jsonObject
-        this.accessToken =
-            jsonObject["access_token"]?.jsonPrimitive?.content
-                ?: throw RuntimeException("Token response missing access_token field")
+        val accessTokenValue = jsonObject["access_token"]?.jsonPrimitive?.contentOrNull
+        if (accessTokenValue.isNullOrEmpty()) {
+            throw OAuth2TokenError("Token response missing or empty access_token field")
+        }
+        this.accessToken = accessTokenValue
         if (jsonObject.containsKey("refresh_token")) {
             val newRefreshToken = jsonObject["refresh_token"]?.jsonPrimitive?.content
             if (!newRefreshToken.isNullOrEmpty()) {
@@ -190,6 +199,26 @@ class OAuth2TokenManager {
     }
 
     /**
+     * Parse an RFC 6749 §5.2 OAuth2 error response body into a typed
+     * [OAuth2ServerError]. Falls back to a generic error using the raw body
+     * when the body is not a valid OAuth2 error object.
+     */
+    private fun parseOAuth2ServerError(statusCode: Int, body: String): OAuth2ServerError {
+        try {
+            val root = json.parseToJsonElement(body).jsonObject
+            val code = root["error"]?.jsonPrimitive?.contentOrNull
+            if (!code.isNullOrEmpty()) {
+                val description = root["error_description"]?.jsonPrimitive?.contentOrNull
+                val uri = root["error_uri"]?.jsonPrimitive?.contentOrNull
+                return OAuth2ServerError(statusCode, code, description, uri, body)
+            }
+        } catch (_: Exception) {
+            /* Not a JSON body; fall through and report the raw body. */
+        }
+        return OAuth2ServerError(statusCode, null, null, null, body)
+    }
+
+    /**
      * Defensive parse of the `expires_in` field per RFC 6749 §5.1.
      *
      * Returns `0` (caller skips caching) when the value is missing,
@@ -212,5 +241,38 @@ class OAuth2TokenManager {
             return 0L
         }
         return floor(asDouble).toLong()
+    }
+}
+
+/**
+ * Thrown when the OAuth2 token endpoint returns a 2xx response whose body
+ * is missing or contains an empty `access_token` field. Distinct from
+ * [OAuth2ServerError] (which represents RFC 6749 §5.2 error responses on
+ * 4xx/5xx) so callers can recover differently.
+ */
+class OAuth2TokenError(message: String) : RuntimeException(message)
+
+/**
+ * Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
+ * [code] field carries the OAuth2 error code (e.g. `invalid_grant`,
+ * `invalid_client`); [description] and [uri] are the optional human-readable
+ * description and a URL to a page describing the error. [rawBody] preserves
+ * the original response payload for diagnostics when the body is not a
+ * well-formed OAuth2 error object.
+ */
+class OAuth2ServerError(
+    val statusCode: Int,
+    val code: String?,
+    val description: String?,
+    val uri: String?,
+    val rawBody: String,
+) : RuntimeException(buildMessage(statusCode, code, description, rawBody)) {
+    private companion object {
+        fun buildMessage(statusCode: Int, code: String?, description: String?, rawBody: String): String =
+            when {
+                code == null -> "Token request failed with status $statusCode: $rawBody"
+                description != null -> "Token request failed with status $statusCode: $code — $description"
+                else -> "Token request failed with status $statusCode: $code"
+            }
     }
 }

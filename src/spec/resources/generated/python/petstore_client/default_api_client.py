@@ -244,6 +244,14 @@ class DefaultApiClient:
             encoded_body = None
             merged_headers.pop('Content-Type', None)
 
+        # Some servers / WAFs treat POST/PUT/PATCH with no body and
+        # no Content-Length as malformed (411 Length Required) or
+        # behave inconsistently. Emit an explicit `Content-Length: 0`
+        # on body-bearing verbs when the body is None, matching
+        # Kotlin's `ByteArray(0)` and the other 11 SDKs.
+        if encoded_body is None and method.upper() in ('POST', 'PUT', 'PATCH'):
+            merged_headers.setdefault('Content-Length', '0')
+
         # --- Timeout ---
         request_kwargs: Dict[str, Any] = {}
         if self._transport_options.timeout is not None:

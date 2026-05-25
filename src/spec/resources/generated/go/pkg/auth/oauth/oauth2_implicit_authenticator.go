@@ -76,7 +76,14 @@ func (a *OAuth2ImplicitAuthenticator) BuildAuthorizationURL(state string) string
 	if state != "" {
 		params.Set("state", state)
 	}
-	return a.authorizationURL + "?" + params.Encode()
+	// RFC 6749 §3.1: the authorization endpoint URI MAY already include
+	// a query component. Use '&' as the separator when one is already
+	// present so existing params are preserved, '?' otherwise.
+	separator := "?"
+	if strings.Contains(a.authorizationURL, "?") {
+		separator = "&"
+	}
+	return a.authorizationURL + separator + params.Encode()
 }
 
 // AuthHeaders returns the Bearer authentication header.

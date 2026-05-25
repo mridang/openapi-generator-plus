@@ -155,6 +155,17 @@ impl ApiClient for DefaultApiClient {
 
             if let Some(bytes) = &body_bytes {
                 request_builder = request_builder.body(bytes.clone());
+            } else {
+                /* Some servers / WAFs treat POST/PUT/PATCH with no body
+                 * and no Content-Length as malformed (411 Length
+                 * Required) or behave inconsistently. Attach an empty
+                 * Vec<u8> on body-bearing verbs so reqwest emits an
+                 * explicit `Content-Length: 0`, matching Kotlin's
+                 * `ByteArray(0)` and the other 11 SDKs. */
+                let upper = method.to_ascii_uppercase();
+                if upper == "POST" || upper == "PUT" || upper == "PATCH" {
+                    request_builder = request_builder.body(Vec::<u8>::new());
+                }
             }
 
             let mut response = request_builder.send().await.map_err(|e| {
@@ -164,7 +175,9 @@ impl ApiClient for DefaultApiClient {
 
             // Gap BH: manual redirect loop with cross-origin header strip.
             if self.transport_options.follow_redirects() {
-                let max = self.transport_options.max_redirects().unwrap_or(10);
+                // Default to 20 hops when caller does not configure an explicit
+                // cap — unified across all 12 SDKs.
+                let max = self.transport_options.max_redirects().unwrap_or(20);
                 let original_url = reqwest::Url::parse(&url).ok();
                 let mut current_url = original_url.clone();
                 let mut hops = 0usize;

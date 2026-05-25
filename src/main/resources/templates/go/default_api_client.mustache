@@ -98,6 +98,18 @@ func (c *DefaultApiClient) SendRequest(method, url string, headers map[string]st
 		return nil, fmt.Errorf("unsupported body type: %T", body)
 	}
 
+	// Some servers / WAFs treat POST/PUT/PATCH with no body and no
+	// Content-Length as malformed (411 Length Required) or behave
+	// inconsistently. Attach an empty bytes.Reader on body-bearing
+	// verbs so net/http emits an explicit `Content-Length: 0`, matching
+	// Kotlin's `ByteArray(0)` and the other 11 SDKs.
+	if bodyReader == nil {
+		upper := strings.ToUpper(method)
+		if upper == "POST" || upper == "PUT" || upper == "PATCH" {
+			bodyReader = bytes.NewReader(nil)
+		}
+	}
+
 	req, err := http.NewRequest(method, url, bodyReader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -212,7 +224,10 @@ func buildHTTPClient(opts *TransportOptions) *http.Client {
 		// CheckRedirect runs before the next request is dispatched; we strip
 		// the sensitive headers from req when the redirect target's origin
 		// (scheme + host + port) differs from the original request's origin.
-		maxRedirects := 10
+		// Default to 20 hops when caller does not configure an explicit
+		// cap — unified across all 12 SDKs to avoid surprising behavior
+		// differences between languages.
+		maxRedirects := 20
 		if opts.MaxRedirects() != nil {
 			maxRedirects = *opts.MaxRedirects()
 		}

@@ -13,6 +13,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct WetFood {
     /// Example: `null`
+    // Discriminator field — always present on the wire so the parent
+    // untagged enum can dispatch. Initialised by `new()` to the
+    // mapping value; left as a plain (non-Option) field so callers
+    // can read it without unwrapping.
+    #[serde(rename = "foodType")]
+    pub food_type: String,
+    /// Example: `null`
     #[serde(rename = "volumeMl")]
     pub volume_ml: i32,
 }
@@ -21,6 +28,10 @@ pub struct WetFood {
 impl WetFood {
     /// Creates a new WetFood instance with required parameters.
     pub fn new(volume_ml: i32) -> Self {
-        Self { volume_ml }
+        Self {
+            volume_ml,
+            // Auto-set discriminator from oneOf mapping.
+            food_type: "wet".to_string(),
+        }
     }
 }

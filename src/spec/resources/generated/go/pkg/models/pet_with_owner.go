@@ -13,24 +13,59 @@ import (
 )
 
 // PetWithOwner A pet record extended with owner information
+// PetWithOwnerStatusEnum is the typed enum for PetWithOwner.Status.
+type PetWithOwnerStatusEnum string
+
+const (
+	PetWithOwnerStatusEnumAvailable PetWithOwnerStatusEnum = "available"
+	PetWithOwnerStatusEnumPending PetWithOwnerStatusEnum = "pending"
+	PetWithOwnerStatusEnumSold PetWithOwnerStatusEnum = "sold"
+)
+
+// AllPetWithOwnerStatusEnumValues returns all allowed values.
+func AllPetWithOwnerStatusEnumValues() []PetWithOwnerStatusEnum {
+	return []PetWithOwnerStatusEnum{
+		PetWithOwnerStatusEnumAvailable,
+		PetWithOwnerStatusEnumPending,
+		PetWithOwnerStatusEnumSold,
+	}
+}
+
+// UnmarshalJSON validates the value is one of the declared
+// enum members at deserialise time.
+func (v *PetWithOwnerStatusEnum) UnmarshalJSON(data []byte) error {
+	var raw string
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	candidate := PetWithOwnerStatusEnum(raw)
+	for _, allowed := range AllPetWithOwnerStatusEnumValues() {
+		if allowed == candidate {
+			*v = candidate
+			return nil
+		}
+	}
+	return fmt.Errorf("unexpected value %q for enum PetWithOwnerStatusEnum", raw)
+}
+
 type PetWithOwner struct {
-	Id        *int64      `json:"id,omitempty"`
-	Name      string      `json:"name"`
-	Category  *Category   `json:"category,omitempty"`
+	Id *int64 `json:"id,omitempty"`
+	Name string `json:"name"`
+	Category *Category `json:"category,omitempty"`
 	PhotoUrls Set[string] `json:"photoUrls"`
-	Tags      *[]Tag      `json:"tags,omitempty"`
+	Tags *[]Tag `json:"tags,omitempty"`
 	/* Status pet status in the store */
 	/* Deprecated: This property is deprecated. */
-	Status     *string        `json:"status,omitempty"`
-	Location   *[]interface{} `json:"location,omitempty"`
-	OwnerName  string         `json:"ownerName"`
-	OwnerEmail *string        `json:"ownerEmail,omitempty"`
+	Status *PetWithOwnerStatusEnum `json:"status,omitempty"`
+	Location *[]interface{} `json:"location,omitempty"`
+	OwnerName string `json:"ownerName"`
+	OwnerEmail *string `json:"ownerEmail,omitempty"`
 }
 
 // NewPetWithOwner creates a new PetWithOwner instance.
 func NewPetWithOwner(name string, photoUrls Set[string], ownerName string) *PetWithOwner {
 	return &PetWithOwner{
-		Name:      name,
+		Name: name,
 		PhotoUrls: photoUrls,
 		OwnerName: ownerName,
 	}

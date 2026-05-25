@@ -74,6 +74,49 @@ func (v *{{classname}}) UnmarshalJSON(data []byte) error {
 {{#externalDocumentation}}
 // See {{url}} {{description}}
 {{/externalDocumentation}}
+{{#vars}}
+{{#isEnum}}
+// {{classname}}{{enumName}} is the typed enum for {{classname}}.{{name}}.
+type {{classname}}{{enumName}} string
+
+const (
+{{#allowableValues}}
+{{#enumVars}}
+	{{classname}}{{enumName}}{{name}} {{classname}}{{enumName}} = {{{value}}}
+{{/enumVars}}
+{{/allowableValues}}
+)
+
+// All{{classname}}{{enumName}}Values returns all allowed values.
+func All{{classname}}{{enumName}}Values() []{{classname}}{{enumName}} {
+	return []{{classname}}{{enumName}}{
+{{#allowableValues}}
+{{#enumVars}}
+		{{classname}}{{enumName}}{{name}},
+{{/enumVars}}
+{{/allowableValues}}
+	}
+}
+
+// UnmarshalJSON validates the value is one of the declared
+// enum members at deserialise time.
+func (v *{{classname}}{{enumName}}) UnmarshalJSON(data []byte) error {
+	var raw string
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	candidate := {{classname}}{{enumName}}(raw)
+	for _, allowed := range All{{classname}}{{enumName}}Values() {
+		if allowed == candidate {
+			*v = candidate
+			return nil
+		}
+	}
+	return fmt.Errorf("unexpected value %q for enum {{classname}}{{enumName}}", raw)
+}
+
+{{/isEnum}}
+{{/vars}}
 type {{classname}} struct {
 {{#vars}}
 {{#description}}
@@ -86,14 +129,14 @@ type {{classname}} struct {
 	/* Deprecated: This property is deprecated. */
 {{/deprecated}}
 {{#required}}
-	{{name}} {{{dataType}}} `json:"{{baseName}}"`
+	{{name}} {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} `json:"{{baseName}}"`
 {{/required}}
 {{^required}}
 {{#isNullable}}
-	{{name}} *{{{dataType}}} `json:"{{baseName}}"`
+	{{name}} *{{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} `json:"{{baseName}}"`
 {{/isNullable}}
 {{^isNullable}}
-	{{name}} *{{{dataType}}} `json:"{{baseName}},omitempty"`
+	{{name}} *{{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} `json:"{{baseName}},omitempty"`
 {{/isNullable}}
 {{/required}}
 {{/vars}}

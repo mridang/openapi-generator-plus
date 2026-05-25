@@ -2,7 +2,11 @@
 import json
 from unittest.mock import MagicMock
 
-from {{packageName}}.auth.oauth.oauth2_token_manager import OAuth2TokenManager
+from {{packageName}}.auth.oauth.oauth2_token_manager import (
+    OAuth2ServerError,
+    OAuth2TokenError,
+    OAuth2TokenManager,
+)
 from {{packageName}}.api_response import ApiResponse
 
 
@@ -350,3 +354,52 @@ class TestOAuth2TokenManager:
             assert False, 'Expected RuntimeError'
         except RuntimeError:
             pass
+
+    def test_token_response_missing_access_token_throws_typed_error(self) -> None:
+        # A 2xx response whose body omits access_token must surface as the
+        # typed OAuth2TokenError, not silently cache an empty token.
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiResponse(
+            status_code=200,
+            body=json.dumps({'refresh_token': 'x'}),
+            headers={'content-type': 'application/json'},
+        )
+        manager.set_api_client(mock_client)
+
+        try:
+            manager.get_access_token(
+                'https://auth.example.com/token',
+                {'grant_type': 'client_credentials'},
+            )
+            assert False, 'Expected OAuth2TokenError'
+        except OAuth2TokenError:
+            pass
+
+    def test_token_endpoint_error_response_parsed_to_typed_error(self) -> None:
+        # RFC 6749 §5.2: a 4xx response with a JSON error object must surface
+        # as a typed OAuth2ServerError carrying code/description/uri.
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiResponse(
+            status_code=400,
+            body=json.dumps({
+                'error': 'invalid_grant',
+                'error_description': 'refresh token expired',
+                'error_uri': 'https://docs.example.com/errors/invalid_grant',
+            }),
+            headers={'content-type': 'application/json'},
+        )
+        manager.set_api_client(mock_client)
+
+        try:
+            manager.get_access_token(
+                'https://auth.example.com/token',
+                {'grant_type': 'client_credentials'},
+            )
+            assert False, 'Expected OAuth2ServerError'
+        except OAuth2ServerError as err:
+            assert err.status_code == 400
+            assert err.code == 'invalid_grant'
+            assert err.description == 'refresh token expired'
+            assert err.uri == 'https://docs.example.com/errors/invalid_grant'

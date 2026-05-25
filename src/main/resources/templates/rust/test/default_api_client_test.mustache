@@ -453,3 +453,26 @@ async fn test_default_api_client_decompresses_zstd_response() {
     assert_eq!(resp.status_code, 200);
     assert!(resp.body.contains("userId"));
 }
+
+// Regression: POST/PUT/PATCH with body == None must emit an explicit
+// Content-Length: 0. Some servers / WAFs reject body-bearing verbs
+// with no Content-Length (411 Length Required). The client attaches an
+// empty Vec<u8> on body-bearing verbs so reqwest emits the header.
+#[tokio::test]
+async fn test_default_api_client_post_with_null_body_sends_content_length_zero() {
+    let wiremock_url = testcontainers_helper::wiremock_http_url();
+    let client = DefaultApiClient::new(None);
+    let headers = HashMap::new();
+    let resp = client
+        .send_request("POST", &format!("{}/api/echo-content-length", wiremock_url), &headers, None)
+        .await
+        .expect("unexpected error");
+    assert_eq!(resp.status_code, 200);
+    let parsed: serde_json::Value =
+        serde_json::from_str(&resp.body).expect("failed to parse json");
+    assert_eq!(
+        parsed.get("content-length").and_then(|v| v.as_str()),
+        Some("0"),
+        "POST with null body must emit Content-Length: 0"
+    );
+}

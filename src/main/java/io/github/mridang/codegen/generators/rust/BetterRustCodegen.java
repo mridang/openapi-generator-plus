@@ -79,8 +79,13 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         typeMapping.put("double", "f64");
         typeMapping.put("number", "f64");
         typeMapping.put("decimal", "f64");
-        typeMapping.put("date", "String");
-        typeMapping.put("DateTime", "String");
+        // Use chrono for proper date / date-time semantics in
+        // generated structs. The previous String mapping forced
+        // callers to parse manually and lost serde validation on
+        // wire payloads. chrono::DateTime<Utc> serialises as an
+        // RFC-3339 string by default (compatible with OAS).
+        typeMapping.put("date", "chrono::NaiveDate");
+        typeMapping.put("DateTime", "chrono::DateTime<chrono::Utc>");
         typeMapping.put("array", "Vec");
         typeMapping.put("List", "Vec");
         typeMapping.put("set", "std::collections::HashSet");
@@ -436,6 +441,11 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 new SupportingFileSpec(
                         "object_serializer.mustache", "src", "object_serializer.rs"),
                 new SupportingFileSpec("value_serializer.mustache", "src", "value_serializer.rs"),
+                new SupportingFileSpec("utils/mod.mustache", "src/utils", "mod.rs"),
+                new SupportingFileSpec(
+                        "utils/form_url_encode.mustache",
+                        "src/utils",
+                        "form_url_encode.rs"),
                 new SupportingFileSpec(
                         "trace_context_util.mustache", "src", "trace_context_util.rs"),
                 new SupportingFileSpec("api_response.mustache", "src", "api_response.rs"),
@@ -634,19 +644,19 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     }
 
     /*
-     * Removes the discriminator property from variant structs used
-     * in internally tagged enums. Serde's {@code #[serde(tag = "...")]}
-     * manages the tag field itself, so the inner struct must not
-     * declare it as a field. Without this, deserialization fails
-     * with "missing field" and serialization produces duplicate
-     * tag fields. The base class handles this via
-     * {@link #removesDiscriminatorPropertyFromChildren()}.
+     * Keeps the discriminator property on variant structs so
+     * direct construction works (`DryFood::new(...)` auto-emits
+     * `food_type: "dry"`). The parent enum uses
+     * `#[serde(untagged)]` rather than `#[serde(tag = "...")]`,
+     * so there is no longer a duplicate-tag-field conflict — the
+     * child struct's serde-rename'd field IS the discriminator on
+     * the wire. Matches the pattern used by 10 other languages.
      */
 
     /** {@inheritDoc} */
     @Override
     protected boolean removesDiscriminatorPropertyFromChildren() {
-        return true;
+        return false;
     }
 
     /** {@inheritDoc} */

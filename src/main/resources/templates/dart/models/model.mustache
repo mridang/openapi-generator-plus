@@ -49,6 +49,37 @@ enum {{classname}} {
 {{#isDeprecated}}
 @Deprecated('This schema is deprecated.')
 {{/isDeprecated}}
+{{#vars}}
+{{#isEnum}}
+/// Typed enum for {{classname}}.{{name}}.
+enum {{classname}}{{enumName}} {
+{{#allowableValues}}
+{{#enumVars}}
+  /// Represents the value {{{value}}}.
+  {{#lambda.lowercase}}{{name}}{{/lambda.lowercase}}({{{value}}}),
+{{/enumVars}}
+{{/allowableValues}}
+  ;
+
+  final String value;
+  const {{classname}}{{enumName}}(this.value);
+
+  /// Returns the enum value matching the given [value], or throws.
+  static {{classname}}{{enumName}} fromJson(String value) {
+    return {{classname}}{{enumName}}.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () => throw ArgumentError('Unknown {{classname}}{{enumName}} value: $value'),
+    );
+  }
+
+  String toJson() => value;
+
+  @override
+  String toString() => value;
+}
+
+{{/isEnum}}
+{{/vars}}
 class {{classname}} {
 {{#vars}}
 {{#description}}
@@ -68,10 +99,10 @@ class {{classname}} {
   @Deprecated('This property is deprecated.')
 {{/deprecated}}
 {{#required}}
-  final {{{dataType}}} {{name}};
+  final {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}};
 {{/required}}
 {{^required}}
-  final {{{dataType}}}? {{name}};
+  final {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}? {{name}};
 {{/required}}
 
 {{/vars}}
@@ -150,7 +181,7 @@ class {{classname}} {
 {{#vars}}
 {{#required}}
 {{#isEnum}}
-      {{name}}: json['{{baseName}}'] != null ? {{dataType}}.fromJson(json['{{baseName}}'] as String) : throw ArgumentError('Missing required enum field {{baseName}}'),
+      {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as String) : throw ArgumentError('Missing required enum field {{baseName}}'),
 {{/isEnum}}
 {{^isEnum}}
 {{#isArray}}
@@ -187,10 +218,10 @@ class {{classname}} {
 {{^required}}
 {{#isEnum}}
 {{#defaultValue}}
-      {{name}}: json['{{baseName}}'] != null ? {{dataType}}.fromJson(json['{{baseName}}'] as String) : {{{defaultValue}}},
+      {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as String) : {{{defaultValue}}},
 {{/defaultValue}}
 {{^defaultValue}}
-      {{name}}: json['{{baseName}}'] != null ? {{dataType}}.fromJson(json['{{baseName}}'] as String) : null,
+      {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as String) : null,
 {{/defaultValue}}
 {{/isEnum}}
 {{^isEnum}}

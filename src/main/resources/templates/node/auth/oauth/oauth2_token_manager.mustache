@@ -139,15 +139,28 @@ export class OAuth2TokenManager {
     const response = await this.apiClient.sendRequest(
       'POST',
       tokenUrl,
-      { 'Content-Type': 'application/x-www-form-urlencoded', ...extraHeaders },
+      {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Accept: 'application/json',
+        ...extraHeaders,
+      },
       body
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw new Error(`Token request failed with status ${response.statusCode}: ${response.body}`);
+      /* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
+       * `error` (required), `error_description`, `error_uri`. Parse them
+       * into a typed OAuth2ServerError so callers can recover via
+       * `instanceof`. Fall back to the raw body when the response is not
+       * a valid error object. */
+      throw OAuth2TokenManager.parseOAuth2ServerError(response.statusCode, response.body);
     }
     const json = JSON.parse(response.body) as Record<string, unknown>;
-    this.accessToken = json.access_token as string;
+    const accessTokenValue = json.access_token;
+    if (typeof accessTokenValue !== 'string' || accessTokenValue.length === 0) {
+      throw new OAuth2TokenError('Token response missing or empty access_token field');
+    }
+    this.accessToken = accessTokenValue;
     if (typeof json.refresh_token === 'string' && json.refresh_token.length > 0) {
       this.refreshToken = json.refresh_token;
     }
@@ -175,6 +188,30 @@ export class OAuth2TokenManager {
    * unparseable, or non-positive. Accepts integers, floors floats,
    * and parses digit strings (e.g. `"3600"` from Salesforce).
    */
+  /**
+   * Parse an RFC 6749 §5.2 OAuth2 error response body into a typed
+   * {@link OAuth2ServerError}. Falls back to a generic error using the raw
+   * body when the body is not a valid OAuth2 error object.
+   */
+  private static parseOAuth2ServerError(statusCode: number, body: string): OAuth2ServerError {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(body);
+    } catch {
+      return new OAuth2ServerError(statusCode, null, null, null, body);
+    }
+    if (parsed !== null && typeof parsed === 'object') {
+      const obj = parsed as Record<string, unknown>;
+      const code = obj.error;
+      if (typeof code === 'string' && code.length > 0) {
+        const description = typeof obj.error_description === 'string' ? obj.error_description : null;
+        const uri = typeof obj.error_uri === 'string' ? obj.error_uri : null;
+        return new OAuth2ServerError(statusCode, code, description, uri, body);
+      }
+    }
+    return new OAuth2ServerError(statusCode, null, null, null, body);
+  }
+
   private static parseExpiresIn(raw: unknown): number {
     if (raw === null || raw === undefined) {
       return 0;
@@ -197,5 +234,54 @@ export class OAuth2TokenManager {
       return Math.floor(parsed);
     }
     return 0;
+  }
+}
+
+/**
+ * Thrown when the OAuth2 token endpoint returns a 2xx response whose body
+ * is missing or contains an empty `access_token` field. Distinct from
+ * {@link OAuth2ServerError} (which represents RFC 6749 §5.2 error responses
+ * on 4xx/5xx) so callers can recover differently via `instanceof`.
+ */
+export class OAuth2TokenError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'OAuth2TokenError';
+  }
+}
+
+/**
+ * Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
+ * `code` field carries the OAuth2 error code (e.g. `invalid_grant`,
+ * `invalid_client`); `description` and `uri` are the optional
+ * human-readable description and a URL to a page describing the error.
+ * `rawBody` preserves the original response payload for diagnostics when
+ * the body is not a well-formed OAuth2 error object.
+ */
+export class OAuth2ServerError extends Error {
+  constructor(
+    public readonly statusCode: number,
+    public readonly code: string | null,
+    public readonly description: string | null,
+    public readonly uri: string | null,
+    public readonly rawBody: string,
+  ) {
+    super(OAuth2ServerError.buildMessage(statusCode, code, description, rawBody));
+    this.name = 'OAuth2ServerError';
+  }
+
+  private static buildMessage(
+    statusCode: number,
+    code: string | null,
+    description: string | null,
+    rawBody: string,
+  ): string {
+    if (code === null) {
+      return `Token request failed with status ${statusCode}: ${rawBody}`;
+    }
+    if (description !== null) {
+      return `Token request failed with status ${statusCode}: ${code} — ${description}`;
+    }
+    return `Token request failed with status ${statusCode}: ${code}`;
   }
 }

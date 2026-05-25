@@ -224,6 +224,14 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/deprecated}}
 {{/description}}
   @Expose({ name: '{{baseName}}' })
+{{#isDateTime}}
+  @Type(() => Date)
+{{/isDateTime}}
+{{^isDateTime}}
+{{#isDate}}
+  @Type(() => Date)
+{{/isDate}}
+{{^isDate}}
 {{^isPrimitiveType}}
 {{^isArray}}
 {{#complexType}}
@@ -237,6 +245,14 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/isPrimitiveType}}
 {{#isArray}}
 {{#items}}
+{{#isDateTime}}
+  @Type(() => Date)
+{{/isDateTime}}
+{{^isDateTime}}
+{{#isDate}}
+  @Type(() => Date)
+{{/isDate}}
+{{^isDate}}
 {{^isPrimitiveType}}
 {{#complexType}}
 {{^isEnum}}
@@ -246,8 +262,12 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/isEnum}}
 {{/complexType}}
 {{/isPrimitiveType}}
+{{/isDate}}
+{{/isDateTime}}
 {{/items}}
 {{/isArray}}
+{{/isDate}}
+{{/isDateTime}}
   {{name}}{{^required}}?{{/required}}{{#required}}{{^defaultValue}}!{{/defaultValue}}{{/required}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
 {{^-last}}
 {{/-last}}

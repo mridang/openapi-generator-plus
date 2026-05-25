@@ -18,7 +18,7 @@ class DryFood(BaseModel):
     DryFood
     """
 
-    food_type: str = Field(alias='foodType', strict=True)
+    food_type: str = Field(alias='foodType', default='DryFood', strict=True)
     weight_kg: float = Field(alias='weightKg', strict=True)
     additional_properties: Dict[str, Any] = Field(default_factory=dict)
 

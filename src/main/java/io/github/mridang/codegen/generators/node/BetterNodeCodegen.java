@@ -67,8 +67,13 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         typeMapping.put("boolean", "boolean");
         typeMapping.put("string", "string");
         typeMapping.put("decimal", "string");
-        typeMapping.put("date", "string");
-        typeMapping.put("DateTime", "string");
+        // Map OpenAPI date-time formats to the JS Date type so
+        // class-transformer's @Type(() => Date) decorator can
+        // hydrate ISO-8601 strings into actual Date instances
+        // round-trip (the previous `string` mapping forced callers
+        // to parse manually and produced wire/runtime drift).
+        typeMapping.put("date", "Date");
+        typeMapping.put("DateTime", "Date");
         typeMapping.put("binary", "Buffer");
         typeMapping.put("File", "Buffer");
         typeMapping.put("file", "Buffer");

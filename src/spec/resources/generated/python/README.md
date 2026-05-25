@@ -85,3 +85,23 @@ require enabling extra dependencies / feature flags on the underlying
 HTTP library in every one of the 12 SDKs we generate, with non-trivial
 API divergence; we explicitly chose not to. If you need SOCKS, route
 through a local HTTP-CONNECT bridge or configure it at the OS level.
+
+### Per-call cancellation
+
+No generated operation method accepts a per-call cancellation handle.
+In-flight requests can only be terminated by waiting for the configured
+`TransportOptions` request timeout to fire — there is no way to abort
+mid-flight from the caller side. If you need fine-grained per-call
+cancellation, wrap the SDK call in your language's standard concurrency
+primitives (a `Future` you cancel externally, a `Task` you orphan, an
+`asyncio` task you cancel, etc.) and rely on the timeout to break the
+underlying socket.
+
+### `LICENSE` file is not auto-emitted
+
+The package manifest declares MIT, but no `LICENSE` / `LICENSE.md` file
+is generated alongside the sources. Drop the appropriate license text
+into the generated tree as part of your release pipeline before
+publishing to a registry — most registries warn or block on a missing
+file, and the GitHub license auto-detect cannot pick up a manifest-only
+declaration.

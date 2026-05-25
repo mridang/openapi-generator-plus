@@ -9,18 +9,18 @@ package models
 
 import (
 	"encoding/json"
-	"fmt"
 )
 
 // StrictTag is a model class generated from the OpenAPI schema.
 type StrictTag struct {
-	Id   *int64  `json:"id,omitempty"`
+	Id *int64 `json:"id,omitempty"`
 	Name *string `json:"name,omitempty"`
 }
 
 // NewStrictTag creates a new StrictTag instance.
 func NewStrictTag() *StrictTag {
-	return &StrictTag{}
+	return &StrictTag{
+	}
 }
 
 // MarshalJSON implements the json.Marshaler interface.
@@ -43,7 +43,7 @@ func (o *StrictTag) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	knownFields := map[string]bool{
-		"id":   true,
+		"id": true,
 		"name": true,
 	}
 	for key := range raw {

@@ -78,12 +78,12 @@ module {{moduleName}}
     def initialize: (status_code: Integer, body: String, headers: Hash[String, String]) -> void
   end
 
-  class ApiResult
+  class ApiResult[T]
     attr_reader status_code: Integer
-    attr_reader data: untyped
+    attr_reader data: T
     attr_reader raw_body: String?
     attr_reader headers: Hash[String, String]
-    def initialize: (status_code: Integer, data: untyped, raw_body: String?, headers: Hash[String, String]) -> void
+    def initialize: (status_code: Integer, data: T, raw_body: String?, headers: Hash[String, String]) -> void
   end
 
   class ApiError < StandardError
@@ -370,7 +370,7 @@ module {{moduleName}}
     class BaseApi
       attr_reader config: Configuration
       def initialize: (?ApiClient?, ?Configuration, ?Auth::Authenticator?) -> void
-      def invoke_api_for_result: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, Auth::Authenticator?) -> ApiResult
+      def invoke_api_for_result: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, Auth::Authenticator?) -> ApiResult[untyped]
       def invoke_api: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, Auth::Authenticator?) -> untyped
       private
       def throw_api_error: (ApiResponse) -> void

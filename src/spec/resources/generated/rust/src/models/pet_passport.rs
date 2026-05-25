@@ -33,7 +33,7 @@ pub struct PetPassport {
     pub scans: Option<Vec<Vec<u8>>>,
     /// Example: `null`
     #[serde(rename = "issuedAt", skip_serializing_if = "Option::is_none")]
-    pub issued_at: Option<String>,
+    pub issued_at: Option<chrono::DateTime<chrono::Utc>>,
     /// Embedded chip data (OAS 3.1 contentEncoding form)
     /// Example: `null`
     #[serde(rename = "biometricChip", skip_serializing_if = "Option::is_none")]

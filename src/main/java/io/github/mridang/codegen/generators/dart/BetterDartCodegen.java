@@ -475,10 +475,17 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         return null;
     }
 
-    /** {@inheritDoc} */
+    /**
+     * Keep {@code isEnum} on string-typed properties so the Dart
+     * model template can emit typed enums (idiomatic Dart) instead
+     * of erasing them to {@code String}. The template uses
+     * {@code {{dataType}}.fromJson} for inline enums which expects
+     * the typed enum class to exist; we generate it at the
+     * top-of-file as a normal enum.
+     */
     @Override
     protected boolean clearsEnumOnPrimitives() {
-        return true;
+        return false;
     }
 
     /**

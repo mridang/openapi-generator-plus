@@ -135,6 +135,14 @@ export class DefaultApiClient implements ApiClient {
       body = await this.buildMultipartBody(body as Record<string, unknown>, boundary);
     } else if (body == null) {
       delete mergedHeaders['Content-Type'];
+      /* Some servers / WAFs treat POST/PUT/PATCH with no body and no
+       * Content-Length as malformed (411 Length Required) or behave
+       * inconsistently. Set Content-Length: 0 explicitly on body-bearing
+       * verbs to match Kotlin's `ByteArray(0)` and the other 11 SDKs. */
+      const upperMethod = method.toUpperCase();
+      if (upperMethod === 'POST' || upperMethod === 'PUT' || upperMethod === 'PATCH') {
+        mergedHeaders['Content-Length'] = '0';
+      }
     }
 
     /* Gap BH: undici's automatic redirect following re-sends

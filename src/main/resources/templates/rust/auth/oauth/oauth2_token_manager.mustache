@@ -7,6 +7,7 @@ use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
 
 use crate::api_client::{ApiClient, RequestBody};
+use crate::utils::form_url_encode;
 
 /// OAuth2TokenManager manages the OAuth2 token lifecycle: fetching, caching,
 /// and refreshing.
@@ -161,13 +162,14 @@ impl OAuth2TokenManager {
             "Content-Type".to_string(),
             "application/x-www-form-urlencoded".to_string(),
         );
+        headers.insert("Accept".to_string(), "application/json".to_string());
         for (k, v) in extra_headers {
             headers.insert(k.clone(), v.clone());
         }
 
         let body: String = params
             .iter()
-            .map(|(k, v)| format!("{}={}", urlencoding(k), urlencoding(v)))
+            .map(|(k, v)| format!("{}={}", form_url_encode(k), form_url_encode(v)))
             .collect::<Vec<_>>()
             .join("&");
 
@@ -181,18 +183,29 @@ impl OAuth2TokenManager {
             .await?;
 
         if response.status_code < 200 || response.status_code >= 300 {
-            return Err(format!(
-                "token request failed with status {}",
-                response.status_code
-            )
-            .into());
+            /* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
+             * `error` (required), `error_description`, `error_uri`. Parse
+             * them into a typed OAuth2ServerError so callers can recover
+             * via downcast_ref. Fall back to the raw body when the response
+             * is not a valid error object. */
+            return Err(Box::new(parse_oauth2_server_error(
+                response.status_code,
+                &response.body,
+            )) as Box<dyn std::error::Error + Send + Sync>);
         }
 
         let parsed: serde_json::Value = serde_json::from_str(&response.body)?;
 
-        if let Some(token) = parsed.get("access_token").and_then(|v| v.as_str()) {
-            inner.access_token = token.to_string();
-        }
+        let token = parsed
+            .get("access_token")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| {
+                Box::new(OAuth2TokenError {
+                    message: "token response missing or empty access_token field".to_string(),
+                }) as Box<dyn std::error::Error + Send + Sync>
+            })?;
+        inner.access_token = token.to_string();
         if let Some(refresh) = parsed.get("refresh_token").and_then(|v| v.as_str()) {
             if !refresh.is_empty() {
                 inner.refresh_token = refresh.to_string();
@@ -245,6 +258,94 @@ impl OAuth2TokenManager {
  * `RwLock` / `Mutex` ensures interior access is synchronised; callers must
  * supply a Send + Sync `ApiClient`, which our `DefaultApiClient` is. */
 
+/// Returned when the OAuth2 token endpoint returns a 2xx response whose body
+/// is missing or contains an empty `access_token` field. Distinct from
+/// [`OAuth2ServerError`] (which represents RFC 6749 §5.2 error responses on
+/// 4xx/5xx) so callers can recover differently via `downcast_ref`.
+#[derive(Debug)]
+pub struct OAuth2TokenError {
+    pub message: String,
+}
+
+impl std::fmt::Display for OAuth2TokenError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for OAuth2TokenError {}
+
+/// Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
+/// `code` field carries the OAuth2 error code (e.g. `invalid_grant`,
+/// `invalid_client`); `description` and `uri` are the optional
+/// human-readable description and a URL to a page describing the error.
+/// `raw_body` preserves the original response payload for diagnostics when
+/// the body is not a well-formed OAuth2 error object.
+#[derive(Debug)]
+pub struct OAuth2ServerError {
+    pub status_code: u16,
+    pub code: Option<String>,
+    pub description: Option<String>,
+    pub uri: Option<String>,
+    pub raw_body: String,
+}
+
+impl std::fmt::Display for OAuth2ServerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match (&self.code, &self.description) {
+            (None, _) => write!(
+                f,
+                "token request failed with status {}: {}",
+                self.status_code, self.raw_body
+            ),
+            (Some(code), Some(desc)) => write!(
+                f,
+                "token request failed with status {}: {} — {}",
+                self.status_code, code, desc
+            ),
+            (Some(code), None) => write!(
+                f,
+                "token request failed with status {}: {}",
+                self.status_code, code
+            ),
+        }
+    }
+}
+
+impl std::error::Error for OAuth2ServerError {}
+
+/// Parse an RFC 6749 §5.2 OAuth2 error response body into a typed
+/// [`OAuth2ServerError`]. Falls back to a generic error using the raw body
+/// when the body is not a valid OAuth2 error object.
+fn parse_oauth2_server_error(status_code: u16, body: &str) -> OAuth2ServerError {
+    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(body) {
+        if let Some(code) = parsed.get("error").and_then(|v| v.as_str()) {
+            if !code.is_empty() {
+                return OAuth2ServerError {
+                    status_code,
+                    code: Some(code.to_string()),
+                    description: parsed
+                        .get("error_description")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    uri: parsed
+                        .get("error_uri")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    raw_body: body.to_string(),
+                };
+            }
+        }
+    }
+    OAuth2ServerError {
+        status_code,
+        code: None,
+        description: None,
+        uri: None,
+        raw_body: body.to_string(),
+    }
+}
+
 /// Defensive parse of the OAuth2 `expires_in` field per RFC 6749 §5.1.
 ///
 /// Returns `0` (caller skips caching) when the value is missing, unparseable,
@@ -283,23 +384,6 @@ fn parse_expires_in(value: Option<&serde_json::Value>) -> u64 {
         }
     }
     0
-}
-
-/// Percent-encodes a string for use in application/x-www-form-urlencoded bodies.
-fn urlencoding(s: &str) -> String {
-    let mut result = String::new();
-    for byte in s.bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                result.push(byte as char);
-            }
-            b' ' => result.push('+'),
-            _ => {
-                result.push_str(&format!("%{:02X}", byte));
-            }
-        }
-    }
-    result
 }
 
 unsafe impl Send for OAuth2TokenManager {}

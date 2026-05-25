@@ -13,14 +13,15 @@ import (
 
 // ApiResponse is a model class generated from the OpenAPI schema.
 type ApiResponse struct {
-	Code    *int32  `json:"code,omitempty"`
-	Type    *string `json:"type,omitempty"`
+	Code *int32 `json:"code,omitempty"`
+	Type *string `json:"type,omitempty"`
 	Message *string `json:"message,omitempty"`
 }
 
 // NewApiResponse creates a new ApiResponse instance.
 func NewApiResponse() *ApiResponse {
-	return &ApiResponse{}
+	return &ApiResponse{
+	}
 }
 
 // MarshalJSON implements the json.Marshaler interface.

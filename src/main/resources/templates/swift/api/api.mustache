@@ -67,6 +67,15 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#externalDocs}}
     /// See {{url}} {{description}}
 {{/externalDocs}}
+{{#allParams.0}}
+    ///
+    /// - Parameters:
+{{#allParams}}
+{{#description}}
+    ///   - {{paramName}}: {{description}}
+{{/description}}
+{{/allParams}}
+{{/allParams.0}}
 {{#allParams}}{{#vendorExtensions.examples}}
     /// ### `{{paramName}}` — {{summary}}
     /// {{description}}

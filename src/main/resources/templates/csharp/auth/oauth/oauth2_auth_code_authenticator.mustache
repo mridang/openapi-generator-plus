@@ -101,7 +101,12 @@ public class OAuth2AuthorizationCodeAuthenticator
                 Uri.EscapeDataString(p.Key) + "=" + Uri.EscapeDataString(p.Value)
             )
         );
-        return new Uri(_authorizationUrl + "?" + query);
+        /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
+         * a query component. Use '&' as the separator when one is already
+         * present so existing params are preserved, '?' otherwise. */
+        string authUrl = _authorizationUrl.ToString();
+        string separator = authUrl.Contains('?', StringComparison.Ordinal) ? "&" : "?";
+        return new Uri(authUrl + separator + query);
     }
 
     /// <summary>

@@ -1,11 +1,6 @@
 {
-{{#npmName}}
   "name": "{{npmName}}",
-  "version": "{{npmVersion}}",
-{{/npmName}}
-{{^npmName}}
-  "private": true,
-{{/npmName}}
+  "version": "{{packageVersion}}",
   "license": "MIT",
   "engines": {
     "node": ">=22"
@@ -41,7 +36,8 @@
     "@typescript-eslint/eslint-plugin": "^8.0",
     "@typescript-eslint/parser": "^8.0",
     "typescript-eslint": "^8.0",
-    "prettier": "^3.0"{{#generateTests}},
+    "prettier": "^3.0",
+    "typedoc": "^0.25.0"{{#generateTests}},
     "testcontainers": "^10.0"{{/generateTests}}
   }
 }

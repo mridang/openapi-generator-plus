@@ -65,7 +65,11 @@ impl OAuth2ImplicitAuthenticator {
         if !state.is_empty() {
             params.push(format!("state={}", state));
         }
-        format!("{}?{}", self.authorization_url, params.join("&"))
+        /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
+         * a query component. Use '&' as the separator when one is already
+         * present so existing params are preserved, '?' otherwise. */
+        let separator = if self.authorization_url.contains('?') { '&' } else { '?' };
+        format!("{}{}{}", self.authorization_url, separator, params.join("&"))
     }
 }
 

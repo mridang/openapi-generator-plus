@@ -10,6 +10,21 @@ use super::*;
 use serde::{Deserialize, Serialize};
 
 /// Order is a model class generated from the OpenAPI schema.
+/// Typed enum for Order.status.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum OrderStatusEnum {
+    /// Represents the value "placed".
+    #[default]
+    #[serde(rename = "placed")]
+    Placed,
+    /// Represents the value "approved".
+    #[serde(rename = "approved")]
+    Approved,
+    /// Represents the value "delivered".
+    #[serde(rename = "delivered")]
+    Delivered,
+}
+
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Order {
     /// Example: `10`
@@ -23,11 +38,11 @@ pub struct Order {
     pub quantity: Option<i32>,
     /// Example: `null`
     #[serde(rename = "shipDate", skip_serializing_if = "Option::is_none")]
-    pub ship_date: Option<String>,
+    pub ship_date: Option<chrono::DateTime<chrono::Utc>>,
     /// Order Status
     /// Example: `approved`
     #[serde(rename = "status", skip_serializing_if = "Option::is_none")]
-    pub status: Option<String>,
+    pub status: Option<OrderStatusEnum>,
     /// Example: `null`
     #[serde(rename = "complete", skip_serializing_if = "Option::is_none")]
     pub complete: Option<bool>,

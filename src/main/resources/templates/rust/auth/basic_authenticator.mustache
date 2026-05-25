@@ -1,6 +1,8 @@
 {{>api_info}}
 
 use std::collections::HashMap;
+use std::error::Error;
+use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
 
@@ -8,6 +10,39 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 
 use super::Authenticator;
+
+/// Error returned by [`BasicAuthenticator::try_auth_headers`] when the caller
+/// supplies credentials that would corrupt the HTTP Authorization header
+/// (RFC 7617 §2). Callers can downcast to this type so they can distinguish a
+/// usage error from a network failure and recover (e.g. re-prompt) instead of
+/// being terminated by a `panic!`.
+#[derive(Debug)]
+pub enum BasicAuthError {
+    /// Username contained CR, LF, or NUL (header-injection / smuggling).
+    UsernameContainsControlChar,
+    /// Username contained `:` (the RFC 7617 field separator).
+    UsernameContainsColon,
+    /// Password contained CR, LF, or NUL (header-injection / smuggling).
+    PasswordContainsControlChar,
+}
+
+impl fmt::Display for BasicAuthError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            BasicAuthError::UsernameContainsControlChar => f.write_str(
+                "Basic auth username must not contain CR, LF, or NUL characters",
+            ),
+            BasicAuthError::UsernameContainsColon => {
+                f.write_str("Basic auth username must not contain ':' (RFC 7617 §2)")
+            }
+            BasicAuthError::PasswordContainsControlChar => f.write_str(
+                "Basic auth password must not contain CR, LF, or NUL characters",
+            ),
+        }
+    }
+}
+
+impl Error for BasicAuthError {}
 
 /// BasicAuthenticator provides HTTP Basic authentication.
 pub struct BasicAuthenticator {
@@ -25,6 +60,32 @@ impl BasicAuthenticator {
             password: password.to_string(),
         }
     }
+
+    /// Returns the Basic Authorization header, or a typed [`BasicAuthError`]
+    /// when the supplied credentials violate RFC 7617 §2 (colon in user-id, or
+    /// CR/LF/NUL in either field). Use this variant when you need to recover
+    /// gracefully (e.g. re-prompt the user) instead of crashing the process —
+    /// the trait method [`Authenticator::auth_headers`] collapses the error
+    /// to an empty map for interface conformance.
+    pub fn try_auth_headers(&self) -> Result<HashMap<String, String>, BasicAuthError> {
+        for c in self.username.chars() {
+            if c == '\r' || c == '\n' || c == '\0' {
+                return Err(BasicAuthError::UsernameContainsControlChar);
+            }
+            if c == ':' {
+                return Err(BasicAuthError::UsernameContainsColon);
+            }
+        }
+        for c in self.password.chars() {
+            if c == '\r' || c == '\n' || c == '\0' {
+                return Err(BasicAuthError::PasswordContainsControlChar);
+            }
+        }
+        let encoded = STANDARD.encode(format!("{}:{}", self.username, self.password));
+        let mut headers = HashMap::new();
+        headers.insert("Authorization".to_string(), format!("Basic {}", encoded));
+        Ok(headers)
+    }
 }
 
 impl Authenticator for BasicAuthenticator {
@@ -32,35 +93,16 @@ impl Authenticator for BasicAuthenticator {
         &self.host
     }
 
-    /// # Panics
-    ///
-    /// RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field separator)
-    /// and neither user-id nor password may carry CR/LF/NUL (header-injection
-    /// / smuggling vectors common when credentials are read from .env files
-    /// or interactive prompts). Panics because this is a programmer error,
-    /// not a recoverable runtime condition.
+    /// Returns the Basic Authorization header. RFC 7617 §2 violations
+    /// (colon in user-id, CR/LF/NUL in either field) are header-injection /
+    /// smuggling vectors that are typically a programmer error, so the
+    /// resulting unauthenticated request will surface as a 401 from the
+    /// server. Use [`BasicAuthenticator::try_auth_headers`] when you need to
+    /// distinguish "credentials are malformed" from "endpoint rejected" and
+    /// recover programmatically.
     fn auth_headers<'a>(
         &'a self,
     ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
-        Box::pin(async move {
-            for c in self.username.chars() {
-                if c == '\r' || c == '\n' || c == '\0' {
-                    panic!("Basic auth username must not contain CR, LF, or NUL characters");
-                }
-                if c == ':' {
-                    panic!("Basic auth username must not contain ':' (RFC 7617 §2)");
-                }
-            }
-            for c in self.password.chars() {
-                if c == '\r' || c == '\n' || c == '\0' {
-                    panic!("Basic auth password must not contain CR, LF, or NUL characters");
-                }
-            }
-            let encoded =
-                STANDARD.encode(format!("{}:{}", self.username, self.password));
-            let mut headers = HashMap::new();
-            headers.insert("Authorization".to_string(), format!("Basic {}", encoded));
-            headers
-        })
+        Box::pin(async move { self.try_auth_headers().unwrap_or_else(|_| HashMap::new()) })
     }
 }

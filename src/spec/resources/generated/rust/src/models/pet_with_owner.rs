@@ -10,6 +10,21 @@ use super::*;
 use serde::{Deserialize, Serialize};
 
 /// PetWithOwner A pet record extended with owner information
+/// Typed enum for PetWithOwner.status.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum PetWithOwnerStatusEnum {
+    /// Represents the value "available".
+    #[default]
+    #[serde(rename = "available")]
+    Available,
+    /// Represents the value "pending".
+    #[serde(rename = "pending")]
+    Pending,
+    /// Represents the value "sold".
+    #[serde(rename = "sold")]
+    Sold,
+}
+
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct PetWithOwner {
     /// Example: `10`
@@ -31,7 +46,7 @@ pub struct PetWithOwner {
     /// Example: `null`
     #[deprecated]
     #[serde(rename = "status", skip_serializing_if = "Option::is_none")]
-    pub status: Option<String>,
+    pub status: Option<PetWithOwnerStatusEnum>,
     /// Example: `null`
     #[serde(rename = "location", skip_serializing_if = "Option::is_none")]
     pub location: Option<Vec<serde_json::Value>>,

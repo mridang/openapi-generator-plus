@@ -549,7 +549,9 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 "type:time.Time", "hasTimeImport",
                 "type:uuid.UUID", "hasUuidImport",
                 "oneOfAnyOf", "hasFmtImport",
-                "isEnum", "hasFmtImport");
+                "isEnum", "hasFmtImport",
+                "hasInlineEnum", "hasFmtImport",
+                "hasRequired", "hasFmtImport");
     }
 
     /** {@inheritDoc} */

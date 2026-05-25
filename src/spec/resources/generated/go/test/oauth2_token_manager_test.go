@@ -9,6 +9,7 @@ package petstore_test
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -431,5 +432,63 @@ func TestOAuth2TokenManager_ThrowsWhenTokenRequestFails(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected error when token request fails, got nil")
+	}
+}
+
+func TestOAuth2TokenManager_TokenResponseMissingAccessTokenThrowsTypedError(t *testing.T) {
+	// A 2xx response whose body omits access_token must surface as the
+	// typed *OAuth2TokenError, not silently cache an empty token.
+	client := newFakeTokenClient(fakeResponse{
+		body:       `{"refresh_token":"x"}`,
+		statusCode: 200,
+	})
+
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	_, err := manager.GetAccessToken("https://auth.example.com/token", map[string]string{
+		"grant_type": "client_credentials",
+	})
+	if err == nil {
+		t.Fatal("expected error when access_token is missing, got nil")
+	}
+	var typed *oauth.OAuth2TokenError
+	if !errors.As(err, &typed) {
+		t.Fatalf("expected *OAuth2TokenError, got %T: %v", err, err)
+	}
+}
+
+func TestOAuth2TokenManager_TokenEndpointErrorResponseParsedToTypedError(t *testing.T) {
+	// RFC 6749 §5.2: a 4xx response with a JSON error object must surface
+	// as a typed *OAuth2ServerError carrying code/description/uri.
+	client := newFakeTokenClient(fakeResponse{
+		body:       `{"error":"invalid_grant","error_description":"refresh token expired","error_uri":"https://docs.example.com/errors/invalid_grant"}`,
+		statusCode: 400,
+	})
+
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	_, err := manager.GetAccessToken("https://auth.example.com/token", map[string]string{
+		"grant_type": "client_credentials",
+	})
+	if err == nil {
+		t.Fatal("expected error when token request fails, got nil")
+	}
+	var typed *oauth.OAuth2ServerError
+	if !errors.As(err, &typed) {
+		t.Fatalf("expected *OAuth2ServerError, got %T: %v", err, err)
+	}
+	if typed.StatusCode != 400 {
+		t.Errorf("expected status 400, got %d", typed.StatusCode)
+	}
+	if typed.Code != "invalid_grant" {
+		t.Errorf("expected code 'invalid_grant', got %q", typed.Code)
+	}
+	if typed.Description != "refresh token expired" {
+		t.Errorf("expected description 'refresh token expired', got %q", typed.Description)
+	}
+	if typed.URI != "https://docs.example.com/errors/invalid_grant" {
+		t.Errorf("unexpected URI: %q", typed.URI)
 	}
 }

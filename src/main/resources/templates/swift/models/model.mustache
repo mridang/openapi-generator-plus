@@ -28,6 +28,19 @@ public enum {{classname}}: String, Codable, Sendable, CaseIterable {
 {{#externalDocumentation}}
 /// See {{url}} {{description}}
 {{/externalDocumentation}}
+{{#vars}}
+{{#isEnum}}
+/// Typed enum for {{classname}}.{{name}}.
+public enum {{classname}}{{enumName}}: String, Codable, Sendable, CaseIterable {
+{{#allowableValues}}
+{{#enumVars}}
+    case {{name}} = {{{value}}}
+{{/enumVars}}
+{{/allowableValues}}
+}
+
+{{/isEnum}}
+{{/vars}}
 public struct {{classname}}: Codable, Sendable {
 {{#vars}}
 {{#description}}
@@ -47,10 +60,10 @@ public struct {{classname}}: Codable, Sendable {
     @available(*, deprecated, message: "This property is deprecated.")
 {{/deprecated}}
 {{#required}}
-    public var {{name}}: {{{dataType}}}
+    public var {{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}
 {{/required}}
 {{^required}}
-    public var {{name}}: {{{dataType}}}?
+    public var {{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?
 {{/required}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
@@ -68,7 +81,7 @@ public struct {{classname}}: Codable, Sendable {
 
 {{#hasVars}}
     /// Creates a new {{classname}} instance.
-    public init({{#requiredVars}}{{nameInCamelCase}}: {{{dataType}}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{nameInCamelCase}}: {{{dataType}}}?{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{^defaultValue}} = nil{{/defaultValue}}{{^-last}}, {{/-last}}{{/optionalVars}}) {
+    public init({{#requiredVars}}{{nameInCamelCase}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{nameInCamelCase}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{^defaultValue}} = nil{{/defaultValue}}{{^-last}}, {{/-last}}{{/optionalVars}}) {
 {{#requiredVars}}
         self.{{name}} = {{nameInCamelCase}}
 {{/requiredVars}}
@@ -86,10 +99,10 @@ public struct {{classname}}: Codable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 {{#vars}}
 {{#required}}
-        self.{{name}} = try container.decode({{{dataType}}}.self, forKey: .{{name}})
+        self.{{name}} = try container.decode({{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}.self, forKey: .{{name}})
 {{/required}}
 {{^required}}
-        self.{{name}} = try container.decodeIfPresent({{{dataType}}}.self, forKey: .{{name}})
+        self.{{name}} = try container.decodeIfPresent({{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}.self, forKey: .{{name}})
 {{/required}}
 {{/vars}}
 {{#isUnevaluatedPropertiesFalse}}
@@ -156,10 +169,10 @@ public struct {{classname}}: Codable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 {{#vars}}
 {{#required}}
-        self.{{name}} = try container.decode({{{dataType}}}.self, forKey: .{{name}})
+        self.{{name}} = try container.decode({{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}.self, forKey: .{{name}})
 {{/required}}
 {{^required}}
-        self.{{name}} = try container.decodeIfPresent({{{dataType}}}.self, forKey: .{{name}})
+        self.{{name}} = try container.decodeIfPresent({{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}.self, forKey: .{{name}})
 {{/required}}
 {{/vars}}
 

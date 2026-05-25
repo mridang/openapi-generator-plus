@@ -12,12 +12,46 @@ import java.io.FileInputStream
 import java.security.KeyStore
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
+import java.net.Socket
+import javax.net.ssl.SSLEngine
 import javax.net.ssl.TrustManagerFactory
+import javax.net.ssl.X509ExtendedTrustManager
 import javax.net.ssl.X509TrustManager
 
+/*
+ * Gap AM: when verifySsl=false we must skip BOTH certificate-chain
+ * validation AND hostname identification (curl -k semantics). Ktor's
+ * CIO engine unconditionally calls
+ * `SSLEngine.setEndpointIdentificationAlgorithm("HTTPS")`, which
+ * triggers hostname verification inside the JSSE handshake — and the
+ * JSSE hostname check is only skipped when the trust manager is an
+ * `X509ExtendedTrustManager` whose extended `checkServerTrusted`
+ * overloads (the ones taking an `SSLEngine` / `Socket`) are no-ops.
+ * Subclassing `X509TrustManager` alone causes JSSE to wrap us in an
+ * adapter that still performs hostname verification, defeating the
+ * "trust all" intent. So we extend the extended variant and override
+ * every overload.
+ */
 private val TRUST_ALL_MANAGER =
-    object : X509TrustManager {
+    object : X509ExtendedTrustManager() {
         override fun checkClientTrusted(
+            chain: Array<X509Certificate>,
+            authType: String,
+        ) {}
+
+        override fun checkClientTrusted(
+            chain: Array<X509Certificate>,
+            authType: String,
+            socket: Socket?,
+        ) {}
+
+        override fun checkClientTrusted(
+            chain: Array<X509Certificate>,
+            authType: String,
+            engine: SSLEngine?,
+        ) {}
+
+        override fun checkServerTrusted(
             chain: Array<X509Certificate>,
             authType: String,
         ) {}
@@ -25,6 +59,13 @@ private val TRUST_ALL_MANAGER =
         override fun checkServerTrusted(
             chain: Array<X509Certificate>,
             authType: String,
+            socket: Socket?,
+        ) {}
+
+        override fun checkServerTrusted(
+            chain: Array<X509Certificate>,
+            authType: String,
+            engine: SSLEngine?,
         ) {}
 
         override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()

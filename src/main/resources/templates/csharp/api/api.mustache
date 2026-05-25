@@ -2,7 +2,6 @@
 
 #pragma warning disable CA1002 // Do not expose generic lists
 #pragma warning disable CA1056 // URI properties should not be strings
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
 using {{packageName}}.Auth;
 using {{packageName}}.Models;
@@ -48,6 +47,9 @@ public sealed class {{pascalName}}Value
 {{#hasDescription}}
 /// <summary>{{description}}</summary>
 {{/hasDescription}}
+{{^hasDescription}}
+/// <summary>Server variant {{variantName}} for the {{operationId}} operation.</summary>
+{{/hasDescription}}
 {{#hasVariables}}
 public sealed class {{variantName}}({{#serverVariables}}{{#hasEnumValues}}{{pascalName}}Value{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}} {{camelName}}{{^-last}}, {{/-last}}{{/serverVariables}}) : {{serverTypeName}}
 {
@@ -71,6 +73,9 @@ public sealed class {{variantName}}({{#serverVariables}}{{#hasEnumValues}}{{pasc
 }
 {{/hasVariables}}
 {{^hasVariables}}
+{{^hasDescription}}
+/// <summary>Server variant {{variantName}} for the {{operationId}} operation.</summary>
+{{/hasDescription}}
 public sealed class {{variantName}} : {{serverTypeName}}
 {
     /// <inheritdoc />
@@ -94,12 +99,20 @@ public class {{classname}} : BaseApi
 {{#operation}}{{#produces}}{{#-first}}
     private static readonly string[] {{operationId}}Accepts = [{{/-first}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{#-last}}];
 {{/-last}}{{/produces}}{{/operation}}
+    /// <summary>Initializes a new instance of <see cref="{{classname}}"/> with defaults.</summary>
     public {{classname}}()
         : base() { }
 
+    /// <summary>Initializes a new instance of <see cref="{{classname}}"/> with the given client and configuration.</summary>
+    /// <param name="apiClient">The HTTP client used to make API calls.</param>
+    /// <param name="config">The configuration for the API client.</param>
     public {{classname}}(IApiClient apiClient, Configuration config)
         : base(apiClient, config) { }
 
+    /// <summary>Initializes a new instance of <see cref="{{classname}}"/> with the given client, configuration, and default authenticator.</summary>
+    /// <param name="apiClient">The HTTP client used to make API calls.</param>
+    /// <param name="config">The configuration for the API client.</param>
+    /// <param name="authenticator">Optional default authenticator applied when none is passed per-operation.</param>
     public {{classname}}(IApiClient apiClient, Configuration config, IAuthenticator? authenticator)
         : base(apiClient, config, authenticator) { }
     {{#operation}}
@@ -183,6 +196,50 @@ public class {{classname}} : BaseApi
     /// <summary>
     /// {{summary}} (with HTTP info)
     /// </summary>
+{{#notes}}
+    /// <remarks>{{.}}</remarks>
+{{/notes}}
+{{#hasAuthMethods}}
+    /// <param name="auth">Authenticator for this operation.</param>
+{{/hasAuthMethods}}
+    {{#pathParams}}
+    /// <param name="{{paramName}}">{{description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
+    {{/pathParams}}
+    {{#bodyParam}}
+    /// <param name="{{paramName}}">{{description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
+    {{/bodyParam}}
+{{#queryParams}}
+{{#-first}}
+    /// <param name="options">Options for query, header, and form parameters.</param>
+{{/-first}}
+{{/queryParams}}
+{{^queryParams}}
+{{#headerParams}}
+{{#-first}}
+    /// <param name="options">Options for query, header, and form parameters.</param>
+{{/-first}}
+{{/headerParams}}
+{{^headerParams}}
+{{#formParams}}
+{{#-first}}
+    /// <param name="options">Options for query, header, and form parameters.</param>
+{{/-first}}
+{{/formParams}}
+{{^formParams}}
+{{#cookieParams}}
+{{#-first}}
+    /// <param name="options">Options for query, header, and form parameters.</param>
+{{/-first}}
+{{/cookieParams}}
+{{/formParams}}
+{{/headerParams}}
+{{/queryParams}}
+{{#servers}}
+{{#-first}}
+    /// <param name="server">Optional per-operation server override.</param>
+{{/-first}}
+{{/servers}}
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>> {{operationId}}WithHttpInfoAsync({{#hasAuthMethods}}IAuthenticator auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{{dataType}}}{{^required}}?{{/required}} {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? options = null{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server? server = null{{/-first}}{{/servers}})
     {

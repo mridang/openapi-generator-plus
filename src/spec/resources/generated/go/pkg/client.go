@@ -57,7 +57,7 @@ func NewClient(authenticator Authenticator, transportOptions *TransportOptions) 
 		Build()
 
 	return &Client{
-		PetApi:   NewPetApi(apiClient, config, authenticator),
+		PetApi: NewPetApi(apiClient, config, authenticator),
 		StoreApi: NewStoreApi(apiClient, config, authenticator),
 	}
 }

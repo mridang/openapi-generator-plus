@@ -20,7 +20,7 @@ pub struct PhotoMetadata {
     pub is_primary: Option<bool>,
     /// Example: `null`
     #[serde(rename = "takenAt", skip_serializing_if = "Option::is_none")]
-    pub taken_at: Option<String>,
+    pub taken_at: Option<chrono::DateTime<chrono::Utc>>,
     /// Example: `null`
     #[serde(rename = "location", skip_serializing_if = "Option::is_none")]
     pub location: Option<PhotoMetadataLocation>,

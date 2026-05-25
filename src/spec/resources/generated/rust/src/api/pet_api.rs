@@ -182,6 +182,7 @@ impl PetApi {
     }
 
     /// Add a new pet to the store
+    /// * `pet`: Create a new pet in the store
     pub async fn add_pet(
         &self,
         auth: Option<&dyn Authenticator>,
@@ -419,6 +420,8 @@ impl PetApi {
     }
 
     /// Deletes a pet
+    /// * `pet_id`: Pet id to delete
+    /// * `api_key`: Session cookie used for authentication
     pub async fn delete_pet(
         &self,
         auth: Option<&dyn Authenticator>,
@@ -676,6 +679,8 @@ impl PetApi {
     /// Finds Pets by status
     #[deprecated]
     /// See https://example.com/docs/filtering Find out more about filtering
+    /// * `status`: Status values that need to be considered for filter
+    /// * `filter`: Filter criteria as key-value pairs
     /// ### `status` — Available only
     /// Show only pets currently in stock
     /// ```json
@@ -1131,6 +1136,7 @@ impl PetApi {
     /// Find pet by ID
     /// Returns a single pet
     #[deprecated]
+    /// * `pet_id`: ID of pet to return
     /// ### `pet_id` — Small breed ID
     /// A common small-breed pet identifier
     /// ```json
@@ -1971,6 +1977,8 @@ impl PetApi {
     }
 
     /// Update an existing pet
+    /// * `pet_id`: ID of pet to update
+    /// * `pet`: Pet object that needs to be updated
     pub async fn update_pet(
         &self,
         pet_id: i64,

@@ -487,3 +487,25 @@ func TestDefaultApiClient_MakesRequestThroughProxyWithBasicAuth(t *testing.T) {
 		t.Errorf("expected status 200, got %d", resp.StatusCode)
 	}
 }
+
+// Regression: POST/PUT/PATCH with body == nil must emit an explicit
+// Content-Length: 0. Some servers / WAFs reject body-bearing verbs with
+// no Content-Length (411 Length Required). The client attaches an empty
+// bytes.Reader on body-bearing verbs so net/http emits the header.
+func TestDefaultApiClient_PostWithNullBodySendsContentLengthZero(t *testing.T) {
+	client := {{packageName}}.NewDefaultApiClient({{packageName}}.NewTransportOptionsBuilder().Build())
+	resp, err := client.SendRequest("POST", wiremockHTTPURL+"/api/echo-content-length", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+	}
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(resp.Body), &parsed); err != nil {
+		t.Fatalf("failed to parse body: %v", err)
+	}
+	if parsed["content-length"] != "0" {
+		t.Errorf("expected content-length '0', got %v", parsed["content-length"])
+	}
+}

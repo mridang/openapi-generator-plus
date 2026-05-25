@@ -135,6 +135,7 @@ class OAuth2TokenManager {
 
     final headers = <String, String>{
       'Content-Type': 'application/x-www-form-urlencoded',
+      'Accept': 'application/json',
       ...extraHeaders,
     };
 
@@ -146,13 +147,22 @@ class OAuth2TokenManager {
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw StateError(
-        'Token request failed with status ${response.statusCode}',
-      );
+      /* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
+       * `error` (required), `error_description`, `error_uri`. Parse them
+       * into a typed OAuth2ServerError so callers can recover via
+       * `on OAuth2ServerError`. Fall back to the raw body when the
+       * response is not a valid error object. */
+      throw _parseOAuth2ServerError(response.statusCode, response.body);
     }
 
     final parsed = jsonDecode(response.body) as Map<String, dynamic>;
-    _accessToken = parsed['access_token'] as String? ?? '';
+    final accessTokenValue = parsed['access_token'];
+    if (accessTokenValue is! String || accessTokenValue.isEmpty) {
+      throw OAuth2TokenError(
+        'Token response missing or empty access_token field',
+      );
+    }
+    _accessToken = accessTokenValue;
     final newRefreshToken = parsed['refresh_token'] as String?;
     if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
       _refreshToken = newRefreshToken;
@@ -173,6 +183,33 @@ class OAuth2TokenManager {
         _tokenExpiry = DateTime.now();
       }
     }
+  }
+
+  /// Parse an RFC 6749 §5.2 OAuth2 error response body into a typed
+  /// [OAuth2ServerError]. Falls back to a generic error using the raw body
+  /// when the body is not a valid OAuth2 error object.
+  OAuth2ServerError _parseOAuth2ServerError(int statusCode, String body) {
+    dynamic parsed;
+    try {
+      parsed = jsonDecode(body);
+    } catch (_) {
+      return OAuth2ServerError(statusCode, null, null, null, body);
+    }
+    if (parsed is Map<String, dynamic>) {
+      final code = parsed['error'];
+      if (code is String && code.isNotEmpty) {
+        final description = parsed['error_description'];
+        final uri = parsed['error_uri'];
+        return OAuth2ServerError(
+          statusCode,
+          code,
+          description is String ? description : null,
+          uri is String ? uri : null,
+          body,
+        );
+      }
+    }
+    return OAuth2ServerError(statusCode, null, null, null, body);
   }
 
   /// Defensive parse of the `expires_in` field per RFC 6749 §5.1.
@@ -204,5 +241,51 @@ class OAuth2TokenManager {
       return parsed.floor();
     }
     return 0;
+  }
+}
+
+/// Thrown when the OAuth2 token endpoint returns a 2xx response whose body
+/// is missing or contains an empty `access_token` field. Distinct from
+/// [OAuth2ServerError] (which represents RFC 6749 §5.2 error responses on
+/// 4xx/5xx) so callers can recover differently via `on OAuth2TokenError`.
+class OAuth2TokenError implements Exception {
+  final String message;
+
+  OAuth2TokenError(this.message);
+
+  @override
+  String toString() => 'OAuth2TokenError: $message';
+}
+
+/// Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
+/// [code] field carries the OAuth2 error code (e.g. `invalid_grant`,
+/// `invalid_client`); [description] and [uri] are the optional
+/// human-readable description and a URL to a page describing the error.
+/// [rawBody] preserves the original response payload for diagnostics when
+/// the body is not a well-formed OAuth2 error object.
+class OAuth2ServerError implements Exception {
+  final int statusCode;
+  final String? code;
+  final String? description;
+  final String? uri;
+  final String rawBody;
+
+  OAuth2ServerError(
+    this.statusCode,
+    this.code,
+    this.description,
+    this.uri,
+    this.rawBody,
+  );
+
+  @override
+  String toString() {
+    if (code == null) {
+      return 'OAuth2ServerError: Token request failed with status $statusCode: $rawBody';
+    }
+    if (description != null) {
+      return 'OAuth2ServerError: Token request failed with status $statusCode: $code -- $description';
+    }
+    return 'OAuth2ServerError: Token request failed with status $statusCode: $code';
   }
 }

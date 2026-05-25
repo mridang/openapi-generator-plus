@@ -220,17 +220,19 @@ defmodule {{moduleName}}.Models.{{classname}} do
 
   @type t :: %__MODULE__{
   {{#vars}}
-          {{name}}: {{{dataType}}} | nil{{^-last}},{{/-last}}
+          {{name}}: {{#isEnum}}{{#allowableValues}}{{#enumVars}}:"{{#lambda.lowercase}}{{{name}}}{{/lambda.lowercase}}"{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} | nil{{^-last}},{{/-last}}
   {{/vars}}
         }
 
-  {{#vars}}
-  {{#required}}
+  {{#hasRequired}}
+  @enforce_keys [
+  {{#requiredVars}}
   {{^defaultValue}}
-  @enforce_keys [:{{name}}]
+    :{{name}}{{^-last}},{{/-last}}
   {{/defaultValue}}
-  {{/required}}
-  {{/vars}}
+  {{/requiredVars}}
+  ]
+  {{/hasRequired}}
   defstruct [
   {{#vars}}
 {{#defaultValue}}

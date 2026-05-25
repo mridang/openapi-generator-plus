@@ -1412,6 +1412,11 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 modelMap.put("isUnevaluatedPropertiesFalse", true);
             }
             stripPrimitiveParent(model);
+            // Filter the OpenAPI Generator sentinel ghost-enum value
+            // ("UnknownDefaultOpenApi" = "11184809") that upstream injects
+            // into every string enum. It is not part of the spec and
+            // pollutes generated client enums in every language.
+            stripGhostEnumValues(model);
             for (final CodegenProperty prop : model.vars) {
                 sanitizeByteArrayExample(prop);
                 fixEnumDefaultValue(prop, model);
@@ -1507,10 +1512,79 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                         modelMap.put(flagName, true);
                         result.put(flagName, true);
                     }
+                } else if ("hasInlineEnum".equals(key)) {
+                    final boolean hasInlineEnum =
+                            model.vars.stream().anyMatch(p -> p.isEnum);
+                    if (hasInlineEnum) {
+                        modelMap.put(flagName, true);
+                        result.put(flagName, true);
+                    }
+                } else if ("hasRequired".equals(key)) {
+                    if (model.hasRequired) {
+                        modelMap.put(flagName, true);
+                        result.put(flagName, true);
+                    }
                 }
             }
         }
         return result;
+    }
+
+    /**
+     * Removes the OpenAPI Generator sentinel ghost-enum value
+     * ("UnknownDefaultOpenApi" = "11184809") from all enum-typed
+     * properties on a model and from the model itself when it is an
+     * enum. Upstream injects this sentinel into every string enum to
+     * represent "unknown future values," but it leaks into client SDKs
+     * as a meaningless extra variant.
+     */
+    private static void stripGhostEnumValues(CodegenModel model) {
+        if (model.isEnum) {
+            stripGhostEnumFromAllowableValues(model.allowableValues);
+        }
+        for (final CodegenProperty prop : model.vars) {
+            if (prop.isEnum) {
+                stripGhostEnumFromAllowableValues(prop.allowableValues);
+            }
+        }
+        for (final CodegenProperty prop : model.allVars) {
+            if (prop.isEnum) {
+                stripGhostEnumFromAllowableValues(prop.allowableValues);
+            }
+        }
+        for (final CodegenProperty prop : model.optionalVars) {
+            if (prop.isEnum) {
+                stripGhostEnumFromAllowableValues(prop.allowableValues);
+            }
+        }
+        for (final CodegenProperty prop : model.requiredVars) {
+            if (prop.isEnum) {
+                stripGhostEnumFromAllowableValues(prop.allowableValues);
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void stripGhostEnumFromAllowableValues(
+            @Nullable Map<String, Object> allowableValues) {
+        if (allowableValues == null) {
+            return;
+        }
+        final Object values = allowableValues.get("values");
+        if (values instanceof List) {
+            ((List<Object>) values).removeIf(v -> "11184809".equals(String.valueOf(v)));
+        }
+        final Object enumVars = allowableValues.get("enumVars");
+        if (enumVars instanceof List) {
+            ((List<Map<String, Object>>) enumVars).removeIf(entry -> {
+                final Object value = entry.get("value");
+                final Object name = entry.get("name");
+                return ("'11184809'".equals(String.valueOf(value))
+                        || "\"11184809\"".equals(String.valueOf(value))
+                        || "11184809".equals(String.valueOf(value))
+                        || "UnknownDefaultOpenApi".equals(String.valueOf(name)));
+            });
+        }
     }
 
     /**
@@ -2139,11 +2213,19 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         if (!shouldApplyTypeDecorators()) {
             return false;
         }
+        if (prop.isDate || prop.isDateTime) {
+            return true;
+        }
         if (!prop.isPrimitiveType
                 && !prop.isArray
                 && prop.complexType != null
                 && !prop.isEnum
                 && !prop.isFreeFormObject) {
+            return true;
+        }
+        if (prop.isArray
+                && prop.items != null
+                && (prop.items.isDate || prop.items.isDateTime)) {
             return true;
         }
         return prop.isArray
@@ -2874,6 +2956,20 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             if (optionsParams.isEmpty()) {
                 continue;
             }
+            // Flag whether any Options-class field is required, so language
+            // templates can drop the trailing `?` / `= nil` sigil and force
+            // the caller to pass an Options instance (compile-time check).
+            boolean anyRequiredOption = false;
+            for (final CodegenParameter p : optionsParams) {
+                if (p.required) {
+                    anyRequiredOption = true;
+                    break;
+                }
+            }
+            if (op.vendorExtensions == null) {
+                op.vendorExtensions = new HashMap<>();
+            }
+            op.vendorExtensions.put("hasRequiredOptions", anyRequiredOption);
             final String className =
                     NamingConvention.PASCAL_CASE.apply(op.operationId) + "Options";
             final String content = generateOptionsFileContent(op, optionsParams, className);
@@ -3161,6 +3257,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             "wiremock/mappings/echo-method-bodylength.json",
             "wiremock/mappings/slow.json",
             "wiremock/mappings/echo-headers.json",
+            "wiremock/mappings/echo-content-length.json",
+            "wiremock/mappings/echo-cookie.json",
+            "wiremock/mappings/set-cookie.json",
             "wiremock/mappings/response-headers.json",
             "wiremock/mappings/echo-body.json",
             "wiremock/mappings/text-plain.json",

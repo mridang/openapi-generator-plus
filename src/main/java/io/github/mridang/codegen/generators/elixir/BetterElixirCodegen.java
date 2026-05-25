@@ -70,8 +70,12 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         typeMapping.put("double", "float()");
         typeMapping.put("number", "float()");
         typeMapping.put("decimal", "float()");
-        typeMapping.put("date", "String.t()");
-        typeMapping.put("DateTime", "String.t()");
+        // Elixir's built-in Date/DateTime types preserve calendar
+        // semantics that String.t() loses. ObjectSerializer can
+        // pipe ISO-8601 wire strings through Date.from_iso8601!/1
+        // and DateTime.from_iso8601/1 on decode.
+        typeMapping.put("date", "Date.t()");
+        typeMapping.put("DateTime", "DateTime.t()");
         typeMapping.put("array", "list");
         typeMapping.put("List", "list");
         typeMapping.put("set", "MapSet.t()");
@@ -497,6 +501,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             final Map<String, Object> param = new HashMap<>();
             param.put("name", NamingConvention.SNAKE_CASE.apply(p.paramName));
             param.put("dataType", p.dataType);
+            param.put("typespec", toElixirTypespec(p));
             param.put("required", p.required);
             if (p.description != null && !p.description.isEmpty()) {
                 param.put("description", p.description);
@@ -598,5 +603,50 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                     "client_id", "client_secret", "redirect_uri", "[]");
         }
         return List.of();
+    }
+
+    /**
+     * Maps a CodegenParameter to an Elixir typespec string suitable for
+     * {@code @type t :: %__MODULE__{...}}. Optional fields are unioned with
+     * {@code nil} so Dialyzer and editor tooling pick up the real shape.
+     */
+    private static String toElixirTypespec(CodegenParameter p) {
+        final String base = elixirBaseType(p);
+        return p.required ? base : base + " | nil";
+    }
+
+    private static String elixirBaseType(CodegenParameter p) {
+        if (p.isMap) {
+            return "map()";
+        }
+        if (p.dataType == null || p.dataType.isEmpty()) {
+            return "any()";
+        }
+        final String dt = p.dataType;
+        // Elixir array container is rendered as [Inner] by the codegen.
+        if (p.isArray && dt.startsWith("[") && dt.endsWith("]")) {
+            return "list(" + elementTypespec(dt.substring(1, dt.length() - 1)) + ")";
+        }
+        if (p.isArray) {
+            return "list()";
+        }
+        // typeMapping already returns Elixir-shaped strings for primitives
+        // (String.t(), integer(), boolean(), float(), binary(), MapSet.t(),
+        // map(), any()). Anything else is a model name — render as Model.t().
+        if (dt.endsWith(")") || "list".equals(dt)) {
+            return "list".equals(dt) ? "list()" : dt;
+        }
+        return dt + ".t()";
+    }
+
+    private static String elementTypespec(String inner) {
+        final String t = inner.trim();
+        if (t.isEmpty()) {
+            return "any()";
+        }
+        if (t.endsWith(")")) {
+            return t;
+        }
+        return t + ".t()";
     }
 }

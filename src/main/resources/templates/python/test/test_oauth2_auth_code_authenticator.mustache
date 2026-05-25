@@ -133,3 +133,24 @@ class TestOAuth2AuthorizationCodeAuthenticator:
 
         # Caller continues normally after catching -- no process crash.
         assert auth.get_host() == 'https://api.example.com'
+
+    def test_authorize_url_with_existing_query_string_uses_amp_separator(self) -> None:
+        # RFC 6749 §3.1: the authorization endpoint URI MAY already include
+        # a query component (e.g. tenant-scoped Auth0 URLs). The builder
+        # must preserve existing query items alongside the OAuth2 ones
+        # using '&' as the separator, not '?'.
+        auth = OAuth2AuthorizationCodeAuthenticator(
+            host='https://api.example.com',
+            client_id='my_client_id',
+            client_secret='my_secret',
+            authorization_url='https://x.auth0.com/authorize?audience=api',
+            token_url='https://x.auth0.com/oauth/token',
+            redirect_uri='https://app.example.com/callback',
+            scopes=['read'],
+        )
+
+        url = auth.build_authorization_url()
+
+        assert 'audience=api' in url, f'existing query param must be preserved: {url}'
+        assert 'response_type=code' in url, f'response_type must be appended: {url}'
+        assert url.count('?') == 1, f"result must contain exactly one '?': {url}"

@@ -44,6 +44,23 @@ impl {{classname}} {
 {{#isDeprecated}}
 #[deprecated]
 {{/isDeprecated}}
+{{#vars}}
+{{#isEnum}}
+/// Typed enum for {{classname}}.{{name}}.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum {{classname}}{{enumName}} {
+{{#allowableValues}}
+{{#enumVars}}
+    /// Represents the value {{{value}}}.
+    {{#-first}}#[default]
+    {{/-first}}#[serde(rename = {{{value}}})]
+    {{name}},
+{{/enumVars}}
+{{/allowableValues}}
+}
+
+{{/isEnum}}
+{{/vars}}
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 {{#isUnevaluatedPropertiesFalse}}
 // Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
@@ -69,14 +86,24 @@ pub struct {{classname}} {
 {{#deprecated}}
     #[deprecated]
 {{/deprecated}}
+{{#isDiscriminator}}
+    // Discriminator field — always present on the wire so the parent
+    // untagged enum can dispatch. Initialised by `new()` to the
+    // mapping value; left as a plain (non-Option) field so callers
+    // can read it without unwrapping.
+    #[serde(rename = "{{baseName}}")]
+    pub {{name}}: {{{dataType}}},
+{{/isDiscriminator}}
+{{^isDiscriminator}}
 {{#required}}
     #[serde(rename = "{{baseName}}"{{#isByteArray}}, with = "super::base64_serde"{{/isByteArray}}{{^isByteArray}}{{#isArray}}{{#items}}{{#isByteArray}}, with = "super::base64_serde::vec"{{/isByteArray}}{{/items}}{{/isArray}}{{/isByteArray}})]
-    pub {{name}}: {{{dataType}}},
+    pub {{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}},
 {{/required}}
 {{^required}}
     #[serde(rename = "{{baseName}}", skip_serializing_if = "Option::is_none"{{#isByteArray}}, with = "super::base64_serde::option"{{/isByteArray}}{{^isByteArray}}{{#isArray}}{{#items}}{{#isByteArray}}, with = "super::base64_serde::vec_option"{{/isByteArray}}{{/items}}{{/isArray}}{{/isByteArray}})]
-    pub {{name}}: Option<{{{dataType}}}>,
+    pub {{name}}: Option<{{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}>,
 {{/required}}
+{{/isDiscriminator}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
     /// Additional properties not defined in the schema.
@@ -89,18 +116,30 @@ pub struct {{classname}} {
 #[allow(deprecated)]
 impl {{classname}} {
     /// Creates a new {{classname}} instance with required parameters.
-    pub fn new({{#requiredVars}}{{name}}: {{{dataType}}}{{^-last}}, {{/-last}}{{/requiredVars}}) -> Self {
+    pub fn new({{#requiredVars}}{{^isDiscriminator}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}, {{/isDiscriminator}}{{/requiredVars}}) -> Self {
         Self {
 {{#requiredVars}}
+{{#isDiscriminator}}
+            // Auto-set discriminator from oneOf mapping.
+            {{name}}: {{{defaultValue}}}.to_string(),
+{{/isDiscriminator}}
+{{^isDiscriminator}}
             {{name}},
+{{/isDiscriminator}}
 {{/requiredVars}}
 {{#optionalVars}}
+{{#isDiscriminator}}
+            // Auto-set discriminator from oneOf mapping.
+            {{name}}: {{{defaultValue}}}.to_string(),
+{{/isDiscriminator}}
+{{^isDiscriminator}}
 {{#defaultValue}}
             {{name}}: Some({{{defaultValue}}}),
 {{/defaultValue}}
 {{^defaultValue}}
             {{name}}: None,
 {{/defaultValue}}
+{{/isDiscriminator}}
 {{/optionalVars}}
 {{#isAdditionalPropertiesTrue}}
             additional_properties: std::collections::HashMap::new(),
@@ -123,11 +162,15 @@ impl {{classname}} {
 #[deprecated]
 {{/isDeprecated}}
 {{#discriminator}}
+// Discriminated oneOf — variant structs carry the discriminator
+// field themselves (initialised by their `new()`), so we use
+// `untagged` and let serde dispatch by matching the variant's
+// rename'd field rather than serde's `tag` rewrite. This keeps
+// the discriminator a real struct field callable code can read.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "{{propertyBaseName}}")]
+#[serde(untagged)]
 pub enum {{classname}} {
 {{#mappedModels}}
-    #[serde(rename = "{{{mappingName}}}")]
     {{{modelName}}}({{{modelName}}}),
 {{/mappedModels}}
 }

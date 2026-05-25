@@ -80,6 +80,11 @@ class {{classname}} extends BaseApi {
 {{#isDeprecated}}
   @Deprecated('This operation is deprecated.')
 {{/isDeprecated}}
+{{#allParams}}
+{{#description}}
+  /// [{{paramName}}] {{description}}
+{{/description}}
+{{/allParams}}
 {{#allParams}}{{#vendorExtensions.examples}}
   /// ### `{{paramName}}` — {{summary}}
   /// {{description}}

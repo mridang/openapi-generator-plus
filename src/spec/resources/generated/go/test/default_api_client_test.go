@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	petstore "petstore/pkg"
+	"petstore/pkg"
 )
 
 func TestDefaultApiClient_MakesHttpsRequestWithVerifySslFalse(t *testing.T) {
@@ -470,7 +470,6 @@ func TestDefaultApiClient_DecompressesZstdResponse(t *testing.T) {
 // assert the proxy demands credentials. We instead verify that:
 //   - the transport accepts a proxy URL with embedded userinfo, and
 //   - the resulting request still flows through the proxy successfully.
-//
 // Skipped if the Squid container is unavailable.
 func TestDefaultApiClient_MakesRequestThroughProxyWithBasicAuth(t *testing.T) {
 	if proxyURL == "" {
@@ -492,5 +491,27 @@ func TestDefaultApiClient_MakesRequestThroughProxyWithBasicAuth(t *testing.T) {
 	}
 	if resp.StatusCode != 200 {
 		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+}
+
+// Regression: POST/PUT/PATCH with body == nil must emit an explicit
+// Content-Length: 0. Some servers / WAFs reject body-bearing verbs with
+// no Content-Length (411 Length Required). The client attaches an empty
+// bytes.Reader on body-bearing verbs so net/http emits the header.
+func TestDefaultApiClient_PostWithNullBodySendsContentLengthZero(t *testing.T) {
+	client := petstore.NewDefaultApiClient(petstore.NewTransportOptionsBuilder().Build())
+	resp, err := client.SendRequest("POST", wiremockHTTPURL+"/api/echo-content-length", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+	}
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(resp.Body), &parsed); err != nil {
+		t.Fatalf("failed to parse body: %v", err)
+	}
+	if parsed["content-length"] != "0" {
+		t.Errorf("expected content-length '0', got %v", parsed["content-length"])
 	}
 }

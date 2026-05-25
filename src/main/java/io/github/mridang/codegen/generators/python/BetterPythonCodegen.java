@@ -533,6 +533,17 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         return true;
     }
 
+    /**
+     * Enables Gap K so polymorphic subtype Pydantic models auto-emit
+     * the discriminator field with a {@code default='...'} on Field().
+     * Without this, callers passing only the non-tag fields hit a
+     * Pydantic ValidationError on the missing required tag.
+     */
+    @Override
+    protected boolean setsDiscriminatorDefaultOnChildren() {
+        return true;
+    }
+
     /** {@inheritDoc} */
     @Override
     protected Map<String, String> getPropertyTypeImportMap() {

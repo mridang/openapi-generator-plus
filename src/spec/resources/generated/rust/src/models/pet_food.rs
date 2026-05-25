@@ -10,11 +10,14 @@ use super::*;
 use serde::{Deserialize, Serialize};
 
 /// PetFood Food for pets, discriminated by foodType
+// Discriminated oneOf — variant structs carry the discriminator
+// field themselves (initialised by their `new()`), so we use
+// `untagged` and let serde dispatch by matching the variant's
+// rename'd field rather than serde's `tag` rewrite. This keeps
+// the discriminator a real struct field callable code can read.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "foodType")]
+#[serde(untagged)]
 pub enum PetFood {
-    #[serde(rename = "dry")]
     DryFood(DryFood),
-    #[serde(rename = "wet")]
     WetFood(WetFood),
 }

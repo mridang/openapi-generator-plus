@@ -10,6 +10,21 @@ use super::*;
 use serde::{Deserialize, Serialize};
 
 /// Pet is a model class generated from the OpenAPI schema.
+/// Typed enum for Pet.status.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum PetStatusEnum {
+    /// Represents the value "available".
+    #[default]
+    #[serde(rename = "available")]
+    Available,
+    /// Represents the value "pending".
+    #[serde(rename = "pending")]
+    Pending,
+    /// Represents the value "sold".
+    #[serde(rename = "sold")]
+    Sold,
+}
+
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Pet {
     /// Example: `10`
@@ -31,7 +46,7 @@ pub struct Pet {
     /// Example: `null`
     #[deprecated]
     #[serde(rename = "status", skip_serializing_if = "Option::is_none")]
-    pub status: Option<String>,
+    pub status: Option<PetStatusEnum>,
     /// Example: `null`
     #[serde(rename = "location", skip_serializing_if = "Option::is_none")]
     pub location: Option<Vec<serde_json::Value>>,

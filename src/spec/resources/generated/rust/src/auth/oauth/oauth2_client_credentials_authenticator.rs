@@ -16,6 +16,7 @@ use crate::auth::Authenticator;
 use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
 use crate::auth::oauth::client_auth_method::ClientAuthMethod;
 use crate::auth::oauth::oauth2_token_manager::OAuth2TokenManager;
+use crate::utils::form_url_encode;
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 
@@ -118,23 +119,4 @@ impl HttpAwareAuthenticator for OAuth2ClientCredentialsAuthenticator {
     fn set_api_client(&mut self, client: Arc<dyn ApiClient>) {
         self.token_manager.set_api_client(client);
     }
-}
-
-/// Percent-encodes a string for use in application/x-www-form-urlencoded
-/// payloads (RFC 3986 unreserved + `+` for space). Mirrors the helper in
-/// oauth2_token_manager.mustache so the two stay in lockstep.
-fn form_url_encode(s: &str) -> String {
-    let mut result = String::new();
-    for byte in s.bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                result.push(byte as char);
-            }
-            b' ' => result.push('+'),
-            _ => {
-                result.push_str(&format!("%{:02X}", byte));
-            }
-        }
-    }
-    result
 }

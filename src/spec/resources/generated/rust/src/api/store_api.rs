@@ -40,6 +40,7 @@ impl StoreApi {
     }
 
     /// Delete purchase order by ID
+    /// * `order_id`: ID of the order to delete
     pub async fn delete_order(
         &self,
         order_id: i64,
@@ -168,6 +169,7 @@ impl StoreApi {
     }
 
     /// Find purchase order by ID
+    /// * `order_id`: ID of order to return
     pub async fn get_order_by_id(
         &self,
         order_id: i64,

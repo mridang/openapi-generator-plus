@@ -140,4 +140,27 @@ class OAuth2AuthCodeAuthenticatorTest {
         // Caller continues normally after catching -- no process crash.
         assertEquals("https://api.example.com", auth.getHost())
     }
+
+    @Test
+    fun `authorize_url_with_existing_query_string_uses_amp_separator`() {
+        // RFC 6749 §3.1: the authorization endpoint URI MAY already include
+        // a query component (e.g. tenant-scoped Auth0 URLs). The builder
+        // must preserve existing query items alongside the OAuth2 ones
+        // using '&' as the separator, not '?'.
+        val auth = OAuth2AuthorizationCodeAuthenticator(
+            host = "https://api.example.com",
+            clientId = "my-client-id",
+            clientSecret = "my-client-secret",
+            authorizationUrl = "https://x.auth0.com/authorize?audience=api",
+            tokenUrl = "https://x.auth0.com/oauth/token",
+            redirectUri = "https://app.example.com/callback",
+            scopes = listOf("read")
+        )
+
+        val url = auth.buildAuthorizationUrl()
+
+        assertTrue(url.contains("audience=api"), "existing query param must be preserved: $url")
+        assertTrue(url.contains("response_type=code"), "response_type must be appended: $url")
+        assertEquals(1, url.count { it == '?' }, "result must contain exactly one '?': $url")
+    }
 }

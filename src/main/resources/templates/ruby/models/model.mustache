@@ -285,10 +285,20 @@ module {{moduleName}}
       # @return [Object] Write-only property.
       {{/isWriteOnly}}
       {{#required}}
+      {{#isEnum}}
+      attribute :{{name}}, Types::String.enum({{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}}){{#defaultValue}}.default({{{.}}}){{/defaultValue}}
+      {{/isEnum}}
+      {{^isEnum}}
       attribute :{{name}}, Types::Required{{#defaultValue}}.default({{{.}}}){{/defaultValue}}
+      {{/isEnum}}
       {{/required}}
       {{^required}}
+      {{#isEnum}}
+      attribute :{{name}}, Types::String.enum({{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}}).optional.meta(omittable: true){{#defaultValue}}.default({{{.}}}){{/defaultValue}}
+      {{/isEnum}}
+      {{^isEnum}}
       attribute :{{name}}, Types::Any.optional.meta(omittable: true){{#defaultValue}}.default({{{.}}}){{/defaultValue}}
+      {{/isEnum}}
       {{/required}}
       {{/vars}}
     end

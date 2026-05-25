@@ -164,17 +164,27 @@ public class OAuth2TokenManager {
 
         Map<String, String> headers = new HashMap<>();
         headers.put("Content-Type", "application/x-www-form-urlencoded");
+        headers.put("Accept", "application/json");
         headers.putAll(extraHeaders);
 
         try {
             ApiResponse response = apiClient.sendRequest(
                     "POST", tokenUrl, headers, body.toString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new RuntimeException("Token request failed with status " + response.statusCode()
-                        + ": " + response.body());
+                /* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
+                 * `error` (required), `error_description`, `error_uri`. Parse
+                 * them into a typed OAuth2ServerError so callers can recover.
+                 * Fall back to the raw body when the response is not a valid
+                 * error object. */
+                throw parseOAuth2ServerError(response.statusCode(), response.body());
             }
             JsonNode json = objectMapper.readTree(response.body());
-            this.accessToken = json.get("access_token").asText();
+            JsonNode accessTokenNode = json.get("access_token");
+            if (accessTokenNode == null || accessTokenNode.isNull()
+                    || !accessTokenNode.isTextual() || accessTokenNode.asText().isEmpty()) {
+                throw new OAuth2TokenError("Token response missing or empty access_token field");
+            }
+            this.accessToken = accessTokenNode.asText();
             if (json.has("refresh_token")) {
                 String newRefreshToken = json.get("refresh_token").asText();
                 if (newRefreshToken != null && !newRefreshToken.isEmpty()) {
@@ -211,6 +221,32 @@ public class OAuth2TokenManager {
      * @param node the JSON node holding {@code expires_in}
      * @return the parsed lifetime in seconds, or {@code 0} when unusable
      */
+    /**
+     * Parse an RFC 6749 §5.2 OAuth2 error response body into a typed
+     * {@link OAuth2ServerError}. Falls back to a generic error using the raw
+     * body when the body is not a valid OAuth2 error object.
+     */
+    private OAuth2ServerError parseOAuth2ServerError(int statusCode, String body) {
+        try {
+            JsonNode root = objectMapper.readTree(body);
+            JsonNode errorNode = root.get("error");
+            if (errorNode != null && errorNode.isTextual() && !errorNode.asText().isEmpty()) {
+                JsonNode descNode = root.get("error_description");
+                JsonNode uriNode = root.get("error_uri");
+                return new OAuth2ServerError(
+                        statusCode,
+                        errorNode.asText(),
+                        descNode != null && descNode.isTextual() ? descNode.asText() : null,
+                        uriNode != null && uriNode.isTextual() ? uriNode.asText() : null,
+                        body);
+            }
+        } catch (IOException ignored) {
+            /* Not a JSON body; fall through and report the raw body. */
+        }
+        return new OAuth2ServerError(
+                statusCode, null, null, null, body);
+    }
+
     private static long parseExpiresIn(JsonNode node) {
         if (node == null || node.isNull()) {
             return 0L;
@@ -237,5 +273,68 @@ public class OAuth2TokenManager {
             }
         }
         return 0L;
+    }
+
+    /**
+     * Thrown when the OAuth2 token endpoint returns a 2xx response whose body
+     * is missing or contains an empty {@code access_token} field. Distinct
+     * from {@link OAuth2ServerError} (which represents RFC 6749 §5.2 error
+     * responses on 4xx/5xx) so callers can recover differently — typically
+     * a malformed-server-response bug needs operator attention rather than a
+     * client-side retry.
+     */
+    public static class OAuth2TokenError extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
+        public OAuth2TokenError(String message) {
+            super(message);
+        }
+    }
+
+    /**
+     * Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
+     * {@code code} field carries the OAuth2 error code (e.g. {@code
+     * invalid_grant}, {@code invalid_client}); {@code description} and
+     * {@code uri} are the optional human-readable description and a URL to a
+     * page describing the error. {@code rawBody} preserves the original
+     * response payload for diagnostics when the body is not a well-formed
+     * OAuth2 error object.
+     */
+    public static class OAuth2ServerError extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
+        private final int statusCode;
+        @Nullable private final String code;
+        @Nullable private final String description;
+        @Nullable private final String uri;
+        private final String rawBody;
+
+        public OAuth2ServerError(int statusCode, @Nullable String code,
+                @Nullable String description, @Nullable String uri, String rawBody) {
+            super(buildMessage(statusCode, code, description, rawBody));
+            this.statusCode = statusCode;
+            this.code = code;
+            this.description = description;
+            this.uri = uri;
+            this.rawBody = rawBody;
+        }
+
+        public int getStatusCode() { return statusCode; }
+        @Nullable public String getCode() { return code; }
+        @Nullable public String getDescription() { return description; }
+        @Nullable public String getUri() { return uri; }
+        public String getRawBody() { return rawBody; }
+
+        private static String buildMessage(int statusCode, @Nullable String code,
+                @Nullable String description, String rawBody) {
+            if (code == null) {
+                return "Token request failed with status " + statusCode + ": " + rawBody;
+            }
+            if (description != null) {
+                return "Token request failed with status " + statusCode + ": " + code
+                        + " — " + description;
+            }
+            return "Token request failed with status " + statusCode + ": " + code;
+        }
     }
 }

@@ -170,7 +170,12 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
               "on HttpAwareAuthenticator before making API requests."
     end
 
-    headers = Map.merge(%{"Content-Type" => "application/x-www-form-urlencoded"}, extra_headers)
+    headers =
+      Map.merge(
+        %{"Content-Type" => "application/x-www-form-urlencoded", "Accept" => "application/json"},
+        extra_headers
+      )
+
     body = URI.encode_query(params)
 
     response =
@@ -180,12 +185,23 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
       end
 
     if response.status_code < 200 or response.status_code >= 300 do
-      raise "Token request failed with status #{response.status_code}"
+      # RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
+      # `error` (required), `error_description`, `error_uri`. Raise a typed
+      # OAuth2ServerError so callers can rescue it specifically. Fall back
+      # to the raw body when the response is not a valid error object.
+      raise parse_oauth2_server_error(response.status_code, response.body)
     end
 
     parsed = Jason.decode!(response.body)
 
-    new_state = %{state | access_token: parsed["access_token"]}
+    access_token = parsed["access_token"]
+
+    unless is_binary(access_token) and access_token != "" do
+      raise {{moduleName}}.Auth.OAuth.OAuth2TokenError,
+            message: "Token response missing or empty access_token field"
+    end
+
+    new_state = %{state | access_token: access_token}
 
     new_state =
       case parsed["refresh_token"] do
@@ -222,6 +238,37 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
     new_state
   end
 
+  defp parse_oauth2_server_error(status_code, body) do
+    parsed =
+      case Jason.decode(body) do
+        {:ok, decoded} when is_map(decoded) -> decoded
+        _ -> nil
+      end
+
+    case parsed do
+      %{"error" => code} when is_binary(code) and code != "" ->
+        description = if is_binary(parsed["error_description"]), do: parsed["error_description"], else: nil
+        uri = if is_binary(parsed["error_uri"]), do: parsed["error_uri"], else: nil
+
+        {{moduleName}}.Auth.OAuth.OAuth2ServerError.exception(
+          status_code: status_code,
+          code: code,
+          description: description,
+          uri: uri,
+          raw_body: body
+        )
+
+      _ ->
+        {{moduleName}}.Auth.OAuth.OAuth2ServerError.exception(
+          status_code: status_code,
+          code: nil,
+          description: nil,
+          uri: nil,
+          raw_body: body
+        )
+    end
+  end
+
   defp parse_expires_in(value) when is_integer(value), do: value
 
   defp parse_expires_in(value) when is_float(value) do
@@ -252,4 +299,56 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
   end
 
   defp parse_expires_in(_), do: 0
+end
+
+defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenError do
+  @moduledoc """
+  Raised when the OAuth2 token endpoint returns a 2xx response whose body
+  is missing or contains an empty `access_token` field. Distinct from
+  `{{moduleName}}.Auth.OAuth.OAuth2ServerError` (which represents RFC 6749
+  §5.2 error responses on 4xx/5xx) so callers can `rescue` them separately.
+  """
+
+  defexception [:message]
+end
+
+defmodule {{moduleName}}.Auth.OAuth.OAuth2ServerError do
+  @moduledoc """
+  Typed representation of an RFC 6749 §5.2 OAuth2 error response.
+
+  Fields:
+
+    * `:status_code` -- HTTP status code returned by the token endpoint.
+    * `:code` -- the OAuth2 error code (e.g. `"invalid_grant"`).
+    * `:description` -- optional human-readable description.
+    * `:uri` -- optional URI to a page describing the error.
+    * `:raw_body` -- the original response payload (for diagnostics).
+  """
+
+  defexception [:status_code, :code, :description, :uri, :raw_body, :message]
+
+  @impl true
+  def exception(opts) do
+    status_code = Keyword.fetch!(opts, :status_code)
+    code = Keyword.get(opts, :code)
+    description = Keyword.get(opts, :description)
+    uri = Keyword.get(opts, :uri)
+    raw_body = Keyword.get(opts, :raw_body, "")
+
+    message =
+      cond do
+        is_nil(code) -> "Token request failed with status #{status_code}: #{raw_body}"
+        is_binary(description) -> "Token request failed with status #{status_code}: #{code} -- #{description}"
+        true -> "Token request failed with status #{status_code}: #{code}"
+      end
+
+    %__MODULE__{
+      status_code: status_code,
+      code: code,
+      description: description,
+      uri: uri,
+      raw_body: raw_body,
+      message: message
+    }
+  end
 end

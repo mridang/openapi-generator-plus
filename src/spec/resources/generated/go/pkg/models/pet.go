@@ -14,22 +14,57 @@ import (
 
 // Pet is a model class generated from the OpenAPI schema.
 // See https://example.com/docs/pet Learn more about the Pet model
+// PetStatusEnum is the typed enum for Pet.Status.
+type PetStatusEnum string
+
+const (
+	PetStatusEnumAvailable PetStatusEnum = "available"
+	PetStatusEnumPending PetStatusEnum = "pending"
+	PetStatusEnumSold PetStatusEnum = "sold"
+)
+
+// AllPetStatusEnumValues returns all allowed values.
+func AllPetStatusEnumValues() []PetStatusEnum {
+	return []PetStatusEnum{
+		PetStatusEnumAvailable,
+		PetStatusEnumPending,
+		PetStatusEnumSold,
+	}
+}
+
+// UnmarshalJSON validates the value is one of the declared
+// enum members at deserialise time.
+func (v *PetStatusEnum) UnmarshalJSON(data []byte) error {
+	var raw string
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	candidate := PetStatusEnum(raw)
+	for _, allowed := range AllPetStatusEnumValues() {
+		if allowed == candidate {
+			*v = candidate
+			return nil
+		}
+	}
+	return fmt.Errorf("unexpected value %q for enum PetStatusEnum", raw)
+}
+
 type Pet struct {
-	Id        *int64      `json:"id,omitempty"`
-	Name      string      `json:"name"`
-	Category  *Category   `json:"category,omitempty"`
+	Id *int64 `json:"id,omitempty"`
+	Name string `json:"name"`
+	Category *Category `json:"category,omitempty"`
 	PhotoUrls Set[string] `json:"photoUrls"`
-	Tags      *[]Tag      `json:"tags,omitempty"`
+	Tags *[]Tag `json:"tags,omitempty"`
 	/* Status pet status in the store */
 	/* Deprecated: This property is deprecated. */
-	Status   *string        `json:"status,omitempty"`
+	Status *PetStatusEnum `json:"status,omitempty"`
 	Location *[]interface{} `json:"location,omitempty"`
 }
 
 // NewPet creates a new Pet instance.
 func NewPet(name string, photoUrls Set[string]) *Pet {
 	return &Pet{
-		Name:      name,
+		Name: name,
 		PhotoUrls: photoUrls,
 	}
 }

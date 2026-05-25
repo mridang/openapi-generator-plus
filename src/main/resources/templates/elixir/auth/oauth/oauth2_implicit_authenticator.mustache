@@ -79,7 +79,12 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2ImplicitAuthenticator do
     params = if self.scopes != [], do: Map.put(params, "scope", Enum.join(self.scopes, " ")), else: params
     params = if state, do: Map.put(params, "state", state), else: params
 
-    "#{self.authorization_url}?#{URI.encode_query(params)}"
+    # RFC 6749 §3.1: the authorization endpoint URI MAY already include
+    # a query component. Use '&' as the separator when one is already
+    # present so existing params are preserved, '?' otherwise.
+    separator = if String.contains?(self.authorization_url, "?"), do: "&", else: "?"
+
+    "#{self.authorization_url}#{separator}#{URI.encode_query(params)}"
   end
 
   @impl {{moduleName}}.Auth.Authenticator

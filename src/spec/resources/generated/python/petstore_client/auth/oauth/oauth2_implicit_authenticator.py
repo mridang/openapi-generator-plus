@@ -70,7 +70,11 @@ class OAuth2ImplicitAuthenticator(HttpAwareAuthenticator):
             params['scope'] = ' '.join(self._scopes)
         if state:
             params['state'] = state
-        return f'{self._authorization_url}?{urlencode(params)}'
+        # RFC 6749 §3.1: the authorization endpoint URI MAY already include
+        # a query component. Use '&' as the separator when one is already
+        # present so existing params are preserved, '?' otherwise.
+        separator = '&' if '?' in self._authorization_url else '?'
+        return f'{self._authorization_url}{separator}{urlencode(params)}'
 
     def set_access_token(self, token: str) -> None:
         """Set the access token obtained from the authorization redirect fragment.

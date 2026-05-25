@@ -9,18 +9,54 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
 // Order is a model class generated from the OpenAPI schema.
+// OrderStatusEnum is the typed enum for Order.Status.
+type OrderStatusEnum string
+
+const (
+	OrderStatusEnumPlaced OrderStatusEnum = "placed"
+	OrderStatusEnumApproved OrderStatusEnum = "approved"
+	OrderStatusEnumDelivered OrderStatusEnum = "delivered"
+)
+
+// AllOrderStatusEnumValues returns all allowed values.
+func AllOrderStatusEnumValues() []OrderStatusEnum {
+	return []OrderStatusEnum{
+		OrderStatusEnumPlaced,
+		OrderStatusEnumApproved,
+		OrderStatusEnumDelivered,
+	}
+}
+
+// UnmarshalJSON validates the value is one of the declared
+// enum members at deserialise time.
+func (v *OrderStatusEnum) UnmarshalJSON(data []byte) error {
+	var raw string
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	candidate := OrderStatusEnum(raw)
+	for _, allowed := range AllOrderStatusEnumValues() {
+		if allowed == candidate {
+			*v = candidate
+			return nil
+		}
+	}
+	return fmt.Errorf("unexpected value %q for enum OrderStatusEnum", raw)
+}
+
 type Order struct {
-	Id       *int64     `json:"id,omitempty"`
-	PetId    *int64     `json:"petId,omitempty"`
-	Quantity *int32     `json:"quantity,omitempty"`
+	Id *int64 `json:"id,omitempty"`
+	PetId *int64 `json:"petId,omitempty"`
+	Quantity *int32 `json:"quantity,omitempty"`
 	ShipDate *time.Time `json:"shipDate,omitempty"`
 	/* Status Order Status */
-	Status   *string `json:"status,omitempty"`
-	Complete *bool   `json:"complete,omitempty"`
+	Status *OrderStatusEnum `json:"status,omitempty"`
+	Complete *bool `json:"complete,omitempty"`
 }
 
 // NewOrder creates a new Order instance.

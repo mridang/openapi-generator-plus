@@ -560,3 +560,150 @@ variants from `oneOf: [Pet, string]` unions, while the other 11 keep
 both. Petstore spec doesn't exercise this. Documented as idiomatic for
 Dart's type system (mixing class types with primitives in a union is
 awkward in Dart). Not auditing again.
+
+### Per-call cancellation (no CancellationToken / AbortSignal / ctx.Context)
+
+No operation method in any of the 12 SDKs accepts a per-call cancellation
+handle. Callers cannot abort an in-flight request mid-flight; they have
+to wait for the configured request timeout (`TransportOptions.timeout`)
+to fire. PHP even ships an unused `CancellationToken` class — it's
+referenced nowhere because the operation surface never threaded it in.
+
+Future fix: add an optional `cancel` (or `ctx` / `signal` / `token`)
+parameter to every generated operation method, plumb it through the
+`invokeApi` / `send_request` boundary, and bind it to the underlying
+transport's native cancellation primitive (`java.net.http.HttpRequest`
++ `CompletableFuture.cancel`, .NET `CancellationToken`, Node
+`AbortSignal`, Go `context.Context`, Rust `tokio::select!`, Python
+`asyncio.CancelledError`, etc.). The surface change is invasive — every
+operation signature in every SDK gets one more argument, and the
+TransportOptions builder grows a default-cancellation hook — so it's
+deferred until a real consumer asks for it. Don't audit as a gap.
+
+### LICENSE file not emitted (all 12 SDKs)
+
+Every SDK declares `license: MIT` in its package manifest
+(`pom.xml`, `Cargo.toml`, `package.json`, `pyproject.toml`, `*.gemspec`,
+`composer.json`, `pubspec.yaml`, `mix.exs`, `go.mod` via the GitHub repo
+metadata, `Package.swift`, `*.nuspec`, Kotlin `build.gradle.kts`), but
+no SDK ships an actual `LICENSE` / `LICENSE.md` file alongside the
+generated sources. Most public registries (npm, crates.io, PyPI,
+Packagist, RubyGems, pub.dev, Hex.pm) will warn on publish; GitHub's
+license auto-detect can't find one to display in the repo sidebar.
+This is intentionally a **caller responsibility post-generation** —
+drop the appropriate `LICENSE` file into the generated tree as part of
+the release pipeline. Not auto-emitted because the SDK template doesn't
+know which jurisdiction's text the caller wants, and because including
+a third-party MIT text file in every generated tree complicates IP
+audits for downstream consumers.
+
+### Runtime version baselines are bleeding-edge
+
+Each SDK's manifest pins a modern minimum runtime: Java 25, .NET 10,
+Kotlin 2.2 (JVM target 17), Python 3.13, PHP 8.4, Ruby 3.4, Rust 1.85
+(edition 2024), Go 1.25, Swift 6 (macOS 14+ minimum deployment), Dart
+SDK `>=3.6`, Elixir 1.18, Node `>=22`. This is **intentional** — we
+target latest stable and don't backport to LTS / older runtimes.
+Consumers stuck on enterprise-LTS toolchains (Java 17/21, Node 18/20,
+Python 3.10, .NET 8) will not be able to consume the generated SDKs
+verbatim and must fork the codegen, adjust the language-version pin,
+and re-run. Not a parity gap, not a regression — a stance. Don't
+re-audit.
+
+### Java / C# UTF-8 BOM not stripped at deserialize entry
+
+10 of 12 SDKs explicitly strip a leading UTF-8 BOM (`U+FEFF`) from
+JSON response bodies before parsing (Python, Ruby, Node, Go, Rust,
+Swift, Dart, PHP, Kotlin, Elixir — see Gap AG, commit `2bbefb50`).
+Java and C# do **not** strip it in the SDK layer — they rely on the
+parser defaults (Jackson `ObjectMapper`, `System.Text.Json
+.JsonSerializer`), which historically tolerate BOM on `InputStream` /
+`ReadOnlySpan<byte>` overloads but **not** on `String` input. Our
+generated code mostly funnels through `String` overloads. In practice
+this is rare — only Windows-emitted JSON (PowerShell `Out-File -Encoding
+utf8` pre-PS6, Notepad save-as) typically produces a BOM, and most
+HTTP servers strip it before sending. Not fixing because the failure
+surface is tiny and the fix needs a per-call defensive trim that
+introduces an allocation on every parse. Documented; not auditing.
+
+### `User-Agent` default header diverges across the 12
+
+There is no normalised cross-SDK default user-agent string. Each SDK
+emits whatever its language ecosystem considers idiomatic:
+
+- **Node** — `openapi-typescript-client`
+- **Go / Rust** — `petstore` (the petstore-fixture package name)
+- **Java / C# / Python / Ruby / PHP / Swift / Kotlin / Dart / Elixir** —
+  `petstore_client` / `PetstoreClient` (variants on `<package>_client`)
+
+This is idiomatic per ecosystem (Go/Rust packages tend to ship a bare
+package name; Java/Python conventionally suffix `_client`) and every
+caller can override via
+`TransportOptions.defaultHeader("User-Agent", "...")`. The cosmetic
+divergence does not affect wire correctness. Don't normalise.
+
+### Elixir bang-vs-tuple, Python async-only, Go `(*T, error)` (idiomatic divergence)
+
+The shape of the per-operation return surface differs across the 12:
+
+- **Elixir** emits both `add_pet!/1` (raises on error) and `add_pet/1`
+  (returns `{:ok, term} | {:error, term}`). This is the Elixir
+  convention — every public function has a bang and a tuple variant.
+- **Python** is async-only — every operation is `async def`. There is
+  no sync wrapper. Callers must use `asyncio.run` or an async runtime.
+- **Go** returns `(*T, error)` with no panic / exception alternative.
+
+Each shape is idiomatic for its language. Forcing parity (e.g.
+adding a sync wrapper to Python, or removing the bang variant from
+Elixir) would make the SDK feel un-native in the target ecosystem. Not
+a parity divergence to fix.
+
+### CHANGELOG.md not emitted
+
+No SDK ships a `CHANGELOG.md`. Release notes are a **release artifact**,
+not a generation artifact — the codegen has no notion of "what changed
+between the previous emit and this one" because every run is a clean
+overwrite. Callers maintain their own changelog as part of the release
+pipeline (e.g. via `release-please`, `conventional-changelog`, `git
+log --pretty=...`). Not auto-emitted.
+
+### CI workflows, pre-commit hooks, devcontainer not shipped
+
+The generated tree does not include `.github/workflows/`, `.pre-commit-
+config.yaml`, `.devcontainer/`, `.gitlab-ci.yml`, `Jenkinsfile`, or any
+other CI / dev-environment scaffolding. This is **out of scope** for an
+SDK generator — the SDK is library code, not an application skeleton,
+and the caller's CI environment, secret-management, and release
+process are completely orthogonal to the generated bytes. The caller
+wires CI to fit their org. Don't add.
+
+### PHP `serializeValue` non-styled path-array (works by accident)
+
+PHP's `ObjectSerializer::serializeValue` for the legacy non-styled
+path branch does not percent-encode array items before joining them
+with `,` — the same gap that was fixed in Dart's `_serializeArray`
+(W1). It currently produces correct URLs because the PHP routing
+layer (`invokeApi` path-template substitution) always goes through the
+styled path (`serializeStyled`) and never invokes the non-styled
+branch for array path parameters. The unsafe branch is dead code in
+the current generation pipeline. Left as-is — the Dart sibling fix is
+cheap and the PHP fix would touch a code path with no observable
+behaviour. If a future refactor wires array path params through the
+legacy path in PHP, this becomes a real bug; until then it's a latent
+hazard documented here.
+
+### Multipart filename defaults to field name (DX divergence)
+
+When sending binary multipart parts (`multipart/form-data` with a file
+field), C#, Dart, Node, Java, and Kotlin reuse the **field name** as
+the `filename=` attribute on the part's `Content-Disposition` header.
+The other 7 (Python, Ruby, Go, Rust, Swift, PHP, Elixir) either
+require an explicit filename, derive it from a `File` / `IO` handle
+when one is passed, or omit the attribute entirely. Servers that
+discriminate by `filename` (e.g. mime sniffing from the extension)
+will see different attribute values depending on which SDK the request
+came from. This is an idiomatic divergence — every language picked
+the default its multipart library makes easiest — rather than a wire-
+format bug. Callers who need a specific filename can pass one
+explicitly via the per-language file-part API (where exposed). Not
+fixing.

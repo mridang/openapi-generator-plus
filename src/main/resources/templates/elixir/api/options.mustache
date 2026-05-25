@@ -7,7 +7,7 @@ defmodule {{moduleName}}.Api.Options.{{className}} do
 
   @type t :: %__MODULE__{
 {{#params}}
-          {{name}}: term(){{^-last}},{{/-last}}
+          {{name}}: {{{typespec}}}{{^-last}},{{/-last}}
 {{/params}}
         }
 

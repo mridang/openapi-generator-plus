@@ -27,8 +27,9 @@ func NewStoreApi(apiClient ApiClient, config *Configuration, authenticator Authe
 }
 
 // DeleteOrder Delete purchase order by ID
+// param orderId: ID of the order to delete
 
-func (a *StoreApi) DeleteOrder(orderId int64) error {
+func (a *StoreApi) DeleteOrder(orderId int64) (error) {
 	result, err := a.DeleteOrderWithHTTPInfo(orderId)
 	if err != nil {
 		return err
@@ -55,7 +56,7 @@ func (a *StoreApi) DeleteOrderWithHTTPInfo(orderId int64) (*ApiResult[interface{
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{},
+		accepts:      []string{  },
 		contentType:  "application/json",
 		returnType:   "",
 		auth:         nil,
@@ -99,7 +100,7 @@ func (a *StoreApi) GetInventoryWithHTTPInfo() (*ApiResult[map[string]int32], err
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{"application/json"},
+		accepts:      []string{ "application/json" },
 		contentType:  "application/json",
 		returnType:   "map[string]int32",
 		auth:         nil,
@@ -141,6 +142,7 @@ func (a *StoreApi) GetInventoryWithHTTPInfo() (*ApiResult[map[string]int32], err
 }
 
 // GetOrderById Find purchase order by ID
+// param orderId: ID of order to return
 
 func (a *StoreApi) GetOrderById(orderId int64) (*Order, error) {
 	result, err := a.GetOrderByIdWithHTTPInfo(orderId)
@@ -168,7 +170,7 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], e
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{"application/json"},
+		accepts:      []string{ "application/json" },
 		contentType:  "application/json",
 		returnType:   "Order",
 		auth:         nil,
@@ -236,7 +238,7 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(order *Order) (*ApiResult[Order], erro
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{"application/json"},
+		accepts:      []string{ "application/json" },
 		contentType:  "application/json",
 		returnType:   "Order",
 		auth:         nil,

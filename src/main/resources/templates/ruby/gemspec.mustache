@@ -1,0 +1,27 @@
+# frozen_string_literal: true
+
+{{> api_info}}
+
+lib = File.expand_path('lib', __dir__)
+$LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
+require '{{gemName}}/version'
+
+Gem::Specification.new do |s|
+  s.name        = '{{gemName}}'
+  s.version     = {{moduleName}}::VERSION
+  s.platform    = Gem::Platform::RUBY
+  s.authors     = ['OpenAPI-Generator']
+  s.summary     = '{{appName}} Ruby Gem'
+  s.description = '{{#appDescription}}{{{appDescription}}}{{/appDescription}}{{^appDescription}}{{appName}} Ruby Gem{{/appDescription}}'
+  s.license     = 'MIT'
+  s.required_ruby_version = '>= 3.4'
+
+  s.add_runtime_dependency 'dry-struct', '~> 1.6'
+  s.add_runtime_dependency 'dry-types', '~> 1.7'
+  s.add_runtime_dependency 'faraday', '~> 2.0'
+  s.add_runtime_dependency 'faraday-follow_redirects', '~> 0.3'
+  s.add_runtime_dependency 'oj', '~> 3.0'
+
+  s.files = Dir['lib/**/*', 'sig/**/*', 'README.md', 'Gemfile', '{{gemName}}.gemspec']
+  s.require_paths = ['lib']
+end

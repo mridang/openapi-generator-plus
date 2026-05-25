@@ -484,4 +484,58 @@ class DefaultApiClientTest {
             assertTrue(response.body.contains("userId"))
         }
     }
+
+    @Nested
+    @DisplayName("redirect default-port normalization")
+    inner class RedirectDefaultPortNormalization {
+
+        /*
+         * Regression: same-origin check on redirect previously compared raw
+         * URI.port values, so a redirect from `https://host/x` (port -1) to
+         * `https://host:443/y` (port 443) was treated as cross-origin and
+         * the Authorization header was stripped. effectivePort(...) normalizes
+         * the omitted port to the scheme's default so the two URIs compare
+         * equal and credentials survive the hop.
+         */
+        @Test
+        @DisplayName("redirect_to_explicit_default_port_preserves_authorization")
+        fun redirect_to_explicit_default_port_preserves_authorization() {
+            assertEquals(443, effectivePort(java.net.URI("https://host/x")),
+                "implicit https port must normalize to 443")
+            assertEquals(443, effectivePort(java.net.URI("https://host:443/y")),
+                "explicit :443 must round-trip as 443")
+            assertEquals(80, effectivePort(java.net.URI("http://host/x")),
+                "implicit http port must normalize to 80")
+            assertEquals(80, effectivePort(java.net.URI("http://host:80/y")),
+                "explicit :80 must round-trip as 80")
+            assertEquals(8443, effectivePort(java.net.URI("https://host:8443/y")),
+                "non-default ports must round-trip unchanged")
+        }
+    }
+
+    @Nested
+    @DisplayName("null-body Content-Length")
+    inner class NullBodyContentLength {
+
+        /*
+         * Regression: POST/PUT/PATCH with body == null must emit an explicit
+         * Content-Length: 0. Some servers / WAFs reject body-bearing verbs
+         * with no Content-Length (411 Length Required). Kotlin attaches
+         * an empty ByteArray(0) on the body-bearing verbs so Ktor's CIO
+         * engine emits the header.
+         */
+        @Test
+        @DisplayName("post_with_null_body_sends_content_length_zero")
+        fun post_with_null_body_sends_content_length_zero() {
+            val wiremockUrl = WireMockContainer.getHttpUrl()
+            val client = DefaultApiClient()
+            val response = runBlocking {
+                client.sendRequest("POST", "$wiremockUrl/api/echo-content-length", emptyMap(), null)
+            }
+            assertEquals(200, response.statusCode)
+            val json: JsonNode = ObjectMapper().readTree(response.body)
+            assertEquals("0", json.get("content-length").asText(),
+                "POST with null body must emit Content-Length: 0")
+        }
+    }
 }

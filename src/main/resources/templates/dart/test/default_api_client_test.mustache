@@ -393,6 +393,25 @@ void main() {
       }
       validateMultipartFilename('pet.png');
     });
+
+    // Regression: POST/PUT/PATCH with body == null must emit an
+    // explicit Content-Length: 0. Some servers / WAFs reject body-
+    // bearing verbs with no Content-Length (411 Length Required). The
+    // client attaches an empty Uint8List on body-bearing verbs so
+    // dart:http emits the header.
+    test('post_with_null_body_sends_content_length_zero', () async {
+      final client = DefaultApiClient();
+      final resp = await client.sendRequest(
+        'POST',
+        '$wiremockHttpUrl/api/echo-content-length',
+        {},
+        null,
+      );
+      expect(resp.statusCode, equals(200));
+      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+      expect(parsed['content-length'], equals('0'),
+          reason: 'POST with null body must emit Content-Length: 0');
+    });
   });
 }
 {{/generateTests}}

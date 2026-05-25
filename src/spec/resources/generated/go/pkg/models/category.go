@@ -21,7 +21,8 @@ type Category struct {
 
 // NewCategory creates a new Category instance.
 func NewCategory() *Category {
-	return &Category{}
+	return &Category{
+	}
 }
 
 // MarshalJSON implements the json.Marshaler interface.

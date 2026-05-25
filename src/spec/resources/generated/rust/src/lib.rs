@@ -36,6 +36,7 @@ pub mod server_configuration;
 pub mod servers;
 pub mod trace_context_util;
 pub mod transport_options;
+pub mod utils;
 pub mod value_serializer;
 
 pub use api_client::ApiClient;

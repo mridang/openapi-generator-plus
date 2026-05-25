@@ -183,6 +183,14 @@ Object? _serializeArray(
   if (location == 'header') {
     return items.join(',');
   }
+  /* Mirror of the styled-path fix in `serializeStyled`: when the legacy
+   * non-styled path encodes a list into a `path` parameter, each item must
+   * be percent-encoded BEFORE the join — otherwise an item containing
+   * `/`, `?`, `#`, space, ... would leak through and produce a malformed
+   * URL. The `,` separator itself is a sub-delim and stays literal. */
+  if (location == 'path') {
+    return items.map(Uri.encodeComponent).join(',');
+  }
   return items.join(',');
 }
 
