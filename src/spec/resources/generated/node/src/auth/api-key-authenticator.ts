@@ -24,9 +24,7 @@ export class ApiKeyAuthenticator extends BaseAuthenticator {
      * and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
      * printable-ASCII rule still applies to HEADER values. */
     if (apiKey.length === 0 || apiKey.trim().length === 0) {
-      throw new Error(
-        `API key value for '${keyParamName}' must not be empty`
-      );
+      throw new Error(`API key value for '${keyParamName}' must not be empty`);
     }
     /* RFC 7230 §3.2.4 — CR/LF in header values enables HTTP header
      * splitting; NUL terminates C strings in many downstream HTTP
@@ -36,9 +34,7 @@ export class ApiKeyAuthenticator extends BaseAuthenticator {
     for (let i = 0; i < apiKey.length; i++) {
       const code = apiKey.charCodeAt(i);
       if (code === 0x0d || code === 0x0a || code === 0x00) {
-        throw new Error(
-          `API key value for '${keyParamName}' contains forbidden control characters (CR/LF/NUL)`
-        );
+        throw new Error(`API key value for '${keyParamName}' contains forbidden control characters (CR/LF/NUL)`);
       }
     }
     if (location === ApiKeyLocation.HEADER && /[^\t\x20-\x7E]/.test(apiKey)) {

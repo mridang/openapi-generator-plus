@@ -11,10 +11,7 @@ import { Configuration } from '../../src/configuration.js';
 import { Order, OrderStatusEnum } from '../../src/models/index.js';
 
 const baseUrl = process.env.API_BASE_URL || 'http://localhost:4010';
-const config = Configuration.builder()
-  .baseUrl(baseUrl)
-  .defaultHeader('Authorization', 'Bearer test-token')
-  .build();
+const config = Configuration.builder().baseUrl(baseUrl).defaultHeader('Authorization', 'Bearer test-token').build();
 const api = new StoreApi(undefined, config);
 
 describe('StoreApi', () => {
@@ -24,7 +21,7 @@ describe('StoreApi', () => {
         await fetch(baseUrl, { method: 'GET' });
         return;
       } catch {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
     }
   });
@@ -43,7 +40,7 @@ describe('StoreApi', () => {
       quantity: 1,
       shipDate: new Date().toISOString(),
       status: OrderStatusEnum.Placed,
-      complete: false,
+      complete: false
     };
 
     const result = await api.placeOrder(order);
@@ -64,7 +61,11 @@ describe('StoreApi', () => {
   });
 });
 
-function createMockServer(status: number, contentType: string, body: string): Promise<{ api: StoreApi; server: http.Server; close: () => void }> {
+function createMockServer(
+  status: number,
+  contentType: string,
+  body: string
+): Promise<{ api: StoreApi; server: http.Server; close: () => void }> {
   return new Promise((resolve) => {
     const server = http.createServer((_req, res) => {
       res.writeHead(status, { 'Content-Type': contentType });
@@ -72,9 +73,7 @@ function createMockServer(status: number, contentType: string, body: string): Pr
     });
     server.listen(0, '127.0.0.1', () => {
       const addr = server.address() as { port: number };
-      const mockConfig = Configuration.builder()
-        .baseUrl(`http://127.0.0.1:${addr.port}`)
-        .build();
+      const mockConfig = Configuration.builder().baseUrl(`http://127.0.0.1:${addr.port}`).build();
       const mockApi = new StoreApi(undefined, mockConfig);
       resolve({ api: mockApi, server, close: () => server.close() });
     });
@@ -92,7 +91,11 @@ describe('StoreApi error handling', () => {
   });
 
   test('placeOrder 500 throws error', async () => {
-    const { api: mockApi, close } = await createMockServer(500, 'application/json', '{"message":"Internal server error"}');
+    const { api: mockApi, close } = await createMockServer(
+      500,
+      'application/json',
+      '{"message":"Internal server error"}'
+    );
     try {
       const order: Order = {
         id: 1,
@@ -100,7 +103,7 @@ describe('StoreApi error handling', () => {
         quantity: 1,
         shipDate: new Date().toISOString(),
         status: OrderStatusEnum.Placed,
-        complete: false,
+        complete: false
       };
       await expect(mockApi.placeOrder(order)).rejects.toThrow();
     } finally {

@@ -32,22 +32,15 @@ export class BasicAuthenticator extends BaseAuthenticator {
      * (header-injection / smuggling vectors common when credentials are
      * read from .env files or interactive prompts). */
     if (/[\r\n\0]/.test(this.username)) {
-      throw new Error(
-        'Basic auth username must not contain CR, LF, or NUL characters'
-      );
+      throw new Error('Basic auth username must not contain CR, LF, or NUL characters');
     }
     if (this.username.includes(':')) {
-      throw new Error(
-        "Basic auth username must not contain ':' (RFC 7617 §2)"
-      );
+      throw new Error("Basic auth username must not contain ':' (RFC 7617 §2)");
     }
     if (/[\r\n\0]/.test(this.password)) {
-      throw new Error(
-        'Basic auth password must not contain CR, LF, or NUL characters'
-      );
+      throw new Error('Basic auth password must not contain CR, LF, or NUL characters');
     }
-    const authHeader =
-      'Basic ' + Buffer.from(`${this.username}:${this.password}`).toString('base64');
+    const authHeader = 'Basic ' + Buffer.from(`${this.username}:${this.password}`).toString('base64');
     return { Authorization: authHeader };
   }
 }

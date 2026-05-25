@@ -52,8 +52,7 @@ export class OAuth2TokenManager {
   ): Promise<string> {
     if (
       this.accessToken &&
-      (this.tokenExpiry === null ||
-        Date.now() < this.tokenExpiry - OAuth2TokenManager.EXPIRY_SAFETY_MARGIN_MS)
+      (this.tokenExpiry === null || Date.now() < this.tokenExpiry - OAuth2TokenManager.EXPIRY_SAFETY_MARGIN_MS)
     ) {
       return this.accessToken;
     }
@@ -65,7 +64,7 @@ export class OAuth2TokenManager {
         if (this.refreshToken) {
           const refreshParams: Record<string, string> = {
             grant_type: 'refresh_token',
-            refresh_token: this.refreshToken,
+            refresh_token: this.refreshToken
           };
           if (params.client_id !== undefined) {
             refreshParams.client_id = params.client_id;
@@ -147,7 +146,7 @@ export class OAuth2TokenManager {
       {
         'Content-Type': 'application/x-www-form-urlencoded',
         Accept: 'application/json',
-        ...extraHeaders,
+        ...extraHeaders
       },
       body
     );
@@ -269,7 +268,7 @@ export class OAuth2ServerError extends Error {
     public readonly code: string | null,
     public readonly description: string | null,
     public readonly uri: string | null,
-    public readonly rawBody: string,
+    public readonly rawBody: string
   ) {
     super(OAuth2ServerError.buildMessage(statusCode, code, description, rawBody));
     this.name = 'OAuth2ServerError';
@@ -279,7 +278,7 @@ export class OAuth2ServerError extends Error {
     statusCode: number,
     code: string | null,
     description: string | null,
-    rawBody: string,
+    rawBody: string
   ): string {
     if (code === null) {
       return `Token request failed with status ${statusCode}: ${rawBody}`;

@@ -68,7 +68,7 @@ export class Pet {
       if (!(statusValues as readonly unknown[]).includes(this.status)) {
         throw new Error(
           `Unknown enum value for status: ${JSON.stringify(this.status)}. ` +
-            `Expected one of [${ statusValues.map((v) => JSON.stringify(v)).join(', ')}].`
+            `Expected one of [${statusValues.map((v) => JSON.stringify(v)).join(', ')}].`
         );
       }
     }
@@ -81,5 +81,5 @@ export class Pet {
 export enum PetStatusEnum {
   Available = 'available',
   Pending = 'pending',
-  Sold = 'sold',
+  Sold = 'sold'
 }

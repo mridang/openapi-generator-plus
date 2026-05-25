@@ -30,7 +30,12 @@ class CapturingApiClient implements ApiClient {
   capturedBody: string | Buffer | Record<string, unknown> | null = null;
   responseBody = '{}';
   responseHeaders: Record<string, string> = { 'content-type': 'application/json' };
-  async sendRequest(method: string, url: string, headers: Record<string, string>, body: string | Buffer | Record<string, unknown> | null): Promise<ApiResponse> {
+  async sendRequest(
+    method: string,
+    url: string,
+    headers: Record<string, string>,
+    body: string | Buffer | Record<string, unknown> | null
+  ): Promise<ApiResponse> {
     this.capturedUrl = url;
     this.capturedHeaders = headers;
     this.capturedBody = body;
@@ -50,9 +55,7 @@ class TestableApi extends BaseApi {
     returnType: ((json: unknown) => T) | null,
     auth?: Authenticator | null
   ): Promise<T | void> {
-    return this.invokeApi(
-      method, path, queryParams, headerParams, body,
-      accepts, contentType, returnType, auth);
+    return this.invokeApi(method, path, queryParams, headerParams, body, accepts, contentType, returnType, auth);
   }
 }
 
@@ -63,10 +66,18 @@ class TestAuthenticator implements Authenticator {
     private cookies: Record<string, string> = {}
   ) {}
 
-  getHost(): string { return ''; }
-  getAuthHeaders(): Record<string, string> { return this.headers; }
-  getQueryParams(): Record<string, string> { return this.queryParams; }
-  getCookieParams(): Record<string, string> { return this.cookies; }
+  getHost(): string {
+    return '';
+  }
+  getAuthHeaders(): Record<string, string> {
+    return this.headers;
+  }
+  getQueryParams(): Record<string, string> {
+    return this.queryParams;
+  }
+  getCookieParams(): Record<string, string> {
+    return this.cookies;
+  }
 }
 
 const wiremockUrl = process.env.WIREMOCK_HTTP_URL!;
@@ -91,8 +102,7 @@ describe('BaseApi exception dispatch', () => {
 
   test.each(cases)('status %i throws correct exception', async (status, ErrorClass) => {
     try {
-      await api().call('GET', `/api/error/${status}`, {}, {}, null,
-        ['application/json'], 'application/json', null);
+      await api().call('GET', `/api/error/${status}`, {}, {}, null, ['application/json'], 'application/json', null);
       fail('Expected error not thrown');
     } catch (e) {
       expect(e).toBeInstanceOf(ErrorClass);
@@ -105,8 +115,7 @@ describe('BaseApi exception dispatch', () => {
 describe('BaseApi error body parsing', () => {
   test('parses JSON error body', async () => {
     try {
-      await api().call('GET', '/api/error/400', {}, {}, null,
-        ['application/json'], 'application/json', null);
+      await api().call('GET', '/api/error/400', {}, {}, null, ['application/json'], 'application/json', null);
       fail('Expected error not thrown');
     } catch (e) {
       expect(e).toBeInstanceOf(BadRequestError);
@@ -118,8 +127,7 @@ describe('BaseApi error body parsing', () => {
 describe('BaseApi exception hierarchy', () => {
   test('NotFoundError is ClientError is ApiError', async () => {
     try {
-      await api().call('GET', '/api/error/404', {}, {}, null,
-        ['application/json'], 'application/json', null);
+      await api().call('GET', '/api/error/404', {}, {}, null, ['application/json'], 'application/json', null);
       fail('Expected error not thrown');
     } catch (e) {
       expect(e).toBeInstanceOf(NotFoundError);
@@ -130,8 +138,7 @@ describe('BaseApi exception hierarchy', () => {
 
   test('InternalServerError is ServerError is ApiError', async () => {
     try {
-      await api().call('GET', '/api/error/500', {}, {}, null,
-        ['application/json'], 'application/json', null);
+      await api().call('GET', '/api/error/500', {}, {}, null, ['application/json'], 'application/json', null);
       fail('Expected error not thrown');
     } catch (e) {
       expect(e).toBeInstanceOf(InternalServerError);
@@ -143,32 +150,53 @@ describe('BaseApi exception hierarchy', () => {
 
 describe('BaseApi success deserialization', () => {
   test('deserializes JSON response', async () => {
-    const result = await api().call('GET', '/api/test', {}, {}, null,
-      ['application/json'], 'application/json',
-      (json) => json as { message: string });
+    const result = await api().call(
+      'GET',
+      '/api/test',
+      {},
+      {},
+      null,
+      ['application/json'],
+      'application/json',
+      (json) => json as { message: string }
+    );
     expect(result).toBeDefined();
     expect((result as { message: string }).message).toBe('success');
   });
 
   test('returns raw string for non-JSON response', async () => {
-    const result = await api().call('GET', '/api/text', {}, {}, null,
-      ['text/plain'], 'application/json',
-      (json) => json as string);
+    const result = await api().call(
+      'GET',
+      '/api/text',
+      {},
+      {},
+      null,
+      ['text/plain'],
+      'application/json',
+      (json) => json as string
+    );
     expect(result).toBeDefined();
     expect(result).toContain('hello plain text');
   });
 
   test('returns void when returnType is null', async () => {
-    const result = await api().call('GET', '/api/test', {}, {}, null,
-      ['application/json'], 'application/json', null);
+    const result = await api().call('GET', '/api/test', {}, {}, null, ['application/json'], 'application/json', null);
     expect(result).toBeUndefined();
   });
 });
 
 describe('BaseApi query parameters', () => {
   test('appends query params to URL', async () => {
-    const result = await api().call('GET', '/api/test', { foo: 'bar' }, {}, null,
-      ['application/json'], 'application/json', null);
+    const result = await api().call(
+      'GET',
+      '/api/test',
+      { foo: 'bar' },
+      {},
+      null,
+      ['application/json'],
+      'application/json',
+      null
+    );
     expect(result).toBeUndefined();
   });
 });
@@ -199,8 +227,16 @@ describe('BaseApi allowEmptyValue', () => {
   });
 
   test('includes empty value param in query string when value is empty string', async () => {
-    const result = await api().call('GET', '/api/test', { filter: '' }, {}, null,
-      ['application/json'], 'application/json', null);
+    const result = await api().call(
+      'GET',
+      '/api/test',
+      { filter: '' },
+      {},
+      null,
+      ['application/json'],
+      'application/json',
+      null
+    );
     expect(result).toBeUndefined();
   });
 });
@@ -210,8 +246,16 @@ describe('BaseApi query serialization', () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const testApi = new TestableApi(client, config);
-    await testApi.call('GET', '/api/test', { tags: ['a', 'b'] }, {}, null,
-      ['application/json'], 'application/json', null);
+    await testApi.call(
+      'GET',
+      '/api/test',
+      { tags: ['a', 'b'] },
+      {},
+      null,
+      ['application/json'],
+      'application/json',
+      null
+    );
     expect(client.capturedUrl).toContain('tags=a&tags=b');
   });
 
@@ -219,8 +263,7 @@ describe('BaseApi query serialization', () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const testApi = new TestableApi(client, config);
-    await testApi.call('GET', '/api/test', { active: true }, {}, null,
-      ['application/json'], 'application/json', null);
+    await testApi.call('GET', '/api/test', { active: true }, {}, null, ['application/json'], 'application/json', null);
     expect(client.capturedUrl).toContain('active=true');
   });
 
@@ -228,8 +271,7 @@ describe('BaseApi query serialization', () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const testApi = new TestableApi(client, config);
-    await testApi.call('GET', '/api/test', { limit: 10 }, {}, null,
-      ['application/json'], 'application/json', null);
+    await testApi.call('GET', '/api/test', { limit: 10 }, {}, null, ['application/json'], 'application/json', null);
     expect(client.capturedUrl).toContain('limit=10');
     expect(client.capturedUrl).not.toContain('limit=10.0');
   });
@@ -238,8 +280,7 @@ describe('BaseApi query serialization', () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const testApi = new TestableApi(client, config);
-    await testApi.call('GET', '/api/test', {}, {}, null,
-      ['application/json'], 'application/json', null);
+    await testApi.call('GET', '/api/test', {}, {}, null, ['application/json'], 'application/json', null);
     expect(client.capturedUrl).not.toContain('?');
   });
 
@@ -249,8 +290,7 @@ describe('BaseApi query serialization', () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: 'http://localhost/' });
     const testApi = new TestableApi(client, config);
-    await testApi.call('GET', '/api/test', {}, {}, null,
-      ['application/json'], 'application/json', null);
+    await testApi.call('GET', '/api/test', {}, {}, null, ['application/json'], 'application/json', null);
     expect(client.capturedUrl).toBe('http://localhost/api/test');
   });
 });
@@ -258,40 +298,52 @@ describe('BaseApi query serialization', () => {
 describe('BaseApi auth injection', () => {
   test('forwards auth headers', async () => {
     const auth = new TestAuthenticator({ 'X-Custom': 'auth-value' });
-    const result = await api().call('GET', '/api/echo-headers', {}, {}, null,
-      ['application/json'], 'application/json',
-      (json) => json as Record<string, string>, auth);
+    const result = await api().call(
+      'GET',
+      '/api/echo-headers',
+      {},
+      {},
+      null,
+      ['application/json'],
+      'application/json',
+      (json) => json as Record<string, string>,
+      auth
+    );
     expect(result).toBeDefined();
     expect((result as Record<string, string>)['x-custom']).toBe('auth-value');
   });
 
   test('sets Cookie header from auth cookies', async () => {
     const auth = new TestAuthenticator({}, {}, { session: 'abc123' });
-    await api().call('GET', '/api/test', {}, {}, null,
-      ['application/json'], 'application/json', null, auth);
+    await api().call('GET', '/api/test', {}, {}, null, ['application/json'], 'application/json', null, auth);
   });
 });
 
 describe('BaseApi body serialization', () => {
   test('serializes JSON body for POST', async () => {
-    const result = await api().call('POST', '/api/echo-body', {}, {}, { key: 'value' },
-      ['application/json'], 'application/json',
-      (json) => json as { key: string });
+    const result = await api().call(
+      'POST',
+      '/api/echo-body',
+      {},
+      {},
+      { key: 'value' },
+      ['application/json'],
+      'application/json',
+      (json) => json as { key: string }
+    );
     expect(result).toBeDefined();
     expect((result as { key: string }).key).toBe('value');
   });
 
   test('sends no body when null', async () => {
-    await api().call('GET', '/api/test', {}, {}, null,
-      ['application/json'], 'application/json', null);
+    await api().call('GET', '/api/test', {}, {}, null, ['application/json'], 'application/json', null);
   });
 
   test('serializes text/plain body', async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const testApi = new TestableApi(client, config);
-    await testApi.call('POST', '/api/test', {}, {}, 'hello world',
-      ['application/json'], 'text/plain', null);
+    await testApi.call('POST', '/api/test', {}, {}, 'hello world', ['application/json'], 'text/plain', null);
     expect(client.capturedBody).toBe('hello world');
   });
 
@@ -299,8 +351,16 @@ describe('BaseApi body serialization', () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const testApi = new TestableApi(client, config);
-    await testApi.call('POST', '/api/test', {}, {}, { name: 'alice' },
-      ['application/json'], 'application/x-www-form-urlencoded', null);
+    await testApi.call(
+      'POST',
+      '/api/test',
+      {},
+      {},
+      { name: 'alice' },
+      ['application/json'],
+      'application/x-www-form-urlencoded',
+      null
+    );
     expect(client.capturedBody).toContain('name=alice');
   });
 
@@ -309,8 +369,7 @@ describe('BaseApi body serialization', () => {
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const testApi = new TestableApi(client, config);
     const buf = Buffer.from([0x01, 0x02, 0x03]);
-    await testApi.call('POST', '/api/test', {}, {}, buf,
-      ['application/json'], 'application/octet-stream', null);
+    await testApi.call('POST', '/api/test', {}, {}, buf, ['application/json'], 'application/octet-stream', null);
     expect(client.capturedBody).toBeDefined();
   });
 });
@@ -322,9 +381,16 @@ describe('BaseApi content-type deserialization guard', () => {
     client.responseHeaders = { 'content-type': 'text/plain' };
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const testApi = new TestableApi(client, config);
-    const result = await testApi.call('GET', '/api/test', {}, {}, null,
-      ['text/plain'], 'application/json',
-      (json) => json as string);
+    const result = await testApi.call(
+      'GET',
+      '/api/test',
+      {},
+      {},
+      null,
+      ['text/plain'],
+      'application/json',
+      (json) => json as string
+    );
     expect(result).toBe('hello');
   });
 
@@ -334,9 +400,16 @@ describe('BaseApi content-type deserialization guard', () => {
     client.responseHeaders = { 'content-type': 'application/problem+json' };
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const testApi = new TestableApi(client, config);
-    const result = await testApi.call('GET', '/api/test', {}, {}, null,
-      ['application/json'], 'application/json',
-      (json) => json as { title: string });
+    const result = await testApi.call(
+      'GET',
+      '/api/test',
+      {},
+      {},
+      null,
+      ['application/json'],
+      'application/json',
+      (json) => json as { title: string }
+    );
     expect(result).toBeDefined();
     expect((result as { title: string }).title).toBe('Not Found');
   });
@@ -372,30 +445,23 @@ describe('Configuration server variable overrides', () => {
   );
 
   test('server variable overrides resolve in base URL', () => {
-    const config = Configuration.builder()
-      .server(variableServer, { environment: 'staging' })
-      .build();
+    const config = Configuration.builder().server(variableServer, { environment: 'staging' }).build();
     expect(config.baseUrl).toBe('https://staging.example.com/api/v3');
   });
 
   test('default server variables produce correct base URL', () => {
-    const config = Configuration.builder()
-      .server(variableServer)
-      .build();
+    const config = Configuration.builder().server(variableServer).build();
     expect(config.baseUrl).toBe('https://api.example.com/api/v3');
   });
 
   test('invalid enum value throws error', () => {
     expect(() => {
-      Configuration.builder()
-        .server(variableServer, { environment: 'invalid' });
+      Configuration.builder().server(variableServer, { environment: 'invalid' });
     }).toThrow();
   });
 
   test('API request uses resolved server URL', async () => {
-    const config = Configuration.builder()
-      .server(variableServer, { environment: 'staging' })
-      .build();
+    const config = Configuration.builder().server(variableServer, { environment: 'staging' }).build();
     expect(config.baseUrl).toBe('https://staging.example.com/api/v3');
     const testApi = new TestableApi(new DefaultApiClient(), config);
     expect(testApi).toBeDefined();
@@ -404,15 +470,22 @@ describe('Configuration server variable overrides', () => {
 
 describe('BinaryResponseTests', () => {
   test('octet-stream response roundtrips bytes exactly', async () => {
-    const original = new Uint8Array([0x00, 0xFF, 0x42, 0x7F, 0x80, 0xC3, 0xA9]);
+    const original = new Uint8Array([0x00, 0xff, 0x42, 0x7f, 0x80, 0xc3, 0xa9]);
     const client = new CapturingApiClient();
     client.responseBody = Buffer.from(original).toString('base64');
     client.responseHeaders = { 'content-type': 'application/octet-stream' };
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const testApi = new TestableApi(client, config);
-    const result = await testApi.call('GET', '/api/test', {}, {}, null,
-      ['application/octet-stream'], 'application/octet-stream',
-      (json) => json as string);
+    const result = await testApi.call(
+      'GET',
+      '/api/test',
+      {},
+      {},
+      null,
+      ['application/octet-stream'],
+      'application/octet-stream',
+      (json) => json as string
+    );
     const decoded = Buffer.from(result as string, 'base64');
     expect(Array.from(decoded)).toEqual(Array.from(original));
   });
@@ -424,9 +497,16 @@ describe('BinaryResponseTests', () => {
     client.responseHeaders = { 'content-type': 'image/png' };
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const testApi = new TestableApi(client, config);
-    const result = await testApi.call('GET', '/api/img', {}, {}, null,
-      ['image/png'], 'image/png',
-      (json) => json as string);
+    const result = await testApi.call(
+      'GET',
+      '/api/img',
+      {},
+      {},
+      null,
+      ['image/png'],
+      'image/png',
+      (json) => json as string
+    );
     const decoded = Buffer.from(result as string, 'base64');
     expect(Array.from(decoded)).toEqual(Array.from(original));
   });
@@ -437,9 +517,16 @@ describe('BinaryResponseTests', () => {
     client.responseHeaders = { 'content-type': 'application/json' };
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const testApi = new TestableApi(client, config);
-    const result = await testApi.call('GET', '/api/test', {}, {}, null,
-      ['application/json'], 'application/json',
-      (json) => json as { id: number; name: string });
+    const result = await testApi.call(
+      'GET',
+      '/api/test',
+      {},
+      {},
+      null,
+      ['application/json'],
+      'application/json',
+      (json) => json as { id: number; name: string }
+    );
     expect(result).toBeDefined();
     expect((result as { id: number; name: string }).id).toBe(42);
   });
@@ -450,9 +537,16 @@ describe('BinaryResponseTests', () => {
     client.responseHeaders = { 'content-type': 'text/plain' };
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const testApi = new TestableApi(client, config);
-    const result = await testApi.call('GET', '/api/test', {}, {}, null,
-      ['text/plain'], 'application/json',
-      (json) => json as string);
+    const result = await testApi.call(
+      'GET',
+      '/api/test',
+      {},
+      {},
+      null,
+      ['text/plain'],
+      'application/json',
+      (json) => json as string
+    );
     expect(typeof result).toBe('string');
     expect(result).toBe('hello world');
   });
@@ -463,8 +557,16 @@ describe('BinaryResponseTests', () => {
     client.responseHeaders = { 'content-type': 'application/octet-stream' };
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const testApi = new TestableApi(client, config);
-    const result = await testApi.call('GET', '/api/test', {}, {}, null,
-      ['application/octet-stream'], 'application/octet-stream', null);
+    const result = await testApi.call(
+      'GET',
+      '/api/test',
+      {},
+      {},
+      null,
+      ['application/octet-stream'],
+      'application/octet-stream',
+      null
+    );
     expect(result).toBeUndefined();
   });
 });
@@ -473,7 +575,7 @@ describe('CrossOriginRedirectTests', () => {
   test('same-origin redirect forwards Authorization header', () => {
     const sensitiveHeaders = new Set(['authorization', 'cookie', 'proxy-authorization']);
     const isSameOrigin = true;
-    const originalHeaders: Record<string, string> = { 'Authorization': 'Bearer token123', 'Accept': 'application/json' };
+    const originalHeaders: Record<string, string> = { Authorization: 'Bearer token123', Accept: 'application/json' };
     const forwarded: Record<string, string> = {};
     for (const [key, value] of Object.entries(originalHeaders)) {
       if (!isSameOrigin && sensitiveHeaders.has(key.toLowerCase())) continue;
@@ -485,7 +587,7 @@ describe('CrossOriginRedirectTests', () => {
   test('cross-origin redirect drops Authorization header', () => {
     const sensitiveHeaders = new Set(['authorization', 'cookie', 'proxy-authorization']);
     const isSameOrigin = false;
-    const originalHeaders: Record<string, string> = { 'Authorization': 'Bearer token123', 'Accept': 'application/json' };
+    const originalHeaders: Record<string, string> = { Authorization: 'Bearer token123', Accept: 'application/json' };
     const forwarded: Record<string, string> = {};
     for (const [key, value] of Object.entries(originalHeaders)) {
       if (!isSameOrigin && sensitiveHeaders.has(key.toLowerCase())) continue;
@@ -498,7 +600,7 @@ describe('CrossOriginRedirectTests', () => {
   test('cross-origin redirect drops Cookie header', () => {
     const sensitiveHeaders = new Set(['authorization', 'cookie', 'proxy-authorization']);
     const isSameOrigin = false;
-    const originalHeaders: Record<string, string> = { 'Cookie': 'session=abc123', 'Accept': 'application/json' };
+    const originalHeaders: Record<string, string> = { Cookie: 'session=abc123', Accept: 'application/json' };
     const forwarded: Record<string, string> = {};
     for (const [key, value] of Object.entries(originalHeaders)) {
       if (!isSameOrigin && sensitiveHeaders.has(key.toLowerCase())) continue;
@@ -514,8 +616,7 @@ describe('NullBodyContentTypeTests', () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const testApi = new TestableApi(client, config);
-    await testApi.call('POST', '/api/test', {}, {}, null,
-      ['application/json'], 'application/json', null);
+    await testApi.call('POST', '/api/test', {}, {}, null, ['application/json'], 'application/json', null);
     expect(client.capturedHeaders['Content-Type']).toBeUndefined();
   });
 
@@ -523,8 +624,7 @@ describe('NullBodyContentTypeTests', () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const testApi = new TestableApi(client, config);
-    await testApi.call('POST', '/api/test', {}, {}, '',
-      ['application/json'], 'application/json', null);
+    await testApi.call('POST', '/api/test', {}, {}, '', ['application/json'], 'application/json', null);
     expect(client.capturedHeaders['Content-Type']).toBeDefined();
   });
 
@@ -532,8 +632,7 @@ describe('NullBodyContentTypeTests', () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const testApi = new TestableApi(client, config);
-    await testApi.call('POST', '/api/test', {}, {}, {},
-      ['application/json'], 'application/json', null);
+    await testApi.call('POST', '/api/test', {}, {}, {}, ['application/json'], 'application/json', null);
     expect(client.capturedHeaders['Content-Type']).toBe('application/json');
   });
 });

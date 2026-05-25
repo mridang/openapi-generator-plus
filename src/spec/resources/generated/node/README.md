@@ -1,4 +1,4 @@
-#  SDK
+# SDK
 
 Auto-generated TypeScript SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
