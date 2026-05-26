@@ -2599,6 +2599,13 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         // O8 — Request-body kind (none/json/form/multipart/binary/text/other)
         d.put("requestBodyKind", deriveRequestBodyKind(op));
 
+        // Phase 1.14 — Required-but-empty body indicator. Promoted from the
+        // upstream spec-level "x-is-empty-body" extension that
+        // CleanEmptyRequestBodiesRule attaches to the RequestBody in Tag
+        // mode. Surfacing it on the operation decorator removes the last
+        // vendorExtensions.x-* reference from any template.
+        d.put("requestBodyIsRequiredButEmpty", isRequestBodyRequiredButEmpty(op));
+
         // O10 — Return kind classification
         d.put("returnKind", deriveReturnKind(op));
         d.put("hasReturnType", op.returnType != null);
@@ -2855,6 +2862,21 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             return "multipart";
         }
         return "other";
+    }
+
+    /**
+     * Returns {@code true} when {@link CleanEmptyRequestBodiesRule} has
+     * tagged the operation's request body as required-but-empty. The rule
+     * sets {@code x-is-empty-body} on the spec-level
+     * {@code RequestBody.extensions}; openapi-generator propagates that
+     * onto the CodegenParameter's vendorExtensions during processing.
+     */
+    private static boolean isRequestBodyRequiredButEmpty(CodegenOperation op) {
+        if (op.bodyParam == null || op.bodyParam.vendorExtensions == null) {
+            return false;
+        }
+        final Object v = op.bodyParam.vendorExtensions.get("x-is-empty-body");
+        return Boolean.TRUE.equals(v);
     }
 
     /**

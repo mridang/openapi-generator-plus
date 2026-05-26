@@ -32,12 +32,12 @@ class {{classname}}:
 
     @validate_call
     {{#asyncio}}async {{/asyncio}}def {{operationId}}{{>partial_api_args}} -> {{{returnType}}}{{^returnType}}None{{/returnType}}:
+    {{#vendorExtensions.op.requestBodyIsRequiredButEmpty}}
     {{#bodyParams}}
-      {{#vendorExtensions.x-is-empty-body}}
         if {{paramName}} is None:
             {{paramName}} = {}
-      {{/vendorExtensions.x-is-empty-body}}
     {{/bodyParams}}
+    {{/vendorExtensions.op.requestBodyIsRequiredButEmpty}}
 {{>partial_api}}
         response_data = {{#asyncio}}await {{/asyncio}}self.api_client.call_api(
             *_param,
