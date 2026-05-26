@@ -309,6 +309,13 @@ impl ApiClient for DefaultApiClient {
 fn build_http_client(opts: &TransportOptions) -> Client {
     let mut builder = ClientBuilder::new();
 
+    // F-W5-5: reqwest only decompresses response bodies when the relevant
+    // decompression features are explicitly enabled on the builder.
+    // Without these calls, the client advertises gzip/brotli/deflate/zstd
+    // in Accept-Encoding but returns the raw compressed bytes to the caller,
+    // corrupting any server response that picks one of those encodings.
+    builder = builder.gzip(true).brotli(true).deflate(true).zstd(true);
+
     builder = builder.danger_accept_invalid_certs(!opts.verify_ssl());
 
     if let Some(ca_path) = opts.ca_cert_path() {
