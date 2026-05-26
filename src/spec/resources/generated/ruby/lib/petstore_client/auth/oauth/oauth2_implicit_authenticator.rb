@@ -28,11 +28,26 @@ module PetstoreClient
         # @return [String]
         attr_reader :host
 
-        # @!attribute [w] access_token
-        #   Set the access token obtained from the authorization redirect fragment.
-        #   @param token [String] the access token
-        #   @return [String]
-        attr_writer :access_token
+        # Set the access token obtained from the authorization redirect fragment.
+        #
+        # F-A5-04: validate at set time to mirror BearerAuthenticator's RFC 7230
+        # §3.2.6 check. Without it, a CR/LF-bearing token would be stashed and
+        # only fail at the next API call via the Authorization-header concat,
+        # allowing HTTP header injection from a redirect-fragment-derived value.
+        #
+        # @param token [String] the access token
+        # @return [String]
+        # @raise [ArgumentError] if the token has non-printable-ASCII characters
+        def access_token=(token)
+          token.each_char do |c|
+            o = c.ord
+            if c != "\t" && (o < 0x20 || o >= 0x7F)
+              raise ArgumentError,
+                'Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)'
+            end
+          end
+          @access_token = token
+        end
 
         # Create a new implicit flow authenticator.
         #

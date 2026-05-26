@@ -47,7 +47,20 @@ impl OAuth2ImplicitAuthenticator {
     }
 
     /// Sets the access token obtained from the authorization redirect fragment.
+    ///
+    /// F-A5-04: validate at set time to mirror BearerAuthenticator's RFC 7230
+    /// §3.2.6 check. Without it, a CR/LF-bearing token would be stashed and
+    /// only fail at the next API call via the Authorization-header concat,
+    /// allowing HTTP header injection from a redirect-fragment-derived value.
+    /// Panics on invalid input — consistent with BearerAuthenticator.
     pub fn set_access_token(&mut self, token: &str) {
+        for b in token.bytes() {
+            if b != b'\t' && (b < 0x20 || b >= 0x7F) {
+                panic!(
+                    "access token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+                );
+            }
+        }
         self.access_token = token.to_string();
     }
 

@@ -81,7 +81,14 @@ class OAuth2ImplicitAuthenticator(HttpAwareAuthenticator):
 
         Args:
             token: The access token.
+
+        Raises:
+            ValueError: If the token contains characters outside RFC 7230
+                §3.2.6 printable-ASCII + HTAB. Mirrors the BearerAuthenticator
+                check so a CR/LF cannot inject extra HTTP headers (F-A5-04).
         """
+        if any(c != '\t' and (ord(c) < 0x20 or ord(c) >= 0x7F) for c in token):
+            raise ValueError('Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)')
         self._access_token = token
 
     def get_host(self) -> str:

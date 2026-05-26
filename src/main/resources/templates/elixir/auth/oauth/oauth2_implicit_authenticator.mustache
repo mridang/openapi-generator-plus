@@ -60,9 +60,22 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2ImplicitAuthenticator do
 
   @doc """
   Set the access token obtained from the authorization redirect fragment.
+
+  F-A5-04: validate at set time to mirror BearerAuthenticator's RFC 7230
+  §3.2.6 check. Without it, a CR/LF-bearing token would be stashed and
+  only fail at the next API call via the Authorization-header concat,
+  allowing HTTP header injection from a redirect-fragment-derived value.
+  Raises `ArgumentError` on invalid input.
   """
   @spec set_access_token(t(), String.t()) :: t()
   def set_access_token(%__MODULE__{} = self, token) do
+    if Enum.any?(:binary.bin_to_list(token), fn b ->
+         b != ?\t and (b < 0x20 or b >= 0x7F)
+       end) do
+      raise ArgumentError,
+            "Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+    end
+
     %{self | access_token: token}
   end
 

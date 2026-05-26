@@ -58,7 +58,21 @@ func (a *OAuth2ImplicitAuthenticator) SetApiClient(_ auth.ApiClient) {
 }
 
 // SetAccessToken sets the access token obtained from the authorization redirect fragment.
+//
+// F-A5-04: validate at set time to mirror BearerAuthenticator's RFC 7230
+// §3.2.6 check. Without it, a CR/LF-bearing token would be stashed and
+// only fail at the next API call via the Authorization-header concat,
+// allowing HTTP header injection from a redirect-fragment-derived value.
+// Panics on invalid input — consistent with BearerAuthenticator.
 func (a *OAuth2ImplicitAuthenticator) SetAccessToken(token string) {
+	for i := 0; i < len(token); i++ {
+		c := token[i]
+		if c != '\t' && (c < 0x20 || c >= 0x7F) {
+			panic(fmt.Sprintf(
+				"access token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+			))
+		}
+	}
 	a.accessToken = token
 }
 

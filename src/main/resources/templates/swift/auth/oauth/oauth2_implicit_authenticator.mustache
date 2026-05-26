@@ -41,7 +41,21 @@ public class OAuth2ImplicitAuthenticator: BaseAuthenticator, HttpAwareAuthentica
     }
 
     /// Sets the access token obtained from the authorization redirect fragment.
+    ///
+    /// F-A5-04: validate at set time to mirror BearerAuthenticator's RFC 7230
+    /// §3.2.6 check. Without it, a CR/LF-bearing token would be stashed and
+    /// only fail at the next API call via the Authorization-header concat,
+    /// allowing HTTP header injection from a redirect-fragment-derived value.
+    /// preconditionFailure is consistent with BearerAuthenticator.
     public func setAccessToken(_ token: String) {
+        for scalar in token.unicodeScalars {
+            let v = scalar.value
+            if v != 0x09 && (v < 0x20 || v >= 0x7F) {
+                preconditionFailure(
+                    "Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+                )
+            }
+        }
         self.accessToken = token
     }
 

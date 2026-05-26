@@ -82,6 +82,20 @@ public class OAuth2ImplicitAuthenticator implements HttpAwareAuthenticator {
      * @param token the access token
      */
     public void setAccessToken(String token) {
+        /* F-A5-04: validate at set time to mirror BearerAuthenticator's
+         * RFC 7230 §3.2.6 check. setAccessToken would otherwise let a
+         * caller stash a CR/LF-bearing token and only fail at the next
+         * API call via the Authorization-header concat, allowing HTTP
+         * header injection from a redirect-fragment-derived value. */
+        if (token != null) {
+            for (int i = 0; i < token.length(); i++) {
+                char c = token.charAt(i);
+                if (c != '\t' && (c < 0x20 || c >= 0x7F)) {
+                    throw new IllegalArgumentException(
+                            "Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)");
+                }
+            }
+        }
         this.accessToken = token;
     }
 

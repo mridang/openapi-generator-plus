@@ -79,9 +79,21 @@ export class OAuth2ImplicitAuthenticator implements HttpAwareAuthenticator {
   /**
    * Set the access token obtained from the authorization redirect fragment.
    *
+   * F-A5-04: validate at set time to mirror BearerAuthenticator's RFC 7230
+   * §3.2.6 check. Without it, a CR/LF-bearing token would be stashed and
+   * only fail at the next API call via the Authorization-header concat,
+   * allowing HTTP header injection from a redirect-fragment-derived value.
+   *
    * @param token the access token
+   * @throws Error if the token contains non-printable-ASCII characters
    */
   setAccessToken(token: string): void {
+    for (let i = 0; i < token.length; i++) {
+      const c = token.charCodeAt(i);
+      if (c !== 0x09 && (c < 0x20 || c >= 0x7f)) {
+        throw new Error('Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)');
+      }
+    }
     this.accessToken = token;
   }
 

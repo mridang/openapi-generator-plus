@@ -92,8 +92,25 @@ public class OAuth2ImplicitAuthenticator : BaseAuthenticator, IHttpAwareAuthenti
     /// Sets the access token obtained from the authorization redirect.
     /// </summary>
     /// <param name="token">The access token.</param>
+    /// <exception cref="ArgumentException">
+    /// Thrown when the token contains characters outside RFC 7230 §3.2.6's
+    /// printable-ASCII + HTAB range (F-A5-04). Mirrors BearerAuthenticator.
+    /// </exception>
     public void SetAccessToken(string token)
     {
+        if (token is not null)
+        {
+            foreach (char c in token)
+            {
+                if (c != '\t' && (c < 0x20 || c >= 0x7F))
+                {
+                    throw new ArgumentException(
+                        "Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+                        nameof(token)
+                    );
+                }
+            }
+        }
         _accessToken = token;
     }
 
