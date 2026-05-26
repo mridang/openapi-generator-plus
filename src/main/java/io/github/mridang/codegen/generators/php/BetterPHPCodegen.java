@@ -69,7 +69,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         typeMapping.put("decimal", "float");
         typeMapping.put("boolean", "bool");
         typeMapping.put("string", "string");
-        typeMapping.put("byte", "int");
+        typeMapping.put("byte", "string");
         typeMapping.put("binary", "string");
         typeMapping.put("ByteArray", "string");
         typeMapping.put("date", "\\DateTime");
