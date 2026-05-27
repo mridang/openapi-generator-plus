@@ -30,6 +30,91 @@ defmodule PetstoreClient.ObjectSerializer do
 
   @default_datetime_format "{ISO:Extended}"
 
+  # Maximum allowed JSON nesting depth. Elixir's Jason.decode recurses
+  # through the BEAM call stack; while BEAM stacks are heap-allocated and
+  # don't overflow as quickly as native ones, a 100k-deep payload still
+  # explodes memory + reduction budgets. Matches the 1000-cap Java/Kotlin
+  # Jackson and Python json stdlib use; Go uses the same. C# is stricter
+  # (64). F5 follow-up.
+  @max_json_depth 1000
+
+  # Returns the maximum nesting depth of `{`/`[` containers in the JSON
+  # binary, ignoring characters inside string literals. Cheap pre-flight
+  # scan used to refuse a deeply-nested payload before invoking Jason.
+  @spec json_max_depth(binary()) :: non_neg_integer()
+  def json_max_depth(data) when is_binary(data) do
+    json_max_depth_loop(data, 0, 0, false, false)
+  end
+
+  defp json_max_depth_loop(<<>>, _depth, max, _in_string, _escaped) do
+    max
+  end
+
+  defp json_max_depth_loop(<<c, rest::binary>>, depth, max, true, true) do
+    _ = c
+    json_max_depth_loop(rest, depth, max, true, false)
+  end
+
+  defp json_max_depth_loop(<<?\\, rest::binary>>, depth, max, true, false) do
+    json_max_depth_loop(rest, depth, max, true, true)
+  end
+
+  defp json_max_depth_loop(<<?", rest::binary>>, depth, max, true, false) do
+    json_max_depth_loop(rest, depth, max, false, false)
+  end
+
+  defp json_max_depth_loop(<<_c, rest::binary>>, depth, max, true, false) do
+    json_max_depth_loop(rest, depth, max, true, false)
+  end
+
+  defp json_max_depth_loop(<<?", rest::binary>>, depth, max, false, _esc) do
+    json_max_depth_loop(rest, depth, max, true, false)
+  end
+
+  defp json_max_depth_loop(<<o, rest::binary>>, depth, max, false, _esc) when o == ?{ or o == ?[ do
+    new_depth = depth + 1
+
+    new_max =
+      if new_depth > max do
+        new_depth
+      else
+        max
+      end
+
+    json_max_depth_loop(rest, new_depth, new_max, false, false)
+  end
+
+  defp json_max_depth_loop(<<c, rest::binary>>, depth, max, false, _esc) when c == ?} or c == ?] do
+    new_depth =
+      if depth > 0 do
+        depth - 1
+      else
+        0
+      end
+
+    json_max_depth_loop(rest, new_depth, max, false, false)
+  end
+
+  defp json_max_depth_loop(<<_c, rest::binary>>, depth, max, false, _esc) do
+    json_max_depth_loop(rest, depth, max, false, false)
+  end
+
+  @doc """
+  Parses a JSON text into an Elixir value, refusing payloads that exceed
+  the `@max_json_depth` nesting cap (DoS guard for malicious deeply-
+  nested payloads — F5 follow-up, parity with Go/Java/Python).
+  """
+  @spec parse_json(binary()) :: {:ok, term()} | {:error, term()}
+  def parse_json(data) when is_binary(data) do
+    depth = json_max_depth(data)
+
+    if depth > @max_json_depth do
+      {:error, "JSON nesting depth #{depth} exceeds limit #{@max_json_depth}"}
+    else
+      Jason.decode(data)
+    end
+  end
+
   @doc """
   Serialize an object to a JSON string.
   """
@@ -66,7 +151,7 @@ defmodule PetstoreClient.ObjectSerializer do
         other -> other
       end
 
-    case Jason.decode(stripped) do
+    case parse_json(stripped) do
       {:ok, data} -> convert_to_type(data, target_type)
       {:error, reason} -> raise PetstoreClient.SerializationError, message: "Failed to parse JSON: #{inspect(reason)}"
     end

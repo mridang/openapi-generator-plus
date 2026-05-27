@@ -324,7 +324,9 @@ class BaseApi {
     Object? parsed;
     if (body.isNotEmpty) {
       try {
-        parsed = jsonDecode(body);
+        /* F5: route through parseJson so the depth-cap rejects malicious
+         * 100k-deep error payloads before they stack-overflow the VM. */
+        parsed = parseJson(body);
       } catch (_) {}
     }
 

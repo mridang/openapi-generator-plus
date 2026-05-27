@@ -23,6 +23,53 @@ export class SerializationError extends Error {
 }
 
 /**
+ * Maximum allowed JSON nesting depth. Node's JSON.parse has no built-in
+ * cap and recurses through V8's call stack, so a malicious 100k-deep
+ * `{"a":{"a":...}}` payload would stack-overflow / DoS. Matches the
+ * 1000-cap Java/Kotlin Jackson and Python json stdlib use; Go uses the
+ * same. C# is stricter (64). F5 (Round-4 deferred).
+ */
+const MAX_JSON_DEPTH = 1000;
+
+/**
+ * Returns the maximum nesting depth of `{`/`[` containers in the given
+ * JSON text, ignoring characters inside string literals. Cheap pre-flight
+ * scan used to refuse a deeply-nested payload before invoking JSON.parse.
+ */
+function jsonMaxDepth(s: string): number {
+  let depth = 0;
+  let max = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (c === 0x5c /* \ */) {
+        escaped = true;
+      } else if (c === 0x22 /* " */) {
+        inString = false;
+      }
+      continue;
+    }
+    if (c === 0x22) {
+      inString = true;
+    } else if (c === 0x7b /* { */ || c === 0x5b /* [ */) {
+      depth++;
+      if (depth > max) {
+        max = depth;
+      }
+    } else if (c === 0x7d /* } */ || c === 0x5d /* ] */) {
+      if (depth > 0) {
+        depth--;
+      }
+    }
+  }
+  return max;
+}
+
+/**
  * Handles JSON serialization and deserialization for API requests and responses.
  *
  * All serde operations in the generated client route through this class.
@@ -30,6 +77,30 @@ export class SerializationError extends Error {
  * URL path, query string, header, and form parameters.
  */
 export class ObjectSerializer {
+  /**
+   * Parse a JSON text into a plain JS value, refusing payloads that exceed
+   * the {@link MAX_JSON_DEPTH} nesting cap (DoS guard for malicious
+   * deeply-nested payloads — F5 follow-up, parity with Go/Java/Python).
+   *
+   * @param json the raw JSON text
+   * @returns the parsed value
+   * @throws SerializationError if the depth limit is exceeded or parsing fails
+   */
+  static parseJson(json: string): unknown {
+    const depth = jsonMaxDepth(json);
+    if (depth > MAX_JSON_DEPTH) {
+      throw new SerializationError(`JSON nesting depth ${depth} exceeds limit ${MAX_JSON_DEPTH}`);
+    }
+    try {
+      return JSON.parse(json);
+    } catch (e) {
+      throw new SerializationError(
+        `Failed to parse JSON: ${e instanceof Error ? e.message : String(e)}`,
+        e instanceof Error ? e : undefined
+      );
+    }
+  }
+
   /**
    * Serialize an object to a JSON string.
    *

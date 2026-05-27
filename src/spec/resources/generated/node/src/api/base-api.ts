@@ -173,7 +173,10 @@ export abstract class BaseApi {
          * rejects it. Strip silently for parity with Java Jackson / C#
          * System.Text.Json which strip transparently. */
         const cleaned = response.body.charCodeAt(0) === 0xfeff ? response.body.slice(1) : response.body;
-        const json = JSON.parse(cleaned);
+        /* F5: route through ObjectSerializer.parseJson so the
+         * MAX_JSON_DEPTH pre-flight guard rejects malicious
+         * 100k-deep payloads before V8 stack-overflows. */
+        const json = ObjectSerializer.parseJson(cleaned);
         data = returnType(json);
       }
     }
@@ -241,9 +244,11 @@ export abstract class BaseApi {
     let errorBody: unknown = null;
     if (body) {
       try {
-        errorBody = JSON.parse(body);
+        /* F5: depth-cap JSON parsing to refuse 100k-deep error payloads
+         * before V8 stack-overflows. */
+        errorBody = ObjectSerializer.parseJson(body);
       } catch {
-        /* non-JSON body, errorBody stays null */
+        /* non-JSON or over-deep body, errorBody stays null */
       }
     }
 

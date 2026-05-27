@@ -54,7 +54,9 @@ export class ApiError<T = unknown> extends Error {
    * @returns the deserialized error body
    */
   getTypedErrorBody<U>(clazz: ClassConstructor<U>): U | null {
-    const json = this.responseBody != null ? JSON.parse(this.responseBody) : null;
+    /* F5: depth-cap JSON parsing for parity with Go/Java/Python (the body
+     * may be attacker-controlled). */
+    const json = this.responseBody != null ? ObjectSerializer.parseJson(this.responseBody) : null;
     return ObjectSerializer.deserialize(json, clazz);
   }
 }

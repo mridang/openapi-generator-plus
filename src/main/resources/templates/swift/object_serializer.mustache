@@ -80,6 +80,49 @@ public enum ObjectSerializer {
         }
     }
 
+    /// Maximum allowed JSON nesting depth. Foundation's JSONDecoder /
+    /// JSONSerialization have no built-in cap and recurse through the
+    /// native call stack, so a malicious 100k-deep payload would
+    /// stack-overflow. Matches the 1000-cap Java/Kotlin Jackson and
+    /// Python json stdlib use; Go uses the same. C# is stricter (64).
+    /// F5 follow-up.
+    public static let maxJsonDepth = 1000
+
+    /// Returns the maximum nesting depth of `{`/`[` containers in the
+    /// JSON bytes, ignoring characters inside string literals. Cheap
+    /// pre-flight scan used to refuse a deeply-nested payload before
+    /// invoking JSONDecoder / JSONSerialization.
+    public static func jsonMaxDepth(_ data: Data) -> Int {
+        var depth = 0
+        var max = 0
+        var inString = false
+        var escaped = false
+        for b in data {
+            if inString {
+                if escaped {
+                    escaped = false
+                } else if b == 0x5C /* \ */ {
+                    escaped = true
+                } else if b == 0x22 /* " */ {
+                    inString = false
+                }
+                continue
+            }
+            switch b {
+            case 0x22 /* " */:
+                inString = true
+            case 0x7B /* { */, 0x5B /* [ */:
+                depth += 1
+                if depth > max { max = depth }
+            case 0x7D /* } */, 0x5D /* ] */:
+                if depth > 0 { depth -= 1 }
+            default:
+                break
+            }
+        }
+        return max
+    }
+
     /// Deserializes JSON data into a Decodable value.
     /// Returns nil if data is empty.
     public static func deserialize<T: Decodable>(_ data: Data, as type: T.Type) throws -> T? {
@@ -93,6 +136,12 @@ public enum ObjectSerializer {
         let stripped: Data = (data.count >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF)
             ? data.subdata(in: 3..<data.count)
             : data
+        let depth = jsonMaxDepth(stripped)
+        if depth > maxJsonDepth {
+            throw SerializationError(
+                message: "JSON nesting depth \(depth) exceeds limit \(maxJsonDepth)"
+            )
+        }
         do {
             return try decoder.decode(type, from: stripped)
         } catch {

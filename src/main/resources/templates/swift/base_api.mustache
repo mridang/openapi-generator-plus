@@ -389,7 +389,12 @@ open class BaseApi: @unchecked Sendable {
 
         var parsed: Any? = nil
         if !body.isEmpty, let data = body.data(using: .utf8) {
-            parsed = try? JSONSerialization.jsonObject(with: data)
+            /* F5: depth-cap before invoking JSONSerialization so a
+             * malicious 100k-deep error payload cannot stack-overflow.
+             * Skip parsing entirely if the depth exceeds the cap. */
+            if ObjectSerializer.jsonMaxDepth(data) <= ObjectSerializer.maxJsonDepth {
+                parsed = try? JSONSerialization.jsonObject(with: data)
+            }
         }
 
         let baseErr = ApiError(

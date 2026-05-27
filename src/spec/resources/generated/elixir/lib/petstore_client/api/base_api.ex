@@ -294,7 +294,10 @@ defmodule PetstoreClient.Api.BaseApi do
 
     parsed =
       if body && body != "" do
-        case Jason.decode(body) do
+        # F5: route through ObjectSerializer.parse_json so the
+        # @max_json_depth guard rejects malicious 100k-deep error
+        # payloads before Jason recurses.
+        case PetstoreClient.ObjectSerializer.parse_json(body) do
           {:ok, data} -> data
           _ -> nil
         end

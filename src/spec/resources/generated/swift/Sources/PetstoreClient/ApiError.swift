@@ -68,7 +68,10 @@ public class ApiError: Error, LocalizedError, @unchecked Sendable {
         else {
             return nil
         }
-        return try JSONDecoder().decode(type, from: data)
+        /* F5: route through ObjectSerializer.deserialize so the depth-cap
+         * rejects malicious 100k-deep error payloads before JSONDecoder
+         * stack-overflows. */
+        return try ObjectSerializer.deserialize(data, as: type)
     }
 
     /// Deserializes the response body into the target type via

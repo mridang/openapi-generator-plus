@@ -39,6 +39,64 @@ String serialize(Object object) {
 String _stripBom(String data) =>
     data.startsWith('﻿') ? data.substring(1) : data;
 
+/// Maximum allowed JSON nesting depth. Dart's jsonDecode has no built-in
+/// cap and recurses through the Dart VM call stack, so a malicious
+/// 100k-deep `{"a":{"a":...}}` payload would crash the runtime. Matches
+/// the 1000-cap Java/Kotlin Jackson and Python json stdlib use; Go uses
+/// the same. C# is stricter (64). F5 follow-up.
+const int _kMaxJsonDepth = 1000;
+
+/// Returns the maximum nesting depth of `{`/`[` containers in the JSON
+/// text, ignoring characters inside string literals. Cheap pre-flight
+/// scan used to refuse a deeply-nested payload before invoking jsonDecode.
+int _jsonMaxDepth(String s) {
+  int depth = 0;
+  int max = 0;
+  bool inString = false;
+  bool escaped = false;
+  final units = s.codeUnits;
+  for (var i = 0; i < units.length; i++) {
+    final c = units[i];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (c == 0x5C /* \ */) {
+        escaped = true;
+      } else if (c == 0x22 /* " */) {
+        inString = false;
+      }
+      continue;
+    }
+    if (c == 0x22) {
+      inString = true;
+    } else if (c == 0x7B /* { */ || c == 0x5B /* [ */) {
+      depth++;
+      if (depth > max) max = depth;
+    } else if (c == 0x7D /* } */ || c == 0x5D /* ] */) {
+      if (depth > 0) depth--;
+    }
+  }
+  return max;
+}
+
+/// Parses a JSON text into a Dart value, refusing payloads that exceed
+/// the [_kMaxJsonDepth] nesting cap (DoS guard for malicious deeply-
+/// nested payloads — F5 follow-up, parity with Go/Java/Python).
+dynamic parseJson(String data) {
+  final depth = _jsonMaxDepth(data);
+  if (depth > _kMaxJsonDepth) {
+    throw SerializationError(
+      'JSON nesting depth $depth exceeds limit $_kMaxJsonDepth',
+    );
+  }
+  try {
+    return jsonDecode(data);
+  } catch (e) {
+    if (e is SerializationError) rethrow;
+    throw SerializationError('Failed to parse JSON: $e', e);
+  }
+}
+
 /// Parses a JSON string into a dynamic value.
 /// Returns null if data is empty.
 T? deserialize<T>(String data, T Function(Map<String, dynamic>) fromJson) {
@@ -48,7 +106,7 @@ T? deserialize<T>(String data, T Function(Map<String, dynamic>) fromJson) {
   }
 
   try {
-    final decoded = jsonDecode(data);
+    final decoded = parseJson(data);
     if (decoded is Map<String, dynamic>) {
       return fromJson(decoded);
     }
@@ -70,7 +128,7 @@ List<T>? deserializeList<T>(
   }
 
   try {
-    final decoded = jsonDecode(data);
+    final decoded = parseJson(data);
     if (decoded is List) {
       return decoded
           .map((item) => fromJson(item as Map<String, dynamic>))
@@ -88,8 +146,9 @@ dynamic deserializeRaw(String data) {
   data = _stripBom(data);
   if (data.isEmpty) return null;
   try {
-    return jsonDecode(data);
+    return parseJson(data);
   } catch (e) {
+    if (e is SerializationError) rethrow;
     throw SerializationError('Failed to deserialize JSON: $e', e);
   }
 }
