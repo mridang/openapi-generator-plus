@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test\Api;
 
-use PHPUnit\Framework\TestCase;
 use PetstoreClient\Api\Options\FindPetsByStatusOptions;
 use PetstoreClient\Api\Options\UploadPetCertificateOptions;
 use PetstoreClient\Api\Options\UploadPetDocumentOptions;
@@ -15,9 +14,10 @@ use PetstoreClient\Errors\NotFoundException;
 use PetstoreClient\Errors\ServerException;
 use PetstoreClient\Models\ApiResponse as ApiResponseModel;
 use PetstoreClient\Models\Pet;
-use PetstoreClient\Models\PetStatusEnum;
 use PetstoreClient\Models\PetPassport;
+use PetstoreClient\Models\PetStatusEnum;
 use PetstoreClient\Models\SetPetAvatarThumbnailRequest;
+use PHPUnit\Framework\TestCase;
 
 /**
  * Integration tests for the Pet API endpoints.
@@ -268,7 +268,7 @@ class PetApiTest extends TestCase
         $hdrs = [];
         $captured->headers = $hdrs;
 
-        $client = new class($captured) implements \PetstoreClient\ApiClient {
+        $client = new class ($captured) implements \PetstoreClient\ApiClient {
             public function __construct(private readonly \stdClass $captured)
             {
             }

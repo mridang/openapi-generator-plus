@@ -205,7 +205,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         return new String[] {
             "bundle config set --local path vendor/bundle",
             "bundle install --quiet",
-            "bundle exec rubocop -A --only Layout",
+            "bundle exec rubocop -A --cache false --only Layout",
             "rm -rf vendor .bundle"
         };
     }

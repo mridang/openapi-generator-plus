@@ -14,4 +14,4 @@ return (new PhpCsFixer\Config())
     ])
     ->setFinder($finder)
     ->setRiskyAllowed(true)
-    ->setCacheFile('.phpcsf');
+    ->setUsingCache(false);

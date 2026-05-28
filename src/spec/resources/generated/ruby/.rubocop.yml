@@ -2,7 +2,6 @@ AllCops:
   TargetRubyVersion: 3.4
   NewCops: enable
   SuggestExtensions: false
-  CacheRootDirectory: .rubocop
 
 # The builder DSL chains methods off `.builder` with a consistent 2-space
 # indent; the `aligned` style would require excessive horizontal space.
