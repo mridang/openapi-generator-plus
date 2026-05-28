@@ -28,6 +28,7 @@ public class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
   private final String host;
   private final String clientId;
   private final String clientSecret;
+  private final String tokenUrl;
   private final String refreshUrl;
   private final String username;
   private final String password;
@@ -126,6 +127,7 @@ public class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
     this.host = host;
     this.clientId = clientId;
     this.clientSecret = clientSecret;
+    this.tokenUrl = tokenUrl;
     this.refreshUrl = refreshUrl != null ? refreshUrl : tokenUrl;
     this.username = username;
     this.password = password;
@@ -148,10 +150,16 @@ public class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
   public Map<String, String> getAuthHeaders() {
     Map<String, String> params = new HashMap<>();
     String currentRefreshToken = tokenManager.getRefreshToken();
+    // RFC 6749 §4.3.2: the initial password grant goes to the token
+    // endpoint; only the refresh grant (§6) goes to the refresh endpoint.
+    // These differ when the caller configures a distinct refreshUrl.
+    String endpoint;
     if (currentRefreshToken != null) {
+      endpoint = refreshUrl;
       params.put("grant_type", "refresh_token");
       params.put("refresh_token", currentRefreshToken);
     } else {
+      endpoint = tokenUrl;
       params.put("grant_type", "password");
       params.put("username", username);
       params.put("password", password);
@@ -179,7 +187,7 @@ public class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
       params.put("client_id", clientId);
       params.put("client_secret", clientSecret);
     }
-    String token = tokenManager.getAccessToken(refreshUrl, params, extraHeaders);
+    String token = tokenManager.getAccessToken(endpoint, params, extraHeaders);
     return Collections.singletonMap("Authorization", "Bearer " + token);
   }
 }
