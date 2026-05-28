@@ -435,14 +435,53 @@ defmodule PetstoreClient.DefaultApiClient do
   end
 
   defp do_request_with_redirects(client, method, url, orig_url, headers, body, max, hops) do
+    # Catch inside the task so it always returns a tagged value and never
+    # crashes the linked caller: Task.async links, so an uncaught raise
+    # would take down this process before Task.yield could observe it.
+    req_fun = fn ->
+      try do
+        {:ok,
+         Req.request!(
+           client.base_req,
+           method: method,
+           url: url,
+           headers: Enum.map(headers, fn {k, v} -> {k, v} end),
+           body: body
+         )}
+      rescue
+        exception -> {:raised, exception, __STACKTRACE__}
+      end
+    end
+
     response =
-      Req.request!(
-        client.base_req,
-        method: method,
-        url: url,
-        headers: Enum.map(headers, fn {k, v} -> {k, v} end),
-        body: body
-      )
+      case client.transport_options.timeout do
+        nil ->
+          case req_fun.() do
+            {:ok, result} -> result
+            {:raised, exception, stacktrace} -> reraise(exception, stacktrace)
+          end
+
+        total ->
+          # Gap F-W5-2: Req/Finch's :receive_timeout is per-chunk inactivity
+          # (it resets on every received packet), so a slow-trickle response
+          # can run arbitrarily long without tripping it. Enforce a hard
+          # end-to-end wall-clock budget by running the call in a Task and
+          # shutting it down if it overruns the configured timeout.
+          task = Task.async(req_fun)
+
+          case Task.yield(task, total) || Task.shutdown(task) do
+            {:ok, {:ok, result}} ->
+              result
+
+            {:ok, {:raised, exception, stacktrace}} ->
+              reraise(exception, stacktrace)
+
+            nil ->
+              raise PetstoreClient.ApiError,
+                message: "request exceeded total timeout of #{total}ms",
+                status_code: 0
+          end
+      end
 
     if client.transport_options.follow_redirects and is_redirect_status(response.status) do
       case redirect_location(response.headers) do
