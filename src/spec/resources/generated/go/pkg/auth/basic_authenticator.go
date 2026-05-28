@@ -10,7 +10,6 @@ package auth
 import (
 	"encoding/base64"
 	"errors"
-	"log"
 )
 
 // ErrBasicAuthUsernameControlChar is returned by AuthHeadersOrError when the
@@ -76,16 +75,16 @@ func (a *BasicAuthenticator) AuthHeadersOrError() (map[string]string, error) {
 // AuthHeaders returns the Basic authentication header.
 //
 // RFC 7617 §2 violations (colon in user-id, CR/LF/NUL in either field) are
-// header-injection / smuggling vectors that typically indicate a programmer
-// error. Rather than panicking, the resulting empty map causes an
-// unauthenticated request to surface as a 401 from the server, which callers
-// already handle. Use AuthHeadersOrError when you need to recover
-// programmatically (e.g. re-prompt the user).
+// header-injection / smuggling vectors that always indicate a programmer
+// error, so this panics — matching the fail-fast behaviour of the other
+// SDKs (which raise/throw). Shipping an unauthenticated request instead
+// would surface as a confusing 401 and silently drop the credential. Use
+// AuthHeadersOrError when you need to recover programmatically (e.g.
+// re-prompt the user) rather than crash.
 func (a *BasicAuthenticator) AuthHeaders() map[string]string {
 	headers, err := a.AuthHeadersOrError()
 	if err != nil {
-		log.Printf("basic auth credentials malformed: %v", err)
-		return map[string]string{}
+		panic(err)
 	}
 	return headers
 }
