@@ -208,19 +208,17 @@ class {{classname}} : BaseApi {
 {{/servers}}
         val queryParams = mutableMapOf<String, Any?>()
 {{#queryParams}}
-{{#isDeepObject}}
+{{#vendorExtensions.param.queryDeepObject}}
         if (options.{{paramName}} != null) {
             queryParams.putAll(ValueSerializer.serializeDeepObject("{{baseName}}", options.{{paramName}}))
         }
-{{/isDeepObject}}
-{{^isDeepObject}}
-{{#content}}
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
         if (options.{{paramName}} != null) {
             queryParams["{{baseName}}"] = objectSerializer.serialize(options.{{paramName}})
         }
-{{/content}}
-{{^content}}
-{{#isAllowEmptyValue}}
+{{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryStyledAllowEmpty}}
         run {
             val _{{paramName}}Val = ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}, "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}})
             if (_{{paramName}}Val != null) {
@@ -229,14 +227,12 @@ class {{classname}} : BaseApi {
                 queryParams["{{baseName}}"] = ""
             }
         }
-{{/isAllowEmptyValue}}
-{{^isAllowEmptyValue}}
+{{/vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.param.queryStyled}}
         if (options.{{paramName}} != null) {
             queryParams["{{baseName}}"] = ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}, "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}})
         }
-{{/isAllowEmptyValue}}
-{{/content}}
-{{/isDeepObject}}
+{{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}
         val headerParams = mutableMapOf<String, String>()
 {{#headerParams}}

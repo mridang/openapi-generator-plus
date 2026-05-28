@@ -187,66 +187,66 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#required}}
         do {
             let val = options.{{paramName}}
-{{#isDeepObject}}
+{{#vendorExtensions.param.queryDeepObject}}
             if let dict = (val as Any) as? [String: Any] {
                 for (k, v) in ValueSerializer.serializeDeepObject("{{baseName}}", value: dict) {
                     queryParams[k] = v
                 }
             }
-{{/isDeepObject}}
-{{^isDeepObject}}
-{{#content}}
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
             if let jsonData = try? JSONEncoder().encode(val) {
                 queryParams["{{baseName}}"] = String(data: jsonData, encoding: .utf8)
             }
-{{/content}}
-{{^content}}
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryDeepObject}}
+{{^vendorExtensions.param.queryContent}}
             queryParams["{{baseName}}"] = ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}})
-{{/content}}
-{{/isDeepObject}}
+{{/vendorExtensions.param.queryContent}}
+{{/vendorExtensions.param.queryDeepObject}}
         }
 {{/required}}
 {{^required}}
         if let val = options.{{paramName}} {
-{{#isDeepObject}}
+{{#vendorExtensions.param.queryDeepObject}}
             if let dict = (val as Any) as? [String: Any] {
                 for (k, v) in ValueSerializer.serializeDeepObject("{{baseName}}", value: dict) {
                     queryParams[k] = v
                 }
             }
-{{/isDeepObject}}
-{{^isDeepObject}}
-{{#content}}
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
             if let jsonData = try? JSONEncoder().encode(val) {
                 queryParams["{{baseName}}"] = String(data: jsonData, encoding: .utf8)
             }
-{{/content}}
-{{^content}}
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryDeepObject}}
+{{^vendorExtensions.param.queryContent}}
             queryParams["{{baseName}}"] = ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}})
-{{/content}}
-{{/isDeepObject}}
+{{/vendorExtensions.param.queryContent}}
+{{/vendorExtensions.param.queryDeepObject}}
         }
 {{/required}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
         if let options = options, let val = options.{{paramName}} {
-{{#isDeepObject}}
+{{#vendorExtensions.param.queryDeepObject}}
             if let dict = (val as Any) as? [String: Any] {
                 for (k, v) in ValueSerializer.serializeDeepObject("{{baseName}}", value: dict) {
                     queryParams[k] = v
                 }
             }
-{{/isDeepObject}}
-{{^isDeepObject}}
-{{#content}}
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
             if let jsonData = try? JSONEncoder().encode(val) {
                 queryParams["{{baseName}}"] = String(data: jsonData, encoding: .utf8)
             }
-{{/content}}
-{{^content}}
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryDeepObject}}
+{{^vendorExtensions.param.queryContent}}
             queryParams["{{baseName}}"] = ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}})
-{{/content}}
-{{/isDeepObject}}
+{{/vendorExtensions.param.queryContent}}
+{{/vendorExtensions.param.queryDeepObject}}
         }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/isAllowEmptyValue}}

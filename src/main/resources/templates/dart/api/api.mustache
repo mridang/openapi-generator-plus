@@ -153,53 +153,47 @@ class {{classname}} extends BaseApi {
 {{^isAllowEmptyValue}}
 {{#vendorExtensions.op.optionsParamRequired}}
 {{#required}}
-{{#isDeepObject}}
+{{#vendorExtensions.param.queryDeepObject}}
     serializeDeepObject('{{baseName}}', options.{{paramName}} as Map<String, Object?>?).forEach((k, v) {
       queryParams[k] = v;
     });
-{{/isDeepObject}}
-{{^isDeepObject}}
-{{#content}}
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
     queryParams['{{baseName}}'] = serialize(options.{{paramName}});
-{{/content}}
-{{^content}}
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryDeepObject}}{{^vendorExtensions.param.queryContent}}
     queryParams['{{baseName}}'] = serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}});
-{{/content}}
-{{/isDeepObject}}
+{{/vendorExtensions.param.queryContent}}{{/vendorExtensions.param.queryDeepObject}}
 {{/required}}
 {{^required}}
     if (options.{{paramName}} != null) {
-{{#isDeepObject}}
+{{#vendorExtensions.param.queryDeepObject}}
       serializeDeepObject('{{baseName}}', options.{{paramName}} as Map<String, Object?>?).forEach((k, v) {
         queryParams[k] = v;
       });
-{{/isDeepObject}}
-{{^isDeepObject}}
-{{#content}}
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
       queryParams['{{baseName}}'] = serialize(options.{{paramName}});
-{{/content}}
-{{^content}}
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryDeepObject}}{{^vendorExtensions.param.queryContent}}
       queryParams['{{baseName}}'] = serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}});
-{{/content}}
-{{/isDeepObject}}
+{{/vendorExtensions.param.queryContent}}{{/vendorExtensions.param.queryDeepObject}}
     }
 {{/required}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options != null && options.{{paramName}} != null) {
-{{#isDeepObject}}
+{{#vendorExtensions.param.queryDeepObject}}
       serializeDeepObject('{{baseName}}', options.{{paramName}} as Map<String, Object?>?).forEach((k, v) {
         queryParams[k] = v;
       });
-{{/isDeepObject}}
-{{^isDeepObject}}
-{{#content}}
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
       queryParams['{{baseName}}'] = serialize(options.{{paramName}});
-{{/content}}
-{{^content}}
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryDeepObject}}{{^vendorExtensions.param.queryContent}}
       queryParams['{{baseName}}'] = serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}});
-{{/content}}
-{{/isDeepObject}}
+{{/vendorExtensions.param.queryContent}}{{/vendorExtensions.param.queryDeepObject}}
     }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/isAllowEmptyValue}}

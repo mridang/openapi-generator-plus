@@ -249,32 +249,28 @@ public class {{classname}} extends BaseApi {
 {{/servers}}
         Map<String, Object> queryParams = new HashMap<>();
 {{#queryParams}}
-{{#isDeepObject}}
+{{#vendorExtensions.param.queryDeepObject}}
         if (options.{{paramName}}() != null) {
             queryParams.putAll(ValueSerializer.serializeDeepObject("{{baseName}}", options.{{paramName}}()));
         }
-{{/isDeepObject}}
-{{^isDeepObject}}
-{{#content}}
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
         if (options.{{paramName}}() != null) {
             queryParams.put("{{baseName}}", objectSerializer.serialize(options.{{paramName}}()));
         }
-{{/content}}
-{{^content}}
-{{#isAllowEmptyValue}}
+{{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryStyledAllowEmpty}}
         if (options.{{paramName}}() != null) {
             queryParams.put("{{baseName}}", ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}}));
         } else {
             queryParams.put("{{baseName}}", "");
         }
-{{/isAllowEmptyValue}}
-{{^isAllowEmptyValue}}
+{{/vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.param.queryStyled}}
         if (options.{{paramName}}() != null) {
             queryParams.put("{{baseName}}", ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}}));
         }
-{{/isAllowEmptyValue}}
-{{/content}}
-{{/isDeepObject}}
+{{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}
         Map<String, String> headerParams = new HashMap<>();
 {{#headerParams}}

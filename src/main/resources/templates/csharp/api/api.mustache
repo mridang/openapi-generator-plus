@@ -290,16 +290,15 @@ public class {{classname}} : BaseApi
 
         Dictionary<string, object?> queryParams = [];
 {{#queryParams}}
-{{#content}}
+{{#vendorExtensions.param.queryContent}}
         if (options != null && options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null)
         {
             queryParams["{{baseName}}"] = System.Text.Json.JsonSerializer.Serialize(
                 options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}}
             );
         }
-{{/content}}
-{{^content}}
-{{#isDeepObject}}
+{{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryDeepObject}}
         if (options != null && options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null)
         {
             Dictionary<string, string> deepObj = ValueSerializer.SerializeDeepObject(
@@ -311,9 +310,8 @@ public class {{classname}} : BaseApi
                 queryParams[entry.Key] = entry.Value;
             }
         }
-{{/isDeepObject}}
-{{^isDeepObject}}
-{{#isAllowEmptyValue}}
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryStyledAllowEmpty}}
         queryParams["{{baseName}}"] = options!.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null
             ? ValueSerializer.SerializeStyled(
                 "{{baseName}}",
@@ -325,8 +323,8 @@ public class {{classname}} : BaseApi
                 {{isExplode}}
             )
             : "";
-{{/isAllowEmptyValue}}
-{{^isAllowEmptyValue}}
+{{/vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.param.queryStyled}}
         if (options != null && options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null)
         {
             queryParams["{{baseName}}"] = ValueSerializer.SerializeStyled(
@@ -339,9 +337,7 @@ public class {{classname}} : BaseApi
                 {{isExplode}}
             );
         }
-{{/isAllowEmptyValue}}
-{{/isDeepObject}}
-{{/content}}
+{{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}
         Dictionary<string, string> headerParams = [];
 {{#headerParams}}

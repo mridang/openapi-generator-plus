@@ -159,7 +159,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 
 	queryParams := make(map[string]interface{})
 {{#queryParams}}
-{{#isAllowEmptyValue}}
+{{#vendorExtensions.param.queryStyledAllowEmpty}}
 	if options != nil {
 		if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
 			queryParams["{{baseName}}"] = SerializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}})
@@ -167,25 +167,25 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 			queryParams["{{baseName}}"] = ""
 		}
 	}
-{{/isAllowEmptyValue}}
-{{^isAllowEmptyValue}}
+{{/vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.param.queryDeepObject}}
 	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
-{{#isDeepObject}}
 		for k, v := range SerializeDeepObject("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}) {
 			queryParams[k] = v
 		}
-{{/isDeepObject}}
-{{^isDeepObject}}
-{{#content}}
+	}
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
+	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
 		jsonBytes, _ := json.Marshal(options.{{#pascalcase}}{{paramName}}{{/pascalcase}})
 		queryParams["{{baseName}}"] = string(jsonBytes)
-{{/content}}
-{{^content}}
-		queryParams["{{baseName}}"] = SerializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}})
-{{/content}}
-{{/isDeepObject}}
 	}
-{{/isAllowEmptyValue}}
+{{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryStyled}}
+	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
+		queryParams["{{baseName}}"] = SerializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}})
+	}
+{{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}
 
 	headerParams := make(map[string]string)

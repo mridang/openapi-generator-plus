@@ -310,30 +310,26 @@ class {{classname}}(BaseApi):
                 path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
 {{#queryParams}}
-{{#isDeepObject}}
+{{#vendorExtensions.param.queryDeepObject}}
         if options is not None and options.{{paramName}} is not None:
             query_params.update(ValueSerializer.serialize_deep_object('{{baseName}}', options.{{paramName}}))
-{{/isDeepObject}}
-{{^isDeepObject}}
-{{#content}}
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
         if options is not None and options.{{paramName}} is not None:
             import json
             query_params['{{baseName}}'] = json.dumps(options.{{paramName}})
-{{/content}}
-{{^content}}
-{{#isAllowEmptyValue}}
+{{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryStyledAllowEmpty}}
         if options is not None:
             if options.{{paramName}} is not None:
                 query_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}None{{/collectionFormat}}, '{{style}}', {{#isExplode}}True{{/isExplode}}{{^isExplode}}False{{/isExplode}})
             else:
                 query_params['{{baseName}}'] = ''
-{{/isAllowEmptyValue}}
-{{^isAllowEmptyValue}}
+{{/vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.param.queryStyled}}
         if options is not None and options.{{paramName}} is not None:
             query_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}None{{/collectionFormat}}, '{{style}}', {{#isExplode}}True{{/isExplode}}{{^isExplode}}False{{/isExplode}})
-{{/isAllowEmptyValue}}
-{{/content}}
-{{/isDeepObject}}
+{{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}
         header_params: Dict[str, str] = {}
 {{#headerParams}}

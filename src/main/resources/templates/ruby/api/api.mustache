@@ -186,7 +186,7 @@ module {{moduleName}}
         # @type var query_params: Hash[String, untyped]
         query_params = {}
 {{#queryParams}}
-{{#isAllowEmptyValue}}
+{{#vendorExtensions.param.queryStyledAllowEmpty}}
         unless options.nil?
           if options.{{paramName}}.nil?
             query_params['{{baseName}}'] = ''
@@ -195,23 +195,19 @@ module {{moduleName}}
               {{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, :query, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}})
           end
         end
-{{/isAllowEmptyValue}}
-{{^isAllowEmptyValue}}
-{{#isDeepObject}}
+{{/vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.param.queryDeepObject}}
         query_params.merge!({{moduleName}}::ValueSerializer.serialize_deep_object('{{baseName}}', options.{{paramName}})) unless options.nil? || options.{{paramName}}.nil?
-{{/isDeepObject}}
-{{^isDeepObject}}
-{{#content}}
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
         query_params['{{baseName}}'] = JSON.generate(options.{{paramName}}) unless options.nil? || options.{{paramName}}.nil?
-{{/content}}
-{{^content}}
+{{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryStyled}}
         unless options.nil? || options.{{paramName}}.nil?
           query_params['{{baseName}}'] =
             {{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, :query, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}})
         end
-{{/content}}
-{{/isDeepObject}}
-{{/isAllowEmptyValue}}
+{{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}
         # @type var header_params: Hash[String, String]
         header_params = {}

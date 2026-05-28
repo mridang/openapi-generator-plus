@@ -2696,6 +2696,16 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         }
     }
 
+    /** Runs {@link #populateParameterDecorators} over every entry of a list. */
+    private void populateParameterDecoratorsForList(List<CodegenParameter> params) {
+        if (params == null) {
+            return;
+        }
+        for (final CodegenParameter p : params) {
+            populateParameterDecorators(p);
+        }
+    }
+
     /**
      * Populates parameter-level decorator properties on
      * {@code param.vendorExtensions["param"]}. Templates consume via
@@ -2747,6 +2757,27 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
 
         // P1 — Serialization mode (style/explode/deepObject 4-way nest)
         d.put("serializationMode", deriveSerializationMode(param));
+
+        // Phase 1.5 — Query-parameter serialization strategy. Captures the
+        // four mutually-exclusive query-param emission branches that every
+        // language's api template currently expresses as a nested
+        // {{#isDeepObject}}/{{#content}}/{{#isAllowEmptyValue}} cascade:
+        //   "deepObject"        — explode an object into bracketed keys
+        //   "content"           — serialize via the content media-type codec
+        //   "styledAllowEmpty"  — RFC 6570 style serialization, emit "" when
+        //                         the value is absent (allowEmptyValue:true)
+        //   "styled"            — RFC 6570 style serialization, omit when absent
+        // The single string lets a template select one block instead of
+        // nesting; the boolean mirrors below let jmustache (which has no
+        // switch) pick a section directly.
+        final String querySerializationKind = deriveQuerySerializationKind(param);
+        d.put("querySerializationKind", querySerializationKind);
+        d.put("queryDeepObject", "deepObject".equals(querySerializationKind));
+        d.put("queryContent", "content".equals(querySerializationKind));
+        d.put(
+                "queryStyledAllowEmpty",
+                "styledAllowEmpty".equals(querySerializationKind));
+        d.put("queryStyled", "styled".equals(querySerializationKind));
 
         // P2 / P3 — Path serialisation kind + encoding requirement
         d.put("pathSerialisationKind", derivePathSerialisationKind(param));
@@ -2921,6 +2952,26 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             default:
                 return "default";
         }
+    }
+
+    /**
+     * Classifies a query parameter's emission strategy into one of
+     * {@code "deepObject" | "content" | "styledAllowEmpty" | "styled"}.
+     * Mirrors the precedence of the nested template cascade exactly:
+     * deepObject wins over content, content wins over the styled branches,
+     * and {@code allowEmptyValue} only distinguishes the two styled cases.
+     */
+    private static String deriveQuerySerializationKind(CodegenParameter param) {
+        if (param.isDeepObject) {
+            return "deepObject";
+        }
+        if (param.getContent() != null && !param.getContent().isEmpty()) {
+            return "content";
+        }
+        if (param.isAllowEmptyValue) {
+            return "styledAllowEmpty";
+        }
+        return "styled";
     }
 
     /**
@@ -3238,11 +3289,18 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 // observes the same options-eligible parameter set.
                 for (final CodegenOperation op : ops) {
                     populateOperationDecorators(op);
-                    if (op.allParams != null) {
-                        for (final CodegenParameter p : op.allParams) {
-                            populateParameterDecorators(p);
-                        }
-                    }
+                    // Populate parameter decorators on every parameter list.
+                    // OpenAPI-generator stores distinct CodegenParameter copies
+                    // in allParams vs queryParams/headerParams/etc.; templates
+                    // iterate the location-specific lists, so the decorator must
+                    // run on those copies too — not just allParams.
+                    populateParameterDecoratorsForList(op.allParams);
+                    populateParameterDecoratorsForList(op.queryParams);
+                    populateParameterDecoratorsForList(op.headerParams);
+                    populateParameterDecoratorsForList(op.pathParams);
+                    populateParameterDecoratorsForList(op.formParams);
+                    populateParameterDecoratorsForList(op.cookieParams);
+                    populateParameterDecoratorsForList(op.bodyParams);
                     if (op.bodyParam != null) {
                         populateParameterDecorators(op.bodyParam);
                     }

@@ -252,7 +252,7 @@ impl {{classname}} {
 
         let mut query_params: Vec<(String, String)> = Vec::new();
 {{#queryParams}}
-{{#isAllowEmptyValue}}
+{{#vendorExtensions.param.queryStyledAllowEmpty}}
         if let Some(opts) = options {
             if let Some(ref val) = opts.{{paramName}} {
                 if let Some(serialized) = value_serializer::serialize_styled(
@@ -280,23 +280,25 @@ impl {{classname}} {
                 query_params.push(("{{baseName}}".to_string(), String::new()));
             }
         }
-{{/isAllowEmptyValue}}
-{{^isAllowEmptyValue}}
+{{/vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.param.queryDeepObject}}
         if let Some(opts) = options {
-{{#isDeepObject}}
             if let Some(ref val) = opts.{{paramName}} {
                 for (k, v) in value_serializer::serialize_deep_object("{{baseName}}", val) {
                     query_params.push((k, v));
                 }
             }
-{{/isDeepObject}}
-{{^isDeepObject}}
-{{#content}}
+        }
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
+        if let Some(opts) = options {
             if let Some(ref val) = opts.{{paramName}} {
                 query_params.push(("{{baseName}}".to_string(), serde_json::to_string(val).unwrap_or_default()));
             }
-{{/content}}
-{{^content}}
+        }
+{{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryStyled}}
+        if let Some(opts) = options {
             if let Some(ref val) = opts.{{paramName}} {
                 if let Some(serialized) = value_serializer::serialize_styled(
                     "{{baseName}}",
@@ -320,10 +322,8 @@ impl {{classname}} {
                     }
                 }
             }
-{{/content}}
-{{/isDeepObject}}
         }
-{{/isAllowEmptyValue}}
+{{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}
 
         let mut header_params: HashMap<String, String> = HashMap::new();

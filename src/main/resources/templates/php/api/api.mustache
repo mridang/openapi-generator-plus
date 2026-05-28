@@ -214,32 +214,28 @@ class {{classname}} extends BaseApi
 {{/servers}}
         $queryParams = [];
 {{#queryParams}}
-{{#content}}
+{{#vendorExtensions.param.queryContent}}
         if ($options->{{paramName}} !== null) {
             $queryParams['{{baseName}}'] = json_encode($options->{{paramName}});
         }
-{{/content}}
-{{^content}}
-{{#isDeepObject}}
+{{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryDeepObject}}
         if ($options->{{paramName}} !== null) {
             $queryParams = array_merge($queryParams, ValueSerializer::serializeDeepObject('{{baseName}}', $options->{{paramName}}));
         }
-{{/isDeepObject}}
-{{^isDeepObject}}
-{{#isAllowEmptyValue}}
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryStyledAllowEmpty}}
         if ($options->{{paramName}} !== null) {
             $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
         } else {
             $queryParams['{{baseName}}'] = '';
         }
-{{/isAllowEmptyValue}}
-{{^isAllowEmptyValue}}
+{{/vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.param.queryStyled}}
         if ($options->{{paramName}} !== null) {
             $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
         }
-{{/isAllowEmptyValue}}
-{{/isDeepObject}}
-{{/content}}
+{{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}
         $headerParams = [];
 {{#headerParams}}
@@ -364,32 +360,28 @@ class {{classname}} extends BaseApi
 {{/servers}}
         $queryParams = [];
 {{#queryParams}}
-{{#content}}
+{{#vendorExtensions.param.queryContent}}
         if ($options->{{paramName}} !== null) {
             $queryParams['{{baseName}}'] = json_encode($options->{{paramName}});
         }
-{{/content}}
-{{^content}}
-{{#isDeepObject}}
+{{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryDeepObject}}
         if ($options->{{paramName}} !== null) {
             $queryParams = array_merge($queryParams, ValueSerializer::serializeDeepObject('{{baseName}}', $options->{{paramName}}));
         }
-{{/isDeepObject}}
-{{^isDeepObject}}
-{{#isAllowEmptyValue}}
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryStyledAllowEmpty}}
         if ($options->{{paramName}} !== null) {
             $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
         } else {
             $queryParams['{{baseName}}'] = '';
         }
-{{/isAllowEmptyValue}}
-{{^isAllowEmptyValue}}
+{{/vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.param.queryStyled}}
         if ($options->{{paramName}} !== null) {
             $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
         }
-{{/isAllowEmptyValue}}
-{{/isDeepObject}}
-{{/content}}
+{{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}
         $headerParams = [];
 {{#headerParams}}
