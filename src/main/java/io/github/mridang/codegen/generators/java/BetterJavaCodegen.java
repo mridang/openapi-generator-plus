@@ -186,7 +186,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     /** {@inheritDoc} */
     @Override
     protected String getFormatterDockerImage() {
-        return "eclipse-temurin:17-jdk";
+        return "eclipse-temurin:17-jdk@sha256:b04a8c5d46e210873ffd1af6ad5f4d62c69ed3a6736993556eae60bba1373a23";
     }
 
     /** {@inheritDoc} */

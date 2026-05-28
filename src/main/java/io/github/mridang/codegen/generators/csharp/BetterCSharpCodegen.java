@@ -153,7 +153,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     @Override
     protected String getFormatterDockerImage() {
         // .NET 10 SDK has the matching dotnet-format tooling for net10.0 targets.
-        return "mcr.microsoft.com/dotnet/sdk:10.0";
+        return "mcr.microsoft.com/dotnet/sdk:10.0@sha256:c0790639332692a0d56cdd81ed581cfd24d040d9839764c138994866df89a3b6";
     }
 
     /** {@inheritDoc} */

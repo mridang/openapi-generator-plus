@@ -168,7 +168,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     /** {@inheritDoc} */
     @Override
     protected String getFormatterDockerImage() {
-        return "composer:2";
+        return "composer:2@sha256:b09bccd91a78fe8a9ab4b33d707b862e8fe54fec17782e32683ad2a69c46867d";
     }
 
     /** {@inheritDoc} */

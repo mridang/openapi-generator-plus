@@ -1,5 +1,4 @@
 <?php
-
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -13,8 +12,8 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
-use PetstoreClient\Auth\BasicAuthenticator;
 use PHPUnit\Framework\TestCase;
+use PetstoreClient\Auth\BasicAuthenticator;
 
 class BasicAuthenticatorTest extends TestCase
 {

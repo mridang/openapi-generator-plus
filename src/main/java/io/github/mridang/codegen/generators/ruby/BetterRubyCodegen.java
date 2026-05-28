@@ -196,7 +196,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
     /** {@inheritDoc} */
     @Override
     protected String getFormatterDockerImage() {
-        return "ruby:3.4";
+        return "ruby:3.4@sha256:439b61ca7ef0e20da3848a2d53a7ef9970018517c7cfacd1ab234964c9887b1a";
     }
 
     /** {@inheritDoc} */

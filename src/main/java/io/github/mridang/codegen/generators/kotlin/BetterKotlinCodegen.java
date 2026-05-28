@@ -181,7 +181,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
     /** {@inheritDoc} */
     @Override
     protected String getFormatterDockerImage() {
-        return "eclipse-temurin:21-jdk";
+        return "eclipse-temurin:21-jdk@sha256:b9142586f9712700c6c9e07adcedfb18608b1a3a056e4001423a3354adfa9d80";
     }
 
     /** {@inheritDoc} */

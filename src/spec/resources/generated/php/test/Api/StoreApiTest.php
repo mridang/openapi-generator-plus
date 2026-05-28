@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test\Api;
 
+use PHPUnit\Framework\TestCase;
 use PetstoreClient\Api\StoreApi;
 use PetstoreClient\Configuration;
 use PetstoreClient\Errors\NotFoundException;
 use PetstoreClient\Errors\ServerException;
 use PetstoreClient\Models\Order;
 use PetstoreClient\Models\OrderStatusEnum;
-use PHPUnit\Framework\TestCase;
 
 /**
  * Integration tests for the Store API endpoints.

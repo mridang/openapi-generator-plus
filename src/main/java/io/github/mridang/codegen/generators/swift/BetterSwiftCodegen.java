@@ -163,7 +163,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
     /** {@inheritDoc} */
     @Override
     protected String getFormatterDockerImage() {
-        return "swift:6.0";
+        return "swift:6.0@sha256:cf429de05c3e84a230a75e68eaa7bf7d1367ef9dde0a1278fb2a3d53d1881040";
     }
 
     /**

@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
+use PHPUnit\Framework\TestCase;
+use PetstoreClient\ObjectSerializer;
 use PetstoreClient\Models\DryFood;
+use PetstoreClient\Models\WetFood;
 use PetstoreClient\Models\Medication;
+use PetstoreClient\Models\Surgery;
 use PetstoreClient\Models\PetFood;
 use PetstoreClient\Models\PetTreatment;
 use PetstoreClient\Models\PetWithOwner;
-use PetstoreClient\Models\Surgery;
-use PetstoreClient\Models\WetFood;
-use PetstoreClient\ObjectSerializer;
-use PHPUnit\Framework\TestCase;
 
 class ComposedSchemaTest extends TestCase
 {

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
+use PHPUnit\Framework\TestCase;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\TransportOptions;
-use PHPUnit\Framework\TestCase;
 
 class DefaultApiClientTest extends TestCase
 {

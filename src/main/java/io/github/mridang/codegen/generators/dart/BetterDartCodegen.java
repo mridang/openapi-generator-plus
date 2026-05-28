@@ -183,7 +183,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
     /** {@inheritDoc} */
     @Override
     protected String getFormatterDockerImage() {
-        return "dart:3.6";
+        return "dart:3.6@sha256:7a6a4ad2560e46cb6979bd73f46edec0fa7bc092146f5fafefdf3c6568a77e75";
     }
 
     /** {@inheritDoc} */
