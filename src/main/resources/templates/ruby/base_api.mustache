@@ -5,6 +5,8 @@
 require 'uri'
 require 'cgi'
 require 'json'
+require 'base64'
+require 'stringio'
 
 # :nodoc:
 module {{moduleName}}
@@ -91,9 +93,21 @@ module {{moduleName}}
           # @type var resp_content_type: String?
           ct_pair = response.headers.find { |k, _| k.downcase == 'content-type' }
           resp_content_type = ct_pair ? ct_pair.last.split(';').first.strip : nil
-          is_json = !resp_content_type ||
-                    @header_selector.json_mime?(resp_content_type)
-          data = if is_json
+          data = if binary_return_type?(return_type)
+                   # Binary return types (File) must never be JSON-deserialized,
+                   # even when content negotiation makes the server label the
+                   # raw bytes `application/json`. Detect by the target return
+                   # type, not the response Content-Type. The transport
+                   # base64-encodes the body for binary content types and leaves
+                   # text content types (including JSON) as a decoded string, so
+                   # recover the raw bytes accordingly before wrapping.
+                   raw_bytes = if text_response_content_type?(resp_content_type)
+                                 response.body
+                               else
+                                 Base64.strict_decode64(response.body)
+                               end
+                   StringIO.new(raw_bytes)
+                 elsif !resp_content_type || @header_selector.json_mime?(resp_content_type)
                    {{moduleName}}::ObjectSerializer.deserialize(response.body, return_type)
                  else
                    response.body
@@ -194,6 +208,30 @@ module {{moduleName}}
         else
           {{moduleName}}::ObjectSerializer.serialize(body)
         end
+      end
+
+      # Whether the operation's target return type denotes raw binary data
+      # (an OpenAPI `string`/`binary` schema), which the generator maps to
+      # +File+. Such responses must be returned as raw bytes rather than being
+      # JSON-deserialized.
+      def binary_return_type?(return_type)
+        return_type == 'File'
+      end
+
+      # Mirror of the transport's text/binary content-type classification.
+      # The transport keeps text content types (including JSON) as a decoded
+      # string and base64-encodes everything else, so binary return-type
+      # handling must apply the same rule to recover the raw bytes.
+      def text_response_content_type?(content_type)
+        return true if content_type.nil?
+
+        media_type = content_type.split(';').first.to_s.strip.downcase
+        return true if media_type.empty?
+        return true if media_type.start_with?('text/')
+
+        %w[application/json application/xml application/javascript].include?(media_type) ||
+          media_type.end_with?('+json') ||
+          media_type.end_with?('+xml')
       end
     end
   end

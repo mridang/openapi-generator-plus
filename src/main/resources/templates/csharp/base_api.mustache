@@ -236,20 +236,30 @@ public abstract class BaseApi
                 .Select(h => h.Value)
                 .FirstOrDefault();
 
-            if (responseContentType != null && !HeaderSelector.IsJsonMime(responseContentType))
+            bool binaryTarget =
+                typeof(T) == typeof(System.IO.Stream) || typeof(T) == typeof(byte[]);
+
+            if (binaryTarget)
             {
-                if (typeof(T) == typeof(System.IO.Stream))
-                {
-                    data = (T)
-                        (object)
-                            new System.IO.MemoryStream(
-                                System.Text.Encoding.UTF8.GetBytes(response.Body)
-                            );
-                }
-                else
-                {
-                    data = (T)(object)response.Body;
-                }
+                /* The caller expects raw bytes (Stream/byte[]). DefaultApiClient
+                   base64-encodes the body for non-text content types and leaves
+                   text bodies decoded, so recover the original bytes instead of
+                   JSON-deserializing. A non-text content type signals a base64
+                   payload; fall back to the literal UTF-8 bytes when the body is
+                   not valid base64 (e.g. a custom IApiClient that returns raw
+                   text). */
+                byte[] bytes = DecodeBinaryBody(
+                    response.Body,
+                    !IsTextResponseContentType(responseContentType)
+                );
+                data =
+                    typeof(T) == typeof(System.IO.Stream)
+                        ? (T)(object)new System.IO.MemoryStream(bytes)
+                        : (T)(object)bytes;
+            }
+            else if (responseContentType != null && !HeaderSelector.IsJsonMime(responseContentType))
+            {
+                data = (T)(object)response.Body;
             }
             else
             {
@@ -339,6 +349,52 @@ public abstract class BaseApi
         }
 
         throw new ApiException(code, message, headers, body, errorBody);
+    }
+
+    /// <summary>
+    /// Mirrors <see cref="DefaultApiClient"/>'s text/binary classification so the
+    /// response body can be decoded the same way it was encoded: text-like content
+    /// types are stored as a decoded string, everything else as base64. The full
+    /// Content-Type header (including any charset/parameters) is tolerated by
+    /// matching on the leading media type.
+    /// </summary>
+    private static bool IsTextResponseContentType(string? contentType)
+    {
+        if (string.IsNullOrEmpty(contentType))
+        {
+            return true;
+        }
+        string mediaType = contentType.Split(';')[0].Trim();
+        return mediaType.Length == 0
+            || mediaType.StartsWith("text/", StringComparison.OrdinalIgnoreCase)
+            || mediaType.Equals("application/json", StringComparison.OrdinalIgnoreCase)
+            || mediaType.Equals("application/xml", StringComparison.OrdinalIgnoreCase)
+            || mediaType.Equals("application/javascript", StringComparison.OrdinalIgnoreCase)
+            || mediaType.EndsWith("+json", StringComparison.OrdinalIgnoreCase)
+            || mediaType.EndsWith("+xml", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Recovers the raw bytes of a binary response body. When <paramref name="base64Expected"/>
+    /// is true the body is decoded from base64 (how <see cref="DefaultApiClient"/> encodes
+    /// non-text payloads); if that fails, or when base64 is not expected, the literal
+    /// UTF-8 bytes of the body are returned so that custom transports returning raw text
+    /// still produce a usable stream.
+    /// </summary>
+    private static byte[] DecodeBinaryBody(string body, bool base64Expected)
+    {
+        if (base64Expected)
+        {
+            try
+            {
+                return Convert.FromBase64String(body);
+            }
+            catch (FormatException)
+            {
+                /* not base64 — fall through to literal UTF-8 bytes */
+            }
+        }
+        return System.Text.Encoding.UTF8.GetBytes(body);
     }
 
     private static string BuildQueryString(Dictionary<string, object?> queryParams)

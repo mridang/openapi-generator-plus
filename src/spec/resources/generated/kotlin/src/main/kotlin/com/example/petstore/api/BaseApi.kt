@@ -237,16 +237,27 @@ abstract class BaseApi {
         @Suppress("UNCHECKED_CAST")
         val data: T? =
             if (response.body.isNotEmpty()) {
-                if (responseContentType.isNotEmpty() &&
+                if (T::class == ByteArray::class) {
+                    // Binary return types must never be JSON-deserialized,
+                    // even when the negotiated response Content-Type is JSON
+                    // (an operation whose Accept set includes application/json
+                    // can still receive raw image bytes). Detect by the target
+                    // type, then recover the raw bytes the way the transport
+                    // encoded them: it base64-encodes binary content types and
+                    // leaves text content types (including JSON) as a decoded
+                    // string, so base64-decode for binary and fall back to
+                    // UTF-8 bytes otherwise.
+                    if (isTextResponseContentType(responseContentType)) {
+                        response.body.toByteArray(Charsets.UTF_8) as T
+                    } else {
+                        java.util.Base64
+                            .getDecoder()
+                            .decode(response.body) as T
+                    }
+                } else if (responseContentType.isNotEmpty() &&
                     !headerSelector.isJsonMime(responseContentType)
                 ) {
-                    if (T::class == ByteArray::class) {
-                        java.util.Base64
-                            .getMimeDecoder()
-                            .decode(response.body) as T
-                    } else {
-                        response.body as T
-                    }
+                    response.body as T
                 } else {
                     objectSerializer.deserialize<T>(response.body)
                 }
@@ -332,6 +343,33 @@ abstract class BaseApi {
      * @return URL-encoded string
      */
     internal fun encode(value: String): String = value.encodeURLQueryComponent(spaceToPlus = true)
+
+    /**
+     * Mirror of the transport's text/binary content-type classification. The
+     * transport base64-encodes the response body for binary content types and
+     * leaves text content types (including JSON) as a decoded string, so
+     * binary return-type handling must apply the same rule to recover the raw
+     * bytes. Returns true when the body was kept as decoded text.
+     *
+     * Marked `@PublishedApi internal` because the public inline
+     * [invokeApiForResult] calls it; a `private` helper is not visible from an
+     * inlined function body.
+     */
+    @PublishedApi
+    internal fun isTextResponseContentType(contentType: String): Boolean {
+        val mediaType =
+            contentType
+                .substringBefore(';')
+                .trim()
+                .lowercase()
+        if (mediaType.isEmpty()) return true
+        if (mediaType.startsWith("text/")) return true
+        return mediaType == "application/json" ||
+            mediaType == "application/xml" ||
+            mediaType == "application/javascript" ||
+            mediaType.endsWith("+json") ||
+            mediaType.endsWith("+xml")
+    }
 
     /**
      * RFC 6265 cookie-name validation (RFC 7230 token).

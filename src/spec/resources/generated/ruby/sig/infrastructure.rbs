@@ -365,6 +365,8 @@ module PetstoreClient
       def throw_api_error: (ApiResponse) -> void
       def build_query_string: (Hash[String, untyped]) -> String
       def serialize_body: (untyped, String?) -> untyped
+      def binary_return_type?: (String?) -> bool
+      def text_response_content_type?: (String?) -> bool
     end
   end
 end

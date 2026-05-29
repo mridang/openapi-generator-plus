@@ -234,17 +234,34 @@ public abstract class BaseApi {
           }
         }
       }
-      if (!responseContentType.isEmpty() && !headerSelector.isJsonMime(responseContentType)) {
+      boolean binaryReturnType =
+          returnType.getType() == InputStream.class || returnType.getType() == byte[].class;
+      if (binaryReturnType) {
+        /* Binary return types (InputStream / byte[]) must never be
+         * JSON-deserialized. The transport base64-encodes the body
+         * for non-text content types and leaves text content types
+         * (including JSON) as a decoded string, so recover the raw
+         * bytes accordingly before wrapping. */
+        byte[] rawBytes;
+        if (!isTextResponseContentType(responseContentType)) {
+          rawBytes = java.util.Base64.getDecoder().decode(response.body());
+        } else {
+          rawBytes = response.body().getBytes(StandardCharsets.UTF_8);
+        }
         if (returnType.getType() == InputStream.class) {
           @SuppressWarnings("unchecked")
-          T streamBody =
-              (T) new ByteArrayInputStream(response.body().getBytes(StandardCharsets.UTF_8));
+          T streamBody = (T) new ByteArrayInputStream(rawBytes);
           data = streamBody;
         } else {
           @SuppressWarnings("unchecked")
-          T rawBody = (T) response.body();
-          data = rawBody;
+          T bytesBody = (T) rawBytes;
+          data = bytesBody;
         }
+      } else if (!responseContentType.isEmpty()
+          && !headerSelector.isJsonMime(responseContentType)) {
+        @SuppressWarnings("unchecked")
+        T rawBody = (T) response.body();
+        data = rawBody;
       } else {
         data = objectSerializer.deserialize(response.body(), returnType);
       }
@@ -383,6 +400,37 @@ public abstract class BaseApi {
       }
     }
     return true;
+  }
+
+  /**
+   * Mirror of the transport's text/binary content-type classification. The transport base64-encodes
+   * the response body for binary content types and leaves text content types (including JSON) as a
+   * decoded string, so binary return-type handling must apply the same rule to recover the raw
+   * bytes.
+   *
+   * @param contentType the response Content-Type header value (possibly empty)
+   * @return true when the body was kept as decoded text by the transport
+   */
+  private static boolean isTextResponseContentType(String contentType) {
+    if (contentType == null || contentType.isEmpty()) {
+      return true;
+    }
+    int semi = contentType.indexOf(';');
+    String mediaType =
+        (semi >= 0 ? contentType.substring(0, semi) : contentType)
+            .trim()
+            .toLowerCase(java.util.Locale.ROOT);
+    if (mediaType.isEmpty()) {
+      return true;
+    }
+    if (mediaType.startsWith("text/")) {
+      return true;
+    }
+    return mediaType.equals("application/json")
+        || mediaType.equals("application/xml")
+        || mediaType.equals("application/javascript")
+        || mediaType.endsWith("+json")
+        || mediaType.endsWith("+xml");
   }
 
   private String buildQueryString(Map<String, Object> queryParams) {
