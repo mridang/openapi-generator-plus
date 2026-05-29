@@ -3794,6 +3794,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             "wiremock/mappings/error-422.json",
             "wiremock/mappings/error-500.json",
             "wiremock/mappings/error-502.json",
+            "wiremock/mappings/compressed-gzip.json",
+            "wiremock/mappings/compressed-br.json",
+            "wiremock/mappings/compressed-zstd.json",
             "proxy/squid.conf"
         };
         final Path fixturesBase = outputDir.resolve(getTestFixturesDir());

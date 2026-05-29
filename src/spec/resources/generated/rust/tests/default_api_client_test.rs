@@ -497,58 +497,79 @@ async fn test_default_api_client_sends_multipart_form_data() {
         .await;
 }
 
+// Decompression tests target the local WireMock harness rather than a real
+// external host so they are deterministic and offline. Each mapping serves a
+// body compressed with the matching Content-Encoding (see fixtures
+// compressed-gzip.json / compressed-br.json / compressed-zstd.json); the
+// assertion that the decoded body contains "userId" proves reqwest's
+// decompression code path ran end-to-end.
 #[tokio::test]
 async fn test_default_api_client_decompresses_gzip_response() {
+    let wiremock_url = testcontainers_helper::wiremock_http_url();
     let client = DefaultApiClient::new(None);
     let mut headers = HashMap::new();
     headers.insert("Accept-Encoding".to_string(), "gzip".to_string());
     let resp = client
         .send_request(
             "GET",
-            "https://jsonplaceholder.typicode.com/posts/1",
+            &format!("{}/compressed/gzip", wiremock_url),
             &headers,
             None,
         )
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code, 200);
-    assert!(resp.body.contains("userId"));
+    assert!(
+        resp.body.contains("userId"),
+        "expected decompressed body, got: {}",
+        resp.body
+    );
 }
 
 #[tokio::test]
 async fn test_default_api_client_decompresses_brotli_response() {
+    let wiremock_url = testcontainers_helper::wiremock_http_url();
     let client = DefaultApiClient::new(None);
     let mut headers = HashMap::new();
     headers.insert("Accept-Encoding".to_string(), "br".to_string());
     let resp = client
         .send_request(
             "GET",
-            "https://jsonplaceholder.typicode.com/posts/1",
+            &format!("{}/compressed/br", wiremock_url),
             &headers,
             None,
         )
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code, 200);
-    assert!(resp.body.contains("userId"));
+    assert!(
+        resp.body.contains("userId"),
+        "expected decompressed body, got: {}",
+        resp.body
+    );
 }
 
 #[tokio::test]
 async fn test_default_api_client_decompresses_zstd_response() {
+    let wiremock_url = testcontainers_helper::wiremock_http_url();
     let client = DefaultApiClient::new(None);
     let mut headers = HashMap::new();
     headers.insert("Accept-Encoding".to_string(), "zstd".to_string());
     let resp = client
         .send_request(
             "GET",
-            "https://jsonplaceholder.typicode.com/posts/1",
+            &format!("{}/compressed/zstd", wiremock_url),
             &headers,
             None,
         )
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code, 200);
-    assert!(resp.body.contains("userId"));
+    assert!(
+        resp.body.contains("userId"),
+        "expected decompressed body, got: {}",
+        resp.body
+    );
 }
 
 // Regression: POST/PUT/PATCH with body == None must emit an explicit

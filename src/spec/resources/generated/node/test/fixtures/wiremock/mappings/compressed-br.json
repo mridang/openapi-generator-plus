@@ -1,0 +1,14 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "/compressed/br"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Content-Encoding": "br"
+    },
+    "base64Body": "GzkASIzUYs0Z7qQnS/V7VpSodGyqsdmUTh845EAP6FkYUg6tZoSCQ3lax5ygAhYSoK7XVziybrYDY4QD"
+  }
+}
