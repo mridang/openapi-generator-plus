@@ -75,9 +75,11 @@ open class OAuth2PasswordAuthenticator(
                     if (scopes.isNotEmpty()) p["scope"] = scopes.joinToString(" ")
                 }
             }
-        // RFC 6749 §4.3.2: the initial password grant goes to the token
-        // endpoint; only the refresh grant (§6) goes to the refresh endpoint.
-        // These differ when the caller configures a distinct refreshUrl.
+        /*
+         * RFC 6749 §4.3.2: the initial password grant goes to the token
+         * endpoint; only the refresh grant (§6) goes to the refresh endpoint.
+         * These differ when the caller configures a distinct refreshUrl.
+         */
         val endpoint = if (currentRefreshToken != null) (refreshUrl ?: tokenUrl) else tokenUrl
         val token = tokenManager.getAccessToken(endpoint, params, extraHeaders)
         return mapOf("Authorization" to "Bearer $token")
