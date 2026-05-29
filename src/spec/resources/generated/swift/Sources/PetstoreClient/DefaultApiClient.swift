@@ -96,14 +96,16 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         if merged["X-Request-ID"] == nil && transportOptions.injectRequestID {
             merged["X-Request-ID"] = UUID().uuidString
         }
-        // Intentionally do NOT set a default Accept-Encoding. URLSession
-        // transparently negotiates and decompresses content encodings
-        // (gzip/deflate on Apple, via libcurl on Linux) only when the
-        // app leaves the header unset; setting it manually disables that
-        // transparent decompression, and this client has no manual
-        // decompressor — so advertising gzip/deflate/br would hand the
-        // caller undecoded bytes. A caller who sets Accept-Encoding
-        // explicitly (and handles decompression) is still respected.
+        /*
+         * Intentionally do NOT set a default Accept-Encoding. URLSession
+         * transparently negotiates and decompresses content encodings
+         * (gzip/deflate on Apple, via libcurl on Linux) only when the
+         * app leaves the header unset; setting it manually disables that
+         * transparent decompression, and this client has no manual
+         * decompressor, so advertising gzip/deflate/br would hand the
+         * caller undecoded bytes. A caller who sets Accept-Encoding
+         * explicitly (and handles decompression) is still respected.
+         */
         if let proxyAuth = proxyAuthHeader {
             merged["Proxy-Authorization"] = proxyAuth
         }
