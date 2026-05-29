@@ -210,8 +210,9 @@ void main() {
         ],
         metadata: PhotoMetadata(caption: 'test'),
       );
-      await api.addPetPhotos(1, options);
-    }, skip: 'Prism does not validate multipart array fields correctly');
+      final result = await api.addPetPhotos(1, options);
+      expect(result, isNotNull);
+    });
 
     test('downloadPetDocument', () async {
       final api = _newPetApiForIntegration();
@@ -224,14 +225,14 @@ void main() {
       final api = _newPetApiForIntegration();
       final result = await api.getPetPhoto(1, 1);
       expect(result, isNotNull);
-    }, skip: 'Prism returns JSON for image content type');
+    });
 
     test('getPetTag', () async {
       final api = _newPetApiForIntegration();
       final result = await api.getPetTag(5, 'cute',
           GetPetTagOptions(colors: ['blue', 'black'], sizes: ['S', 'M']));
       expect(result, isNotNull);
-    }, skip: 'Prism does not support matrix/label style parameters');
+    });
 
     test('getExternalPetInfo', () async {
       final api = _newPetApiForIntegration();

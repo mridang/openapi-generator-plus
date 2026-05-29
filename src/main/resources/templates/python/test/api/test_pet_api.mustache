@@ -109,7 +109,6 @@ class TestPetApi:
         assert result is not None
         assert isinstance(result, ApiResponse)
 
-    @pytest.mark.skip(reason='Prism does not validate multipart array fields correctly')
     async def test_add_pet_photos(self) -> None:
         metadata = PhotoMetadata(caption='Test photo', isPrimary=True)
 
@@ -123,7 +122,6 @@ class TestPetApi:
 
         assert result is not None
 
-    @pytest.mark.skip(reason='Prism returns JSON for image content type')
     async def test_get_pet_photo(self) -> None:
         result = await self.api.get_pet_photo(1, 1)
 
@@ -135,7 +133,6 @@ class TestPetApi:
         assert result is not None
         assert isinstance(result, PetPassport)
 
-    @pytest.mark.skip(reason='Styled params require compatible mock server')
     async def test_get_pet_tag_styled_params(self) -> None:
         result = await self.api.get_pet_tag(5, 'cute', GetPetTagOptions(colors=['blue', 'black'], sizes=['S', 'M']))
 

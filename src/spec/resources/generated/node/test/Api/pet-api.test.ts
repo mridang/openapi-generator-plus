@@ -118,8 +118,7 @@ describe('PetApi', () => {
     expect(result).toBeDefined();
   });
 
-  // Prism does not validate multipart array fields correctly
-  test.skip('addPetPhotos', async () => {
+  test('addPetPhotos', async () => {
     const files = [Buffer.from([0xff, 0xd8, 0xff])];
     const metadata = new PhotoMetadata({
       caption: 'Test photo',
@@ -137,13 +136,13 @@ describe('PetApi', () => {
     expect(result).toBeDefined();
   });
 
-  test.skip('getPetPhoto - Prism returns JSON for image content type', async () => {
+  test('getPetPhoto returns image content type', async () => {
     const result = await api.getPetPhoto(1, 100);
 
     expect(result).toBeDefined();
   });
 
-  test.skip('getPetTag sends styled parameters - Prism cannot handle matrix/label path styles', async () => {
+  test('getPetTag sends styled parameters (matrix/label path styles)', async () => {
     const result = await api.getPetTag(5, 'cute', { colors: ['blue', 'black'], sizes: ['S', 'M'] });
 
     expect(result).toBeDefined();

@@ -230,13 +230,7 @@ class PetApiTest {
             assertNotNull(result)
         }
 
-        // Prism encodes binary thumbnail responses as a base64 JSON string
-        // rather than raw bytes; the generated Kotlin client uses
-        // kotlinx.serialization which then chokes on the JSON string when
-        // it expects a JSON array for ByteArray. Same parent issue Rust
-        // skips for the same operation; covered by Java/Python integration.
         @Test
-        @Disabled("Prism returns base64 string instead of byte array for binary thumbnail responses.")
         @DisplayName("getPetAvatarThumbnail returns binary data")
         fun testGetPetAvatarThumbnail() {
             val result = runBlocking { api.getPetAvatarThumbnail(1L) }
@@ -245,7 +239,6 @@ class PetApiTest {
         }
 
         @Test
-        @Disabled("Prism returns 422 for oneOf byte request bodies; same limitation as C#.")
         @DisplayName("setPetAvatarThumbnail accepts base64 payload")
         fun testSetPetAvatarThumbnail() {
             val request = SetPetAvatarThumbnailRequest(actualInstance = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47))
@@ -253,15 +246,7 @@ class PetApiTest {
             assertDoesNotThrow { runBlocking { api.setPetAvatarThumbnail(1L, request) } }
         }
 
-        // ktor CIO sends multipart with chunked transfer-encoding which Prism's
-        // mock server cannot decode; Prism then crashes and ALL subsequent
-        // tests against the same Prism instance fail with Connection refused.
-        // The same issue affects the .NET test suite (skipped there with
-        // "Prism hangs on .NET MultipartFormDataContent requests").
-        // Coverage is provided by the Java/Python/PHP/Node suites which use
-        // a multipart serialization Prism accepts.
         @Test
-        @Disabled("Prism hangs on ktor CIO multipart requests; covered via Java/Python/PHP/Node.")
         @DisplayName("uploadPetCertificate uploads a single file")
         fun testUploadPetCertificate() {
             val fileBytes = byteArrayOf(0x25, 0x50, 0x44, 0x46)
@@ -271,7 +256,6 @@ class PetApiTest {
         }
 
         @Test
-        @Disabled("Prism hangs on ktor CIO multipart requests; covered via Java/Python/PHP/Node.")
         @DisplayName("uploadPetDocument uploads with classification fields")
         fun testUploadPetDocument() {
             val fileBytes = "fake-doc-data".toByteArray()
@@ -285,7 +269,6 @@ class PetApiTest {
         }
 
         @Test
-        @Disabled("Prism does not validate multipart array fields correctly")
         @DisplayName("addPetPhotos uploads photos with metadata via multipart")
         fun testAddPetPhotos() {
             val files = listOf(byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte()))
@@ -301,7 +284,6 @@ class PetApiTest {
         }
 
         @Test
-        @Disabled("Prism returns JSON for image content type")
         @DisplayName("getPetPhoto returns a photo via content negotiation")
         fun testGetPetPhoto() {
             val result = runBlocking { api.getPetPhoto(1L, 1L) }
@@ -310,7 +292,6 @@ class PetApiTest {
         }
 
         @Test
-        @Disabled("Prism does not support matrix/label style parameters")
         @DisplayName("getPetTag sends styled path and query parameters")
         fun testGetPetTag() {
             val result =

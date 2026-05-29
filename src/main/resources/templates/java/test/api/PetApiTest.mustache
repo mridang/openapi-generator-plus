@@ -153,7 +153,6 @@ class PetApiTest {
     }
 
     @Test
-    @org.junit.jupiter.api.Disabled("Prism does not validate multipart array fields correctly")
     void testAddPetPhotos() throws Exception {
         PhotoMetadata metadata = new PhotoMetadata();
         metadata.caption = "Test photo";
@@ -172,14 +171,12 @@ class PetApiTest {
     }
 
     @Test
-    @org.junit.jupiter.api.Disabled("Prism returns JSON for image content type")
     void testGetPetPhoto() throws Exception {
         InputStream result = api.getPetPhoto(1L, 1L);
         assertNotNull(result);
     }
 
     @Test
-    @org.junit.jupiter.api.Disabled("Prism does not support matrix/label style parameters")
     void testGetPetTag() throws Exception {
         Pet result = api.getPetTag(5L, "cute",
                 new GetPetTagOptions().colors(List.of("blue", "black")).sizes(List.of("S", "M")));

@@ -171,8 +171,7 @@ final class PetApiTests {
         #expect(result != nil)
     }
 
-    @Test(.disabled("Prism does not validate multipart array fields correctly"))
-    func testAddPetPhotos() async throws {
+    @Test func testAddPetPhotos() async throws {
         let api = petApiForIntegration()
         let photoData = Data("fake-photo-bytes".utf8)
         let metadata = PhotoMetadata(caption: "test")
@@ -187,14 +186,12 @@ final class PetApiTests {
         #expect(result != nil)
     }
 
-    @Test(.disabled("Prism returns JSON for image content type"))
-    func testGetPetPhoto() async throws {
+    @Test func testGetPetPhoto() async throws {
         let api = petApiForIntegration()
         _ = try await api.getPetPhoto(petId: 1, photoId: 1)
     }
 
-    @Test(.disabled("Prism does not support matrix/label style parameters"))
-    func testGetPetTag() async throws {
+    @Test func testGetPetTag() async throws {
         let api = petApiForIntegration()
         let options = GetPetTagOptions(colors: ["blue", "black"], sizes: ["S", "M"])
         _ = try await api.getPetTag(petId: 5, tagName: "cute", options: options)

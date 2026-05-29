@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test\Api;
 
+use PetstoreClient\Api\Options\AddPetPhotosOptions;
 use PetstoreClient\Api\Options\FindPetsByStatusOptions;
+use PetstoreClient\Api\Options\GetPetTagOptions;
 use PetstoreClient\Api\Options\UploadPetCertificateOptions;
 use PetstoreClient\Api\Options\UploadPetDocumentOptions;
 use PetstoreClient\Api\PetApi;
@@ -16,6 +18,8 @@ use PetstoreClient\Models\ApiResponse as ApiResponseModel;
 use PetstoreClient\Models\Pet;
 use PetstoreClient\Models\PetPassport;
 use PetstoreClient\Models\PetStatusEnum;
+use PetstoreClient\Models\Photo;
+use PetstoreClient\Models\PhotoMetadata;
 use PetstoreClient\Models\SetPetAvatarThumbnailRequest;
 use PHPUnit\Framework\TestCase;
 
@@ -175,13 +179,19 @@ class PetApiTest extends TestCase
         unlink($tmpFile);
     }
 
-    /**
-     * @group skip
-     * Prism does not validate multipart array fields correctly
-     */
     public function testAddPetPhotos(): void
     {
-        $this->markTestSkipped('Prism does not validate multipart array fields correctly');
+        $tmpFile = tempnam(sys_get_temp_dir(), 'photo');
+        file_put_contents($tmpFile, 'photo-content');
+        $file = new \SplFileObject($tmpFile, 'r');
+
+        $metadata = new PhotoMetadata(caption: 'Test photo', isPrimary: true);
+        $result = $this->api->addPetPhotos(1, new AddPetPhotosOptions([$file], $metadata));
+
+        $this->assertIsArray($result);
+        $this->assertNotEmpty($result);
+        $this->assertInstanceOf(Photo::class, $result[0]);
+        unlink($tmpFile);
     }
 
     public function testDownloadPetDocument(): void
@@ -192,13 +202,12 @@ class PetApiTest extends TestCase
         $this->assertIsString($result);
     }
 
-    /**
-     * @group skip
-     * Prism returns JSON for image content type
-     */
     public function testGetPetPhoto(): void
     {
-        $this->markTestSkipped('Prism returns JSON for image content type');
+        $result = $this->api->getPetPhoto(1, 1);
+
+        $this->assertNotNull($result);
+        $this->assertInstanceOf(\SplFileObject::class, $result);
     }
 
     public function testGetExternalPetInfoUsesPerOperationServerUrl(): void
@@ -208,7 +217,9 @@ class PetApiTest extends TestCase
 
     public function testGetPetTagSendsStyledParameters(): void
     {
-        $this->markTestSkipped('Styled parameter integration requires a mock server that captures raw request URLs');
+        $result = $this->api->getPetTag(5, 'cute', new GetPetTagOptions(colors: ['blue', 'black'], sizes: ['S', 'M']));
+
+        $this->assertNotNull($result);
     }
 
     // -- Mock-based error handling tests --

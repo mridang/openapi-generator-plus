@@ -98,9 +98,17 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result != nil
   end
 
-  @tag :skip
-  test "add_pet_photos uploads photos with metadata via multipart" do
-    # Prism mock server does not support multipart array fields
+  test "add_pet_photos uploads photos with metadata via multipart", %{api: api} do
+    metadata = %PetstoreClient.Models.PhotoMetadata{caption: "Test photo", is_primary: true}
+
+    options = %PetstoreClient.Api.Options.AddPetPhotosOptions{
+      files: [<<0xFF, 0xD8, 0xFF>>],
+      metadata: metadata
+    }
+
+    assert {:ok, result} = PetstoreClient.Api.PetApi.add_pet_photos(api, 1, options)
+    assert result != nil
+    assert is_list(result)
   end
 
   test "download_pet_document downloads a document as binary", %{api: api} do
@@ -108,9 +116,9 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result != nil
   end
 
-  @tag :skip
-  test "get_pet_photo returns a photo via content negotiation" do
-    # Prism returns JSON for image content type
+  test "get_pet_photo returns a photo via content negotiation", %{api: api} do
+    assert {:ok, result} = PetstoreClient.Api.PetApi.get_pet_photo(api, 1, 1)
+    assert result != nil
   end
 
   test "get_pet_passport returns a passport with embedded byte fields", %{api: api} do
@@ -119,9 +127,11 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert %PetstoreClient.Models.PetPassport{} = result
   end
 
-  @tag :skip
-  test "get_pet_tag sends styled path and query parameters" do
-    # Prism does not support matrix/label path styles
+  test "get_pet_tag sends styled path and query parameters", %{api: api} do
+    options = %PetstoreClient.Api.Options.GetPetTagOptions{colors: ["blue", "black"], sizes: ["S", "M"]}
+
+    assert {:ok, result} = PetstoreClient.Api.PetApi.get_pet_tag(api, 5, "cute", options)
+    assert result != nil
   end
 
   @tag :skip

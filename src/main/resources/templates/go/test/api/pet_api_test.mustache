@@ -309,7 +309,25 @@ func TestPetApi_UploadPetDocument(t *testing.T) {
 }
 
 func TestPetApi_AddPetPhotos(t *testing.T) {
-	t.Skip("Prism does not validate multipart array fields correctly")
+	api := newPetApiForIntegration(t)
+	f := newTempFile(t, "photo1")
+
+	caption := "Test photo"
+	isPrimary := true
+	metadata := models.NewPhotoMetadata()
+	metadata.Caption = &caption
+	metadata.IsPrimary = &isPrimary
+
+	result, err := api.AddPetPhotos(int64(1), &options.AddPetPhotosOptions{
+		Files:    []*os.File{f},
+		Metadata: *metadata,
+	})
+	if err != nil {
+		t.Fatalf("AddPetPhotos failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result from AddPetPhotos")
+	}
 }
 
 func TestPetApi_DownloadPetDocument(t *testing.T) {
@@ -322,11 +340,32 @@ func TestPetApi_DownloadPetDocument(t *testing.T) {
 }
 
 func TestPetApi_GetPetPhoto(t *testing.T) {
-	t.Skip("Prism returns JSON for image content type")
+	api := newPetApiForIntegration(t)
+
+	result, err := api.GetPetPhoto(int64(1), int64(1))
+	if err != nil {
+		t.Fatalf("GetPetPhoto failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result from GetPetPhoto")
+	}
 }
 
 func TestPetApi_GetPetTag(t *testing.T) {
-	t.Skip("Prism does not support matrix/label style parameters")
+	api := newPetApiForIntegration(t)
+
+	colors := []string{"blue", "black"}
+	sizes := []string{"S", "M"}
+	result, err := api.GetPetTag(int64(5), "cute", &options.GetPetTagOptions{
+		Colors: &colors,
+		Sizes:  &sizes,
+	})
+	if err != nil {
+		t.Fatalf("GetPetTag failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result from GetPetTag")
+	}
 }
 
 func TestPetApi_GetExternalPetInfo(t *testing.T) {

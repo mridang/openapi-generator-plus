@@ -13,7 +13,7 @@ using PetstoreClient.Models;
 using Xunit;
 
 #pragma warning disable CS0618 // Intentionally testing deprecated APIs
-#pragma warning disable xUnit1004 // Skips are intentional (Prism limitations)
+#pragma warning disable xUnit1004 // Skip is intentional (external host not reachable in test)
 
 namespace Test.Api;
 
@@ -119,7 +119,7 @@ public class PetApiTest
         Assert.IsType<byte[]>(result);
     }
 
-    [Fact(Skip = "Prism returns 422 for oneOf byte request bodies")]
+    [Fact]
     public async Task TestSetPetAvatarThumbnail()
     {
         var thumbnailData = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A };
@@ -129,7 +129,7 @@ public class PetApiTest
         Assert.True(true);
     }
 
-    [Fact(Skip = "Prism hangs on .NET MultipartFormDataContent requests")]
+    [Fact]
     public async Task TestUploadPetCertificate()
     {
         var fileData = new MemoryStream(new byte[] { 0x25, 0x50, 0x44, 0x46 });
@@ -139,10 +139,10 @@ public class PetApiTest
         );
 
         Assert.NotNull(result);
-        Assert.IsType<PetstoreClient.Models.ApiResponse>(result);
+        Assert.IsType<PetstoreClient.ApiResponse>(result);
     }
 
-    [Fact(Skip = "Prism hangs on .NET MultipartFormDataContent requests")]
+    [Fact]
     public async Task TestUploadPetDocument()
     {
         var fileData = new MemoryStream(new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D });
@@ -157,10 +157,10 @@ public class PetApiTest
         );
 
         Assert.NotNull(result);
-        Assert.IsType<PetstoreClient.Models.ApiResponse>(result);
+        Assert.IsType<PetstoreClient.ApiResponse>(result);
     }
 
-    [Fact(Skip = "Prism does not validate multipart array fields correctly")]
+    [Fact]
     public async Task TestAddPetPhotos()
     {
         var files = new List<Stream>
@@ -188,7 +188,7 @@ public class PetApiTest
         Assert.IsType<Stream>(result, exactMatch: false);
     }
 
-    [Fact(Skip = "Prism returns JSON for image content type")]
+    [Fact]
     public async Task TestGetPetPhoto()
     {
         var result = await _api.GetPetPhotoAsync(1L, 100L);
@@ -233,7 +233,7 @@ public class PetApiTest
         Assert.NotNull(result.Data);
     }
 
-    [Fact(Skip = "Prism does not support matrix/label parameter styles")]
+    [Fact]
     public async Task TestGetPetTagStyledParams()
     {
         var result = await _api.GetPetTagAsync(

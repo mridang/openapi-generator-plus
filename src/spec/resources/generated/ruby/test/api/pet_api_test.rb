@@ -130,9 +130,19 @@ describe PetstoreClient::Api::PetApi do
   end
 
   describe '#add_pet_photos' do
-    # Prism mock server does not support multipart array fields
     it 'uploads photos with metadata via multipart' do
-      skip 'Prism does not validate multipart array fields correctly'
+      metadata = PetstoreClient::Models::PhotoMetadata.new(caption: 'Test photo', is_primary: true)
+
+      result = @api.add_pet_photos(
+        1,
+        PetstoreClient::Api::Options::AddPetPhotosOptions.new(
+          files: [StringIO.new('photo1')],
+          metadata: metadata
+        )
+      )
+
+      _(result).wont_be_nil
+      _(result).must_be_kind_of(Array)
     end
   end
 
@@ -145,9 +155,10 @@ describe PetstoreClient::Api::PetApi do
   end
 
   describe '#get_pet_photo' do
-    # Prism returns JSON for content negotiation but the return type is File
     it 'returns a photo via content negotiation' do
-      skip 'Prism returns JSON for image content type'
+      result = @api.get_pet_photo(1, 1)
+
+      _(result).wont_be_nil
     end
   end
 
@@ -162,7 +173,13 @@ describe PetstoreClient::Api::PetApi do
 
   describe '#get_pet_tag' do
     it 'sends styled path and query parameters' do
-      skip 'Prism does not support matrix/label path styles'
+      result = @api.get_pet_tag(
+        5,
+        'cute',
+        PetstoreClient::Api::Options::GetPetTagOptions.new(colors: %w[blue black], sizes: %w[S M])
+      )
+
+      _(result).wont_be_nil
     end
   end
 
