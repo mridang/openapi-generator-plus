@@ -125,7 +125,7 @@ func TestMain(m *testing.M) {
 	specPath := filepath.Join(fixturesDir, "openapi.yaml")
 
 	prismReq := testcontainers.ContainerRequest{
-		Image:        "mridang/chasm:1.2.2",
+		Image:        "mridang/chasm:1.2.4",
 		ExposedPorts: []string{"4010/tcp"},
 		Files: []testcontainers.ContainerFile{
 			{HostFilePath: specPath, ContainerFilePath: "/tmp/openapi.yaml"},

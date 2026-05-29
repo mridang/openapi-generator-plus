@@ -31,7 +31,7 @@ require 'petstore_client'
 host_app_path = ENV['HOST_APP_PATH'] || Dir.pwd
 spec_path = File.join(host_app_path, 'test', 'fixtures', 'openapi.yaml')
 
-PRISM = Testcontainers::DockerContainer.new('mridang/chasm:1.2.2')
+PRISM = Testcontainers::DockerContainer.new('mridang/chasm:1.2.4')
 PRISM.with_exposed_port(4010)
 PRISM.with_filesystem_binds(["#{spec_path}:/tmp/openapi.yaml:ro"])
 PRISM.with_command('mock', '/tmp/openapi.yaml', '--host', '0.0.0.0')

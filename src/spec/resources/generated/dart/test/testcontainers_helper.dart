@@ -94,7 +94,7 @@ Future<void> setUpContainers() async {
 
   final specFile = File('${fixtures.path}/openapi.yaml');
 
-  _prismContainer = DockerContainer('mridang/chasm:1.2.2')
+  _prismContainer = DockerContainer('mridang/chasm:1.2.4')
       .withExposedPorts([4010])
       .withCopyIntoContainer(
         PathTransferable(specFile),

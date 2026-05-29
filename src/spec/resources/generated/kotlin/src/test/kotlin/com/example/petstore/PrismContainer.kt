@@ -20,7 +20,7 @@ object PrismContainer {
 
     init {
         INSTANCE =
-            GenericContainer("mridang/chasm:1.2.2")
+            GenericContainer("mridang/chasm:1.2.4")
                 .withExposedPorts(4010)
                 .withCopyFileToContainer(
                     MountableFile.forHostPath(Path.of("/app/src/test/resources/openapi.yaml")),

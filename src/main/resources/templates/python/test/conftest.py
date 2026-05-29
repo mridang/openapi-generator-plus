@@ -13,7 +13,7 @@ def prism_container():
     spec_path = os.path.join(host_app_path, "test", "fixtures", "openapi.yaml")
 
     container = (
-        DockerContainer("mridang/chasm:1.2.2")
+        DockerContainer("mridang/chasm:1.2.4")
         .with_exposed_ports(4010)
         .with_volume_mapping(spec_path, "/tmp/openapi.yaml", "ro")
         .with_command("mock /tmp/openapi.yaml --host 0.0.0.0")

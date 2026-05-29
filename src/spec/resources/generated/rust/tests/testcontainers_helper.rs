@@ -118,7 +118,7 @@ fn init_containers_inner() -> TestContainers {
         .expect("failed to get Squid port");
 
     // Start Prism
-    let prism = GenericImage::new("mridang/chasm", "1.2.2")
+    let prism = GenericImage::new("mridang/chasm", "1.2.4")
         .with_wait_for(WaitFor::message_on_stdout("Listening on"))
         .with_exposed_port(ContainerPort::Tcp(4010))
         .with_copy_to("/tmp/openapi.yaml", spec_path)
