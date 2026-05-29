@@ -83,6 +83,11 @@ class ObjectSerializer(
         // serialization rejects it. Strip silently for parity with Java
         // Jackson / C# System.Text.Json which strip transparently.
         val stripped = if (jsonString[0].code == 0xFEFF) jsonString.substring(1) else jsonString
+        // A bare top-level JSON null is treated as an absent body (returns null)
+        // rather than a decode error, for lenient parity with the other SDKs
+        // (Go encoding/json, Python json, etc.) whose parsers accept a `null`
+        // payload on no-content responses without throwing.
+        if (stripped.trim() == "null") return null
         return json.decodeFromString<T>(stripped)
     }
 
