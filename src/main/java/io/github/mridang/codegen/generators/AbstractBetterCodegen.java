@@ -2577,8 +2577,10 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         // O3 / O4 / O5 — Derived class names from operationId
         final String opId = op.operationId == null ? "" : op.operationId;
         final String pascal = NamingConvention.PASCAL_CASE.apply(opId);
-        d.put("optionsClassName", pascal + "Options");
-        d.put("serverClassName", pascal + "Server");
+        final String optionsClassName = pascal + "Options";
+        final String serverClassName = pascal + "Server";
+        d.put("optionsClassName", optionsClassName);
+        d.put("serverClassName", serverClassName);
         d.put("apiClassName", pascal + "Api");
 
         // O6 — Options-param required flag (promoted from vendorExtensions.hasRequiredOptions)
@@ -2617,6 +2619,18 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         d.put("hasCookieParams", op.cookieParams != null && !op.cookieParams.isEmpty());
         d.put("hasPathParams", op.pathParams != null && !op.pathParams.isEmpty());
         d.put("hasBodyParam", op.bodyParam != null);
+
+        // Phase 1.7 — signatureArgs: ordered list of method-signature parameters
+        // (path / body / options / server) so templates can iterate declaratively
+        // instead of the nested {{#queryParams}}{{#-first}}…{{^queryParams}}
+        // {{#headerParams}}… separator chain that previously appeared in every
+        // language's api template. The auth slot intentionally stays per-template
+        // since its type varies per auth method (resolved from the outer
+        // {{#authMethods}} scope at render time).
+        d.put("signatureArgs", computeSignatureArgs(op, true, optionsClassName, serverClassName));
+        d.put(
+                "signatureArgsNoServer",
+                computeSignatureArgs(op, false, optionsClassName, serverClassName));
 
         // Propagate the op decorator reference onto every parameter so templates
         // can read {{vendorExtensions.op.optionsClassName}} from inside a
@@ -2858,6 +2872,72 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             }
         }
         return "application/json";
+    }
+
+    /**
+     * Builds the language-agnostic structural list of method-signature
+     * parameters for an operation: path params (in order), then bodyParam (if
+     * present), then a single synthetic {@code options} entry (present iff
+     * any of query/header/form/cookieParams exist), then optionally a
+     * {@code server} entry. The auth slot is intentionally NOT included
+     * because its type is per-auth-method and must be emitted by the
+     * template from its outer {@code {{#authMethods}}} scope.
+     *
+     * <p>Each entry is a Mustache-friendly map with: {@code kind},
+     * {@code isPath} / {@code isBody} / {@code isOptions} / {@code isServer},
+     * {@code paramName}, {@code dataType} (null for options/server — the
+     * template substitutes {@code vendorExtensions.op.optionsClassName} /
+     * {@code serverClassName}), {@code nullable} (true when the parameter
+     * should carry the per-language nullable annotation).
+     */
+    private static List<Map<String, Object>> computeSignatureArgs(
+            CodegenOperation op,
+            boolean includeServer,
+            String optionsClassName,
+            String serverClassName) {
+        final List<Map<String, Object>> args = new ArrayList<>();
+        if (op.pathParams != null) {
+            for (final CodegenParameter p : op.pathParams) {
+                args.add(signatureArg("path", p.paramName, p.dataType, false));
+            }
+        }
+        if (op.bodyParam != null) {
+            args.add(
+                    signatureArg(
+                            "body",
+                            op.bodyParam.paramName,
+                            op.bodyParam.dataType,
+                            !op.bodyParam.required));
+        }
+        final boolean hasQuery = op.queryParams != null && !op.queryParams.isEmpty();
+        final boolean hasHeader = op.headerParams != null && !op.headerParams.isEmpty();
+        final boolean hasForm = op.formParams != null && !op.formParams.isEmpty();
+        final boolean hasCookie = op.cookieParams != null && !op.cookieParams.isEmpty();
+        if (hasQuery || hasHeader || hasForm || hasCookie) {
+            // Matches the existing Java rule: the options param is @Nullable
+            // only when ONLY cookie params populate it; otherwise it's
+            // non-null (because at least one required-eligible kind exists).
+            final boolean nullable = !hasQuery && !hasHeader && !hasForm && hasCookie;
+            args.add(signatureArg("options", "options", optionsClassName, nullable));
+        }
+        if (includeServer && op.servers != null && !op.servers.isEmpty()) {
+            args.add(signatureArg("server", "server", serverClassName, true));
+        }
+        return args;
+    }
+
+    private static Map<String, Object> signatureArg(
+            String kind, String paramName, String dataType, boolean nullable) {
+        final Map<String, Object> m = new HashMap<>();
+        m.put("kind", kind);
+        m.put("isPath", "path".equals(kind));
+        m.put("isBody", "body".equals(kind));
+        m.put("isOptions", "options".equals(kind));
+        m.put("isServer", "server".equals(kind));
+        m.put("paramName", paramName);
+        m.put("dataType", dataType);
+        m.put("nullable", nullable);
+        return m;
     }
 
     /**
