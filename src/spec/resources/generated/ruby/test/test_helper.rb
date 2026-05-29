@@ -31,31 +31,31 @@ require 'petstore_client'
 host_app_path = ENV['HOST_APP_PATH'] || Dir.pwd
 spec_path = File.join(host_app_path, 'test', 'fixtures', 'openapi.yaml')
 
-PRISM = Testcontainers::DockerContainer.new('mridang/chasm:1.2.4')
-PRISM.with_exposed_port(4010)
-PRISM.with_filesystem_binds(["#{spec_path}:/tmp/openapi.yaml:ro"])
-PRISM.with_command('mock', '/tmp/openapi.yaml', '--host', '0.0.0.0')
-PRISM.with_wait_for(:logs, /Listening on/, timeout: 120)
+CHASM = Testcontainers::DockerContainer.new('mridang/chasm:1.2.5')
+CHASM.with_exposed_port(4010)
+CHASM.with_filesystem_binds(["#{spec_path}:/tmp/openapi.yaml:ro"])
+CHASM.with_command('mock', '/tmp/openapi.yaml', '--host', '0.0.0.0')
+CHASM.with_wait_for(:logs, /Listening on/, timeout: 120)
 
-PRISM.start
+CHASM.start
 
-# Use Minitest.after_run instead of at_exit to stop Prism AFTER tests complete.
+# Use Minitest.after_run instead of at_exit to stop Chasm AFTER tests complete.
 # at_exit hooks run in LIFO order, and minitest/autorun registers its at_exit
-# (which runs the tests) before ours, so at_exit { PRISM.stop } would stop
-# Prism before the tests even start.
-Minitest.after_run { PRISM.stop }
+# (which runs the tests) before ours, so at_exit { CHASM.stop } would stop
+# Chasm before the tests even start.
+Minitest.after_run { CHASM.stop }
 
 # Ruby testcontainers does not respect TESTCONTAINERS_HOST_OVERRIDE like other
 # language implementations, so we read it ourselves for DooD compatibility.
-prism_host = ENV['TESTCONTAINERS_HOST_OVERRIDE'] || PRISM.host
-prism_port = PRISM.mapped_port(4010)
-prism_url = "http://#{prism_host}:#{prism_port}"
+chasm_host = ENV['TESTCONTAINERS_HOST_OVERRIDE'] || CHASM.host
+chasm_port = CHASM.mapped_port(4010)
+chasm_url = "http://#{chasm_host}:#{chasm_port}"
 
-ENV['API_BASE_URL'] = prism_url
+ENV['API_BASE_URL'] = chasm_url
 
-# Configure the client to use the Prism mock server
+# Configure the client to use the Chasm mock server
 PetstoreClient.configure do |b|
-  b.base_url prism_url
+  b.base_url chasm_url
   b.default_header 'Authorization', 'Bearer test-token'
 end
 

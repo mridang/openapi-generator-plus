@@ -33,12 +33,12 @@ import org.junit.jupiter.api.Test
 
 class PetApiTest {
     companion object {
-        private fun getBaseUrl(): String = PrismContainer.getBaseUrl()
+        private fun getBaseUrl(): String = ChasmContainer.getBaseUrl()
 
         // Shared DefaultApiClient + PetApi across all integration tests in
         // this class. Each ktor CIO HttpClient holds connection pools and
         // file descriptors; creating a fresh client per test (24+ instances
-        // in this suite) exhausts Prism's connection limits and causes
+        // in this suite) exhausts Chasm's connection limits and causes
         // EOFException / Connection refused cascades.
         private val sharedConfig: Configuration by lazy {
             Configuration

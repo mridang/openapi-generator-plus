@@ -326,7 +326,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             final String testApiFolder = Path.of(testFolder, "api").toString();
             supportingFiles.add(
                     new SupportingFile(
-                            "test/PrismContainer.mustache", testFolder, "PrismContainer.kt"));
+                            "test/ChasmContainer.mustache", testFolder, "ChasmContainer.kt"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/SquidContainer.mustache", testFolder, "SquidContainer.kt"));

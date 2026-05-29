@@ -19,7 +19,7 @@ struct TestContainers {
     wiremock_internal_http_url: String,
     wiremock_internal_https_url: String,
     proxy_url: String,
-    prism_url: String,
+    chasm_url: String,
     ca_cert_path: String,
 }
 
@@ -117,8 +117,8 @@ fn init_containers_inner() -> TestContainers {
         .get_host_port_ipv4(3128)
         .expect("failed to get Squid port");
 
-    // Start Prism
-    let prism = GenericImage::new("mridang/chasm", "1.2.4")
+    // Start Chasm
+    let chasm = GenericImage::new("mridang/chasm", "1.2.5")
         .with_wait_for(WaitFor::message_on_stdout("Listening on"))
         .with_exposed_port(ContainerPort::Tcp(4010))
         .with_copy_to("/tmp/openapi.yaml", spec_path)
@@ -130,18 +130,18 @@ fn init_containers_inner() -> TestContainers {
         ])
         .with_startup_timeout(std::time::Duration::from_secs(120))
         .start()
-        .expect("Failed to start Prism container");
+        .expect("Failed to start Chasm container");
 
-    let prism_host = resolve_host(&prism);
-    let prism_port = prism
+    let chasm_host = resolve_host(&chasm);
+    let chasm_port = chasm
         .get_host_port_ipv4(4010)
-        .expect("failed to get Prism port");
+        .expect("failed to get Chasm port");
 
     // Leak container handles to keep them alive for the test suite lifetime.
     // They will be cleaned up when the process exits (Ryuk).
     std::mem::forget(wiremock);
     std::mem::forget(squid);
-    std::mem::forget(prism);
+    std::mem::forget(chasm);
 
     TestContainers {
         wiremock_http_url: format!("http://{}:{}", wiremock_host, wiremock_http_port),
@@ -149,7 +149,7 @@ fn init_containers_inner() -> TestContainers {
         wiremock_internal_http_url: format!("http://{}:8080", wiremock_bridge_ip),
         wiremock_internal_https_url: format!("https://{}:8443", wiremock_bridge_ip),
         proxy_url: format!("http://{}:{}", squid_host, squid_port),
-        prism_url: format!("http://{}:{}", prism_host, prism_port),
+        chasm_url: format!("http://{}:{}", chasm_host, chasm_port),
         ca_cert_path: ca_cert.to_str().unwrap().to_string(),
     }
 }
@@ -174,8 +174,8 @@ pub fn proxy_url() -> &'static str {
     &init_containers().proxy_url
 }
 
-pub fn prism_url() -> &'static str {
-    &init_containers().prism_url
+pub fn chasm_url() -> &'static str {
+    &init_containers().chasm_url
 }
 
 pub fn ca_cert_path() -> &'static str {

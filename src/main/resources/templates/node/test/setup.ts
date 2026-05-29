@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 
-const config = JSON.parse(fs.readFileSync('/tmp/prism-config.json', 'utf8'));
+const config = JSON.parse(fs.readFileSync('/tmp/chasm-config.json', 'utf8'));
 process.env.API_BASE_URL = config.baseUrl;
 process.env.WIREMOCK_HTTPS_URL = config.wiremockHttpsUrl;
 process.env.WIREMOCK_HTTP_URL = config.wiremockHttpUrl;

@@ -113,7 +113,7 @@ tasks.named<Test>("jvmTest") {
     // enough that ktor request timeouts surfaced as ConnectException.
     maxHeapSize = "1024m"
     // Run test classes in parallel JVM forks. Each fork is its own JVM
-    // so testcontainers (WireMock, Squid, Prism) and Ktor clients live
+    // so testcontainers (WireMock, Squid, Chasm) and Ktor clients live
     // in isolation per fork — no shared-state races possible. Cap at
     // half the CPU count to leave headroom for the Docker daemon and
     // the host build.

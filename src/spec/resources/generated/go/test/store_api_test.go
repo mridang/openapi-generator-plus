@@ -19,7 +19,7 @@ import (
 func newStoreApiForIntegration(t *testing.T) *petstore.StoreApi {
 	t.Helper()
 	config := petstore.NewConfigurationBuilder().
-		BaseURL(prismURL).
+		BaseURL(chasmURL).
 		DefaultHeader("Authorization", "Bearer test-token").
 		Build()
 	client := petstore.NewDefaultApiClient(nil)

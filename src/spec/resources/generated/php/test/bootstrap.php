@@ -33,14 +33,14 @@ function safeGetMappedPort(StartedGenericContainer $container, int $port): int
 $hostAppPath = getenv('HOST_APP_PATH') ?: getcwd();
 $specPath = $hostAppPath . '/test/fixtures/openapi.yaml';
 
-$prism = (new GenericContainer('mridang/chasm:1.2.4'))
+$chasm = (new GenericContainer('mridang/chasm:1.2.5'))
     ->withExposedPorts(4010)
     ->withMount($specPath, '/tmp/openapi.yaml')
     ->withCommand(['mock', '/tmp/openapi.yaml', '--host', '0.0.0.0'])
     ->withWait(new WaitForLog('Listening on', false, 120000))
     ->start();
 
-$baseUrl = 'http://' . $prism->getHost() . ':' . safeGetMappedPort($prism, 4010);
+$baseUrl = 'http://' . $chasm->getHost() . ':' . safeGetMappedPort($chasm, 4010);
 
 putenv('API_BASE_URL=' . $baseUrl);
 
@@ -125,9 +125,9 @@ sleep(3);
 putenv('PROXY_URL=http://' . $squid->getHost() . ':' . safeGetMappedPort($squid, 3128));
 putenv('CA_CERT_PATH=' . getcwd() . '/test/fixtures/certs/ca.pem');
 
-register_shutdown_function(function () use ($prism, $wiremock, $squid, $networkName, $socketPath): void {
+register_shutdown_function(function () use ($chasm, $wiremock, $squid, $networkName, $socketPath): void {
     $squid->stop();
     $wiremock->stop();
-    $prism->stop();
+    $chasm->stop();
     dockerApiRequest($socketPath, "/networks/$networkName", 'DELETE');
 });

@@ -8,12 +8,12 @@ nonisolated(unsafe) var wiremockHttpsUrl: String = ""
 nonisolated(unsafe) var wiremockInternalHttpUrl: String = ""
 nonisolated(unsafe) var wiremockInternalHttpsUrl: String = ""
 nonisolated(unsafe) var proxyUrl: String = ""
-nonisolated(unsafe) var prismUrl: String = ""
+nonisolated(unsafe) var chasmUrl: String = ""
 nonisolated(unsafe) var caCertPath: String = ""
 
 nonisolated(unsafe) private var wiremockContainer: DockerContainer?
 nonisolated(unsafe) private var squidContainer: DockerContainer?
-nonisolated(unsafe) private var prismContainer: DockerContainer?
+nonisolated(unsafe) private var chasmContainer: DockerContainer?
 nonisolated(unsafe) private var sharedNetwork: Network?
 
 /// Serialization guard so multiple parallel @Suite inits race-free.
@@ -100,7 +100,7 @@ private func _setUpContainers() async throws {
 
     let specPath = fixturesPath.appendingPathComponent("openapi.yaml")
 
-    let prism = DockerContainer("mridang/chasm:1.2.4")
+    let chasm = DockerContainer("mridang/chasm:1.2.5")
         .withExposedPorts([4010])
         .withCopyIntoContainer(
             .path(specPath),
@@ -111,14 +111,14 @@ private func _setUpContainers() async throws {
         ])
         .waitingFor(LogMessageWaitStrategy("Listening on"))
 
-    try await prism.start()
-    prismContainer = prism
+    try await chasm.start()
+    chasmContainer = chasm
 
-    let prismHost = try await prism.containerHostIp()
-    let prismPort = try await prism.exposedPort(4010)
-    prismUrl = "http://\(prismHost):\(prismPort)"
+    let chasmHost = try await chasm.containerHostIp()
+    let chasmPort = try await chasm.exposedPort(4010)
+    chasmUrl = "http://\(chasmHost):\(chasmPort)"
 
-    setenv("API_BASE_URL", prismUrl, 1)
+    setenv("API_BASE_URL", chasmUrl, 1)
     setenv("WIREMOCK_HTTP_URL", wiremockHttpUrl, 1)
     setenv("WIREMOCK_HTTPS_URL", wiremockHttpsUrl, 1)
     setenv("CA_CERT_PATH", caCertPath, 1)
@@ -126,8 +126,8 @@ private func _setUpContainers() async throws {
 }
 
 func tearDownContainers() async throws {
-    if let prism = prismContainer {
-        try await prism.stop()
+    if let chasm = chasmContainer {
+        try await chasm.stop()
     }
     if let squid = squidContainer {
         try await squid.stop()

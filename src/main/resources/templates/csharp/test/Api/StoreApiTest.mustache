@@ -7,14 +7,14 @@ using Xunit;
 
 namespace Test.Api;
 
-[Collection("Prism")]
+[Collection("Chasm")]
 public class StoreApiTest
 {
     private readonly StoreApi _api;
 
-    public StoreApiTest(Test.PrismFixture prism)
+    public StoreApiTest(Test.ChasmFixture chasm)
     {
-        var baseUrl = prism.BaseUrl;
+        var baseUrl = chasm.BaseUrl;
         var config = Configuration.Builder()
             .BaseUrl(baseUrl)
             .DefaultHeader("Authorization", "Bearer test-token")

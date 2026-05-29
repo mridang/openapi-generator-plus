@@ -11,9 +11,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import com.example.petstore.ChasmContainer;
 import com.example.petstore.Configuration;
 import com.example.petstore.DefaultApiClient;
-import com.example.petstore.PrismContainer;
 import com.example.petstore.api.options.AddPetPhotosOptions;
 import com.example.petstore.api.options.FindPetsByStatusOptions;
 import com.example.petstore.api.options.GetPetTagOptions;
@@ -47,7 +47,7 @@ class PetApiTest {
 
   @BeforeEach
   void setUp() {
-    String baseUrl = PrismContainer.getBaseUrl();
+    String baseUrl = ChasmContainer.getBaseUrl();
     Configuration config =
         Configuration.builder()
             .baseUrl(baseUrl)

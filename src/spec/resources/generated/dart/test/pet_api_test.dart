@@ -25,7 +25,7 @@ class _TestAuth implements Authenticator {
 
 PetApi _newPetApiForIntegration() {
   final config = ConfigurationBuilder()
-      .baseUrl(prismUrl)
+      .baseUrl(chasmUrl)
       .defaultHeader('Authorization', 'Bearer test-token')
       .build();
   final client = DefaultApiClient();

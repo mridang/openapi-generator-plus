@@ -6,7 +6,7 @@ export default async function globalSetup() {
   const hostAppPath = process.env.HOST_APP_PATH || process.cwd();
   const specPath = path.join(hostAppPath, 'test', 'fixtures', 'openapi.yaml');
 
-  const prism = await new GenericContainer('mridang/chasm:1.2.4')
+  const chasm = await new GenericContainer('mridang/chasm:1.2.5')
     .withExposedPorts(4010)
     .withBindMounts([{ source: specPath, target: '/tmp/openapi.yaml', mode: 'ro' }])
     .withCommand(['mock', '/tmp/openapi.yaml', '--host', '0.0.0.0'])
@@ -56,9 +56,9 @@ export default async function globalSetup() {
   // Give Squid a moment to initialize
   await new Promise(resolve => setTimeout(resolve, 3000));
 
-  const baseUrl = `http://${prism.getHost()}:${prism.getMappedPort(4010)}`;
+  const baseUrl = `http://${chasm.getHost()}:${chasm.getMappedPort(4010)}`;
 
-  // Verify Prism is reachable before proceeding (Docker for Mac port forwarding can be slow)
+  // Verify Chasm is reachable before proceeding (Docker for Mac port forwarding can be slow)
   for (let i = 0; i < 10; i++) {
     try {
       await fetch(baseUrl);
@@ -75,7 +75,7 @@ export default async function globalSetup() {
   const proxyUrl = `http://${squid.getHost()}:${squid.getMappedPort(3128)}`;
   const caCertPath = path.join(process.cwd(), 'test', 'fixtures', 'certs', 'ca.pem');
 
-  fs.writeFileSync('/tmp/prism-config.json', JSON.stringify({
+  fs.writeFileSync('/tmp/chasm-config.json', JSON.stringify({
     baseUrl,
     wiremockHttpsUrl,
     wiremockHttpUrl,
@@ -86,7 +86,7 @@ export default async function globalSetup() {
   }));
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (globalThis as any).__PRISM_CONTAINER__ = prism;
+  (globalThis as any).__CHASM_CONTAINER__ = chasm;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (globalThis as any).__WIREMOCK_CONTAINER__ = wiremock;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

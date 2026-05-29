@@ -9,7 +9,7 @@ import 'testcontainers_helper.dart';
 
 StoreApi _newStoreApiForIntegration() {
   final config = ConfigurationBuilder()
-      .baseUrl(prismUrl)
+      .baseUrl(chasmUrl)
       .defaultHeader('Authorization', 'Bearer test-token')
       .build();
   final client = DefaultApiClient();

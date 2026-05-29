@@ -65,7 +65,7 @@ them through as strings via `BCMath` if you need exact arithmetic.
 Fixing this end-to-end would require switching the wire layer to
 emit JSON numbers from internal string/GMP representations, which
 breaks `format: int64` schema validation against strict mock servers
-(verified with Prism). Documented as a known limitation.
+(verified with Chasm). Documented as a known limitation.
 
 ## Not supported
 

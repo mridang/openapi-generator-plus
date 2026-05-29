@@ -37,7 +37,7 @@ class StoreApiTest extends TestCase
         return new StoreApi(apiClient: $client, config: $config);
     }
 
-    // -- Integration tests via Prism --
+    // -- Integration tests via Chasm --
 
     public function testGetInventory(): void
     {

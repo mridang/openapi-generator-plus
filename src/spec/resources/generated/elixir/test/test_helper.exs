@@ -17,20 +17,20 @@ squid_conf_path = Path.join([host_app_path, "test", "fixtures", "proxy", "squid.
 network_name = "proxy-network-elixir"
 {:ok, _} = Testcontainers.create_network(network_name)
 
-# Start Prism mock server
-prism_config =
-  Testcontainers.Container.new("mridang/chasm:1.2.4")
+# Start Chasm mock server
+chasm_config =
+  Testcontainers.Container.new("mridang/chasm:1.2.5")
   |> Testcontainers.Container.with_exposed_port(4010)
   |> Testcontainers.Container.with_bind_mount(spec_path, "/tmp/openapi.yaml")
   |> Testcontainers.Container.with_cmd(["mock", "/tmp/openapi.yaml", "--host", "0.0.0.0"])
   |> Testcontainers.Container.with_waiting_strategy(Testcontainers.LogWaitStrategy.new(~r/Listening on/, 120_000))
 
-{:ok, prism} = Testcontainers.start_container(prism_config)
+{:ok, chasm} = Testcontainers.start_container(chasm_config)
 
-prism_host = System.get_env("TESTCONTAINERS_HOST_OVERRIDE") || Testcontainers.get_host()
-prism_port = Testcontainers.Container.mapped_port(prism, 4010)
-prism_url = "http://#{prism_host}:#{prism_port}"
-System.put_env("API_BASE_URL", prism_url)
+chasm_host = System.get_env("TESTCONTAINERS_HOST_OVERRIDE") || Testcontainers.get_host()
+chasm_port = Testcontainers.Container.mapped_port(chasm, 4010)
+chasm_url = "http://#{chasm_host}:#{chasm_port}"
+System.put_env("API_BASE_URL", chasm_url)
 
 # Start WireMock with HTTPS support
 wiremock_config =

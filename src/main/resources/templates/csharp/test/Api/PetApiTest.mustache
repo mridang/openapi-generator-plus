@@ -12,15 +12,15 @@ using Xunit;
 
 namespace Test.Api;
 
-[Collection("Prism")]
+[Collection("Chasm")]
 public class PetApiTest
 {
     private readonly PetApi _api;
     private readonly IAuthenticator _auth;
 
-    public PetApiTest(Test.PrismFixture prism)
+    public PetApiTest(Test.ChasmFixture chasm)
     {
-        var baseUrl = prism.BaseUrl;
+        var baseUrl = chasm.BaseUrl;
         _auth = new BearerAuthenticator(baseUrl, "test-token");
         var config = Configuration.Builder()
             .BaseUrl(baseUrl)

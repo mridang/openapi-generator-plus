@@ -9,12 +9,12 @@ late String wiremockHttpsUrl;
 late String wiremockInternalHttpUrl;
 late String wiremockInternalHttpsUrl;
 late String proxyUrl;
-late String prismUrl;
+late String chasmUrl;
 late String caCertPath;
 
 late DockerContainer _wiremockContainer;
 late DockerContainer _squidContainer;
-late DockerContainer _prismContainer;
+late DockerContainer _chasmContainer;
 late Network _network;
 
 Future<void> setUpContainers() async {
@@ -85,7 +85,7 @@ Future<void> setUpContainers() async {
 
   final specFile = File('${fixtures.path}/openapi.yaml');
 
-  _prismContainer = DockerContainer('mridang/chasm:1.2.4')
+  _chasmContainer = DockerContainer('mridang/chasm:1.2.5')
       .withExposedPorts([4010])
       .withCopyIntoContainer(
         PathTransferable(specFile),
@@ -98,15 +98,15 @@ Future<void> setUpContainers() async {
       .waitingFor(
           LogMessageWaitStrategy(RegExp(r'Listening on')));
 
-  await _prismContainer.start();
+  await _chasmContainer.start();
 
-  final prismHost = await _prismContainer.containerHostIp();
-  final prismPort = await _prismContainer.exposedPort(4010);
-  prismUrl = 'http://$prismHost:$prismPort';
+  final chasmHost = await _chasmContainer.containerHostIp();
+  final chasmPort = await _chasmContainer.exposedPort(4010);
+  chasmUrl = 'http://$chasmHost:$chasmPort';
 }
 
 Future<void> tearDownContainers() async {
-  await _prismContainer.stop();
+  await _chasmContainer.stop();
   await _squidContainer.stop();
   await _wiremockContainer.stop();
   await _network.remove();

@@ -4,7 +4,7 @@ package {{apiPackage}};
 
 import {{invokerPackage}}.Configuration;
 import {{invokerPackage}}.DefaultApiClient;
-import {{invokerPackage}}.PrismContainer;
+import {{invokerPackage}}.ChasmContainer;
 import {{invokerPackage}}.auth.AdminBasicAuthenticator;
 import {{invokerPackage}}.auth.PetStoreBearerAuthenticator;
 import {{modelPackage}}.ApiResponse;
@@ -46,7 +46,7 @@ class PetApiTest {
 
     @BeforeEach
     void setUp() {
-        String baseUrl = PrismContainer.getBaseUrl();
+        String baseUrl = ChasmContainer.getBaseUrl();
         Configuration config = Configuration.builder()
                 .baseUrl(baseUrl)
                 .defaultHeader("Authorization", "Bearer test-token")

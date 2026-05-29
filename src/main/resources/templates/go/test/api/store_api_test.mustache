@@ -13,7 +13,7 @@ import (
 func newStoreApiForIntegration(t *testing.T) *{{packageName}}.StoreApi {
 	t.Helper()
 	config := {{packageName}}.NewConfigurationBuilder().
-		BaseURL(prismURL).
+		BaseURL(chasmURL).
 		DefaultHeader("Authorization", "Bearer test-token").
 		Build()
 	client := {{packageName}}.NewDefaultApiClient(nil)

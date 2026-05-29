@@ -23,7 +23,7 @@ func (a *petAuth) CookieParams() map[string]string { return map[string]string{} 
 func newPetApiForIntegration(t *testing.T) *{{packageName}}.PetApi {
 	t.Helper()
 	config := {{packageName}}.NewConfigurationBuilder().
-		BaseURL(prismURL).
+		BaseURL(chasmURL).
 		DefaultHeader("Authorization", "Bearer test-token").
 		Build()
 	client := {{packageName}}.NewDefaultApiClient(nil)

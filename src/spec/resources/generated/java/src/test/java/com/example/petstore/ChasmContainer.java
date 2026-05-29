@@ -13,14 +13,14 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.MountableFile;
 
-/** Singleton Prism mock server container shared across all test classes. */
-public final class PrismContainer {
+/** Singleton Chasm mock server container shared across all test classes. */
+public final class ChasmContainer {
 
   private static final GenericContainer<?> INSTANCE;
 
   static {
     INSTANCE =
-        new GenericContainer<>("mridang/chasm:1.2.4")
+        new GenericContainer<>("mridang/chasm:1.2.5")
             .withExposedPorts(4010)
             .withCopyFileToContainer(
                 MountableFile.forHostPath(Path.of("/app/src/test/resources/openapi.yaml")),
@@ -40,7 +40,7 @@ public final class PrismContainer {
                 }));
   }
 
-  private PrismContainer() {}
+  private ChasmContainer() {}
 
   public static String getBaseUrl() {
     return "http://" + INSTANCE.getHost() + ":" + INSTANCE.getMappedPort(4010);

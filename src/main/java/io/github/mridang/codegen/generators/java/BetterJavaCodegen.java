@@ -347,7 +347,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                             "TraceContextUtilTest.java"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/PrismContainer.mustache", testFolder, "PrismContainer.java"));
+                            "test/ChasmContainer.mustache", testFolder, "ChasmContainer.java"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/SquidContainer.mustache", testFolder, "SquidContainer.java"));

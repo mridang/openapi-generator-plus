@@ -13,7 +13,7 @@ import Testing
 @Suite(.serialized) final class StoreApiTests {
 
     init() async throws {
-        if prismUrl.isEmpty {
+        if chasmUrl.isEmpty {
             try await setUpContainers()
         }
     }
@@ -22,7 +22,7 @@ import Testing
 
     private func storeApiForIntegration() -> StoreApi {
         let config = ConfigurationBuilder()
-            .baseURL(prismUrl)
+            .baseURL(chasmUrl)
             .defaultHeader(name: "Authorization", value: "Bearer test-token")
             .build()
         let client = DefaultApiClient()

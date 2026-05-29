@@ -25,7 +25,7 @@ var (
 	wiremockInternalHTTPURL  string
 	wiremockInternalHTTPSURL string
 	proxyURL                 string
-	prismURL                 string
+	chasmURL                 string
 	caCertPath               string
 )
 
@@ -121,11 +121,11 @@ func TestMain(m *testing.M) {
 	squidPort, _ := squidContainer.MappedPort(ctx, "3128/tcp")
 	proxyURL = fmt.Sprintf("http://%s:%s", squidHost, squidPort.Port())
 
-	// Start Prism container
+	// Start Chasm container
 	specPath := filepath.Join(fixturesDir, "openapi.yaml")
 
-	prismReq := testcontainers.ContainerRequest{
-		Image:        "mridang/chasm:1.2.4",
+	chasmReq := testcontainers.ContainerRequest{
+		Image:        "mridang/chasm:1.2.5",
 		ExposedPorts: []string{"4010/tcp"},
 		Files: []testcontainers.ContainerFile{
 			{HostFilePath: specPath, ContainerFilePath: "/openapi.yaml", FileMode: 0o644},
@@ -134,24 +134,24 @@ func TestMain(m *testing.M) {
 		WaitingFor: wait.ForLog("Listening on").WithStartupTimeout(120 * time.Second),
 	}
 
-	prismContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: prismReq,
+	chasmContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: chasmReq,
 		Started:          true,
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to start Prism: %v\n", err)
+		fmt.Fprintf(os.Stderr, "failed to start Chasm: %v\n", err)
 		os.Exit(1)
 	}
 
-	prismHost, _ := prismContainer.Host(ctx)
-	prismPort, _ := prismContainer.MappedPort(ctx, "4010/tcp")
-	prismURL = fmt.Sprintf("http://%s:%s", prismHost, prismPort.Port())
+	chasmHost, _ := chasmContainer.Host(ctx)
+	chasmPort, _ := chasmContainer.MappedPort(ctx, "4010/tcp")
+	chasmURL = fmt.Sprintf("http://%s:%s", chasmHost, chasmPort.Port())
 
 	// Run tests
 	code := m.Run()
 
 	// Cleanup
-	_ = prismContainer.Terminate(ctx)
+	_ = chasmContainer.Terminate(ctx)
 	_ = squidContainer.Terminate(ctx)
 	_ = wiremockContainer.Terminate(ctx)
 	_ = network.Remove(ctx)

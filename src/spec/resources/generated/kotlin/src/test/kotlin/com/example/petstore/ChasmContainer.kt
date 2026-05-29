@@ -13,21 +13,21 @@ import org.testcontainers.utility.MountableFile
 import java.nio.file.Path
 
 /**
- * Singleton Prism mock server container shared across all test classes.
+ * Singleton Chasm mock server container shared across all test classes.
  */
-object PrismContainer {
+object ChasmContainer {
     private val INSTANCE: GenericContainer<*>
 
     init {
         INSTANCE =
-            GenericContainer("mridang/chasm:1.2.4")
+            GenericContainer("mridang/chasm:1.2.5")
                 .withExposedPorts(4010)
                 .withCopyFileToContainer(
                     MountableFile.forHostPath(Path.of("/app/src/test/resources/openapi.yaml")),
                     "/tmp/openapi.yaml",
                 ).withCommand("mock", "/tmp/openapi.yaml", "--host", "0.0.0.0")
                 // Same as the Java/Python/PHP setup — Wait.forListeningPort can return
-                // before Prism is actually serving requests, leading to the first burst
+                // before Chasm is actually serving requests, leading to the first burst
                 // of tests racing the server boot.
                 .waitingFor(Wait.forLogMessage(".*Listening on.*", 1))
                 .withStartupTimeout(java.time.Duration.ofMinutes(2))

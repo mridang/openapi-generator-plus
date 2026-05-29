@@ -20,10 +20,10 @@ import java.time.ZoneOffset
 class StoreApiTest {
 
     companion object {
-        private fun getBaseUrl(): String = PrismContainer.getBaseUrl()
+        private fun getBaseUrl(): String = ChasmContainer.getBaseUrl()
 
         // Share one ktor HttpClient across the suite — see PetApiTest for
-        // why per-test client creation exhausts Prism's connection limits.
+        // why per-test client creation exhausts Chasm's connection limits.
         private val sharedApi: StoreApi by lazy {
             val config = Configuration.builder()
                 .baseUrl(getBaseUrl())

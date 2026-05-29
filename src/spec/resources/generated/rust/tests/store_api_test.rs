@@ -18,7 +18,7 @@ use petstore::models::*;
 use petstore::*;
 
 fn new_store_api_for_integration() -> StoreApi {
-    let base_url = testcontainers_helper::prism_url();
+    let base_url = testcontainers_helper::chasm_url();
     let config = ConfigurationBuilder::new()
         .base_url(base_url)
         .default_header("Authorization", "Bearer test-token")

@@ -8,12 +8,12 @@ from testcontainers.core.wait_strategies import LogMessageWaitStrategy
 
 
 @pytest.fixture(scope="session")
-def prism_container():
+def chasm_container():
     host_app_path = os.environ.get("HOST_APP_PATH", os.getcwd())
     spec_path = os.path.join(host_app_path, "test", "fixtures", "openapi.yaml")
 
     container = (
-        DockerContainer("mridang/chasm:1.2.4")
+        DockerContainer("mridang/chasm:1.2.5")
         .with_exposed_ports(4010)
         .with_volume_mapping(spec_path, "/tmp/openapi.yaml", "ro")
         .with_command("mock /tmp/openapi.yaml --host 0.0.0.0")
@@ -25,9 +25,9 @@ def prism_container():
 
 
 @pytest.fixture(scope="session")
-def api_base_url(prism_container):
-    host = prism_container.get_container_host_ip()
-    port = prism_container.get_exposed_port(4010)
+def api_base_url(chasm_container):
+    host = chasm_container.get_container_host_ip()
+    port = chasm_container.get_exposed_port(4010)
     return f"http://{host}:{port}"
 
 

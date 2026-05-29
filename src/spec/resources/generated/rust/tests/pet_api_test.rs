@@ -65,7 +65,7 @@ impl Authenticator for TestBasicAuth {
 }
 
 fn new_pet_api_for_integration() -> PetApi {
-    let base_url = testcontainers_helper::prism_url();
+    let base_url = testcontainers_helper::chasm_url();
     let config = ConfigurationBuilder::new()
         .base_url(base_url)
         .default_header("Authorization", "Bearer test-token")
