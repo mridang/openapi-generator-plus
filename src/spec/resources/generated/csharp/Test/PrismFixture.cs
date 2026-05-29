@@ -24,11 +24,11 @@ public class PrismFixture : IAsyncLifetime
         var specPath = Path.Combine(hostAppPath, "Test", "Resources", "openapi.yaml");
 
         _container = new ContainerBuilder()
-            .WithImage("stoplight/prism:5")
+            .WithImage("mridang/chasm:1")
             .WithPortBinding(4010, true)
             .WithBindMount(specPath, "/tmp/openapi.yaml", AccessMode.ReadOnly)
-            .WithCommand("mock", "-m", "false", "-h", "0.0.0.0", "/tmp/openapi.yaml")
-            .WithWaitStrategy(Wait.ForUnixContainer().UntilMessageIsLogged("Prism is listening"))
+            .WithCommand("mock", "/tmp/openapi.yaml", "--host", "0.0.0.0")
+            .WithWaitStrategy(Wait.ForUnixContainer().UntilMessageIsLogged("Listening on"))
             .Build();
 
         await _container.StartAsync();

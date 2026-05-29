@@ -20,13 +20,13 @@ public final class PrismContainer {
 
   static {
     INSTANCE =
-        new GenericContainer<>("stoplight/prism:5")
+        new GenericContainer<>("mridang/chasm:1")
             .withExposedPorts(4010)
             .withCopyFileToContainer(
                 MountableFile.forHostPath(Path.of("/app/src/test/resources/openapi.yaml")),
                 "/tmp/openapi.yaml")
-            .withCommand("mock", "-m", "false", "-h", "0.0.0.0", "/tmp/openapi.yaml")
-            .waitingFor(Wait.forLogMessage(".*Prism is listening.*", 1))
+            .withCommand("mock", "/tmp/openapi.yaml", "--host", "0.0.0.0")
+            .waitingFor(Wait.forLogMessage(".*Listening on.*", 1))
             .withStartupTimeout(Duration.ofMinutes(2))
             .withLabel("com.mridang.openapi.testcontainer", "true");
     INSTANCE.start();

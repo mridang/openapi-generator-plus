@@ -94,7 +94,7 @@ Future<void> setUpContainers() async {
 
   final specFile = File('${fixtures.path}/openapi.yaml');
 
-  _prismContainer = DockerContainer('stoplight/prism:5')
+  _prismContainer = DockerContainer('mridang/chasm:1')
       .withExposedPorts([4010])
       .withCopyIntoContainer(
         PathTransferable(specFile),
@@ -103,13 +103,11 @@ Future<void> setUpContainers() async {
       )
       .withCommand([
         'mock',
-        '-m',
-        'false',
-        '-h',
-        '0.0.0.0',
         '/tmp/openapi.yaml',
+        '--host',
+        '0.0.0.0',
       ])
-      .waitingFor(LogMessageWaitStrategy(RegExp(r'Prism is listening')));
+      .waitingFor(LogMessageWaitStrategy(RegExp(r'Listening on')));
 
   await _prismContainer.start();
 

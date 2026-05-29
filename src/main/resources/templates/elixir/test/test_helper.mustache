@@ -19,12 +19,12 @@ network_name = "proxy-network-elixir"
 
 # Start Prism mock server
 prism_config =
-  Testcontainers.Container.new("stoplight/prism:5")
+  Testcontainers.Container.new("mridang/chasm:1")
   |> Testcontainers.Container.with_exposed_port(4010)
   |> Testcontainers.Container.with_bind_mount(spec_path, "/tmp/openapi.yaml")
-  |> Testcontainers.Container.with_cmd(["mock", "-m", "false", "-h", "0.0.0.0", "/tmp/openapi.yaml"])
+  |> Testcontainers.Container.with_cmd(["mock", "/tmp/openapi.yaml", "--host", "0.0.0.0"])
   |> Testcontainers.Container.with_waiting_strategy(
-    Testcontainers.LogWaitStrategy.new(~r/Prism is listening/, 120_000)
+    Testcontainers.LogWaitStrategy.new(~r/Listening on/, 120_000)
   )
 
 {:ok, prism} = Testcontainers.start_container(prism_config)

@@ -125,13 +125,13 @@ func TestMain(m *testing.M) {
 	specPath := filepath.Join(fixturesDir, "openapi.yaml")
 
 	prismReq := testcontainers.ContainerRequest{
-		Image:        "stoplight/prism:5",
+		Image:        "mridang/chasm:1",
 		ExposedPorts: []string{"4010/tcp"},
 		Files: []testcontainers.ContainerFile{
 			{HostFilePath: specPath, ContainerFilePath: "/tmp/openapi.yaml"},
 		},
-		Cmd:        []string{"mock", "-m", "false", "-h", "0.0.0.0", "/tmp/openapi.yaml"},
-		WaitingFor: wait.ForLog("Prism is listening").WithStartupTimeout(120 * time.Second),
+		Cmd:        []string{"mock", "/tmp/openapi.yaml", "--host", "0.0.0.0"},
+		WaitingFor: wait.ForLog("Listening on").WithStartupTimeout(120 * time.Second),
 	}
 
 	prismContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{

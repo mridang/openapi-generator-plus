@@ -33,11 +33,11 @@ function safeGetMappedPort(StartedGenericContainer $container, int $port): int
 $hostAppPath = getenv('HOST_APP_PATH') ?: getcwd();
 $specPath = $hostAppPath . '/test/fixtures/openapi.yaml';
 
-$prism = (new GenericContainer('stoplight/prism:5'))
+$prism = (new GenericContainer('mridang/chasm:1'))
     ->withExposedPorts(4010)
     ->withMount($specPath, '/tmp/openapi.yaml')
-    ->withCommand(['mock', '-m', 'false', '-h', '0.0.0.0', '/tmp/openapi.yaml'])
-    ->withWait(new WaitForLog('Prism is listening', false, 120000))
+    ->withCommand(['mock', '/tmp/openapi.yaml', '--host', '0.0.0.0'])
+    ->withWait(new WaitForLog('Listening on', false, 120000))
     ->start();
 
 $baseUrl = 'http://' . $prism->getHost() . ':' . safeGetMappedPort($prism, 4010);

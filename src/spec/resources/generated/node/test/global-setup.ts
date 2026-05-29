@@ -6,11 +6,11 @@ export default async function globalSetup() {
   const hostAppPath = process.env.HOST_APP_PATH || process.cwd();
   const specPath = path.join(hostAppPath, 'test', 'fixtures', 'openapi.yaml');
 
-  const prism = await new GenericContainer('stoplight/prism:5')
+  const prism = await new GenericContainer('mridang/chasm:1')
     .withExposedPorts(4010)
     .withBindMounts([{ source: specPath, target: '/tmp/openapi.yaml', mode: 'ro' }])
-    .withCommand(['mock', '-m', 'false', '-h', '0.0.0.0', '/tmp/openapi.yaml'])
-    .withWaitStrategy(Wait.forLogMessage('Prism is listening'))
+    .withCommand(['mock', '/tmp/openapi.yaml', '--host', '0.0.0.0'])
+    .withWaitStrategy(Wait.forLogMessage('Listening on'))
     .withStartupTimeout(120000)
     .start();
 

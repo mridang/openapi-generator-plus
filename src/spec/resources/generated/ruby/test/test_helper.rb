@@ -31,11 +31,11 @@ require 'petstore_client'
 host_app_path = ENV['HOST_APP_PATH'] || Dir.pwd
 spec_path = File.join(host_app_path, 'test', 'fixtures', 'openapi.yaml')
 
-PRISM = Testcontainers::DockerContainer.new('stoplight/prism:5')
+PRISM = Testcontainers::DockerContainer.new('mridang/chasm:1')
 PRISM.with_exposed_port(4010)
 PRISM.with_filesystem_binds(["#{spec_path}:/tmp/openapi.yaml:ro"])
-PRISM.with_command('mock', '-m', 'false', '-h', '0.0.0.0', '/tmp/openapi.yaml')
-PRISM.with_wait_for(:logs, /Prism is listening/, timeout: 120)
+PRISM.with_command('mock', '/tmp/openapi.yaml', '--host', '0.0.0.0')
+PRISM.with_wait_for(:logs, /Listening on/, timeout: 120)
 
 PRISM.start
 

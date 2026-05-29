@@ -100,16 +100,16 @@ private func _setUpContainers() async throws {
 
     let specPath = fixturesPath.appendingPathComponent("openapi.yaml")
 
-    let prism = DockerContainer("stoplight/prism:5")
+    let prism = DockerContainer("mridang/chasm:1")
         .withExposedPorts([4010])
         .withCopyIntoContainer(
             .path(specPath),
             "/tmp/openapi.yaml"
         )
         .withCommand([
-            "mock", "-m", "false", "-h", "0.0.0.0", "/tmp/openapi.yaml"
+            "mock", "/tmp/openapi.yaml", "--host", "0.0.0.0"
         ])
-        .waitingFor(LogMessageWaitStrategy("Prism is listening"))
+        .waitingFor(LogMessageWaitStrategy("Listening on"))
 
     try await prism.start()
     prismContainer = prism
