@@ -128,9 +128,9 @@ func TestMain(m *testing.M) {
 		Image:        "mridang/chasm:1.2.4",
 		ExposedPorts: []string{"4010/tcp"},
 		Files: []testcontainers.ContainerFile{
-			{HostFilePath: specPath, ContainerFilePath: "/tmp/openapi.yaml"},
+			{HostFilePath: specPath, ContainerFilePath: "/openapi.yaml", FileMode: 0o644},
 		},
-		Cmd:        []string{"mock", "/tmp/openapi.yaml", "--host", "0.0.0.0"},
+		Cmd:        []string{"mock", "/openapi.yaml", "--host", "0.0.0.0"},
 		WaitingFor: wait.ForLog("Listening on").WithStartupTimeout(120 * time.Second),
 	}
 
