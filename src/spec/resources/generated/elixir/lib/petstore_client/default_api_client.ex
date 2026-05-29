@@ -678,7 +678,7 @@ defmodule PetstoreClient.DefaultApiClient do
 
   defp multipart_part(name, value, boundary) when is_map(value) do
     safe = sanitize_multipart_field_name(name)
-    json_str = Jason.encode!(value)
+    json_str = PetstoreClient.ObjectSerializer.serialize(value)
 
     "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{safe}\"\r\n" <>
       "Content-Type: application/json\r\n\r\n#{json_str}\r\n"
