@@ -6,7 +6,7 @@ export default async function globalSetup() {
   const hostAppPath = process.env.HOST_APP_PATH || process.cwd();
   const specPath = path.join(hostAppPath, 'test', 'fixtures', 'openapi.yaml');
 
-  const prism = await new GenericContainer('mridang/chasm:1')
+  const prism = await new GenericContainer('mridang/chasm:1.2.2')
     .withExposedPorts(4010)
     .withBindMounts([{ source: specPath, target: '/tmp/openapi.yaml', mode: 'ro' }])
     .withCommand(['mock', '/tmp/openapi.yaml', '--host', '0.0.0.0'])

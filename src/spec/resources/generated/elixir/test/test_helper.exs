@@ -19,7 +19,7 @@ network_name = "proxy-network-elixir"
 
 # Start Prism mock server
 prism_config =
-  Testcontainers.Container.new("mridang/chasm:1")
+  Testcontainers.Container.new("mridang/chasm:1.2.2")
   |> Testcontainers.Container.with_exposed_port(4010)
   |> Testcontainers.Container.with_bind_mount(spec_path, "/tmp/openapi.yaml")
   |> Testcontainers.Container.with_cmd(["mock", "/tmp/openapi.yaml", "--host", "0.0.0.0"])

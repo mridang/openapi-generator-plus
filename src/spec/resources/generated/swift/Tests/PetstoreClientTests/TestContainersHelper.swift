@@ -105,7 +105,7 @@ private func _setUpContainers() async throws {
 
     let specPath = fixturesPath.appendingPathComponent("openapi.yaml")
 
-    let prism = DockerContainer("mridang/chasm:1")
+    let prism = DockerContainer("mridang/chasm:1.2.2")
         .withExposedPorts([4010])
         .withCopyIntoContainer(
             .path(specPath),

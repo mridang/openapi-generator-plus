@@ -12,7 +12,7 @@ def prism_container():
     host_app_path = os.environ.get('HOST_APP_PATH', os.getcwd())
     spec_path = os.path.join(host_app_path, 'test', 'fixtures', 'openapi.yaml')
 
-    container = DockerContainer('mridang/chasm:1').with_exposed_ports(4010).with_volume_mapping(spec_path, '/tmp/openapi.yaml', 'ro').with_command('mock /tmp/openapi.yaml --host 0.0.0.0').waiting_for(LogMessageWaitStrategy('Listening on'))
+    container = DockerContainer('mridang/chasm:1.2.2').with_exposed_ports(4010).with_volume_mapping(spec_path, '/tmp/openapi.yaml', 'ro').with_command('mock /tmp/openapi.yaml --host 0.0.0.0').waiting_for(LogMessageWaitStrategy('Listening on'))
     container.start()
     yield container
     container.stop()

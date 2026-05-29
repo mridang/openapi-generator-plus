@@ -18,7 +18,7 @@ public class PrismFixture : IAsyncLifetime
         var specPath = Path.Combine(hostAppPath, "Test", "Resources", "openapi.yaml");
 
         _container = new ContainerBuilder()
-            .WithImage("mridang/chasm:1")
+            .WithImage("mridang/chasm:1.2.2")
             .WithPortBinding(4010, true)
             .WithBindMount(specPath, "/tmp/openapi.yaml", AccessMode.ReadOnly)
             .WithCommand("mock", "/tmp/openapi.yaml", "--host", "0.0.0.0")

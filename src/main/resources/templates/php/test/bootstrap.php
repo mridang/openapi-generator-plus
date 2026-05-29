@@ -33,7 +33,7 @@ function safeGetMappedPort(StartedGenericContainer $container, int $port): int
 $hostAppPath = getenv('HOST_APP_PATH') ?: getcwd();
 $specPath = $hostAppPath . '/test/fixtures/openapi.yaml';
 
-$prism = (new GenericContainer('mridang/chasm:1'))
+$prism = (new GenericContainer('mridang/chasm:1.2.2'))
     ->withExposedPorts(4010)
     ->withMount($specPath, '/tmp/openapi.yaml')
     ->withCommand(['mock', '/tmp/openapi.yaml', '--host', '0.0.0.0'])

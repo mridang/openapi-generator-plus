@@ -17,7 +17,7 @@ public final class PrismContainer {
     private static final GenericContainer<?> INSTANCE;
 
     static {
-        INSTANCE = new GenericContainer<>("mridang/chasm:1")
+        INSTANCE = new GenericContainer<>("mridang/chasm:1.2.2")
             .withExposedPorts(4010)
             .withCopyFileToContainer(
                 MountableFile.forHostPath(Path.of("/app/src/test/resources/openapi.yaml")),
