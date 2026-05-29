@@ -213,6 +213,10 @@ impl BaseApi {
         &self,
         params: InvokeApiParams<'_>,
     ) -> Result<ApiResult<T>, Box<dyn std::error::Error + Send + Sync>> {
+        /* Capture the target return type before `params` is consumed by
+         * invoke_api. Binary operations set this to "Vec<u8>" so we can route
+         * non-JSON bodies straight to the raw-bytes path below. */
+        let is_binary_return = params.return_type == "Vec<u8>";
         let response = self.invoke_api(params).await?;
 
         /* Check Content-Type before deserializing -- only deserialize JSON responses */
@@ -230,11 +234,48 @@ impl BaseApi {
             }
         };
 
-        let data = if is_json && !response.body.is_empty() {
+        let data = if is_binary_return && !response.body.is_empty() {
+            /* Binary return type (T = Vec<u8>). Mock/real servers encode binary
+             * payloads inconsistently: some send a base64-encoded transport body
+             * (non-JSON content-type), others a JSON string of base64, others a
+             * JSON array of byte values. Normalise all three to raw bytes and
+             * present them as a JSON array, which is how serde deserializes
+             * Vec<u8>. from_utf8_lossy is deliberately avoided -- it would
+             * corrupt non-UTF-8 binary. */
+            use base64::Engine as _;
+            let bytes: Vec<u8> = if is_json {
+                match serde_json::from_slice::<serde_json::Value>(response.body.as_bytes()) {
+                    /* Base64 string of the binary payload. */
+                    Ok(serde_json::Value::String(s)) => base64::engine::general_purpose::STANDARD
+                        .decode(s.as_bytes())
+                        .unwrap_or_default(),
+                    /* JSON array of byte values -- already the target shape. */
+                    Ok(arr @ serde_json::Value::Array(_)) => {
+                        return Ok(ApiResult {
+                            data: serde_json::from_value(arr).ok(),
+                            status_code: response.status_code,
+                            raw_body: response.body,
+                            headers: response.headers,
+                        });
+                    }
+                    _ => Vec::new(),
+                }
+            } else {
+                /* Non-JSON content-type: transport layer base64-encoded the raw
+                 * bytes; decode them back. */
+                base64::engine::general_purpose::STANDARD
+                    .decode(response.body.as_bytes())
+                    .unwrap_or_default()
+            };
+            let arr = serde_json::Value::Array(
+                bytes.iter().map(|&b| serde_json::Value::from(b)).collect(),
+            );
+            serde_json::from_value(arr).ok()
+        } else if is_json && !response.body.is_empty() {
             crate::object_serializer::deserialize(response.body.as_bytes())?
         } else if !is_json && !response.body.is_empty() {
-            /* Non-JSON response -- transport layer base64-encoded the bytes;
-             * decode them back so callers see the original payload. */
+            /* Non-JSON, non-binary response -- transport layer base64-encoded
+             * the bytes; decode them back and surface as a string. */
             use base64::Engine as _;
             let bytes = base64::engine::general_purpose::STANDARD
                 .decode(response.body.as_bytes())
