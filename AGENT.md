@@ -288,6 +288,65 @@ ObjectSerializer. Defer until a real consumer hits the issue, since
 petstore CI's Metadata tests currently assert only the fixed-field
 round-trip (extras assertions are weak in the affected langs).
 
+### Round-5 audit — scope-boundary decisions (WONTFIX / deferred)
+
+A Round-5 audit produced ~75 findings across wire/auth/codegen dimensions.
+After triage (~40% were false positives or unverifiable on inspection), the
+genuinely-actionable, commonly-handled fixes were landed: Go basic-auth
+fail-fast parity, Swift Accept-Encoding decompression, Elixir total-request
+timeout, Java+Kotlin OAuth2 password-grant endpoint routing, Kotlin NUL-byte
+source hygiene, plus the Phase 1.5 query-serialization decorator and the
+formatter-image / cache reproducibility fixes.
+
+The following remaining findings are **deliberately not fixed** — they are
+edge cases that essentially no shipping API-client SDK (Stripe, Twilio,
+GitHub, AWS SDKs) nor the mainstream generators (openapi-generator,
+swagger-codegen) handle. Documented as decisions, not lingering TODOs:
+
+- **F-A5-06 sensitive-header allowlist for custom API-key on redirect** —
+  requires an attacker-controlled cross-origin redirect plus a custom-header
+  API key simultaneously. No mainstream SDK strips caller-named headers on
+  redirect. WONTFIX.
+- **F-A5-07 OAuth2 token-endpoint redirect refusal** — token endpoints do
+  not redirect in practice; purely theoretical. WONTFIX.
+- **F-A5-05 OIDC discovery hardening (issuer/HTTPS validation)** — certified
+  OIDC *libraries* do this; generated API clients do not. Revisit only if
+  OIDC becomes a first-class target. Deferred.
+- **F-W5-12 https->http redirect body cleartext** — rare downgrade scenario;
+  `Authorization` is already stripped (Round-4). Body-over-cleartext on a
+  downgrade redirect is a corner no SDK guards. WONTFIX.
+- **F-W5-15 Set-Cookie comma-join** — generated SDKs do not expose structured
+  cookies; exposing a separate list accessor is a large public-API change for
+  a need no consumer has. WONTFIX.
+- **F-C5-14 multipart vs JSON content-type tie-break** — only triggers when a
+  spec lists multiple request content types for one operation (rare).
+  Deferred (cheap if ever needed, via the effectiveConsumes decorator).
+- **D3 trailing-optional auth (Node/Kotlin/Java/C#/Go/Rust)** — ergonomics,
+  not a bug; blocked on the deferred signatureArgs decorator (Phase 1.7,
+  itself deferred for irregular per-variant template structure). WONTFIX.
+- **F4 format:byte type surface (PHP/Ruby/Node/Elixir)** — the actual bug
+  (PHP byte->int) is already fixed (F-C5-01); the remainder is
+  string-vs-Buffer cosmetics. WONTFIX.
+- **F-C5-02/03 deprecation-marker effectiveness, F-C5-06 UUID typed wrapper,
+  F-C5-07 format:time/duration, F-C5-19 integer-enum typing, F-C5-29
+  discriminator-mismatch, plus ~35 Round-5 LOW** (format keywords
+  email/ipv4/hostname silently dropped, model-name collision detection,
+  Bearer empty-after-prefix-strip, expires_in overflow cap, etc.) — field
+  standard is "map to string"; typed wrappers and these micro-validations are
+  gold-plating no generated client does. WONTFIX.
+- **F-C5-09 readOnly/writeOnly strip, F-C5-10/11/27 map-of-Model deep
+  deserialize, F-C5-16 default-on-deserialize** — real correctness gaps, but
+  (a) the petstore fixture exercises none of them (no readOnly/writeOnly
+  field, no map-of-named-model, no defaulted field), so they are unverifiable
+  without first extending the spec, and (b) each is a multi-language
+  serializer refactor. Same class and precedent as the "additionalProperties
+  data-loss in 4 SDKs" entry above. Deferred until a real consumer hits them
+  and a fixture is added.
+
+The high-value, commonly-implemented behaviours (basic-auth validation,
+redirect Authorization stripping, OAuth2 lifecycle, multipart field escaping,
+timeouts, TLS, response decompression) are all already implemented.
+
 ### SOCKS proxies (HTTP/HTTPS only — explicit reject)
 
 All 12 SDKs accept only `http://` and `https://` proxy URLs via
