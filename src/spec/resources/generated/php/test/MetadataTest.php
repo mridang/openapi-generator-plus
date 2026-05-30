@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use PetstoreClient\ObjectSerializer;
 use PetstoreClient\Models\Metadata;
+use PetstoreClient\ObjectSerializer;
 
 test('serializes empty metadata', function (): void {
     $metadata = new Metadata();

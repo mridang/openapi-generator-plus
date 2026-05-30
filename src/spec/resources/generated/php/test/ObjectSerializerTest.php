@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use PetstoreClient\ObjectSerializer;
 use PetstoreClient\Models\Category;
+use PetstoreClient\ObjectSerializer;
 
 // -- toPathValue --
 

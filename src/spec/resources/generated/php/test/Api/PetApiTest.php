@@ -16,8 +16,8 @@ use PetstoreClient\Errors\NotFoundException;
 use PetstoreClient\Errors\ServerException;
 use PetstoreClient\Models\ApiResponse as ApiResponseModel;
 use PetstoreClient\Models\Pet;
-use PetstoreClient\Models\PetStatusEnum;
 use PetstoreClient\Models\PetPassport;
+use PetstoreClient\Models\PetStatusEnum;
 use PetstoreClient\Models\Photo;
 use PetstoreClient\Models\PhotoMetadata;
 use PetstoreClient\Models\SetPetAvatarThumbnailRequest;
@@ -25,6 +25,7 @@ use PetstoreClient\Models\SetPetAvatarThumbnailRequest;
 /**
  * Integration tests for the Pet API endpoints.
  */
+
 beforeEach(function (): void {
     $baseUrl = getenv('API_BASE_URL') ?: 'http://localhost:4010';
     $config = Configuration::builder()
@@ -247,7 +248,7 @@ test('add pet per call auth override', function (): void {
     $hdrs = [];
     $captured->headers = $hdrs;
 
-    $client = new class($captured) implements \PetstoreClient\ApiClient {
+    $client = new class ($captured) implements \PetstoreClient\ApiClient {
         public function __construct(private readonly \stdClass $captured)
         {
         }

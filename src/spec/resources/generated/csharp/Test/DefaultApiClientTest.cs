@@ -44,7 +44,7 @@ public class DefaultApiClientTest
     {
         var hostAppPath =
             Environment.GetEnvironmentVariable("HOST_APP_PATH") ?? Directory.GetCurrentDirectory();
-        var caCertPath = Path.Combine(hostAppPath, "Test", "Fixtures", "certs", "ca.pem");
+        var caCertPath = Path.Combine(hostAppPath, "Test", "Resources", "certs", "ca.pem");
 
         var transport = TransportOptions.Builder().VerifySsl(true).CaCertPath(caCertPath).Build();
 

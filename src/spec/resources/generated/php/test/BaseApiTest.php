@@ -7,25 +7,25 @@ declare(strict_types=1);
 namespace PetstoreClient\Test;
 
 use PetstoreClient\Api\BaseApi;
+use PetstoreClient\Api\Options\FindPetsByStatusOptions;
+use PetstoreClient\Api\PetApi;
+use PetstoreClient\ApiClient;
+use PetstoreClient\ApiException;
+use PetstoreClient\ApiResponse;
+use PetstoreClient\Auth\Authenticator;
 use PetstoreClient\Configuration;
 use PetstoreClient\DefaultApiClient;
-use PetstoreClient\Servers;
-use PetstoreClient\Auth\Authenticator;
-use PetstoreClient\ApiException;
-use PetstoreClient\Errors\ClientException;
-use PetstoreClient\Errors\ServerException;
 use PetstoreClient\Errors\BadRequestException;
-use PetstoreClient\Errors\UnauthorizedException;
-use PetstoreClient\Errors\ForbiddenException;
-use PetstoreClient\Errors\NotFoundException;
+use PetstoreClient\Errors\ClientException;
 use PetstoreClient\Errors\ConflictException;
-use PetstoreClient\Errors\UnprocessableEntityException;
+use PetstoreClient\Errors\ForbiddenException;
 use PetstoreClient\Errors\InternalServerErrorException;
-use PetstoreClient\ApiClient;
-use PetstoreClient\ApiResponse;
-use PetstoreClient\Api\PetApi;
-use PetstoreClient\Api\Options\FindPetsByStatusOptions;
+use PetstoreClient\Errors\NotFoundException;
+use PetstoreClient\Errors\ServerException;
+use PetstoreClient\Errors\UnauthorizedException;
+use PetstoreClient\Errors\UnprocessableEntityException;
 use PetstoreClient\Models\Category;
+use PetstoreClient\Servers;
 
 class CapturingApiClient implements ApiClient
 {
@@ -481,8 +481,16 @@ test('skips deserialization for non json content type', function (): void {
     };
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $result = $testApi->call('GET', '/test/echo', [], [], null,
-        ['text/plain'], 'application/json', 'string');
+    $result = $testApi->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['text/plain'],
+        'application/json',
+        'string'
+    );
     expect($result)->toBe('hello');
 });
 
@@ -496,8 +504,16 @@ test('deserializes vendor json mime types', function (): void {
     };
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $result = $testApi->call('GET', '/test/echo', [], [], null,
-        ['application/json'], 'application/json', 'array');
+    $result = $testApi->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        'array'
+    );
     expect($result)->toBeArray();
     expect($result['title'])->toBe('Not Found');
 });
@@ -508,8 +524,16 @@ test('serializes text plain body', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $testApi->call('POST', '/test/echo', [], [], 'hello world',
-        ['application/json'], 'text/plain', null);
+    $testApi->call(
+        'POST',
+        '/test/echo',
+        [],
+        [],
+        'hello world',
+        ['application/json'],
+        'text/plain',
+        null
+    );
     expect($client->capturedBody)->not->toBeNull();
     expect($client->capturedBody)->toBeString();
     expect($client->capturedBody)->toContain('hello world');
@@ -519,8 +543,16 @@ test('serializes form urlencoded body', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $testApi->call('POST', '/test/echo', [], [], ['name' => 'alice'],
-        ['application/json'], 'application/x-www-form-urlencoded', null);
+    $testApi->call(
+        'POST',
+        '/test/echo',
+        [],
+        [],
+        ['name' => 'alice'],
+        ['application/json'],
+        'application/x-www-form-urlencoded',
+        null
+    );
     expect($client->capturedBody)->not->toBeNull();
     expect($client->capturedBody)->toBeString();
     expect($client->capturedBody)->toContain('name=alice');
@@ -530,8 +562,16 @@ test('passes binary body as is', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $testApi->call('POST', '/test/echo', [], [], "\x01\x02\x03",
-        ['application/json'], 'application/octet-stream', null);
+    $testApi->call(
+        'POST',
+        '/test/echo',
+        [],
+        [],
+        "\x01\x02\x03",
+        ['application/json'],
+        'application/octet-stream',
+        null
+    );
     expect($client->capturedBody)->not->toBeNull();
 });
 
@@ -541,8 +581,16 @@ test('empty content type defaults to json', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $testApi->call('GET', '/test/echo', [], [], null,
-        ['application/json'], '', null);
+    $testApi->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        '',
+        null
+    );
     expect($client->capturedHeaders['Content-Type'] ?? '')->toBe('application/json');
 });
 
@@ -550,8 +598,16 @@ test('all headers from selector flow through', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $testApi->call('GET', '/test/echo', [], [], null,
-        ['application/json'], 'application/json', null);
+    $testApi->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
     expect($client->capturedHeaders)->toHaveKey('Accept');
     expect($client->capturedHeaders)->toHaveKey('Content-Type');
 });
@@ -571,8 +627,16 @@ test('octet stream response decoded as base 64 bytes', function (): void {
     $client->body = $encoded;
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $result = $testApi->call('GET', '/test/echo', [], [], null,
-        ['application/octet-stream'], 'application/octet-stream', null);
+    $result = $testApi->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/octet-stream'],
+        'application/octet-stream',
+        null
+    );
     expect($result)->toBe($binaryData);
 });
 
@@ -589,8 +653,16 @@ test('image png response decoded as bytes', function (): void {
     $client->body = $encoded;
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $result = $testApi->call('GET', '/api/img', [], [], null,
-        ['image/png'], 'image/png', null);
+    $result = $testApi->call(
+        'GET',
+        '/api/img',
+        [],
+        [],
+        null,
+        ['image/png'],
+        'image/png',
+        null
+    );
     expect($result)->toBe($binaryData);
 });
 
@@ -609,8 +681,16 @@ test('binary response roundtrips nul and high bytes', function (): void {
     $client->body = $encoded;
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $result = $testApi->call('GET', '/api/bin', [], [], null,
-        ['application/octet-stream'], 'application/octet-stream', null);
+    $result = $testApi->call(
+        'GET',
+        '/api/bin',
+        [],
+        [],
+        null,
+        ['application/octet-stream'],
+        'application/octet-stream',
+        null
+    );
     expect($result)->toBe($binaryData);
     expect(strlen($result))->toBe(3);
 });
@@ -624,8 +704,16 @@ test('empty binary body yields null', function (): void {
     };
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $result = $testApi->call('GET', '/api/bin', [], [], null,
-        ['application/octet-stream'], 'application/octet-stream', null);
+    $result = $testApi->call(
+        'GET',
+        '/api/bin',
+        [],
+        [],
+        null,
+        ['application/octet-stream'],
+        'application/octet-stream',
+        null
+    );
     expect($result)->toBeNull();
 });
 
@@ -638,8 +726,16 @@ test('json response parsed to object', function (): void {
     };
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $result = $testApi->call('GET', '/test/echo', [], [], null,
-        ['application/json'], null, null);
+    $result = $testApi->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        null,
+        null
+    );
     expect($result)->not->toBeNull();
 });
 
@@ -652,8 +748,16 @@ test('text plain response returns string', function (): void {
     };
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $result = $testApi->call('GET', '/test/echo', [], [], null,
-        ['text/plain'], null, null);
+    $result = $testApi->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['text/plain'],
+        null,
+        null
+    );
     expect($result)->toBeString();
     expect($result)->toBe('hello world');
 });
@@ -667,8 +771,16 @@ test('empty body yields null', function (): void {
     };
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $result = $testApi->call('GET', '/test/echo', [], [], null,
-        ['application/octet-stream'], null, null);
+    $result = $testApi->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/octet-stream'],
+        null,
+        null
+    );
     expect($result)->toBeNull();
 });
 
@@ -725,8 +837,16 @@ test('null body post does not send content type', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $testApi->call('POST', '/test/echo', [], [], null,
-        ['application/json'], 'application/json', null);
+    $testApi->call(
+        'POST',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
     expect($client->capturedHeaders)->not->toHaveKey('Content-Type');
 });
 
@@ -734,8 +854,16 @@ test('empty string body includes content type', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $testApi->call('POST', '/test/echo', [], [], '',
-        ['application/json'], 'application/json', null);
+    $testApi->call(
+        'POST',
+        '/test/echo',
+        [],
+        [],
+        '',
+        ['application/json'],
+        'application/json',
+        null
+    );
     expect($client->capturedHeaders)->toHaveKey('Content-Type');
 });
 
@@ -743,8 +871,16 @@ test('empty json object body includes content type', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $testApi->call('POST', '/test/echo', [], [], '{}',
-        ['application/json'], 'application/json', null);
+    $testApi->call(
+        'POST',
+        '/test/echo',
+        [],
+        [],
+        '{}',
+        ['application/json'],
+        'application/json',
+        null
+    );
     expect($client->capturedHeaders)->toHaveKey('Content-Type');
     expect($client->capturedHeaders['Content-Type'])->toBe('application/json');
 });
