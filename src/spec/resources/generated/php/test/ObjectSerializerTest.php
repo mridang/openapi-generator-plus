@@ -282,12 +282,12 @@ test('tab character escaped properly in json', function (): void {
 
 test('truncated json throws exception', function (): void {
     expect(fn () => ObjectSerializer::deserialize('{', Category::class))
-        ->toThrow(\Throwable::class);
+        ->toThrow(\Exception::class);
 });
 
 test('invalid json structure throws exception', function (): void {
     expect(fn () => ObjectSerializer::deserialize('"hello"', Category::class))
-        ->toThrow(\Throwable::class);
+        ->toThrow(\Exception::class);
 });
 
 test('thrown exception has message', function (): void {

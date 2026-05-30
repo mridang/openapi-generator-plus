@@ -11,6 +11,9 @@ use {{invokerPackage}}\TransportOptions;
 
 test('makes https request with verify ssl false', function (): void {
     $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
+    if (str_contains($chasmUrl, 'chasm-tls-unavailable')) {
+        test()->markTestSkipped('chasm HTTPS port not resolvable via testcontainers-php (see bootstrap.php)');
+    }
 
     $transport = TransportOptions::builder()
         ->verifySsl(false)
@@ -29,6 +32,9 @@ test('makes https request with verify ssl false', function (): void {
 
 test('makes https request with custom ca cert', function (): void {
     $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
+    if (str_contains($chasmUrl, 'chasm-tls-unavailable')) {
+        test()->markTestSkipped('chasm HTTPS port not resolvable via testcontainers-php (see bootstrap.php)');
+    }
     $caCertPath = getenv('CA_CERT_PATH') ?: null;
 
     $transport = TransportOptions::builder()
