@@ -86,24 +86,9 @@ class {{classname}}(BaseApi):
 
     async def {{operationId}}(
         self,
-{{#pathParams}}
-        {{paramName}}: {{{dataType}}},
-{{/pathParams}}
-{{#bodyParam}}
-        {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
-{{/bodyParam}}
-{{#queryParams}}{{#-first}}
-        options: Optional[{{vendorExtensions.op.optionsClassName}}] = None,
-{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
-        options: Optional[{{vendorExtensions.op.optionsClassName}}] = None,
-{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
-        options: Optional[{{vendorExtensions.op.optionsClassName}}] = None,
-{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
-        options: Optional[{{vendorExtensions.op.optionsClassName}}] = None,
-{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
-{{#servers}}{{#-first}}
-        server: Optional['{{vendorExtensions.op.serverClassName}}'] = None,
-{{/-first}}{{/servers}}
+{{#vendorExtensions.op.signatureArgs}}
+        {{paramName}}: {{#isPath}}{{{dataType}}}{{/isPath}}{{#isBody}}{{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}}{{/isBody}}{{#isOptions}}Optional[{{{dataType}}}] = None{{/isOptions}}{{#isServer}}Optional['{{{dataType}}}'] = None{{/isServer}},
+{{/vendorExtensions.op.signatureArgs}}
         base_url: Optional[str] = None,
 {{#hasAuthMethods}}
         auth: Optional[Authenticator] = None,
@@ -132,15 +117,9 @@ class {{classname}}(BaseApi):
         # >>> {{value}}
 {{/vendorExtensions.pluralExamples}}
 {{/bodyParam}}
-{{#queryParams}}{{#-first}}
+{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}
         :param options: options for query, header, form, and cookie parameters
-{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
-        :param options: options for query, header, form, and cookie parameters
-{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
-        :param options: options for query, header, form, and cookie parameters
-{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
-        :param options: options for query, header, form, and cookie parameters
-{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
 {{#returnType}}
         :return: {{{returnType}}}
 {{/returnType}}
@@ -196,7 +175,7 @@ class {{classname}}(BaseApi):
 
 {{/required}}
 {{/cookieParams}}
-        result = await self.{{operationId}}_with_http_info({{#pathParams}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}{{#allParams.0}}, {{/allParams.0}}server=server{{/-first}}{{/servers}}{{#allParams.0}}, base_url=base_url{{/allParams.0}}{{^allParams.0}}{{#servers.0}}, base_url=base_url{{/servers.0}}{{^servers.0}}base_url=base_url{{/servers.0}}{{/allParams.0}}{{#hasAuthMethods}}, auth=auth{{/hasAuthMethods}})
+        result = await self.{{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}{{#allParams.0}}, {{/allParams.0}}server=server{{/-first}}{{/servers}}{{#allParams.0}}, base_url=base_url{{/allParams.0}}{{^allParams.0}}{{#servers.0}}, base_url=base_url{{/servers.0}}{{^servers.0}}base_url=base_url{{/servers.0}}{{/allParams.0}}{{#hasAuthMethods}}, auth=auth{{/hasAuthMethods}})
 
 {{#returnType}}
         assert result.data is not None
@@ -205,24 +184,9 @@ class {{classname}}(BaseApi):
 
     async def {{operationId}}_with_http_info(
         self,
-{{#pathParams}}
-        {{paramName}}: {{{dataType}}},
-{{/pathParams}}
-{{#bodyParam}}
-        {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
-{{/bodyParam}}
-{{#queryParams}}{{#-first}}
-        options: Optional[{{vendorExtensions.op.optionsClassName}}] = None,
-{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
-        options: Optional[{{vendorExtensions.op.optionsClassName}}] = None,
-{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
-        options: Optional[{{vendorExtensions.op.optionsClassName}}] = None,
-{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
-        options: Optional[{{vendorExtensions.op.optionsClassName}}] = None,
-{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
-{{#servers}}{{#-first}}
-        server: Optional['{{vendorExtensions.op.serverClassName}}'] = None,
-{{/-first}}{{/servers}}
+{{#vendorExtensions.op.signatureArgs}}
+        {{paramName}}: {{#isPath}}{{{dataType}}}{{/isPath}}{{#isBody}}{{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}}{{/isBody}}{{#isOptions}}Optional[{{{dataType}}}] = None{{/isOptions}}{{#isServer}}Optional['{{{dataType}}}'] = None{{/isServer}},
+{{/vendorExtensions.op.signatureArgs}}
         base_url: Optional[str] = None,
 {{#hasAuthMethods}}
         auth: Optional[Authenticator] = None,
@@ -241,15 +205,9 @@ class {{classname}}(BaseApi):
 {{#bodyParam}}
         :param {{paramName}}: {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}
 {{/bodyParam}}
-{{#queryParams}}{{#-first}}
+{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}
         :param options: options for query, header, form, and cookie parameters
-{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
-        :param options: options for query, header, form, and cookie parameters
-{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
-        :param options: options for query, header, form, and cookie parameters
-{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
-        :param options: options for query, header, form, and cookie parameters
-{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """

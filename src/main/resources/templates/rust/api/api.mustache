@@ -121,47 +121,20 @@ impl {{classname}} {
 {{#hasAuthMethods}}
         auth: Option<&dyn Authenticator>,
 {{/hasAuthMethods}}
-{{#pathParams}}
-        {{paramName}}: {{{dataType}}},
-{{/pathParams}}
-{{#bodyParam}}
-        {{paramName}}: {{^required}}Option<{{/required}}{{{dataType}}}{{^required}}>{{/required}},
-{{/bodyParam}}
-{{#queryParams}}{{#-first}}
-        options: Option<&{{vendorExtensions.op.optionsClassName}}>,
-{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
-        options: Option<&{{vendorExtensions.op.optionsClassName}}>,
-{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
-        options: Option<&{{vendorExtensions.op.optionsClassName}}>,
-{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
-        options: Option<&{{vendorExtensions.op.optionsClassName}}>,
-{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
-{{#servers}}{{#-first}}
-        server: Option<&dyn {{vendorExtensions.op.serverClassName}}>,
-{{/-first}}{{/servers}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}        {{paramName}}: {{{dataType}}},
+{{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
+{{/isBody}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}
     ) -> Result<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.{{operationId}}_with_http_info(
 {{#hasAuthMethods}}
             auth,
 {{/hasAuthMethods}}
-{{#pathParams}}
+{{#vendorExtensions.op.signatureArgs}}
             {{paramName}},
-{{/pathParams}}
-{{#bodyParam}}
-            {{paramName}},
-{{/bodyParam}}
-{{#queryParams}}{{#-first}}
-            options,
-{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
-            options,
-{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
-            options,
-{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
-            options,
-{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
-{{#servers}}{{#-first}}
-            server,
-{{/-first}}{{/servers}}
+{{/vendorExtensions.op.signatureArgs}}
         ).await?;
 {{#returnType}}
         Ok(result.data.ok_or("empty response body")?)
@@ -178,24 +151,12 @@ impl {{classname}} {
 {{#hasAuthMethods}}
         auth: Option<&dyn Authenticator>,
 {{/hasAuthMethods}}
-{{#pathParams}}
-        {{paramName}}: {{{dataType}}},
-{{/pathParams}}
-{{#bodyParam}}
-        {{paramName}}: {{^required}}Option<{{/required}}{{{dataType}}}{{^required}}>{{/required}},
-{{/bodyParam}}
-{{#queryParams}}{{#-first}}
-        options: Option<&{{vendorExtensions.op.optionsClassName}}>,
-{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
-        options: Option<&{{vendorExtensions.op.optionsClassName}}>,
-{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
-        options: Option<&{{vendorExtensions.op.optionsClassName}}>,
-{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
-        options: Option<&{{vendorExtensions.op.optionsClassName}}>,
-{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
-{{#servers}}{{#-first}}
-        server: Option<&dyn {{vendorExtensions.op.serverClassName}}>,
-{{/-first}}{{/servers}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}        {{paramName}}: {{{dataType}}},
+{{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
+{{/isBody}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}
     ) -> Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>> {
 {{#pathParams}}
 {{#required}}

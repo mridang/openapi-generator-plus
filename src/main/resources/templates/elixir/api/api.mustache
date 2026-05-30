@@ -122,15 +122,9 @@ defmodule {{moduleName}}.Api.{{classname}} do
       {{value}}
   {{/vendorExtensions.pluralExamples}}
   {{/bodyParam}}
-  {{#queryParams}}{{#-first}}
+  {{#vendorExtensions.op.signatureArgsNoServer}}{{#isOptions}}
     * `options` - Optional parameters (query, header, form, cookie).
-  {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
-    * `options` - Optional parameters (query, header, form, cookie).
-  {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
-    * `options` - Optional parameters (query, header, form, cookie).
-  {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
-    * `options` - Optional parameters (query, header, form, cookie).
-  {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+  {{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns

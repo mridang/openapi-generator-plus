@@ -226,7 +226,6 @@ impl PetApi {
     pub async fn add_pet_photos(
         &self,
         pet_id: i64,
-
         options: Option<&AddPetPhotosOptions>,
     ) -> Result<Vec<Photo>, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.add_pet_photos_with_http_info(pet_id, options).await?;
@@ -237,7 +236,6 @@ impl PetApi {
     pub async fn add_pet_photos_with_http_info(
         &self,
         pet_id: i64,
-
         options: Option<&AddPetPhotosOptions>,
     ) -> Result<ApiResult<Vec<Photo>>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/pet/{petId}/photos".to_string();
@@ -426,7 +424,6 @@ impl PetApi {
         &self,
         auth: Option<&dyn Authenticator>,
         pet_id: i64,
-
         options: Option<&DeletePetOptions>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let result = self
@@ -441,7 +438,6 @@ impl PetApi {
         &self,
         auth: Option<&dyn Authenticator>,
         pet_id: i64,
-
         options: Option<&DeletePetOptions>,
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/pet/{petId}".to_string();
@@ -693,7 +689,6 @@ impl PetApi {
     /// ```
     pub async fn find_pets_by_status(
         &self,
-
         options: Option<&FindPetsByStatusOptions>,
     ) -> Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.find_pets_by_status_with_http_info(options).await?;
@@ -703,7 +698,6 @@ impl PetApi {
     /// Performs the find_pets_by_status operation and returns the full API result.
     pub async fn find_pets_by_status_with_http_info(
         &self,
-
         options: Option<&FindPetsByStatusOptions>,
     ) -> Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/pet/findByStatus".to_string();
@@ -767,7 +761,6 @@ impl PetApi {
     pub async fn get_external_pet_info(
         &self,
         pet_id: i64,
-
         server: Option<&dyn GetExternalPetInfoServer>,
     ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
         let result = self
@@ -780,7 +773,6 @@ impl PetApi {
     pub async fn get_external_pet_info_with_http_info(
         &self,
         pet_id: i64,
-
         server: Option<&dyn GetExternalPetInfoServer>,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/pet/{petId}/external".to_string();
@@ -865,7 +857,6 @@ impl PetApi {
     pub async fn get_multi_server_pet_info(
         &self,
         pet_id: i64,
-
         server: Option<&dyn GetMultiServerPetInfoServer>,
     ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
         let result = self
@@ -878,7 +869,6 @@ impl PetApi {
     pub async fn get_multi_server_pet_info_with_http_info(
         &self,
         pet_id: i64,
-
         server: Option<&dyn GetMultiServerPetInfoServer>,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/pet/{petId}/multi".to_string();
@@ -1150,7 +1140,6 @@ impl PetApi {
     pub async fn get_pet_by_id(
         &self,
         pet_id: i64,
-
         server: Option<&dyn GetPetByIdServer>,
     ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.get_pet_by_id_with_http_info(pet_id, server).await?;
@@ -1161,7 +1150,6 @@ impl PetApi {
     pub async fn get_pet_by_id_with_http_info(
         &self,
         pet_id: i64,
-
         server: Option<&dyn GetPetByIdServer>,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/pet/{petId}".to_string();
@@ -1472,7 +1460,6 @@ impl PetApi {
         &self,
         pet_id: i64,
         tag_name: String,
-
         options: Option<&GetPetTagOptions>,
     ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
         let result = self
@@ -1486,7 +1473,6 @@ impl PetApi {
         &self,
         pet_id: i64,
         tag_name: String,
-
         options: Option<&GetPetTagOptions>,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         if tag_name.is_empty() {
@@ -1699,7 +1685,6 @@ impl PetApi {
     pub async fn get_staging_pet_info(
         &self,
         pet_id: i64,
-
         server: Option<&dyn GetStagingPetInfoServer>,
     ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
         let result = self
@@ -1712,7 +1697,6 @@ impl PetApi {
     pub async fn get_staging_pet_info_with_http_info(
         &self,
         pet_id: i64,
-
         server: Option<&dyn GetStagingPetInfoServer>,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/pet/{petId}/staging".to_string();
@@ -2071,7 +2055,6 @@ impl PetApi {
     pub async fn upload_pet_certificate(
         &self,
         pet_id: i64,
-
         options: Option<&UploadPetCertificateOptions>,
     ) -> Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>> {
         let result = self
@@ -2084,7 +2067,6 @@ impl PetApi {
     pub async fn upload_pet_certificate_with_http_info(
         &self,
         pet_id: i64,
-
         options: Option<&UploadPetCertificateOptions>,
     ) -> Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/pet/{petId}/certificate".to_string();
@@ -2168,7 +2150,6 @@ impl PetApi {
     pub async fn upload_pet_document(
         &self,
         pet_id: i64,
-
         options: Option<&UploadPetDocumentOptions>,
     ) -> Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>> {
         let result = self
@@ -2181,7 +2162,6 @@ impl PetApi {
     pub async fn upload_pet_document_with_http_info(
         &self,
         pet_id: i64,
-
         options: Option<&UploadPetDocumentOptions>,
     ) -> Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/pet/{petId}/documents".to_string();
