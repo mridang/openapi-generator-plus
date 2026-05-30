@@ -1,5 +1,5 @@
 defmodule PetstoreClient.DefaultApiClientIntegrationTest do
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
 
   test "makes HTTPS request with verify_ssl=false" do
     chasm_url = System.fetch_env!("CHASM_HTTPS_URL")

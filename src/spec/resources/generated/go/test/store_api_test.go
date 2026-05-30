@@ -34,6 +34,7 @@ func newStoreApiForMock(t *testing.T, server *httptest.Server) *petstore.StoreAp
 }
 
 func TestStoreApi_PlaceOrder(t *testing.T) {
+	t.Parallel()
 	api := newStoreApiForIntegration(t)
 
 	order := models.NewOrder()
@@ -48,6 +49,7 @@ func TestStoreApi_PlaceOrder(t *testing.T) {
 }
 
 func TestStoreApi_PlaceOrderWithHTTPInfo(t *testing.T) {
+	t.Parallel()
 	api := newStoreApiForIntegration(t)
 
 	order := models.NewOrder()
@@ -71,6 +73,7 @@ func TestStoreApi_PlaceOrderWithHTTPInfo(t *testing.T) {
 }
 
 func TestStoreApi_GetOrderById(t *testing.T) {
+	t.Parallel()
 	api := newStoreApiForIntegration(t)
 
 	result, err := api.GetOrderById(int64(1))
@@ -83,6 +86,7 @@ func TestStoreApi_GetOrderById(t *testing.T) {
 }
 
 func TestStoreApi_GetOrderByIdWithHTTPInfo(t *testing.T) {
+	t.Parallel()
 	api := newStoreApiForIntegration(t)
 
 	result, err := api.GetOrderByIdWithHTTPInfo(int64(1))
@@ -101,6 +105,7 @@ func TestStoreApi_GetOrderByIdWithHTTPInfo(t *testing.T) {
 }
 
 func TestStoreApi_DeleteOrder(t *testing.T) {
+	t.Parallel()
 	api := newStoreApiForIntegration(t)
 
 	err := api.DeleteOrder(int64(1))
@@ -110,6 +115,7 @@ func TestStoreApi_DeleteOrder(t *testing.T) {
 }
 
 func TestStoreApi_GetInventory(t *testing.T) {
+	t.Parallel()
 	api := newStoreApiForIntegration(t)
 
 	result, err := api.GetInventory()
@@ -122,6 +128,7 @@ func TestStoreApi_GetInventory(t *testing.T) {
 }
 
 func TestStoreApi_GetInventoryWithHTTPInfo(t *testing.T) {
+	t.Parallel()
 	api := newStoreApiForIntegration(t)
 
 	result, err := api.GetInventoryWithHTTPInfo()
@@ -140,6 +147,7 @@ func TestStoreApi_GetInventoryWithHTTPInfo(t *testing.T) {
 }
 
 func TestStoreApi_GetOrderNotFound(t *testing.T) {
+	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(404)
@@ -156,6 +164,7 @@ func TestStoreApi_GetOrderNotFound(t *testing.T) {
 }
 
 func TestStoreApi_PlaceOrderServerError(t *testing.T) {
+	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(500)
@@ -173,6 +182,7 @@ func TestStoreApi_PlaceOrderServerError(t *testing.T) {
 }
 
 func TestStoreApi_DeleteOrderNotFound(t *testing.T) {
+	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(404)

@@ -1,5 +1,4 @@
 <?php
-
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -16,195 +15,181 @@ namespace PetstoreClient\Test;
 use PetstoreClient\ApiResponse;
 use PetstoreClient\Auth\OAuth\ClientAuthMethod;
 use PetstoreClient\Auth\OAuth\OAuth2PasswordAuthenticator;
-use PHPUnit\Framework\TestCase;
 
-class OAuth2PasswordAuthenticatorTest extends TestCase
-{
-    public function testSendsPasswordGrantType(): void
-    {
-        $client = new MockTokenApiClient();
-        $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
-            'access_token' => 'pw-token',
-            'expires_in' => 3600,
-        ]), ['Content-Type' => 'application/json']));
+test('sends password grant type', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+        'access_token' => 'pw-token',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
 
-        $authenticator = new OAuth2PasswordAuthenticator(
-            'https://api.example.com',
-            'my-client-id',
-            'my-client-secret',
-            'https://auth.example.com/token',
-            'testuser',
-            'testpass',
-            []
-        );
-        $authenticator->setApiClient($client);
+    $authenticator = new OAuth2PasswordAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/token',
+        'testuser',
+        'testpass',
+        []
+    );
+    $authenticator->setApiClient($client);
 
-        $authenticator->getAuthHeaders();
+    $authenticator->getAuthHeaders();
 
-        $request = $client->capturedRequests[0];
-        $this->assertStringContainsString('grant_type=password', $request['body'] ?? '');
-    }
+    $request = $client->capturedRequests[0];
+    expect($request['body'] ?? '')->toContain('grant_type=password');
+});
 
-    public function testSendsUsernameAndPassword(): void
-    {
-        $client = new MockTokenApiClient();
-        $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
-            'access_token' => 'pw-token',
-            'expires_in' => 3600,
-        ]), ['Content-Type' => 'application/json']));
+test('sends username and password', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+        'access_token' => 'pw-token',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
 
-        $authenticator = new OAuth2PasswordAuthenticator(
-            'https://api.example.com',
-            'my-client-id',
-            'my-client-secret',
-            'https://auth.example.com/token',
-            'testuser',
-            'testpass',
-            []
-        );
-        $authenticator->setApiClient($client);
+    $authenticator = new OAuth2PasswordAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/token',
+        'testuser',
+        'testpass',
+        []
+    );
+    $authenticator->setApiClient($client);
 
-        $authenticator->getAuthHeaders();
+    $authenticator->getAuthHeaders();
 
-        $request = $client->capturedRequests[0];
-        $this->assertStringContainsString('username=testuser', $request['body'] ?? '');
-        $this->assertStringContainsString('password=testpass', $request['body'] ?? '');
-    }
+    $request = $client->capturedRequests[0];
+    expect($request['body'] ?? '')->toContain('username=testuser');
+    expect($request['body'] ?? '')->toContain('password=testpass');
+});
 
-    public function testSendsClientIdAndSecret(): void
-    {
-        $client = new MockTokenApiClient();
-        $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
-            'access_token' => 'pw-token',
-            'expires_in' => 3600,
-        ]), ['Content-Type' => 'application/json']));
+test('password sends client id and secret', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+        'access_token' => 'pw-token',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
 
-        $authenticator = new OAuth2PasswordAuthenticator(
-            'https://api.example.com',
-            'my-client-id',
-            'my-client-secret',
-            'https://auth.example.com/token',
-            'testuser',
-            'testpass',
-            []
-        );
-        $authenticator->setApiClient($client);
+    $authenticator = new OAuth2PasswordAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/token',
+        'testuser',
+        'testpass',
+        []
+    );
+    $authenticator->setApiClient($client);
 
-        $authenticator->getAuthHeaders();
+    $authenticator->getAuthHeaders();
 
-        $request = $client->capturedRequests[0];
-        $this->assertStringContainsString('client_id=my-client-id', $request['body'] ?? '');
-        $this->assertStringContainsString('client_secret=my-client-secret', $request['body'] ?? '');
-    }
+    $request = $client->capturedRequests[0];
+    expect($request['body'] ?? '')->toContain('client_id=my-client-id');
+    expect($request['body'] ?? '')->toContain('client_secret=my-client-secret');
+});
 
-    public function testReturnsAuthorizationBearerHeader(): void
-    {
-        $client = new MockTokenApiClient();
-        $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
-            'access_token' => 'pw-token',
-            'expires_in' => 3600,
-        ]), ['Content-Type' => 'application/json']));
+test('password returns authorization bearer header', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+        'access_token' => 'pw-token',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
 
-        $authenticator = new OAuth2PasswordAuthenticator(
-            'https://api.example.com',
-            'my-client-id',
-            'my-client-secret',
-            'https://auth.example.com/token',
-            'testuser',
-            'testpass',
-            []
-        );
-        $authenticator->setApiClient($client);
+    $authenticator = new OAuth2PasswordAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/token',
+        'testuser',
+        'testpass',
+        []
+    );
+    $authenticator->setApiClient($client);
 
-        $headers = $authenticator->getAuthHeaders();
+    $headers = $authenticator->getAuthHeaders();
 
-        $this->assertSame('Bearer pw-token', $headers['Authorization']);
-    }
+    expect($headers['Authorization'])->toBe('Bearer pw-token');
+});
 
-    public function testUsesRefreshTokenOnSubsequentCalls(): void
-    {
-        $client = new MockTokenApiClient();
-        // First call returns refresh token with expired access token
-        $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
-            'access_token' => 'pw-token-1',
-            'refresh_token' => 'refresh-1',
-            'expires_in' => 0,
-        ]), ['Content-Type' => 'application/json']));
-        // Second call uses refresh token
-        $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
-            'access_token' => 'pw-token-2',
-            'expires_in' => 3600,
-        ]), ['Content-Type' => 'application/json']));
+test('uses refresh token on subsequent calls', function (): void {
+    $client = new MockTokenApiClient();
+    // First call returns refresh token with expired access token
+    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+        'access_token' => 'pw-token-1',
+        'refresh_token' => 'refresh-1',
+        'expires_in' => 0,
+    ]), ['Content-Type' => 'application/json']));
+    // Second call uses refresh token
+    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+        'access_token' => 'pw-token-2',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
 
-        $authenticator = new OAuth2PasswordAuthenticator(
-            'https://api.example.com',
-            'my-client-id',
-            'my-client-secret',
-            'https://auth.example.com/token',
-            'testuser',
-            'testpass',
-            []
-        );
-        $authenticator->setApiClient($client);
+    $authenticator = new OAuth2PasswordAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/token',
+        'testuser',
+        'testpass',
+        []
+    );
+    $authenticator->setApiClient($client);
 
-        $authenticator->getAuthHeaders();
-        $headers = $authenticator->getAuthHeaders();
+    $authenticator->getAuthHeaders();
+    $headers = $authenticator->getAuthHeaders();
 
-        $this->assertSame('Bearer pw-token-2', $headers['Authorization']);
-        $request = $client->capturedRequests[1];
-        $this->assertStringContainsString('grant_type=refresh_token', $request['body'] ?? '');
-        $this->assertStringContainsString('refresh_token=refresh-1', $request['body'] ?? '');
-    }
+    expect($headers['Authorization'])->toBe('Bearer pw-token-2');
+    $request = $client->capturedRequests[1];
+    expect($request['body'] ?? '')->toContain('grant_type=refresh_token');
+    expect($request['body'] ?? '')->toContain('refresh_token=refresh-1');
+});
 
-    public function testGetHostReturnsConfiguredHost(): void
-    {
-        $authenticator = new OAuth2PasswordAuthenticator(
-            'https://api.example.com',
-            'my-client-id',
-            'my-client-secret',
-            'https://auth.example.com/token',
-            'testuser',
-            'testpass',
-            []
-        );
+test('password get host returns configured host', function (): void {
+    $authenticator = new OAuth2PasswordAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/token',
+        'testuser',
+        'testpass',
+        []
+    );
 
-        $this->assertSame('https://api.example.com', $authenticator->getHost());
-    }
+    expect($authenticator->getHost())->toBe('https://api.example.com');
+});
 
-    public function testBasicAuthUrlEncodesClientIdAndSecret(): void
-    {
-        // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
-        // client_id and client_secret MUST be application/x-www-form-
-        // urlencoded BEFORE being joined with ':' and base64-encoded.
-        // Verifies a client_id with `+` and a secret with `&` are encoded
-        // (not raw) before the colon-join + base64.
-        $client = new MockTokenApiClient();
-        $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
-            'access_token' => 'at',
-            'expires_in' => 3600,
-        ]), ['Content-Type' => 'application/json']));
+test('password basic auth url encodes client id and secret', function (): void {
+    // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
+    // client_id and client_secret MUST be application/x-www-form-
+    // urlencoded BEFORE being joined with ':' and base64-encoded.
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+        'access_token' => 'at',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
 
-        $authenticator = new OAuth2PasswordAuthenticator(
-            'https://api.example.com',
-            'id+with/special',
-            'secret&with=stuff',
-            'https://auth.example.com/token',
-            'testuser',
-            'testpass',
-            ['read'],
-            null,
-            ClientAuthMethod::Basic
-        );
-        $authenticator->setApiClient($client);
+    $authenticator = new OAuth2PasswordAuthenticator(
+        'https://api.example.com',
+        'id+with/special',
+        'secret&with=stuff',
+        'https://auth.example.com/token',
+        'testuser',
+        'testpass',
+        ['read'],
+        null,
+        ClientAuthMethod::Basic
+    );
+    $authenticator->setApiClient($client);
 
-        $authenticator->getAuthHeaders();
+    $authenticator->getAuthHeaders();
 
-        $request = $client->capturedRequests[0];
-        $authHeader = $request['headers']['Authorization'] ?? null;
-        $this->assertNotNull($authHeader);
-        $this->assertStringStartsWith('Basic ', $authHeader);
-        $decoded = base64_decode(substr($authHeader, strlen('Basic ')));
-        // Expected: form-urlencoded id ':' form-urlencoded secret
-        $this->assertSame('id%2Bwith%2Fspecial:secret%26with%3Dstuff', $decoded);
-    }
-}
+    $request = $client->capturedRequests[0];
+    $authHeader = $request['headers']['Authorization'] ?? null;
+    expect($authHeader)->not->toBeNull();
+    expect($authHeader)->toStartWith('Basic ');
+    $decoded = base64_decode(substr($authHeader, strlen('Basic ')));
+    expect($decoded)->toBe('id%2Bwith%2Fspecial:secret%26with%3Dstuff');
+});

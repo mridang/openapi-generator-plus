@@ -2,85 +2,68 @@
 
 declare(strict_types=1);
 
-namespace {{invokerPackage}}\Test;
-
-use PHPUnit\Framework\TestCase;
 use {{invokerPackage}}\{{clientClassName}};
 use {{invokerPackage}}\Auth\ApiKeyAuthenticator;
 use {{invokerPackage}}\Auth\ApiKeyLocation;
 use {{invokerPackage}}\Auth\BearerAuthenticator;
 use {{invokerPackage}}\TransportOptions;
 
-class ClientTest extends TestCase
-{
-    private BearerAuthenticator $authenticator;
+beforeEach(function (): void {
+    $this->authenticator = new BearerAuthenticator('{{{basePath}}}', 'test-token');
+});
 
-    protected function setUp(): void
-    {
-        $this->authenticator = new BearerAuthenticator('{{{basePath}}}', 'test-token');
-    }
+test('construct with authenticator only', function (): void {
+    $client = new {{clientClassName}}($this->authenticator);
 
-    public function testConstructWithAuthenticatorOnly(): void
-    {
-        $client = new {{clientClassName}}($this->authenticator);
+    expect($client)->toBeInstanceOf({{clientClassName}}::class);
+});
 
-        $this->assertInstanceOf({{clientClassName}}::class, $client);
-    }
+test('construct with authenticator and transport options', function (): void {
+    $transport = TransportOptions::builder()->build();
 
-    public function testConstructWithAuthenticatorAndTransportOptions(): void
-    {
-        $transport = TransportOptions::builder()->build();
+    $client = new {{clientClassName}}($this->authenticator, $transport);
 
-        $client = new {{clientClassName}}($this->authenticator, $transport);
+    expect($client)->toBeInstanceOf({{clientClassName}}::class);
+});
 
-        $this->assertInstanceOf({{clientClassName}}::class, $client);
-    }
+test('bearer rejects crlf', function (): void {
+    expect(fn () => new BearerAuthenticator('{{{basePath}}}', "tok\r\nInjected: yes"))
+        ->toThrow(\InvalidArgumentException::class);
+});
 
-    public function testBearerRejectsCrlf(): void
-    {
-        $this->expectException(\InvalidArgumentException::class);
-        new BearerAuthenticator('{{{basePath}}}', "tok\r\nInjected: yes");
-    }
+test('bearer rejects non ascii', function (): void {
+    expect(fn () => new BearerAuthenticator('{{{basePath}}}', 'ñoño'))
+        ->toThrow(\InvalidArgumentException::class);
+});
 
-    public function testBearerRejectsNonAscii(): void
-    {
-        $this->expectException(\InvalidArgumentException::class);
-        new BearerAuthenticator('{{{basePath}}}', 'ñoño');
-    }
+test('api key header rejects crlf and non ascii', function (): void {
+    // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
+    // ApiKeyAuthenticator's HEADER location must reject anything
+    // outside printable ASCII + TAB to prevent header injection
+    // (\r\n) and silent UTF-8 mangling that varies per HTTP lib.
+    expect(fn () => new ApiKeyAuthenticator('{{{basePath}}}', 'X-Api-Key', "abc\r\nInjected: yes", ApiKeyLocation::HEADER))
+        ->toThrow(\InvalidArgumentException::class);
+});
 
-    public function testApiKeyHeaderRejectsCrlfAndNonAscii(): void
-    {
-        // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
-        // ApiKeyAuthenticator's HEADER location must reject anything
-        // outside printable ASCII + TAB to prevent header injection
-        // (\r\n) and silent UTF-8 mangling that varies per HTTP lib.
-        $this->expectException(\InvalidArgumentException::class);
-        new ApiKeyAuthenticator('{{{basePath}}}', 'X-Api-Key', "abc\r\nInjected: yes", ApiKeyLocation::HEADER);
-    }
+test('api key header rejects non ascii', function (): void {
+    expect(fn () => new ApiKeyAuthenticator('{{{basePath}}}', 'X-Api-Key', 'kéy', ApiKeyLocation::HEADER))
+        ->toThrow(\InvalidArgumentException::class);
+});
 
-    public function testApiKeyHeaderRejectsNonAscii(): void
-    {
-        $this->expectException(\InvalidArgumentException::class);
-        new ApiKeyAuthenticator('{{{basePath}}}', 'X-Api-Key', 'kéy', ApiKeyLocation::HEADER);
-    }
+test('api key query allows non ascii', function (): void {
+    // Non-header locations accept arbitrary chars.
+    $auth = new ApiKeyAuthenticator('{{{basePath}}}', 'api_key', 'kéy', ApiKeyLocation::QUERY);
+    expect($auth->getQueryParams())->toBe(['api_key' => 'kéy']);
+});
 
-    public function testApiKeyQueryAllowsNonAscii(): void
-    {
-        // Non-header locations accept arbitrary chars.
-        $auth = new ApiKeyAuthenticator('{{{basePath}}}', 'api_key', 'kéy', ApiKeyLocation::QUERY);
-        $this->assertSame(['api_key' => 'kéy'], $auth->getQueryParams());
-    }
-
-    public function testApiGroupsAreAccessible(): void
-    {
-        $client = new {{clientClassName}}($this->authenticator);
+test('api groups are accessible', function (): void {
+    $client = new {{clientClassName}}($this->authenticator);
 
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-        $this->assertInstanceOf(\{{apiPackage}}\{{classname}}::class, $client->{{clientPropertyName}});
+    expect($client->{{clientPropertyName}})->toBeInstanceOf(\{{apiPackage}}\{{classname}}::class);
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
-    }
-}
+});

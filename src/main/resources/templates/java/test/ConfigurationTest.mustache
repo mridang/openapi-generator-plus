@@ -8,7 +8,10 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.ResourceAccessMode;
+import org.junit.jupiter.api.parallel.ResourceLock;
 
+@ResourceLock(value = "Configuration.default", mode = ResourceAccessMode.READ_WRITE)
 class ConfigurationTest {
 
     @AfterEach

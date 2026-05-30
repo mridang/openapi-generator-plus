@@ -269,6 +269,9 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             supportingFiles.add(
                     new SupportingFile(
                             "test/tests_csproj.mustache", "", packageName + ".Test.csproj"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/xunit.runner.mustache", "", "xunit.runner.json"));
             final String testApiFolder = Path.of("Test", "Api").toString();
             supportingFiles.add(
                     new SupportingFile(

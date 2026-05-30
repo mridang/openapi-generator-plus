@@ -8,6 +8,8 @@ require 'test_helper'
 require 'socket'
 
 describe PetstoreClient::Api::StoreApi do
+  parallelize_me!
+
   before do
     @api = PetstoreClient::Api::StoreApi.new
   end

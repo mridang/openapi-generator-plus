@@ -16,296 +16,263 @@ use PetstoreClient\Errors\NotFoundException;
 use PetstoreClient\Errors\ServerException;
 use PetstoreClient\Models\ApiResponse as ApiResponseModel;
 use PetstoreClient\Models\Pet;
-use PetstoreClient\Models\PetPassport;
 use PetstoreClient\Models\PetStatusEnum;
+use PetstoreClient\Models\PetPassport;
 use PetstoreClient\Models\Photo;
 use PetstoreClient\Models\PhotoMetadata;
 use PetstoreClient\Models\SetPetAvatarThumbnailRequest;
-use PHPUnit\Framework\TestCase;
 
 /**
  * Integration tests for the Pet API endpoints.
  */
-class PetApiTest extends TestCase
+beforeEach(function (): void {
+    $baseUrl = getenv('API_BASE_URL') ?: 'http://localhost:4010';
+    $config = Configuration::builder()
+        ->baseUrl($baseUrl)
+        ->defaultHeader('Authorization', 'Bearer test-token')
+        ->build();
+    $this->api = new PetApi(config: $config);
+    $this->auth = new BearerAuthenticator($baseUrl, 'test-token');
+});
+
+function newPetApiForMock(int $statusCode, string $contentType, string $body): PetApi
 {
-    private PetApi $api;
-    private BearerAuthenticator $auth;
-
-    protected function setUp(): void
-    {
-        $baseUrl = getenv('API_BASE_URL') ?: 'http://localhost:4010';
-        $config = Configuration::builder()
-            ->baseUrl($baseUrl)
-            ->defaultHeader('Authorization', 'Bearer test-token')
-            ->build();
-        $this->api = new PetApi(config: $config);
-        $this->auth = new BearerAuthenticator($baseUrl, 'test-token');
-    }
-
-    private function newPetApiForMock(int $statusCode, string $contentType, string $body): PetApi
-    {
-        $client = new PetMockApiClient($statusCode, $body, $contentType);
-        $config = Configuration::builder()
-            ->baseUrl('http://localhost:9999')
-            ->build();
-        return new PetApi(apiClient: $client, config: $config);
-    }
-
-    // -- Integration tests via Chasm --
-
-    public function testAddPet(): void
-    {
-        $pet = new Pet(name: 'TestDog', photoUrls: ['http://example.com/photo.jpg']);
-        $pet->id = 12345;
-        $pet->status = PetStatusEnum::AVAILABLE;
-
-        $result = $this->api->addPet($pet, auth: $this->auth);
-
-        $this->assertInstanceOf(Pet::class, $result);
-    }
-
-    public function testAddPetWithHttpInfoExposesStatusAndHeaders(): void
-    {
-        $pet = new Pet(name: 'TestDog', photoUrls: ['http://example.com/photo.jpg']);
-        $pet->id = 67890;
-        $pet->status = PetStatusEnum::AVAILABLE;
-
-        $result = $this->api->addPetWithHttpInfo($pet, auth: $this->auth);
-
-        $this->assertSame(200, $result->statusCode);
-        $this->assertInstanceOf(Pet::class, $result->data);
-        $this->assertNotEmpty($result->headers);
-    }
-
-    public function testGetPetById(): void
-    {
-        $result = $this->api->getPetById(1);
-
-        $this->assertInstanceOf(Pet::class, $result);
-    }
-
-    public function testFindPetsByStatus(): void
-    {
-        $result = $this->api->findPetsByStatus(new FindPetsByStatusOptions('available'));
-
-        $this->assertIsArray($result);
-        $this->assertNotEmpty($result);
-        $this->assertInstanceOf(Pet::class, $result[0]);
-    }
-
-    public function testGetPetPassport(): void
-    {
-        $result = $this->api->getPetPassport(1);
-
-        $this->assertInstanceOf(PetPassport::class, $result);
-    }
-
-    public function testUpdatePet(): void
-    {
-        $pet = new Pet(name: 'UpdatedDog', photoUrls: ['http://example.com/updated.jpg']);
-        $pet->id = 1;
-        $pet->status = PetStatusEnum::PENDING;
-
-        $result = $this->api->updatePet(1, $pet);
-
-        $this->assertInstanceOf(Pet::class, $result);
-    }
-
-    public function testDeletePet(): void
-    {
-        $this->api->deletePet(1, auth: $this->auth);
-
-        $this->addToAssertionCount(1);
-    }
-
-    public function testSetPetAvatar(): void
-    {
-        $tmpFile = tempnam(sys_get_temp_dir(), 'avatar');
-        file_put_contents($tmpFile, "\xFF\xD8\xFF");
-        $body = new \SplFileObject($tmpFile, 'r');
-
-        $this->api->setPetAvatar(1, $body);
-
-        $this->addToAssertionCount(1);
-        unlink($tmpFile);
-    }
-
-    public function testGetPetAvatar(): void
-    {
-        $result = $this->api->getPetAvatar(1);
-
-        $this->assertNotNull($result);
-        $this->assertIsString($result);
-    }
-
-    public function testGetPetAvatarThumbnail(): void
-    {
-        $result = $this->api->getPetAvatarThumbnail(1);
-
-        $this->assertNotNull($result);
-    }
-
-    public function testSetPetAvatarThumbnail(): void
-    {
-        $request = new SetPetAvatarThumbnailRequest('iVBORw0KGgoAAAANSUhEUg==');
-
-        $this->api->setPetAvatarThumbnail(1, $request);
-
-        $this->addToAssertionCount(1);
-    }
-
-    public function testUploadPetCertificate(): void
-    {
-        $tmpFile = tempnam(sys_get_temp_dir(), 'cert');
-        file_put_contents($tmpFile, 'certificate-content');
-        $file = new \SplFileObject($tmpFile, 'r');
-
-        $result = $this->api->uploadPetCertificate(1, new UploadPetCertificateOptions($file));
-
-        $this->assertInstanceOf(ApiResponseModel::class, $result);
-        unlink($tmpFile);
-    }
-
-    public function testUploadPetDocument(): void
-    {
-        $tmpFile = tempnam(sys_get_temp_dir(), 'doc');
-        file_put_contents($tmpFile, 'document-content');
-        $file = new \SplFileObject($tmpFile, 'r');
-
-        $options = new UploadPetDocumentOptions($file, 'vaccination_record', 'Annual checkup');
-        $result = $this->api->uploadPetDocument(1, $options);
-
-        $this->assertInstanceOf(ApiResponseModel::class, $result);
-        unlink($tmpFile);
-    }
-
-    public function testAddPetPhotos(): void
-    {
-        $tmpFile = tempnam(sys_get_temp_dir(), 'photo');
-        file_put_contents($tmpFile, 'photo-content');
-        $file = new \SplFileObject($tmpFile, 'r');
-
-        $metadata = new PhotoMetadata(caption: 'Test photo', isPrimary: true);
-        $result = $this->api->addPetPhotos(1, new AddPetPhotosOptions([$file], $metadata));
-
-        $this->assertIsArray($result);
-        $this->assertNotEmpty($result);
-        $this->assertInstanceOf(Photo::class, $result[0]);
-        unlink($tmpFile);
-    }
-
-    public function testDownloadPetDocument(): void
-    {
-        $result = $this->api->downloadPetDocument(1, 1);
-
-        $this->assertNotNull($result);
-        $this->assertIsString($result);
-    }
-
-    public function testGetPetPhoto(): void
-    {
-        $result = $this->api->getPetPhoto(1, 1);
-
-        $this->assertNotNull($result);
-        $this->assertInstanceOf(\SplFileObject::class, $result);
-    }
-
-    public function testGetExternalPetInfoUsesPerOperationServerUrl(): void
-    {
-        $this->markTestSkipped('Per-operation server URL cannot be validated against a local mock server');
-    }
-
-    public function testGetPetTagSendsStyledParameters(): void
-    {
-        $result = $this->api->getPetTag(5, 'cute', new GetPetTagOptions(colors: ['blue', 'black'], sizes: ['S', 'M']));
-
-        $this->assertNotNull($result);
-    }
-
-    // -- Mock-based error handling tests --
-
-    public function testErrorHandlingNotFound(): void
-    {
-        $api = $this->newPetApiForMock(404, 'application/json', '{"message":"Pet not found"}');
-
-        $this->expectException(NotFoundException::class);
-        $api->getPetById(99999);
-    }
-
-    public function testErrorHandlingServerError(): void
-    {
-        $api = $this->newPetApiForMock(500, 'application/json', '{"message":"Internal server error"}');
-
-        $this->expectException(ServerException::class);
-        $api->getPetById(1);
-    }
-
-    // -- Mock-based binary download test --
-
-    public function testDownloadBinaryMock(): void
-    {
-        $binaryData = "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A";
-        $api = $this->newPetApiForMock(200, 'application/octet-stream', $binaryData);
-
-        $result = $api->getPetAvatar(1);
-
-        $this->assertNotNull($result);
-        $this->assertSame($binaryData, $result);
-    }
-
-    public function testUploadMultipartMock(): void
-    {
-        $apiResponse = '{"code":200,"type":"ok","message":"upload successful"}';
-        $api = $this->newPetApiForMock(200, 'application/json', $apiResponse);
-
-        $tmpFile = tempnam(sys_get_temp_dir(), 'cert');
-        file_put_contents($tmpFile, 'certificate-content');
-        $file = new \SplFileObject($tmpFile, 'r');
-
-        $result = $api->uploadPetCertificate(1, new UploadPetCertificateOptions($file));
-
-        $this->assertNotNull($result);
-        unlink($tmpFile);
-    }
-
-    public function testAddPetPerCallAuthOverride(): void
-    {
-        // Verify the auth: kwarg on the BASE operation method (not just the
-        // WithHttpInfo variant) is applied to the outgoing request. The default
-        // header carries one token; the per-call authenticator carries a
-        // different one and must win on the wire.
-        $captured = new \stdClass();
-        /** @var array<string, string> $hdrs */
-        $hdrs = [];
-        $captured->headers = $hdrs;
-
-        $client = new class ($captured) implements \PetstoreClient\ApiClient {
-            public function __construct(private readonly \stdClass $captured)
-            {
-            }
-
-            public function sendRequest(string $method, string $url, array $headers, mixed $body): \PetstoreClient\ApiResponse
-            {
-                $this->captured->headers = $headers;
-                return new \PetstoreClient\ApiResponse(
-                    200,
-                    '{"id":1,"name":"x","photoUrls":[]}',
-                    ['Content-Type' => 'application/json']
-                );
-            }
-        };
-
-        $config = Configuration::builder()
-            ->baseUrl('http://localhost:9999')
-            ->defaultHeader('Authorization', 'Bearer default-token')
-            ->build();
-        $api = new PetApi(apiClient: $client, config: $config);
-        $perCallAuth = new BearerAuthenticator('http://localhost:9999', 'per-call-token');
-
-        $pet = new Pet(name: 'OverrideDog', photoUrls: ['http://example.com/p.jpg']);
-        $pet->id = 1;
-        $api->addPet($pet, auth: $perCallAuth);
-
-        $this->assertSame('Bearer per-call-token', $captured->headers['Authorization'] ?? null);
-    }
+    $client = new PetMockApiClient($statusCode, $body, $contentType);
+    $config = Configuration::builder()
+        ->baseUrl('http://localhost:9999')
+        ->build();
+    return new PetApi(apiClient: $client, config: $config);
 }
+
+// -- Integration tests via Chasm --
+
+test('add pet', function (): void {
+    $pet = new Pet(name: 'TestDog', photoUrls: ['http://example.com/photo.jpg']);
+    $pet->id = 12345;
+    $pet->status = PetStatusEnum::AVAILABLE;
+
+    $result = $this->api->addPet($pet, auth: $this->auth);
+
+    expect($result)->toBeInstanceOf(Pet::class);
+});
+
+test('add pet with http info exposes status and headers', function (): void {
+    $pet = new Pet(name: 'TestDog', photoUrls: ['http://example.com/photo.jpg']);
+    $pet->id = 67890;
+    $pet->status = PetStatusEnum::AVAILABLE;
+
+    $result = $this->api->addPetWithHttpInfo($pet, auth: $this->auth);
+
+    expect($result->statusCode)->toBe(200);
+    expect($result->data)->toBeInstanceOf(Pet::class);
+    expect($result->headers)->not->toBeEmpty();
+});
+
+test('get pet by id', function (): void {
+    $result = $this->api->getPetById(1);
+
+    expect($result)->toBeInstanceOf(Pet::class);
+});
+
+test('find pets by status', function (): void {
+    $result = $this->api->findPetsByStatus(new FindPetsByStatusOptions('available'));
+
+    expect($result)->toBeArray();
+    expect($result)->not->toBeEmpty();
+    expect($result[0])->toBeInstanceOf(Pet::class);
+});
+
+test('get pet passport', function (): void {
+    $result = $this->api->getPetPassport(1);
+
+    expect($result)->toBeInstanceOf(PetPassport::class);
+});
+
+test('update pet', function (): void {
+    $pet = new Pet(name: 'UpdatedDog', photoUrls: ['http://example.com/updated.jpg']);
+    $pet->id = 1;
+    $pet->status = PetStatusEnum::PENDING;
+
+    $result = $this->api->updatePet(1, $pet);
+
+    expect($result)->toBeInstanceOf(Pet::class);
+});
+
+test('delete pet', function (): void {
+    $this->api->deletePet(1, auth: $this->auth);
+
+    expect(true)->toBeTrue();
+});
+
+test('set pet avatar', function (): void {
+    $tmpFile = tempnam(sys_get_temp_dir(), 'avatar');
+    file_put_contents($tmpFile, "\xFF\xD8\xFF");
+    $body = new \SplFileObject($tmpFile, 'r');
+
+    $this->api->setPetAvatar(1, $body);
+
+    expect(true)->toBeTrue();
+    unlink($tmpFile);
+});
+
+test('get pet avatar', function (): void {
+    $result = $this->api->getPetAvatar(1);
+
+    expect($result)->not->toBeNull();
+    expect($result)->toBeString();
+});
+
+test('get pet avatar thumbnail', function (): void {
+    $result = $this->api->getPetAvatarThumbnail(1);
+
+    expect($result)->not->toBeNull();
+});
+
+test('set pet avatar thumbnail', function (): void {
+    $request = new SetPetAvatarThumbnailRequest('iVBORw0KGgoAAAANSUhEUg==');
+
+    $this->api->setPetAvatarThumbnail(1, $request);
+
+    expect(true)->toBeTrue();
+});
+
+test('upload pet certificate', function (): void {
+    $tmpFile = tempnam(sys_get_temp_dir(), 'cert');
+    file_put_contents($tmpFile, 'certificate-content');
+    $file = new \SplFileObject($tmpFile, 'r');
+
+    $result = $this->api->uploadPetCertificate(1, new UploadPetCertificateOptions($file));
+
+    expect($result)->toBeInstanceOf(ApiResponseModel::class);
+    unlink($tmpFile);
+});
+
+test('upload pet document', function (): void {
+    $tmpFile = tempnam(sys_get_temp_dir(), 'doc');
+    file_put_contents($tmpFile, 'document-content');
+    $file = new \SplFileObject($tmpFile, 'r');
+
+    $options = new UploadPetDocumentOptions($file, 'vaccination_record', 'Annual checkup');
+    $result = $this->api->uploadPetDocument(1, $options);
+
+    expect($result)->toBeInstanceOf(ApiResponseModel::class);
+    unlink($tmpFile);
+});
+
+test('add pet photos', function (): void {
+    $tmpFile = tempnam(sys_get_temp_dir(), 'photo');
+    file_put_contents($tmpFile, 'photo-content');
+    $file = new \SplFileObject($tmpFile, 'r');
+
+    $metadata = new PhotoMetadata(caption: 'Test photo', isPrimary: true);
+    $result = $this->api->addPetPhotos(1, new AddPetPhotosOptions([$file], $metadata));
+
+    expect($result)->toBeArray();
+    expect($result)->not->toBeEmpty();
+    expect($result[0])->toBeInstanceOf(Photo::class);
+    unlink($tmpFile);
+});
+
+test('download pet document', function (): void {
+    $result = $this->api->downloadPetDocument(1, 1);
+
+    expect($result)->not->toBeNull();
+    expect($result)->toBeString();
+});
+
+test('get pet photo', function (): void {
+    $result = $this->api->getPetPhoto(1, 1);
+
+    expect($result)->not->toBeNull();
+    expect($result)->toBeInstanceOf(\SplFileObject::class);
+});
+
+test('get external pet info uses per operation server url', function (): void {
+    test()->markTestSkipped('Per-operation server URL cannot be validated against a local mock server');
+});
+
+test('get pet tag sends styled parameters', function (): void {
+    $result = $this->api->getPetTag(5, 'cute', new GetPetTagOptions(colors: ['blue', 'black'], sizes: ['S', 'M']));
+
+    expect($result)->not->toBeNull();
+});
+
+// -- Mock-based error handling tests --
+
+test('error handling not found', function (): void {
+    $api = newPetApiForMock(404, 'application/json', '{"message":"Pet not found"}');
+
+    expect(fn () => $api->getPetById(99999))->toThrow(NotFoundException::class);
+});
+
+test('error handling server error', function (): void {
+    $api = newPetApiForMock(500, 'application/json', '{"message":"Internal server error"}');
+
+    expect(fn () => $api->getPetById(1))->toThrow(ServerException::class);
+});
+
+// -- Mock-based binary download test --
+
+test('download binary mock', function (): void {
+    $binaryData = "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A";
+    $api = newPetApiForMock(200, 'application/octet-stream', $binaryData);
+
+    $result = $api->getPetAvatar(1);
+
+    expect($result)->not->toBeNull();
+    expect($result)->toBe($binaryData);
+});
+
+test('upload multipart mock', function (): void {
+    $apiResponse = '{"code":200,"type":"ok","message":"upload successful"}';
+    $api = newPetApiForMock(200, 'application/json', $apiResponse);
+
+    $tmpFile = tempnam(sys_get_temp_dir(), 'cert');
+    file_put_contents($tmpFile, 'certificate-content');
+    $file = new \SplFileObject($tmpFile, 'r');
+
+    $result = $api->uploadPetCertificate(1, new UploadPetCertificateOptions($file));
+
+    expect($result)->not->toBeNull();
+    unlink($tmpFile);
+});
+
+test('add pet per call auth override', function (): void {
+    // Verify the auth: kwarg on the BASE operation method (not just the
+    // WithHttpInfo variant) is applied to the outgoing request. The default
+    // header carries one token; the per-call authenticator carries a
+    // different one and must win on the wire.
+    $captured = new \stdClass();
+    /** @var array<string, string> $hdrs */
+    $hdrs = [];
+    $captured->headers = $hdrs;
+
+    $client = new class($captured) implements \PetstoreClient\ApiClient {
+        public function __construct(private readonly \stdClass $captured)
+        {
+        }
+
+        public function sendRequest(string $method, string $url, array $headers, mixed $body): \PetstoreClient\ApiResponse
+        {
+            $this->captured->headers = $headers;
+            return new \PetstoreClient\ApiResponse(
+                200,
+                '{"id":1,"name":"x","photoUrls":[]}',
+                ['Content-Type' => 'application/json']
+            );
+        }
+    };
+
+    $config = Configuration::builder()
+        ->baseUrl('http://localhost:9999')
+        ->defaultHeader('Authorization', 'Bearer default-token')
+        ->build();
+    $api = new PetApi(apiClient: $client, config: $config);
+    $perCallAuth = new BearerAuthenticator('http://localhost:9999', 'per-call-token');
+
+    $pet = new Pet(name: 'OverrideDog', photoUrls: ['http://example.com/p.jpg']);
+    $pet->id = 1;
+    $api->addPet($pet, auth: $perCallAuth);
+
+    expect($captured->headers['Authorization'] ?? null)->toBe('Bearer per-call-token');
+});

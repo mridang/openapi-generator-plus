@@ -2,9 +2,6 @@
 
 declare(strict_types=1);
 
-namespace {{invokerPackage}}\Test;
-
-use PHPUnit\Framework\TestCase;
 use {{invokerPackage}}\ObjectSerializer;
 use {{modelPackage}}\DryFood;
 use {{modelPackage}}\WetFood;
@@ -14,121 +11,103 @@ use {{modelPackage}}\PetFood;
 use {{modelPackage}}\PetTreatment;
 use {{modelPackage}}\PetWithOwner;
 
-class ComposedSchemaTest extends TestCase
-{
-    // -- oneOf with discriminator: PetFood --
+// -- oneOf with discriminator: PetFood --
 
-    public function testOneOfDeserializesDryFood(): void
-    {
-        $data = ['foodType' => 'dry', 'weightKg' => 2.5];
-        $result = PetFood::build($data);
-        $this->assertInstanceOf(DryFood::class, $result->getActualInstance());
-        $this->assertSame('dry', $result->getActualInstance()->foodType);
-    }
+test('one of deserializes dry food', function (): void {
+    $data = ['foodType' => 'dry', 'weightKg' => 2.5];
+    $result = PetFood::build($data);
+    expect($result->getActualInstance())->toBeInstanceOf(DryFood::class);
+    expect($result->getActualInstance()->foodType)->toBe('dry');
+});
 
-    public function testOneOfDeserializesWetFood(): void
-    {
-        $data = ['foodType' => 'wet', 'volumeMl' => 400];
-        $result = PetFood::build($data);
-        $this->assertInstanceOf(WetFood::class, $result->getActualInstance());
-        $this->assertSame('wet', $result->getActualInstance()->foodType);
-    }
+test('one of deserializes wet food', function (): void {
+    $data = ['foodType' => 'wet', 'volumeMl' => 400];
+    $result = PetFood::build($data);
+    expect($result->getActualInstance())->toBeInstanceOf(WetFood::class);
+    expect($result->getActualInstance()->foodType)->toBe('wet');
+});
 
-    public function testOneOfMissingDiscriminatorThrows(): void
-    {
-        // Gap AU: missing discriminator field must throw, not silently wrap.
-        $data = ['weightKg' => 2.5];
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/Missing discriminator/');
-        PetFood::build($data);
-    }
+test('one of missing discriminator throws', function (): void {
+    // Gap AU: missing discriminator field must throw, not silently wrap.
+    $data = ['weightKg' => 2.5];
+    expect(fn () => PetFood::build($data))
+        ->toThrow(\InvalidArgumentException::class, 'Missing discriminator');
+});
 
-    public function testOneOfEmptyDiscriminatorThrows(): void
-    {
-        // Gap AU: empty discriminator value must throw.
-        $data = ['foodType' => '', 'weightKg' => 2.5];
-        $this->expectException(\InvalidArgumentException::class);
-        PetFood::build($data);
-    }
+test('one of empty discriminator throws', function (): void {
+    // Gap AU: empty discriminator value must throw.
+    $data = ['foodType' => '', 'weightKg' => 2.5];
+    expect(fn () => PetFood::build($data))->toThrow(\InvalidArgumentException::class);
+});
 
-    public function testOneOfUnknownDiscriminatorThrows(): void
-    {
-        // Gap AU: unknown discriminator value must throw.
-        $data = ['foodType' => 'raw', 'calories' => 300];
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/Unknown discriminator/');
-        PetFood::build($data);
-    }
+test('one of unknown discriminator throws', function (): void {
+    // Gap AU: unknown discriminator value must throw.
+    $data = ['foodType' => 'raw', 'calories' => 300];
+    expect(fn () => PetFood::build($data))
+        ->toThrow(\InvalidArgumentException::class, 'Unknown discriminator');
+});
 
-    public function testOneOfSerializesDryFood(): void
-    {
-        $data = ['foodType' => 'dry', 'weightKg' => 2.5];
-        $result = PetFood::build($data);
-        $serialized = json_encode(ObjectSerializer::serialize($result->getActualInstance()));
-        $this->assertNotFalse($serialized);
-        $this->assertStringContainsString('dry', $serialized);
-    }
+test('one of serializes dry food', function (): void {
+    $data = ['foodType' => 'dry', 'weightKg' => 2.5];
+    $result = PetFood::build($data);
+    $serialized = json_encode(ObjectSerializer::serialize($result->getActualInstance()));
+    expect($serialized)->not->toBeFalse();
+    expect($serialized)->toContain('dry');
+});
 
-    // -- anyOf without discriminator: PetTreatment --
+// -- anyOf without discriminator: PetTreatment --
 
-    public function testAnyOfDeserializesMedication(): void
-    {
-        $data = ['drugName' => 'Amoxicillin', 'dosage' => '500mg'];
-        $result = PetTreatment::build($data);
-        $this->assertInstanceOf(Medication::class, $result->getActualInstance());
-        $this->assertSame('Amoxicillin', $result->getActualInstance()->drugName);
-    }
+test('any of deserializes medication', function (): void {
+    $data = ['drugName' => 'Amoxicillin', 'dosage' => '500mg'];
+    $result = PetTreatment::build($data);
+    expect($result->getActualInstance())->toBeInstanceOf(Medication::class);
+    expect($result->getActualInstance()->drugName)->toBe('Amoxicillin');
+});
 
-    public function testAnyOfDeserializesSurgery(): void
-    {
-        $data = ['procedureName' => 'Spay', 'durationMinutes' => 45];
-        $result = PetTreatment::build($data);
-        $this->assertInstanceOf(Surgery::class, $result->getActualInstance());
-    }
+test('any of deserializes surgery', function (): void {
+    $data = ['procedureName' => 'Spay', 'durationMinutes' => 45];
+    $result = PetTreatment::build($data);
+    expect($result->getActualInstance())->toBeInstanceOf(Surgery::class);
+});
 
-    public function testAnyOfSerializeRoundTrip(): void
-    {
-        $data = ['drugName' => 'Amoxicillin', 'dosage' => '500mg'];
-        $result = PetTreatment::build($data);
-        $serialized = json_encode(ObjectSerializer::serialize($result->getActualInstance()));
-        $this->assertNotFalse($serialized);
-        $this->assertNotEmpty($serialized);
-    }
+test('any of serialize round trip', function (): void {
+    $data = ['drugName' => 'Amoxicillin', 'dosage' => '500mg'];
+    $result = PetTreatment::build($data);
+    $serialized = json_encode(ObjectSerializer::serialize($result->getActualInstance()));
+    expect($serialized)->not->toBeFalse();
+    expect($serialized)->not->toBeEmpty();
+});
 
-    // -- allOf: PetWithOwner --
+// -- allOf: PetWithOwner --
 
-    public function testAllOfDeserializesPetWithOwner(): void
-    {
-        $json = '{"name":"doggie","photoUrls":["http://example.com/photo.jpg"],'
-            . '"ownerName":"John","ownerEmail":"john@example.com"}';
-        /** @var PetWithOwner $result */
-        $result = ObjectSerializer::deserialize($json, PetWithOwner::class);
-        $this->assertInstanceOf(PetWithOwner::class, $result);
-        $this->assertSame('doggie', $result->name);
-        $this->assertSame('John', $result->ownerName);
-        $this->assertSame('john@example.com', $result->ownerEmail);
-    }
+test('all of deserializes pet with owner', function (): void {
+    $json = '{"name":"doggie","photoUrls":["http://example.com/photo.jpg"],'
+        . '"ownerName":"John","ownerEmail":"john@example.com"}';
+    /** @var PetWithOwner $result */
+    $result = ObjectSerializer::deserialize($json, PetWithOwner::class);
+    expect($result)->toBeInstanceOf(PetWithOwner::class);
+    expect($result->name)->toBe('doggie');
+    expect($result->ownerName)->toBe('John');
+    expect($result->ownerEmail)->toBe('john@example.com');
+});
 
-    public function testAllOfSerializesPetWithOwner(): void
-    {
-        $json = '{"name":"Fido","photoUrls":["http://example.com/fido.jpg"],"ownerName":"John Doe"}';
-        /** @var PetWithOwner $result */
-        $result = ObjectSerializer::deserialize($json, PetWithOwner::class);
-        $serialized = json_encode(ObjectSerializer::serialize($result));
-        $this->assertNotFalse($serialized);
-        $this->assertStringContainsString('Fido', $serialized);
-        $this->assertStringContainsString('John Doe', $serialized);
-    }
+test('all of serializes pet with owner', function (): void {
+    $json = '{"name":"Fido","photoUrls":["http://example.com/fido.jpg"],"ownerName":"John Doe"}';
+    /** @var PetWithOwner $result */
+    $result = ObjectSerializer::deserialize($json, PetWithOwner::class);
+    $serialized = json_encode(ObjectSerializer::serialize($result));
+    expect($serialized)->not->toBeFalse();
+    expect($serialized)->toContain('Fido');
+    expect($serialized)->toContain('John Doe');
+});
 
-    public function testAllOfRoundTrip(): void
-    {
-        $json = '{"name":"Buddy","photoUrls":["http://example.com/buddy.jpg"],"ownerName":"Jane Smith"}';
-        /** @var PetWithOwner $original */
-        $original = ObjectSerializer::deserialize($json, PetWithOwner::class);
-        $serialized = json_encode(ObjectSerializer::serialize($original));
-        /** @var PetWithOwner $restored */
-        $restored = ObjectSerializer::deserialize($serialized, PetWithOwner::class);
-        $this->assertSame($original->name, $restored->name);
-        $this->assertSame($original->ownerName, $restored->ownerName);
-    }
-}
+test('all of round trip', function (): void {
+    $json = '{"name":"Buddy","photoUrls":["http://example.com/buddy.jpg"],"ownerName":"Jane Smith"}';
+    /** @var PetWithOwner $original */
+    $original = ObjectSerializer::deserialize($json, PetWithOwner::class);
+    $serialized = json_encode(ObjectSerializer::serialize($original));
+    /** @var PetWithOwner $restored */
+    $restored = ObjectSerializer::deserialize($serialized, PetWithOwner::class);
+    expect($restored->name)->toBe($original->name);
+    expect($restored->ownerName)->toBe($original->ownerName);
+});

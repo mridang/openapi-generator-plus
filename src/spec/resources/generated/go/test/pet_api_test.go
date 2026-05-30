@@ -66,6 +66,7 @@ func newTempFile(t *testing.T, contents string) *os.File {
 }
 
 func TestPetApi_AddPet(t *testing.T) {
+	t.Parallel()
 	api := newPetApiForIntegration(t)
 	auth := &petAuth{}
 
@@ -81,6 +82,7 @@ func TestPetApi_AddPet(t *testing.T) {
 }
 
 func TestPetApi_AddPetWithHTTPInfo(t *testing.T) {
+	t.Parallel()
 	api := newPetApiForIntegration(t)
 	auth := &petAuth{}
 
@@ -105,6 +107,7 @@ func TestPetApi_AddPetWithHTTPInfo(t *testing.T) {
 }
 
 func TestPetApi_GetPetById(t *testing.T) {
+	t.Parallel()
 	api := newPetApiForIntegration(t)
 
 	result, err := api.GetPetById(int64(1), nil)
@@ -117,6 +120,7 @@ func TestPetApi_GetPetById(t *testing.T) {
 }
 
 func TestPetApi_GetPetByIdWithHTTPInfo(t *testing.T) {
+	t.Parallel()
 	api := newPetApiForIntegration(t)
 
 	result, err := api.GetPetByIdWithHTTPInfo(int64(1), nil)
@@ -138,6 +142,7 @@ func TestPetApi_GetPetByIdWithHTTPInfo(t *testing.T) {
 }
 
 func TestPetApi_UpdatePet(t *testing.T) {
+	t.Parallel()
 	api := newPetApiForIntegration(t)
 
 	pet := models.NewPet("UpdatedFido", models.Set[string]{"http://example.com/fido-updated.jpg"})
@@ -152,6 +157,7 @@ func TestPetApi_UpdatePet(t *testing.T) {
 }
 
 func TestPetApi_UpdatePetWithHTTPInfo(t *testing.T) {
+	t.Parallel()
 	api := newPetApiForIntegration(t)
 
 	pet := models.NewPet("UpdatedFido", models.Set[string]{"http://example.com/fido-updated.jpg"})
@@ -169,6 +175,7 @@ func TestPetApi_UpdatePetWithHTTPInfo(t *testing.T) {
 }
 
 func TestPetApi_DeletePet(t *testing.T) {
+	t.Parallel()
 	api := newPetApiForIntegration(t)
 	auth := &petAuth{}
 
@@ -179,6 +186,7 @@ func TestPetApi_DeletePet(t *testing.T) {
 }
 
 func TestPetApi_DeletePetWithHTTPInfo(t *testing.T) {
+	t.Parallel()
 	api := newPetApiForIntegration(t)
 	auth := &petAuth{}
 
@@ -195,6 +203,7 @@ func TestPetApi_DeletePetWithHTTPInfo(t *testing.T) {
 }
 
 func TestPetApi_FindPetsByStatus(t *testing.T) {
+	t.Parallel()
 	api := newPetApiForIntegration(t)
 
 	status := "available"
@@ -208,6 +217,7 @@ func TestPetApi_FindPetsByStatus(t *testing.T) {
 }
 
 func TestPetApi_FindPetsByStatusWithHTTPInfo(t *testing.T) {
+	t.Parallel()
 	api := newPetApiForIntegration(t)
 
 	status := "available"
@@ -224,6 +234,7 @@ func TestPetApi_FindPetsByStatusWithHTTPInfo(t *testing.T) {
 }
 
 func TestPetApi_GetPetPassport(t *testing.T) {
+	t.Parallel()
 	api := newPetApiForIntegration(t)
 
 	result, err := api.GetPetPassport(int64(1))
@@ -236,6 +247,7 @@ func TestPetApi_GetPetPassport(t *testing.T) {
 }
 
 func TestPetApi_GetPetPassportWithHTTPInfo(t *testing.T) {
+	t.Parallel()
 	api := newPetApiForIntegration(t)
 
 	result, err := api.GetPetPassportWithHTTPInfo(int64(1))
@@ -251,6 +263,7 @@ func TestPetApi_GetPetPassportWithHTTPInfo(t *testing.T) {
 }
 
 func TestPetApi_SetPetAvatar(t *testing.T) {
+	t.Parallel()
 	api := newPetApiForIntegration(t)
 	f := newTempFile(t, "fake-image-data")
 
@@ -260,6 +273,7 @@ func TestPetApi_SetPetAvatar(t *testing.T) {
 }
 
 func TestPetApi_GetPetAvatar(t *testing.T) {
+	t.Parallel()
 	api := newPetApiForIntegration(t)
 
 	_, err := api.GetPetAvatar(int64(1))
@@ -269,6 +283,7 @@ func TestPetApi_GetPetAvatar(t *testing.T) {
 }
 
 func TestPetApi_GetPetAvatarThumbnail(t *testing.T) {
+	t.Parallel()
 	api := newPetApiForIntegration(t)
 
 	result, err := api.GetPetAvatarThumbnail(int64(1))
@@ -281,10 +296,12 @@ func TestPetApi_GetPetAvatarThumbnail(t *testing.T) {
 }
 
 func TestPetApi_SetPetAvatarThumbnail(t *testing.T) {
+	t.Parallel()
 	t.Skip("SetPetAvatarThumbnailRequest is a generated oneOf type with no public constructor, so it cannot be invoked from a test in Go.")
 }
 
 func TestPetApi_UploadPetCertificate(t *testing.T) {
+	t.Parallel()
 	api := newPetApiForIntegration(t)
 	f := newTempFile(t, "certificate-content")
 
@@ -298,6 +315,7 @@ func TestPetApi_UploadPetCertificate(t *testing.T) {
 }
 
 func TestPetApi_UploadPetDocument(t *testing.T) {
+	t.Parallel()
 	api := newPetApiForIntegration(t)
 	f := newTempFile(t, "document-content")
 	docType := "vaccination_record"
@@ -317,6 +335,7 @@ func TestPetApi_UploadPetDocument(t *testing.T) {
 }
 
 func TestPetApi_AddPetPhotos(t *testing.T) {
+	t.Parallel()
 	api := newPetApiForIntegration(t)
 	f := newTempFile(t, "photo1")
 
@@ -339,6 +358,7 @@ func TestPetApi_AddPetPhotos(t *testing.T) {
 }
 
 func TestPetApi_DownloadPetDocument(t *testing.T) {
+	t.Parallel()
 	api := newPetApiForIntegration(t)
 
 	_, err := api.DownloadPetDocument(int64(1), int64(1))
@@ -348,6 +368,7 @@ func TestPetApi_DownloadPetDocument(t *testing.T) {
 }
 
 func TestPetApi_GetPetPhoto(t *testing.T) {
+	t.Parallel()
 	api := newPetApiForIntegration(t)
 
 	result, err := api.GetPetPhoto(int64(1), int64(1))
@@ -360,6 +381,7 @@ func TestPetApi_GetPetPhoto(t *testing.T) {
 }
 
 func TestPetApi_GetPetTag(t *testing.T) {
+	t.Parallel()
 	api := newPetApiForIntegration(t)
 
 	colors := []string{"blue", "black"}
@@ -377,10 +399,12 @@ func TestPetApi_GetPetTag(t *testing.T) {
 }
 
 func TestPetApi_GetExternalPetInfo(t *testing.T) {
+	t.Parallel()
 	t.Skip("Per-operation server URL points to external host")
 }
 
 func TestPetApi_DownloadBinaryMock(t *testing.T) {
+	t.Parallel()
 	binaryData := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/octet-stream")
@@ -395,6 +419,7 @@ func TestPetApi_DownloadBinaryMock(t *testing.T) {
 }
 
 func TestPetApi_UploadMultipartMock(t *testing.T) {
+	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
@@ -408,6 +433,7 @@ func TestPetApi_UploadMultipartMock(t *testing.T) {
 }
 
 func TestPetApi_ErrorHandling_NotFound(t *testing.T) {
+	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(404)
@@ -424,6 +450,7 @@ func TestPetApi_ErrorHandling_NotFound(t *testing.T) {
 }
 
 func TestPetApi_ErrorHandling_ServerError(t *testing.T) {
+	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(500)

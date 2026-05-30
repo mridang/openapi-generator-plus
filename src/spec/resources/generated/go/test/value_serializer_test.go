@@ -17,6 +17,7 @@ import (
 // ── SerializeValue by location ──
 
 func TestSerializeValue_QueryString(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue("hello", "query", "string", "")
 	if result != "hello" {
 		t.Errorf("expected 'hello', got %v", result)
@@ -24,6 +25,7 @@ func TestSerializeValue_QueryString(t *testing.T) {
 }
 
 func TestSerializeValue_PathString(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue("hello world", "path", "string", "")
 	str, ok := result.(string)
 	if !ok {
@@ -35,6 +37,7 @@ func TestSerializeValue_PathString(t *testing.T) {
 }
 
 func TestSerializeValue_PathStringAsIs(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue("hello", "path", "string", "")
 	if result != "hello" {
 		t.Errorf("expected 'hello', got %v", result)
@@ -42,6 +45,7 @@ func TestSerializeValue_PathStringAsIs(t *testing.T) {
 }
 
 func TestSerializeValue_PathStringSlash(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue("a/b", "path", "string", "")
 	if result != "a%2Fb" {
 		t.Errorf("expected 'a%%2Fb', got %v", result)
@@ -49,6 +53,7 @@ func TestSerializeValue_PathStringSlash(t *testing.T) {
 }
 
 func TestSerializeValue_PathInteger(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue(42, "path", "integer", "")
 	if result != "42" {
 		t.Errorf("expected '42', got %v", result)
@@ -56,6 +61,7 @@ func TestSerializeValue_PathInteger(t *testing.T) {
 }
 
 func TestSerializeValue_PathBooleanTrue(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue(true, "path", "boolean", "")
 	if result != "true" {
 		t.Errorf("expected 'true', got %v", result)
@@ -63,6 +69,7 @@ func TestSerializeValue_PathBooleanTrue(t *testing.T) {
 }
 
 func TestSerializeValue_PathBooleanFalse(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue(false, "path", "boolean", "")
 	if result != "false" {
 		t.Errorf("expected 'false', got %v", result)
@@ -70,6 +77,7 @@ func TestSerializeValue_PathBooleanFalse(t *testing.T) {
 }
 
 func TestSerializeValue_HeaderString(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue("hello", "header", "string", "")
 	if result != "hello" {
 		t.Errorf("expected 'hello', got %v", result)
@@ -77,6 +85,7 @@ func TestSerializeValue_HeaderString(t *testing.T) {
 }
 
 func TestSerializeValue_CookieString(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue("hello", "cookie", "string", "")
 	if result != "hello" {
 		t.Errorf("expected 'hello', got %v", result)
@@ -84,6 +93,7 @@ func TestSerializeValue_CookieString(t *testing.T) {
 }
 
 func TestSerializeValue_CookieNull(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue(nil, "cookie", "string", "")
 	if result != "" {
 		t.Errorf("expected empty string for nil cookie value, got %v", result)
@@ -91,6 +101,7 @@ func TestSerializeValue_CookieNull(t *testing.T) {
 }
 
 func TestSerializeValue_NilQuery(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue(nil, "query", "string", "")
 	if result != nil {
 		t.Errorf("expected nil for nil query value, got %v", result)
@@ -98,6 +109,7 @@ func TestSerializeValue_NilQuery(t *testing.T) {
 }
 
 func TestSerializeValue_NilPath(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue(nil, "path", "string", "")
 	if result != "" {
 		t.Errorf("expected empty string for nil path value, got %v", result)
@@ -105,6 +117,7 @@ func TestSerializeValue_NilPath(t *testing.T) {
 }
 
 func TestSerializeValue_QueryInteger(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue(42, "query", "integer", "")
 	if result != "42" {
 		t.Errorf("expected '42', got %v", result)
@@ -112,6 +125,7 @@ func TestSerializeValue_QueryInteger(t *testing.T) {
 }
 
 func TestSerializeValue_QueryBooleanTrue(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue(true, "query", "boolean", "")
 	if result != "true" {
 		t.Errorf("expected 'true', got %v", result)
@@ -119,6 +133,7 @@ func TestSerializeValue_QueryBooleanTrue(t *testing.T) {
 }
 
 func TestSerializeValue_QueryBooleanFalse(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue(false, "query", "boolean", "")
 	if result != "false" {
 		t.Errorf("expected 'false', got %v", result)
@@ -126,6 +141,7 @@ func TestSerializeValue_QueryBooleanFalse(t *testing.T) {
 }
 
 func TestSerializeValue_QueryArray(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue([]string{"a", "b", "c"}, "query", "array", "csv")
 	if result != "a,b,c" {
 		t.Errorf("expected 'a,b,c', got %v", result)
@@ -133,6 +149,7 @@ func TestSerializeValue_QueryArray(t *testing.T) {
 }
 
 func TestSerializeValue_QueryArraySsv(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue([]string{"a", "b", "c"}, "query", "array", "ssv")
 	if result != "a b c" {
 		t.Errorf("expected 'a b c', got %v", result)
@@ -140,6 +157,7 @@ func TestSerializeValue_QueryArraySsv(t *testing.T) {
 }
 
 func TestSerializeValue_QueryArrayTsv(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue([]string{"a", "b", "c"}, "query", "array", "tsv")
 	if result != "a\tb\tc" {
 		t.Errorf("expected tab-separated, got %v", result)
@@ -147,6 +165,7 @@ func TestSerializeValue_QueryArrayTsv(t *testing.T) {
 }
 
 func TestSerializeValue_QueryArrayPipes(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue([]string{"a", "b", "c"}, "query", "array", "pipes")
 	if result != "a|b|c" {
 		t.Errorf("expected 'a|b|c', got %v", result)
@@ -154,6 +173,7 @@ func TestSerializeValue_QueryArrayPipes(t *testing.T) {
 }
 
 func TestSerializeValue_QueryEmptyArrayCsv(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue([]string{}, "query", "array", "csv")
 	if result != "" {
 		t.Errorf("expected empty string for empty array, got %v", result)
@@ -161,6 +181,7 @@ func TestSerializeValue_QueryEmptyArrayCsv(t *testing.T) {
 }
 
 func TestSerializeValue_QueryEmptyArrayMulti(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue([]string{}, "query", "array", "multi")
 	items, ok := result.([]string)
 	if !ok {
@@ -172,6 +193,7 @@ func TestSerializeValue_QueryEmptyArrayMulti(t *testing.T) {
 }
 
 func TestSerializeValue_QuerySingleElementArray(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue([]string{"a"}, "query", "array", "csv")
 	if result != "a" {
 		t.Errorf("expected 'a', got %v", result)
@@ -179,6 +201,7 @@ func TestSerializeValue_QuerySingleElementArray(t *testing.T) {
 }
 
 func TestSerializeValue_QueryIntegerArray(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue([]interface{}{1, 2, 3}, "query", "array", "csv")
 	if result != "1,2,3" {
 		t.Errorf("expected '1,2,3', got %v", result)
@@ -186,6 +209,7 @@ func TestSerializeValue_QueryIntegerArray(t *testing.T) {
 }
 
 func TestSerializeValue_QueryBooleanArray(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue([]interface{}{true, false}, "query", "array", "csv")
 	if result != "true,false" {
 		t.Errorf("expected 'true,false', got %v", result)
@@ -193,6 +217,7 @@ func TestSerializeValue_QueryBooleanArray(t *testing.T) {
 }
 
 func TestSerializeValue_QueryArrayMulti(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue([]string{"a", "b"}, "query", "array", "multi")
 	items, ok := result.([]string)
 	if !ok {
@@ -204,6 +229,7 @@ func TestSerializeValue_QueryArrayMulti(t *testing.T) {
 }
 
 func TestSerializeValue_HeaderNull(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue(nil, "header", "string", "")
 	if result != "" {
 		t.Errorf("expected empty string for nil header value, got %v", result)
@@ -211,6 +237,7 @@ func TestSerializeValue_HeaderNull(t *testing.T) {
 }
 
 func TestSerializeValue_HeaderInteger(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue(42, "header", "integer", "")
 	if result != "42" {
 		t.Errorf("expected '42', got %v", result)
@@ -218,6 +245,7 @@ func TestSerializeValue_HeaderInteger(t *testing.T) {
 }
 
 func TestSerializeValue_HeaderBooleanTrue(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue(true, "header", "boolean", "")
 	if result != "true" {
 		t.Errorf("expected 'true', got %v", result)
@@ -225,6 +253,7 @@ func TestSerializeValue_HeaderBooleanTrue(t *testing.T) {
 }
 
 func TestSerializeValue_HeaderArray(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue([]string{"a", "b", "c"}, "header", "array", "")
 	if result != "a,b,c" {
 		t.Errorf("expected 'a,b,c', got %v", result)
@@ -232,6 +261,7 @@ func TestSerializeValue_HeaderArray(t *testing.T) {
 }
 
 func TestSerializeValue_HeaderEmptyArray(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue([]string{}, "header", "array", "")
 	if result != "" {
 		t.Errorf("expected empty string for empty header array, got %v", result)
@@ -239,6 +269,7 @@ func TestSerializeValue_HeaderEmptyArray(t *testing.T) {
 }
 
 func TestSerializeValue_HeaderIntegerArray(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue([]interface{}{1, 2, 3}, "header", "array", "")
 	if result != "1,2,3" {
 		t.Errorf("expected '1,2,3', got %v", result)
@@ -246,6 +277,7 @@ func TestSerializeValue_HeaderIntegerArray(t *testing.T) {
 }
 
 func TestSerializeValue_FormNull(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue(nil, "form", "string", "")
 	if result != "" {
 		t.Errorf("expected empty string for nil form value, got %v", result)
@@ -253,6 +285,7 @@ func TestSerializeValue_FormNull(t *testing.T) {
 }
 
 func TestSerializeValue_FormString(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue("hello", "form", "string", "")
 	if result != "hello" {
 		t.Errorf("expected 'hello', got %v", result)
@@ -260,6 +293,7 @@ func TestSerializeValue_FormString(t *testing.T) {
 }
 
 func TestSerializeValue_FormInteger(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue(42, "form", "integer", "")
 	if result != "42" {
 		t.Errorf("expected '42', got %v", result)
@@ -267,6 +301,7 @@ func TestSerializeValue_FormInteger(t *testing.T) {
 }
 
 func TestSerializeValue_FormBooleanTrue(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue(true, "form", "boolean", "")
 	if result != "true" {
 		t.Errorf("expected 'true', got %v", result)
@@ -274,6 +309,7 @@ func TestSerializeValue_FormBooleanTrue(t *testing.T) {
 }
 
 func TestSerializeValue_FormBooleanFalse(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue(false, "form", "boolean", "")
 	if result != "false" {
 		t.Errorf("expected 'false', got %v", result)
@@ -283,6 +319,7 @@ func TestSerializeValue_FormBooleanFalse(t *testing.T) {
 // ── SerializeStyled: matrix ──
 
 func TestSerializeStyled_MatrixScalar(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("id", "5", "path", "string", "", "matrix", false)
 	if result != ";id=5" {
 		t.Errorf("expected ';id=5', got %v", result)
@@ -290,6 +327,7 @@ func TestSerializeStyled_MatrixScalar(t *testing.T) {
 }
 
 func TestSerializeStyled_MatrixArrayNoExplode(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("color", []string{"red", "green", "blue"}, "path", "array", "", "matrix", false)
 	if result != ";color=red,green,blue" {
 		t.Errorf("expected ';color=red,green,blue', got %v", result)
@@ -297,6 +335,7 @@ func TestSerializeStyled_MatrixArrayNoExplode(t *testing.T) {
 }
 
 func TestSerializeStyled_MatrixArrayExplode(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("color", []string{"red", "green", "blue"}, "path", "array", "", "matrix", true)
 	if result != ";color=red;color=green;color=blue" {
 		t.Errorf("expected ';color=red;color=green;color=blue', got %v", result)
@@ -304,6 +343,7 @@ func TestSerializeStyled_MatrixArrayExplode(t *testing.T) {
 }
 
 func TestSerializeStyled_MatrixNil(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("id", nil, "path", "string", "", "matrix", false)
 	if result != "" {
 		t.Errorf("expected empty string for nil matrix path, got %v", result)
@@ -313,6 +353,7 @@ func TestSerializeStyled_MatrixNil(t *testing.T) {
 // ── SerializeStyled: label ──
 
 func TestSerializeStyled_LabelScalar(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("id", "5", "path", "string", "", "label", false)
 	if result != ".5" {
 		t.Errorf("expected '.5', got %v", result)
@@ -320,6 +361,7 @@ func TestSerializeStyled_LabelScalar(t *testing.T) {
 }
 
 func TestSerializeStyled_LabelArrayNoExplode(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("color", []string{"red", "green"}, "path", "array", "", "label", false)
 	if result != ".red,green" {
 		t.Errorf("expected '.red,green', got %v", result)
@@ -327,6 +369,7 @@ func TestSerializeStyled_LabelArrayNoExplode(t *testing.T) {
 }
 
 func TestSerializeStyled_LabelArrayExplode(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("color", []string{"red", "green"}, "path", "array", "", "label", true)
 	if result != ".red.green" {
 		t.Errorf("expected '.red.green', got %v", result)
@@ -334,6 +377,7 @@ func TestSerializeStyled_LabelArrayExplode(t *testing.T) {
 }
 
 func TestSerializeStyled_LabelNil(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("color", nil, "path", "string", "", "label", true)
 	if result != "" {
 		t.Errorf("expected empty string for nil label value, got %v", result)
@@ -343,6 +387,7 @@ func TestSerializeStyled_LabelNil(t *testing.T) {
 // ── SerializeStyled: simple ──
 
 func TestSerializeStyled_SimpleScalar(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("id", "5", "path", "string", "", "simple", false)
 	if result != "5" {
 		t.Errorf("expected '5', got %v", result)
@@ -350,6 +395,7 @@ func TestSerializeStyled_SimpleScalar(t *testing.T) {
 }
 
 func TestSerializeStyled_SimpleArray(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("color", []string{"red", "green"}, "path", "array", "", "simple", false)
 	if result != "red,green" {
 		t.Errorf("expected 'red,green', got %v", result)
@@ -357,6 +403,7 @@ func TestSerializeStyled_SimpleArray(t *testing.T) {
 }
 
 func TestSerializeStyled_SimpleNil(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("id", nil, "path", "string", "", "simple", false)
 	if result != "" {
 		t.Errorf("expected empty string for nil simple path, got %v", result)
@@ -364,6 +411,7 @@ func TestSerializeStyled_SimpleNil(t *testing.T) {
 }
 
 func TestSerializeStyled_SimpleScalarPathEncodesValue(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("id", "hello world", "path", "string", "", "simple", false)
 	if result != "hello%20world" {
 		t.Errorf("expected 'hello%%20world' (URL-encoded for path), got %v", result)
@@ -373,6 +421,7 @@ func TestSerializeStyled_SimpleScalarPathEncodesValue(t *testing.T) {
 // ── SerializeStyled: form ──
 
 func TestSerializeStyled_FormScalar(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("color", "blue", "query", "string", "", "form", true)
 	if result != "blue" {
 		t.Errorf("expected 'blue', got %v", result)
@@ -380,6 +429,7 @@ func TestSerializeStyled_FormScalar(t *testing.T) {
 }
 
 func TestSerializeStyled_FormArrayExplode(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("color", []string{"red", "green"}, "query", "array", "", "form", true)
 	items, ok := result.([]string)
 	if !ok {
@@ -391,6 +441,7 @@ func TestSerializeStyled_FormArrayExplode(t *testing.T) {
 }
 
 func TestSerializeStyled_FormArrayNoExplode(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("color", []string{"red", "green"}, "query", "array", "", "form", false)
 	if result != "red,green" {
 		t.Errorf("expected 'red,green', got %v", result)
@@ -398,6 +449,7 @@ func TestSerializeStyled_FormArrayNoExplode(t *testing.T) {
 }
 
 func TestSerializeStyled_FormScalarExplodeTrueReturnsString(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("color", "blue", "query", "string", "", "form", true)
 	str, ok := result.(string)
 	if !ok {
@@ -409,6 +461,7 @@ func TestSerializeStyled_FormScalarExplodeTrueReturnsString(t *testing.T) {
 }
 
 func TestSerializeStyled_FormSingleElementArrayExplodeTrueReturnsList(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("color", []string{"blue"}, "query", "array", "", "form", true)
 	items, ok := result.([]string)
 	if !ok {
@@ -420,6 +473,7 @@ func TestSerializeStyled_FormSingleElementArrayExplodeTrueReturnsList(t *testing
 }
 
 func TestSerializeStyled_FormNilQuery(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("color", nil, "query", "string", "", "form", true)
 	if result != nil {
 		t.Errorf("expected nil for nil form query, got %v", result)
@@ -429,6 +483,7 @@ func TestSerializeStyled_FormNilQuery(t *testing.T) {
 // ── SerializeStyled: spaceDelimited ──
 
 func TestSerializeStyled_SpaceDelimitedArray(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("color", []string{"red", "green", "blue"}, "query", "array", "", "spaceDelimited", false)
 	if result != "red green blue" {
 		t.Errorf("expected 'red green blue', got %v", result)
@@ -436,6 +491,7 @@ func TestSerializeStyled_SpaceDelimitedArray(t *testing.T) {
 }
 
 func TestSerializeStyled_SpaceDelimitedScalar(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("color", "red", "query", "string", "", "spaceDelimited", false)
 	if result != "red" {
 		t.Errorf("expected 'red', got %v", result)
@@ -445,6 +501,7 @@ func TestSerializeStyled_SpaceDelimitedScalar(t *testing.T) {
 // ── SerializeStyled: pipeDelimited ──
 
 func TestSerializeStyled_PipeDelimitedArray(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("color", []string{"red", "green", "blue"}, "query", "array", "", "pipeDelimited", false)
 	if result != "red|green|blue" {
 		t.Errorf("expected 'red|green|blue', got %v", result)
@@ -452,6 +509,7 @@ func TestSerializeStyled_PipeDelimitedArray(t *testing.T) {
 }
 
 func TestSerializeStyled_PipeDelimitedScalar(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("color", "red", "query", "string", "", "pipeDelimited", false)
 	if result != "red" {
 		t.Errorf("expected 'red', got %v", result)
@@ -461,6 +519,7 @@ func TestSerializeStyled_PipeDelimitedScalar(t *testing.T) {
 // ── SerializeDeepObject ──
 
 func TestSerializeDeepObject(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeDeepObject("filter", map[string]interface{}{
 		"status": "active",
 		"type":   "dog",
@@ -475,6 +534,7 @@ func TestSerializeDeepObject(t *testing.T) {
 }
 
 func TestSerializeDeepObject_Nil(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeDeepObject("filter", nil)
 	if len(result) != 0 {
 		t.Errorf("expected empty map for nil, got %v", result)
@@ -484,6 +544,7 @@ func TestSerializeDeepObject_Nil(t *testing.T) {
 // ── SerializeStyled: fallback to SerializeValue for unknown style ──
 
 func TestSerializeStyled_UnknownStyleFallback(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("id", "5", "query", "string", "", "unknownStyle", false)
 	if result != "5" {
 		t.Errorf("expected '5' (fallback to SerializeValue), got %v", result)
@@ -493,6 +554,7 @@ func TestSerializeStyled_UnknownStyleFallback(t *testing.T) {
 // ── SerializeStyled: empty style delegates to SerializeValue ──
 
 func TestSerializeStyled_EmptyStyle(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("id", "5", "query", "string", "", "", false)
 	if result != "5" {
 		t.Errorf("expected '5', got %v", result)
@@ -504,6 +566,7 @@ func TestSerializeStyled_EmptyStyle(t *testing.T) {
 // Every SDK must produce identical encoded strings for these inputs.
 
 func TestPathEncodingParity_AsciiSafePassThrough(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue("abc123", "path", "string", "")
 	if result != "abc123" {
 		t.Errorf("expected 'abc123', got %v", result)
@@ -511,6 +574,7 @@ func TestPathEncodingParity_AsciiSafePassThrough(t *testing.T) {
 }
 
 func TestPathEncodingParity_SpaceEncoded(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue("a b", "path", "string", "")
 	if result != "a%20b" {
 		t.Errorf("expected 'a%%20b', got %v", result)
@@ -518,6 +582,7 @@ func TestPathEncodingParity_SpaceEncoded(t *testing.T) {
 }
 
 func TestPathEncodingParity_SlashEncoded(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue("a/b", "path", "string", "")
 	if result != "a%2Fb" {
 		t.Errorf("expected 'a%%2Fb', got %v", result)
@@ -525,6 +590,7 @@ func TestPathEncodingParity_SlashEncoded(t *testing.T) {
 }
 
 func TestPathEncodingParity_QuestionMarkEncoded(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue("a?b", "path", "string", "")
 	if result != "a%3Fb" {
 		t.Errorf("expected 'a%%3Fb', got %v", result)
@@ -532,6 +598,7 @@ func TestPathEncodingParity_QuestionMarkEncoded(t *testing.T) {
 }
 
 func TestPathEncodingParity_HashEncoded(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue("a#b", "path", "string", "")
 	if result != "a%23b" {
 		t.Errorf("expected 'a%%23b', got %v", result)
@@ -539,6 +606,7 @@ func TestPathEncodingParity_HashEncoded(t *testing.T) {
 }
 
 func TestPathEncodingParity_CommaPreserved(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue("a,b", "path", "string", "")
 	if result != "a,b" {
 		t.Errorf("expected 'a,b', got %v", result)
@@ -546,6 +614,7 @@ func TestPathEncodingParity_CommaPreserved(t *testing.T) {
 }
 
 func TestPathEncodingParity_ColonPreserved(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue("a:b", "path", "string", "")
 	if result != "a:b" {
 		t.Errorf("expected 'a:b', got %v", result)
@@ -553,6 +622,7 @@ func TestPathEncodingParity_ColonPreserved(t *testing.T) {
 }
 
 func TestPathEncodingParity_PlusPreserved(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue("a+b", "path", "string", "")
 	if result != "a+b" {
 		t.Errorf("expected 'a+b', got %v", result)
@@ -560,6 +630,7 @@ func TestPathEncodingParity_PlusPreserved(t *testing.T) {
 }
 
 func TestPathEncodingParity_UnicodeEncoded(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue("日本", "path", "string", "")
 	if result != "%E6%97%A5%E6%9C%AC" {
 		t.Errorf("expected '%%E6%%97%%A5%%E6%%9C%%AC', got %v", result)
@@ -567,6 +638,7 @@ func TestPathEncodingParity_UnicodeEncoded(t *testing.T) {
 }
 
 func TestPathEncodingParity_EmptyStringPreserved(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue("", "path", "string", "")
 	if result != "" {
 		t.Errorf("expected empty string, got %v", result)
@@ -574,6 +646,7 @@ func TestPathEncodingParity_EmptyStringPreserved(t *testing.T) {
 }
 
 func TestPathEncodingParity_NullReturnsEmpty(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeValue(nil, "path", "string", "")
 	if result != "" {
 		t.Errorf("expected empty string for nil path value, got %v", result)
@@ -581,6 +654,7 @@ func TestPathEncodingParity_NullReturnsEmpty(t *testing.T) {
 }
 
 func TestPathEncodingParity_SimpleStyleEncodesValue(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("color", "a b", "path", "string", "", "simple", false)
 	if result != "a%20b" {
 		t.Errorf("expected 'a%%20b', got %v", result)
@@ -588,6 +662,7 @@ func TestPathEncodingParity_SimpleStyleEncodesValue(t *testing.T) {
 }
 
 func TestPathEncodingParity_SimpleStyleArrayEncodesEachItem(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("color", []string{"a b", "c?d"}, "path", "array", "", "simple", false)
 	if result != "a%20b,c%3Fd" {
 		t.Errorf("expected 'a%%20b,c%%3Fd', got %v", result)
@@ -598,6 +673,7 @@ func TestPathEncodingParity_SimpleStyleArrayEncodesEachItem(t *testing.T) {
 // percent-encoded BEFORE being joined with the structural separator.
 // Otherwise '/', '?', '#', space leak into the URL.
 func Test_path_array_item_with_reserved_char_is_percent_encoded(t *testing.T) {
+	t.Parallel()
 	items := []string{"a/b", "c"}
 
 	if got := petstore.SerializeStyled("name", items, "path", "array", "", "simple", false); got != "a%2Fb,c" {
@@ -612,6 +688,7 @@ func Test_path_array_item_with_reserved_char_is_percent_encoded(t *testing.T) {
 }
 
 func TestPathEncodingParity_MatrixStyleEncodesValue(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("color", "a b", "path", "string", "", "matrix", false)
 	if result != ";color=a%20b" {
 		t.Errorf("expected ';color=a%%20b', got %v", result)
@@ -619,6 +696,7 @@ func TestPathEncodingParity_MatrixStyleEncodesValue(t *testing.T) {
 }
 
 func TestPathEncodingParity_LabelStyleEncodesValue(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("color", "a b", "path", "string", "", "label", false)
 	if result != ".a%20b" {
 		t.Errorf("expected '.a%%20b', got %v", result)
@@ -626,6 +704,7 @@ func TestPathEncodingParity_LabelStyleEncodesValue(t *testing.T) {
 }
 
 func TestPathEncodingParity_QueryLocationNotPathEncoded(t *testing.T) {
+	t.Parallel()
 	result := petstore.SerializeStyled("color", "a b", "query", "string", "", "form", false)
 	if result != "a b" {
 		t.Errorf("expected 'a b' (not path-encoded), got %v", result)
@@ -633,6 +712,7 @@ func TestPathEncodingParity_QueryLocationNotPathEncoded(t *testing.T) {
 }
 
 func TestEmptyStringPathParamPanics(t *testing.T) {
+	t.Parallel()
 	// Gap W — empty-string path values silently produce malformed
 	// URLs like `/pet//details`; reject at serialization time so
 	// callers see the real error rather than a downstream 404.
@@ -653,6 +733,7 @@ func TestEmptyStringPathParamPanics(t *testing.T) {
 // Ruby/Elixir) with native LocalDate types.
 
 func TestFormatDatePathParam_TimeReturnsDateOnly(t *testing.T) {
+	t.Parallel()
 	when := time.Date(2024, time.January, 15, 14, 30, 45, 0, time.UTC)
 	if got := petstore.StringifyDate(when); got != "2024-01-15" {
 		t.Errorf("expected '2024-01-15', got %q", got)
@@ -660,6 +741,7 @@ func TestFormatDatePathParam_TimeReturnsDateOnly(t *testing.T) {
 }
 
 func TestFormatDatePathParam_StringPassesThrough(t *testing.T) {
+	t.Parallel()
 	if got := petstore.StringifyDate("2024-01-15"); got != "2024-01-15" {
 		t.Errorf("expected '2024-01-15', got %q", got)
 	}

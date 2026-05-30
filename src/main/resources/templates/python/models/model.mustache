@@ -235,6 +235,7 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
 from __future__ import annotations
 
 import re  # noqa: F401
+import warnings  # noqa: F401
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator  # noqa: F401
 from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
 from typing_extensions import Self  # noqa: F401
@@ -380,6 +381,19 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
             raise ValueError(r"must validate the regular expression {{{pattern}}}")
         return value
     {{/pattern}}
+    {{#deprecated}}
+
+    @field_validator('{{{name}}}')
+    def {{{name}}}_warn_deprecated(cls, value: Any) -> Any:
+        """Emits a DeprecationWarning when the deprecated field `{{{name}}}` is set."""
+        if value is not None:
+            warnings.warn(
+                "field '{{{name}}}' on {{classname}} is deprecated",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        return value
+    {{/deprecated}}
 {{/vars}}
 
     # Pydantic default mode (lenient) is kept here. strict=True was tried

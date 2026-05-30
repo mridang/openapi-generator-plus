@@ -6,428 +6,398 @@ namespace PetstoreClient\Test;
 
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\TransportOptions;
-use PHPUnit\Framework\TestCase;
 
-class DefaultApiClientTest extends TestCase
-{
-    // -- TLS verification disabled --
+// -- TLS verification disabled --
 
-    public function testMakesHttpsRequestWithVerifySslFalse(): void
-    {
-        $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
+test('makes https request with verify ssl false', function (): void {
+    $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
 
-        $transport = TransportOptions::builder()
-            ->verifySsl(false)
-            ->build();
+    $transport = TransportOptions::builder()
+        ->verifySsl(false)
+        ->build();
 
-        $client = new DefaultApiClient($transport);
-        $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
 
-        $this->assertSame(200, $response->statusCode);
-        /** @var array<string, mixed> $json */
-        $json = json_decode($response->body, true);
-        $this->assertSame('GET', $json['method']);
+    expect($response->statusCode)->toBe(200);
+    /** @var array<string, mixed> $json */
+    $json = json_decode($response->body, true);
+    expect($json['method'])->toBe('GET');
+});
+
+// -- Custom CA bundle --
+
+test('makes https request with custom ca cert', function (): void {
+    $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
+    $caCertPath = getenv('CA_CERT_PATH') ?: null;
+
+    $transport = TransportOptions::builder()
+        ->verifySsl(true)
+        ->caCertPath($caCertPath)
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    /** @var array<string, mixed> $json */
+    $json = json_decode($response->body, true);
+    expect($json['method'])->toBe('GET');
+});
+
+// -- HTTP proxy --
+
+test('makes http request through proxy', function (): void {
+    $chasmUrl = getenv('CHASM_INTERNAL_HTTP_URL') ?: '';
+    $proxyUrl = getenv('PROXY_URL') ?: null;
+
+    $transport = TransportOptions::builder()
+        ->proxy($proxyUrl)
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    /** @var array<string, mixed> $json */
+    $json = json_decode($response->body, true);
+    expect($json['method'])->toBe('GET');
+});
+
+// Gap AK: userinfo embedded in the proxy URL must be base64-encoded
+// and surfaced as Proxy-Authorization so the proxy can authenticate
+// the tunnel — otherwise the proxy 407s. Guzzle's `proxy` option
+// reads userinfo natively from the URL; we assert TransportOptions
+// preserves the userinfo end-to-end.
+test('proxy with credentials injects basic authorization', function (): void {
+    $transport = TransportOptions::builder()
+        ->proxy('http://alice:s3cret@127.0.0.1:3128')
+        ->build();
+
+    $proxyUrl = (string) $transport->proxy;
+    $parts = parse_url($proxyUrl);
+    expect($parts)->toBeArray();
+    $user = (string) ($parts['user'] ?? '');
+    $pass = (string) ($parts['pass'] ?? '');
+    expect($user)->toBe('alice');
+    expect($pass)->toBe('s3cret');
+    $expected = 'Basic ' . base64_encode(urldecode($user) . ':' . urldecode($pass));
+    expect($expected)->toBe('Basic YWxpY2U6czNjcmV0');
+});
+
+// -- HTTP proxy with TLS --
+
+test('makes https request through proxy with verify ssl false', function (): void {
+    $chasmUrl = getenv('CHASM_INTERNAL_HTTPS_URL') ?: '';
+    $proxyUrl = getenv('PROXY_URL') ?: null;
+
+    $transport = TransportOptions::builder()
+        ->proxy($proxyUrl)
+        ->verifySsl(false)
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    /** @var array<string, mixed> $json */
+    $json = json_decode($response->body, true);
+    expect($json['method'])->toBe('GET');
+});
+
+// -- Request timeout --
+
+test('times out on slow endpoint', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+
+    $transport = TransportOptions::builder()
+        ->timeout(1)
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+
+    expect(fn () => $client->sendRequest('GET', $chasmUrl . '/test/slow', [], null))
+        ->toThrow(\Exception::class);
+});
+
+// -- User-Agent header --
+
+test('injects custom user agent header', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+
+    $transport = TransportOptions::builder()
+        ->userAgent('MyApp/1.0')
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    /** @var array<string, mixed> $json */
+    $json = json_decode($response->body, true);
+    expect($json['headers']['user-agent'])->toBe('MyApp/1.0');
+});
+
+// -- X-Request-ID injection --
+
+test('integration injects request id header', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+
+    $transport = TransportOptions::builder()
+        ->injectRequestId(true)
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    /** @var array<string, mixed> $json */
+    $json = json_decode($response->body, true);
+    expect($json['headers'])->toHaveKey('x-request-id');
+    expect($json['headers']['x-request-id'])->toBeString();
+    expect($json['headers']['x-request-id'])->toMatch('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/');
+});
+
+test('integration generates unique request ids', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+
+    $transport = TransportOptions::builder()
+        ->injectRequestId(true)
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+
+    $response1 = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+    /** @var array<string, mixed> $json1 */
+    $json1 = json_decode($response1->body, true);
+    $requestId1 = $json1['headers']['x-request-id'];
+
+    $response2 = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+    /** @var array<string, mixed> $json2 */
+    $json2 = json_decode($response2->body, true);
+    $requestId2 = $json2['headers']['x-request-id'];
+
+    expect($requestId2)->not->toBe($requestId1);
+});
+
+// -- Default headers --
+
+test('integration includes transport default headers', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+
+    $transport = TransportOptions::builder()
+        ->defaultHeader('X-Custom', 'custom-value')
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    /** @var array<string, mixed> $json */
+    $json = json_decode($response->body, true);
+    expect($json['headers']['x-custom'])->toBe('custom-value');
+});
+
+test('caller headers override transport defaults', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+
+    $transport = TransportOptions::builder()
+        ->defaultHeader('Accept', 'text/plain')
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest(
+        'GET',
+        $chasmUrl . '/test/echo',
+        ['Accept' => 'application/json'],
+        null
+    );
+
+    expect($response->statusCode)->toBe(200);
+    /** @var array<string, mixed> $json */
+    $json = json_decode($response->body, true);
+    expect($json['headers']['accept'])->toBe('application/json');
+});
+
+// -- Redirect handling --
+
+test('follows redirects when enabled', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+
+    $transport = TransportOptions::builder()
+        ->followRedirects(true)
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/redirect/302', [], null);
+
+    expect($response->statusCode)->toBe(200);
+});
+
+test('returns redirect when disabled', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+
+    $transport = TransportOptions::builder()
+        ->followRedirects(false)
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/redirect/302', [], null);
+
+    expect($response->statusCode)->toBe(302);
+});
+
+test('redirect 303 switches to get and drops body', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+
+    $transport = TransportOptions::builder()
+        ->followRedirects(true)
+        ->maxRedirects(5)
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest(
+        'POST',
+        $chasmUrl . '/test/redirect/303',
+        ['Content-Type' => 'application/json'],
+        'hello-body'
+    );
+
+    expect($response->statusCode)->toBe(200);
+    /** @var array<string, mixed> $json */
+    $json = json_decode($response->body, true);
+    expect($json['method'])->toBe('GET');
+    expect($json['body'])->toBe('');
+});
+
+/**
+ * T-new-3: multipart bodies must be replayed across 307 redirects per
+ * RFC 7231 §6.4.7 / RFC 7538. Symfony HttpClient strips the body when
+ * following a 307 redirect, so this regression is not exercisable here
+ * without a manual multipart byte-serializer in the redirect loop
+ * (see the Rust SDK for the canonical implementation). Tracked as a
+ * follow-up to T-new-3.
+ */
+test('multipart body replayed on 307 redirect', function (): void {
+    /* Skipped: Symfony HttpClient strips body on 307; multipart replay
+     * requires a manual byte-serializer like Rust impl - tracked as
+     * follow-up to T-new-3 (see AGENT.md "307/308 multipart body
+     * replay"). */
+    test()->markTestSkipped(
+        'Symfony HttpClient strips body on 307; multipart replay requires '
+        . 'manual byte-serializer like Rust impl - tracked as follow-up '
+        . 'to T-new-3'
+    );
+});
+
+// -- Max redirects --
+
+test('respects max redirects limit', function (): void {
+    $transport = TransportOptions::builder()
+        ->followRedirects(true)
+        ->maxRedirects(5)
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    expect($client)->toBeInstanceOf(DefaultApiClient::class);
+    expect($transport->maxRedirects)->toBe(5);
+});
+
+// -- Multipart body --
+
+test('sends multipart form data', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+
+    $client = new DefaultApiClient();
+    $formData = ['description' => 'A test file', 'file' => 'file content'];
+    $response = $client->sendRequest('POST', $chasmUrl . '/test/echo', [], $formData);
+
+    expect($response)->toBeInstanceOf(\PetstoreClient\ApiResponse::class);
+});
+
+/**
+ * W-new-2: multipart field-name validation must run on every branch (not
+ * just binary). Confirm that even for a plain String value, a CR/LF in
+ * the field name is rejected, preventing Content-Disposition smuggling.
+ */
+test('multipart field name with crlf rejected on string value', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+
+    $client = new DefaultApiClient();
+    $badFields = ["name\r\nInjected: yes" => 'string-value'];
+
+    expect(fn () => $client->sendRequest('POST', $chasmUrl . '/test/echo', [], $badFields))
+        ->toThrow(\Exception::class);
+});
+
+// -- HTTP compression --
+
+test('decompresses gzip response', function (): void {
+    $client = new DefaultApiClient();
+    $response = $client->sendRequest(
+        'GET',
+        'https://jsonplaceholder.typicode.com/posts/1',
+        ['Accept-Encoding' => 'gzip'],
+        null
+    );
+
+    expect($response->statusCode)->toBe(200);
+    expect($response->body)->toContain('userId');
+});
+
+test('decompresses brotli response', function (): void {
+    if (!function_exists('brotli_uncompress')) {
+        test()->markTestSkipped('ext-brotli not available');
     }
 
-    // -- Custom CA bundle --
+    $client = new DefaultApiClient();
+    $response = $client->sendRequest(
+        'GET',
+        'https://jsonplaceholder.typicode.com/posts/1',
+        ['Accept-Encoding' => 'br'],
+        null
+    );
 
-    public function testMakesHttpsRequestWithCustomCaCert(): void
-    {
-        $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
-        $caCertPath = getenv('CA_CERT_PATH') ?: null;
+    expect($response->statusCode)->toBe(200);
+    expect($response->body)->toContain('userId');
+});
 
-        $transport = TransportOptions::builder()
-            ->verifySsl(true)
-            ->caCertPath($caCertPath)
-            ->build();
-
-        $client = new DefaultApiClient($transport);
-        $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
-
-        $this->assertSame(200, $response->statusCode);
-        /** @var array<string, mixed> $json */
-        $json = json_decode($response->body, true);
-        $this->assertSame('GET', $json['method']);
+test('decompresses zstd response', function (): void {
+    if (!function_exists('zstd_uncompress')) {
+        test()->markTestSkipped('ext-zstd not available');
     }
 
-    // -- HTTP proxy --
-
-    public function testMakesHttpRequestThroughProxy(): void
-    {
-        $chasmUrl = getenv('CHASM_INTERNAL_HTTP_URL') ?: '';
-        $proxyUrl = getenv('PROXY_URL') ?: null;
-
-        $transport = TransportOptions::builder()
-            ->proxy($proxyUrl)
-            ->build();
-
-        $client = new DefaultApiClient($transport);
-        $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
-
-        $this->assertSame(200, $response->statusCode);
-        /** @var array<string, mixed> $json */
-        $json = json_decode($response->body, true);
-        $this->assertSame('GET', $json['method']);
-    }
-
-    // Gap AK: userinfo embedded in the proxy URL must be base64-encoded
-    // and surfaced as Proxy-Authorization so the proxy can authenticate
-    // the tunnel — otherwise the proxy 407s. Guzzle's `proxy` option
-    // reads userinfo natively from the URL; we assert TransportOptions
-    // preserves the userinfo end-to-end.
-    public function testProxyWithCredentialsInjectsBasicAuthorization(): void
-    {
-        $transport = TransportOptions::builder()
-            ->proxy('http://alice:s3cret@127.0.0.1:3128')
-            ->build();
-
-        $proxyUrl = (string) $transport->proxy;
-        $parts = parse_url($proxyUrl);
-        $this->assertIsArray($parts);
-        $user = (string) ($parts['user'] ?? '');
-        $pass = (string) ($parts['pass'] ?? '');
-        $this->assertSame('alice', $user);
-        $this->assertSame('s3cret', $pass);
-        $expected = 'Basic ' . base64_encode(urldecode($user) . ':' . urldecode($pass));
-        $this->assertSame('Basic YWxpY2U6czNjcmV0', $expected);
-    }
-
-    // -- HTTP proxy with TLS --
-
-    public function testMakesHttpsRequestThroughProxyWithVerifySslFalse(): void
-    {
-        $chasmUrl = getenv('CHASM_INTERNAL_HTTPS_URL') ?: '';
-        $proxyUrl = getenv('PROXY_URL') ?: null;
-
-        $transport = TransportOptions::builder()
-            ->proxy($proxyUrl)
-            ->verifySsl(false)
-            ->build();
-
-        $client = new DefaultApiClient($transport);
-        $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
-
-        $this->assertSame(200, $response->statusCode);
-        /** @var array<string, mixed> $json */
-        $json = json_decode($response->body, true);
-        $this->assertSame('GET', $json['method']);
-    }
-
-    // -- Request timeout --
-
-    public function testTimesOutOnSlowEndpoint(): void
-    {
-        $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
-
-        $transport = TransportOptions::builder()
-            ->timeout(1)
-            ->build();
-
-        $client = new DefaultApiClient($transport);
-
-        $this->expectException(\Exception::class);
-        $client->sendRequest('GET', $chasmUrl . '/test/slow', [], null);
-    }
-
-    // -- User-Agent header --
-
-    public function testInjectsCustomUserAgentHeader(): void
-    {
-        $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
-
-        $transport = TransportOptions::builder()
-            ->userAgent('MyApp/1.0')
-            ->build();
-
-        $client = new DefaultApiClient($transport);
-        $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
-
-        $this->assertSame(200, $response->statusCode);
-        /** @var array<string, mixed> $json */
-        $json = json_decode($response->body, true);
-        $this->assertSame('MyApp/1.0', $json['headers']['user-agent']);
-    }
-
-    // -- X-Request-ID injection --
-
-    public function testInjectsRequestIdHeader(): void
-    {
-        $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
-
-        $transport = TransportOptions::builder()
-            ->injectRequestId(true)
-            ->build();
-
-        $client = new DefaultApiClient($transport);
-        $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
-
-        $this->assertSame(200, $response->statusCode);
-        /** @var array<string, mixed> $json */
-        $json = json_decode($response->body, true);
-        $this->assertArrayHasKey('x-request-id', $json['headers']);
-        $this->assertIsString($json['headers']['x-request-id']);
-        $this->assertMatchesRegularExpression(
-            '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/',
-            $json['headers']['x-request-id']
-        );
-    }
-
-    public function testGeneratesUniqueRequestIds(): void
-    {
-        $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
-
-        $transport = TransportOptions::builder()
-            ->injectRequestId(true)
-            ->build();
-
-        $client = new DefaultApiClient($transport);
-
-        $response1 = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
-        /** @var array<string, mixed> $json1 */
-        $json1 = json_decode($response1->body, true);
-        $requestId1 = $json1['headers']['x-request-id'];
-
-        $response2 = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
-        /** @var array<string, mixed> $json2 */
-        $json2 = json_decode($response2->body, true);
-        $requestId2 = $json2['headers']['x-request-id'];
-
-        $this->assertNotSame($requestId1, $requestId2);
-    }
-
-    // -- Default headers --
-
-    public function testIncludesTransportDefaultHeaders(): void
-    {
-        $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
-
-        $transport = TransportOptions::builder()
-            ->defaultHeader('X-Custom', 'custom-value')
-            ->build();
-
-        $client = new DefaultApiClient($transport);
-        $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
-
-        $this->assertSame(200, $response->statusCode);
-        /** @var array<string, mixed> $json */
-        $json = json_decode($response->body, true);
-        $this->assertSame('custom-value', $json['headers']['x-custom']);
-    }
-
-    public function testCallerHeadersOverrideTransportDefaults(): void
-    {
-        $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
-
-        $transport = TransportOptions::builder()
-            ->defaultHeader('Accept', 'text/plain')
-            ->build();
-
-        $client = new DefaultApiClient($transport);
-        $response = $client->sendRequest(
-            'GET',
-            $chasmUrl . '/test/echo',
-            ['Accept' => 'application/json'],
-            null
-        );
-
-        $this->assertSame(200, $response->statusCode);
-        /** @var array<string, mixed> $json */
-        $json = json_decode($response->body, true);
-        $this->assertSame('application/json', $json['headers']['accept']);
-    }
-
-    // -- Redirect handling --
-
-    public function testFollowsRedirectsWhenEnabled(): void
-    {
-        $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
-
-        $transport = TransportOptions::builder()
-            ->followRedirects(true)
-            ->build();
-
-        $client = new DefaultApiClient($transport);
-        $response = $client->sendRequest('GET', $chasmUrl . '/test/redirect/302', [], null);
-
-        $this->assertSame(200, $response->statusCode);
-    }
-
-    public function testReturnsRedirectWhenDisabled(): void
-    {
-        $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
-
-        $transport = TransportOptions::builder()
-            ->followRedirects(false)
-            ->build();
-
-        $client = new DefaultApiClient($transport);
-        $response = $client->sendRequest('GET', $chasmUrl . '/test/redirect/302', [], null);
-
-        $this->assertSame(302, $response->statusCode);
-    }
-
-    public function testRedirect303SwitchesToGetAndDropsBody(): void
-    {
-        $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
-
-        $transport = TransportOptions::builder()
-            ->followRedirects(true)
-            ->maxRedirects(5)
-            ->build();
-
-        $client = new DefaultApiClient($transport);
-        $response = $client->sendRequest(
-            'POST',
-            $chasmUrl . '/test/redirect/303',
-            ['Content-Type' => 'application/json'],
-            'hello-body'
-        );
-
-        $this->assertSame(200, $response->statusCode);
-        /** @var array<string, mixed> $json */
-        $json = json_decode($response->body, true);
-        $this->assertSame('GET', $json['method']);
-        $this->assertSame('', $json['body']);
-    }
-
-    /**
-     * T-new-3: multipart bodies must be replayed across 307 redirects per
-     * RFC 7231 §6.4.7 / RFC 7538. Symfony HttpClient strips the body when
-     * following a 307 redirect, so this regression is not exercisable here
-     * without a manual multipart byte-serializer in the redirect loop
-     * (see the Rust SDK for the canonical implementation). Tracked as a
-     * follow-up to T-new-3.
-     */
-    public function testMultipartBodyReplayedOn307Redirect(): void
-    {
-        /* Skipped: Symfony HttpClient strips body on 307; multipart replay
-         * requires a manual byte-serializer like Rust impl - tracked as
-         * follow-up to T-new-3 (see AGENT.md "307/308 multipart body
-         * replay"). Original assertion body removed to avoid PHPStan
-         * deadCode.unreachable; the test only marks itself skipped. */
-        $this->markTestSkipped(
-            'Symfony HttpClient strips body on 307; multipart replay requires '
-            . 'manual byte-serializer like Rust impl - tracked as follow-up '
-            . 'to T-new-3'
-        );
-    }
-
-    // -- Max redirects --
-
-    public function testRespectsMaxRedirectsLimit(): void
-    {
-        $transport = TransportOptions::builder()
-            ->followRedirects(true)
-            ->maxRedirects(5)
-            ->build();
-
-        $client = new DefaultApiClient($transport);
-        $this->assertInstanceOf(DefaultApiClient::class, $client);
-        $this->assertSame(5, $transport->maxRedirects);
-    }
-
-    // -- Multipart body --
-
-    public function testSendsMultipartFormData(): void
-    {
-        $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
-
-        $client = new DefaultApiClient();
-        $formData = ['description' => 'A test file', 'file' => 'file content'];
-        $response = $client->sendRequest('POST', $chasmUrl . '/test/echo', [], $formData);
-
-        $this->assertInstanceOf(\PetstoreClient\ApiResponse::class, $response);
-    }
-
-    /**
-     * W-new-2: multipart field-name validation must run on every branch (not
-     * just binary). Confirm that even for a plain String value, a CR/LF in
-     * the field name is rejected, preventing Content-Disposition smuggling.
-     */
-    public function testMultipartFieldNameWithCrlfRejectedOnStringValue(): void
-    {
-        $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
-
-        $client = new DefaultApiClient();
-        $badFields = ["name\r\nInjected: yes" => 'string-value'];
-
-        $this->expectException(\Exception::class);
-        $client->sendRequest('POST', $chasmUrl . '/test/echo', [], $badFields);
-    }
-
-    // -- HTTP compression --
-
-    public function testDecompressesGzipResponse(): void
-    {
-        $client = new DefaultApiClient();
-        $response = $client->sendRequest(
-            'GET',
-            'https://jsonplaceholder.typicode.com/posts/1',
-            ['Accept-Encoding' => 'gzip'],
-            null
-        );
-
-        $this->assertSame(200, $response->statusCode);
-        $this->assertStringContainsString('userId', $response->body);
-    }
-
-    public function testDecompressesBrotliResponse(): void
-    {
-        if (!function_exists('brotli_uncompress')) {
-            $this->markTestSkipped('ext-brotli not available');
-        }
-
-        $client = new DefaultApiClient();
-        $response = $client->sendRequest(
-            'GET',
-            'https://jsonplaceholder.typicode.com/posts/1',
-            ['Accept-Encoding' => 'br'],
-            null
-        );
-
-        $this->assertSame(200, $response->statusCode);
-        $this->assertStringContainsString('userId', $response->body);
-    }
-
-    public function testDecompressesZstdResponse(): void
-    {
-        if (!function_exists('zstd_uncompress')) {
-            $this->markTestSkipped('ext-zstd not available');
-        }
-
-        $client = new DefaultApiClient();
-        $response = $client->sendRequest(
-            'GET',
-            'https://jsonplaceholder.typicode.com/posts/1',
-            ['Accept-Encoding' => 'zstd'],
-            null
-        );
-
-        $this->assertSame(200, $response->statusCode);
-        $this->assertStringContainsString('userId', $response->body);
-    }
-
-    /*
-     * Regression: POST/PUT/PATCH with body == null must emit an
-     * explicit Content-Length: 0. Some servers / WAFs reject body-
-     * bearing verbs with no Content-Length (411 Length Required). The
-     * client sends an empty body and Content-Length: 0 explicitly on
-     * body-bearing verbs.
-     */
-    public function testPostWithNullBodySendsContentLengthZero(): void
-    {
-        $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
-        $client = new DefaultApiClient();
-        $response = $client->sendRequest(
-            'POST',
-            $chasmUrl . '/test/echo',
-            [],
-            null
-        );
-
-        $this->assertSame(200, $response->statusCode);
-        /** @var array<string, mixed> $payload */
-        $payload = (array) json_decode($response->body, true);
-        $this->assertSame(0, $payload['contentLength']);
-    }
-}
+    $client = new DefaultApiClient();
+    $response = $client->sendRequest(
+        'GET',
+        'https://jsonplaceholder.typicode.com/posts/1',
+        ['Accept-Encoding' => 'zstd'],
+        null
+    );
+
+    expect($response->statusCode)->toBe(200);
+    expect($response->body)->toContain('userId');
+});
+
+/*
+ * Regression: POST/PUT/PATCH with body == null must emit an
+ * explicit Content-Length: 0. Some servers / WAFs reject body-
+ * bearing verbs with no Content-Length (411 Length Required). The
+ * client sends an empty body and Content-Length: 0 explicitly on
+ * body-bearing verbs.
+ */
+test('post with null body sends content length zero', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+    $client = new DefaultApiClient();
+    $response = $client->sendRequest(
+        'POST',
+        $chasmUrl . '/test/echo',
+        [],
+        null
+    );
+
+    expect($response->statusCode)->toBe(200);
+    /** @var array<string, mixed> $payload */
+    $payload = (array) json_decode($response->body, true);
+    expect($payload['contentLength'])->toBe(0);
+});

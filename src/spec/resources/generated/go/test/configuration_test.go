@@ -14,6 +14,7 @@ import (
 )
 
 func TestConfiguration_DefaultValues(t *testing.T) {
+	t.Parallel()
 	config := petstore.DefaultConfiguration()
 
 	if config.BaseURL() != "/api/v3" {
@@ -25,6 +26,7 @@ func TestConfiguration_DefaultValues(t *testing.T) {
 }
 
 func TestConfiguration_BuilderReturnsBuilderInstance(t *testing.T) {
+	t.Parallel()
 	builder := petstore.NewConfigurationBuilder()
 	if builder == nil {
 		t.Fatal("expected non-nil builder")
@@ -32,6 +34,7 @@ func TestConfiguration_BuilderReturnsBuilderInstance(t *testing.T) {
 }
 
 func TestConfiguration_BuilderSetsBaseURL(t *testing.T) {
+	t.Parallel()
 	config := petstore.NewConfigurationBuilder().
 		BaseURL("https://custom.example.com").
 		Build()
@@ -42,6 +45,7 @@ func TestConfiguration_BuilderSetsBaseURL(t *testing.T) {
 }
 
 func TestConfiguration_BuilderSetsDefaultHeader(t *testing.T) {
+	t.Parallel()
 	config := petstore.NewConfigurationBuilder().
 		DefaultHeader("X-Custom", "value").
 		Build()
@@ -53,6 +57,7 @@ func TestConfiguration_BuilderSetsDefaultHeader(t *testing.T) {
 }
 
 func TestConfiguration_BuilderSetsMultipleDefaultHeaders(t *testing.T) {
+	t.Parallel()
 	config := petstore.NewConfigurationBuilder().
 		DefaultHeaders(map[string]string{
 			"X-First":  "one",
@@ -70,6 +75,7 @@ func TestConfiguration_BuilderSetsMultipleDefaultHeaders(t *testing.T) {
 }
 
 func TestConfiguration_BuilderAccumulatesMultipleHeaders(t *testing.T) {
+	t.Parallel()
 	config := petstore.NewConfigurationBuilder().
 		DefaultHeader("X-First", "one").
 		DefaultHeader("X-Second", "two").
@@ -88,6 +94,7 @@ func TestConfiguration_BuilderAccumulatesMultipleHeaders(t *testing.T) {
 }
 
 func TestConfiguration_BuilderMergesSingleAndBulkHeaders(t *testing.T) {
+	t.Parallel()
 	config := petstore.NewConfigurationBuilder().
 		DefaultHeader("X-First", "one").
 		DefaultHeaders(map[string]string{"X-Second": "two"}).
@@ -110,6 +117,7 @@ func TestConfiguration_BuilderMergesSingleAndBulkHeaders(t *testing.T) {
 }
 
 func TestConfiguration_BuilderChaining(t *testing.T) {
+	t.Parallel()
 	config := petstore.NewConfigurationBuilder().
 		BaseURL("https://api.example.com").
 		DefaultHeader("Authorization", "Bearer token").
@@ -124,6 +132,7 @@ func TestConfiguration_BuilderChaining(t *testing.T) {
 }
 
 func TestConfiguration_ServerURLResolution(t *testing.T) {
+	t.Parallel()
 	server := &petstore.ServerConfiguration{
 		URLTemplate: "https://{env}.example.com/api/{version}",
 		Description: "Test server",
@@ -153,6 +162,7 @@ func TestConfiguration_ServerURLResolution(t *testing.T) {
 }
 
 func TestConfiguration_ServerURLResolutionWithDefaults(t *testing.T) {
+	t.Parallel()
 	server := &petstore.ServerConfiguration{
 		URLTemplate: "https://{env}.example.com/api/{version}",
 		Description: "Test server",
@@ -182,6 +192,7 @@ func TestConfiguration_ServerURLResolutionWithDefaults(t *testing.T) {
 }
 
 func TestConfiguration_BaseURLOverride(t *testing.T) {
+	t.Parallel()
 	config := petstore.NewConfigurationBuilder().
 		BaseURL("https://original.example.com").
 		BaseURL("https://override.example.com").
@@ -193,6 +204,7 @@ func TestConfiguration_BaseURLOverride(t *testing.T) {
 }
 
 func TestConfiguration_DefaultHeadersCopyIsolation(t *testing.T) {
+	t.Parallel()
 	config := petstore.NewConfigurationBuilder().
 		DefaultHeader("X-Test", "value").
 		Build()
@@ -207,6 +219,7 @@ func TestConfiguration_DefaultHeadersCopyIsolation(t *testing.T) {
 }
 
 func TestConfiguration_InvalidServerVariableEnumValueReturnsError(t *testing.T) {
+	t.Parallel()
 	server := &petstore.ServerConfiguration{
 		URLTemplate: "https://{env}.example.com",
 		Variables: map[string]petstore.ServerVariable{
@@ -225,6 +238,7 @@ func TestConfiguration_InvalidServerVariableEnumValueReturnsError(t *testing.T) 
 }
 
 func TestConfiguration_BuilderProducesIndependentInstances(t *testing.T) {
+	t.Parallel()
 	builder := petstore.NewConfigurationBuilder().BaseURL("https://example.com")
 	first := builder.Build()
 	second := builder.Build()

@@ -31,6 +31,8 @@ class FakeAuthCodeClient
 end
 
 describe {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
+  parallelize_me!
+
   let(:auth) do
     {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
       'https://api.example.com',

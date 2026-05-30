@@ -6,6 +6,8 @@ require 'json'
 require 'test_helper'
 
 describe PetstoreClient::DefaultApiClient do
+  parallelize_me!
+
   describe 'TLS verification disabled' do
     it 'makes HTTPS request with verify_ssl=false' do
       chasm_url = ENV.fetch('CHASM_HTTPS_URL')

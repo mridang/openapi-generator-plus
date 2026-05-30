@@ -10,6 +10,64 @@ import '{{filename}}.dart';
 
 {{/hasDartImports}}
 {{#isEnum}}
+{{#isInteger}}
+/// {{classname}} is an enumeration of allowed integer values.
+enum {{classname}} {
+{{#allowableValues}}
+{{#enumVars}}
+  /// Represents the value {{{value}}}.
+  {{name}}({{{value}}}),
+{{/enumVars}}
+{{/allowableValues}}
+  ;
+
+  final int value;
+  const {{classname}}(this.value);
+
+  /// Returns the enum value matching the given [value], or throws.
+  static {{classname}} fromJson(int value) {
+    return {{classname}}.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () => throw ArgumentError('Unknown {{classname}} value: $value'),
+    );
+  }
+
+  int toJson() => value;
+
+  @override
+  String toString() => value.toString();
+}
+{{/isInteger}}
+{{^isInteger}}
+{{#isLong}}
+/// {{classname}} is an enumeration of allowed integer values.
+enum {{classname}} {
+{{#allowableValues}}
+{{#enumVars}}
+  /// Represents the value {{{value}}}.
+  {{name}}({{{value}}}),
+{{/enumVars}}
+{{/allowableValues}}
+  ;
+
+  final int value;
+  const {{classname}}(this.value);
+
+  /// Returns the enum value matching the given [value], or throws.
+  static {{classname}} fromJson(int value) {
+    return {{classname}}.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () => throw ArgumentError('Unknown {{classname}} value: $value'),
+    );
+  }
+
+  int toJson() => value;
+
+  @override
+  String toString() => value.toString();
+}
+{{/isLong}}
+{{^isLong}}
 /// {{classname}} is an enumeration of allowed values.
 enum {{classname}} {
 {{#allowableValues}}
@@ -36,6 +94,8 @@ enum {{classname}} {
   @override
   String toString() => value;
 }
+{{/isLong}}
+{{/isInteger}}
 {{/isEnum}}
 {{^isEnum}}
 {{^oneOf}}
@@ -51,6 +111,66 @@ enum {{classname}} {
 {{/isDeprecated}}
 {{#vars}}
 {{#isEnum}}
+{{#isInteger}}
+/// Typed integer enum for {{classname}}.{{name}}.
+enum {{classname}}{{enumName}} {
+{{#allowableValues}}
+{{#enumVars}}
+  /// Represents the value {{{value}}}.
+  {{nameLowercase}}({{{value}}}),
+{{/enumVars}}
+{{/allowableValues}}
+  ;
+
+  final int value;
+  const {{classname}}{{enumName}}(this.value);
+
+  /// Returns the enum value matching the given [value], or throws.
+  static {{classname}}{{enumName}} fromJson(int value) {
+    return {{classname}}{{enumName}}.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () => throw ArgumentError('Unknown {{classname}}{{enumName}} value: $value'),
+    );
+  }
+
+  int toJson() => value;
+
+  @override
+  String toString() => value.toString();
+}
+
+{{/isInteger}}
+{{^isInteger}}
+{{#isLong}}
+/// Typed integer enum for {{classname}}.{{name}}.
+enum {{classname}}{{enumName}} {
+{{#allowableValues}}
+{{#enumVars}}
+  /// Represents the value {{{value}}}.
+  {{nameLowercase}}({{{value}}}),
+{{/enumVars}}
+{{/allowableValues}}
+  ;
+
+  final int value;
+  const {{classname}}{{enumName}}(this.value);
+
+  /// Returns the enum value matching the given [value], or throws.
+  static {{classname}}{{enumName}} fromJson(int value) {
+    return {{classname}}{{enumName}}.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () => throw ArgumentError('Unknown {{classname}}{{enumName}} value: $value'),
+    );
+  }
+
+  int toJson() => value;
+
+  @override
+  String toString() => value.toString();
+}
+
+{{/isLong}}
+{{^isLong}}
 /// Typed enum for {{classname}}.{{name}}.
 enum {{classname}}{{enumName}} {
 {{#allowableValues}}
@@ -78,6 +198,8 @@ enum {{classname}}{{enumName}} {
   String toString() => value;
 }
 
+{{/isLong}}
+{{/isInteger}}
 {{/isEnum}}
 {{/vars}}
 class {{classname}} {
@@ -191,7 +313,17 @@ class {{classname}} {
 {{#vars}}
 {{#required}}
 {{#isEnum}}
+{{#isInteger}}
+      {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : throw ArgumentError('Missing required enum field {{baseName}}'),
+{{/isInteger}}
+{{^isInteger}}
+{{#isLong}}
+      {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : throw ArgumentError('Missing required enum field {{baseName}}'),
+{{/isLong}}
+{{^isLong}}
       {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as String) : throw ArgumentError('Missing required enum field {{baseName}}'),
+{{/isLong}}
+{{/isInteger}}
 {{/isEnum}}
 {{^isEnum}}
 {{#isArray}}
@@ -227,7 +359,17 @@ class {{classname}} {
 {{/required}}
 {{^required}}
 {{#isEnum}}
+{{#isInteger}}
+      {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : null,
+{{/isInteger}}
+{{^isInteger}}
+{{#isLong}}
+      {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : null,
+{{/isLong}}
+{{^isLong}}
       {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as String) : null,
+{{/isLong}}
+{{/isInteger}}
 {{/isEnum}}
 {{^isEnum}}
 {{#isArray}}

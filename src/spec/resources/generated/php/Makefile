@@ -6,7 +6,7 @@ install:
 build: install
 
 test: install
-	vendor/bin/phpunit --testdox
+	vendor/bin/pest --testdox
 
 lint: install
 	vendor/bin/phpcs
@@ -18,4 +18,4 @@ analyze: install
 	vendor/bin/phpstan analyse
 
 clean:
-	rm -rf vendor .phpunit.result.cache docs
+	rm -rf vendor .phpunit.result.cache .pest.cache docs

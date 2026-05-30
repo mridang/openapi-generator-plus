@@ -59,6 +59,7 @@ func createClientCredentialsAuthenticator() *oauth.OAuth2ClientCredentialsAuthen
 }
 
 func TestOAuth2ClientCredentials_SendsClientCredentialsGrantType(t *testing.T) {
+	t.Parallel()
 	client := &fakeClientCredsClient{
 		responses: []fakeClientCredsResponse{
 			{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
@@ -76,6 +77,7 @@ func TestOAuth2ClientCredentials_SendsClientCredentialsGrantType(t *testing.T) {
 }
 
 func TestOAuth2ClientCredentials_SendsClientIdAndSecret(t *testing.T) {
+	t.Parallel()
 	client := &fakeClientCredsClient{
 		responses: []fakeClientCredsResponse{
 			{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
@@ -96,6 +98,7 @@ func TestOAuth2ClientCredentials_SendsClientIdAndSecret(t *testing.T) {
 }
 
 func TestOAuth2ClientCredentials_SendsScopes(t *testing.T) {
+	t.Parallel()
 	client := &fakeClientCredsClient{
 		responses: []fakeClientCredsResponse{
 			{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
@@ -113,6 +116,7 @@ func TestOAuth2ClientCredentials_SendsScopes(t *testing.T) {
 }
 
 func TestOAuth2ClientCredentials_ReturnsAuthorizationBearerHeader(t *testing.T) {
+	t.Parallel()
 	client := &fakeClientCredsClient{
 		responses: []fakeClientCredsResponse{
 			{body: `{"access_token":"tok-abc","expires_in":3600}`, statusCode: 200},
@@ -130,6 +134,7 @@ func TestOAuth2ClientCredentials_ReturnsAuthorizationBearerHeader(t *testing.T) 
 }
 
 func TestOAuth2ClientCredentials_SendsRequestToTokenUrl(t *testing.T) {
+	t.Parallel()
 	client := &fakeClientCredsClient{
 		responses: []fakeClientCredsResponse{
 			{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
@@ -147,6 +152,7 @@ func TestOAuth2ClientCredentials_SendsRequestToTokenUrl(t *testing.T) {
 }
 
 func TestOAuth2ClientCredentials_GetHostReturnsConfiguredHost(t *testing.T) {
+	t.Parallel()
 	authObj := createClientCredentialsAuthenticator()
 
 	if authObj.Host() != "https://api.example.com" {
@@ -155,6 +161,7 @@ func TestOAuth2ClientCredentials_GetHostReturnsConfiguredHost(t *testing.T) {
 }
 
 func TestOAuth2ClientCredentials_BasicAuthUrlEncodesClientIdAndSecret(t *testing.T) {
+	t.Parallel()
 	// Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
 	// client_id and client_secret MUST be application/x-www-form-
 	// urlencoded BEFORE being joined with ':' and base64-encoded.

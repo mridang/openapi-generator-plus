@@ -18,6 +18,7 @@ import (
 // ── oneOf with discriminator: PetFood ──
 
 func TestPetFood_DeserializeDryFood(t *testing.T) {
+	t.Parallel()
 	jsonData := []byte(`{"foodType":"dry","weightKg":2.5}`)
 
 	var food models.PetFood
@@ -36,6 +37,7 @@ func TestPetFood_DeserializeDryFood(t *testing.T) {
 }
 
 func TestPetFood_DeserializeWetFood(t *testing.T) {
+	t.Parallel()
 	jsonData := []byte(`{"foodType":"wet","volumeMl":400}`)
 
 	var food models.PetFood
@@ -54,6 +56,7 @@ func TestPetFood_DeserializeWetFood(t *testing.T) {
 }
 
 func TestPetFood_DeserializeUnknownDiscriminator(t *testing.T) {
+	t.Parallel()
 	// Gap AU: SDK now throws on unknown discriminator values for parity
 	// with the other 11 SDKs. Previously this test asserted silent nil.
 	jsonData := []byte(`{"foodType":"raw","calories":300}`)
@@ -69,6 +72,7 @@ func TestPetFood_DeserializeUnknownDiscriminator(t *testing.T) {
 }
 
 func TestPetFood_SerializeDryFood(t *testing.T) {
+	t.Parallel()
 	food := models.PetFood{}
 	// Manually set via deserialization first
 	jsonData := []byte(`{"foodType":"dry","weightKg":2.5}`)
@@ -93,6 +97,7 @@ func TestPetFood_SerializeDryFood(t *testing.T) {
 // ── anyOf without discriminator: PetTreatment ──
 
 func TestPetTreatment_DeserializeMedication(t *testing.T) {
+	t.Parallel()
 	jsonData := []byte(`{"drugName":"Amoxicillin","dosage":"250mg"}`)
 
 	var treatment models.PetTreatment
@@ -108,6 +113,7 @@ func TestPetTreatment_DeserializeMedication(t *testing.T) {
 }
 
 func TestPetTreatment_DeserializeSurgery(t *testing.T) {
+	t.Parallel()
 	jsonData := []byte(`{"procedureName":"Spay","durationMinutes":45}`)
 
 	var treatment models.PetTreatment
@@ -123,6 +129,7 @@ func TestPetTreatment_DeserializeSurgery(t *testing.T) {
 }
 
 func TestPetTreatment_SerializeRoundTrip(t *testing.T) {
+	t.Parallel()
 	jsonData := []byte(`{"drugName":"Amoxicillin","dosage":"250mg"}`)
 
 	var treatment models.PetTreatment
@@ -142,6 +149,7 @@ func TestPetTreatment_SerializeRoundTrip(t *testing.T) {
 // ── allOf: PetWithOwner extends Pet fields ──
 
 func TestPetWithOwner_Deserialize(t *testing.T) {
+	t.Parallel()
 	jsonData := []byte(`{
 		"name": "Fido",
 		"photoUrls": ["http://example.com/fido.jpg"],
@@ -157,6 +165,7 @@ func TestPetWithOwner_Deserialize(t *testing.T) {
 }
 
 func TestPetWithOwner_Serialize(t *testing.T) {
+	t.Parallel()
 	pet := models.NewPetWithOwner("Fido", []string{"http://example.com/fido.jpg"}, "John Doe")
 
 	data, err := json.Marshal(pet)
@@ -180,6 +189,7 @@ func TestPetWithOwner_Serialize(t *testing.T) {
 }
 
 func TestPetWithOwner_RoundTrip(t *testing.T) {
+	t.Parallel()
 	jsonData := []byte(`{
 		"name": "Buddy",
 		"photoUrls": ["http://example.com/buddy.jpg"],

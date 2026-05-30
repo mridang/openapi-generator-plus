@@ -2,58 +2,47 @@
 
 declare(strict_types=1);
 
-namespace {{invokerPackage}}\Test;
-
-use PHPUnit\Framework\TestCase;
 use {{invokerPackage}}\ObjectSerializer;
 use {{modelPackage}}\Metadata;
 
-class MetadataTest extends TestCase
-{
-    public function testSerializesEmptyMetadata(): void
-    {
-        $metadata = new Metadata();
+test('serializes empty metadata', function (): void {
+    $metadata = new Metadata();
 
-        $json = ObjectSerializer::serialize($metadata);
+    $json = ObjectSerializer::serialize($metadata);
 
-        $this->assertNotEmpty($json);
-    }
+    expect($json)->not->toBeEmpty();
+});
 
-    public function testDeserializesEmptyObject(): void
-    {
-        /** @var Metadata $metadata */
-        $metadata = ObjectSerializer::deserialize('{}', Metadata::class);
+test('deserializes empty object', function (): void {
+    /** @var Metadata $metadata */
+    $metadata = ObjectSerializer::deserialize('{}', Metadata::class);
 
-        $this->assertInstanceOf(Metadata::class, $metadata);
-    }
+    expect($metadata)->toBeInstanceOf(Metadata::class);
+});
 
-    public function testDeserializesAdditionalStringProperties(): void
-    {
-        $json = '{"createdAt":"2024-01-01T00:00:00+00:00","customField":"hello"}';
-        /** @var Metadata $metadata */
-        $metadata = ObjectSerializer::deserialize($json, Metadata::class);
-        $this->assertInstanceOf(Metadata::class, $metadata);
-        $this->assertArrayHasKey('customField', $metadata->additionalProperties);
-        $this->assertSame('hello', $metadata->additionalProperties['customField']);
-    }
+test('deserializes additional string properties', function (): void {
+    $json = '{"createdAt":"2024-01-01T00:00:00+00:00","customField":"hello"}';
+    /** @var Metadata $metadata */
+    $metadata = ObjectSerializer::deserialize($json, Metadata::class);
+    expect($metadata)->toBeInstanceOf(Metadata::class);
+    expect($metadata->additionalProperties)->toHaveKey('customField');
+    expect($metadata->additionalProperties['customField'])->toBe('hello');
+});
 
-    public function testRoundTripPreservesAdditionalProperties(): void
-    {
-        $metadata = new Metadata();
-        $metadata->createdAt = new \DateTime('2024-01-01T00:00:00+00:00');
-        $metadata->additionalProperties = ['customField' => 'hello', 'anotherField' => 'world'];
+test('round trip preserves additional properties', function (): void {
+    $metadata = new Metadata();
+    $metadata->createdAt = new \DateTime('2024-01-01T00:00:00+00:00');
+    $metadata->additionalProperties = ['customField' => 'hello', 'anotherField' => 'world'];
 
-        $json = ObjectSerializer::serialize($metadata);
-        /** @var Metadata $deserialized */
-        $deserialized = ObjectSerializer::deserialize($json, Metadata::class);
-        $this->assertInstanceOf(Metadata::class, $deserialized);
-    }
+    $json = ObjectSerializer::serialize($metadata);
+    /** @var Metadata $deserialized */
+    $deserialized = ObjectSerializer::deserialize($json, Metadata::class);
+    expect($deserialized)->toBeInstanceOf(Metadata::class);
+});
 
-    public function testAdditionalPropertiesFieldIsStringTyped(): void
-    {
-        $metadata = new Metadata();
-        $metadata->additionalProperties = ['key' => 'value'];
-        $this->assertIsArray($metadata->additionalProperties);
-        $this->assertSame('value', $metadata->additionalProperties['key']);
-    }
-}
+test('additional properties field is string typed', function (): void {
+    $metadata = new Metadata();
+    $metadata->additionalProperties = ['key' => 'value'];
+    expect($metadata->additionalProperties)->toBeArray();
+    expect($metadata->additionalProperties['key'])->toBe('value');
+});

@@ -15,6 +15,7 @@ import (
 )
 
 func TestClient_ConstructWithAuthenticatorOnly(t *testing.T) {
+	t.Parallel()
 	authenticator := auth.NewBearerAuthenticator("/api/v3", "test-token")
 
 	client := petstore.NewClient(authenticator, nil)
@@ -25,6 +26,7 @@ func TestClient_ConstructWithAuthenticatorOnly(t *testing.T) {
 }
 
 func TestClient_ConstructWithAuthenticatorAndTransportOptions(t *testing.T) {
+	t.Parallel()
 	authenticator := auth.NewBearerAuthenticator("/api/v3", "test-token")
 	transport := petstore.NewTransportOptionsBuilder().Build()
 
@@ -36,6 +38,7 @@ func TestClient_ConstructWithAuthenticatorAndTransportOptions(t *testing.T) {
 }
 
 func TestClient_BearerRejectsCrlfAndNonAscii(t *testing.T) {
+	t.Parallel()
 	// RFC 7230 §3.2.6 — Bearer tokens commonly arrive with trailing
 	// newlines from .env / file reads; CRLF would inject the
 	// Authorization header. The check panics on invalid input.
@@ -52,6 +55,7 @@ func TestClient_BearerRejectsCrlfAndNonAscii(t *testing.T) {
 }
 
 func TestClient_ApiKeyHeaderRejectsCrlfAndNonAscii(t *testing.T) {
+	t.Parallel()
 	// RFC 7230 §3.2.6 — ApiKeyAuthenticator's Header location must
 	// reject anything outside printable ASCII + TAB to prevent header
 	// injection (\r\n) and silent UTF-8 mangling that varies per
@@ -77,6 +81,7 @@ func TestClient_ApiKeyHeaderRejectsCrlfAndNonAscii(t *testing.T) {
 }
 
 func TestClient_ApiGroupsAreAccessible(t *testing.T) {
+	t.Parallel()
 	authenticator := auth.NewBearerAuthenticator("/api/v3", "test-token")
 
 	client := petstore.NewClient(authenticator, nil)

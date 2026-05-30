@@ -18,6 +18,7 @@ import (
 )
 
 func TestSerialize_MapToJSON(t *testing.T) {
+	t.Parallel()
 	input := map[string]interface{}{
 		"name": "Fido",
 		"age":  3,
@@ -41,6 +42,7 @@ func TestSerialize_MapToJSON(t *testing.T) {
 }
 
 func TestDeserialize_JSONToMap(t *testing.T) {
+	t.Parallel()
 	input := []byte(`{"name":"Fido","age":3}`)
 
 	var result map[string]interface{}
@@ -54,6 +56,7 @@ func TestDeserialize_JSONToMap(t *testing.T) {
 }
 
 func TestDeserialize_EmptyData(t *testing.T) {
+	t.Parallel()
 	var result map[string]interface{}
 	err := petstore.Deserialize([]byte{}, &result)
 	if err != nil {
@@ -62,6 +65,7 @@ func TestDeserialize_EmptyData(t *testing.T) {
 }
 
 func TestDeserialize_InvalidJSON(t *testing.T) {
+	t.Parallel()
 	var result map[string]interface{}
 	err := petstore.Deserialize([]byte("not json"), &result)
 	if err == nil {
@@ -70,6 +74,7 @@ func TestDeserialize_InvalidJSON(t *testing.T) {
 }
 
 func TestSerialize_InvalidType(t *testing.T) {
+	t.Parallel()
 	// Channels cannot be serialized to JSON
 	ch := make(chan int)
 	_, err := petstore.Serialize(ch)
@@ -79,6 +84,7 @@ func TestSerialize_InvalidType(t *testing.T) {
 }
 
 func TestToPathValue_String(t *testing.T) {
+	t.Parallel()
 	result := petstore.ToPathValue("hello")
 	if result != "hello" {
 		t.Errorf("expected 'hello', got %q", result)
@@ -86,6 +92,7 @@ func TestToPathValue_String(t *testing.T) {
 }
 
 func TestToPathValue_Int(t *testing.T) {
+	t.Parallel()
 	result := petstore.ToPathValue(42)
 	if result != "42" {
 		t.Errorf("expected '42', got %q", result)
@@ -93,6 +100,7 @@ func TestToPathValue_Int(t *testing.T) {
 }
 
 func TestToPathValue_Bool(t *testing.T) {
+	t.Parallel()
 	result := petstore.ToPathValue(true)
 	if result != "true" {
 		t.Errorf("expected 'true', got %q", result)
@@ -105,6 +113,7 @@ func TestToPathValue_Bool(t *testing.T) {
 }
 
 func TestToPathValue_Nil(t *testing.T) {
+	t.Parallel()
 	result := petstore.ToPathValue(nil)
 	if result != "" {
 		t.Errorf("expected empty string for nil, got %q", result)
@@ -112,6 +121,7 @@ func TestToPathValue_Nil(t *testing.T) {
 }
 
 func TestToQueryValue_String(t *testing.T) {
+	t.Parallel()
 	result := petstore.ToQueryValue("hello", "")
 	if result != "hello" {
 		t.Errorf("expected 'hello', got %v", result)
@@ -119,6 +129,7 @@ func TestToQueryValue_String(t *testing.T) {
 }
 
 func TestToQueryValue_StringSliceCSV(t *testing.T) {
+	t.Parallel()
 	result := petstore.ToQueryValue([]string{"a", "b", "c"}, "csv")
 	if result != "a,b,c" {
 		t.Errorf("expected 'a,b,c', got %v", result)
@@ -126,6 +137,7 @@ func TestToQueryValue_StringSliceCSV(t *testing.T) {
 }
 
 func TestToQueryValue_StringSliceSSV(t *testing.T) {
+	t.Parallel()
 	result := petstore.ToQueryValue([]string{"a", "b", "c"}, "ssv")
 	if result != "a b c" {
 		t.Errorf("expected 'a b c', got %v", result)
@@ -133,6 +145,7 @@ func TestToQueryValue_StringSliceSSV(t *testing.T) {
 }
 
 func TestToQueryValue_StringSliceTSV(t *testing.T) {
+	t.Parallel()
 	result := petstore.ToQueryValue([]string{"a", "b", "c"}, "tsv")
 	str, ok := result.(string)
 	if !ok {
@@ -144,6 +157,7 @@ func TestToQueryValue_StringSliceTSV(t *testing.T) {
 }
 
 func TestToQueryValue_StringSlicePipes(t *testing.T) {
+	t.Parallel()
 	result := petstore.ToQueryValue([]string{"a", "b", "c"}, "pipes")
 	str, ok := result.(string)
 	if !ok {
@@ -155,6 +169,7 @@ func TestToQueryValue_StringSlicePipes(t *testing.T) {
 }
 
 func TestToQueryValue_StringSliceMulti(t *testing.T) {
+	t.Parallel()
 	result := petstore.ToQueryValue([]string{"a", "b", "c"}, "multi")
 	slice, ok := result.([]string)
 	if !ok {
@@ -172,6 +187,7 @@ func TestToQueryValue_StringSliceMulti(t *testing.T) {
 }
 
 func TestToQueryValue_Int(t *testing.T) {
+	t.Parallel()
 	result := petstore.ToQueryValue(42, "")
 	if result != "42" {
 		t.Errorf("expected '42', got %v", result)
@@ -179,6 +195,7 @@ func TestToQueryValue_Int(t *testing.T) {
 }
 
 func TestToQueryValue_BoolTrue(t *testing.T) {
+	t.Parallel()
 	result := petstore.ToQueryValue(true, "")
 	if result != "true" {
 		t.Errorf("expected 'true', got %v", result)
@@ -186,6 +203,7 @@ func TestToQueryValue_BoolTrue(t *testing.T) {
 }
 
 func TestToQueryValue_BoolFalse(t *testing.T) {
+	t.Parallel()
 	result := petstore.ToQueryValue(false, "")
 	if result != "false" {
 		t.Errorf("expected 'false', got %v", result)
@@ -193,6 +211,7 @@ func TestToQueryValue_BoolFalse(t *testing.T) {
 }
 
 func TestToQueryValue_Nil(t *testing.T) {
+	t.Parallel()
 	result := petstore.ToQueryValue(nil, "")
 	if result != nil {
 		t.Errorf("expected nil for nil input, got %v", result)
@@ -200,6 +219,7 @@ func TestToQueryValue_Nil(t *testing.T) {
 }
 
 func TestToHeaderValue_String(t *testing.T) {
+	t.Parallel()
 	result := petstore.ToHeaderValue("hello")
 	if result != "hello" {
 		t.Errorf("expected 'hello', got %q", result)
@@ -207,6 +227,7 @@ func TestToHeaderValue_String(t *testing.T) {
 }
 
 func TestToHeaderValue_StringSlice(t *testing.T) {
+	t.Parallel()
 	result := petstore.ToHeaderValue([]string{"a", "b", "c"})
 	if result != "a,b,c" {
 		t.Errorf("expected 'a,b,c', got %q", result)
@@ -214,6 +235,7 @@ func TestToHeaderValue_StringSlice(t *testing.T) {
 }
 
 func TestToHeaderValue_Int(t *testing.T) {
+	t.Parallel()
 	result := petstore.ToHeaderValue(42)
 	if result != "42" {
 		t.Errorf("expected '42', got %q", result)
@@ -221,6 +243,7 @@ func TestToHeaderValue_Int(t *testing.T) {
 }
 
 func TestToHeaderValue_Nil(t *testing.T) {
+	t.Parallel()
 	result := petstore.ToHeaderValue(nil)
 	if result != "" {
 		t.Errorf("expected empty string for nil, got %q", result)
@@ -228,6 +251,7 @@ func TestToHeaderValue_Nil(t *testing.T) {
 }
 
 func TestToCookieValue_String(t *testing.T) {
+	t.Parallel()
 	result := petstore.ToCookieValue("hello")
 	if result != "hello" {
 		t.Errorf("expected 'hello', got %q", result)
@@ -235,6 +259,7 @@ func TestToCookieValue_String(t *testing.T) {
 }
 
 func TestToCookieValue_Nil(t *testing.T) {
+	t.Parallel()
 	result := petstore.ToCookieValue(nil)
 	if result != "" {
 		t.Errorf("expected empty string for nil, got %q", result)
@@ -242,6 +267,7 @@ func TestToCookieValue_Nil(t *testing.T) {
 }
 
 func TestToCookieValue_Int(t *testing.T) {
+	t.Parallel()
 	result := petstore.ToCookieValue(42)
 	if result != "42" {
 		t.Errorf("expected '42', got %q", result)
@@ -249,6 +275,7 @@ func TestToCookieValue_Int(t *testing.T) {
 }
 
 func TestToFormValue_String(t *testing.T) {
+	t.Parallel()
 	result := petstore.ToFormValue("hello")
 	if result != "hello" {
 		t.Errorf("expected 'hello', got %q", result)
@@ -256,6 +283,7 @@ func TestToFormValue_String(t *testing.T) {
 }
 
 func TestToFormValue_Int(t *testing.T) {
+	t.Parallel()
 	result := petstore.ToFormValue(123)
 	if result != "123" {
 		t.Errorf("expected '123', got %q", result)
@@ -263,6 +291,7 @@ func TestToFormValue_Int(t *testing.T) {
 }
 
 func TestToFormValue_Nil(t *testing.T) {
+	t.Parallel()
 	result := petstore.ToFormValue(nil)
 	if result != "" {
 		t.Errorf("expected empty string for nil, got %q", result)
@@ -270,6 +299,7 @@ func TestToFormValue_Nil(t *testing.T) {
 }
 
 func TestToFormValue_BoolTrue(t *testing.T) {
+	t.Parallel()
 	result := petstore.ToFormValue(true)
 	if result != "true" {
 		t.Errorf("expected 'true', got %q", result)
@@ -277,6 +307,7 @@ func TestToFormValue_BoolTrue(t *testing.T) {
 }
 
 func TestToFormValue_BoolFalse(t *testing.T) {
+	t.Parallel()
 	result := petstore.ToFormValue(false)
 	if result != "false" {
 		t.Errorf("expected 'false', got %q", result)
@@ -284,6 +315,7 @@ func TestToFormValue_BoolFalse(t *testing.T) {
 }
 
 func TestStringify_String(t *testing.T) {
+	t.Parallel()
 	result := petstore.Stringify("hello")
 	if result != "hello" {
 		t.Errorf("expected 'hello', got %q", result)
@@ -291,6 +323,7 @@ func TestStringify_String(t *testing.T) {
 }
 
 func TestStringify_Int(t *testing.T) {
+	t.Parallel()
 	result := petstore.Stringify(42)
 	if result != "42" {
 		t.Errorf("expected '42', got %q", result)
@@ -298,6 +331,7 @@ func TestStringify_Int(t *testing.T) {
 }
 
 func TestStringify_Int64(t *testing.T) {
+	t.Parallel()
 	result := petstore.Stringify(int64(9999999999))
 	if result != "9999999999" {
 		t.Errorf("expected '9999999999', got %q", result)
@@ -305,6 +339,7 @@ func TestStringify_Int64(t *testing.T) {
 }
 
 func TestStringify_Float64(t *testing.T) {
+	t.Parallel()
 	result := petstore.Stringify(3.14)
 	if result != "3.14" {
 		t.Errorf("expected '3.14', got %q", result)
@@ -312,6 +347,7 @@ func TestStringify_Float64(t *testing.T) {
 }
 
 func TestStringify_Bool(t *testing.T) {
+	t.Parallel()
 	if petstore.Stringify(true) != "true" {
 		t.Error("expected 'true'")
 	}
@@ -321,6 +357,7 @@ func TestStringify_Bool(t *testing.T) {
 }
 
 func TestStringify_Time(t *testing.T) {
+	t.Parallel()
 	ts := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
 	result := petstore.Stringify(ts)
 	if result == "" {
@@ -329,6 +366,7 @@ func TestStringify_Time(t *testing.T) {
 }
 
 func TestStringify_Nil(t *testing.T) {
+	t.Parallel()
 	result := petstore.Stringify(nil)
 	if result != "" {
 		t.Errorf("expected empty string for nil, got %q", result)
@@ -336,6 +374,7 @@ func TestStringify_Nil(t *testing.T) {
 }
 
 func TestStringify_StringPointer(t *testing.T) {
+	t.Parallel()
 	s := "hello"
 	result := petstore.Stringify(&s)
 	if result != "hello" {
@@ -344,6 +383,7 @@ func TestStringify_StringPointer(t *testing.T) {
 }
 
 func TestStringify_NilStringPointer(t *testing.T) {
+	t.Parallel()
 	var s *string
 	result := petstore.Stringify(s)
 	if result != "" {
@@ -354,6 +394,7 @@ func TestStringify_NilStringPointer(t *testing.T) {
 // DateTimeOffsetPreservationTests
 
 func TestDateTimeOffset_UTCPreservesOffset(t *testing.T) {
+	t.Parallel()
 	ts := time.Date(2024, 1, 1, 12, 30, 45, 0, time.UTC)
 	result := petstore.Stringify(ts)
 	if !strings.Contains(result, "2024-01-01") {
@@ -365,6 +406,7 @@ func TestDateTimeOffset_UTCPreservesOffset(t *testing.T) {
 }
 
 func TestDateTimeOffset_PositiveOffsetPreserved(t *testing.T) {
+	t.Parallel()
 	loc := time.FixedZone("IST", 5*60*60+30*60)
 	ts := time.Date(2024, 1, 1, 12, 30, 45, 0, loc)
 	result := petstore.Stringify(ts)
@@ -374,6 +416,7 @@ func TestDateTimeOffset_PositiveOffsetPreserved(t *testing.T) {
 }
 
 func TestDateTimeOffset_NegativeOffsetPreserved(t *testing.T) {
+	t.Parallel()
 	loc := time.FixedZone("PST", -8*60*60)
 	ts := time.Date(2024, 1, 1, 12, 30, 45, 0, loc)
 	result := petstore.Stringify(ts)
@@ -383,6 +426,7 @@ func TestDateTimeOffset_NegativeOffsetPreserved(t *testing.T) {
 }
 
 func TestDateTimeOffset_NoSubseconds(t *testing.T) {
+	t.Parallel()
 	ts := time.Date(2024, 1, 1, 12, 30, 45, 123000000, time.UTC)
 	result := petstore.Stringify(ts)
 	if strings.Contains(result, ".123") {
@@ -391,6 +435,7 @@ func TestDateTimeOffset_NoSubseconds(t *testing.T) {
 }
 
 func TestDateTimeOffset_DateOnlyFormatted(t *testing.T) {
+	t.Parallel()
 	ts := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	result := petstore.Stringify(ts)
 	if result == "" {
@@ -399,6 +444,7 @@ func TestDateTimeOffset_DateOnlyFormatted(t *testing.T) {
 }
 
 func TestDateTimeOffset_EndsWithOffset(t *testing.T) {
+	t.Parallel()
 	ts := time.Date(2024, 1, 1, 12, 30, 45, 0, time.UTC)
 	result := petstore.Stringify(ts)
 	if result == "" {
@@ -414,6 +460,7 @@ func TestDateTimeOffset_EndsWithOffset(t *testing.T) {
 }
 
 func TestDateTimeOffset_RoundTrip(t *testing.T) {
+	t.Parallel()
 	loc := time.FixedZone("IST", 5*60*60+30*60)
 	original := time.Date(2024, 1, 1, 12, 30, 45, 0, loc)
 	serialized := petstore.Stringify(original)
@@ -429,6 +476,7 @@ func TestDateTimeOffset_RoundTrip(t *testing.T) {
 // NonAsciiSerializationTests
 
 func TestNonAscii_AccentedCharacterNotEscaped(t *testing.T) {
+	t.Parallel()
 	input := map[string]interface{}{"key": "café"}
 	data, err := petstore.Serialize(input)
 	if err != nil {
@@ -440,6 +488,7 @@ func TestNonAscii_AccentedCharacterNotEscaped(t *testing.T) {
 }
 
 func TestNonAscii_CjkCharactersNotEscaped(t *testing.T) {
+	t.Parallel()
 	input := map[string]interface{}{"key": "日本"}
 	data, err := petstore.Serialize(input)
 	if err != nil {
@@ -451,6 +500,7 @@ func TestNonAscii_CjkCharactersNotEscaped(t *testing.T) {
 }
 
 func TestNonAscii_TabCharacterEscapedProperly(t *testing.T) {
+	t.Parallel()
 	input := map[string]interface{}{"key": "a\tb"}
 	data, err := petstore.Serialize(input)
 	if err != nil {
@@ -464,6 +514,7 @@ func TestNonAscii_TabCharacterEscapedProperly(t *testing.T) {
 // DeserializationErrorWrappingTests
 
 func TestDeserializationError_TruncatedJsonReturnsSerializationError(t *testing.T) {
+	t.Parallel()
 	var result map[string]interface{}
 	err := petstore.Deserialize([]byte("{"), &result)
 	if err == nil {
@@ -475,6 +526,7 @@ func TestDeserializationError_TruncatedJsonReturnsSerializationError(t *testing.
 }
 
 func TestDeserializationError_InvalidJsonReturnsSerializationError(t *testing.T) {
+	t.Parallel()
 	var result map[string]interface{}
 	err := petstore.Deserialize([]byte(`"hello"`), &result)
 	if err == nil {
@@ -486,6 +538,7 @@ func TestDeserializationError_InvalidJsonReturnsSerializationError(t *testing.T)
 }
 
 func TestDeserializationError_ErrorHasCause(t *testing.T) {
+	t.Parallel()
 	var result map[string]interface{}
 	err := petstore.Deserialize([]byte("{"), &result)
 	if err == nil {
@@ -501,6 +554,7 @@ func TestDeserializationError_ErrorHasCause(t *testing.T) {
 }
 
 func TestSerialize_IncludesFieldsSetToDefaultValues(t *testing.T) {
+	t.Parallel()
 	id := int64(0)
 	name := ""
 	category := models.Category{Id: &id, Name: &name}
@@ -517,6 +571,7 @@ func TestSerialize_IncludesFieldsSetToDefaultValues(t *testing.T) {
 }
 
 func TestDiscriminator_DrySubtypeAutoInjectsFoodType(t *testing.T) {
+	t.Parallel()
 	dry := models.NewDryFood(2.5)
 	data, err := petstore.Serialize(dry)
 	if err != nil {
@@ -531,6 +586,7 @@ func TestDiscriminator_DrySubtypeAutoInjectsFoodType(t *testing.T) {
 }
 
 func TestDiscriminator_WetSubtypeAutoInjectsFoodType(t *testing.T) {
+	t.Parallel()
 	wet := models.NewWetFood(350)
 	data, err := petstore.Serialize(wet)
 	if err != nil {
@@ -545,6 +601,7 @@ func TestDiscriminator_WetSubtypeAutoInjectsFoodType(t *testing.T) {
 }
 
 func TestDiscriminator_CallerCanOverrideDefault(t *testing.T) {
+	t.Parallel()
 	dry := models.NewDryFood(1)
 	dry.FoodType = "custom"
 	data, err := petstore.Serialize(dry)
@@ -557,6 +614,7 @@ func TestDiscriminator_CallerCanOverrideDefault(t *testing.T) {
 }
 
 func TestDiscriminator_DeserializeReturnsSubtype(t *testing.T) {
+	t.Parallel()
 	input := []byte(`{"foodType":"dry","weightKg":2.5}`)
 	var dry models.DryFood
 	if err := petstore.Deserialize(input, &dry); err != nil {
@@ -573,6 +631,7 @@ func TestDiscriminator_DeserializeReturnsSubtype(t *testing.T) {
 // ── #24 format:double whole numbers keep the trailing .0 ──
 
 func TestStringify_WholeNumberFloatKeepsDotZero(t *testing.T) {
+	t.Parallel()
 	if got := petstore.Stringify(float64(1.0)); got != "1.0" {
 		t.Errorf("expected '1.0' for float64(1.0), got %q", got)
 	}
@@ -585,6 +644,7 @@ func TestStringify_WholeNumberFloatKeepsDotZero(t *testing.T) {
 }
 
 func TestStringify_FractionalFloatRendersAsDecimal(t *testing.T) {
+	t.Parallel()
 	if got := petstore.Stringify(float64(1.5)); got != "1.5" {
 		t.Errorf("expected '1.5' for 1.5, got %q", got)
 	}
@@ -596,6 +656,7 @@ func TestStringify_FractionalFloatRendersAsDecimal(t *testing.T) {
 // ── #21 format:date path/query value uses date-only format ──
 
 func TestStringifyDate_TimeValueReturnsDateOnly(t *testing.T) {
+	t.Parallel()
 	when := time.Date(2024, 1, 15, 13, 45, 22, 0, time.UTC)
 	if got := petstore.StringifyDate(when); got != "2024-01-15" {
 		t.Errorf("expected '2024-01-15', got %q", got)
@@ -603,12 +664,14 @@ func TestStringifyDate_TimeValueReturnsDateOnly(t *testing.T) {
 }
 
 func TestStringifyDate_StringPassesThrough(t *testing.T) {
+	t.Parallel()
 	if got := petstore.StringifyDate("2024-12-31"); got != "2024-12-31" {
 		t.Errorf("expected '2024-12-31', got %q", got)
 	}
 }
 
 func TestStringifyDate_NilReturnsEmpty(t *testing.T) {
+	t.Parallel()
 	if got := petstore.StringifyDate(nil); got != "" {
 		t.Errorf("expected empty string for nil, got %q", got)
 	}
@@ -617,6 +680,7 @@ func TestStringifyDate_NilReturnsEmpty(t *testing.T) {
 // ── #13 Serializer drops nil/null fields (omitempty) ──
 
 func TestSerialize_OmitsNilFields(t *testing.T) {
+	t.Parallel()
 	pet := models.NewPet("OmitTest", []string{"http://example.com/a.png"})
 	data, err := petstore.Serialize(pet)
 	if err != nil {
@@ -632,6 +696,7 @@ func TestSerialize_OmitsNilFields(t *testing.T) {
 // ── Gap AJ: required non-nullable fields reject null/missing on deserialize ──
 
 func TestDeserialize_RequiredFieldNullThrows(t *testing.T) {
+	t.Parallel()
 	raw := []byte(`{"name":null,"photoUrls":["x"]}`)
 	var pet models.Pet
 	err := petstore.Deserialize(raw, &pet)
@@ -645,6 +710,7 @@ func TestDeserialize_RequiredFieldNullThrows(t *testing.T) {
 }
 
 func TestDeserialize_RequiredFieldMissingThrows(t *testing.T) {
+	t.Parallel()
 	raw := []byte(`{"photoUrls":["x"]}`)
 	var pet models.Pet
 	err := petstore.Deserialize(raw, &pet)
@@ -660,6 +726,7 @@ func TestDeserialize_RequiredFieldMissingThrows(t *testing.T) {
 // ── #14 Deserializer ignores unknown fields ──
 
 func TestDeserialize_IgnoresUnknownFields(t *testing.T) {
+	t.Parallel()
 	// Use a Pet payload with a bogus extra field. encoding/json should
 	// silently drop it (no error, no mangled value).
 	raw := []byte(`{"id":99,"name":"Skip","photoUrls":[],"bogusExtra":"keep-going"}`)

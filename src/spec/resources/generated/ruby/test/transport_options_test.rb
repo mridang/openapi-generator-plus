@@ -6,6 +6,8 @@ require 'minitest/autorun'
 require 'petstore_client'
 
 describe PetstoreClient::TransportOptions do
+  parallelize_me!
+
   it 'verify_ssl defaults to true' do
     opts = PetstoreClient::TransportOptions.builder.build
     _(opts.verify_ssl).must_equal true

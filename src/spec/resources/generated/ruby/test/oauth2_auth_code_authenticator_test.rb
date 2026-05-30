@@ -36,6 +36,8 @@ class FakeAuthCodeClient
 end
 
 describe PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
+  parallelize_me!
+
   let(:auth) do
     PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
       'https://api.example.com',

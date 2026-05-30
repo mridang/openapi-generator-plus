@@ -126,7 +126,8 @@ type {{classname}} struct {
 	// {{summary}} — {{value}}
 {{/vendorExtensions.pluralExamples}}
 {{#deprecated}}
-	/* Deprecated: This property is deprecated. */
+
+	// Deprecated: {{#deprecationMessage}}{{{deprecationMessage}}}{{/deprecationMessage}}{{^deprecationMessage}}This field is deprecated.{{/deprecationMessage}}
 {{/deprecated}}
 {{#required}}
 	{{name}} {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} `json:"{{baseName}}"`

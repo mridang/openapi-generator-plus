@@ -6,6 +6,8 @@ require 'test_helper'
 require 'petstore_client/header_selector'
 
 describe PetstoreClient::HeaderSelector do
+  parallelize_me!
+
   before do
     @header_selector = PetstoreClient::HeaderSelector.new
   end

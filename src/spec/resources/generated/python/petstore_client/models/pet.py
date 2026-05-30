@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import re  # noqa: F401
+import warnings  # noqa: F401
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator  # noqa: F401
 from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
 from typing_extensions import Self  # noqa: F401
@@ -73,6 +74,17 @@ class Pet(BaseModel):
                 extras[key] = value
         merged['additional_properties'] = extras
         return merged
+
+    @field_validator('status')
+    def status_warn_deprecated(cls, value: Any) -> Any:
+        """Emits a DeprecationWarning when the deprecated field `status` is set."""
+        if value is not None:
+            warnings.warn(
+                "field 'status' on Pet is deprecated",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        return value
 
     # Pydantic default mode (lenient) is kept here. strict=True was tried
     # for Gap S but it rejects legitimate JSON-to-Python coercions like

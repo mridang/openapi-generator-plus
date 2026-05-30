@@ -14,6 +14,7 @@ import (
 )
 
 func TestInjectTraceContext_NoOpWithoutTracer(t *testing.T) {
+	t.Parallel()
 	headers := map[string]string{
 		"X-Existing": "value",
 	}
@@ -28,6 +29,7 @@ func TestInjectTraceContext_NoOpWithoutTracer(t *testing.T) {
 }
 
 func TestInjectTraceContext_EmptyHeadersDoNotCauseException(t *testing.T) {
+	t.Parallel()
 	headers := make(map[string]string)
 
 	// Should not panic with empty headers map
@@ -35,6 +37,7 @@ func TestInjectTraceContext_EmptyHeadersDoNotCauseException(t *testing.T) {
 }
 
 func TestInjectTraceContext_DoesNotInjectTraceparentWithoutOTel(t *testing.T) {
+	t.Parallel()
 	headers := make(map[string]string)
 
 	petstore.InjectTraceContext(headers)
@@ -45,6 +48,7 @@ func TestInjectTraceContext_DoesNotInjectTraceparentWithoutOTel(t *testing.T) {
 }
 
 func TestInjectTraceContext_DoesNotInjectTracestateWithoutOTel(t *testing.T) {
+	t.Parallel()
 	headers := make(map[string]string)
 
 	petstore.InjectTraceContext(headers)
@@ -55,6 +59,7 @@ func TestInjectTraceContext_DoesNotInjectTracestateWithoutOTel(t *testing.T) {
 }
 
 func TestInjectTraceContext_PreservesAuthorizationHeader(t *testing.T) {
+	t.Parallel()
 	headers := map[string]string{
 		"Authorization": "Bearer token123",
 	}
@@ -67,6 +72,7 @@ func TestInjectTraceContext_PreservesAuthorizationHeader(t *testing.T) {
 }
 
 func TestInjectTraceContext_PreservesContentTypeHeader(t *testing.T) {
+	t.Parallel()
 	headers := map[string]string{
 		"Content-Type": "application/json",
 	}
@@ -79,6 +85,7 @@ func TestInjectTraceContext_PreservesContentTypeHeader(t *testing.T) {
 }
 
 func TestInjectTraceContext_PreservesXRequestIdHeader(t *testing.T) {
+	t.Parallel()
 	headers := map[string]string{
 		"X-Request-ID": "req-12345",
 	}
@@ -91,6 +98,7 @@ func TestInjectTraceContext_PreservesXRequestIdHeader(t *testing.T) {
 }
 
 func TestInjectTraceContext_PreservesAllExistingHeaders(t *testing.T) {
+	t.Parallel()
 	headers := map[string]string{
 		"Authorization": "Bearer token",
 		"Content-Type":  "application/json",

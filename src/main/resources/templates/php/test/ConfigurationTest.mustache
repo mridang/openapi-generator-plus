@@ -2,216 +2,193 @@
 
 declare(strict_types=1);
 
-namespace {{invokerPackage}}\Test;
-
-use PHPUnit\Framework\TestCase;
 use {{invokerPackage}}\Configuration;
 use {{invokerPackage}}\ConfigurationBuilder;
 use {{invokerPackage}}\ServerConfiguration;
 use {{invokerPackage}}\ServerVariable;
 
-class ConfigurationTest extends TestCase
-{
-    protected function tearDown(): void
-    {
-        // Reset the default instance between tests to avoid leaking state
-        Configuration::setDefault(new Configuration());
-    }
+afterEach(function (): void {
+    // Reset the default instance between tests to avoid leaking state
+    Configuration::setDefault(new Configuration());
+});
 
-    public function testDefaultConstructorUsesSpecBaseUrl(): void
-    {
-        $config = new Configuration();
+test('default constructor uses spec base url', function (): void {
+    $config = new Configuration();
 
-        $this->assertSame('{{{basePath}}}', $config->baseUrl);
-        $this->assertSame([], $config->defaultHeaders);
-    }
+    expect($config->baseUrl)->toBe('{{{basePath}}}');
+    expect($config->defaultHeaders)->toBe([]);
+});
 
-    public function testBuilderProducesCorrectDefaults(): void
-    {
-        $config = Configuration::builder()->build();
+test('builder produces correct defaults', function (): void {
+    $config = Configuration::builder()->build();
 
-        $this->assertSame('{{{basePath}}}', $config->baseUrl);
-        $this->assertSame([], $config->defaultHeaders);
-    }
+    expect($config->baseUrl)->toBe('{{{basePath}}}');
+    expect($config->defaultHeaders)->toBe([]);
+});
 
-    public function testBuilderReturnsConfigurationBuilderInstance(): void
-    {
-        $builder = Configuration::builder();
+test('builder returns configuration builder instance', function (): void {
+    $builder = Configuration::builder();
 
-        $this->assertInstanceOf(ConfigurationBuilder::class, $builder);
-    }
+    expect($builder)->toBeInstanceOf(ConfigurationBuilder::class);
+});
 
-    public function testBuilderSetsBaseUrl(): void
-    {
-        $config = Configuration::builder()
-            ->baseUrl('https://custom.example.com')
-            ->build();
+test('builder sets base url', function (): void {
+    $config = Configuration::builder()
+        ->baseUrl('https://custom.example.com')
+        ->build();
 
-        $this->assertSame('https://custom.example.com', $config->baseUrl);
-    }
+    expect($config->baseUrl)->toBe('https://custom.example.com');
+});
 
-    public function testBuilderSetsSingleDefaultHeader(): void
-    {
-        $config = Configuration::builder()
-            ->defaultHeader('Authorization', 'Bearer token123')
-            ->build();
+test('builder sets single default header', function (): void {
+    $config = Configuration::builder()
+        ->defaultHeader('Authorization', 'Bearer token123')
+        ->build();
 
-        $this->assertSame(['Authorization' => 'Bearer token123'], $config->defaultHeaders);
-    }
+    expect($config->defaultHeaders)->toBe(['Authorization' => 'Bearer token123']);
+});
 
-    public function testBuilderSetsMultipleDefaultHeaders(): void
-    {
-        $config = Configuration::builder()
-            ->defaultHeaders([
-                'Authorization' => 'Bearer token123',
-                'X-Custom' => 'value',
-            ])
-            ->build();
-
-        $this->assertSame([
+test('builder sets multiple default headers', function (): void {
+    $config = Configuration::builder()
+        ->defaultHeaders([
             'Authorization' => 'Bearer token123',
             'X-Custom' => 'value',
-        ], $config->defaultHeaders);
-    }
+        ])
+        ->build();
 
-    public function testBuilderAccumulatesHeaders(): void
-    {
-        $config = Configuration::builder()
-            ->defaultHeader('X-First', 'one')
-            ->defaultHeader('X-Second', 'two')
-            ->defaultHeaders(['X-Third' => 'three'])
-            ->build();
+    expect($config->defaultHeaders)->toBe([
+        'Authorization' => 'Bearer token123',
+        'X-Custom' => 'value',
+    ]);
+});
 
-        $this->assertCount(3, $config->defaultHeaders);
-        $this->assertSame('one', $config->defaultHeaders['X-First']);
-        $this->assertSame('two', $config->defaultHeaders['X-Second']);
-        $this->assertSame('three', $config->defaultHeaders['X-Third']);
-    }
+test('builder accumulates headers', function (): void {
+    $config = Configuration::builder()
+        ->defaultHeader('X-First', 'one')
+        ->defaultHeader('X-Second', 'two')
+        ->defaultHeaders(['X-Third' => 'three'])
+        ->build();
 
-    public function testBuilderSetsAllFields(): void
-    {
-        $config = Configuration::builder()
-            ->baseUrl('https://api.example.com')
-            ->defaultHeader('Authorization', 'Bearer token')
-            ->defaultHeaders(['X-Custom' => 'value'])
-            ->build();
+    expect($config->defaultHeaders)->toHaveCount(3);
+    expect($config->defaultHeaders['X-First'])->toBe('one');
+    expect($config->defaultHeaders['X-Second'])->toBe('two');
+    expect($config->defaultHeaders['X-Third'])->toBe('three');
+});
 
-        $this->assertSame('https://api.example.com', $config->baseUrl);
-        $this->assertSame([
-            'Authorization' => 'Bearer token',
-            'X-Custom' => 'value',
-        ], $config->defaultHeaders);
-    }
+test('builder sets all fields', function (): void {
+    $config = Configuration::builder()
+        ->baseUrl('https://api.example.com')
+        ->defaultHeader('Authorization', 'Bearer token')
+        ->defaultHeaders(['X-Custom' => 'value'])
+        ->build();
 
-    public function testBuilderServerResolvesUrl(): void
-    {
-        $server = new ServerConfiguration(
-            urlTemplate: 'https://{env}.example.com/api/{version}',
-            description: 'Test server',
-            variables: [
-                'env' => new ServerVariable(
-                    defaultValue: 'api',
-                    enumValues: ['api', 'staging'],
-                ),
-                'version' => new ServerVariable(
-                    defaultValue: 'v3',
-                    enumValues: ['v2', 'v3'],
-                ),
-            ],
-        );
+    expect($config->baseUrl)->toBe('https://api.example.com');
+    expect($config->defaultHeaders)->toBe([
+        'Authorization' => 'Bearer token',
+        'X-Custom' => 'value',
+    ]);
+});
 
-        $config = Configuration::builder()
-            ->server($server)
-            ->build();
+test('builder server resolves url', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com/api/{version}',
+        description: 'Test server',
+        variables: [
+            'env' => new ServerVariable(
+                defaultValue: 'api',
+                enumValues: ['api', 'staging'],
+            ),
+            'version' => new ServerVariable(
+                defaultValue: 'v3',
+                enumValues: ['v2', 'v3'],
+            ),
+        ],
+    );
 
-        $this->assertSame('https://api.example.com/api/v3', $config->baseUrl);
-    }
+    $config = Configuration::builder()
+        ->server($server)
+        ->build();
 
-    public function testBuilderServerWithVariableOverrides(): void
-    {
-        $server = new ServerConfiguration(
-            urlTemplate: 'https://{env}.example.com/api/{version}',
-            variables: [
-                'env' => new ServerVariable(
-                    defaultValue: 'api',
-                    enumValues: ['api', 'staging'],
-                ),
-                'version' => new ServerVariable(
-                    defaultValue: 'v3',
-                    enumValues: ['v2', 'v3'],
-                ),
-            ],
-        );
+    expect($config->baseUrl)->toBe('https://api.example.com/api/v3');
+});
 
-        $config = Configuration::builder()
-            ->server($server, ['env' => 'staging', 'version' => 'v2'])
-            ->build();
+test('builder server with variable overrides', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com/api/{version}',
+        variables: [
+            'env' => new ServerVariable(
+                defaultValue: 'api',
+                enumValues: ['api', 'staging'],
+            ),
+            'version' => new ServerVariable(
+                defaultValue: 'v3',
+                enumValues: ['v2', 'v3'],
+            ),
+        ],
+    );
 
-        $this->assertSame('https://staging.example.com/api/v2', $config->baseUrl);
-    }
+    $config = Configuration::builder()
+        ->server($server, ['env' => 'staging', 'version' => 'v2'])
+        ->build();
 
-    public function testBuilderBaseUrlOverridesServer(): void
-    {
-        $server = new ServerConfiguration(
-            urlTemplate: 'https://api.example.com',
-        );
+    expect($config->baseUrl)->toBe('https://staging.example.com/api/v2');
+});
 
-        $config = Configuration::builder()
-            ->server($server)
-            ->baseUrl('https://override.example.com')
-            ->build();
+test('builder base url overrides server', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://api.example.com',
+    );
 
-        $this->assertSame('https://override.example.com', $config->baseUrl);
-    }
+    $config = Configuration::builder()
+        ->server($server)
+        ->baseUrl('https://override.example.com')
+        ->build();
 
-    public function testGetDefaultReturnsInstance(): void
-    {
-        $config = Configuration::getDefault();
+    expect($config->baseUrl)->toBe('https://override.example.com');
+});
 
-        $this->assertInstanceOf(Configuration::class, $config);
-        $this->assertSame('{{{basePath}}}', $config->baseUrl);
-    }
+test('get default returns instance', function (): void {
+    $config = Configuration::getDefault();
 
-    public function testGetDefaultReturnsSameInstance(): void
-    {
-        $first = Configuration::getDefault();
-        $second = Configuration::getDefault();
+    expect($config)->toBeInstanceOf(Configuration::class);
+    expect($config->baseUrl)->toBe('{{{basePath}}}');
+});
 
-        $this->assertSame($first, $second);
-    }
+test('get default returns same instance', function (): void {
+    $first = Configuration::getDefault();
+    $second = Configuration::getDefault();
 
-    public function testSetDefaultChangesDefault(): void
-    {
-        $custom = Configuration::builder()
-            ->baseUrl('https://custom.example.com')
-            ->build();
+    expect($second)->toBe($first);
+});
 
-        Configuration::setDefault($custom);
+test('set default changes default', function (): void {
+    $custom = Configuration::builder()
+        ->baseUrl('https://custom.example.com')
+        ->build();
 
-        $this->assertSame($custom, Configuration::getDefault());
-        $this->assertSame('https://custom.example.com', Configuration::getDefault()->baseUrl);
-    }
+    Configuration::setDefault($custom);
 
-    public function testConfigurationIsImmutable(): void
-    {
-        $config = Configuration::builder()
-            ->defaultHeader('X-Key', 'value')
-            ->build();
+    expect(Configuration::getDefault())->toBe($custom);
+    expect(Configuration::getDefault()->baseUrl)->toBe('https://custom.example.com');
+});
 
-        // readonly properties cannot be modified after construction;
-        // verify the values are frozen
-        $this->assertSame('value', $config->defaultHeaders['X-Key']);
-    }
+test('configuration is immutable', function (): void {
+    $config = Configuration::builder()
+        ->defaultHeader('X-Key', 'value')
+        ->build();
 
-    public function testBuilderIsFluent(): void
-    {
-        $builder = Configuration::builder();
+    // readonly properties cannot be modified after construction;
+    // verify the values are frozen
+    expect($config->defaultHeaders['X-Key'])->toBe('value');
+});
 
-        $this->assertSame($builder, $builder->baseUrl('https://example.com'));
-        $this->assertSame($builder, $builder->defaultHeader('X-Key', 'value'));
-        $this->assertSame($builder, $builder->defaultHeaders(['X-Other' => 'val']));
+test('builder is fluent', function (): void {
+    $builder = Configuration::builder();
 
-        $server = new ServerConfiguration(urlTemplate: 'https://example.com');
-        $this->assertSame($builder, $builder->server($server));
-    }
-}
+    expect($builder->baseUrl('https://example.com'))->toBe($builder);
+    expect($builder->defaultHeader('X-Key', 'value'))->toBe($builder);
+    expect($builder->defaultHeaders(['X-Other' => 'val']))->toBe($builder);
+
+    $server = new ServerConfiguration(urlTemplate: 'https://example.com');
+    expect($builder->server($server))->toBe($builder);
+});

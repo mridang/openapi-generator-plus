@@ -55,7 +55,8 @@ type PetWithOwner struct {
 	PhotoUrls Set[string] `json:"photoUrls"`
 	Tags      *[]Tag      `json:"tags,omitempty"`
 	/* Status pet status in the store */
-	/* Deprecated: This property is deprecated. */
+
+	// Deprecated: This field is deprecated.
 	Status     *PetWithOwnerStatusEnum `json:"status,omitempty"`
 	Location   *[]interface{}          `json:"location,omitempty"`
 	OwnerName  string                  `json:"ownerName"`

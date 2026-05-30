@@ -1,6 +1,7 @@
 export default {
   cacheDirectory: '.jest',
   testEnvironment: 'node',
+  maxWorkers: '50%',
   testMatch: ['**/test/**/*.test.ts', '**/spec/**/*.spec.ts'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1'

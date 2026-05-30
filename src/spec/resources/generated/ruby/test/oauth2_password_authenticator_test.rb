@@ -37,6 +37,8 @@ class FakePasswordClient
 end
 
 describe PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator do
+  parallelize_me!
+
   it 'sends password grant type' do
     client = FakePasswordClient.new([
       { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }

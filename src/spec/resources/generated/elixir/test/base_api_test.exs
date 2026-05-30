@@ -1,5 +1,5 @@
 defmodule PetstoreClient.Api.BaseApiTest do
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
 
   defmodule TestAuthenticator do
     use PetstoreClient.Auth.BaseAuthenticator
@@ -393,73 +393,77 @@ defmodule PetstoreClient.Api.BaseApiTest do
     use Agent
 
     def start do
-      Agent.start_link(fn -> "" end, name: __MODULE__)
+      name = :"#{__MODULE__}-#{System.unique_integer([:positive])}"
+      {:ok, _pid} = Agent.start_link(fn -> "" end, name: name)
+      Process.put(__MODULE__, name)
+      {:ok, name}
     end
 
-    def captured_url do
-      Agent.get(__MODULE__, & &1)
+    def captured_url(name) do
+      Agent.get(name, & &1)
     end
 
     @impl true
     def send_request(_method, url, _headers, _body) do
-      Agent.update(__MODULE__, fn _ -> url end)
+      name = Process.get(__MODULE__)
+      Agent.update(name, fn _ -> url end)
       %PetstoreClient.ApiResponse{status_code: 200, body: "{}", headers: %{"Content-Type" => "application/json"}}
     end
   end
 
   test "null options omits allow_empty_value param" do
-    {:ok, _} = CapturingApiClient.start()
+    {:ok, name} = CapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(CapturingApiClient, config)
 
     _result = PetstoreClient.Api.PetApi.find_pets_by_status(api, nil)
-    url = CapturingApiClient.captured_url()
+    url = CapturingApiClient.captured_url(name)
 
     refute String.contains?(url, "status="),
            "Expected no status param when options is nil, got: #{url}"
 
-    Agent.stop(CapturingApiClient)
+    Agent.stop(name)
   end
 
   test "allow_empty_value param included when value is nil in options" do
-    {:ok, _} = CapturingApiClient.start()
+    {:ok, name} = CapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(CapturingApiClient, config)
 
     _result = PetstoreClient.Api.PetApi.find_pets_by_status(api, %PetstoreClient.Api.Options.FindPetsByStatusOptions{})
-    url = CapturingApiClient.captured_url()
+    url = CapturingApiClient.captured_url(name)
 
     assert String.contains?(url, "status="),
            "Expected status= in URL for allowEmptyValue param with nil value, got: #{url}"
 
-    Agent.stop(CapturingApiClient)
+    Agent.stop(name)
   end
 
   test "allow_empty_value param included when value is empty string" do
-    {:ok, _} = CapturingApiClient.start()
+    {:ok, name} = CapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(CapturingApiClient, config)
 
     _result =
       PetstoreClient.Api.PetApi.find_pets_by_status(api, %PetstoreClient.Api.Options.FindPetsByStatusOptions{status: ""})
 
-    url = CapturingApiClient.captured_url()
+    url = CapturingApiClient.captured_url(name)
 
     assert String.contains?(url, "status="),
            "Expected status= in URL for empty string allowEmptyValue param, got: #{url}"
 
-    Agent.stop(CapturingApiClient)
+    Agent.stop(name)
   end
 
   test "collapses double-slash when base_url has trailing slash" do
     # Gap Z — base_url='http://x/' + path='/y' must produce 'http://x/y',
     # not 'http://x//y' which most servers route to 404.
-    {:ok, _} = CapturingApiClient.start()
+    {:ok, name} = CapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost/")
     api = PetstoreClient.Api.PetApi.new(CapturingApiClient, config)
 
     _result = PetstoreClient.Api.PetApi.get_pet_by_id(api, 1)
-    url = CapturingApiClient.captured_url()
+    url = CapturingApiClient.captured_url(name)
 
     refute String.contains?(url, "//pet"),
            "Expected no double-slash in URL, got: #{url}"
@@ -467,13 +471,13 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert String.starts_with?(url, "http://localhost/pet/"),
            "Expected http://localhost/pet/... in URL, got: #{url}"
 
-    Agent.stop(CapturingApiClient)
+    Agent.stop(name)
   end
 
   # Query serialization
 
   test "serializes boolean query params" do
-    {:ok, _} = CapturingApiClient.start()
+    {:ok, name} = CapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     state = %{config: config, api_client: CapturingApiClient}
 
@@ -490,16 +494,16 @@ defmodule PetstoreClient.Api.BaseApiTest do
         nil
       )
 
-    url = CapturingApiClient.captured_url()
+    url = CapturingApiClient.captured_url(name)
 
     assert String.contains?(url, "active=true"),
            "Expected active=true, got: #{url}"
 
-    Agent.stop(CapturingApiClient)
+    Agent.stop(name)
   end
 
   test "serializes number query params" do
-    {:ok, _} = CapturingApiClient.start()
+    {:ok, name} = CapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     state = %{config: config, api_client: CapturingApiClient}
 
@@ -516,7 +520,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
         nil
       )
 
-    url = CapturingApiClient.captured_url()
+    url = CapturingApiClient.captured_url(name)
 
     assert String.contains?(url, "limit=10"),
            "Expected limit=10, got: #{url}"
@@ -524,7 +528,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     refute String.contains?(url, "limit=10.0"),
            "Should not contain limit=10.0, got: #{url}"
 
-    Agent.stop(CapturingApiClient)
+    Agent.stop(name)
   end
 
   # Server variable: API request uses resolved server URL
@@ -1044,22 +1048,26 @@ defmodule PetstoreClient.Api.BaseApiTest do
     use Agent
 
     def start do
-      Agent.start_link(fn -> %{} end, name: __MODULE__)
+      name = :"#{__MODULE__}-#{System.unique_integer([:positive])}"
+      {:ok, _pid} = Agent.start_link(fn -> %{} end, name: name)
+      Process.put(__MODULE__, name)
+      {:ok, name}
     end
 
-    def captured_headers do
-      Agent.get(__MODULE__, & &1)
+    def captured_headers(name) do
+      Agent.get(name, & &1)
     end
 
     @impl true
     def send_request(_method, _url, headers, _body) do
-      Agent.update(__MODULE__, fn _ -> headers end)
+      name = Process.get(__MODULE__)
+      Agent.update(name, fn _ -> headers end)
       %PetstoreClient.ApiResponse{status_code: 200, body: "{}", headers: %{"Content-Type" => "application/json"}}
     end
   end
 
   test "null body POST does not send Content-Type" do
-    {:ok, _} = CapturingHeadersApiClient.start()
+    {:ok, name} = CapturingHeadersApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     state = %{config: config, api_client: CapturingHeadersApiClient}
 
@@ -1076,16 +1084,16 @@ defmodule PetstoreClient.Api.BaseApiTest do
         nil
       )
 
-    headers = CapturingHeadersApiClient.captured_headers()
+    headers = CapturingHeadersApiClient.captured_headers(name)
 
     refute Map.has_key?(headers, "Content-Type"),
            "Content-Type must NOT be sent when body is nil"
 
-    Agent.stop(CapturingHeadersApiClient)
+    Agent.stop(name)
   end
 
   test "empty string body includes Content-Type" do
-    {:ok, _} = CapturingHeadersApiClient.start()
+    {:ok, name} = CapturingHeadersApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     state = %{config: config, api_client: CapturingHeadersApiClient}
 
@@ -1102,12 +1110,12 @@ defmodule PetstoreClient.Api.BaseApiTest do
         nil
       )
 
-    headers = CapturingHeadersApiClient.captured_headers()
+    headers = CapturingHeadersApiClient.captured_headers(name)
 
     assert Map.has_key?(headers, "Content-Type"),
            "Content-Type must be sent when body is an empty string"
 
-    Agent.stop(CapturingHeadersApiClient)
+    Agent.stop(name)
   end
 
   # Multipart filename sanitization (Gap F)
@@ -1179,7 +1187,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
   end
 
   test "empty JSON object body includes Content-Type" do
-    {:ok, _} = CapturingHeadersApiClient.start()
+    {:ok, name} = CapturingHeadersApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     state = %{config: config, api_client: CapturingHeadersApiClient}
 
@@ -1196,14 +1204,14 @@ defmodule PetstoreClient.Api.BaseApiTest do
         nil
       )
 
-    headers = CapturingHeadersApiClient.captured_headers()
+    headers = CapturingHeadersApiClient.captured_headers(name)
 
     assert Map.has_key?(headers, "Content-Type"),
            "Content-Type must be sent when body is {}"
 
     assert headers["Content-Type"] == "application/json"
 
-    Agent.stop(CapturingHeadersApiClient)
+    Agent.stop(name)
   end
 
   # Auth via keyword arg (item #4) — client-level authenticator used when no :auth opt
@@ -1213,16 +1221,20 @@ defmodule PetstoreClient.Api.BaseApiTest do
     use Agent
 
     def start do
-      Agent.start_link(fn -> %{} end, name: __MODULE__)
+      name = :"#{__MODULE__}-#{System.unique_integer([:positive])}"
+      {:ok, _pid} = Agent.start_link(fn -> %{} end, name: name)
+      Process.put(__MODULE__, name)
+      {:ok, name}
     end
 
-    def captured_headers do
-      Agent.get(__MODULE__, & &1)
+    def captured_headers(name) do
+      Agent.get(name, & &1)
     end
 
     @impl true
     def send_request(_method, _url, headers, _body) do
-      Agent.update(__MODULE__, fn _ -> headers end)
+      name = Process.get(__MODULE__)
+      Agent.update(name, fn _ -> headers end)
       %PetstoreClient.ApiResponse{status_code: 200, body: "{}", headers: %{"Content-Type" => "application/json"}}
     end
   end
@@ -1232,7 +1244,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
   end
 
   test "client-level authenticator is used when no :auth opt is supplied" do
-    {:ok, _} = AuthCapturingApiClient.start()
+    {:ok, name} = AuthCapturingApiClient.start()
 
     client_auth = %MapAuth{
       auth_headers: %{"X-Auth" => "from-client"},
@@ -1256,16 +1268,16 @@ defmodule PetstoreClient.Api.BaseApiTest do
         nil
       )
 
-    headers = AuthCapturingApiClient.captured_headers()
+    headers = AuthCapturingApiClient.captured_headers(name)
 
     assert headers["X-Auth"] == "from-client",
            "Expected client-level auth header, got: #{inspect(headers)}"
 
-    Agent.stop(AuthCapturingApiClient)
+    Agent.stop(name)
   end
 
   test "per-call :auth overrides client-level authenticator" do
-    {:ok, _} = AuthCapturingApiClient.start()
+    {:ok, name} = AuthCapturingApiClient.start()
 
     client_auth = %MapAuth{
       auth_headers: %{"X-Auth" => "from-client"},
@@ -1296,12 +1308,12 @@ defmodule PetstoreClient.Api.BaseApiTest do
         per_call_auth
       )
 
-    headers = AuthCapturingApiClient.captured_headers()
+    headers = AuthCapturingApiClient.captured_headers(name)
 
     assert headers["X-Auth"] == "from-call",
            "Expected per-call auth header, got: #{inspect(headers)}"
 
-    Agent.stop(AuthCapturingApiClient)
+    Agent.stop(name)
   end
 
   # Per-op server override (item #5)
@@ -1311,22 +1323,26 @@ defmodule PetstoreClient.Api.BaseApiTest do
     use Agent
 
     def start do
-      Agent.start_link(fn -> "" end, name: __MODULE__)
+      name = :"#{__MODULE__}-#{System.unique_integer([:positive])}"
+      {:ok, _pid} = Agent.start_link(fn -> "" end, name: name)
+      Process.put(__MODULE__, name)
+      {:ok, name}
     end
 
-    def captured_url do
-      Agent.get(__MODULE__, & &1)
+    def captured_url(name) do
+      Agent.get(name, & &1)
     end
 
     @impl true
     def send_request(_method, url, _headers, _body) do
-      Agent.update(__MODULE__, fn _ -> url end)
+      name = Process.get(__MODULE__)
+      Agent.update(name, fn _ -> url end)
       %PetstoreClient.ApiResponse{status_code: 200, body: "{}", headers: %{"Content-Type" => "application/json"}}
     end
   end
 
   test "absolute URL in path bypasses client base_url (per-op server override)" do
-    {:ok, _} = UrlCapturingApiClient.start()
+    {:ok, name} = UrlCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://default.example.com")
     state = %{config: config, api_client: UrlCapturingApiClient}
 
@@ -1343,7 +1359,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
         nil
       )
 
-    url = UrlCapturingApiClient.captured_url()
+    url = UrlCapturingApiClient.captured_url(name)
 
     assert String.starts_with?(url, "http://override.example.com"),
            "Expected override server base, got: #{url}"
@@ -1351,11 +1367,11 @@ defmodule PetstoreClient.Api.BaseApiTest do
     refute String.starts_with?(url, "http://default.example.com"),
            "Should not start with default base, got: #{url}"
 
-    Agent.stop(UrlCapturingApiClient)
+    Agent.stop(name)
   end
 
   test "relative path uses client base_url when no override given" do
-    {:ok, _} = UrlCapturingApiClient.start()
+    {:ok, name} = UrlCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://default.example.com")
     state = %{config: config, api_client: UrlCapturingApiClient}
 
@@ -1372,18 +1388,18 @@ defmodule PetstoreClient.Api.BaseApiTest do
         nil
       )
 
-    url = UrlCapturingApiClient.captured_url()
+    url = UrlCapturingApiClient.captured_url(name)
 
     assert String.starts_with?(url, "http://default.example.com"),
            "Expected default base, got: #{url}"
 
-    Agent.stop(UrlCapturingApiClient)
+    Agent.stop(name)
   end
 
   # Empty array in query is omitted (item #20)
 
   test "empty array query param is omitted entirely" do
-    {:ok, _} = UrlCapturingApiClient.start()
+    {:ok, name} = UrlCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     state = %{config: config, api_client: UrlCapturingApiClient}
 
@@ -1400,7 +1416,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
         nil
       )
 
-    url = UrlCapturingApiClient.captured_url()
+    url = UrlCapturingApiClient.captured_url(name)
 
     refute String.contains?(url, "tags="),
            "Empty array param should be omitted, got: #{url}"
@@ -1408,11 +1424,11 @@ defmodule PetstoreClient.Api.BaseApiTest do
     refute String.contains?(url, "tags"),
            "Empty array param key should not appear, got: #{url}"
 
-    Agent.stop(UrlCapturingApiClient)
+    Agent.stop(name)
   end
 
   test "non-empty array query param is included" do
-    {:ok, _} = UrlCapturingApiClient.start()
+    {:ok, name} = UrlCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     state = %{config: config, api_client: UrlCapturingApiClient}
 
@@ -1429,7 +1445,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
         nil
       )
 
-    url = UrlCapturingApiClient.captured_url()
+    url = UrlCapturingApiClient.captured_url(name)
 
     assert String.contains?(url, "tags=a"),
            "Expected tags=a in URL, got: #{url}"
@@ -1437,7 +1453,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert String.contains?(url, "tags=b"),
            "Expected tags=b in URL, got: #{url}"
 
-    Agent.stop(UrlCapturingApiClient)
+    Agent.stop(name)
   end
 
   # Proxy authentication (item #29)

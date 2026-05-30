@@ -10,6 +10,8 @@ require 'stringio'
 require 'socket'
 
 describe PetstoreClient::Api::PetApi do
+  parallelize_me!
+
   before do
     @api = PetstoreClient::Api::PetApi.new
     @base_url = ENV['API_BASE_URL'] || 'http://localhost:4010'

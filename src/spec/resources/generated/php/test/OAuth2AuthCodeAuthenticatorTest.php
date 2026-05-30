@@ -1,5 +1,4 @@
 <?php
-
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -15,185 +14,173 @@ namespace PetstoreClient\Test;
 
 use PetstoreClient\ApiResponse;
 use PetstoreClient\Auth\OAuth\OAuth2AuthorizationCodeAuthenticator;
-use PHPUnit\Framework\TestCase;
 
-class OAuth2AuthCodeAuthenticatorTest extends TestCase
-{
-    private function createMockClient(
-        string $accessToken = 'test-token',
-        ?string $refreshToken = null
-    ): MockTokenApiClient {
-        $client = new MockTokenApiClient();
-        $body = ['access_token' => $accessToken, 'expires_in' => 3600];
-        if ($refreshToken !== null) {
-            $body['refresh_token'] = $refreshToken;
-        }
-        $client->enqueueResponse(new ApiResponse(
-            200,
-            (string) json_encode($body),
-            ['Content-Type' => 'application/json']
-        ));
-        return $client;
+function makeOAuth2AuthCodeMockClient(
+    string $accessToken = 'test-token',
+    ?string $refreshToken = null
+): MockTokenApiClient {
+    $client = new MockTokenApiClient();
+    $body = ['access_token' => $accessToken, 'expires_in' => 3600];
+    if ($refreshToken !== null) {
+        $body['refresh_token'] = $refreshToken;
     }
-
-    public function testBuildsAuthorizationUrlWithRequiredParams(): void
-    {
-        $authenticator = new OAuth2AuthorizationCodeAuthenticator(
-            'https://api.example.com',
-            'my-client-id',
-            'my-client-secret',
-            'https://auth.example.com/authorize',
-            'https://auth.example.com/token',
-            'https://app.example.com/callback',
-            ['read', 'write']
-        );
-
-        $url = $authenticator->buildAuthorizationUrl('csrf-state');
-
-        $this->assertStringContainsString('https://auth.example.com/authorize?', $url);
-        $this->assertStringContainsString('response_type=code', $url);
-        $this->assertStringContainsString('client_id=my-client-id', $url);
-        $this->assertStringContainsString('redirect_uri=' . urlencode('https://app.example.com/callback'), $url);
-        $this->assertStringContainsString('scope=read+write', $url);
-        $this->assertStringContainsString('state=csrf-state', $url);
-    }
-
-    public function testExchangesCodeWithCorrectGrantType(): void
-    {
-        $client = $this->createMockClient();
-        $authenticator = new OAuth2AuthorizationCodeAuthenticator(
-            'https://api.example.com',
-            'my-client-id',
-            'my-client-secret',
-            'https://auth.example.com/authorize',
-            'https://auth.example.com/token',
-            'https://app.example.com/callback',
-            []
-        );
-        $authenticator->setApiClient($client);
-
-        $authenticator->exchangeCode('auth-code-123');
-
-        $this->assertCount(1, $client->capturedRequests);
-        $request = $client->capturedRequests[0];
-        $this->assertSame('POST', $request['method']);
-        $this->assertSame('https://auth.example.com/token', $request['url']);
-        $this->assertStringContainsString('grant_type=authorization_code', $request['body'] ?? '');
-        $this->assertStringContainsString('code=auth-code-123', $request['body'] ?? '');
-        $this->assertStringContainsString('client_id=my-client-id', $request['body'] ?? '');
-        $this->assertStringContainsString('client_secret=my-client-secret', $request['body'] ?? '');
-    }
-
-    public function testIncludesRefreshTokenOnRefresh(): void
-    {
-        $client = new MockTokenApiClient();
-        // First call (exchangeCode) returns a refresh token with an expired access token
-        $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
-            'access_token' => 'access1',
-            'refresh_token' => 'refresh1',
-            'expires_in' => 0,
-        ]), ['Content-Type' => 'application/json']));
-        // Second call (getAuthHeaders refresh) returns new token
-        $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
-            'access_token' => 'access2',
-            'expires_in' => 3600,
-        ]), ['Content-Type' => 'application/json']));
-
-        $authenticator = new OAuth2AuthorizationCodeAuthenticator(
-            'https://api.example.com',
-            'my-client-id',
-            'my-client-secret',
-            'https://auth.example.com/authorize',
-            'https://auth.example.com/token',
-            'https://app.example.com/callback',
-            []
-        );
-        $authenticator->setApiClient($client);
-        $authenticator->exchangeCode('auth-code-123');
-
-        // GetAuthHeaders triggers a refresh since token is expired (expires_in=0)
-        $headers = $authenticator->getAuthHeaders();
-
-        $refreshRequest = $client->capturedRequests[1];
-        $this->assertStringContainsString('refresh_token=refresh1', $refreshRequest['body'] ?? '');
-        $this->assertStringContainsString('grant_type=refresh_token', $refreshRequest['body'] ?? '');
-        $this->assertSame('Bearer access2', $headers['Authorization']);
-    }
-
-    public function testThrowsBeforeExchangeCodeCalled(): void
-    {
-        $client = $this->createMockClient();
-        $authenticator = new OAuth2AuthorizationCodeAuthenticator(
-            'https://api.example.com',
-            'my-client-id',
-            'my-client-secret',
-            'https://auth.example.com/authorize',
-            'https://auth.example.com/token',
-            'https://app.example.com/callback',
-            []
-        );
-        $authenticator->setApiClient($client);
-
-        $this->expectException(\RuntimeException::class);
-        $authenticator->getAuthHeaders();
-    }
-
-    public function testGetHostReturnsConfiguredHost(): void
-    {
-        $authenticator = new OAuth2AuthorizationCodeAuthenticator(
-            'https://api.example.com',
-            'my-client-id',
-            'my-client-secret',
-            'https://auth.example.com/authorize',
-            'https://auth.example.com/token',
-            'https://app.example.com/callback',
-            []
-        );
-
-        $this->assertSame('https://api.example.com', $authenticator->getHost());
-    }
-
-    public function testBuildsAuthorizationUrlWithState(): void
-    {
-        $authenticator = new OAuth2AuthorizationCodeAuthenticator(
-            'https://api.example.com',
-            'my-client-id',
-            'my-client-secret',
-            'https://auth.example.com/authorize',
-            'https://auth.example.com/token',
-            'https://app.example.com/callback',
-            ['read', 'write']
-        );
-
-        $url = $authenticator->buildAuthorizationUrl('csrf-state-123');
-
-        $this->assertStringContainsString('state=csrf-state-123', $url);
-    }
-
-    public function testAuthHeadersBeforeExchangeReturnsRecoverableError(): void
-    {
-        $authenticator = new OAuth2AuthorizationCodeAuthenticator(
-            'https://api.example.com',
-            'my-client-id',
-            'my-client-secret',
-            'https://auth.example.com/authorize',
-            'https://auth.example.com/token',
-            'https://app.example.com/callback',
-            []
-        );
-
-        // Calling getAuthHeaders before exchangeCode is a precondition
-        // violation. It must surface as a catchable exception so callers
-        // can recover -- not as a fatal process crash.
-        $caught = null;
-        try {
-            $authenticator->getAuthHeaders();
-        } catch (\RuntimeException $e) {
-            $caught = $e;
-        }
-        $this->assertNotNull($caught, 'expected getAuthHeaders to throw before exchangeCode');
-
-        // Caller continues normally after catching -- no process crash.
-        $this->assertSame('https://api.example.com', $authenticator->getHost());
-    }
+    $client->enqueueResponse(new ApiResponse(
+        200,
+        (string) json_encode($body),
+        ['Content-Type' => 'application/json']
+    ));
+    return $client;
 }
+
+test('builds authorization url with required params', function (): void {
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        ['read', 'write']
+    );
+
+    $url = $authenticator->buildAuthorizationUrl('csrf-state');
+
+    expect($url)->toContain('https://auth.example.com/authorize?');
+    expect($url)->toContain('response_type=code');
+    expect($url)->toContain('client_id=my-client-id');
+    expect($url)->toContain('redirect_uri=' . urlencode('https://app.example.com/callback'));
+    expect($url)->toContain('scope=read+write');
+    expect($url)->toContain('state=csrf-state');
+});
+
+test('exchanges code with correct grant type', function (): void {
+    $client = makeOAuth2AuthCodeMockClient();
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->exchangeCode('auth-code-123');
+
+    expect($client->capturedRequests)->toHaveCount(1);
+    $request = $client->capturedRequests[0];
+    expect($request['method'])->toBe('POST');
+    expect($request['url'])->toBe('https://auth.example.com/token');
+    expect($request['body'] ?? '')->toContain('grant_type=authorization_code');
+    expect($request['body'] ?? '')->toContain('code=auth-code-123');
+    expect($request['body'] ?? '')->toContain('client_id=my-client-id');
+    expect($request['body'] ?? '')->toContain('client_secret=my-client-secret');
+});
+
+test('includes refresh token on refresh', function (): void {
+    $client = new MockTokenApiClient();
+    // First call (exchangeCode) returns a refresh token with an expired access token
+    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+        'access_token' => 'access1',
+        'refresh_token' => 'refresh1',
+        'expires_in' => 0,
+    ]), ['Content-Type' => 'application/json']));
+    // Second call (getAuthHeaders refresh) returns new token
+    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+        'access_token' => 'access2',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+    $authenticator->exchangeCode('auth-code-123');
+
+    // GetAuthHeaders triggers a refresh since token is expired (expires_in=0)
+    $headers = $authenticator->getAuthHeaders();
+
+    $refreshRequest = $client->capturedRequests[1];
+    expect($refreshRequest['body'] ?? '')->toContain('refresh_token=refresh1');
+    expect($refreshRequest['body'] ?? '')->toContain('grant_type=refresh_token');
+    expect($headers['Authorization'])->toBe('Bearer access2');
+});
+
+test('throws before exchange code called', function (): void {
+    $client = makeOAuth2AuthCodeMockClient();
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect(fn () => $authenticator->getAuthHeaders())->toThrow(\RuntimeException::class);
+});
+
+test('auth code get host returns configured host', function (): void {
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+
+    expect($authenticator->getHost())->toBe('https://api.example.com');
+});
+
+test('builds authorization url with state', function (): void {
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        ['read', 'write']
+    );
+
+    $url = $authenticator->buildAuthorizationUrl('csrf-state-123');
+
+    expect($url)->toContain('state=csrf-state-123');
+});
+
+test('auth headers before exchange returns recoverable error', function (): void {
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+
+    // Calling getAuthHeaders before exchangeCode is a precondition
+    // violation. It must surface as a catchable exception so callers
+    // can recover -- not as a fatal process crash.
+    $caught = null;
+    try {
+        $authenticator->getAuthHeaders();
+    } catch (\RuntimeException $e) {
+        $caught = $e;
+    }
+    expect($caught)->not->toBeNull();
+
+    // Caller continues normally after catching -- no process crash.
+    expect($authenticator->getHost())->toBe('https://api.example.com');
+});

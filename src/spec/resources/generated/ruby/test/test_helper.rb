@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'etc'
 require 'securerandom'
 require 'simplecov'
 require 'simplecov-cobertura'
@@ -23,6 +24,13 @@ Minitest::Reporters.use! [
 
 require 'minitest/autorun'
 require 'minitest/pride'
+
+# Run test methods in parallel across worker threads. Top-level container/ENV
+# setup below runs once before any test starts, so it is safe to share.
+# Individual test classes that mutate global state should opt out via
+# `i_suck_and_my_tests_are_order_dependent!` or by not calling `parallelize_me!`.
+Minitest.parallel_executor = Minitest::Parallel::Executor.new(Etc.nprocessors)
+
 require 'testcontainers'
 require 'docker'
 require 'net/http'

@@ -4,6 +4,8 @@ require 'test_helper'
 require 'json'
 
 describe 'Composed Schema' do # rubocop:disable Metrics/BlockLength
+  parallelize_me!
+
   describe 'oneOf with discriminator: PetFood' do
     it 'deserializes to DryFood via discriminator' do
       json = '{"foodType":"dry","weightKg":2.5}'

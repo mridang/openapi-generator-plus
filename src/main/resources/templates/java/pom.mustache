@@ -68,6 +68,8 @@
                 <version>3.2.5</version>
                 <configuration>
                     <reportsDirectory>${project.basedir}/.out/reports</reportsDirectory>
+                    <forkCount>1C</forkCount>
+                    <reuseForks>true</reuseForks>
                 </configuration>
             </plugin>
             <plugin>
@@ -107,6 +109,8 @@
                         <include>**/*Spec.java</include>
                     </includes>
                     <reportsDirectory>${project.basedir}/.out/reports</reportsDirectory>
+                    <forkCount>1C</forkCount>
+                    <reuseForks>true</reuseForks>
                 </configuration>
             </plugin>
             <plugin>

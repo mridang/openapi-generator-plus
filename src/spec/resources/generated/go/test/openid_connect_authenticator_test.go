@@ -59,6 +59,7 @@ func createOpenIdConnectAuthenticator() *oauth.OpenIdConnectAuthenticator {
 }
 
 func TestOpenIdConnect_BuildsAuthorizationUrlFromDiscovery(t *testing.T) {
+	t.Parallel()
 	client := &fakeOIDCClient{
 		responses: []fakeOIDCResponse{
 			{body: `{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}`, statusCode: 200},
@@ -88,6 +89,7 @@ func TestOpenIdConnect_BuildsAuthorizationUrlFromDiscovery(t *testing.T) {
 }
 
 func TestOpenIdConnect_FetchesDiscoveryDocument(t *testing.T) {
+	t.Parallel()
 	client := &fakeOIDCClient{
 		responses: []fakeOIDCResponse{
 			{body: `{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}`, statusCode: 200},
@@ -111,6 +113,7 @@ func TestOpenIdConnect_FetchesDiscoveryDocument(t *testing.T) {
 }
 
 func TestOpenIdConnect_ObtainsTokenAfterCodeExchange(t *testing.T) {
+	t.Parallel()
 	client := &fakeOIDCClient{
 		responses: []fakeOIDCResponse{
 			// Discovery document
@@ -137,6 +140,7 @@ func TestOpenIdConnect_ObtainsTokenAfterCodeExchange(t *testing.T) {
 }
 
 func TestOpenIdConnect_GetAuthHeadersReturnsBearerAfterExchange(t *testing.T) {
+	t.Parallel()
 	client := &fakeOIDCClient{
 		responses: []fakeOIDCResponse{
 			// Discovery document
@@ -164,6 +168,7 @@ func TestOpenIdConnect_GetAuthHeadersReturnsBearerAfterExchange(t *testing.T) {
 }
 
 func TestOpenIdConnect_ThrowsWhenNoApiClientInjected(t *testing.T) {
+	t.Parallel()
 	authObj := createOpenIdConnectAuthenticator()
 
 	_, err := authObj.BuildAuthorizationURL("")
@@ -173,6 +178,7 @@ func TestOpenIdConnect_ThrowsWhenNoApiClientInjected(t *testing.T) {
 }
 
 func TestOpenIdConnect_GetHostReturnsConfiguredHost(t *testing.T) {
+	t.Parallel()
 	authObj := createOpenIdConnectAuthenticator()
 
 	if authObj.Host() != "https://api.example.com" {

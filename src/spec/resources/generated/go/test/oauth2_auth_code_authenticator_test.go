@@ -60,6 +60,7 @@ func createAuthCodeAuthenticator() *oauth.OAuth2AuthorizationCodeAuthenticator {
 }
 
 func TestOAuth2AuthCode_BuildsAuthorizationUrlWithRequiredParams(t *testing.T) {
+	t.Parallel()
 	auth := createAuthCodeAuthenticator()
 
 	url := auth.BuildAuthorizationURL("")
@@ -82,6 +83,7 @@ func TestOAuth2AuthCode_BuildsAuthorizationUrlWithRequiredParams(t *testing.T) {
 }
 
 func TestOAuth2AuthCode_BuildsAuthorizationUrlWithState(t *testing.T) {
+	t.Parallel()
 	auth := createAuthCodeAuthenticator()
 
 	url := auth.BuildAuthorizationURL("csrf-state-123")
@@ -92,6 +94,7 @@ func TestOAuth2AuthCode_BuildsAuthorizationUrlWithState(t *testing.T) {
 }
 
 func TestOAuth2AuthCode_ExchangesCodeWithCorrectGrantType(t *testing.T) {
+	t.Parallel()
 	client := &fakeAuthCodeClient{
 		responses: []fakeAuthCodeResponse{
 			{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
@@ -121,6 +124,7 @@ func TestOAuth2AuthCode_ExchangesCodeWithCorrectGrantType(t *testing.T) {
 }
 
 func TestOAuth2AuthCode_IncludesRefreshTokenOnRefresh(t *testing.T) {
+	t.Parallel()
 	client := &fakeAuthCodeClient{
 		responses: []fakeAuthCodeResponse{
 			{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":1}`, statusCode: 200},
@@ -151,6 +155,7 @@ func TestOAuth2AuthCode_IncludesRefreshTokenOnRefresh(t *testing.T) {
 }
 
 func TestOAuth2AuthCode_ThrowsBeforeExchangeCodeCalled(t *testing.T) {
+	t.Parallel()
 	authObj := createAuthCodeAuthenticator()
 
 	// AuthHeaders (interface method) must NOT panic if ExchangeCode was
@@ -170,6 +175,7 @@ func TestOAuth2AuthCode_ThrowsBeforeExchangeCodeCalled(t *testing.T) {
 }
 
 func TestOAuth2AuthCode_auth_headers_before_exchange_returns_recoverable_error(t *testing.T) {
+	t.Parallel()
 	authObj := createAuthCodeAuthenticator()
 
 	// Construct without ExchangeCode, then prove the precondition
@@ -193,6 +199,7 @@ func TestOAuth2AuthCode_auth_headers_before_exchange_returns_recoverable_error(t
 }
 
 func TestOAuth2AuthCode_GetHostReturnsConfiguredHost(t *testing.T) {
+	t.Parallel()
 	authObj := createAuthCodeAuthenticator()
 
 	if authObj.Host() != "https://api.example.com" {
@@ -201,6 +208,7 @@ func TestOAuth2AuthCode_GetHostReturnsConfiguredHost(t *testing.T) {
 }
 
 func TestOAuth2AuthorizationCodeAuthenticator_AuthorizeURLWithExistingQueryStringUsesAmpSeparator(t *testing.T) {
+	t.Parallel()
 	// RFC 6749 §3.1: the authorization endpoint URI MAY already include a
 	// query component (e.g. tenant-scoped Auth0 URLs that bake `audience`
 	// into the configured authorization_url). The builder must use '&' as

@@ -15,6 +15,7 @@ import (
 )
 
 func TestHeaderSelector_IsJSONMIME(t *testing.T) {
+	t.Parallel()
 	hs := petstore.NewHeaderSelector()
 
 	testCases := []struct {
@@ -43,6 +44,7 @@ func TestHeaderSelector_IsJSONMIME(t *testing.T) {
 }
 
 func TestHeaderSelector_SelectHeadersWithSingleAccept(t *testing.T) {
+	t.Parallel()
 	hs := petstore.NewHeaderSelector()
 
 	headers := hs.SelectHeaders([]string{"application/json"}, "application/json", false)
@@ -56,6 +58,7 @@ func TestHeaderSelector_SelectHeadersWithSingleAccept(t *testing.T) {
 }
 
 func TestHeaderSelector_SelectHeadersWithMultipleAccepts(t *testing.T) {
+	t.Parallel()
 	hs := petstore.NewHeaderSelector()
 
 	headers := hs.SelectHeaders([]string{"application/json", "application/xml"}, "application/json", false)
@@ -67,6 +70,7 @@ func TestHeaderSelector_SelectHeadersWithMultipleAccepts(t *testing.T) {
 }
 
 func TestHeaderSelector_SelectHeadersWithEmptyAccepts(t *testing.T) {
+	t.Parallel()
 	hs := petstore.NewHeaderSelector()
 
 	headers := hs.SelectHeaders([]string{}, "application/json", false)
@@ -77,6 +81,7 @@ func TestHeaderSelector_SelectHeadersWithEmptyAccepts(t *testing.T) {
 }
 
 func TestHeaderSelector_SelectHeadersMultipartOmitsContentType(t *testing.T) {
+	t.Parallel()
 	hs := petstore.NewHeaderSelector()
 
 	headers := hs.SelectHeaders([]string{"application/json"}, "multipart/form-data", true)
@@ -87,6 +92,7 @@ func TestHeaderSelector_SelectHeadersMultipartOmitsContentType(t *testing.T) {
 }
 
 func TestHeaderSelector_SelectHeadersDefaultContentType(t *testing.T) {
+	t.Parallel()
 	hs := petstore.NewHeaderSelector()
 
 	headers := hs.SelectHeaders([]string{"application/json"}, "", false)
@@ -97,6 +103,7 @@ func TestHeaderSelector_SelectHeadersDefaultContentType(t *testing.T) {
 }
 
 func TestHeaderSelector_QualityWeighting(t *testing.T) {
+	t.Parallel()
 	hs := petstore.NewHeaderSelector()
 
 	// When multiple JSON and non-JSON types are provided, JSON types should be
@@ -127,6 +134,7 @@ func TestHeaderSelector_QualityWeighting(t *testing.T) {
 }
 
 func TestHeaderSelector_SelectHeadersWithVendorJSON(t *testing.T) {
+	t.Parallel()
 	hs := petstore.NewHeaderSelector()
 
 	headers := hs.SelectHeaders(
@@ -142,6 +150,7 @@ func TestHeaderSelector_SelectHeadersWithVendorJSON(t *testing.T) {
 }
 
 func TestHeaderSelector_GetNextWeight_StandardSequence(t *testing.T) {
+	t.Parallel()
 	hs := petstore.NewHeaderSelector()
 
 	testCases := []struct {
@@ -170,6 +179,7 @@ func TestHeaderSelector_GetNextWeight_StandardSequence(t *testing.T) {
 }
 
 func TestHeaderSelector_GetNextWeight_MoreThan28Headers(t *testing.T) {
+	t.Parallel()
 	hs := petstore.NewHeaderSelector()
 
 	testCases := []struct {
@@ -190,6 +200,7 @@ func TestHeaderSelector_GetNextWeight_MoreThan28Headers(t *testing.T) {
 }
 
 func TestHeaderSelector_GetNextWeight_MinimumWeight(t *testing.T) {
+	t.Parallel()
 	hs := petstore.NewHeaderSelector()
 
 	testCases := []struct {
@@ -210,6 +221,7 @@ func TestHeaderSelector_GetNextWeight_MinimumWeight(t *testing.T) {
 }
 
 func TestHeaderSelector_GetNextWeight_Produces27Steps(t *testing.T) {
+	t.Parallel()
 	hs := petstore.NewHeaderSelector()
 
 	weight := 1000

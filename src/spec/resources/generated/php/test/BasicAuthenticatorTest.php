@@ -1,5 +1,4 @@
 <?php
-
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -14,35 +13,24 @@ declare(strict_types=1);
 namespace PetstoreClient\Test;
 
 use PetstoreClient\Auth\BasicAuthenticator;
-use PHPUnit\Framework\TestCase;
 
-class BasicAuthenticatorTest extends TestCase
-{
-    public function testValidCredentialsProduceBasicHeader(): void
-    {
-        $auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
-        $headers = $auth->getAuthHeaders();
-        $this->assertSame('Basic YWxpY2U6czNjcmV0', $headers['Authorization']);
-    }
+test('valid credentials produce basic header', function (): void {
+    $auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
+    $headers = $auth->getAuthHeaders();
+    expect($headers['Authorization'])->toBe('Basic YWxpY2U6czNjcmV0');
+});
 
-    public function testRejectsUsernameWithCrlf(): void
-    {
-        $auth = new BasicAuthenticator('https://api.example.com', "alice\r\n", 's3cret');
-        $this->expectException(\InvalidArgumentException::class);
-        $auth->getAuthHeaders();
-    }
+test('rejects username with crlf', function (): void {
+    $auth = new BasicAuthenticator('https://api.example.com', "alice\r\n", 's3cret');
+    expect(fn () => $auth->getAuthHeaders())->toThrow(\InvalidArgumentException::class);
+});
 
-    public function testRejectsPasswordWithNul(): void
-    {
-        $auth = new BasicAuthenticator('https://api.example.com', 'alice', "s3c\0ret");
-        $this->expectException(\InvalidArgumentException::class);
-        $auth->getAuthHeaders();
-    }
+test('rejects password with nul', function (): void {
+    $auth = new BasicAuthenticator('https://api.example.com', 'alice', "s3c\0ret");
+    expect(fn () => $auth->getAuthHeaders())->toThrow(\InvalidArgumentException::class);
+});
 
-    public function testRejectsUsernameWithColon(): void
-    {
-        $auth = new BasicAuthenticator('https://api.example.com', 'ali:ce', 's3cret');
-        $this->expectException(\InvalidArgumentException::class);
-        $auth->getAuthHeaders();
-    }
-}
+test('rejects username with colon', function (): void {
+    $auth = new BasicAuthenticator('https://api.example.com', 'ali:ce', 's3cret');
+    expect(fn () => $auth->getAuthHeaders())->toThrow(\InvalidArgumentException::class);
+});

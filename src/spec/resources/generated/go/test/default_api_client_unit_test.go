@@ -18,6 +18,7 @@ import (
 )
 
 func TestDefaultApiClient_InjectsCustomUserAgent(t *testing.T) {
+	t.Parallel()
 	var receivedUA string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedUA = r.Header.Get("User-Agent")
@@ -40,6 +41,7 @@ func TestDefaultApiClient_InjectsCustomUserAgent(t *testing.T) {
 }
 
 func TestDefaultApiClient_InjectsDefaultUserAgentWhenNotExplicitlySet(t *testing.T) {
+	t.Parallel()
 	var receivedUA string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedUA = r.Header.Get("User-Agent")
@@ -58,6 +60,7 @@ func TestDefaultApiClient_InjectsDefaultUserAgentWhenNotExplicitlySet(t *testing
 }
 
 func TestDefaultApiClient_InjectsRequestId(t *testing.T) {
+	t.Parallel()
 	var receivedRequestID string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedRequestID = r.Header.Get("X-Request-ID")
@@ -80,6 +83,7 @@ func TestDefaultApiClient_InjectsRequestId(t *testing.T) {
 }
 
 func TestDefaultApiClient_DoesNotInjectRequestIdWhenDisabled(t *testing.T) {
+	t.Parallel()
 	var receivedRequestID string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedRequestID = r.Header.Get("X-Request-ID")
@@ -102,6 +106,7 @@ func TestDefaultApiClient_DoesNotInjectRequestIdWhenDisabled(t *testing.T) {
 }
 
 func TestDefaultApiClient_DoesNotOverrideCallerRequestId(t *testing.T) {
+	t.Parallel()
 	var receivedRequestID string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedRequestID = r.Header.Get("X-Request-ID")
@@ -125,6 +130,7 @@ func TestDefaultApiClient_DoesNotOverrideCallerRequestId(t *testing.T) {
 }
 
 func TestDefaultApiClient_TransportDefaultHeadersAreForwarded(t *testing.T) {
+	t.Parallel()
 	var receivedCustom string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedCustom = r.Header.Get("X-Default")
@@ -147,6 +153,7 @@ func TestDefaultApiClient_TransportDefaultHeadersAreForwarded(t *testing.T) {
 }
 
 func TestDefaultApiClient_CallerHeadersOverrideDefaults(t *testing.T) {
+	t.Parallel()
 	var receivedCustom string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedCustom = r.Header.Get("X-Default")
@@ -170,6 +177,7 @@ func TestDefaultApiClient_CallerHeadersOverrideDefaults(t *testing.T) {
 }
 
 func TestDefaultApiClient_RequestIdsAreUnique(t *testing.T) {
+	t.Parallel()
 	var ids []string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ids = append(ids, r.Header.Get("X-Request-ID"))
@@ -197,6 +205,7 @@ func TestDefaultApiClient_RequestIdsAreUnique(t *testing.T) {
 }
 
 func TestDefaultApiClient_SendsGetRequestAndReturnsResponse(t *testing.T) {
+	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
@@ -218,6 +227,7 @@ func TestDefaultApiClient_SendsGetRequestAndReturnsResponse(t *testing.T) {
 }
 
 func TestDefaultApiClient_SendsPostWithJsonBody(t *testing.T) {
+	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
 		w.Header().Set("Content-Type", "application/json")
@@ -245,6 +255,7 @@ func TestDefaultApiClient_SendsPostWithJsonBody(t *testing.T) {
 }
 
 func TestDefaultApiClient_ReturnsResponseHeaders(t *testing.T) {
+	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Test-Header", "test-value")
 		w.WriteHeader(200)
@@ -273,6 +284,7 @@ func TestDefaultApiClient_ReturnsResponseHeaders(t *testing.T) {
 }
 
 func TestDefaultApiClient_ReturnsNon2xxStatusCode(t *testing.T) {
+	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(404)
 		w.Write([]byte("not found"))
@@ -293,6 +305,7 @@ func TestDefaultApiClient_ReturnsNon2xxStatusCode(t *testing.T) {
 }
 
 func TestDefaultApiClient_SendsPutRequest(t *testing.T) {
+	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
@@ -314,6 +327,7 @@ func TestDefaultApiClient_SendsPutRequest(t *testing.T) {
 }
 
 func TestDefaultApiClient_SendsDeleteRequest(t *testing.T) {
+	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
@@ -335,6 +349,7 @@ func TestDefaultApiClient_SendsDeleteRequest(t *testing.T) {
 }
 
 func TestDefaultApiClient_ReturnsJsonBodyForVendorJsonContentType(t *testing.T) {
+	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.api+json")
 		w.WriteHeader(200)
@@ -356,6 +371,7 @@ func TestDefaultApiClient_ReturnsJsonBodyForVendorJsonContentType(t *testing.T) 
 }
 
 func TestDefaultApiClient_JoinsMultiValueResponseHeaders(t *testing.T) {
+	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("X-Custom-Value", "val1")
 		w.Header().Add("X-Custom-Value", "val2")
@@ -390,6 +406,7 @@ func TestDefaultApiClient_JoinsMultiValueResponseHeaders(t *testing.T) {
 // ── Charset decoding ──
 
 func TestDefaultApiClient_DecodesIso88591ResponseBody(t *testing.T) {
+	t.Parallel()
 	/* 0xE9 is "é" in ISO-8859-1; under naive UTF-8 string conversion it
 	 * would be lost or replaced. The client must honour the charset
 	 * parameter on Content-Type so the body decodes correctly. */
@@ -411,6 +428,7 @@ func TestDefaultApiClient_DecodesIso88591ResponseBody(t *testing.T) {
 }
 
 func TestDefaultApiClient_DefaultsToUtf8WhenCharsetMissing(t *testing.T) {
+	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(200)
@@ -429,6 +447,7 @@ func TestDefaultApiClient_DefaultsToUtf8WhenCharsetMissing(t *testing.T) {
 }
 
 func TestDefaultApiClient_FallsBackToUtf8ForUnknownCharset(t *testing.T) {
+	t.Parallel()
 	/* Unknown charset must not panic and must fall back to UTF-8. */
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=x-unknown-charset-9000")

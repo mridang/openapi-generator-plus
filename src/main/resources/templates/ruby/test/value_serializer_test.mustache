@@ -5,6 +5,8 @@
 require 'test_helper'
 
 describe {{moduleName}}::ValueSerializer do
+  parallelize_me!
+
   describe 'path location' do
     it 'null returns empty string' do
       _({{moduleName}}::ValueSerializer.serialize(nil, :path, 'string')).must_equal('')

@@ -8,6 +8,7 @@ import (
 )
 
 func TestBasicAuthenticator_ValidCredentialsProduceBasicHeader(t *testing.T) {
+	t.Parallel()
 	a := auth.NewBasicAuthenticator("https://api.example.com", "alice", "s3cret")
 	headers := a.AuthHeaders()
 	if got, want := headers["Authorization"], "Basic YWxpY2U6czNjcmV0"; got != want {
@@ -16,6 +17,7 @@ func TestBasicAuthenticator_ValidCredentialsProduceBasicHeader(t *testing.T) {
 }
 
 func TestBasicAuthenticator_RejectsUsernameWithCrlf(t *testing.T) {
+	t.Parallel()
 	defer func() {
 		if recover() == nil {
 			t.Fatal("expected panic for CRLF in username")
@@ -26,6 +28,7 @@ func TestBasicAuthenticator_RejectsUsernameWithCrlf(t *testing.T) {
 }
 
 func TestBasicAuthenticator_RejectsPasswordWithNul(t *testing.T) {
+	t.Parallel()
 	defer func() {
 		if recover() == nil {
 			t.Fatal("expected panic for NUL in password")
@@ -36,6 +39,7 @@ func TestBasicAuthenticator_RejectsPasswordWithNul(t *testing.T) {
 }
 
 func TestBasicAuthenticator_RejectsUsernameWithColon(t *testing.T) {
+	t.Parallel()
 	defer func() {
 		if recover() == nil {
 			t.Fatal("expected panic for ':' in username")

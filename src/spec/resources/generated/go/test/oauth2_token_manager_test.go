@@ -53,6 +53,7 @@ func newFakeTokenClient(responses ...fakeResponse) *fakeTokenClient {
 }
 
 func TestOAuth2TokenManager_ExtractsAccessTokenFromResponse(t *testing.T) {
+	t.Parallel()
 	client := newFakeTokenClient(fakeResponse{
 		body:       `{"access_token":"tok123","expires_in":3600}`,
 		statusCode: 200,
@@ -73,6 +74,7 @@ func TestOAuth2TokenManager_ExtractsAccessTokenFromResponse(t *testing.T) {
 }
 
 func TestOAuth2TokenManager_StoresRefreshToken(t *testing.T) {
+	t.Parallel()
 	client := newFakeTokenClient(fakeResponse{
 		body:       `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`,
 		statusCode: 200,
@@ -93,6 +95,7 @@ func TestOAuth2TokenManager_StoresRefreshToken(t *testing.T) {
 }
 
 func TestOAuth2TokenManager_ReturnsCachedTokenWhenNotExpired(t *testing.T) {
+	t.Parallel()
 	callCount := int32(0)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt32(&callCount, 1)
@@ -135,6 +138,7 @@ func TestOAuth2TokenManager_ReturnsCachedTokenWhenNotExpired(t *testing.T) {
 }
 
 func TestOAuth2TokenManager_RefetchesTokenWhenExpired(t *testing.T) {
+	t.Parallel()
 	client := newFakeTokenClient(
 		fakeResponse{body: `{"access_token":"tok1","expires_in":1}`, statusCode: 200},
 		fakeResponse{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
@@ -164,6 +168,7 @@ func TestOAuth2TokenManager_RefetchesTokenWhenExpired(t *testing.T) {
 }
 
 func TestOAuth2TokenManager_SetAccessTokenBypassesEndpoint(t *testing.T) {
+	t.Parallel()
 	manager := oauth.NewOAuth2TokenManager()
 	manager.SetAccessToken("manual-token")
 
@@ -178,6 +183,7 @@ func TestOAuth2TokenManager_SetAccessTokenBypassesEndpoint(t *testing.T) {
 }
 
 func TestOAuth2TokenManager_InvalidateAccessTokenForcesRefetch(t *testing.T) {
+	t.Parallel()
 	client := newFakeTokenClient(
 		fakeResponse{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
 		fakeResponse{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
@@ -210,6 +216,7 @@ func TestOAuth2TokenManager_InvalidateAccessTokenForcesRefetch(t *testing.T) {
 }
 
 func TestOAuth2TokenManager_ThrowsWhenNoApiClientInjected(t *testing.T) {
+	t.Parallel()
 	manager := oauth.NewOAuth2TokenManager()
 
 	_, err := manager.GetAccessToken("https://auth.example.com/token", map[string]string{
@@ -221,6 +228,7 @@ func TestOAuth2TokenManager_ThrowsWhenNoApiClientInjected(t *testing.T) {
 }
 
 func TestOAuth2TokenManager_ExpiresInShortLivedTokenDoesNotStorm(t *testing.T) {
+	t.Parallel()
 	// Gap CM: a short-lived token (expires_in < buffer) must produce exactly
 	// ONE network call from a single GetAccessToken invocation.
 	client := newFakeTokenClient(fakeResponse{
@@ -246,6 +254,7 @@ func TestOAuth2TokenManager_ExpiresInShortLivedTokenDoesNotStorm(t *testing.T) {
 }
 
 func TestOAuth2TokenManager_ExpiresInLongLivedTokenAppliesFullBuffer(t *testing.T) {
+	t.Parallel()
 	// Gap CM: long-lived token gets full 30s buffer; second call uses cache.
 	client := newFakeTokenClient(fakeResponse{
 		body:       `{"access_token":"long","expires_in":3600}`,
@@ -275,6 +284,7 @@ func TestOAuth2TokenManager_ExpiresInLongLivedTokenAppliesFullBuffer(t *testing.
 }
 
 func TestOAuth2TokenManager_ExpiresInExactlyBufferReturnsZeroBuffer(t *testing.T) {
+	t.Parallel()
 	// Gap CM: expires_in == 30 collapses expiry to now, forcing refetch.
 	client := newFakeTokenClient(
 		fakeResponse{body: `{"access_token":"edge1","expires_in":30}`, statusCode: 200},
@@ -304,6 +314,7 @@ func TestOAuth2TokenManager_ExpiresInExactlyBufferReturnsZeroBuffer(t *testing.T
 }
 
 func TestOAuth2TokenManager_RefreshTokenEmptyStringPreservesExisting(t *testing.T) {
+	t.Parallel()
 	// Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
 	// MUST NOT clobber the cached refresh_token.
 	client := newFakeTokenClient(
@@ -334,6 +345,7 @@ func TestOAuth2TokenManager_RefreshTokenEmptyStringPreservesExisting(t *testing.
 }
 
 func TestOAuth2TokenManager_ExpiresInAsJsonStringIsAccepted(t *testing.T) {
+	t.Parallel()
 	// D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
 	// quoted string. The manager must accept it and cache the token; a
 	// second call within the buffer window must serve from cache.
@@ -363,6 +375,7 @@ func TestOAuth2TokenManager_ExpiresInAsJsonStringIsAccepted(t *testing.T) {
 }
 
 func TestOAuth2TokenManager_ExpiresInAsFloatIsFloored(t *testing.T) {
+	t.Parallel()
 	// D1: some providers send expires_in as a JSON float (e.g. 3600.5).
 	// The manager must floor it and cache the token.
 	client := newFakeTokenClient(fakeResponse{
@@ -391,6 +404,7 @@ func TestOAuth2TokenManager_ExpiresInAsFloatIsFloored(t *testing.T) {
 }
 
 func TestOAuth2TokenManager_ExpiresInNegativeSkipsCaching(t *testing.T) {
+	t.Parallel()
 	// D1: a negative expires_in (e.g. -1) must mark the token as
 	// immediately stale so the very next call refetches.
 	client := newFakeTokenClient(
@@ -419,6 +433,7 @@ func TestOAuth2TokenManager_ExpiresInNegativeSkipsCaching(t *testing.T) {
 }
 
 func TestOAuth2TokenManager_ThrowsWhenTokenRequestFails(t *testing.T) {
+	t.Parallel()
 	client := newFakeTokenClient(fakeResponse{
 		body:       `{"error":"invalid_client"}`,
 		statusCode: 401,
@@ -436,6 +451,7 @@ func TestOAuth2TokenManager_ThrowsWhenTokenRequestFails(t *testing.T) {
 }
 
 func TestOAuth2TokenManager_TokenResponseMissingAccessTokenThrowsTypedError(t *testing.T) {
+	t.Parallel()
 	// A 2xx response whose body omits access_token must surface as the
 	// typed *OAuth2TokenError, not silently cache an empty token.
 	client := newFakeTokenClient(fakeResponse{
@@ -459,6 +475,7 @@ func TestOAuth2TokenManager_TokenResponseMissingAccessTokenThrowsTypedError(t *t
 }
 
 func TestOAuth2TokenManager_TokenEndpointErrorResponseParsedToTypedError(t *testing.T) {
+	t.Parallel()
 	// RFC 6749 §5.2: a 4xx response with a JSON error object must surface
 	// as a typed *OAuth2ServerError carrying code/description/uri.
 	client := newFakeTokenClient(fakeResponse{

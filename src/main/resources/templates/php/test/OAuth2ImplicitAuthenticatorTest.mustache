@@ -1,80 +1,68 @@
 {{>api_info}}
 namespace {{invokerPackage}}\Test;
 
-use PHPUnit\Framework\TestCase;
 use {{invokerPackage}}\Auth\OAuth\OAuth2ImplicitAuthenticator;
 
-class OAuth2ImplicitAuthenticatorTest extends TestCase
+function makeOAuth2ImplicitAuthenticator(): OAuth2ImplicitAuthenticator
 {
-    private function createAuthenticator(): OAuth2ImplicitAuthenticator
-    {
-        return new OAuth2ImplicitAuthenticator(
-            'https://api.example.com',
-            'my-client-id',
-            'https://auth.example.com/authorize',
-            ['read', 'write']
-        );
-    }
-
-    public function testBuildsAuthorizationUrlWithResponseTypeToken(): void
-    {
-        $authenticator = $this->createAuthenticator();
-
-        $url = $authenticator->buildAuthorizationUrl();
-
-        $this->assertStringContainsString('https://auth.example.com/authorize?', $url);
-        $this->assertStringContainsString('response_type=token', $url);
-    }
-
-    public function testBuildsAuthorizationUrlWithClientId(): void
-    {
-        $authenticator = $this->createAuthenticator();
-
-        $url = $authenticator->buildAuthorizationUrl();
-
-        $this->assertStringContainsString('client_id=my-client-id', $url);
-    }
-
-    public function testBuildsAuthorizationUrlWithScopes(): void
-    {
-        $authenticator = $this->createAuthenticator();
-
-        $url = $authenticator->buildAuthorizationUrl();
-
-        $this->assertStringContainsString('scope=read+write', $url);
-    }
-
-    public function testBuildsAuthorizationUrlWithState(): void
-    {
-        $authenticator = $this->createAuthenticator();
-
-        $url = $authenticator->buildAuthorizationUrl('my-state');
-
-        $this->assertStringContainsString('state=my-state', $url);
-    }
-
-    public function testGetAuthHeadersReturnsBearerAfterSetAccessToken(): void
-    {
-        $authenticator = $this->createAuthenticator();
-
-        $authenticator->setAccessToken('my-access-token');
-        $headers = $authenticator->getAuthHeaders();
-
-        $this->assertSame('Bearer my-access-token', $headers['Authorization']);
-    }
-
-    public function testThrowsWhenAccessTokenNotSet(): void
-    {
-        $authenticator = $this->createAuthenticator();
-
-        $this->expectException(\RuntimeException::class);
-        $authenticator->getAuthHeaders();
-    }
-
-    public function testGetHostReturnsConfiguredHost(): void
-    {
-        $authenticator = $this->createAuthenticator();
-
-        $this->assertSame('https://api.example.com', $authenticator->getHost());
-    }
+    return new OAuth2ImplicitAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'https://auth.example.com/authorize',
+        ['read', 'write']
+    );
 }
+
+test('builds authorization url with response type token', function (): void {
+    $authenticator = makeOAuth2ImplicitAuthenticator();
+
+    $url = $authenticator->buildAuthorizationUrl();
+
+    expect($url)->toContain('https://auth.example.com/authorize?');
+    expect($url)->toContain('response_type=token');
+});
+
+test('builds authorization url with client id', function (): void {
+    $authenticator = makeOAuth2ImplicitAuthenticator();
+
+    $url = $authenticator->buildAuthorizationUrl();
+
+    expect($url)->toContain('client_id=my-client-id');
+});
+
+test('builds authorization url with scopes', function (): void {
+    $authenticator = makeOAuth2ImplicitAuthenticator();
+
+    $url = $authenticator->buildAuthorizationUrl();
+
+    expect($url)->toContain('scope=read+write');
+});
+
+test('builds authorization url with state', function (): void {
+    $authenticator = makeOAuth2ImplicitAuthenticator();
+
+    $url = $authenticator->buildAuthorizationUrl('my-state');
+
+    expect($url)->toContain('state=my-state');
+});
+
+test('get auth headers returns bearer after set access token', function (): void {
+    $authenticator = makeOAuth2ImplicitAuthenticator();
+
+    $authenticator->setAccessToken('my-access-token');
+    $headers = $authenticator->getAuthHeaders();
+
+    expect($headers['Authorization'])->toBe('Bearer my-access-token');
+});
+
+test('throws when access token not set', function (): void {
+    $authenticator = makeOAuth2ImplicitAuthenticator();
+
+    expect(fn () => $authenticator->getAuthHeaders())->toThrow(\RuntimeException::class);
+});
+
+test('get host returns configured host', function (): void {
+    $authenticator = makeOAuth2ImplicitAuthenticator();
+
+    expect($authenticator->getHost())->toBe('https://api.example.com');
+});

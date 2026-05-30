@@ -1,286 +1,263 @@
 {{>api_info}}
 namespace {{invokerPackage}}\Test;
 
-use PHPUnit\Framework\TestCase;
 use {{invokerPackage}}\ApiResponse;
 use {{invokerPackage}}\Auth\OAuth\OAuth2TokenManager;
 
-class OAuth2TokenManagerTest extends TestCase
-{
-    private function makeTokenResponse(
-        string $accessToken,
-        int $expiresIn = 3600,
-        ?string $refreshToken = null
-    ): ApiResponse {
-        $body = ['access_token' => $accessToken, 'expires_in' => $expiresIn];
-        if ($refreshToken !== null) {
-            $body['refresh_token'] = $refreshToken;
-        }
-        return new ApiResponse(200, (string) json_encode($body), ['Content-Type' => 'application/json']);
+function makeOAuth2TokenManagerResponse(
+    string $accessToken,
+    int $expiresIn = 3600,
+    ?string $refreshToken = null
+): ApiResponse {
+    $body = ['access_token' => $accessToken, 'expires_in' => $expiresIn];
+    if ($refreshToken !== null) {
+        $body['refresh_token'] = $refreshToken;
     }
-
-    public function testStoresRefreshToken(): void
-    {
-        $client = new MockTokenApiClient();
-        $client->enqueueResponse($this->makeTokenResponse('access1', 3600, 'refresh1'));
-
-        $manager = new OAuth2TokenManager();
-        $manager->setApiClient($client);
-
-        $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'authorization_code']);
-
-        $this->assertSame('refresh1', $manager->getRefreshToken());
-    }
-
-    public function testExtractsAccessTokenFromResponse(): void
-    {
-        $client = new MockTokenApiClient();
-        $client->enqueueResponse($this->makeTokenResponse('my-access-token', 3600));
-
-        $manager = new OAuth2TokenManager();
-        $manager->setApiClient($client);
-
-        $token = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
-
-        $this->assertSame('my-access-token', $token);
-    }
-
-    public function testReturnsCachedTokenWhenNotExpired(): void
-    {
-        $client = new MockTokenApiClient();
-        $client->enqueueResponse($this->makeTokenResponse('cached-token', 3600));
-
-        $manager = new OAuth2TokenManager();
-        $manager->setApiClient($client);
-
-        $token1 = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
-        $token2 = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
-
-        $this->assertSame('cached-token', $token1);
-        $this->assertSame('cached-token', $token2);
-        $this->assertCount(1, $client->capturedRequests);
-    }
-
-    public function testRefetchesTokenWhenExpired(): void
-    {
-        $client = new MockTokenApiClient();
-        // First token expires immediately (expires_in = 0 means it will be in the past after the 30s buffer)
-        $client->enqueueResponse($this->makeTokenResponse('expired-token', 0));
-        $client->enqueueResponse($this->makeTokenResponse('new-token', 3600));
-
-        $manager = new OAuth2TokenManager();
-        $manager->setApiClient($client);
-
-        $token1 = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
-        $token2 = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
-
-        $this->assertSame('expired-token', $token1);
-        $this->assertSame('new-token', $token2);
-        $this->assertCount(2, $client->capturedRequests);
-    }
-
-    public function testSetAccessTokenBypassesEndpoint(): void
-    {
-        $client = new MockTokenApiClient();
-
-        $manager = new OAuth2TokenManager();
-        $manager->setApiClient($client);
-        $manager->setAccessToken('manual-token');
-
-        $token = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
-
-        $this->assertSame('manual-token', $token);
-        $this->assertCount(0, $client->capturedRequests);
-    }
-
-    public function testInvalidateAccessTokenForcesRefetch(): void
-    {
-        $client = new MockTokenApiClient();
-        $client->enqueueResponse($this->makeTokenResponse('tok1', 3600));
-        $client->enqueueResponse($this->makeTokenResponse('tok2', 3600));
-
-        $manager = new OAuth2TokenManager();
-        $manager->setApiClient($client);
-
-        $first = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
-        $manager->invalidateAccessToken();
-        $second = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
-
-        $this->assertSame('tok1', $first);
-        $this->assertSame('tok2', $second);
-        $this->assertCount(2, $client->capturedRequests);
-    }
-
-    public function testThrowsWhenNoApiClientInjected(): void
-    {
-        $manager = new OAuth2TokenManager();
-
-        $this->expectException(\RuntimeException::class);
-        $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
-    }
-
-    public function testExpiresInShortLivedTokenDoesNotStorm(): void
-    {
-        // Gap CM: short-lived token (expires_in < buffer) must produce exactly
-        // ONE network call from a single getAccessToken invocation.
-        $client = new MockTokenApiClient();
-        $client->enqueueResponse($this->makeTokenResponse('short', 10));
-
-        $manager = new OAuth2TokenManager();
-        $manager->setApiClient($client);
-
-        $token = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
-
-        $this->assertSame('short', $token);
-        $this->assertCount(1, $client->capturedRequests);
-    }
-
-    public function testExpiresInLongLivedTokenAppliesFullBuffer(): void
-    {
-        // Gap CM: long-lived token gets full 30s buffer; second call serves
-        // from cache.
-        $client = new MockTokenApiClient();
-        $client->enqueueResponse($this->makeTokenResponse('long', 3600));
-
-        $manager = new OAuth2TokenManager();
-        $manager->setApiClient($client);
-
-        $first = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
-        $second = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
-
-        $this->assertSame('long', $first);
-        $this->assertSame('long', $second);
-        $this->assertCount(1, $client->capturedRequests);
-    }
-
-    public function testExpiresInExactlyBufferReturnsZeroBuffer(): void
-    {
-        // Gap CM: expires_in == 30 collapses expiry to now, forcing refetch.
-        $client = new MockTokenApiClient();
-        $client->enqueueResponse($this->makeTokenResponse('edge1', 30));
-        $client->enqueueResponse($this->makeTokenResponse('edge2', 30));
-
-        $manager = new OAuth2TokenManager();
-        $manager->setApiClient($client);
-
-        $first = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
-        $second = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
-
-        $this->assertSame('edge1', $first);
-        $this->assertSame('edge2', $second);
-        $this->assertCount(2, $client->capturedRequests);
-    }
-
-    public function testRefreshTokenEmptyStringPreservesExisting(): void
-    {
-        // Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
-        // MUST NOT clobber the cached refresh_token.
-        $client = new MockTokenApiClient();
-        // Seed: initial token grant returns refresh_token "old_refresh" with a
-        // short-lived access token so the next call triggers a refresh.
-        $client->enqueueResponse($this->makeTokenResponse('old_access', 1, 'old_refresh'));
-        // Refresh response: explicit empty refresh_token must not overwrite cache.
-        $client->enqueueResponse(new ApiResponse(
-            200,
-            (string) json_encode(['access_token' => 'new_access', 'expires_in' => 3600, 'refresh_token' => '']),
-            ['Content-Type' => 'application/json']
-        ));
-
-        $manager = new OAuth2TokenManager();
-        $manager->setApiClient($client);
-
-        $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'authorization_code']);
-        $this->assertSame('old_refresh', $manager->getRefreshToken());
-
-        $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'authorization_code']);
-        $this->assertSame(
-            'old_refresh',
-            $manager->getRefreshToken(),
-            'empty refresh_token in refresh response must not overwrite cached refresh_token'
-        );
-    }
-
-    public function testExpiresInAsJsonStringIsAccepted(): void
-    {
-        // D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
-        // quoted string. The manager must accept it and cache the token; a
-        // second call within the buffer window must serve from cache.
-        $client = new MockTokenApiClient();
-        $client->enqueueResponse(new ApiResponse(
-            200,
-            (string) json_encode(['access_token' => 'str-tok', 'expires_in' => '3600']),
-            ['Content-Type' => 'application/json']
-        ));
-
-        $manager = new OAuth2TokenManager();
-        $manager->setApiClient($client);
-
-        $first = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
-        $second = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
-
-        $this->assertSame('str-tok', $first);
-        $this->assertSame('str-tok', $second);
-        $this->assertCount(1, $client->capturedRequests);
-    }
-
-    public function testExpiresInAsFloatIsFloored(): void
-    {
-        // D1: some providers send expires_in as a JSON float (e.g. 3600.5).
-        // The manager must floor it and cache the token.
-        $client = new MockTokenApiClient();
-        $client->enqueueResponse(new ApiResponse(
-            200,
-            (string) json_encode(['access_token' => 'flt-tok', 'expires_in' => 3600.5]),
-            ['Content-Type' => 'application/json']
-        ));
-
-        $manager = new OAuth2TokenManager();
-        $manager->setApiClient($client);
-
-        $first = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
-        $second = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
-
-        $this->assertSame('flt-tok', $first);
-        $this->assertSame('flt-tok', $second);
-        $this->assertCount(1, $client->capturedRequests);
-    }
-
-    public function testExpiresInNegativeSkipsCaching(): void
-    {
-        // D1: a negative expires_in (e.g. -1) must mark the token as
-        // immediately stale so the very next call refetches.
-        $client = new MockTokenApiClient();
-        $client->enqueueResponse(new ApiResponse(
-            200,
-            (string) json_encode(['access_token' => 'neg1', 'expires_in' => -1]),
-            ['Content-Type' => 'application/json']
-        ));
-        $client->enqueueResponse($this->makeTokenResponse('neg2', 3600));
-
-        $manager = new OAuth2TokenManager();
-        $manager->setApiClient($client);
-
-        $first = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
-        $second = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
-
-        $this->assertSame('neg1', $first);
-        $this->assertSame('neg2', $second);
-        $this->assertCount(2, $client->capturedRequests);
-    }
-
-    public function testThrowsWhenTokenRequestFails(): void
-    {
-        $client = new MockTokenApiClient();
-        $client->enqueueResponse(new ApiResponse(
-            401,
-            (string) json_encode(['error' => 'invalid_client']),
-            ['Content-Type' => 'application/json']
-        ));
-
-        $manager = new OAuth2TokenManager();
-        $manager->setApiClient($client);
-
-        $this->expectException(\RuntimeException::class);
-        $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
-    }
+    return new ApiResponse(200, (string) json_encode($body), ['Content-Type' => 'application/json']);
 }
+
+test('stores refresh token', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('access1', 3600, 'refresh1'));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'authorization_code']);
+
+    expect($manager->getRefreshToken())->toBe('refresh1');
+});
+
+test('extracts access token from response', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('my-access-token', 3600));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $token = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    expect($token)->toBe('my-access-token');
+});
+
+test('returns cached token when not expired', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('cached-token', 3600));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $token1 = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+    $token2 = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    expect($token1)->toBe('cached-token');
+    expect($token2)->toBe('cached-token');
+    expect($client->capturedRequests)->toHaveCount(1);
+});
+
+test('refetches token when expired', function (): void {
+    $client = new MockTokenApiClient();
+    // First token expires immediately (expires_in = 0 means it will be in the past after the 30s buffer)
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('expired-token', 0));
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('new-token', 3600));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $token1 = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+    $token2 = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    expect($token1)->toBe('expired-token');
+    expect($token2)->toBe('new-token');
+    expect($client->capturedRequests)->toHaveCount(2);
+});
+
+test('set access token bypasses endpoint', function (): void {
+    $client = new MockTokenApiClient();
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+    $manager->setAccessToken('manual-token');
+
+    $token = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    expect($token)->toBe('manual-token');
+    expect($client->capturedRequests)->toHaveCount(0);
+});
+
+test('invalidate access token forces refetch', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('tok1', 3600));
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('tok2', 3600));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $first = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+    $manager->invalidateAccessToken();
+    $second = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    expect($first)->toBe('tok1');
+    expect($second)->toBe('tok2');
+    expect($client->capturedRequests)->toHaveCount(2);
+});
+
+test('token manager throws when no api client injected', function (): void {
+    $manager = new OAuth2TokenManager();
+
+    expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
+        ->toThrow(\RuntimeException::class);
+});
+
+test('expires in short lived token does not storm', function (): void {
+    // Gap CM: short-lived token (expires_in < buffer) must produce exactly
+    // ONE network call from a single getAccessToken invocation.
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('short', 10));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $token = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    expect($token)->toBe('short');
+    expect($client->capturedRequests)->toHaveCount(1);
+});
+
+test('expires in long lived token applies full buffer', function (): void {
+    // Gap CM: long-lived token gets full 30s buffer; second call serves
+    // from cache.
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('long', 3600));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $first = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+    $second = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    expect($first)->toBe('long');
+    expect($second)->toBe('long');
+    expect($client->capturedRequests)->toHaveCount(1);
+});
+
+test('expires in exactly buffer returns zero buffer', function (): void {
+    // Gap CM: expires_in == 30 collapses expiry to now, forcing refetch.
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('edge1', 30));
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('edge2', 30));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $first = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+    $second = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    expect($first)->toBe('edge1');
+    expect($second)->toBe('edge2');
+    expect($client->capturedRequests)->toHaveCount(2);
+});
+
+test('refresh token empty string preserves existing', function (): void {
+    // Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
+    // MUST NOT clobber the cached refresh_token.
+    $client = new MockTokenApiClient();
+    // Seed: initial token grant returns refresh_token "old_refresh" with a
+    // short-lived access token so the next call triggers a refresh.
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('old_access', 1, 'old_refresh'));
+    // Refresh response: explicit empty refresh_token must not overwrite cache.
+    $client->enqueueResponse(new ApiResponse(
+        200,
+        (string) json_encode(['access_token' => 'new_access', 'expires_in' => 3600, 'refresh_token' => '']),
+        ['Content-Type' => 'application/json']
+    ));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'authorization_code']);
+    expect($manager->getRefreshToken())->toBe('old_refresh');
+
+    $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'authorization_code']);
+    expect($manager->getRefreshToken())->toBe('old_refresh');
+});
+
+test('expires in as json string is accepted', function (): void {
+    // D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
+    // quoted string. The manager must accept it and cache the token; a
+    // second call within the buffer window must serve from cache.
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiResponse(
+        200,
+        (string) json_encode(['access_token' => 'str-tok', 'expires_in' => '3600']),
+        ['Content-Type' => 'application/json']
+    ));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $first = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+    $second = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    expect($first)->toBe('str-tok');
+    expect($second)->toBe('str-tok');
+    expect($client->capturedRequests)->toHaveCount(1);
+});
+
+test('expires in as float is floored', function (): void {
+    // D1: some providers send expires_in as a JSON float (e.g. 3600.5).
+    // The manager must floor it and cache the token.
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiResponse(
+        200,
+        (string) json_encode(['access_token' => 'flt-tok', 'expires_in' => 3600.5]),
+        ['Content-Type' => 'application/json']
+    ));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $first = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+    $second = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    expect($first)->toBe('flt-tok');
+    expect($second)->toBe('flt-tok');
+    expect($client->capturedRequests)->toHaveCount(1);
+});
+
+test('expires in negative skips caching', function (): void {
+    // D1: a negative expires_in (e.g. -1) must mark the token as
+    // immediately stale so the very next call refetches.
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiResponse(
+        200,
+        (string) json_encode(['access_token' => 'neg1', 'expires_in' => -1]),
+        ['Content-Type' => 'application/json']
+    ));
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('neg2', 3600));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $first = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+    $second = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    expect($first)->toBe('neg1');
+    expect($second)->toBe('neg2');
+    expect($client->capturedRequests)->toHaveCount(2);
+});
+
+test('throws when token request fails', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiResponse(
+        401,
+        (string) json_encode(['error' => 'invalid_client']),
+        ['Content-Type' => 'application/json']
+    ));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
+        ->toThrow(\RuntimeException::class);
+});

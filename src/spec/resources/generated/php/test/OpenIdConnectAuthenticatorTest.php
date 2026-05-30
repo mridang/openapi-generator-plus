@@ -1,5 +1,4 @@
 <?php
-
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -15,171 +14,157 @@ namespace PetstoreClient\Test;
 
 use PetstoreClient\ApiResponse;
 use PetstoreClient\Auth\OAuth\OpenIdConnectAuthenticator;
-use PHPUnit\Framework\TestCase;
 
-class OpenIdConnectAuthenticatorTest extends TestCase
+function makeOpenIdConnectMockClientWithDiscovery(): MockTokenApiClient
 {
-    private function createClientWithDiscovery(): MockTokenApiClient
-    {
-        $client = new MockTokenApiClient();
-        // Discovery document response
-        $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
-            'authorization_endpoint' => 'https://auth.example.com/authorize',
-            'token_endpoint' => 'https://auth.example.com/token',
-        ]), ['Content-Type' => 'application/json']));
-        return $client;
-    }
-
-    public function testBuildsAuthorizationUrlFromDiscovery(): void
-    {
-        $client = $this->createClientWithDiscovery();
-
-        $authenticator = new OpenIdConnectAuthenticator(
-            'https://api.example.com',
-            'https://auth.example.com/.well-known/openid-configuration',
-            'my-client-id',
-            'my-client-secret',
-            'https://app.example.com/callback',
-            ['openid', 'profile']
-        );
-        $authenticator->setApiClient($client);
-
-        $url = $authenticator->buildAuthorizationUrl('state-123');
-
-        // Verify discovery was fetched
-        $this->assertCount(1, $client->capturedRequests);
-        $this->assertSame('GET', $client->capturedRequests[0]['method']);
-        $this->assertSame(
-            'https://auth.example.com/.well-known/openid-configuration',
-            $client->capturedRequests[0]['url']
-        );
-
-        // Verify authorization URL uses discovered endpoint
-        $this->assertStringContainsString('https://auth.example.com/authorize?', $url);
-        $this->assertStringContainsString('response_type=code', $url);
-        $this->assertStringContainsString('client_id=my-client-id', $url);
-        $this->assertStringContainsString('state=state-123', $url);
-        $this->assertStringContainsString('scope=openid+profile', $url);
-    }
-
-    public function testObtainsTokenAfterCodeExchange(): void
-    {
-        $client = new MockTokenApiClient();
-        // Discovery document
-        $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
-            'authorization_endpoint' => 'https://auth.example.com/authorize',
-            'token_endpoint' => 'https://auth.example.com/token',
-        ]), ['Content-Type' => 'application/json']));
-        // Token exchange response
-        $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
-            'access_token' => 'oidc-token',
-            'expires_in' => 3600,
-        ]), ['Content-Type' => 'application/json']));
-
-        $authenticator = new OpenIdConnectAuthenticator(
-            'https://api.example.com',
-            'https://auth.example.com/.well-known/openid-configuration',
-            'my-client-id',
-            'my-client-secret',
-            'https://app.example.com/callback',
-            ['openid']
-        );
-        $authenticator->setApiClient($client);
-
-        $authenticator->exchangeCode('oidc-code-123');
-
-        // Discovery request + token request
-        $this->assertCount(2, $client->capturedRequests);
-        $tokenRequest = $client->capturedRequests[1];
-        $this->assertSame('POST', $tokenRequest['method']);
-        $this->assertSame('https://auth.example.com/token', $tokenRequest['url']);
-        $this->assertStringContainsString('grant_type=authorization_code', $tokenRequest['body'] ?? '');
-        $this->assertStringContainsString('code=oidc-code-123', $tokenRequest['body'] ?? '');
-    }
-
-    public function testGetAuthHeadersReturnsBearerAfterExchange(): void
-    {
-        $client = new MockTokenApiClient();
-        // Discovery document
-        $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
-            'authorization_endpoint' => 'https://auth.example.com/authorize',
-            'token_endpoint' => 'https://auth.example.com/token',
-        ]), ['Content-Type' => 'application/json']));
-        // Token exchange response
-        $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
-            'access_token' => 'oidc-tok',
-            'expires_in' => 3600,
-        ]), ['Content-Type' => 'application/json']));
-
-        $authenticator = new OpenIdConnectAuthenticator(
-            'https://api.example.com',
-            'https://auth.example.com/.well-known/openid-configuration',
-            'my-client-id',
-            'my-client-secret',
-            'https://app.example.com/callback',
-            ['openid']
-        );
-        $authenticator->setApiClient($client);
-
-        $authenticator->exchangeCode('oidc-code');
-        $headers = $authenticator->getAuthHeaders();
-
-        $this->assertSame('Bearer oidc-tok', $headers['Authorization']);
-    }
-
-    public function testFetchesDiscoveryDocument(): void
-    {
-        $client = new MockTokenApiClient();
-        // Only one discovery response needed
-        $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
-            'authorization_endpoint' => 'https://auth.example.com/authorize',
-            'token_endpoint' => 'https://auth.example.com/token',
-        ]), ['Content-Type' => 'application/json']));
-
-        $authenticator = new OpenIdConnectAuthenticator(
-            'https://api.example.com',
-            'https://auth.example.com/.well-known/openid-configuration',
-            'my-client-id',
-            'my-client-secret',
-            'https://app.example.com/callback',
-            []
-        );
-        $authenticator->setApiClient($client);
-
-        $authenticator->buildAuthorizationUrl();
-        $authenticator->buildAuthorizationUrl();
-
-        // Discovery should only be fetched once
-        $discoveryRequests = array_filter($client->capturedRequests, fn(array $r): bool => $r['method'] === 'GET');
-        $this->assertCount(1, $discoveryRequests);
-    }
-
-    public function testThrowsWhenNoApiClientInjected(): void
-    {
-        $authenticator = new OpenIdConnectAuthenticator(
-            'https://api.example.com',
-            'https://auth.example.com/.well-known/openid-configuration',
-            'my-client-id',
-            'my-client-secret',
-            'https://app.example.com/callback',
-            []
-        );
-
-        $this->expectException(\RuntimeException::class);
-        $authenticator->buildAuthorizationUrl();
-    }
-
-    public function testGetHostReturnsConfiguredHost(): void
-    {
-        $authenticator = new OpenIdConnectAuthenticator(
-            'https://api.example.com',
-            'https://auth.example.com/.well-known/openid-configuration',
-            'my-client-id',
-            'my-client-secret',
-            'https://app.example.com/callback',
-            []
-        );
-
-        $this->assertSame('https://api.example.com', $authenticator->getHost());
-    }
+    $client = new MockTokenApiClient();
+    // Discovery document response
+    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Content-Type' => 'application/json']));
+    return $client;
 }
+
+test('builds authorization url from discovery', function (): void {
+    $client = makeOpenIdConnectMockClientWithDiscovery();
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        ['openid', 'profile']
+    );
+    $authenticator->setApiClient($client);
+
+    $url = $authenticator->buildAuthorizationUrl('state-123');
+
+    // Verify discovery was fetched
+    expect($client->capturedRequests)->toHaveCount(1);
+    expect($client->capturedRequests[0]['method'])->toBe('GET');
+    expect($client->capturedRequests[0]['url'])->toBe('https://auth.example.com/.well-known/openid-configuration');
+
+    // Verify authorization URL uses discovered endpoint
+    expect($url)->toContain('https://auth.example.com/authorize?');
+    expect($url)->toContain('response_type=code');
+    expect($url)->toContain('client_id=my-client-id');
+    expect($url)->toContain('state=state-123');
+    expect($url)->toContain('scope=openid+profile');
+});
+
+test('obtains token after code exchange', function (): void {
+    $client = new MockTokenApiClient();
+    // Discovery document
+    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Content-Type' => 'application/json']));
+    // Token exchange response
+    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+        'access_token' => 'oidc-token',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        ['openid']
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->exchangeCode('oidc-code-123');
+
+    // Discovery request + token request
+    expect($client->capturedRequests)->toHaveCount(2);
+    $tokenRequest = $client->capturedRequests[1];
+    expect($tokenRequest['method'])->toBe('POST');
+    expect($tokenRequest['url'])->toBe('https://auth.example.com/token');
+    expect($tokenRequest['body'] ?? '')->toContain('grant_type=authorization_code');
+    expect($tokenRequest['body'] ?? '')->toContain('code=oidc-code-123');
+});
+
+test('oidc get auth headers returns bearer after exchange', function (): void {
+    $client = new MockTokenApiClient();
+    // Discovery document
+    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Content-Type' => 'application/json']));
+    // Token exchange response
+    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+        'access_token' => 'oidc-tok',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        ['openid']
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->exchangeCode('oidc-code');
+    $headers = $authenticator->getAuthHeaders();
+
+    expect($headers['Authorization'])->toBe('Bearer oidc-tok');
+});
+
+test('fetches discovery document', function (): void {
+    $client = new MockTokenApiClient();
+    // Only one discovery response needed
+    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->buildAuthorizationUrl();
+    $authenticator->buildAuthorizationUrl();
+
+    // Discovery should only be fetched once
+    $discoveryRequests = array_filter($client->capturedRequests, fn(array $r): bool => $r['method'] === 'GET');
+    expect($discoveryRequests)->toHaveCount(1);
+});
+
+test('oidc throws when no api client injected', function (): void {
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+
+    expect(fn () => $authenticator->buildAuthorizationUrl())->toThrow(\RuntimeException::class);
+});
+
+test('oidc get host returns configured host', function (): void {
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+
+    expect($authenticator->getHost())->toBe('https://api.example.com');
+});

@@ -17,6 +17,7 @@ import (
 )
 
 func TestDefaultApiClient_MakesHttpsRequestWithVerifySslFalse(t *testing.T) {
+	t.Parallel()
 	transport := petstore.NewTransportOptionsBuilder().VerifySSL(false).Build()
 	client := petstore.NewDefaultApiClient(transport)
 	resp, err := client.SendRequest("GET", chasmHTTPSURL+"/test/echo", map[string]string{}, nil)
@@ -32,6 +33,7 @@ func TestDefaultApiClient_MakesHttpsRequestWithVerifySslFalse(t *testing.T) {
 }
 
 func TestDefaultApiClient_MakesHttpsRequestWithCustomCaCert(t *testing.T) {
+	t.Parallel()
 	transport := petstore.NewTransportOptionsBuilder().
 		VerifySSL(true).
 		CACertPath(caCertPath).
@@ -50,6 +52,7 @@ func TestDefaultApiClient_MakesHttpsRequestWithCustomCaCert(t *testing.T) {
 }
 
 func TestDefaultApiClient_MakesHttpRequestThroughProxy(t *testing.T) {
+	t.Parallel()
 	transport := petstore.NewTransportOptionsBuilder().
 		Proxy(proxyURL).
 		Build()
@@ -71,6 +74,7 @@ func TestDefaultApiClient_MakesHttpRequestThroughProxy(t *testing.T) {
 // natively when the *url.URL passed to http.ProxyURL contains userinfo,
 // so we assert TransportOptions preserves the userinfo end-to-end.
 func TestDefaultApiClient_ProxyWithCredentialsInjectsBasicAuthorization(t *testing.T) {
+	t.Parallel()
 	transport := petstore.NewTransportOptionsBuilder().
 		Proxy("http://alice:s3cret@127.0.0.1:3128").
 		Build()
@@ -91,6 +95,7 @@ func TestDefaultApiClient_ProxyWithCredentialsInjectsBasicAuthorization(t *testi
 }
 
 func TestDefaultApiClient_MakesHttpsRequestThroughProxyWithVerifySslFalse(t *testing.T) {
+	t.Parallel()
 	transport := petstore.NewTransportOptionsBuilder().
 		Proxy(proxyURL).
 		VerifySSL(false).
@@ -109,6 +114,7 @@ func TestDefaultApiClient_MakesHttpsRequestThroughProxyWithVerifySslFalse(t *tes
 }
 
 func TestDefaultApiClient_TimesOutOnSlowEndpoint(t *testing.T) {
+	t.Parallel()
 	transport := petstore.NewTransportOptionsBuilder().
 		Timeout(1000).
 		Build()
@@ -120,6 +126,7 @@ func TestDefaultApiClient_TimesOutOnSlowEndpoint(t *testing.T) {
 }
 
 func TestDefaultApiClient_InjectsCustomUserAgentHeader(t *testing.T) {
+	t.Parallel()
 	transport := petstore.NewTransportOptionsBuilder().
 		UserAgent("MyApp/1.0").
 		Build()
@@ -142,6 +149,7 @@ func TestDefaultApiClient_InjectsCustomUserAgentHeader(t *testing.T) {
 }
 
 func TestDefaultApiClient_InjectsRequestIdHeader(t *testing.T) {
+	t.Parallel()
 	transport := petstore.NewTransportOptionsBuilder().
 		InjectRequestID(true).
 		Build()
@@ -169,6 +177,7 @@ func TestDefaultApiClient_InjectsRequestIdHeader(t *testing.T) {
 }
 
 func TestDefaultApiClient_GeneratesUniqueRequestIds(t *testing.T) {
+	t.Parallel()
 	transport := petstore.NewTransportOptionsBuilder().
 		InjectRequestID(true).
 		Build()
@@ -199,6 +208,7 @@ func TestDefaultApiClient_GeneratesUniqueRequestIds(t *testing.T) {
 }
 
 func TestDefaultApiClient_IncludesTransportDefaultHeaders(t *testing.T) {
+	t.Parallel()
 	transport := petstore.NewTransportOptionsBuilder().
 		DefaultHeader("X-Custom", "custom-value").
 		Build()
@@ -216,6 +226,7 @@ func TestDefaultApiClient_IncludesTransportDefaultHeaders(t *testing.T) {
 }
 
 func TestDefaultApiClient_CallerHeadersOverrideTransportDefaults(t *testing.T) {
+	t.Parallel()
 	transport := petstore.NewTransportOptionsBuilder().
 		DefaultHeader("Accept", "text/plain").
 		Build()
@@ -234,6 +245,7 @@ func TestDefaultApiClient_CallerHeadersOverrideTransportDefaults(t *testing.T) {
 }
 
 func TestDefaultApiClient_FollowsRedirectsWhenEnabled(t *testing.T) {
+	t.Parallel()
 	transport := petstore.NewTransportOptionsBuilder().
 		FollowRedirects(true).
 		Build()
@@ -251,6 +263,7 @@ func TestDefaultApiClient_FollowsRedirectsWhenEnabled(t *testing.T) {
 }
 
 func TestDefaultApiClient_ReturnsRedirectWhenDisabled(t *testing.T) {
+	t.Parallel()
 	transport := petstore.NewTransportOptionsBuilder().
 		FollowRedirects(false).
 		Build()
@@ -267,6 +280,7 @@ func TestDefaultApiClient_ReturnsRedirectWhenDisabled(t *testing.T) {
 // Gap T3: 303 forces follow-up to GET and drops body per RFC 7231 §6.4.4.
 // Go's net/http already enforces this; the test pins the behaviour.
 func TestDefaultApiClient_Redirect303SwitchesToGetAndDropsBody(t *testing.T) {
+	t.Parallel()
 	transport := petstore.NewTransportOptionsBuilder().
 		FollowRedirects(true).
 		MaxRedirects(5).
@@ -300,6 +314,7 @@ func TestDefaultApiClient_Redirect303SwitchesToGetAndDropsBody(t *testing.T) {
 // RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
 // request after a 307 still carries the multipart form parts.
 func TestDefaultApiClient_MultipartBodyReplayedOn307Redirect(t *testing.T) {
+	t.Parallel()
 	transport := petstore.NewTransportOptionsBuilder().
 		FollowRedirects(true).
 		MaxRedirects(5).
@@ -341,6 +356,7 @@ func TestDefaultApiClient_MultipartBodyReplayedOn307Redirect(t *testing.T) {
 }
 
 func TestDefaultApiClient_RespectsMaxRedirectsLimit(t *testing.T) {
+	t.Parallel()
 	transport := petstore.NewTransportOptionsBuilder().
 		FollowRedirects(true).
 		MaxRedirects(5).
@@ -355,6 +371,7 @@ func TestDefaultApiClient_RespectsMaxRedirectsLimit(t *testing.T) {
 }
 
 func TestDefaultApiClient_SendsMultipartFormData(t *testing.T) {
+	t.Parallel()
 	/* Multipart body construction is now handled by base_api.buildMultipartBody,
 	 * so we test via SendRequest with pre-built multipart bytes. */
 	client := petstore.NewDefaultApiClient(nil)
@@ -374,6 +391,7 @@ func TestDefaultApiClient_SendsMultipartFormData(t *testing.T) {
 /* Gap BI: non-ASCII multipart filenames must use RFC 5987 filename*=UTF-8''<pct>
  * rather than raw UTF-8 inside the quoted filename="" form. */
 func TestMultipart_MultipartFilenameNonAsciiEmitsRFC5987(t *testing.T) {
+	t.Parallel()
 	directive := petstore.BuildFilenameDirective("日本.pdf")
 	if !strings.Contains(directive, "filename*=UTF-8''") {
 		t.Errorf("expected directive to contain filename*=UTF-8'', got %q", directive)
@@ -388,6 +406,7 @@ func TestMultipart_MultipartFilenameNonAsciiEmitsRFC5987(t *testing.T) {
 
 /* Gap BI: ASCII-only filenames must NOT emit a filename*= parameter. */
 func TestMultipart_MultipartFilenameAsciiOnlyOmitsFilenameStar(t *testing.T) {
+	t.Parallel()
 	directive := petstore.BuildFilenameDirective("pet.png")
 	if directive != `filename="pet.png"` {
 		t.Errorf("expected `filename=\"pet.png\"`, got %q", directive)
@@ -400,6 +419,7 @@ func TestMultipart_MultipartFilenameAsciiOnlyOmitsFilenameStar(t *testing.T) {
 /* Gap F: filenames containing CR/LF/NUL must be rejected to prevent
  * Content-Disposition header injection. */
 func TestMultipart_MultipartFilenameCRLFRejected(t *testing.T) {
+	t.Parallel()
 	for _, bad := range []string{"a\rb.pdf", "a\nb.pdf", "a\r\nb.pdf", "a\x00b.pdf"} {
 		if err := petstore.ValidateMultipartFilename(bad); err == nil {
 			t.Errorf("expected error rejecting %q, got nil", bad)
@@ -410,6 +430,7 @@ func TestMultipart_MultipartFilenameCRLFRejected(t *testing.T) {
 /* Gap W2: multipart field names containing CR/LF/NUL must be rejected to
  * prevent Content-Disposition header injection. */
 func TestMultipart_MultipartFieldNameCRLFRejected(t *testing.T) {
+	t.Parallel()
 	for _, bad := range []string{"a\rb", "a\nb", "a\r\nInjected: yes", "a\x00b"} {
 		if err := petstore.ValidateMultipartFieldName(bad); err == nil {
 			t.Errorf("expected error rejecting %q, got nil", bad)
@@ -422,6 +443,7 @@ func TestMultipart_MultipartFieldNameCRLFRejected(t *testing.T) {
  * sending a multipart form whose String-valued field name contains CR/LF
  * fails end-to-end at SendRequest, not just at the helper. */
 func TestMultipart_FieldNameWithCRLFRejectedOnStringValue(t *testing.T) {
+	t.Parallel()
 	client := petstore.NewDefaultApiClient(nil)
 	badFields := map[string]interface{}{
 		"name\r\nInjected: yes": "string-value",
@@ -434,6 +456,7 @@ func TestMultipart_FieldNameWithCRLFRejectedOnStringValue(t *testing.T) {
 }
 
 func TestDefaultApiClient_DecompressesGzipResponse(t *testing.T) {
+	t.Parallel()
 	client := petstore.NewDefaultApiClient(nil)
 	resp, err := client.SendRequest("GET", "https://jsonplaceholder.typicode.com/posts/1",
 		map[string]string{"Accept-Encoding": "gzip"}, nil)
@@ -449,6 +472,7 @@ func TestDefaultApiClient_DecompressesGzipResponse(t *testing.T) {
 }
 
 func TestDefaultApiClient_DecompressesBrotliResponse(t *testing.T) {
+	t.Parallel()
 	client := petstore.NewDefaultApiClient(nil)
 	resp, err := client.SendRequest("GET", "https://jsonplaceholder.typicode.com/posts/1",
 		map[string]string{"Accept-Encoding": "br"}, nil)
@@ -464,6 +488,7 @@ func TestDefaultApiClient_DecompressesBrotliResponse(t *testing.T) {
 }
 
 func TestDefaultApiClient_DecompressesZstdResponse(t *testing.T) {
+	t.Parallel()
 	client := petstore.NewDefaultApiClient(nil)
 	resp, err := client.SendRequest("GET", "https://jsonplaceholder.typicode.com/posts/1",
 		map[string]string{"Accept-Encoding": "zstd"}, nil)
@@ -487,6 +512,7 @@ func TestDefaultApiClient_DecompressesZstdResponse(t *testing.T) {
 //
 // Skipped if the Squid container is unavailable.
 func TestDefaultApiClient_MakesRequestThroughProxyWithBasicAuth(t *testing.T) {
+	t.Parallel()
 	if proxyURL == "" {
 		t.Skip("proxy not configured")
 	}
@@ -514,6 +540,7 @@ func TestDefaultApiClient_MakesRequestThroughProxyWithBasicAuth(t *testing.T) {
 // no Content-Length (411 Length Required). The client attaches an empty
 // bytes.Reader on body-bearing verbs so net/http emits the header.
 func TestDefaultApiClient_PostWithNullBodySendsContentLengthZero(t *testing.T) {
+	t.Parallel()
 	client := petstore.NewDefaultApiClient(petstore.NewTransportOptionsBuilder().Build())
 	resp, err := client.SendRequest("POST", chasmHTTPURL+"/test/echo", map[string]string{}, nil)
 	if err != nil {

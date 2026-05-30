@@ -57,6 +57,8 @@ class TestAuthenticator < PetstoreClient::Auth::Authenticator
 end
 
 describe PetstoreClient::Api::BaseApi do
+  parallelize_me!
+
   let(:chasm_url) { ENV.fetch('CHASM_HTTP_URL') }
 
   let(:api) do

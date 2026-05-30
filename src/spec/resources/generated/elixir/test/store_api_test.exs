@@ -1,5 +1,5 @@
 defmodule PetstoreClient.Api.StoreApiTest do
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
 
   setup do
     base_url = System.get_env("API_BASE_URL", "http://localhost:4010")
@@ -22,8 +22,8 @@ defmodule PetstoreClient.Api.StoreApiTest do
 
   test "place_order places an order", %{api: api} do
     order = %PetstoreClient.Models.Order{
-      id: 1,
-      pet_id: 12_345,
+      id: :rand.uniform(1_000_000_000),
+      pet_id: :rand.uniform(1_000_000_000),
       quantity: 1,
       ship_date: DateTime.utc_now() |> DateTime.to_iso8601(),
       status: "placed",
@@ -36,13 +36,13 @@ defmodule PetstoreClient.Api.StoreApiTest do
   end
 
   test "get_order_by_id returns an order by id", %{api: api} do
-    assert {:ok, result} = PetstoreClient.Api.StoreApi.get_order_by_id(api, 1)
+    assert {:ok, result} = PetstoreClient.Api.StoreApi.get_order_by_id(api, :rand.uniform(1_000_000_000))
     assert result != nil
     assert result.id != nil
   end
 
   test "delete_order deletes an order", %{api: api} do
-    assert {:ok, _result} = PetstoreClient.Api.StoreApi.delete_order(api, 1)
+    assert {:ok, _result} = PetstoreClient.Api.StoreApi.delete_order(api, :rand.uniform(1_000_000_000))
   end
 
   defp new_store_api_for_mock(status, content_type, body) do
@@ -79,8 +79,8 @@ defmodule PetstoreClient.Api.StoreApiTest do
     api = new_store_api_for_mock(500, "application/json", ~s({"message":"Internal server error"}))
 
     order = %PetstoreClient.Models.Order{
-      id: 1,
-      pet_id: 12_345,
+      id: :rand.uniform(1_000_000_000),
+      pet_id: :rand.uniform(1_000_000_000),
       quantity: 1,
       status: "placed",
       complete: false

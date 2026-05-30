@@ -62,6 +62,7 @@ func createPasswordAuthenticator() *oauth.OAuth2PasswordAuthenticator {
 }
 
 func TestOAuth2Password_SendsPasswordGrantType(t *testing.T) {
+	t.Parallel()
 	client := &fakePasswordClient{
 		responses: []fakePasswordResponse{
 			{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
@@ -79,6 +80,7 @@ func TestOAuth2Password_SendsPasswordGrantType(t *testing.T) {
 }
 
 func TestOAuth2Password_SendsUsernameAndPassword(t *testing.T) {
+	t.Parallel()
 	client := &fakePasswordClient{
 		responses: []fakePasswordResponse{
 			{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
@@ -99,6 +101,7 @@ func TestOAuth2Password_SendsUsernameAndPassword(t *testing.T) {
 }
 
 func TestOAuth2Password_SendsClientIdAndSecret(t *testing.T) {
+	t.Parallel()
 	client := &fakePasswordClient{
 		responses: []fakePasswordResponse{
 			{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
@@ -119,6 +122,7 @@ func TestOAuth2Password_SendsClientIdAndSecret(t *testing.T) {
 }
 
 func TestOAuth2Password_ReturnsAuthorizationBearerHeader(t *testing.T) {
+	t.Parallel()
 	client := &fakePasswordClient{
 		responses: []fakePasswordResponse{
 			{body: `{"access_token":"tok-pwd","expires_in":3600}`, statusCode: 200},
@@ -136,6 +140,7 @@ func TestOAuth2Password_ReturnsAuthorizationBearerHeader(t *testing.T) {
 }
 
 func TestOAuth2Password_UsesRefreshTokenOnSubsequentCalls(t *testing.T) {
+	t.Parallel()
 	client := &fakePasswordClient{
 		responses: []fakePasswordResponse{
 			{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":1}`, statusCode: 200},
@@ -160,6 +165,7 @@ func TestOAuth2Password_UsesRefreshTokenOnSubsequentCalls(t *testing.T) {
 }
 
 func TestOAuth2Password_GetHostReturnsConfiguredHost(t *testing.T) {
+	t.Parallel()
 	authObj := createPasswordAuthenticator()
 
 	if authObj.Host() != "https://api.example.com" {
@@ -168,6 +174,7 @@ func TestOAuth2Password_GetHostReturnsConfiguredHost(t *testing.T) {
 }
 
 func TestOAuth2Password_BasicAuthUrlEncodesClientIdAndSecret(t *testing.T) {
+	t.Parallel()
 	// Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
 	// client_id and client_secret MUST be application/x-www-form-
 	// urlencoded BEFORE being joined with ':' and base64-encoded.

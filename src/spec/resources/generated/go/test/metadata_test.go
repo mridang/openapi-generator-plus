@@ -15,6 +15,7 @@ import (
 )
 
 func TestMetadata_SerializeDeserialize(t *testing.T) {
+	t.Parallel()
 	original := models.NewMetadata()
 
 	data, err := json.Marshal(original)
@@ -32,6 +33,7 @@ func TestMetadata_SerializeDeserialize(t *testing.T) {
 }
 
 func TestMetadata_DeserializeFromJSON(t *testing.T) {
+	t.Parallel()
 	jsonData := []byte(`{"createdAt":"2024-01-15T10:30:00+00:00"}`)
 
 	var metadata models.Metadata
@@ -42,6 +44,7 @@ func TestMetadata_DeserializeFromJSON(t *testing.T) {
 }
 
 func TestMetadata_DeserializeEmptyObject(t *testing.T) {
+	t.Parallel()
 	jsonData := []byte(`{}`)
 
 	var metadata models.Metadata
@@ -52,6 +55,7 @@ func TestMetadata_DeserializeEmptyObject(t *testing.T) {
 }
 
 func TestMetadata_DeserializeWithAdditionalProperties(t *testing.T) {
+	t.Parallel()
 	// Metadata may contain additional properties beyond the defined schema fields.
 	// This test verifies that unknown fields are handled gracefully during
 	// deserialization (either ignored or captured depending on schema config).
@@ -65,6 +69,7 @@ func TestMetadata_DeserializeWithAdditionalProperties(t *testing.T) {
 }
 
 func TestMetadata_RoundTrip(t *testing.T) {
+	t.Parallel()
 	jsonData := []byte(`{"createdAt":"2024-01-15T10:30:00+00:00"}`)
 
 	var metadata models.Metadata

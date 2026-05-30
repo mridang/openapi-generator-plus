@@ -17,7 +17,7 @@ composer install
 ## Test
 
 ```bash
-vendor/bin/phpunit
+vendor/bin/pest
 ```
 
 ## Tooling

@@ -270,7 +270,11 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
             new SupportingFileSpec("gitignore.mustache", "", ".gitignore"),
             new SupportingFileSpec("checkstyle_xml.mustache", "", "checkstyle.xml"),
-            new SupportingFileSpec("spotbugs_xml.mustache", "", "spotbugs.xml")
+            new SupportingFileSpec("spotbugs_xml.mustache", "", "spotbugs.xml"),
+            new SupportingFileSpec(
+                "junit_platform_properties.mustache",
+                "src/test/resources",
+                "junit-platform.properties")
         );
     }
 
