@@ -136,10 +136,10 @@ defmodule {{moduleName}}.Api.{{classname}} do
   {{#isDeprecated}}
   @deprecated "This operation is deprecated."
   {{/isDeprecated}}
-  @spec {{operationId}}(t(){{#pathParams}}, {{{dataType}}}{{/pathParams}}{{#bodyParam}}, {{{dataType}}}{{^required}} | nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}, keyword()) ::
+  @spec {{operationId}}(t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{{dataType}}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}Options.t(){{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
           {:ok, {{{returnType}}}{{^returnType}}nil{{/returnType}}} | {:error, term()}
-  def {{operationId}}(%__MODULE__{} = api{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{^required}} \\ nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}, opts \\ []) do
-    case {{operationId}}_with_http_info(api{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}, opts) do
+  def {{operationId}}(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
+    case {{operationId}}_with_http_info(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -148,8 +148,8 @@ defmodule {{moduleName}}.Api.{{classname}} do
   @doc """
   Bang version of `{{operationId}}`. Raises on error.
   """
-  def {{operationId}}!(%__MODULE__{} = api{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{^required}} \\ nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}, opts \\ []) do
-    case {{operationId}}(api{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}, opts) do
+  def {{operationId}}!(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
+    case {{operationId}}(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -158,9 +158,9 @@ defmodule {{moduleName}}.Api.{{classname}} do
   @doc """
   Same as `{{operationId}}` but returns the full `ApiResult`.
   """
-  @spec {{operationId}}_with_http_info(t(){{#pathParams}}, {{{dataType}}}{{/pathParams}}{{#bodyParam}}, {{{dataType}}}{{^required}} | nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}, keyword()) ::
+  @spec {{operationId}}_with_http_info(t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{{dataType}}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}Options.t(){{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
           {:ok, {{moduleName}}.ApiResult.t()} | {:error, term()}
-  def {{operationId}}_with_http_info(%__MODULE__{} = api{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{^required}} \\ nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}, opts \\ []) do
+  def {{operationId}}_with_http_info(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
 {{#hasAuthMethods}}
     auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
 {{/hasAuthMethods}}
