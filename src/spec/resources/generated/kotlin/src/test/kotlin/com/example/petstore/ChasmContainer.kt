@@ -20,12 +20,29 @@ object ChasmContainer {
 
     init {
         INSTANCE =
-            GenericContainer("mridang/chasm:1.2.5")
-                .withExposedPorts(4010)
+            GenericContainer("mridang/chasm:1.3.0")
+                .withExposedPorts(4010, 8443)
                 .withCopyFileToContainer(
                     MountableFile.forHostPath(Path.of("/app/src/test/resources/openapi.yaml")),
                     "/tmp/openapi.yaml",
-                ).withCommand("mock", "/tmp/openapi.yaml", "--host", "0.0.0.0")
+                ).withCopyFileToContainer(
+                    MountableFile.forHostPath(Path.of("/app/src/test/resources/certs/server.pem")),
+                    "/certs/cert.pem",
+                ).withCopyFileToContainer(
+                    MountableFile.forHostPath(Path.of("/app/src/test/resources/certs/server-key.pem")),
+                    "/certs/key.pem",
+                ).withCommand(
+                    "mock",
+                    "/tmp/openapi.yaml",
+                    "--host",
+                    "0.0.0.0",
+                    "--tls-cert",
+                    "/certs/cert.pem",
+                    "--tls-key",
+                    "/certs/key.pem",
+                    "--tls-port",
+                    "8443",
+                )
                 // Same as the Java/Python/PHP setup — Wait.forListeningPort can return
                 // before Chasm is actually serving requests, leading to the first burst
                 // of tests racing the server boot.
@@ -41,4 +58,6 @@ object ChasmContainer {
     }
 
     fun getBaseUrl(): String = "http://${INSTANCE.host}:${INSTANCE.getMappedPort(4010)}"
+
+    fun getHttpsBaseUrl(): String = "https://${INSTANCE.host}:${INSTANCE.getMappedPort(8443)}"
 }

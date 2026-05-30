@@ -20,6 +20,10 @@ struct TestContainers {
     wiremock_internal_https_url: String,
     proxy_url: String,
     chasm_url: String,
+    chasm_http_url: String,
+    chasm_https_url: String,
+    chasm_internal_http_url: String,
+    chasm_internal_https_url: String,
     ca_cert_path: String,
 }
 
@@ -118,24 +122,41 @@ fn init_containers_inner() -> TestContainers {
         .expect("failed to get Squid port");
 
     // Start Chasm
-    let chasm = GenericImage::new("mridang/chasm", "1.2.5")
+    let chasm_cert_path = fixtures.join("certs").join("server.pem");
+    let chasm_key_path = fixtures.join("certs").join("server-key.pem");
+    let chasm = GenericImage::new("mridang/chasm", "1.3.0")
         .with_wait_for(WaitFor::message_on_stdout("Listening on"))
         .with_exposed_port(ContainerPort::Tcp(4010))
+        .with_exposed_port(ContainerPort::Tcp(8443))
         .with_copy_to("/tmp/openapi.yaml", spec_path)
+        .with_copy_to("/certs/cert.pem", chasm_cert_path)
+        .with_copy_to("/certs/key.pem", chasm_key_path)
         .with_cmd(vec![
             "mock".to_string(),
             "/tmp/openapi.yaml".to_string(),
             "--host".to_string(),
             "0.0.0.0".to_string(),
+            "--tls-cert".to_string(),
+            "/certs/cert.pem".to_string(),
+            "--tls-key".to_string(),
+            "/certs/key.pem".to_string(),
+            "--tls-port".to_string(),
+            "8443".to_string(),
         ])
         .with_startup_timeout(std::time::Duration::from_secs(120))
         .start()
         .expect("Failed to start Chasm container");
 
     let chasm_host = resolve_host(&chasm);
+    let chasm_bridge_ip = chasm
+        .get_bridge_ip_address()
+        .expect("failed to get Chasm bridge IP");
     let chasm_port = chasm
         .get_host_port_ipv4(4010)
         .expect("failed to get Chasm port");
+    let chasm_https_port = chasm
+        .get_host_port_ipv4(8443)
+        .expect("failed to get Chasm HTTPS port");
 
     // Leak container handles to keep them alive for the test suite lifetime.
     // They will be cleaned up when the process exits (Ryuk).
@@ -150,6 +171,10 @@ fn init_containers_inner() -> TestContainers {
         wiremock_internal_https_url: format!("https://{}:8443", wiremock_bridge_ip),
         proxy_url: format!("http://{}:{}", squid_host, squid_port),
         chasm_url: format!("http://{}:{}", chasm_host, chasm_port),
+        chasm_http_url: format!("http://{}:{}", chasm_host, chasm_port),
+        chasm_https_url: format!("https://{}:{}", chasm_host, chasm_https_port),
+        chasm_internal_http_url: format!("http://{}:4010", chasm_bridge_ip),
+        chasm_internal_https_url: format!("https://{}:8443", chasm_bridge_ip),
         ca_cert_path: ca_cert.to_str().unwrap().to_string(),
     }
 }
@@ -176,6 +201,22 @@ pub fn proxy_url() -> &'static str {
 
 pub fn chasm_url() -> &'static str {
     &init_containers().chasm_url
+}
+
+pub fn chasm_http_url() -> &'static str {
+    &init_containers().chasm_http_url
+}
+
+pub fn chasm_https_url() -> &'static str {
+    &init_containers().chasm_https_url
+}
+
+pub fn chasm_internal_http_url() -> &'static str {
+    &init_containers().chasm_internal_http_url
+}
+
+pub fn chasm_internal_https_url() -> &'static str {
+    &init_containers().chasm_internal_https_url
 }
 
 pub fn ca_cert_path() -> &'static str {

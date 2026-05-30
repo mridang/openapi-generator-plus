@@ -30,11 +30,23 @@ require '{{gemName}}'
 
 host_app_path = ENV['HOST_APP_PATH'] || Dir.pwd
 spec_path = File.join(host_app_path, 'test', 'fixtures', 'openapi.yaml')
+chasm_cert_path = File.join(host_app_path, 'test', 'fixtures', 'certs', 'server.pem')
+chasm_key_path = File.join(host_app_path, 'test', 'fixtures', 'certs', 'server-key.pem')
 
-CHASM = Testcontainers::DockerContainer.new('mridang/chasm:1.2.5')
+CHASM = Testcontainers::DockerContainer.new('mridang/chasm:1.3.0')
 CHASM.with_exposed_port(4010)
-CHASM.with_filesystem_binds(["#{spec_path}:/tmp/openapi.yaml:ro"])
-CHASM.with_command('mock', '/tmp/openapi.yaml', '--host', '0.0.0.0')
+CHASM.with_exposed_port(8443)
+CHASM.with_filesystem_binds([
+  "#{spec_path}:/tmp/openapi.yaml:ro",
+  "#{chasm_cert_path}:/certs/cert.pem:ro",
+  "#{chasm_key_path}:/certs/key.pem:ro"
+])
+CHASM.with_command(
+  'mock', '/tmp/openapi.yaml', '--host', '0.0.0.0',
+  '--tls-cert', '/certs/cert.pem',
+  '--tls-key', '/certs/key.pem',
+  '--tls-port', '8443'
+)
 CHASM.with_wait_for(:logs, /Listening on/, timeout: 120)
 
 CHASM.start
@@ -49,9 +61,14 @@ Minitest.after_run { CHASM.stop }
 # language implementations, so we read it ourselves for DooD compatibility.
 chasm_host = ENV['TESTCONTAINERS_HOST_OVERRIDE'] || CHASM.host
 chasm_port = CHASM.mapped_port(4010)
+chasm_tls_port = CHASM.mapped_port(8443)
 chasm_url = "http://#{chasm_host}:#{chasm_port}"
 
 ENV['API_BASE_URL'] = chasm_url
+ENV['CHASM_HTTP_URL'] = "http://#{chasm_host}:#{chasm_port}"
+ENV['CHASM_HTTPS_URL'] = "https://#{chasm_host}:#{chasm_tls_port}"
+ENV['CHASM_INTERNAL_HTTP_URL'] = 'http://chasm:4010'
+ENV['CHASM_INTERNAL_HTTPS_URL'] = 'https://chasm:8443'
 
 # Configure the client to use the Chasm mock server
 {{moduleName}}.configure do |b|
@@ -63,6 +80,8 @@ end
 # directly via container alias, avoiding host.docker.internal DNS issues.
 PROXY_NETWORK = Docker::Network.create("proxy-test-network-#{SecureRandom.hex(4)}")
 Minitest.after_run { PROXY_NETWORK.remove }
+
+PROXY_NETWORK.connect(CHASM._container.id, {}, { 'EndpointConfig' => { 'Aliases' => ['chasm'] } })
 
 # Start WireMock server with HTTPS
 keystore_path = File.join(host_app_path, 'test', 'fixtures', 'certs', 'server-keystore.p12')

@@ -20,12 +20,28 @@ public final class ChasmContainer {
 
   static {
     INSTANCE =
-        new GenericContainer<>("mridang/chasm:1.2.5")
-            .withExposedPorts(4010)
+        new GenericContainer<>("mridang/chasm:1.3.0")
+            .withExposedPorts(4010, 8443)
             .withCopyFileToContainer(
                 MountableFile.forHostPath(Path.of("/app/src/test/resources/openapi.yaml")),
                 "/tmp/openapi.yaml")
-            .withCommand("mock", "/tmp/openapi.yaml", "--host", "0.0.0.0")
+            .withCopyFileToContainer(
+                MountableFile.forHostPath(Path.of("/app/src/test/resources/certs/server.pem")),
+                "/certs/cert.pem")
+            .withCopyFileToContainer(
+                MountableFile.forHostPath(Path.of("/app/src/test/resources/certs/server-key.pem")),
+                "/certs/key.pem")
+            .withCommand(
+                "mock",
+                "/tmp/openapi.yaml",
+                "--host",
+                "0.0.0.0",
+                "--tls-cert",
+                "/certs/cert.pem",
+                "--tls-key",
+                "/certs/key.pem",
+                "--tls-port",
+                "8443")
             .waitingFor(Wait.forLogMessage(".*Listening on.*", 1))
             .withStartupTimeout(Duration.ofMinutes(2))
             .withLabel("com.mridang.openapi.testcontainer", "true");
@@ -44,5 +60,9 @@ public final class ChasmContainer {
 
   public static String getBaseUrl() {
     return "http://" + INSTANCE.getHost() + ":" + INSTANCE.getMappedPort(4010);
+  }
+
+  public static String getHttpsBaseUrl() {
+    return "https://" + INSTANCE.getHost() + ":" + INSTANCE.getMappedPort(8443);
   }
 }

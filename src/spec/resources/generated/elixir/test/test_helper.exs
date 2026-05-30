@@ -9,6 +9,8 @@ Process.flag(:trap_exit, true)
 
 host_app_path = System.get_env("HOST_APP_PATH", File.cwd!())
 spec_path = Path.join([host_app_path, "test", "fixtures", "openapi.yaml"])
+chasm_cert_path = Path.join([host_app_path, "test", "fixtures", "certs", "server.pem"])
+chasm_key_path = Path.join([host_app_path, "test", "fixtures", "certs", "server-key.pem"])
 keystore_path = Path.join([host_app_path, "test", "fixtures", "certs", "server-keystore.p12"])
 mappings_path = Path.join([host_app_path, "test", "fixtures", "wiremock", "mappings"])
 squid_conf_path = Path.join([host_app_path, "test", "fixtures", "proxy", "squid.conf"])
@@ -19,18 +21,53 @@ network_name = "proxy-network-elixir"
 
 # Start Chasm mock server
 chasm_config =
-  Testcontainers.Container.new("mridang/chasm:1.2.5")
+  Testcontainers.Container.new("mridang/chasm:1.3.0")
   |> Testcontainers.Container.with_exposed_port(4010)
+  |> Testcontainers.Container.with_exposed_port(8443)
   |> Testcontainers.Container.with_bind_mount(spec_path, "/tmp/openapi.yaml")
-  |> Testcontainers.Container.with_cmd(["mock", "/tmp/openapi.yaml", "--host", "0.0.0.0"])
+  |> Testcontainers.Container.with_bind_mount(chasm_cert_path, "/certs/cert.pem", "ro")
+  |> Testcontainers.Container.with_bind_mount(chasm_key_path, "/certs/key.pem", "ro")
+  |> Testcontainers.Container.with_cmd([
+    "mock",
+    "/tmp/openapi.yaml",
+    "--host",
+    "0.0.0.0",
+    "--tls-cert",
+    "/certs/cert.pem",
+    "--tls-key",
+    "/certs/key.pem",
+    "--tls-port",
+    "8443"
+  ])
   |> Testcontainers.Container.with_waiting_strategy(Testcontainers.LogWaitStrategy.new(~r/Listening on/, 120_000))
 
 {:ok, chasm} = Testcontainers.start_container(chasm_config)
 
+# Connect Chasm to the shared proxy network with an alias so other containers
+# can reach it by hostname via Docker's embedded DNS.
+{docker_api_conn, _, _} = Testcontainers.Connection.get_connection()
+
+{:ok, _} =
+  DockerEngineAPI.Api.Network.network_connect(
+    docker_api_conn,
+    network_name,
+    %DockerEngineAPI.Model.NetworkConnectRequest{
+      Container: chasm.container_id,
+      EndpointConfig: %DockerEngineAPI.Model.EndpointSettings{
+        Aliases: ["chasm"]
+      }
+    }
+  )
+
 chasm_host = System.get_env("TESTCONTAINERS_HOST_OVERRIDE") || Testcontainers.get_host()
 chasm_port = Testcontainers.Container.mapped_port(chasm, 4010)
+chasm_https_port = Testcontainers.Container.mapped_port(chasm, 8443)
 chasm_url = "http://#{chasm_host}:#{chasm_port}"
 System.put_env("API_BASE_URL", chasm_url)
+System.put_env("CHASM_HTTP_URL", "http://#{chasm_host}:#{chasm_port}")
+System.put_env("CHASM_HTTPS_URL", "https://#{chasm_host}:#{chasm_https_port}")
+System.put_env("CHASM_INTERNAL_HTTP_URL", "http://chasm:4010")
+System.put_env("CHASM_INTERNAL_HTTPS_URL", "https://chasm:8443")
 
 # Start WireMock with HTTPS support
 wiremock_config =

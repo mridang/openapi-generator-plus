@@ -15,6 +15,10 @@ late String wiremockInternalHttpUrl;
 late String wiremockInternalHttpsUrl;
 late String proxyUrl;
 late String chasmUrl;
+late String chasmHttpUrl;
+late String chasmHttpsUrl;
+late String chasmInternalHttpUrl;
+late String chasmInternalHttpsUrl;
 late String caCertPath;
 
 late DockerContainer _wiremockContainer;
@@ -93,12 +97,24 @@ Future<void> setUpContainers() async {
   proxyUrl = 'http://$squidHost:$squidPort';
 
   final specFile = File('${fixtures.path}/openapi.yaml');
+  final chasmCertFile = File('${fixtures.path}/certs/server.pem');
+  final chasmKeyFile = File('${fixtures.path}/certs/server-key.pem');
 
-  _chasmContainer = DockerContainer('mridang/chasm:1.2.5')
-      .withExposedPorts([4010])
+  _chasmContainer = DockerContainer('mridang/chasm:1.3.0')
+      .withExposedPorts([4010, 8443])
       .withCopyIntoContainer(
         PathTransferable(specFile),
         '/tmp/openapi.yaml',
+        0x1A4,
+      )
+      .withCopyIntoContainer(
+        PathTransferable(chasmCertFile),
+        '/certs/cert.pem',
+        0x1A4,
+      )
+      .withCopyIntoContainer(
+        PathTransferable(chasmKeyFile),
+        '/certs/key.pem',
         0x1A4,
       )
       .withCommand([
@@ -106,14 +122,27 @@ Future<void> setUpContainers() async {
         '/tmp/openapi.yaml',
         '--host',
         '0.0.0.0',
+        '--tls-cert',
+        '/certs/cert.pem',
+        '--tls-key',
+        '/certs/key.pem',
+        '--tls-port',
+        '8443',
       ])
+      .withNetwork(_network)
+      .withNetworkAliases(['chasm'])
       .waitingFor(LogMessageWaitStrategy(RegExp(r'Listening on')));
 
   await _chasmContainer.start();
 
   final chasmHost = await _chasmContainer.containerHostIp();
   final chasmPort = await _chasmContainer.exposedPort(4010);
+  final chasmHttpsPort = await _chasmContainer.exposedPort(8443);
   chasmUrl = 'http://$chasmHost:$chasmPort';
+  chasmHttpUrl = 'http://$chasmHost:$chasmPort';
+  chasmHttpsUrl = 'https://$chasmHost:$chasmHttpsPort';
+  chasmInternalHttpUrl = 'http://chasm:4010';
+  chasmInternalHttpsUrl = 'https://chasm:8443';
 }
 
 Future<void> tearDownContainers() async {

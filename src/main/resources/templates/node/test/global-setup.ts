@@ -5,18 +5,32 @@ import * as fs from 'node:fs';
 export default async function globalSetup() {
   const hostAppPath = process.env.HOST_APP_PATH || process.cwd();
   const specPath = path.join(hostAppPath, 'test', 'fixtures', 'openapi.yaml');
-
-  const chasm = await new GenericContainer('mridang/chasm:1.2.5')
-    .withExposedPorts(4010)
-    .withBindMounts([{ source: specPath, target: '/tmp/openapi.yaml', mode: 'ro' }])
-    .withCommand(['mock', '/tmp/openapi.yaml', '--host', '0.0.0.0'])
-    .withWaitStrategy(Wait.forLogMessage('Listening on'))
-    .withStartupTimeout(120000)
-    .start();
+  const chasmCertPath = path.join(hostAppPath, 'test', 'fixtures', 'certs', 'server.pem');
+  const chasmKeyPath = path.join(hostAppPath, 'test', 'fixtures', 'certs', 'server-key.pem');
 
   // Create a shared Docker network so Squid can reach WireMock directly
   // via container alias, avoiding host.docker.internal DNS issues.
   const proxyNetwork = await new Network().start();
+
+  const chasm = await new GenericContainer('mridang/chasm:1.3.0')
+    .withExposedPorts(4010, 8443)
+    .withBindMounts([
+      { source: specPath, target: '/tmp/openapi.yaml', mode: 'ro' },
+      { source: chasmCertPath, target: '/certs/cert.pem', mode: 'ro' },
+      { source: chasmKeyPath, target: '/certs/key.pem', mode: 'ro' },
+    ])
+    .withCommand([
+      'mock', '/tmp/openapi.yaml',
+      '--host', '0.0.0.0',
+      '--tls-cert', '/certs/cert.pem',
+      '--tls-key', '/certs/key.pem',
+      '--tls-port', '8443',
+    ])
+    .withNetwork(proxyNetwork)
+    .withNetworkAliases('chasm')
+    .withWaitStrategy(Wait.forLogMessage('Listening on'))
+    .withStartupTimeout(120000)
+    .start();
 
   const keystorePath = path.join(hostAppPath, 'test', 'fixtures', 'certs', 'server-keystore.p12');
   const mappingsPath = path.join(hostAppPath, 'test', 'fixtures', 'wiremock', 'mappings');
@@ -56,7 +70,12 @@ export default async function globalSetup() {
   // Give Squid a moment to initialize
   await new Promise(resolve => setTimeout(resolve, 3000));
 
-  const baseUrl = `http://${chasm.getHost()}:${chasm.getMappedPort(4010)}`;
+  const chasmHost = chasm.getHost();
+  const chasmHttpUrl = `http://${chasmHost}:${chasm.getMappedPort(4010)}`;
+  const chasmHttpsUrl = `https://${chasmHost}:${chasm.getMappedPort(8443)}`;
+  const chasmInternalHttpUrl = 'http://chasm:4010';
+  const chasmInternalHttpsUrl = 'https://chasm:8443';
+  const baseUrl = chasmHttpUrl;
 
   // Verify Chasm is reachable before proceeding (Docker for Mac port forwarding can be slow)
   for (let i = 0; i < 10; i++) {
@@ -77,6 +96,10 @@ export default async function globalSetup() {
 
   fs.writeFileSync('/tmp/chasm-config.json', JSON.stringify({
     baseUrl,
+    chasmHttpUrl,
+    chasmHttpsUrl,
+    chasmInternalHttpUrl,
+    chasmInternalHttpsUrl,
     wiremockHttpsUrl,
     wiremockHttpUrl,
     wiremockInternalHttpUrl,

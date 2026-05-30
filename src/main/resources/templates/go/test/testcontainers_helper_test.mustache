@@ -20,6 +20,10 @@ var (
 	wiremockInternalHTTPSURL string
 	proxyURL         string
 	chasmURL         string
+	chasmHTTPURL     string
+	chasmHTTPSURL    string
+	chasmInternalHTTPURL  string
+	chasmInternalHTTPSURL string
 	caCertPath       string
 )
 
@@ -117,15 +121,26 @@ func TestMain(m *testing.M) {
 
 	// Start Chasm container
 	specPath := filepath.Join(fixturesDir, "openapi.yaml")
+	chasmCertPath := filepath.Join(fixturesDir, "certs", "server.pem")
+	chasmKeyPath := filepath.Join(fixturesDir, "certs", "server-key.pem")
 
 	chasmReq := testcontainers.ContainerRequest{
-		Image:        "mridang/chasm:1.2.5",
-		ExposedPorts: []string{"4010/tcp"},
+		Image:        "mridang/chasm:1.3.0",
+		ExposedPorts: []string{"4010/tcp", "8443/tcp"},
 		Files: []testcontainers.ContainerFile{
 			{HostFilePath: specPath, ContainerFilePath: "/openapi.yaml", FileMode: 0o644},
+			{HostFilePath: chasmCertPath, ContainerFilePath: "/certs/cert.pem", FileMode: 0o644},
+			{HostFilePath: chasmKeyPath, ContainerFilePath: "/certs/key.pem", FileMode: 0o644},
 		},
-		Cmd:        []string{"mock", "/openapi.yaml", "--host", "0.0.0.0"},
-		WaitingFor: wait.ForLog("Listening on").WithStartupTimeout(120 * time.Second),
+		Cmd: []string{
+			"mock", "/openapi.yaml", "--host", "0.0.0.0",
+			"--tls-cert", "/certs/cert.pem",
+			"--tls-key", "/certs/key.pem",
+			"--tls-port", "8443",
+		},
+		Networks:       []string{networkName},
+		NetworkAliases: map[string][]string{networkName: {"chasm"}},
+		WaitingFor:     wait.ForLog("Listening on").WithStartupTimeout(120 * time.Second),
 	}
 
 	chasmContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -139,7 +154,12 @@ func TestMain(m *testing.M) {
 
 	chasmHost, _ := chasmContainer.Host(ctx)
 	chasmPort, _ := chasmContainer.MappedPort(ctx, "4010/tcp")
+	chasmHTTPSPort, _ := chasmContainer.MappedPort(ctx, "8443/tcp")
 	chasmURL = fmt.Sprintf("http://%s:%s", chasmHost, chasmPort.Port())
+	chasmHTTPURL = fmt.Sprintf("http://%s:%s", chasmHost, chasmPort.Port())
+	chasmHTTPSURL = fmt.Sprintf("https://%s:%s", chasmHost, chasmHTTPSPort.Port())
+	chasmInternalHTTPURL = "http://chasm:4010"
+	chasmInternalHTTPSURL = "https://chasm:8443"
 
 	// Run tests
 	code := m.Run()

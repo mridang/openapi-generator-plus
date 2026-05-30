@@ -32,17 +32,32 @@ function safeGetMappedPort(StartedGenericContainer $container, int $port): int
 
 $hostAppPath = getenv('HOST_APP_PATH') ?: getcwd();
 $specPath = $hostAppPath . '/test/fixtures/openapi.yaml';
+$chasmCertPath = $hostAppPath . '/test/fixtures/certs/server.pem';
+$chasmKeyPath = $hostAppPath . '/test/fixtures/certs/server-key.pem';
 
-$chasm = (new GenericContainer('mridang/chasm:1.2.5'))
-    ->withExposedPorts(4010)
+$chasm = (new GenericContainer('mridang/chasm:1.3.0'))
+    ->withExposedPorts(4010, 8443)
     ->withMount($specPath, '/tmp/openapi.yaml')
-    ->withCommand(['mock', '/tmp/openapi.yaml', '--host', '0.0.0.0'])
+    ->withMount($chasmCertPath, '/certs/cert.pem')
+    ->withMount($chasmKeyPath, '/certs/key.pem')
+    ->withCommand([
+        'mock', '/tmp/openapi.yaml', '--host', '0.0.0.0',
+        '--tls-cert', '/certs/cert.pem',
+        '--tls-key', '/certs/key.pem',
+        '--tls-port', '8443',
+    ])
     ->withWait(new WaitForLog('Listening on', false, 120000))
     ->start();
 
-$baseUrl = 'http://' . $chasm->getHost() . ':' . safeGetMappedPort($chasm, 4010);
+$chasmHost = $chasm->getHost();
+$chasmHttpUrl = 'http://' . $chasmHost . ':' . safeGetMappedPort($chasm, 4010);
+$chasmHttpsUrl = 'https://' . $chasmHost . ':' . safeGetMappedPort($chasm, 8443);
 
-putenv('API_BASE_URL=' . $baseUrl);
+putenv('API_BASE_URL=' . $chasmHttpUrl);
+putenv('CHASM_HTTP_URL=' . $chasmHttpUrl);
+putenv('CHASM_HTTPS_URL=' . $chasmHttpsUrl);
+putenv('CHASM_INTERNAL_HTTP_URL=http://chasm:4010');
+putenv('CHASM_INTERNAL_HTTPS_URL=https://chasm:8443');
 
 // Start WireMock with HTTPS
 $keystorePath = $hostAppPath . '/test/fixtures/certs/server-keystore.p12';
@@ -99,6 +114,10 @@ function dockerApiRequest(string $socketPath, string $endpoint, string $method =
 }
 
 dockerApiRequest($socketPath, '/networks/create', 'POST', ['Name' => $networkName]);
+dockerApiRequest($socketPath, "/networks/$networkName/connect", 'POST', [
+    'Container' => $chasm->getId(),
+    'EndpointConfig' => ['Aliases' => ['chasm']],
+]);
 dockerApiRequest($socketPath, "/networks/$networkName/connect", 'POST', [
     'Container' => $wiremock->getId(),
     'EndpointConfig' => ['Aliases' => ['wiremock']],

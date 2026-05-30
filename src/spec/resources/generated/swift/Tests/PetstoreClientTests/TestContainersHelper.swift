@@ -14,6 +14,10 @@ nonisolated(unsafe) var wiremockInternalHttpUrl: String = ""
 nonisolated(unsafe) var wiremockInternalHttpsUrl: String = ""
 nonisolated(unsafe) var proxyUrl: String = ""
 nonisolated(unsafe) var chasmUrl: String = ""
+nonisolated(unsafe) var chasmHttpUrl: String = ""
+nonisolated(unsafe) var chasmHttpsUrl: String = ""
+nonisolated(unsafe) var chasmInternalHttpUrl: String = ""
+nonisolated(unsafe) var chasmInternalHttpsUrl: String = ""
 nonisolated(unsafe) var caCertPath: String = ""
 
 nonisolated(unsafe) private var wiremockContainer: DockerContainer?
@@ -104,16 +108,31 @@ private func _setUpContainers() async throws {
     proxyUrl = "http://\(squidHost):\(squidPort)"
 
     let specPath = fixturesPath.appendingPathComponent("openapi.yaml")
+    let chasmCertPath = fixturesPath.appendingPathComponent("certs/server.pem")
+    let chasmKeyPath = fixturesPath.appendingPathComponent("certs/server-key.pem")
 
-    let chasm = DockerContainer("mridang/chasm:1.2.5")
-        .withExposedPorts([4010])
+    let chasm = DockerContainer("mridang/chasm:1.3.0")
+        .withExposedPorts([4010, 8443])
         .withCopyIntoContainer(
             .path(specPath),
             "/tmp/openapi.yaml"
         )
+        .withCopyIntoContainer(
+            .path(chasmCertPath),
+            "/certs/cert.pem"
+        )
+        .withCopyIntoContainer(
+            .path(chasmKeyPath),
+            "/certs/key.pem"
+        )
         .withCommand([
             "mock", "/tmp/openapi.yaml", "--host", "0.0.0.0",
+            "--tls-cert", "/certs/cert.pem",
+            "--tls-key", "/certs/key.pem",
+            "--tls-port", "8443",
         ])
+        .withNetwork(network)
+        .withNetworkAliases(["chasm"])
         .waitingFor(LogMessageWaitStrategy("Listening on"))
 
     try await chasm.start()
@@ -121,7 +140,12 @@ private func _setUpContainers() async throws {
 
     let chasmHost = try await chasm.containerHostIp()
     let chasmPort = try await chasm.exposedPort(4010)
+    let chasmHttpsPort = try await chasm.exposedPort(8443)
     chasmUrl = "http://\(chasmHost):\(chasmPort)"
+    chasmHttpUrl = "http://\(chasmHost):\(chasmPort)"
+    chasmHttpsUrl = "https://\(chasmHost):\(chasmHttpsPort)"
+    chasmInternalHttpUrl = "http://chasm:4010"
+    chasmInternalHttpsUrl = "https://chasm:8443"
 
     setenv("API_BASE_URL", chasmUrl, 1)
     setenv("WIREMOCK_HTTP_URL", wiremockHttpUrl, 1)
