@@ -215,7 +215,7 @@ async fn test_base_api_returns_raw_body_for_non_json() {
         .await
         .expect("unexpected error");
 
-    assert!(resp.body.contains("hello plain text"));
+    assert!(resp.body.contains("hello world"));
 }
 
 // -- Returns unit when return type is void --

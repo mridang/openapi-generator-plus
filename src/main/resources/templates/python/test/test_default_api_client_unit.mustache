@@ -38,8 +38,9 @@ class _EchoHandler(BaseHTTPRequestHandler):
             self.wfile.write(b"not found")
             return
 
-        # Echo back all received headers as JSON
-        received_headers = dict(self.headers)
+        # Echo back all received headers as JSON. Lowercase the keys to match
+        # chasm's /test/echo envelope shape so tests use a single key style.
+        received_headers = {k.lower(): v for k, v in self.headers.items()}
         data = json.dumps({"method": self.command, "body": body, "headers": received_headers})
         self.send_response(200)
         self.send_header("Content-Type", "application/json")

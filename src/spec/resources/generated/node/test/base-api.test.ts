@@ -176,7 +176,7 @@ describe('BaseApi success deserialization', () => {
       (json) => json as string
     );
     expect(result).toBeDefined();
-    expect(result).toContain('hello plain text');
+    expect(result).toContain('hello world');
   });
 
   test('returns void when returnType is null', async () => {

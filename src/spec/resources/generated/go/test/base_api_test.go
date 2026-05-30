@@ -190,8 +190,8 @@ func TestBaseApi_ReturnsRawBodyForNonJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !strings.Contains(resp.Body, "hello plain text") {
-		t.Errorf("expected body to contain 'hello plain text', got %q", resp.Body)
+	if !strings.Contains(resp.Body, "hello world") {
+		t.Errorf("expected body to contain 'hello world', got %q", resp.Body)
 	}
 }
 

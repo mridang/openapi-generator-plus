@@ -131,7 +131,7 @@ class TestSuccessDeserialization:
     async def test_returns_raw_string_for_non_json(self, api: Any) -> None:
         result = await api.call('GET', '/test/text-plain', {}, {}, None, ['text/plain'], 'application/json', 'str')
         assert result is not None
-        assert 'hello plain text' in result
+        assert 'hello world' in result
 
     async def test_returns_none_when_return_type_is_none(self, api: Any) -> None:
         result = await api.call('GET', '/test/echo', {}, {}, None, ['application/json'], 'application/json', None)

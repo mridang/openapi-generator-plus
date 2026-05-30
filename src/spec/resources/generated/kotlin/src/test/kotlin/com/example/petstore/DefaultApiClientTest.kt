@@ -103,7 +103,7 @@ class DefaultApiClientTest {
                     client.sendRequest("GET", "$chasmUrl/test/echo", emptyMap(), null)
                 }
             assertEquals(200, response.statusCode)
-            assertTrue(response.body.contains("success"))
+            assertTrue(response.body.contains("\"method\""))
         }
     }
 
@@ -149,7 +149,7 @@ class DefaultApiClientTest {
                     client.sendRequest("GET", "$chasmUrl/test/echo", emptyMap(), null)
                 }
             assertEquals(200, response.statusCode)
-            assertTrue(response.body.contains("success"))
+            assertTrue(response.body.contains("\"method\""))
         }
     }
 

@@ -131,7 +131,7 @@ describe {{moduleName}}::Api::BaseApi do
     result = api.call('GET', '/test/text-plain', {}, {}, nil,
                       ['text/plain'], 'application/json', 'String')
     _(result).wont_be_nil
-    _(result).must_include 'hello plain text'
+    _(result).must_include 'hello world'
   end
 
   it 'returns nil when return_type is nil' do
