@@ -6,3 +6,8 @@ parameters:
     - .
   excludePaths:
     - vendor
+    # Pest test files use magic methods (test(), expect(), beforeEach(),
+    # etc.) that phpstan cannot analyse without the dedicated
+    # pestphp/pest-plugin-phpstan plugin. Skip the test directory until
+    # that plugin is wired up.
+    - test

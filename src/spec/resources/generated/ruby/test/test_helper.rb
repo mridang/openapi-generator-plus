@@ -79,6 +79,9 @@ end
 
 # Create a shared Docker network for proxy tests so Squid can reach Chasm
 # directly via container alias, avoiding host.docker.internal DNS issues.
+# Register the network removal hook BEFORE the container stop hooks so it
+# runs LAST in Minitest's LIFO after_run order — otherwise the network
+# removal fails with 403 Forbidden because containers are still connected.
 PROXY_NETWORK = Docker::Network.create("proxy-test-network-#{SecureRandom.hex(4)}")
 Minitest.after_run { PROXY_NETWORK.remove }
 
@@ -95,6 +98,12 @@ SQUID.start
 Minitest.after_run { SQUID.stop }
 
 PROXY_NETWORK.connect(SQUID._container.id)
+
+# CHASM.stop was previously registered above with the container creation
+# (line ~59). Re-register here so it runs BEFORE PROXY_NETWORK.remove
+# (LIFO: last-registered runs first). The earlier registration is now a
+# fallback; this re-add ensures the container detaches before network teardown.
+Minitest.after_run { CHASM.stop rescue nil }
 
 sleep 3
 
