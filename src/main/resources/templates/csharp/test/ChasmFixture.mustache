@@ -24,9 +24,9 @@ public class ChasmFixture : IAsyncLifetime
     {
         var hostAppPath = Environment.GetEnvironmentVariable("HOST_APP_PATH") ?? Directory.GetCurrentDirectory();
         var specPath = Path.Combine(hostAppPath, "Test", "Resources", "openapi.yaml");
-        var certPath = Path.Combine(hostAppPath, "Test", "Fixtures", "certs", "server.pem");
-        var keyPath = Path.Combine(hostAppPath, "Test", "Fixtures", "certs", "server-key.pem");
-        var squidConfPath = Path.Combine(hostAppPath, "Test", "Fixtures", "proxy", "squid.conf");
+        var certPath = Path.Combine(hostAppPath, "Test", "Resources", "certs", "server.pem");
+        var keyPath = Path.Combine(hostAppPath, "Test", "Resources", "certs", "server-key.pem");
+        var squidConfPath = Path.Combine(hostAppPath, "Test", "Resources", "proxy", "squid.conf");
 
         _network = new NetworkBuilder().Build();
         await _network.CreateAsync();
