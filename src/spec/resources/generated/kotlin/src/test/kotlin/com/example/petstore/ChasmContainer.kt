@@ -8,6 +8,7 @@
 package com.example.petstore
 
 import org.testcontainers.containers.GenericContainer
+import org.testcontainers.containers.Network
 import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.utility.MountableFile
 import java.nio.file.Path
@@ -16,6 +17,9 @@ import java.nio.file.Path
  * Singleton Chasm mock server container shared across all test classes.
  */
 object ChasmContainer {
+    /** Shared Docker network so Squid can reach Chasm via container alias. */
+    val PROXY_NETWORK: Network = Network.newNetwork()
+
     private val INSTANCE: GenericContainer<*>
 
     init {
@@ -42,7 +46,8 @@ object ChasmContainer {
                     "/certs/key.pem",
                     "--tls-port",
                     "8443",
-                )
+                ).withNetwork(PROXY_NETWORK)
+                .withNetworkAliases("chasm")
                 // Same as the Java/Python/PHP setup — Wait.forListeningPort can return
                 // before Chasm is actually serving requests, leading to the first burst
                 // of tests racing the server boot.
@@ -53,6 +58,11 @@ object ChasmContainer {
         Runtime.getRuntime().addShutdownHook(
             Thread {
                 if (INSTANCE.isRunning) INSTANCE.stop()
+                try {
+                    PROXY_NETWORK.close()
+                } catch (e: Exception) {
+                    e.printStackTrace(System.err)
+                }
             },
         )
     }
@@ -60,4 +70,10 @@ object ChasmContainer {
     fun getBaseUrl(): String = "http://${INSTANCE.host}:${INSTANCE.getMappedPort(4010)}"
 
     fun getHttpsBaseUrl(): String = "https://${INSTANCE.host}:${INSTANCE.getMappedPort(8443)}"
+
+    fun getHttpsPort(): Int = INSTANCE.getMappedPort(8443)
+
+    fun getInternalHttpUrl(): String = "http://chasm:4010"
+
+    fun getInternalHttpsUrl(): String = "https://chasm:8443"
 }

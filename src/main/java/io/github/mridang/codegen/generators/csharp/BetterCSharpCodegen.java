@@ -315,11 +315,6 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                             "test/ChasmFixture.mustache", "Test", "ChasmFixture.cs"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/WireMockSquidFixture.mustache",
-                            "Test",
-                            "WireMockSquidFixture.cs"));
-            supportingFiles.add(
-                    new SupportingFile(
                             "test/BaseApiTest.mustache",
                             "Test",
                             "BaseApiTest.cs"));

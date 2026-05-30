@@ -59,31 +59,7 @@ putenv('CHASM_HTTPS_URL=' . $chasmHttpsUrl);
 putenv('CHASM_INTERNAL_HTTP_URL=http://chasm:4010');
 putenv('CHASM_INTERNAL_HTTPS_URL=https://chasm:8443');
 
-// Start WireMock with HTTPS
-$keystorePath = $hostAppPath . '/test/fixtures/certs/server-keystore.p12';
-$mappingsPath = $hostAppPath . '/test/fixtures/wiremock/mappings';
-
-$wiremock = (new GenericContainer('wiremock/wiremock:3.13.0'))
-    ->withExposedPorts(8080, 8443)
-    ->withMount($keystorePath, '/tmp/keystore.p12')
-    ->withMount($mappingsPath, '/home/wiremock/mappings')
-    ->withCommand([
-        '--port', '8080',
-        '--https-port', '8443',
-        '--https-keystore', '/tmp/keystore.p12',
-        '--keystore-type', 'PKCS12',
-        '--keystore-password', 'changeit',
-        '--key-manager-password', 'changeit',
-        '--verbose',
-    ])
-    ->withWait(new WaitForLog('port:', false, 120000))
-    ->start();
-
-$wiremockHost = $wiremock->getHost();
-putenv('WIREMOCK_HTTPS_URL=https://' . $wiremockHost . ':' . safeGetMappedPort($wiremock, 8443));
-putenv('WIREMOCK_HTTP_URL=http://' . $wiremockHost . ':' . safeGetMappedPort($wiremock, 8080));
-
-// Create a shared Docker network so Squid can reach WireMock directly
+// Create a shared Docker network so Squid can reach Chasm directly
 // via container alias, avoiding host.docker.internal DNS issues.
 // Uses the Docker Engine API via Unix socket (no docker CLI needed).
 $dockerSocket = getenv('DOCKER_HOST') ?: 'unix:///var/run/docker.sock';
@@ -118,13 +94,6 @@ dockerApiRequest($socketPath, "/networks/$networkName/connect", 'POST', [
     'Container' => $chasm->getId(),
     'EndpointConfig' => ['Aliases' => ['chasm']],
 ]);
-dockerApiRequest($socketPath, "/networks/$networkName/connect", 'POST', [
-    'Container' => $wiremock->getId(),
-    'EndpointConfig' => ['Aliases' => ['wiremock']],
-]);
-
-putenv('WIREMOCK_INTERNAL_HTTP_URL=http://wiremock:8080');
-putenv('WIREMOCK_INTERNAL_HTTPS_URL=https://wiremock:8443');
 
 // Start Squid proxy
 $squidConfPath = $hostAppPath . '/test/fixtures/proxy/squid.conf';
@@ -144,9 +113,8 @@ sleep(3);
 putenv('PROXY_URL=http://' . $squid->getHost() . ':' . safeGetMappedPort($squid, 3128));
 putenv('CA_CERT_PATH=' . getcwd() . '/test/fixtures/certs/ca.pem');
 
-register_shutdown_function(function () use ($chasm, $wiremock, $squid, $networkName, $socketPath): void {
+register_shutdown_function(function () use ($chasm, $squid, $networkName, $socketPath): void {
     $squid->stop();
-    $wiremock->stop();
     $chasm->stop();
     dockerApiRequest($socketPath, "/networks/$networkName", 'DELETE');
 });

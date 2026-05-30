@@ -864,7 +864,7 @@ class BaseApiTest {
         )
         @DisplayName("proxy URL with embedded basic-auth credentials routes through proxy")
         fun proxyUrlWithBasicAuthCredentialsRoutesThroughProxy() {
-            val wiremockUrl = WireMockContainer.getInternalHttpUrl()
+            val chasmUrl = ChasmContainer.getInternalHttpUrl()
             val proxyHostPort = SquidContainer.getProxyUrl().removePrefix("http://")
             val authenticatedProxy = "http://user:pass@$proxyHostPort"
             val transport =
@@ -875,7 +875,7 @@ class BaseApiTest {
             val client = DefaultApiClient(transport)
             val response =
                 runBlocking {
-                    client.sendRequest("GET", "$wiremockUrl/api/test", emptyMap(), null)
+                    client.sendRequest("GET", "$chasmUrl/test/echo", emptyMap(), null)
                 }
             assertEquals(200, response.statusCode)
         }

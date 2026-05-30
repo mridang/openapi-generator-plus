@@ -190,7 +190,7 @@ async fn test_base_api_deserializes_json_response() {
         .expect("unexpected error");
 
     /* chasm's /test/echo returns a JSON envelope ({method, body, headers, cookies, contentLength}).
-     * The previous WireMock stub returned {"message":"success"}; loosen the check
+     * The previous chasm stub returned {"message":"success"}; loosen the check
      * to assert the response is valid JSON with the expected envelope shape. */
     let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
     assert_eq!(json["method"], "GET");
@@ -281,7 +281,7 @@ async fn test_base_api_forwards_auth_headers() {
         .expect("unexpected error");
 
     /* chasm preserves the original header casing inside the `headers` map of the
-     * echo envelope (e.g. `headers["Authorization"]`). The previous WireMock stub
+     * echo envelope (e.g. `headers["Authorization"]`). The previous chasm stub
      * returned a flat lowercase object; check both shapes in the envelope's headers. */
     let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
     let h = &json["headers"];

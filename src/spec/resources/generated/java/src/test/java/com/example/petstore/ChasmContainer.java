@@ -10,11 +10,15 @@ package com.example.petstore;
 import java.nio.file.Path;
 import java.time.Duration;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.MountableFile;
 
 /** Singleton Chasm mock server container shared across all test classes. */
 public final class ChasmContainer {
+
+  /** Shared Docker network so Squid can reach Chasm via container alias. */
+  static final Network PROXY_NETWORK = Network.newNetwork();
 
   private static final GenericContainer<?> INSTANCE;
 
@@ -42,6 +46,8 @@ public final class ChasmContainer {
                 "/certs/key.pem",
                 "--tls-port",
                 "8443")
+            .withNetwork(PROXY_NETWORK)
+            .withNetworkAliases("chasm")
             .waitingFor(Wait.forLogMessage(".*Listening on.*", 1))
             .withStartupTimeout(Duration.ofMinutes(2))
             .withLabel("com.mridang.openapi.testcontainer", "true");
@@ -52,6 +58,13 @@ public final class ChasmContainer {
                 () -> {
                   if (INSTANCE != null && INSTANCE.isRunning()) {
                     INSTANCE.stop();
+                  }
+                  if (PROXY_NETWORK != null) {
+                    try {
+                      PROXY_NETWORK.close();
+                    } catch (Exception e) {
+                      e.printStackTrace(System.err);
+                    }
                   }
                 }));
   }
@@ -64,5 +77,17 @@ public final class ChasmContainer {
 
   public static String getHttpsBaseUrl() {
     return "https://" + INSTANCE.getHost() + ":" + INSTANCE.getMappedPort(8443);
+  }
+
+  public static int getHttpsPort() {
+    return INSTANCE.getMappedPort(8443);
+  }
+
+  public static String getInternalHttpUrl() {
+    return "http://chasm:4010";
+  }
+
+  public static String getInternalHttpsUrl() {
+    return "https://chasm:8443";
   }
 }

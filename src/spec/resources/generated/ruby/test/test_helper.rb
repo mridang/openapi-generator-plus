@@ -76,45 +76,12 @@ PetstoreClient.configure do |b|
   b.default_header 'Authorization', 'Bearer test-token'
 end
 
-# Create a shared Docker network for proxy tests so Squid can reach WireMock
+# Create a shared Docker network for proxy tests so Squid can reach Chasm
 # directly via container alias, avoiding host.docker.internal DNS issues.
 PROXY_NETWORK = Docker::Network.create("proxy-test-network-#{SecureRandom.hex(4)}")
 Minitest.after_run { PROXY_NETWORK.remove }
 
 PROXY_NETWORK.connect(CHASM._container.id, {}, { 'EndpointConfig' => { 'Aliases' => ['chasm'] } })
-
-# Start WireMock server with HTTPS
-keystore_path = File.join(host_app_path, 'test', 'fixtures', 'certs', 'server-keystore.p12')
-mappings_path = File.join(host_app_path, 'test', 'fixtures', 'wiremock', 'mappings')
-
-WIREMOCK = Testcontainers::DockerContainer.new('wiremock/wiremock:3.13.0')
-WIREMOCK.with_exposed_port(8080)
-WIREMOCK.with_exposed_port(8443)
-WIREMOCK.with_filesystem_binds([
-  "#{keystore_path}:/tmp/keystore.p12:ro",
-  "#{mappings_path}:/home/wiremock/mappings:ro"
-])
-WIREMOCK.with_command(
-  '--port', '8080',
-  '--https-port', '8443',
-  '--https-keystore', '/tmp/keystore.p12',
-  '--keystore-type', 'PKCS12',
-  '--keystore-password', 'changeit',
-  '--key-manager-password', 'changeit',
-  '--verbose'
-)
-WIREMOCK.with_wait_for(:logs, /port:/, timeout: 120)
-
-WIREMOCK.start
-Minitest.after_run { WIREMOCK.stop }
-
-PROXY_NETWORK.connect(WIREMOCK._container.id, {}, { 'EndpointConfig' => { 'Aliases' => ['wiremock'] } })
-
-wiremock_host = ENV['TESTCONTAINERS_HOST_OVERRIDE'] || WIREMOCK.host
-ENV['WIREMOCK_HTTPS_URL'] = "https://#{wiremock_host}:#{WIREMOCK.mapped_port(8443)}"
-ENV['WIREMOCK_HTTP_URL'] = "http://#{wiremock_host}:#{WIREMOCK.mapped_port(8080)}"
-ENV['WIREMOCK_INTERNAL_HTTP_URL'] = 'http://wiremock:8080'
-ENV['WIREMOCK_INTERNAL_HTTPS_URL'] = 'https://wiremock:8443'
 
 # Start Squid proxy
 squid_conf_path = File.join(host_app_path, 'test', 'fixtures', 'proxy', 'squid.conf')

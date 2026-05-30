@@ -8,7 +8,7 @@ export default async function globalSetup() {
   const chasmCertPath = path.join(hostAppPath, 'test', 'fixtures', 'certs', 'server.pem');
   const chasmKeyPath = path.join(hostAppPath, 'test', 'fixtures', 'certs', 'server-key.pem');
 
-  // Create a shared Docker network so Squid can reach WireMock directly
+  // Create a shared Docker network so Squid can reach Chasm directly
   // via container alias, avoiding host.docker.internal DNS issues.
   const proxyNetwork = await new Network().start();
 
@@ -29,30 +29,6 @@ export default async function globalSetup() {
     .withNetwork(proxyNetwork)
     .withNetworkAliases('chasm')
     .withWaitStrategy(Wait.forLogMessage('Listening on'))
-    .withStartupTimeout(120000)
-    .start();
-
-  const keystorePath = path.join(hostAppPath, 'test', 'fixtures', 'certs', 'server-keystore.p12');
-  const mappingsPath = path.join(hostAppPath, 'test', 'fixtures', 'wiremock', 'mappings');
-
-  const wiremock = await new GenericContainer('wiremock/wiremock:3.13.0')
-    .withExposedPorts(8080, 8443)
-    .withBindMounts([
-      { source: keystorePath, target: '/tmp/keystore.p12', mode: 'ro' },
-      { source: mappingsPath, target: '/home/wiremock/mappings', mode: 'ro' },
-    ])
-    .withCommand([
-      '--port', '8080',
-      '--https-port', '8443',
-      '--https-keystore', '/tmp/keystore.p12',
-      '--keystore-type', 'PKCS12',
-      '--keystore-password', 'changeit',
-      '--key-manager-password', 'changeit',
-      '--verbose',
-    ])
-    .withNetwork(proxyNetwork)
-    .withNetworkAliases('wiremock')
-    .withWaitStrategy(Wait.forLogMessage('port:'))
     .withStartupTimeout(120000)
     .start();
 
@@ -86,11 +62,6 @@ export default async function globalSetup() {
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
   }
-  const wiremockHost = wiremock.getHost();
-  const wiremockHttpsUrl = `https://${wiremockHost}:${wiremock.getMappedPort(8443)}`;
-  const wiremockHttpUrl = `http://${wiremockHost}:${wiremock.getMappedPort(8080)}`;
-  const wiremockInternalHttpUrl = 'http://wiremock:8080';
-  const wiremockInternalHttpsUrl = 'https://wiremock:8443';
   const proxyUrl = `http://${squid.getHost()}:${squid.getMappedPort(3128)}`;
   const caCertPath = path.join(process.cwd(), 'test', 'fixtures', 'certs', 'ca.pem');
 
@@ -100,18 +71,12 @@ export default async function globalSetup() {
     chasmHttpsUrl,
     chasmInternalHttpUrl,
     chasmInternalHttpsUrl,
-    wiremockHttpsUrl,
-    wiremockHttpUrl,
-    wiremockInternalHttpUrl,
-    wiremockInternalHttpsUrl,
     proxyUrl,
     caCertPath,
   }));
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (globalThis as any).__CHASM_CONTAINER__ = chasm;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (globalThis as any).__WIREMOCK_CONTAINER__ = wiremock;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (globalThis as any).__SQUID_CONTAINER__ = squid;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

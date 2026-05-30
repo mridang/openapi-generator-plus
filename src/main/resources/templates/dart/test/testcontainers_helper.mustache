@@ -4,10 +4,6 @@ import 'dart:io';
 
 import 'package:testcontainers_core/testcontainers_core.dart';
 
-late String wiremockHttpUrl;
-late String wiremockHttpsUrl;
-late String wiremockInternalHttpUrl;
-late String wiremockInternalHttpsUrl;
 late String proxyUrl;
 late String chasmUrl;
 late String chasmHttpUrl;
@@ -16,7 +12,6 @@ late String chasmInternalHttpUrl;
 late String chasmInternalHttpsUrl;
 late String caCertPath;
 
-late DockerContainer _wiremockContainer;
 late DockerContainer _squidContainer;
 late DockerContainer _chasmContainer;
 late Network _network;
@@ -26,46 +21,6 @@ Future<void> setUpContainers() async {
 
   _network = Network();
   await _network.create();
-
-  final keystorePath =
-      File('${fixtures.path}/certs/server-keystore.p12');
-  final mappingsDir =
-      Directory('${fixtures.path}/wiremock/mappings');
-
-  _wiremockContainer = DockerContainer('wiremock/wiremock:3.13.0')
-      .withExposedPorts([8080, 8443])
-      .withCopyIntoContainer(
-        PathTransferable(keystorePath),
-        '/tmp/keystore.p12',
-        0x1A4,
-      )
-      .withCopyIntoContainer(
-        PathTransferable(mappingsDir),
-        '/home/wiremock/mappings',
-        0x1A4,
-      )
-      .withCommand([
-        '--port', '8080',
-        '--https-port', '8443',
-        '--https-keystore', '/tmp/keystore.p12',
-        '--keystore-type', 'PKCS12',
-        '--keystore-password', 'changeit',
-        '--key-manager-password', 'changeit',
-        '--verbose',
-      ])
-      .withNetwork(_network)
-      .withNetworkAliases(['wiremock'])
-      .waitingFor(LogMessageWaitStrategy(RegExp(r'port:')));
-
-  await _wiremockContainer.start();
-
-  final wiremockHost = await _wiremockContainer.containerHostIp();
-  final wiremockHttpPort = await _wiremockContainer.exposedPort(8080);
-  final wiremockHttpsPort = await _wiremockContainer.exposedPort(8443);
-  wiremockHttpUrl = 'http://$wiremockHost:$wiremockHttpPort';
-  wiremockHttpsUrl = 'https://$wiremockHost:$wiremockHttpsPort';
-  wiremockInternalHttpUrl = 'http://wiremock:8080';
-  wiremockInternalHttpsUrl = 'https://wiremock:8443';
 
   caCertPath = '${fixtures.path}/certs/ca.pem';
 
@@ -134,7 +89,6 @@ Future<void> setUpContainers() async {
 Future<void> tearDownContainers() async {
   await _chasmContainer.stop();
   await _squidContainer.stop();
-  await _wiremockContainer.stop();
   await _network.remove();
 }
 {{/generateTests}}

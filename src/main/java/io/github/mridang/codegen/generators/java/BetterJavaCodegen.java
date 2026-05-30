@@ -353,11 +353,6 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                             "test/SquidContainer.mustache", testFolder, "SquidContainer.java"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/WireMockContainer.mustache",
-                            testFolder,
-                            "WireMockContainer.java"));
-            supportingFiles.add(
-                    new SupportingFile(
                             "test/BaseApiTest.mustache",
                             testFolder,
                             "BaseApiTest.java"));

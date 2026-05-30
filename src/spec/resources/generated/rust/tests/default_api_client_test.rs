@@ -22,7 +22,7 @@ async fn test_default_api_client_makes_https_request_with_verify_ssl_false() {
         .await
         .expect("unexpected error");
 
-    /* chasm's /test/echo returns the request envelope; the previous WireMock stub
+    /* chasm's /test/echo returns the request envelope; the previous chasm stub
      * returned {"message":"success"}. Loosened: assert the response is the echo
      * envelope (contains "method"). */
     assert_eq!(resp.status_code, 200);
@@ -508,7 +508,7 @@ async fn test_default_api_client_sends_multipart_form_data() {
         .await;
 }
 
-// Decompression tests target the local WireMock harness rather than a real
+// Decompression tests target the local chasm harness rather than a real
 // external host so they are deterministic and offline. Each mapping serves a
 // body compressed with the matching Content-Encoding (see fixtures
 // compressed-gzip.json / compressed-br.json / compressed-zstd.json); the
@@ -598,7 +598,7 @@ async fn test_default_api_client_post_with_null_body_sends_content_length_zero()
         .expect("unexpected error");
     assert_eq!(resp.status_code, 200);
     /* chasm's echo envelope reports contentLength as a camelCase integer (not the
-     * stringified header value WireMock returned). */
+     * stringified header value chasm returned). */
     let parsed: serde_json::Value = serde_json::from_str(&resp.body).expect("failed to parse json");
     assert_eq!(parsed["method"], "POST");
     assert_eq!(

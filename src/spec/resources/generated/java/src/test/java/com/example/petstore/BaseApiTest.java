@@ -1212,7 +1212,7 @@ class BaseApiTest {
             + "squid.conf is provisioned with htpasswd-backed auth.")
     @DisplayName("proxy URL with userinfo sends Proxy-Authorization through the proxy")
     void proxyUrlWithUserinfoSendsProxyAuthorization() throws ApiException {
-      String wiremockUrl = WireMockContainer.getInternalHttpUrl();
+      String chasmUrl = ChasmContainer.getInternalHttpUrl();
       String baseProxyUrl = SquidContainer.getProxyUrl();
       // Splice basic-auth userinfo into the proxy URL: http://user:pass@host:port
       java.net.URI uri = java.net.URI.create(baseProxyUrl);
@@ -1223,7 +1223,7 @@ class BaseApiTest {
 
       DefaultApiClient client = new DefaultApiClient(transport);
       ApiResponse response =
-          client.sendRequest("GET", wiremockUrl + "/test/echo", new HashMap<>(), null);
+          client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
 
       assertEquals(200, response.statusCode());
       assertTrue(response.body().contains("success"));

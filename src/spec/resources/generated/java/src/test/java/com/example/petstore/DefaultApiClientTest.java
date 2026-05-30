@@ -48,10 +48,10 @@ class DefaultApiClientTest {
 
     /*
      * Gap AM: verifySsl=false must disable BOTH cert-chain AND
-     * hostname verification (curl -k semantics). The WireMock cert
-     * is issued for CN=wiremock with SAN entries for `wiremock`,
-     * `localhost`, and `host.docker.internal` — but not for
-     * `127.0.0.1`. Connecting via the literal IP therefore forces
+     * hostname verification (curl -k semantics). The Chasm cert
+     * has SAN entries for `chasm`, `localhost`, and
+     * `host.docker.internal` — but not for `127.0.0.1`.
+     * Connecting via the literal IP therefore forces
      * a hostname mismatch independent of chain trust, so we can
      * assert that turning off verification skips the hostname
      * check too.
@@ -123,14 +123,14 @@ class DefaultApiClientTest {
     @Test
     @DisplayName("makes HTTP request through proxy")
     void makesHttpRequestThroughProxy() throws ApiException {
-      String wiremockUrl = WireMockContainer.getInternalHttpUrl();
+      String chasmUrl = ChasmContainer.getInternalHttpUrl();
       String proxyUrl = SquidContainer.getProxyUrl();
 
       TransportOptions transport = TransportOptions.builder().proxy(proxyUrl).build();
 
       DefaultApiClient client = new DefaultApiClient(transport);
       ApiResponse response =
-          client.sendRequest("GET", wiremockUrl + "/api/test", new HashMap<>(), null);
+          client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
 
       assertEquals(200, response.statusCode());
       assertTrue(response.body().contains("success"));
@@ -169,7 +169,7 @@ class DefaultApiClientTest {
     @Test
     @DisplayName("makes HTTPS request through proxy with verifySsl=false")
     void makesHttpsRequestThroughProxyWithVerifySslFalse() throws ApiException {
-      String wiremockUrl = WireMockContainer.getInternalHttpsUrl();
+      String chasmUrl = ChasmContainer.getInternalHttpsUrl();
       String proxyUrl = SquidContainer.getProxyUrl();
 
       TransportOptions transport =
@@ -177,7 +177,7 @@ class DefaultApiClientTest {
 
       DefaultApiClient client = new DefaultApiClient(transport);
       ApiResponse response =
-          client.sendRequest("GET", wiremockUrl + "/api/test", new HashMap<>(), null);
+          client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
 
       assertEquals(200, response.statusCode());
       assertTrue(response.body().contains("success"));

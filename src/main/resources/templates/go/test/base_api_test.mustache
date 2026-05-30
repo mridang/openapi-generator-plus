@@ -34,7 +34,7 @@ func newBaseApiAuth() *baseApiAuth {
 	}
 }
 
-func wiremockApi() *{{packageName}}.PetApi {
+func chasmApi() *{{packageName}}.PetApi {
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL(chasmHTTPURL).Build()
 	return {{packageName}}.NewPetApi({{packageName}}.NewDefaultApiClient(nil), config, nil)
 }
@@ -240,7 +240,7 @@ func TestBaseApi_SetsCookieFromAuth(t *testing.T) {
 
 	_, err := api.AddPet(auth, *models.NewPet("Test", []string{}))
 	if err != nil {
-		// We don't care if the request fails (WireMock may not have a matching mapping),
+		// We don't care if the request fails (chasm may not have a matching mapping),
 		// we just need to verify the cookie was sent
 		_ = err
 	}

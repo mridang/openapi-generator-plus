@@ -90,7 +90,7 @@ class DefaultApiClientTest {
         @Test
         @DisplayName("makes HTTP request through proxy")
         fun makesHttpRequestThroughProxy() {
-            val wiremockUrl = WireMockContainer.getInternalHttpUrl()
+            val chasmUrl = ChasmContainer.getInternalHttpUrl()
             val proxyUrl = SquidContainer.getProxyUrl()
             val transport =
                 TransportOptions
@@ -100,7 +100,7 @@ class DefaultApiClientTest {
             val client = DefaultApiClient(transport)
             val response =
                 runBlocking {
-                    client.sendRequest("GET", "$wiremockUrl/api/test", emptyMap(), null)
+                    client.sendRequest("GET", "$chasmUrl/test/echo", emptyMap(), null)
                 }
             assertEquals(200, response.statusCode)
             assertTrue(response.body.contains("success"))
@@ -135,7 +135,7 @@ class DefaultApiClientTest {
         @Test
         @DisplayName("makes HTTPS request through proxy with verifySsl=false")
         fun makesHttpsRequestThroughProxyWithVerifySslFalse() {
-            val wiremockUrl = WireMockContainer.getInternalHttpsUrl()
+            val chasmUrl = ChasmContainer.getInternalHttpsUrl()
             val proxyUrl = SquidContainer.getProxyUrl()
             val transport =
                 TransportOptions
@@ -146,7 +146,7 @@ class DefaultApiClientTest {
             val client = DefaultApiClient(transport)
             val response =
                 runBlocking {
-                    client.sendRequest("GET", "$wiremockUrl/api/test", emptyMap(), null)
+                    client.sendRequest("GET", "$chasmUrl/test/echo", emptyMap(), null)
                 }
             assertEquals(200, response.statusCode)
             assertTrue(response.body.contains("success"))

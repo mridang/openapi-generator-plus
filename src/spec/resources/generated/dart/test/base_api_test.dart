@@ -35,7 +35,7 @@ class _BaseApiAuth implements Authenticator {
   Map<String, String> cookieParams() => cookies;
 }
 
-PetApi _wiremockApi() {
+PetApi _chasmApi() {
   final config = ConfigurationBuilder().baseUrl(chasmHttpUrl).build();
   return PetApi(apiClient: DefaultApiClient(), config: config);
 }
@@ -125,7 +125,7 @@ void main() {
     test('forwards auth headers', () async {
       final auth =
           _BaseApiAuth(headers: {'Authorization': 'Bearer test-token'});
-      final api = _wiremockApi();
+      final api = _chasmApi();
 
       // Exercise auth headers through the API layer
       try {

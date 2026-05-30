@@ -16,15 +16,15 @@ public final class SquidContainer {
     private static final GenericContainer<?> INSTANCE;
 
     static {
-        // Force WireMockContainer class initialization so the shared network is created first.
-        String ignored = WireMockContainer.getHttpUrl();
+        // Force ChasmContainer class initialization so the shared network is created first.
+        String ignored = ChasmContainer.getBaseUrl();
 
         INSTANCE = new GenericContainer<>("ubuntu/squid:5.2-22.04_beta")
             .withExposedPorts(3128)
             .withCopyFileToContainer(
                 MountableFile.forHostPath(Path.of("/app/src/test/resources/proxy/squid.conf")),
                 "/etc/squid/squid.conf")
-            .withNetwork(WireMockContainer.PROXY_NETWORK)
+            .withNetwork(ChasmContainer.PROXY_NETWORK)
             .withStartupTimeout(Duration.ofMinutes(2))
             .withLabel("com.mridang.openapi.testcontainer", "true");
         INSTANCE.start();

@@ -3879,9 +3879,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
 
     /**
      * Returns the language-specific base directory (relative
-     * to the output root) where test fixtures such as
-     * certificates, proxy config, and WireMock mappings should
-     * be placed.
+     * to the output root) where test fixtures such as TLS
+     * certificates and the Squid proxy config should be placed.
      */
     protected abstract String getTestFixturesDir();
 
@@ -3922,35 +3921,6 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             "certs/ca-key.pem",
             "certs/server.pem",
             "certs/server-key.pem",
-            "certs/server-keystore.p12",
-            "wiremock/mappings/test.json",
-            "wiremock/mappings/redirect.json",
-            "wiremock/mappings/redirect-303.json",
-            "wiremock/mappings/redirect-307.json",
-            "wiremock/mappings/redirect-307-multipart.json",
-            "wiremock/mappings/echo-method-body.json",
-            "wiremock/mappings/echo-method-bodylength.json",
-            "wiremock/mappings/slow.json",
-            "wiremock/mappings/echo-headers.json",
-            "wiremock/mappings/echo-content-length.json",
-            "wiremock/mappings/echo-cookie.json",
-            "wiremock/mappings/set-cookie.json",
-            "wiremock/mappings/response-headers.json",
-            "wiremock/mappings/echo-body.json",
-            "wiremock/mappings/text-plain.json",
-            "wiremock/mappings/empty.json",
-            "wiremock/mappings/error-400.json",
-            "wiremock/mappings/error-401.json",
-            "wiremock/mappings/error-403.json",
-            "wiremock/mappings/error-404.json",
-            "wiremock/mappings/error-409.json",
-            "wiremock/mappings/error-418.json",
-            "wiremock/mappings/error-422.json",
-            "wiremock/mappings/error-500.json",
-            "wiremock/mappings/error-502.json",
-            "wiremock/mappings/compressed-gzip.json",
-            "wiremock/mappings/compressed-br.json",
-            "wiremock/mappings/compressed-zstd.json",
             "proxy/squid.conf"
         };
         final Path fixturesBase = outputDir.resolve(getTestFixturesDir());

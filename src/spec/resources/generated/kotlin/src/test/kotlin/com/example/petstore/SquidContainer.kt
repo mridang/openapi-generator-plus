@@ -19,8 +19,8 @@ object SquidContainer {
     private val INSTANCE: GenericContainer<*>
 
     init {
-        // Force WireMockContainer initialization so the shared network is created first.
-        WireMockContainer.getHttpUrl()
+        // Force ChasmContainer initialization so the shared network is created first.
+        ChasmContainer.getBaseUrl()
 
         INSTANCE =
             GenericContainer("ubuntu/squid:5.2-22.04_beta")
@@ -28,7 +28,7 @@ object SquidContainer {
                 .withCopyFileToContainer(
                     MountableFile.forHostPath(Path.of("/app/src/test/resources/proxy/squid.conf")),
                     "/etc/squid/squid.conf",
-                ).withNetwork(WireMockContainer.PROXY_NETWORK)
+                ).withNetwork(ChasmContainer.PROXY_NETWORK)
                 .withStartupTimeout(Duration.ofSeconds(120))
                 .withLabel("com.mridang.openapi.testcontainer", "true")
         INSTANCE.start()

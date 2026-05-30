@@ -36,14 +36,15 @@ public class DefaultApiClientTest
         Assert.Contains("\"method\"", response.Body);
     }
 
-    // No chasm equivalent: ChasmFixture does not expose a CA cert path.
-    // Kept as a smoke test using VerifySsl(false) to at least exercise HTTPS;
-    // loosened from "verify with CA cert" to "verify HTTPS reachability".
     [Fact]
     public async Task MakesHttpsRequestWithCustomCaCert()
     {
+        var hostAppPath = Environment.GetEnvironmentVariable("HOST_APP_PATH") ?? Directory.GetCurrentDirectory();
+        var caCertPath = Path.Combine(hostAppPath, "Test", "Fixtures", "certs", "ca.pem");
+
         var transport = TransportOptions.Builder()
-            .VerifySsl(false)
+            .VerifySsl(true)
+            .CaCertPath(caCertPath)
             .Build();
 
         var client = new DefaultApiClient(transport);
@@ -58,17 +59,17 @@ public class DefaultApiClientTest
         Assert.Contains("\"method\"", response.Body);
     }
 
-    // No chasm equivalent: ChasmFixture does not run a Squid proxy.
-    // Loosened to a direct request against chasm; the proxy code path is
-    // still constructed (with a non-routable proxy URL would fail), so this
-    // test now only verifies a direct HTTP request succeeds.
     [Fact]
     public async Task MakesHttpRequestThroughProxy()
     {
-        var client = new DefaultApiClient();
+        var transport = TransportOptions.Builder()
+            .Proxy(_fixture.ProxyUrl)
+            .Build();
+
+        var client = new DefaultApiClient(transport);
         var response = await client.SendRequestAsync(
             "GET",
-            new Uri(_fixture.BaseUrl + "/test/echo"),
+            new Uri(_fixture.InternalHttpUrl + "/test/echo"),
             new Dictionary<string, string>(),
             null
         );
@@ -92,19 +93,18 @@ public class DefaultApiClientTest
         Assert.Equal("Basic YWxpY2U6czNjcmV0", client.ProxyAuthorizationHeader);
     }
 
-    // No chasm equivalent: no proxy/internal-URL story. Loosened to a direct
-    // HTTPS request against chasm with TLS verification disabled.
     [Fact]
     public async Task MakesHttpsRequestThroughProxyWithVerifySslFalse()
     {
         var transport = TransportOptions.Builder()
+            .Proxy(_fixture.ProxyUrl)
             .VerifySsl(false)
             .Build();
 
         var client = new DefaultApiClient(transport);
         var response = await client.SendRequestAsync(
             "GET",
-            new Uri(_fixture.HttpsBaseUrl + "/test/echo"),
+            new Uri(_fixture.InternalHttpsUrl + "/test/echo"),
             new Dictionary<string, string>(),
             null
         );

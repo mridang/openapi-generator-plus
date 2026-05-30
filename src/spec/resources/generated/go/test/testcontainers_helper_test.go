@@ -20,17 +20,13 @@ import (
 )
 
 var (
-	wiremockHTTPURL          string
-	wiremockHTTPSURL         string
-	wiremockInternalHTTPURL  string
-	wiremockInternalHTTPSURL string
-	proxyURL                 string
-	chasmURL                 string
-	chasmHTTPURL             string
-	chasmHTTPSURL            string
-	chasmInternalHTTPURL     string
-	chasmInternalHTTPSURL    string
-	caCertPath               string
+	proxyURL              string
+	chasmURL              string
+	chasmHTTPURL          string
+	chasmHTTPSURL         string
+	chasmInternalHTTPURL  string
+	chasmInternalHTTPSURL string
+	caCertPath            string
 )
 
 func TestMain(m *testing.M) {
@@ -52,48 +48,6 @@ func TestMain(m *testing.M) {
 		fmt.Fprintf(os.Stderr, "failed to create network: %v\n", err)
 		os.Exit(1)
 	}
-
-	// Start WireMock container
-	keystorePath := filepath.Join(fixturesDir, "certs", "server-keystore.p12")
-	mappingsPath := filepath.Join(fixturesDir, "wiremock", "mappings")
-
-	wiremockReq := testcontainers.ContainerRequest{
-		Image:        "wiremock/wiremock:3.13.0",
-		ExposedPorts: []string{"8080/tcp", "8443/tcp"},
-		Files: []testcontainers.ContainerFile{
-			{HostFilePath: keystorePath, ContainerFilePath: "/tmp/keystore.p12"},
-			{HostFilePath: mappingsPath, ContainerFilePath: "/home/wiremock/mappings"},
-		},
-		Cmd: []string{
-			"--port", "8080",
-			"--https-port", "8443",
-			"--https-keystore", "/tmp/keystore.p12",
-			"--keystore-type", "PKCS12",
-			"--keystore-password", "changeit",
-			"--key-manager-password", "changeit",
-			"--verbose",
-		},
-		Networks:       []string{networkName},
-		NetworkAliases: map[string][]string{networkName: {"wiremock"}},
-		WaitingFor:     wait.ForLog("port:").WithStartupTimeout(120 * time.Second),
-	}
-
-	wiremockContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: wiremockReq,
-		Started:          true,
-	})
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to start WireMock: %v\n", err)
-		os.Exit(1)
-	}
-
-	wiremockHost, _ := wiremockContainer.Host(ctx)
-	wiremockHTTPPort, _ := wiremockContainer.MappedPort(ctx, "8080/tcp")
-	wiremockHTTPSPort, _ := wiremockContainer.MappedPort(ctx, "8443/tcp")
-	wiremockHTTPURL = fmt.Sprintf("http://%s:%s", wiremockHost, wiremockHTTPPort.Port())
-	wiremockHTTPSURL = fmt.Sprintf("https://%s:%s", wiremockHost, wiremockHTTPSPort.Port())
-	wiremockInternalHTTPURL = "http://wiremock:8080"
-	wiremockInternalHTTPSURL = "https://wiremock:8443"
 
 	caCertPath = filepath.Join(fixturesDir, "certs", "ca.pem")
 
@@ -173,7 +127,6 @@ func TestMain(m *testing.M) {
 	// Cleanup
 	_ = chasmContainer.Terminate(ctx)
 	_ = squidContainer.Terminate(ctx)
-	_ = wiremockContainer.Terminate(ctx)
 	_ = network.Remove(ctx)
 
 	os.Exit(code)

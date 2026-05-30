@@ -11,11 +11,9 @@ host_app_path = System.get_env("HOST_APP_PATH", File.cwd!())
 spec_path = Path.join([host_app_path, "test", "fixtures", "openapi.yaml"])
 chasm_cert_path = Path.join([host_app_path, "test", "fixtures", "certs", "server.pem"])
 chasm_key_path = Path.join([host_app_path, "test", "fixtures", "certs", "server-key.pem"])
-keystore_path = Path.join([host_app_path, "test", "fixtures", "certs", "server-keystore.p12"])
-mappings_path = Path.join([host_app_path, "test", "fixtures", "wiremock", "mappings"])
 squid_conf_path = Path.join([host_app_path, "test", "fixtures", "proxy", "squid.conf"])
 
-# Create shared network for Squid → WireMock communication
+# Create shared network for Squid → Chasm communication
 network_name = "proxy-network-elixir"
 {:ok, _} = Testcontainers.create_network(network_name)
 
@@ -64,56 +62,9 @@ System.put_env("CHASM_HTTP_URL", "http://#{chasm_host}:#{chasm_port}")
 System.put_env("CHASM_HTTPS_URL", "https://#{chasm_host}:#{chasm_https_port}")
 System.put_env("CHASM_INTERNAL_HTTP_URL", "http://chasm:4010")
 System.put_env("CHASM_INTERNAL_HTTPS_URL", "https://chasm:8443")
-
-# Start WireMock with HTTPS support
-wiremock_config =
-  Testcontainers.Container.new("wiremock/wiremock:3.13.0")
-  |> Testcontainers.Container.with_exposed_port(8080)
-  |> Testcontainers.Container.with_exposed_port(8443)
-  |> Testcontainers.Container.with_bind_mount(keystore_path, "/tmp/keystore.p12")
-  |> Testcontainers.Container.with_bind_mount(mappings_path, "/home/wiremock/mappings")
-  |> Testcontainers.Container.with_cmd([
-    "--port", "8080",
-    "--https-port", "8443",
-    "--https-keystore", "/tmp/keystore.p12",
-    "--keystore-type", "PKCS12",
-    "--keystore-password", "changeit",
-    "--key-manager-password", "changeit",
-    "--verbose"
-  ])
-  |> Testcontainers.Container.with_waiting_strategy(
-    Testcontainers.LogWaitStrategy.new(~r/port:/, 120_000)
-  )
-
-{:ok, wiremock} = Testcontainers.start_container(wiremock_config)
-
-# Connect WireMock to the shared proxy network with an alias so that Squid can
-# reach it by hostname via Docker's embedded DNS.
-{docker_api_conn, _, _} = Testcontainers.Connection.get_connection()
-
-{:ok, _} =
-  DockerEngineAPI.Api.Network.network_connect(
-    docker_api_conn,
-    network_name,
-    %DockerEngineAPI.Model.NetworkConnectRequest{
-      Container: wiremock.container_id,
-      EndpointConfig: %DockerEngineAPI.Model.EndpointSettings{
-        Aliases: ["wiremock"]
-      }
-    }
-  )
-
-wiremock_host = System.get_env("TESTCONTAINERS_HOST_OVERRIDE") || Testcontainers.get_host()
-wiremock_http_port = Testcontainers.Container.mapped_port(wiremock, 8080)
-wiremock_https_port = Testcontainers.Container.mapped_port(wiremock, 8443)
-
-System.put_env("WIREMOCK_HTTP_URL", "http://#{wiremock_host}:#{wiremock_http_port}")
-System.put_env("WIREMOCK_HTTPS_URL", "https://#{wiremock_host}:#{wiremock_https_port}")
-System.put_env("WIREMOCK_INTERNAL_HTTP_URL", "http://wiremock:8080")
-System.put_env("WIREMOCK_INTERNAL_HTTPS_URL", "https://wiremock:8443")
 System.put_env("CA_CERT_PATH", Path.join([File.cwd!(), "test", "fixtures", "certs", "ca.pem"]))
 
-# Start Squid proxy on the same network as WireMock
+# Start Squid proxy on the same network as Chasm
 squid_config =
   Testcontainers.Container.new("ubuntu/squid:5.2-22.04_beta")
   |> Testcontainers.Container.with_exposed_port(3128)

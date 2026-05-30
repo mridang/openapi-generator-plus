@@ -27,8 +27,8 @@ describe('DefaultApiClient', () => {
   describe('hostname verification', () => {
     /*
      * Gap AM: verifySsl=false must disable BOTH cert-chain AND
-     * hostname verification (curl -k semantics). The WireMock cert
-     * is issued for CN=wiremock with SAN entries for `wiremock`,
+     * hostname verification (curl -k semantics). The chasm cert
+     * is issued for CN=chasm with SAN entries for `chasm`,
      * `localhost`, and `host.docker.internal` — but not for
      * `127.0.0.1`. Connecting via the literal IP therefore forces a
      * hostname mismatch independent of chain trust, so we can assert
@@ -50,7 +50,7 @@ describe('DefaultApiClient', () => {
       await expect(client.sendRequest('GET', `${ipHttpsUrl()}/test/echo`, {}, null)).rejects.toThrow();
     });
 
-    // GitHub-hosted runners can't bind WireMock testcontainer to 127.0.0.1 reliably (IPv4/6 mismatch); passes locally.
+    // GitHub-hosted runners can't bind chasm testcontainer to 127.0.0.1 reliably (IPv4/6 mismatch); passes locally.
     test.skip('verifySsl=false accepts hostname mismatch (curl -k semantics)', async () => {
       const transport = TransportOptions.builder().verifySsl(false).build();
 
@@ -63,7 +63,7 @@ describe('DefaultApiClient', () => {
   });
 
   describe('custom CA bundle', () => {
-    // GitHub-hosted runners can't bind WireMock testcontainer to 127.0.0.1 reliably (IPv4/6 mismatch); passes locally.
+    // GitHub-hosted runners can't bind chasm testcontainer to 127.0.0.1 reliably (IPv4/6 mismatch); passes locally.
     test.skip('makes HTTPS request with custom CA cert', async () => {
       const chasmUrl = process.env['CHASM_HTTPS_URL']!;
       const caCertPath = process.env['CA_CERT_PATH']!;
@@ -278,7 +278,7 @@ describe('DefaultApiClient', () => {
           `file-content-bytes\r\n` +
           `--${boundary}--\r\n`
       );
-      // wiremock's bodyPatterns matches the replayed multipart parts; 200
+      // chasm's bodyPatterns matches the replayed multipart parts; 200
       // is returned only when the multipart body arrives intact at the
       // redirect target.
       const response = await client.sendRequest(
@@ -291,7 +291,7 @@ describe('DefaultApiClient', () => {
       expect(response.statusCode).toBe(200);
       const json = JSON.parse(response.body as string);
       expect(json.method).toBe('POST');
-      // chasm has no equivalent of WireMock's `replayed:true` sentinel.
+      // chasm has no equivalent of WireMock-era `replayed:true` sentinel.
       // Loosened: assert the replayed body arrived intact at the redirect target.
       expect(typeof json.body).toBe('string');
       expect(json.body.length).toBeGreaterThan(0);

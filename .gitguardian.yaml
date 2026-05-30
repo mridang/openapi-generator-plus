@@ -1,6 +1,6 @@
 version: 2
 # Test TLS certificates committed intentionally for integration test use.
-# These are self-signed certs generated for WireMock/Prism mock servers and
+# These are self-signed certs generated for the chasm mock server and
 # carry no real-world trust or access. They are not production secrets.
 ignore-paths:
   - src/spec/resources/generated/*/certs/

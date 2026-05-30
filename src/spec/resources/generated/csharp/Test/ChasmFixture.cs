@@ -8,15 +8,22 @@
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Configurations;
 using DotNet.Testcontainers.Containers;
+using DotNet.Testcontainers.Networks;
 using Xunit;
 
 namespace Test;
 
 public class ChasmFixture : IAsyncLifetime
 {
-    private IContainer _container = null!;
+    private INetwork _network = null!;
+    private IContainer _chasm = null!;
+    private IContainer _squid = null!;
+
     public string BaseUrl { get; private set; } = string.Empty;
     public string HttpsBaseUrl { get; private set; } = string.Empty;
+    public string InternalHttpUrl { get; } = "http://chasm:4010";
+    public string InternalHttpsUrl { get; } = "https://chasm:8443";
+    public string ProxyUrl { get; private set; } = string.Empty;
 
     public async Task InitializeAsync()
     {
@@ -25,8 +32,12 @@ public class ChasmFixture : IAsyncLifetime
         var specPath = Path.Combine(hostAppPath, "Test", "Resources", "openapi.yaml");
         var certPath = Path.Combine(hostAppPath, "Test", "Fixtures", "certs", "server.pem");
         var keyPath = Path.Combine(hostAppPath, "Test", "Fixtures", "certs", "server-key.pem");
+        var squidConfPath = Path.Combine(hostAppPath, "Test", "Fixtures", "proxy", "squid.conf");
 
-        _container = new ContainerBuilder()
+        _network = new NetworkBuilder().Build();
+        await _network.CreateAsync();
+
+        _chasm = new ContainerBuilder()
             .WithImage("mridang/chasm:1.3.0")
             .WithPortBinding(4010, true)
             .WithPortBinding(8443, true)
@@ -45,19 +56,32 @@ public class ChasmFixture : IAsyncLifetime
                 "--tls-port",
                 "8443"
             )
+            .WithNetwork(_network)
+            .WithNetworkAliases("chasm")
             .WithWaitStrategy(Wait.ForUnixContainer().UntilMessageIsLogged("Listening on"))
             .Build();
+        await _chasm.StartAsync();
 
-        await _container.StartAsync();
+        _squid = new ContainerBuilder()
+            .WithImage("ubuntu/squid:5.2-22.04_beta")
+            .WithPortBinding(3128, true)
+            .WithBindMount(squidConfPath, "/etc/squid/squid.conf", AccessMode.ReadOnly)
+            .WithNetwork(_network)
+            .Build();
+        await _squid.StartAsync();
+        await Task.Delay(3000);
 
-        BaseUrl = $"http://{_container.Hostname}:{_container.GetMappedPublicPort(4010)}";
-        HttpsBaseUrl = $"https://{_container.Hostname}:{_container.GetMappedPublicPort(8443)}";
+        BaseUrl = $"http://{_chasm.Hostname}:{_chasm.GetMappedPublicPort(4010)}";
+        HttpsBaseUrl = $"https://{_chasm.Hostname}:{_chasm.GetMappedPublicPort(8443)}";
+        ProxyUrl = $"http://{_squid.Hostname}:{_squid.GetMappedPublicPort(3128)}";
         Environment.SetEnvironmentVariable("API_BASE_URL", BaseUrl);
     }
 
     public async Task DisposeAsync()
     {
-        await _container.DisposeAsync();
+        await _squid.DisposeAsync();
+        await _chasm.DisposeAsync();
+        await _network.DeleteAsync();
     }
 }
 

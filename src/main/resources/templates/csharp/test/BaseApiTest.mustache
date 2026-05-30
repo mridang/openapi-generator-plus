@@ -702,15 +702,31 @@ public class BaseApiTest
     }
 
     // Gap #29 — proxy authentication propagation.
-    // No chasm equivalent: ChasmFixture exposes only BaseUrl/HttpsBaseUrl
-    // (no proxy, no internal/container-network URL). This test originally
-    // required a Squid proxy fronting WireMock's container-internal URL,
-    // and is therefore a no-op against chasm. Body kept structurally but
-    // gated to never run until a chasm-native proxy story exists.
+    // Embeds basic-auth credentials in the proxy URL (RFC 3986 userinfo) and
+    // sends a request through the bundled Squid proxy targeting chasm's
+    // container-internal URL. The Squid fixture is intentionally configured
+    // to allow all (no auth required), so a successful response confirms the
+    // credential-bearing proxy code path executes end-to-end without the
+    // proxy rejecting the connection — the only signal available without a
+    // basic-auth-enforcing proxy.
     [Fact]
-    public Task ProxyAuthenticationCredentialsAreSentToProxy()
+    public async Task ProxyAuthenticationCredentialsAreSentToProxy()
     {
-        // Always short-circuits under chasm — no proxy or internal URL available.
-        return Task.CompletedTask;
+        var proxyUri = new Uri(_fixture.ProxyUrl);
+        var proxyWithAuth = $"{proxyUri.Scheme}://testuser:testpass@{proxyUri.Host}:{proxyUri.Port}";
+        var transport = TransportOptions.Builder()
+            .Proxy(proxyWithAuth)
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.InternalHttpUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Contains("\"method\"", response.Body);
     }
 }

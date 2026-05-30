@@ -3,10 +3,6 @@
 import Foundation
 import TestcontainersCore
 
-nonisolated(unsafe) var wiremockHttpUrl: String = ""
-nonisolated(unsafe) var wiremockHttpsUrl: String = ""
-nonisolated(unsafe) var wiremockInternalHttpUrl: String = ""
-nonisolated(unsafe) var wiremockInternalHttpsUrl: String = ""
 nonisolated(unsafe) var proxyUrl: String = ""
 nonisolated(unsafe) var chasmUrl: String = ""
 nonisolated(unsafe) var chasmHttpUrl: String = ""
@@ -15,7 +11,6 @@ nonisolated(unsafe) var chasmInternalHttpUrl: String = ""
 nonisolated(unsafe) var chasmInternalHttpsUrl: String = ""
 nonisolated(unsafe) var caCertPath: String = ""
 
-nonisolated(unsafe) private var wiremockContainer: DockerContainer?
 nonisolated(unsafe) private var squidContainer: DockerContainer?
 nonisolated(unsafe) private var chasmContainer: DockerContainer?
 nonisolated(unsafe) private var sharedNetwork: Network?
@@ -44,43 +39,6 @@ private func _setUpContainers() async throws {
     let network = Network()
     try await network.create()
     sharedNetwork = network
-
-    let keystorePath = fixturesPath.appendingPathComponent("certs/server-keystore.p12")
-    let mappingsPath = fixturesPath.appendingPathComponent("wiremock/mappings")
-
-    let wiremock = DockerContainer("wiremock/wiremock:3.13.0")
-        .withExposedPorts([8080, 8443])
-        .withCopyIntoContainer(
-            .path(keystorePath),
-            "/tmp/keystore.p12"
-        )
-        .withCopyIntoContainer(
-            .path(mappingsPath),
-            "/home/wiremock/mappings"
-        )
-        .withCommand([
-            "--port", "8080",
-            "--https-port", "8443",
-            "--https-keystore", "/tmp/keystore.p12",
-            "--keystore-type", "PKCS12",
-            "--keystore-password", "changeit",
-            "--key-manager-password", "changeit",
-            "--verbose"
-        ])
-        .withNetwork(network)
-        .withNetworkAliases(["wiremock"])
-        .waitingFor(LogMessageWaitStrategy("port:"))
-
-    try await wiremock.start()
-    wiremockContainer = wiremock
-
-    let wiremockHost = try await wiremock.containerHostIp()
-    let wiremockHttpPort = try await wiremock.exposedPort(8080)
-    let wiremockHttpsPort = try await wiremock.exposedPort(8443)
-    wiremockHttpUrl = "http://\(wiremockHost):\(wiremockHttpPort)"
-    wiremockHttpsUrl = "https://\(wiremockHost):\(wiremockHttpsPort)"
-    wiremockInternalHttpUrl = "http://wiremock:8080"
-    wiremockInternalHttpsUrl = "https://wiremock:8443"
 
     caCertPath = fixturesPath.appendingPathComponent("certs/ca.pem").path
 
@@ -143,8 +101,6 @@ private func _setUpContainers() async throws {
     chasmInternalHttpsUrl = "https://chasm:8443"
 
     setenv("API_BASE_URL", chasmUrl, 1)
-    setenv("WIREMOCK_HTTP_URL", wiremockHttpUrl, 1)
-    setenv("WIREMOCK_HTTPS_URL", wiremockHttpsUrl, 1)
     setenv("CA_CERT_PATH", caCertPath, 1)
     setenv("PROXY_URL", proxyUrl, 1)
 }
@@ -155,9 +111,6 @@ func tearDownContainers() async throws {
     }
     if let squid = squidContainer {
         try await squid.stop()
-    }
-    if let wiremock = wiremockContainer {
-        try await wiremock.stop()
     }
     if let network = sharedNetwork {
         try await network.remove()

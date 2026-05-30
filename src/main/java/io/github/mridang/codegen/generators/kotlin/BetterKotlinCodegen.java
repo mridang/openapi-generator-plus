@@ -332,11 +332,6 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                             "test/SquidContainer.mustache", testFolder, "SquidContainer.kt"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/WireMockContainer.mustache",
-                            testFolder,
-                            "WireMockContainer.kt"));
-            supportingFiles.add(
-                    new SupportingFile(
                             "test/api/PetApiTest.mustache", testApiFolder, "PetApiTest.kt"));
             supportingFiles.add(
                     new SupportingFile(
