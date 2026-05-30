@@ -25,7 +25,6 @@ use PetstoreClient\Models\SetPetAvatarThumbnailRequest;
 /**
  * Integration tests for the Pet API endpoints.
  */
-
 beforeEach(function (): void {
     $baseUrl = getenv('API_BASE_URL') ?: 'http://localhost:4010';
     $config = Configuration::builder()

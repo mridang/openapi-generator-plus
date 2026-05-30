@@ -32,6 +32,18 @@
     <rule ref="PSR1.Files.SideEffects">
         <exclude-pattern>test/</exclude-pattern>
     </rule>
+    <!-- PSR12 wants the file-level docblock immediately after <?php, but
+         Pest test files put it after the use statements (which is
+         idiomatic for Pest). Exclude on test/. -->
+    <rule ref="PSR12.Files.FileHeader.SpacingAfterBlock">
+        <exclude-pattern>test/</exclude-pattern>
+    </rule>
+    <rule ref="PSR12.Files.FileHeader.IncorrectOrder">
+        <exclude-pattern>test/</exclude-pattern>
+    </rule>
+    <rule ref="Squiz.Commenting.FileComment">
+        <exclude-pattern>test/</exclude-pattern>
+    </rule>
     <file>.</file>
     <exclude-pattern>vendor/</exclude-pattern>
 </ruleset>

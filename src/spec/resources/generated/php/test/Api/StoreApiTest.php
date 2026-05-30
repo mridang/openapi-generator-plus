@@ -14,7 +14,6 @@ use PetstoreClient\Models\OrderStatusEnum;
 /**
  * Integration tests for the Store API endpoints.
  */
-
 beforeEach(function (): void {
     $config = Configuration::builder()
         ->baseUrl(getenv('API_BASE_URL') ?: 'http://localhost:4010')
