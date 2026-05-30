@@ -14,7 +14,7 @@ import {{invokerPackage}}.auth.Authenticator
 {{#hasAuthMethods}}
 {{#authMethods}}
 {{#isOAuth}}
-import {{invokerPackage}}.auth.oauth.{{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}{{#isCode}}AuthorizationCode{{/isCode}}{{#isPassword}}Password{{/isPassword}}{{#isApplication}}ClientCredentials{{/isApplication}}{{#isImplicit}}Implicit{{/isImplicit}}Authenticator
+import {{invokerPackage}}.auth.oauth.{{vendorExtensions.authenticatorClassName}}
 {{/isOAuth}}
 {{#isOpenId}}
 import {{invokerPackage}}.auth.oauth.{{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}Authenticator
@@ -141,20 +141,20 @@ class {{classname}} : BaseApi {
 {{/isDeprecated}}
 {{#hasAuthMethods}}
     {{#authMethods}}
-    suspend fun {{operationId}}(auth: {{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}{{#isCode}}AuthorizationCode{{/isCode}}{{#isPassword}}Password{{/isPassword}}{{#isApplication}}ClientCredentials{{/isApplication}}{{#isImplicit}}Implicit{{/isImplicit}}Authenticator{{#vendorExtensions.op.signatureArgs}}, {{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}}{{#returnType}}?{{/returnType}} {
+    suspend fun {{operationId}}(auth: {{vendorExtensions.authenticatorClassName}}{{#vendorExtensions.op.signatureArgs}}, {{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}}{{#returnType}}?{{/returnType}} {
         {{#returnType}}return {{operationId}}WithHttpInfo(auth{{#vendorExtensions.op.signatureArgs}}, {{paramName}}{{/vendorExtensions.op.signatureArgs}}).data{{/returnType}}{{^returnType}}{{operationId}}WithHttpInfo(auth{{#vendorExtensions.op.signatureArgs}}, {{paramName}}{{/vendorExtensions.op.signatureArgs}}){{/returnType}}
     }
 
-    suspend fun {{operationId}}WithHttpInfo(auth: {{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}{{#isCode}}AuthorizationCode{{/isCode}}{{#isPassword}}Password{{/isPassword}}{{#isApplication}}ClientCredentials{{/isApplication}}{{#isImplicit}}Implicit{{/isImplicit}}Authenticator{{#vendorExtensions.op.signatureArgs}}, {{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}> {
+    suspend fun {{operationId}}WithHttpInfo(auth: {{vendorExtensions.authenticatorClassName}}{{#vendorExtensions.op.signatureArgs}}, {{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}> {
         return {{operationId}}Internal(auth{{#vendorExtensions.op.signatureArgs}}, {{paramName}}{{/vendorExtensions.op.signatureArgs}})
     }
 
 {{#servers}}{{#-first}}
-    suspend fun {{operationId}}(auth: {{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}{{#isCode}}AuthorizationCode{{/isCode}}{{#isPassword}}Password{{/isPassword}}{{#isApplication}}ClientCredentials{{/isApplication}}{{#isImplicit}}Implicit{{/isImplicit}}Authenticator{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}}{{#returnType}}?{{/returnType}} {
+    suspend fun {{operationId}}(auth: {{vendorExtensions.authenticatorClassName}}{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}}{{#returnType}}?{{/returnType}} {
         {{#returnType}}return {{operationId}}(auth{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, null){{/returnType}}{{^returnType}}{{operationId}}(auth{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, null){{/returnType}}
     }
 
-    suspend fun {{operationId}}WithHttpInfo(auth: {{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}{{#isCode}}AuthorizationCode{{/isCode}}{{#isPassword}}Password{{/isPassword}}{{#isApplication}}ClientCredentials{{/isApplication}}{{#isImplicit}}Implicit{{/isImplicit}}Authenticator{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}> {
+    suspend fun {{operationId}}WithHttpInfo(auth: {{vendorExtensions.authenticatorClassName}}{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}> {
         return {{operationId}}WithHttpInfo(auth{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, null)
     }
 {{/-first}}{{/servers}}

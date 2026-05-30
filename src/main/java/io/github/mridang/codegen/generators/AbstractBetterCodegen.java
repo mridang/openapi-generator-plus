@@ -2632,6 +2632,23 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 "signatureArgsNoServer",
                 computeSignatureArgs(op, false, optionsClassName, serverClassName));
 
+        // Phase 1.7+ — Stamp the resolved authenticator class name on each
+        // auth method so templates can reference {{vendorExtensions.
+        // authenticatorClassName}} inside {{#authMethods}} instead of
+        // composing it inline from {{#lambda.pascalcase}}{{name}}…{{#isCode}}
+        // AuthorizationCode{{/isCode}}…Authenticator.
+        if (op.authMethods != null) {
+            for (final CodegenSecurity am : op.authMethods) {
+                if (am == null) {
+                    continue;
+                }
+                if (am.vendorExtensions == null) {
+                    am.vendorExtensions = new HashMap<>();
+                }
+                am.vendorExtensions.put("authenticatorClassName", toAuthClassName(am));
+            }
+        }
+
         // Propagate the op decorator reference onto every parameter so templates
         // can read {{vendorExtensions.op.optionsClassName}} from inside a
         // parameter sub-scope (e.g. {{#queryParams}}{{#-first}}…{{/-first}}

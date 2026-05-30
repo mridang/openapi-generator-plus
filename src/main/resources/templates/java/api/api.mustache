@@ -13,7 +13,7 @@ import {{invokerPackage}}.auth.Authenticator;
 {{#hasAuthMethods}}
 {{#authMethods}}
 {{#isOAuth}}
-import {{invokerPackage}}.auth.oauth.{{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}{{#isCode}}AuthorizationCode{{/isCode}}{{#isPassword}}Password{{/isPassword}}{{#isApplication}}ClientCredentials{{/isApplication}}{{#isImplicit}}Implicit{{/isImplicit}}Authenticator;
+import {{invokerPackage}}.auth.oauth.{{vendorExtensions.authenticatorClassName}};
 {{/isOAuth}}
 {{#isOpenId}}
 import {{invokerPackage}}.auth.oauth.{{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}Authenticator;
@@ -171,11 +171,11 @@ public class {{classname}} extends BaseApi {
 {{#returnType}}
     @Nullable
 {{/returnType}}
-    public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}{{#isCode}}AuthorizationCode{{/isCode}}{{#isPassword}}Password{{/isPassword}}{{#isApplication}}ClientCredentials{{/isApplication}}{{#isImplicit}}Implicit{{/isImplicit}}Authenticator auth{{#vendorExtensions.op.signatureArgs}}, {{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) throws ApiException {
+    public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{vendorExtensions.authenticatorClassName}} auth{{#vendorExtensions.op.signatureArgs}}, {{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) throws ApiException {
         {{#returnType}}return {{operationId}}WithHttpInfo(auth{{#vendorExtensions.op.signatureArgs}}, {{paramName}}{{/vendorExtensions.op.signatureArgs}}).data();{{/returnType}}{{^returnType}}{{operationId}}WithHttpInfo(auth{{#vendorExtensions.op.signatureArgs}}, {{paramName}}{{/vendorExtensions.op.signatureArgs}});{{/returnType}}
     }
 
-    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}{{#isCode}}AuthorizationCode{{/isCode}}{{#isPassword}}Password{{/isPassword}}{{#isApplication}}ClientCredentials{{/isApplication}}{{#isImplicit}}Implicit{{/isImplicit}}Authenticator auth{{#vendorExtensions.op.signatureArgs}}, {{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) throws ApiException {
+    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{vendorExtensions.authenticatorClassName}} auth{{#vendorExtensions.op.signatureArgs}}, {{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) throws ApiException {
         return {{operationId}}Internal(auth{{#vendorExtensions.op.signatureArgs}}, {{paramName}}{{/vendorExtensions.op.signatureArgs}});
     }
 
@@ -183,11 +183,11 @@ public class {{classname}} extends BaseApi {
 {{#returnType}}
     @Nullable
 {{/returnType}}
-    public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}{{#isCode}}AuthorizationCode{{/isCode}}{{#isPassword}}Password{{/isPassword}}{{#isApplication}}ClientCredentials{{/isApplication}}{{#isImplicit}}Implicit{{/isImplicit}}Authenticator auth{{#vendorExtensions.op.signatureArgsNoServer}}, {{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}) throws ApiException {
+    public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{vendorExtensions.authenticatorClassName}} auth{{#vendorExtensions.op.signatureArgsNoServer}}, {{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}) throws ApiException {
         {{#returnType}}return {{operationId}}(auth{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, null);{{/returnType}}{{^returnType}}{{operationId}}(auth{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, null);{{/returnType}}
     }
 
-    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}{{#isCode}}AuthorizationCode{{/isCode}}{{#isPassword}}Password{{/isPassword}}{{#isApplication}}ClientCredentials{{/isApplication}}{{#isImplicit}}Implicit{{/isImplicit}}Authenticator auth{{#vendorExtensions.op.signatureArgsNoServer}}, {{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}) throws ApiException {
+    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{vendorExtensions.authenticatorClassName}} auth{{#vendorExtensions.op.signatureArgsNoServer}}, {{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}) throws ApiException {
         return {{operationId}}WithHttpInfo(auth{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, null);
     }
 {{/-first}}{{/servers}}
