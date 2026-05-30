@@ -291,19 +291,19 @@ public class {{classname}} : BaseApi
         Dictionary<string, object?> queryParams = [];
 {{#queryParams}}
 {{#vendorExtensions.param.queryContent}}
-        if (options != null && options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null)
+        if (options != null && options.{{vendorExtensions.pascalName}} != null)
         {
             queryParams["{{baseName}}"] = System.Text.Json.JsonSerializer.Serialize(
-                options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}}
+                options.{{vendorExtensions.pascalName}}
             );
         }
 {{/vendorExtensions.param.queryContent}}
 {{#vendorExtensions.param.queryDeepObject}}
-        if (options != null && options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null)
+        if (options != null && options.{{vendorExtensions.pascalName}} != null)
         {
             Dictionary<string, string> deepObj = ValueSerializer.SerializeDeepObject(
                 "{{baseName}}",
-                options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} as IDictionary<string, object?>
+                options.{{vendorExtensions.pascalName}} as IDictionary<string, object?>
             );
             foreach (KeyValuePair<string, string> entry in deepObj)
             {
@@ -312,10 +312,10 @@ public class {{classname}} : BaseApi
         }
 {{/vendorExtensions.param.queryDeepObject}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
-        queryParams["{{baseName}}"] = options!.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null
+        queryParams["{{baseName}}"] = options!.{{vendorExtensions.pascalName}} != null
             ? ValueSerializer.SerializeStyled(
                 "{{baseName}}",
-                options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}},
+                options.{{vendorExtensions.pascalName}},
                 "query",
                 "{{{dataType}}}",
                 {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}},
@@ -325,11 +325,11 @@ public class {{classname}} : BaseApi
             : "";
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryStyled}}
-        if (options != null && options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null)
+        if (options != null && options.{{vendorExtensions.pascalName}} != null)
         {
             queryParams["{{baseName}}"] = ValueSerializer.SerializeStyled(
                 "{{baseName}}",
-                options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}},
+                options.{{vendorExtensions.pascalName}},
                 "query",
                 "{{{dataType}}}",
                 {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}},
@@ -341,12 +341,12 @@ public class {{classname}} : BaseApi
 {{/queryParams}}
         Dictionary<string, string> headerParams = [];
 {{#headerParams}}
-        if (options != null && options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null)
+        if (options != null && options.{{vendorExtensions.pascalName}} != null)
         {
             headerParams["{{baseName}}"] = (string)
                 ValueSerializer.SerializeStyled(
                     "{{baseName}}",
-                    options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}},
+                    options.{{vendorExtensions.pascalName}},
                     "header",
                     "{{{dataType}}}",
                     null,
@@ -358,12 +358,12 @@ public class {{classname}} : BaseApi
 {{#hasCookieParams}}
         List<string> cookieParts = [];
 {{#cookieParams}}
-        if (options != null && options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null)
+        if (options != null && options.{{vendorExtensions.pascalName}} != null)
         {
             cookieParts.Add(
                 "{{baseName}}=" + ValueSerializer.SerializeStyled(
                     "{{baseName}}",
-                    options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}},
+                    options.{{vendorExtensions.pascalName}},
                     "cookie",
                     "{{{dataType}}}",
                     null,
@@ -382,12 +382,12 @@ public class {{classname}} : BaseApi
         Dictionary<string, object> formBody = [];
 {{#formParams}}
 {{#required}}
-        formBody["{{baseName}}"] = options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}};
+        formBody["{{baseName}}"] = options.{{vendorExtensions.pascalName}};
 {{/required}}
 {{^required}}
-        if (options != null && options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null)
+        if (options != null && options.{{vendorExtensions.pascalName}} != null)
         {
-            formBody["{{baseName}}"] = options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}};
+            formBody["{{baseName}}"] = options.{{vendorExtensions.pascalName}};
         }
 {{/required}}
 {{/formParams}}

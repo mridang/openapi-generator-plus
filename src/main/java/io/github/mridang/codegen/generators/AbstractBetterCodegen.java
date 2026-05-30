@@ -2646,6 +2646,10 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     am.vendorExtensions = new HashMap<>();
                 }
                 am.vendorExtensions.put("authenticatorClassName", toAuthClassName(am));
+                if (am.name != null) {
+                    am.vendorExtensions.put(
+                            "namePascal", NamingConvention.PASCAL_CASE.apply(am.name));
+                }
             }
         }
 
@@ -2724,6 +2728,16 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 p.vendorExtensions = new HashMap<>();
             }
             p.vendorExtensions.put(OP_DECORATOR_NS, opDeco);
+            // Precompute the PascalCase form of paramName so templates can
+            // reference {{vendorExtensions.pascalName}} instead of invoking
+            // {{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}}
+            // inline at render time. Universal — any language template that
+            // needs PascalCase access (e.g. C# options.PascalProperty) can
+            // consume it; cheap to compute even if unused.
+            if (p.paramName != null) {
+                p.vendorExtensions.put(
+                        "pascalName", NamingConvention.PASCAL_CASE.apply(p.paramName));
+            }
         }
     }
 

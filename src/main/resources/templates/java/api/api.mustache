@@ -16,11 +16,11 @@ import {{invokerPackage}}.auth.Authenticator;
 import {{invokerPackage}}.auth.oauth.{{vendorExtensions.authenticatorClassName}};
 {{/isOAuth}}
 {{#isOpenId}}
-import {{invokerPackage}}.auth.oauth.{{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}Authenticator;
+import {{invokerPackage}}.auth.oauth.{{vendorExtensions.namePascal}}Authenticator;
 {{/isOpenId}}
 {{^isOAuth}}
 {{^isOpenId}}
-import {{invokerPackage}}.auth.{{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}Authenticator;
+import {{invokerPackage}}.auth.{{vendorExtensions.namePascal}}Authenticator;
 {{/isOpenId}}
 {{/isOAuth}}
 {{/authMethods}}
