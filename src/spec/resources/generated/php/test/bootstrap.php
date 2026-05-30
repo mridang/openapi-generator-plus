@@ -19,10 +19,11 @@ function safeGetMappedPort(StartedGenericContainer $container, int $port): int
 {
     try {
         return $container->getMappedPort($port);
-    } catch (\TypeError | \RuntimeException $e) {
+    } catch (\Throwable $e) {
         // Fallback to docker CLI port lookup when the testcontainers-php
-        // library can't see the mapping (RuntimeException) or chokes on
-        // healthcheck timestamps (TypeError).
+        // library can't see the mapping or chokes on healthcheck
+        // timestamps. Catching Throwable since the lib may throw its
+        // own subclassed exception types that we don't import.
         $containerId = $container->getId();
         $rawOutput = shell_exec("docker port $containerId $port 2>/dev/null");
         $output = is_string($rawOutput) ? trim($rawOutput) : '';
