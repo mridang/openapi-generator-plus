@@ -394,8 +394,7 @@ describe('DefaultApiClient', () => {
       expect(response.statusCode).toBe(200);
       const json = JSON.parse(response.body as string);
       expect(json.method).toBe('POST');
-      // chasm has no equivalent of WireMock-era `replayed:true` sentinel.
-      // Loosened: assert the replayed body arrived intact at the redirect target.
+      // Assert the replayed body arrived intact at the redirect target.
       expect(typeof json.body).toBe('string');
       expect(json.body.length).toBeGreaterThan(0);
       expect(json.body).toContain('file-content-bytes');

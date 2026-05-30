@@ -10,7 +10,7 @@ import org.testcontainers.containers.GenericContainer;
 /**
  * Base class for integration specs. Each generated SDK lives in
  * {@code src/spec/resources/generated/{lang}/} and is already fully self-contained
- * (source, tests, wiremock mappings, certs, specs). Code generation is done once
+ * (source, tests, certs, specs). Code generation is done once
  * via {@code GenerateClientsTest}; this class only runs tests against the committed code.
  */
 @SuppressWarnings("NullAway.Init")
