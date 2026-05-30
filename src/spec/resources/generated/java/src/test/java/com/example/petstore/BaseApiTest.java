@@ -546,7 +546,7 @@ class BaseApiTest {
                   JSON_NODE_TYPE,
                   auth);
       assertNotNull(result);
-      assertEquals("auth-value", result.get("headers").get("X-Custom").asText());
+      assertEquals("auth-value", result.get("headers").get("x-custom").asText());
     }
 
     @Test

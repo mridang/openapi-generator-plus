@@ -227,8 +227,8 @@ class TestAuthInjection:
         auth = StubAuthenticator(headers={'X-Custom': 'auth-value'})
         result = await api.call('GET', '/test/echo', {}, {}, None, ['application/json'], 'application/json', 'object', auth)
         assert result is not None
-        # chasm preserves original header casing in the envelope
-        assert result['headers']['X-Custom'] == 'auth-value'
+        # chasm envelope lowercases all header keys
+        assert result['headers']['x-custom'] == 'auth-value'
 
     async def test_sets_cookie_header(self, api: Any) -> None:
         auth = StubAuthenticator(cookies={'session': 'abc123'})

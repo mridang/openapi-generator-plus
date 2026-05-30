@@ -137,7 +137,7 @@ void main() {
       );
       final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
       final headers = parsed['headers'] as Map<String, dynamic>;
-      expect(headers['Authorization'], equals('Bearer test-token'));
+      expect(headers['authorization'], equals('Bearer test-token'));
     });
 
     test('sets cookie from auth', () async {

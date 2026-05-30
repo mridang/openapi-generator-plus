@@ -198,7 +198,7 @@ describe('DefaultApiClient', () => {
 
       expect(response.statusCode).toBe(200);
       const json = JSON.parse(response.body);
-      expect(json.headers['User-Agent']).toBe('MyApp/1.0');
+      expect(json.headers['user-agent']).toBe('MyApp/1.0');
     });
   });
 
@@ -220,7 +220,7 @@ describe('DefaultApiClient', () => {
 
       expect(response.statusCode).toBe(200);
       const json = JSON.parse(response.body);
-      const requestId = json.headers['X-Request-ID'];
+      const requestId = json.headers['x-request-id'];
       expect(requestId).toBeDefined();
       expect(requestId).toMatch(
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
@@ -242,7 +242,7 @@ describe('DefaultApiClient', () => {
         {},
         null
       );
-      const requestId1 = JSON.parse(response1.body).headers['X-Request-ID'];
+      const requestId1 = JSON.parse(response1.body).headers['x-request-id'];
 
       const response2 = await client.sendRequest(
         'GET',
@@ -250,7 +250,7 @@ describe('DefaultApiClient', () => {
         {},
         null
       );
-      const requestId2 = JSON.parse(response2.body).headers['X-Request-ID'];
+      const requestId2 = JSON.parse(response2.body).headers['x-request-id'];
 
       expect(requestId1).not.toBe(requestId2);
     });
@@ -274,7 +274,7 @@ describe('DefaultApiClient', () => {
 
       expect(response.statusCode).toBe(200);
       const json = JSON.parse(response.body);
-      expect(json.headers['X-Custom']).toBe('custom-value');
+      expect(json.headers['x-custom']).toBe('custom-value');
     });
 
     test('caller headers override transport default headers', async () => {
@@ -294,7 +294,7 @@ describe('DefaultApiClient', () => {
 
       expect(response.statusCode).toBe(200);
       const json = JSON.parse(response.body);
-      expect(json.headers['Accept']).toBe('application/json');
+      expect(json.headers['accept']).toBe('application/json');
     });
   });
 

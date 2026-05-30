@@ -151,10 +151,10 @@ public class DefaultApiClientTest
 
         Assert.Equal(200, response.StatusCode);
         var json = JsonDocument.Parse(response.Body);
-        // Chasm echoes headers under .headers with original casing.
+        // Chasm echoes headers under .headers with lowercased keys.
         Assert.Equal(
             "MyApp/1.0",
-            json.RootElement.GetProperty("headers").GetProperty("User-Agent").GetString()
+            json.RootElement.GetProperty("headers").GetProperty("user-agent").GetString()
         );
     }
 
@@ -177,7 +177,7 @@ public class DefaultApiClientTest
         var json = JsonDocument.Parse(response.Body);
         var requestId = json
             .RootElement.GetProperty("headers")
-            .GetProperty("X-Request-ID")
+            .GetProperty("x-request-id")
             .GetString();
         Assert.NotNull(requestId);
         Assert.Matches(
@@ -202,7 +202,7 @@ public class DefaultApiClientTest
         var json1 = JsonDocument.Parse(response1.Body);
         var requestId1 = json1
             .RootElement.GetProperty("headers")
-            .GetProperty("X-Request-ID")
+            .GetProperty("x-request-id")
             .GetString();
 
         var response2 = await client.SendRequestAsync(
@@ -214,7 +214,7 @@ public class DefaultApiClientTest
         var json2 = JsonDocument.Parse(response2.Body);
         var requestId2 = json2
             .RootElement.GetProperty("headers")
-            .GetProperty("X-Request-ID")
+            .GetProperty("x-request-id")
             .GetString();
 
         Assert.NotEqual(requestId1, requestId2);
@@ -242,7 +242,7 @@ public class DefaultApiClientTest
         var json = JsonDocument.Parse(response.Body);
         Assert.Equal(
             "custom-value",
-            json.RootElement.GetProperty("headers").GetProperty("X-Custom").GetString()
+            json.RootElement.GetProperty("headers").GetProperty("x-custom").GetString()
         );
     }
 
@@ -263,7 +263,7 @@ public class DefaultApiClientTest
         var json = JsonDocument.Parse(response.Body);
         Assert.Equal(
             "application/json",
-            json.RootElement.GetProperty("headers").GetProperty("Accept").GetString()
+            json.RootElement.GetProperty("headers").GetProperty("accept").GetString()
         );
     }
 

@@ -399,8 +399,8 @@ public class BaseApiTest
                 auth
             );
         Assert.NotNull(result);
-        // Chasm envelope: headers preserve original casing in a .headers map.
-        Assert.Equal("auth-value", result!["headers"]?["X-Custom"]?.GetValue<string>());
+        // Chasm envelope: header keys are lowercased in the echoed .headers map.
+        Assert.Equal("auth-value", result!["headers"]?["x-custom"]?.GetValue<string>());
     }
 
     [Fact]

@@ -161,7 +161,7 @@ describe {{moduleName}}::Api::BaseApi do
     result = api.call('GET', '/test/echo', {}, {}, nil,
                       ['application/json'], 'application/json', 'Object', auth)
     _(result).wont_be_nil
-    _(result[:headers][:'X-Custom']).must_equal 'auth-value'
+    _(result[:headers][:'x-custom']).must_equal 'auth-value'
   end
 
   it 'sets Cookie header from auth cookies' do

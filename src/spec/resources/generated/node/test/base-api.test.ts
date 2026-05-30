@@ -310,7 +310,7 @@ describe('BaseApi auth injection', () => {
       auth
     );
     expect(result).toBeDefined();
-    expect((result as { headers: Record<string, string> }).headers['X-Custom']).toBe('auth-value');
+    expect((result as { headers: Record<string, string> }).headers['x-custom']).toBe('auth-value');
   });
 
   test('sets Cookie header from auth cookies', async () => {

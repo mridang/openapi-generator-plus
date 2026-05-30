@@ -133,12 +133,11 @@ async fn test_default_api_client_injects_custom_user_agent_header() {
         .expect("unexpected error");
 
     assert_eq!(resp.status_code, 200);
-    /* chasm preserves the header casing in the envelope's `headers` map. */
+    /* chasm's echo envelope lowercases all header keys in the `headers` map. */
     let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
     let h = &json["headers"];
     let ua = h
-        .get("User-Agent")
-        .or_else(|| h.get("user-agent"))
+        .get("user-agent")
         .and_then(|v| v.as_str())
         .expect("missing User-Agent");
     assert_eq!(ua, "MyApp/1.0");
@@ -160,9 +159,7 @@ async fn test_default_api_client_injects_request_id_header() {
     let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
     let h = &json["headers"];
     let request_id = h
-        .get("X-Request-ID")
-        .or_else(|| h.get("X-Request-Id"))
-        .or_else(|| h.get("x-request-id"))
+        .get("x-request-id")
         .and_then(|v| v.as_str())
         .expect("missing X-Request-ID");
     assert!(!request_id.is_empty());
@@ -191,10 +188,7 @@ async fn test_default_api_client_generates_unique_request_ids() {
 
     fn rid(v: &serde_json::Value) -> Option<&str> {
         let h = &v["headers"];
-        h.get("X-Request-ID")
-            .or_else(|| h.get("X-Request-Id"))
-            .or_else(|| h.get("x-request-id"))
-            .and_then(|x| x.as_str())
+        h.get("x-request-id").and_then(|x| x.as_str())
     }
     assert_ne!(rid(&json1), rid(&json2));
 }
@@ -215,8 +209,7 @@ async fn test_default_api_client_includes_transport_default_headers() {
     let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
     let h = &json["headers"];
     let v = h
-        .get("X-Custom")
-        .or_else(|| h.get("x-custom"))
+        .get("x-custom")
         .and_then(|v| v.as_str())
         .expect("missing X-Custom");
     assert_eq!(v, "custom-value");
@@ -239,8 +232,7 @@ async fn test_default_api_client_caller_headers_override_transport_defaults() {
     let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
     let h = &json["headers"];
     let v = h
-        .get("Accept")
-        .or_else(|| h.get("accept"))
+        .get("accept")
         .and_then(|v| v.as_str())
         .expect("missing Accept");
     assert_eq!(v, "application/json");

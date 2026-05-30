@@ -129,7 +129,7 @@ describe PetstoreClient::DefaultApiClient do
 
       _(response.status_code).must_equal(200)
       json = JSON.parse(response.body)
-      _(json['headers']['User-Agent']).must_equal('MyApp/1.0')
+      _(json['headers']['user-agent']).must_equal('MyApp/1.0')
     end
   end
 
@@ -146,7 +146,7 @@ describe PetstoreClient::DefaultApiClient do
 
       _(response.status_code).must_equal(200)
       json = JSON.parse(response.body)
-      request_id = json['headers']['X-Request-ID']
+      request_id = json['headers']['x-request-id']
       _(request_id).wont_be_nil
       _(request_id).must_match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
     end
@@ -161,10 +161,10 @@ describe PetstoreClient::DefaultApiClient do
       client = PetstoreClient::DefaultApiClient.new(transport)
 
       response1 = client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
-      request_id1 = JSON.parse(response1.body)['headers']['X-Request-ID']
+      request_id1 = JSON.parse(response1.body)['headers']['x-request-id']
 
       response2 = client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
-      request_id2 = JSON.parse(response2.body)['headers']['X-Request-ID']
+      request_id2 = JSON.parse(response2.body)['headers']['x-request-id']
 
       _(request_id1).wont_equal(request_id2)
     end
@@ -183,7 +183,7 @@ describe PetstoreClient::DefaultApiClient do
 
       _(response.status_code).must_equal(200)
       json = JSON.parse(response.body)
-      _(json['headers']['X-Custom']).must_equal('custom-value')
+      _(json['headers']['x-custom']).must_equal('custom-value')
     end
 
     it 'caller headers override transport default headers' do
@@ -201,7 +201,7 @@ describe PetstoreClient::DefaultApiClient do
 
       _(response.status_code).must_equal(200)
       json = JSON.parse(response.body)
-      _(json['headers']['Accept']).must_equal('application/json')
+      _(json['headers']['accept']).must_equal('application/json')
     end
   end
 

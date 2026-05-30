@@ -294,7 +294,7 @@ class BaseApiTest {
                 com.fasterxml.jackson.databind
                     .ObjectMapper()
                     .readTree(response.body)
-            assertEquals("auth-value", json.get("headers").get("X-Custom").asText())
+            assertEquals("auth-value", json.get("headers").get("x-custom").asText())
         }
 
         @Test

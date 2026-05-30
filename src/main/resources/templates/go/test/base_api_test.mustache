@@ -221,7 +221,7 @@ func TestBaseApi_ForwardsAuthHeaders(t *testing.T) {
 	_ = json.Unmarshal([]byte(resp.Body), &parsed)
 	// chasm envelope preserves original header casing under .headers
 	headers, _ := parsed["headers"].(map[string]interface{})
-	if headers == nil || headers["Authorization"] == nil {
+	if headers == nil || headers["authorization"] == nil {
 		t.Error("expected Authorization header in echo response")
 	}
 }

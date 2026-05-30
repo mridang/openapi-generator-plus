@@ -27,7 +27,7 @@ class DefaultApiClientTest {
 
     @Test
     @DisplayName("makes HTTPS request with verifySsl=false")
-    void makesHttpsRequestWithVerifySslFalse() throws ApiException {
+    void makesHttpsRequestWithVerifySslFalse() throws Exception {
       String chasmUrl = ChasmContainer.getHttpsBaseUrl();
 
       TransportOptions transport = TransportOptions.builder().verifySsl(false).build();
@@ -78,7 +78,7 @@ class DefaultApiClientTest {
     @org.junit.jupiter.api.Disabled(
         "testcontainer fails to bind on 127.0.0.1 on GitHub-hosted runners (IPv4/6 mismatch);"
             + " passes locally")
-    void verifySslFalseAcceptsHostnameMismatch() throws ApiException {
+    void verifySslFalseAcceptsHostnameMismatch() throws Exception {
       int httpsPort = java.net.URI.create(ChasmContainer.getHttpsBaseUrl()).getPort();
       String chasmUrl = "https://127.0.0.1:" + httpsPort;
 
@@ -100,7 +100,7 @@ class DefaultApiClientTest {
 
     @Test
     @DisplayName("makes HTTPS request with custom CA cert")
-    void makesHttpsRequestWithCustomCaCert() throws ApiException {
+    void makesHttpsRequestWithCustomCaCert() throws Exception {
       String chasmUrl = ChasmContainer.getHttpsBaseUrl();
 
       TransportOptions transport =
@@ -133,7 +133,7 @@ class DefaultApiClientTest {
           client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
 
       assertEquals(200, response.statusCode());
-      assertTrue(response.body().contains("success"));
+      assertTrue(response.body().contains("\"method\""));
     }
   }
 
@@ -180,7 +180,7 @@ class DefaultApiClientTest {
           client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
 
       assertEquals(200, response.statusCode());
-      assertTrue(response.body().contains("success"));
+      assertTrue(response.body().contains("\"method\""));
     }
   }
 
@@ -219,7 +219,7 @@ class DefaultApiClientTest {
 
       assertEquals(200, response.statusCode());
       JsonNode json = new ObjectMapper().readTree(response.body());
-      assertEquals("MyApp/1.0", json.get("headers").get("User-Agent").asText());
+      assertEquals("MyApp/1.0", json.get("headers").get("user-agent").asText());
     }
   }
 
@@ -240,7 +240,7 @@ class DefaultApiClientTest {
 
       assertEquals(200, response.statusCode());
       JsonNode json = new ObjectMapper().readTree(response.body());
-      String requestId = json.get("headers").get("X-Request-ID").asText();
+      String requestId = json.get("headers").get("x-request-id").asText();
       assertNotNull(requestId);
       assertFalse(requestId.isEmpty());
       assertTrue(requestId.matches("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"));
@@ -259,12 +259,12 @@ class DefaultApiClientTest {
       ApiResponse response1 =
           client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
       String requestId1 =
-          mapper.readTree(response1.body()).get("headers").get("X-Request-ID").asText();
+          mapper.readTree(response1.body()).get("headers").get("x-request-id").asText();
 
       ApiResponse response2 =
           client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
       String requestId2 =
-          mapper.readTree(response2.body()).get("headers").get("X-Request-ID").asText();
+          mapper.readTree(response2.body()).get("headers").get("x-request-id").asText();
 
       assertNotEquals(requestId1, requestId2);
     }
@@ -288,7 +288,7 @@ class DefaultApiClientTest {
 
       assertEquals(200, response.statusCode());
       JsonNode json = new ObjectMapper().readTree(response.body());
-      assertEquals("custom-value", json.get("headers").get("X-Custom").asText());
+      assertEquals("custom-value", json.get("headers").get("x-custom").asText());
     }
 
     @Test
@@ -307,7 +307,7 @@ class DefaultApiClientTest {
 
       assertEquals(200, response.statusCode());
       JsonNode json = new ObjectMapper().readTree(response.body());
-      assertEquals("application/json", json.get("headers").get("Accept").asText());
+      assertEquals("application/json", json.get("headers").get("accept").asText());
     }
   }
 

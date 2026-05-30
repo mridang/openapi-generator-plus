@@ -130,8 +130,8 @@ func TestDefaultApiClient_InjectsCustomUserAgentHeader(t *testing.T) {
 		t.Fatalf("failed to parse body: %v", err)
 	}
 	headers, _ := parsed["headers"].(map[string]interface{})
-	if headers == nil || headers["User-Agent"] != "MyApp/1.0" {
-		t.Errorf("expected User-Agent 'MyApp/1.0', got %v", headers["User-Agent"])
+	if headers == nil || headers["user-agent"] != "MyApp/1.0" {
+		t.Errorf("expected User-Agent 'MyApp/1.0', got %v", headers["user-agent"])
 	}
 }
 
@@ -152,7 +152,7 @@ func TestDefaultApiClient_InjectsRequestIdHeader(t *testing.T) {
 	if headers == nil {
 		t.Fatal("expected headers map in envelope")
 	}
-	requestId, ok := headers["X-Request-ID"].(string)
+	requestId, ok := headers["x-request-id"].(string)
 	if !ok || requestId == "" {
 		t.Error("expected non-empty X-Request-ID")
 	}
@@ -187,7 +187,7 @@ func TestDefaultApiClient_GeneratesUniqueRequestIds(t *testing.T) {
 	if headers1 == nil || headers2 == nil {
 		t.Fatal("expected headers map in both envelopes")
 	}
-	if headers1["X-Request-ID"] == headers2["X-Request-ID"] {
+	if headers1["x-request-id"] == headers2["x-request-id"] {
 		t.Error("expected unique X-Request-ID per request")
 	}
 }
@@ -204,8 +204,8 @@ func TestDefaultApiClient_IncludesTransportDefaultHeaders(t *testing.T) {
 	var parsed map[string]interface{}
 	_ = json.Unmarshal([]byte(resp.Body), &parsed)
 	headers, _ := parsed["headers"].(map[string]interface{})
-	if headers == nil || headers["X-Custom"] != "custom-value" {
-		t.Errorf("expected X-Custom 'custom-value', got %v", headers["X-Custom"])
+	if headers == nil || headers["x-custom"] != "custom-value" {
+		t.Errorf("expected X-Custom 'custom-value', got %v", headers["x-custom"])
 	}
 }
 
@@ -222,8 +222,8 @@ func TestDefaultApiClient_CallerHeadersOverrideTransportDefaults(t *testing.T) {
 	var parsed map[string]interface{}
 	_ = json.Unmarshal([]byte(resp.Body), &parsed)
 	headers, _ := parsed["headers"].(map[string]interface{})
-	if headers == nil || headers["Accept"] != "application/json" {
-		t.Errorf("expected Accept 'application/json', got %v", headers["Accept"])
+	if headers == nil || headers["accept"] != "application/json" {
+		t.Errorf("expected Accept 'application/json', got %v", headers["accept"])
 	}
 }
 

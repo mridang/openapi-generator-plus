@@ -84,8 +84,8 @@ class TestUserAgentHeader:
 
         assert response.status_code == 200
         body = json.loads(response.body)
-        # chasm preserves original header casing in the envelope
-        assert body['headers']['User-Agent'] == 'MyApp/1.0'
+        # chasm envelope lowercases all header keys
+        assert body['headers']['user-agent'] == 'MyApp/1.0'
 
 
 class TestRequestIdInjection:
@@ -96,7 +96,7 @@ class TestRequestIdInjection:
 
         assert response.status_code == 200
         body = json.loads(response.body)
-        request_id = body['headers']['X-Request-ID']
+        request_id = body['headers']['x-request-id']
         assert request_id
         import re
 
@@ -110,10 +110,10 @@ class TestRequestIdInjection:
         client = DefaultApiClient(transport)
 
         response1 = client.send_request('GET', chasm_http_url + '/test/echo', {}, None)
-        request_id1 = json.loads(response1.body)['headers']['X-Request-ID']
+        request_id1 = json.loads(response1.body)['headers']['x-request-id']
 
         response2 = client.send_request('GET', chasm_http_url + '/test/echo', {}, None)
-        request_id2 = json.loads(response2.body)['headers']['X-Request-ID']
+        request_id2 = json.loads(response2.body)['headers']['x-request-id']
 
         assert request_id1 != request_id2
 
@@ -126,7 +126,7 @@ class TestDefaultHeaders:
 
         assert response.status_code == 200
         body = json.loads(response.body)
-        assert body['headers']['X-Custom'] == 'custom-value'
+        assert body['headers']['x-custom'] == 'custom-value'
 
     def test_caller_headers_override_transport_defaults(self, chasm_http_url: Any) -> None:
         transport = TransportOptions.builder().default_header('Accept', 'text/plain').build()
@@ -135,7 +135,7 @@ class TestDefaultHeaders:
 
         assert response.status_code == 200
         body = json.loads(response.body)
-        assert body['headers']['Accept'] == 'application/json'
+        assert body['headers']['accept'] == 'application/json'
 
 
 class TestRedirectHandling:

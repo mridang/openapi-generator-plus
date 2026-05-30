@@ -95,7 +95,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert response.status_code == 200
     json = Jason.decode!(response.body)
     # chasm envelope preserves original header casing in the .headers map
-    assert json["headers"]["User-Agent"] == "MyApp/1.0"
+    assert json["headers"]["user-agent"] == "MyApp/1.0"
   end
 
   test "injects X-Request-ID header with UUID format" do
@@ -107,7 +107,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
 
     assert response.status_code == 200
     json = Jason.decode!(response.body)
-    request_id = json["headers"]["X-Request-ID"]
+    request_id = json["headers"]["x-request-id"]
     assert request_id != nil
     assert Regex.match?(~r/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/, request_id)
   end
@@ -119,10 +119,10 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     client = PetstoreClient.DefaultApiClient.new(transport)
 
     response1 = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/echo", %{}, nil)
-    request_id1 = Jason.decode!(response1.body)["headers"]["X-Request-ID"]
+    request_id1 = Jason.decode!(response1.body)["headers"]["x-request-id"]
 
     response2 = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/echo", %{}, nil)
-    request_id2 = Jason.decode!(response2.body)["headers"]["X-Request-ID"]
+    request_id2 = Jason.decode!(response2.body)["headers"]["x-request-id"]
 
     assert request_id1 != request_id2
   end
@@ -137,7 +137,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
 
     assert response.status_code == 200
     json = Jason.decode!(response.body)
-    assert json["headers"]["X-Custom"] == "custom-value"
+    assert json["headers"]["x-custom"] == "custom-value"
   end
 
   test "caller headers override transport default headers" do
@@ -158,7 +158,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
 
     assert response.status_code == 200
     json = Jason.decode!(response.body)
-    assert json["headers"]["Accept"] == "application/json"
+    assert json["headers"]["accept"] == "application/json"
   end
 
   test "follows redirects when enabled" do

@@ -193,7 +193,7 @@ class DefaultApiClientTest {
                 }
             assertEquals(200, response.statusCode)
             val json = ObjectMapper().readTree(response.body)
-            assertEquals("MyApp/1.0", json.get("headers").get("User-Agent").asText())
+            assertEquals("MyApp/1.0", json.get("headers").get("user-agent").asText())
         }
     }
 
@@ -216,7 +216,7 @@ class DefaultApiClientTest {
                 }
             assertEquals(200, response.statusCode)
             val json = ObjectMapper().readTree(response.body)
-            val requestId = json.get("headers").get("X-Request-ID").asText()
+            val requestId = json.get("headers").get("x-request-id").asText()
             assertNotNull(requestId)
             assertFalse(requestId.isEmpty())
             assertTrue(
@@ -246,7 +246,7 @@ class DefaultApiClientTest {
                 mapper
                     .readTree(response1.body)
                     .get("headers")
-                    .get("X-Request-ID")
+                    .get("x-request-id")
                     .asText()
 
             val response2 =
@@ -257,7 +257,7 @@ class DefaultApiClientTest {
                 mapper
                     .readTree(response2.body)
                     .get("headers")
-                    .get("X-Request-ID")
+                    .get("x-request-id")
                     .asText()
 
             assertNotEquals(requestId1, requestId2)
@@ -283,7 +283,7 @@ class DefaultApiClientTest {
                 }
             assertEquals(200, response.statusCode)
             val json = ObjectMapper().readTree(response.body)
-            assertEquals("custom-value", json.get("headers").get("X-Custom").asText())
+            assertEquals("custom-value", json.get("headers").get("x-custom").asText())
         }
 
         @Test
@@ -303,7 +303,7 @@ class DefaultApiClientTest {
                 }
             assertEquals(200, response.statusCode)
             val json = ObjectMapper().readTree(response.body)
-            assertEquals("application/json", json.get("headers").get("Accept").asText())
+            assertEquals("application/json", json.get("headers").get("accept").asText())
         }
     }
 

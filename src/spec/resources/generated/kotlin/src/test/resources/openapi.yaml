@@ -987,27 +987,17 @@ paths:
           headers:
             Location: { schema: { type: string }, example: /test/echo }
   /test/redirect/303:
-    get:
-      operationId: testRedirect303
-      x-internal: true
-      tags: [test]
-      security: []
-      responses:
-        '303':
-          description: See Other
-          headers:
-            Location: { schema: { type: string }, example: /test/echo }
+    get:    { operationId: testRedirect303Get,    x-internal: true, tags: [test], security: [], responses: { '303': { description: See Other, headers: { Location: { schema: { type: string }, example: /test/echo } } } } }
+    post:   { operationId: testRedirect303Post,   x-internal: true, tags: [test], security: [], responses: { '303': { description: See Other, headers: { Location: { schema: { type: string }, example: /test/echo } } } } }
+    put:    { operationId: testRedirect303Put,    x-internal: true, tags: [test], security: [], responses: { '303': { description: See Other, headers: { Location: { schema: { type: string }, example: /test/echo } } } } }
+    patch:  { operationId: testRedirect303Patch,  x-internal: true, tags: [test], security: [], responses: { '303': { description: See Other, headers: { Location: { schema: { type: string }, example: /test/echo } } } } }
+    delete: { operationId: testRedirect303Delete, x-internal: true, tags: [test], security: [], responses: { '303': { description: See Other, headers: { Location: { schema: { type: string }, example: /test/echo } } } } }
   /test/redirect/307:
-    get:
-      operationId: testRedirect307
-      x-internal: true
-      tags: [test]
-      security: []
-      responses:
-        '307':
-          description: Temporary Redirect
-          headers:
-            Location: { schema: { type: string }, example: /test/echo }
+    get:    { operationId: testRedirect307Get,    x-internal: true, tags: [test], security: [], responses: { '307': { description: Temporary Redirect, headers: { Location: { schema: { type: string }, example: /test/echo } } } } }
+    post:   { operationId: testRedirect307Post,   x-internal: true, tags: [test], security: [], responses: { '307': { description: Temporary Redirect, headers: { Location: { schema: { type: string }, example: /test/echo } } } } }
+    put:    { operationId: testRedirect307Put,    x-internal: true, tags: [test], security: [], responses: { '307': { description: Temporary Redirect, headers: { Location: { schema: { type: string }, example: /test/echo } } } } }
+    patch:  { operationId: testRedirect307Patch,  x-internal: true, tags: [test], security: [], responses: { '307': { description: Temporary Redirect, headers: { Location: { schema: { type: string }, example: /test/echo } } } } }
+    delete: { operationId: testRedirect307Delete, x-internal: true, tags: [test], security: [], responses: { '307': { description: Temporary Redirect, headers: { Location: { schema: { type: string }, example: /test/echo } } } } }
   /test/redirect/307-multipart:
     post:
       operationId: testRedirect307Multipart

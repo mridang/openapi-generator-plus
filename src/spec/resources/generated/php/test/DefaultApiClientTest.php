@@ -145,7 +145,7 @@ class DefaultApiClientTest extends TestCase
         $this->assertSame(200, $response->statusCode);
         /** @var array<string, mixed> $json */
         $json = json_decode($response->body, true);
-        $this->assertSame('MyApp/1.0', $json['headers']['User-Agent']);
+        $this->assertSame('MyApp/1.0', $json['headers']['user-agent']);
     }
 
     // -- X-Request-ID injection --
@@ -164,11 +164,11 @@ class DefaultApiClientTest extends TestCase
         $this->assertSame(200, $response->statusCode);
         /** @var array<string, mixed> $json */
         $json = json_decode($response->body, true);
-        $this->assertArrayHasKey('X-Request-ID', $json['headers']);
-        $this->assertIsString($json['headers']['X-Request-ID']);
+        $this->assertArrayHasKey('x-request-id', $json['headers']);
+        $this->assertIsString($json['headers']['x-request-id']);
         $this->assertMatchesRegularExpression(
             '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/',
-            $json['headers']['X-Request-ID']
+            $json['headers']['x-request-id']
         );
     }
 
@@ -185,12 +185,12 @@ class DefaultApiClientTest extends TestCase
         $response1 = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
         /** @var array<string, mixed> $json1 */
         $json1 = json_decode($response1->body, true);
-        $requestId1 = $json1['headers']['X-Request-ID'];
+        $requestId1 = $json1['headers']['x-request-id'];
 
         $response2 = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
         /** @var array<string, mixed> $json2 */
         $json2 = json_decode($response2->body, true);
-        $requestId2 = $json2['headers']['X-Request-ID'];
+        $requestId2 = $json2['headers']['x-request-id'];
 
         $this->assertNotSame($requestId1, $requestId2);
     }
@@ -211,7 +211,7 @@ class DefaultApiClientTest extends TestCase
         $this->assertSame(200, $response->statusCode);
         /** @var array<string, mixed> $json */
         $json = json_decode($response->body, true);
-        $this->assertSame('custom-value', $json['headers']['X-Custom']);
+        $this->assertSame('custom-value', $json['headers']['x-custom']);
     }
 
     public function testCallerHeadersOverrideTransportDefaults(): void
@@ -233,7 +233,7 @@ class DefaultApiClientTest extends TestCase
         $this->assertSame(200, $response->statusCode);
         /** @var array<string, mixed> $json */
         $json = json_decode($response->body, true);
-        $this->assertSame('application/json', $json['headers']['Accept']);
+        $this->assertSame('application/json', $json['headers']['accept']);
     }
 
     // -- Redirect handling --

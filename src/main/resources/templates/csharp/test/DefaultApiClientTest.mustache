@@ -153,8 +153,8 @@ public class DefaultApiClientTest
 
         Assert.Equal(200, response.StatusCode);
         var json = JsonDocument.Parse(response.Body);
-        // Chasm echoes headers under .headers with original casing.
-        Assert.Equal("MyApp/1.0", json.RootElement.GetProperty("headers").GetProperty("User-Agent").GetString());
+        // Chasm echoes headers under .headers with lowercased keys.
+        Assert.Equal("MyApp/1.0", json.RootElement.GetProperty("headers").GetProperty("user-agent").GetString());
     }
 
     // -- X-Request-ID injection --
@@ -176,7 +176,7 @@ public class DefaultApiClientTest
 
         Assert.Equal(200, response.StatusCode);
         var json = JsonDocument.Parse(response.Body);
-        var requestId = json.RootElement.GetProperty("headers").GetProperty("X-Request-ID").GetString();
+        var requestId = json.RootElement.GetProperty("headers").GetProperty("x-request-id").GetString();
         Assert.NotNull(requestId);
         Assert.Matches(
             @"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
@@ -200,7 +200,7 @@ public class DefaultApiClientTest
             null
         );
         var json1 = JsonDocument.Parse(response1.Body);
-        var requestId1 = json1.RootElement.GetProperty("headers").GetProperty("X-Request-ID").GetString();
+        var requestId1 = json1.RootElement.GetProperty("headers").GetProperty("x-request-id").GetString();
 
         var response2 = await client.SendRequestAsync(
             "GET",
@@ -209,7 +209,7 @@ public class DefaultApiClientTest
             null
         );
         var json2 = JsonDocument.Parse(response2.Body);
-        var requestId2 = json2.RootElement.GetProperty("headers").GetProperty("X-Request-ID").GetString();
+        var requestId2 = json2.RootElement.GetProperty("headers").GetProperty("x-request-id").GetString();
 
         Assert.NotEqual(requestId1, requestId2);
     }
@@ -233,7 +233,7 @@ public class DefaultApiClientTest
 
         Assert.Equal(200, response.StatusCode);
         var json = JsonDocument.Parse(response.Body);
-        Assert.Equal("custom-value", json.RootElement.GetProperty("headers").GetProperty("X-Custom").GetString());
+        Assert.Equal("custom-value", json.RootElement.GetProperty("headers").GetProperty("x-custom").GetString());
     }
 
     [Fact]
@@ -253,7 +253,7 @@ public class DefaultApiClientTest
 
         Assert.Equal(200, response.StatusCode);
         var json = JsonDocument.Parse(response.Body);
-        Assert.Equal("application/json", json.RootElement.GetProperty("headers").GetProperty("Accept").GetString());
+        Assert.Equal("application/json", json.RootElement.GetProperty("headers").GetProperty("accept").GetString());
     }
 
     // -- Redirect handling --

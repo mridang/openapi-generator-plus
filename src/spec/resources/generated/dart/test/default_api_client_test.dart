@@ -121,7 +121,7 @@ void main() {
       expect(resp.statusCode, equals(200));
       final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
       final headers = parsed['headers'] as Map<String, dynamic>;
-      expect(headers['User-Agent'], equals('MyApp/1.0'));
+      expect(headers['user-agent'], equals('MyApp/1.0'));
     });
 
     test('injects X-Request-ID header with UUID format', () async {
@@ -135,7 +135,7 @@ void main() {
       );
       final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
       final headers = parsed['headers'] as Map<String, dynamic>;
-      final requestId = headers['X-Request-ID'] as String?;
+      final requestId = headers['x-request-id'] as String?;
       expect(requestId, isNotNull);
       expect(requestId, isNotEmpty);
       final uuidPattern = RegExp(
@@ -165,7 +165,7 @@ void main() {
       final parsed2 = jsonDecode(resp2.body) as Map<String, dynamic>;
       final headers2 = parsed2['headers'] as Map<String, dynamic>;
 
-      expect(headers1['X-Request-ID'], isNot(equals(headers2['X-Request-ID'])));
+      expect(headers1['x-request-id'], isNot(equals(headers2['x-request-id'])));
     });
 
     test('includes transport-level default headers', () async {
@@ -181,7 +181,7 @@ void main() {
       );
       final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
       final headers = parsed['headers'] as Map<String, dynamic>;
-      expect(headers['X-Custom'], equals('custom-value'));
+      expect(headers['x-custom'], equals('custom-value'));
     });
 
     test('caller headers override transport default headers', () async {
@@ -198,7 +198,7 @@ void main() {
       );
       final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
       final headers = parsed['headers'] as Map<String, dynamic>;
-      expect(headers['Accept'], equals('application/json'));
+      expect(headers['accept'], equals('application/json'));
     });
 
     test('follows redirects when enabled', () async {

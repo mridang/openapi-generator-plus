@@ -729,7 +729,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     assert result != nil
     # chasm preserves the original header casing in the envelope's .headers map
-    assert result["headers"]["X-Custom"] == "auth-value"
+    assert result["headers"]["x-custom"] == "auth-value"
   end
 
   # Cookie injection via authenticator

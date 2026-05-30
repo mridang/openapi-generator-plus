@@ -118,15 +118,15 @@ class TestDefaultApiClientUnit:
         response = client.send_request('GET', f'{self.base_url}/echo', {}, None)
         assert response.status_code == 200
         body = json.loads(response.body)
-        assert body['headers'].get('User-Agent') == 'TestAgent/1.0'
+        assert body['headers'].get('user-agent') == 'TestAgent/1.0'
 
     def test_injects_default_user_agent_when_not_explicitly_set(self) -> None:
         client = DefaultApiClient()
         response = client.send_request('GET', f'{self.base_url}/echo', {}, None)
         assert response.status_code == 200
         body = json.loads(response.body)
-        assert body['headers'].get('User-Agent') is not None
-        assert len(body['headers'].get('User-Agent', '')) > 0
+        assert body['headers'].get('user-agent') is not None
+        assert len(body['headers'].get('user-agent', '')) > 0
 
     def test_injects_request_id(self) -> None:
         transport = TransportOptions.builder().inject_request_id(True).build()
@@ -134,8 +134,8 @@ class TestDefaultApiClientUnit:
         response = client.send_request('GET', f'{self.base_url}/echo', {}, None)
         assert response.status_code == 200
         body = json.loads(response.body)
-        assert 'X-Request-ID' in body['headers']
-        assert len(body['headers']['X-Request-ID']) > 0
+        assert 'x-request-id' in body['headers']
+        assert len(body['headers']['x-request-id']) > 0
 
     def test_does_not_inject_request_id_when_disabled(self) -> None:
         transport = TransportOptions.builder().inject_request_id(False).build()
@@ -143,7 +143,7 @@ class TestDefaultApiClientUnit:
         response = client.send_request('GET', f'{self.base_url}/echo', {}, None)
         assert response.status_code == 200
         body = json.loads(response.body)
-        assert 'X-Request-ID' not in body['headers']
+        assert 'x-request-id' not in body['headers']
 
     def test_includes_transport_default_headers(self) -> None:
         transport = TransportOptions.builder().default_header('X-Custom-Transport', 'transport-value').build()
@@ -151,7 +151,7 @@ class TestDefaultApiClientUnit:
         response = client.send_request('GET', f'{self.base_url}/echo', {}, None)
         assert response.status_code == 200
         body = json.loads(response.body)
-        assert body['headers'].get('X-Custom-Transport') == 'transport-value'
+        assert body['headers'].get('x-custom-transport') == 'transport-value'
 
     def test_caller_headers_override_defaults(self) -> None:
         transport = TransportOptions.builder().default_header('X-Override', 'transport').build()
@@ -159,7 +159,7 @@ class TestDefaultApiClientUnit:
         response = client.send_request('GET', f'{self.base_url}/echo', {'X-Override': 'caller'}, None)
         assert response.status_code == 200
         body = json.loads(response.body)
-        assert body['headers'].get('X-Override') == 'caller'
+        assert body['headers'].get('x-override') == 'caller'
 
     def test_returns_json_body_for_vendor_json_content_type(self) -> None:
         """Responses with Content-Type application/vnd.api+json should be
@@ -179,7 +179,7 @@ class TestDefaultApiClientUnit:
         response = client.send_request('GET', f'{self.base_url}/echo', {'X-Request-ID': 'caller-id'}, None)
         assert response.status_code == 200
         body = json.loads(response.body)
-        assert body['headers'].get('X-Request-ID') == 'caller-id'
+        assert body['headers'].get('x-request-id') == 'caller-id'
 
     def test_generates_unique_request_ids(self) -> None:
         transport = TransportOptions.builder().inject_request_id(True).build()
@@ -188,8 +188,8 @@ class TestDefaultApiClientUnit:
         response2 = client.send_request('GET', f'{self.base_url}/echo', {}, None)
         body1 = json.loads(response1.body)
         body2 = json.loads(response2.body)
-        id1 = body1['headers'].get('X-Request-ID')
-        id2 = body2['headers'].get('X-Request-ID')
+        id1 = body1['headers'].get('x-request-id')
+        id2 = body2['headers'].get('x-request-id')
         assert id1 is not None
         assert id2 is not None
         assert id1 != id2

@@ -280,12 +280,10 @@ async fn test_base_api_forwards_auth_headers() {
         .await
         .expect("unexpected error");
 
-    /* chasm preserves the original header casing inside the `headers` map of the
-     * echo envelope (e.g. `headers["Authorization"]`). The previous chasm stub
-     * returned a flat lowercase object; check both shapes in the envelope's headers. */
+    /* chasm's echo envelope lowercases all header keys in the `headers` map. */
     let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
     let h = &json["headers"];
-    assert!(h.get("Authorization").is_some() || h.get("authorization").is_some());
+    assert!(h.get("authorization").is_some());
 }
 
 // -- Nil body handling --

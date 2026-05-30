@@ -320,7 +320,7 @@ class BaseApiTest extends TestCase
             $auth
         );
         $this->assertIsArray($result);
-        $this->assertSame('auth-value', $result['headers']['X-Custom']);
+        $this->assertSame('auth-value', $result['headers']['x-custom']);
     }
 
     public function testSetsCookieHeader(): void
