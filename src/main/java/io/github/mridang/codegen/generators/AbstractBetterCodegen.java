@@ -1576,7 +1576,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         }
         final Object enumVars = allowableValues.get("enumVars");
         if (enumVars instanceof List) {
-            ((List<Map<String, Object>>) enumVars).removeIf(entry -> {
+            final List<Map<String, Object>> entries = (List<Map<String, Object>>) enumVars;
+            entries.removeIf(entry -> {
                 final Object value = entry.get("value");
                 final Object name = entry.get("name");
                 return ("'11184809'".equals(String.valueOf(value))
@@ -1584,6 +1585,17 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                         || "11184809".equals(String.valueOf(value))
                         || "UnknownDefaultOpenApi".equals(String.valueOf(name)));
             });
+            // Precomputed lowercase form so templates can use
+            // {{nameLowercase}} instead of inline
+            // {{#lambda.lowercase}}{{name}}{{/lambda.lowercase}}.
+            for (final Map<String, Object> entry : entries) {
+                final Object name = entry.get("name");
+                if (name != null) {
+                    entry.put(
+                            "nameLowercase",
+                            String.valueOf(name).toLowerCase(java.util.Locale.ROOT));
+                }
+            }
         }
     }
 
@@ -3741,11 +3753,15 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                             final List<Map<String, String>> enumVals = new ArrayList<>();
                             for (final String e : v.enumValues) {
                                 final Map<String, String> ev = new HashMap<>();
-                                ev.put(
-                                        "name",
+                                final String evName =
                                         NamingConvention.UPPER_SNAKE_CASE.apply(
-                                                e.replace(".", "_")));
+                                                e.replace(".", "_"));
+                                ev.put("name", evName);
                                 ev.put("value", e);
+                                // Precomputed lowercase form so templates can use
+                                // {{nameLowercase}} instead of invoking
+                                // {{#lambda.lowercase}}{{name}}{{/lambda.lowercase}}.
+                                ev.put("nameLowercase", evName.toLowerCase(java.util.Locale.ROOT));
                                 enumVals.add(ev);
                             }
                             varMap.put("enumValues", enumVals);

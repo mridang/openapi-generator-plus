@@ -13,21 +13,21 @@ defmodule {{moduleName}}.Models.{{classname}} do
 {{#allowableValues}}
 {{#enumVars}}
   @doc "Enum value `{{{value}}}`"
-  def {{#lambda.lowercase}}{{{name}}}{{/lambda.lowercase}}, do: :"{{#lambda.lowercase}}{{{name}}}{{/lambda.lowercase}}"
+  def {{nameLowercase}}, do: :"{{nameLowercase}}"
 
 {{/enumVars}}
 {{/allowableValues}}
   @doc "All allowed values as atoms."
   @spec all_values() :: [atom()]
   def all_values do
-    [{{#allowableValues}}{{#enumVars}}{{#lambda.lowercase}}{{{name}}}{{/lambda.lowercase}}(){{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}}]
+    [{{#allowableValues}}{{#enumVars}}{{nameLowercase}}(){{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}}]
   end
 
   @doc "Map an atom to its wire string value."
   @spec value(atom()) :: term()
 {{#allowableValues}}
 {{#enumVars}}
-  def value(:"{{#lambda.lowercase}}{{{name}}}{{/lambda.lowercase}}"), do: {{{value}}}
+  def value(:"{{nameLowercase}}"), do: {{{value}}}
 {{/enumVars}}
 {{/allowableValues}}
 end
@@ -220,7 +220,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
 
   @type t :: %__MODULE__{
   {{#vars}}
-          {{name}}: {{#isEnum}}{{#allowableValues}}{{#enumVars}}:"{{#lambda.lowercase}}{{{name}}}{{/lambda.lowercase}}"{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} | nil{{^-last}},{{/-last}}
+          {{name}}: {{#isEnum}}{{#allowableValues}}{{#enumVars}}:"{{nameLowercase}}"{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} | nil{{^-last}},{{/-last}}
   {{/vars}}
         }
 

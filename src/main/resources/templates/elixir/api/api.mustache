@@ -13,7 +13,7 @@ end
 defmodule {{moduleName}}.Api.{{serverTypeName}}.{{pascalName}} do
   @moduledoc "Valid values for {{name}} in {{serverTypeName}}."
 {{#enumValues}}
-  def {{#lambda.lowercase}}{{name}}{{/lambda.lowercase}}, do: "{{value}}"
+  def {{nameLowercase}}, do: "{{value}}"
 {{/enumValues}}
 end
 {{/hasEnumValues}}{{/serverVariables}}

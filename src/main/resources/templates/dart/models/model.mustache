@@ -56,7 +56,7 @@ enum {{classname}}{{enumName}} {
 {{#allowableValues}}
 {{#enumVars}}
   /// Represents the value {{{value}}}.
-  {{#lambda.lowercase}}{{name}}{{/lambda.lowercase}}({{{value}}}),
+  {{nameLowercase}}({{{value}}}),
 {{/enumVars}}
 {{/allowableValues}}
   ;
