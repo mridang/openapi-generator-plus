@@ -42,9 +42,16 @@ public class DefaultApiClientTest
     [Fact]
     public async Task MakesHttpsRequestWithCustomCaCert()
     {
-        var hostAppPath =
-            Environment.GetEnvironmentVariable("HOST_APP_PATH") ?? Directory.GetCurrentDirectory();
-        var caCertPath = Path.Combine(hostAppPath, "Test", "Resources", "certs", "ca.pem");
+        // Test runs inside the dotnet container where /work is the project mount;
+        // read the cert from the container's local FS, not from HOST_APP_PATH
+        // (which is the host-side bind-mount source used by ChasmFixture).
+        var caCertPath = Path.Combine(
+            Directory.GetCurrentDirectory(),
+            "Test",
+            "Resources",
+            "certs",
+            "ca.pem"
+        );
 
         var transport = TransportOptions.Builder().VerifySsl(true).CaCertPath(caCertPath).Build();
 
