@@ -895,6 +895,192 @@ paths:
         '404':
           description: Order not found
 
+  # ─── Transport-test endpoints ─────────────────────────────────────────────
+  # Served by chasm; filtered out of SDK generation by DropInternalOperationsRule
+  # (each operation carries x-internal: true). These replace the harness's
+  # WireMock stubs — echo, delay, compression, redirects, error statuses,
+  # multi-value headers, text/empty bodies.
+  /test/echo:
+    parameters: []
+    get:    { operationId: testEchoGet,    x-internal: true, tags: [test], security: [], x-chasm-echo: true, responses: { '200': { description: Echo of the request as JSON envelope, content: { application/json: { schema: { type: object } } } } } }
+    post:   { operationId: testEchoPost,   x-internal: true, tags: [test], security: [], x-chasm-echo: true, responses: { '200': { description: Echo,                                  content: { application/json: { schema: { type: object } } } } } }
+    put:    { operationId: testEchoPut,    x-internal: true, tags: [test], security: [], x-chasm-echo: true, responses: { '200': { description: Echo,                                  content: { application/json: { schema: { type: object } } } } } }
+    patch:  { operationId: testEchoPatch,  x-internal: true, tags: [test], security: [], x-chasm-echo: true, responses: { '200': { description: Echo,                                  content: { application/json: { schema: { type: object } } } } } }
+    delete: { operationId: testEchoDelete, x-internal: true, tags: [test], security: [], x-chasm-echo: true, responses: { '200': { description: Echo,                                  content: { application/json: { schema: { type: object } } } } } }
+
+  /test/slow:
+    get:
+      operationId: testSlow
+      x-internal: true
+      tags: [test]
+      security: []
+      x-chasm-delay-ms: 5000
+      responses:
+        '200':
+          description: Slow response after 5 seconds
+          content:
+            application/json:
+              schema: { type: object }
+              example: { ok: true }
+
+  /test/compressed/gzip:
+    get:
+      operationId: testCompressedGzip
+      x-internal: true
+      tags: [test]
+      security: []
+      responses:
+        '200':
+          description: Gzip-compressed JSON body
+          x-chasm-content-encoding: gzip
+          content:
+            application/json:
+              schema: { type: object }
+              example: { userId: 1, id: 1, title: "compressed fixture body" }
+  /test/compressed/br:
+    get:
+      operationId: testCompressedBrotli
+      x-internal: true
+      tags: [test]
+      security: []
+      responses:
+        '200':
+          description: Brotli-compressed JSON body
+          x-chasm-content-encoding: br
+          content:
+            application/json:
+              schema: { type: object }
+              example: { userId: 1, id: 1, title: "compressed fixture body" }
+  /test/compressed/zstd:
+    get:
+      operationId: testCompressedZstd
+      x-internal: true
+      tags: [test]
+      security: []
+      responses:
+        '200':
+          description: Zstd-compressed JSON body
+          x-chasm-content-encoding: zstd
+          content:
+            application/json:
+              schema: { type: object }
+              example: { userId: 1, id: 1, title: "compressed fixture body" }
+
+  /test/status/400: { get: { operationId: testStatus400, x-internal: true, tags: [test], security: [], responses: { '400': { description: Bad Request,           content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/401: { get: { operationId: testStatus401, x-internal: true, tags: [test], security: [], responses: { '401': { description: Unauthorized,          content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/403: { get: { operationId: testStatus403, x-internal: true, tags: [test], security: [], responses: { '403': { description: Forbidden,             content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/404: { get: { operationId: testStatus404, x-internal: true, tags: [test], security: [], responses: { '404': { description: Not Found,             content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/409: { get: { operationId: testStatus409, x-internal: true, tags: [test], security: [], responses: { '409': { description: Conflict,              content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/418: { get: { operationId: testStatus418, x-internal: true, tags: [test], security: [], responses: { '418': { description: I am a teapot,         content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/422: { get: { operationId: testStatus422, x-internal: true, tags: [test], security: [], responses: { '422': { description: Unprocessable Entity,  content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/500: { get: { operationId: testStatus500, x-internal: true, tags: [test], security: [], responses: { '500': { description: Internal Server Error, content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/502: { get: { operationId: testStatus502, x-internal: true, tags: [test], security: [], responses: { '502': { description: Bad Gateway,           content: { application/json: { schema: { type: object } } } } } } }
+
+  /test/redirect/302:
+    get:
+      operationId: testRedirect302
+      x-internal: true
+      tags: [test]
+      security: []
+      responses:
+        '302':
+          description: Found
+          headers:
+            Location: { schema: { type: string }, example: /test/echo }
+  /test/redirect/303:
+    get:
+      operationId: testRedirect303
+      x-internal: true
+      tags: [test]
+      security: []
+      responses:
+        '303':
+          description: See Other
+          headers:
+            Location: { schema: { type: string }, example: /test/echo }
+  /test/redirect/307:
+    get:
+      operationId: testRedirect307
+      x-internal: true
+      tags: [test]
+      security: []
+      responses:
+        '307':
+          description: Temporary Redirect
+          headers:
+            Location: { schema: { type: string }, example: /test/echo }
+  /test/redirect/307-multipart:
+    post:
+      operationId: testRedirect307Multipart
+      x-internal: true
+      tags: [test]
+      security: []
+      responses:
+        '307':
+          description: Temporary Redirect (multipart replay)
+          headers:
+            Location: { schema: { type: string }, example: /test/echo }
+
+  /test/response-headers:
+    get:
+      operationId: testResponseHeaders
+      x-internal: true
+      tags: [test]
+      security: []
+      responses:
+        '200':
+          description: Multi-value response headers
+          headers:
+            X-Custom-Header: { schema: { type: string }, example: foo }
+            Link:
+              schema: { type: array, items: { type: string } }
+              example: ['<https://example.com/a>; rel="next"', '<https://example.com/b>; rel="prev"']
+            Set-Cookie:
+              schema: { type: array, items: { type: string } }
+              example: ['a=1', 'b=2']
+          content:
+            application/json:
+              schema: { type: object }
+
+  /test/set-cookie:
+    get:
+      operationId: testSetCookie
+      x-internal: true
+      tags: [test]
+      security: []
+      responses:
+        '200':
+          description: Single Set-Cookie header
+          headers:
+            Set-Cookie: { schema: { type: string }, example: "session-id=test-session-value; Path=/" }
+          content:
+            application/json:
+              schema: { type: object }
+
+  /test/text-plain:
+    get:
+      operationId: testTextPlain
+      x-internal: true
+      tags: [test]
+      security: []
+      responses:
+        '200':
+          description: Plain text response
+          content:
+            text/plain:
+              schema: { type: string }
+              example: "hello world"
+
+  /test/empty:
+    get:
+      operationId: testEmpty
+      x-internal: true
+      tags: [test]
+      security: []
+      responses:
+        '200':
+          description: Empty body
+
 security:
   - petStoreBasic: []
   - petStoreBearer: []
