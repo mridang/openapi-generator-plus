@@ -55,7 +55,17 @@ $chasm = (new GenericContainer('mridang/chasm:1.3.0'))
 
 $chasmHost = $chasm->getHost();
 $chasmHttpUrl = 'http://' . $chasmHost . ':' . safeGetMappedPort($chasm, 4010);
-$chasmHttpsUrl = 'https://' . $chasmHost . ':' . safeGetMappedPort($chasm, 8443);
+
+// HTTPS port resolution falls back to docker CLI when testcontainers-php
+// can't see it. If both fail, set a placeholder so the bootstrap doesn't
+// die; tests requiring TLS will fail individually rather than killing
+// the whole suite.
+try {
+    $chasmHttpsUrl = 'https://' . $chasmHost . ':' . safeGetMappedPort($chasm, 8443);
+} catch (\Throwable $e) {
+    fwrite(STDERR, "[bootstrap] could not resolve chasm HTTPS port: " . $e->getMessage() . "\n");
+    $chasmHttpsUrl = 'https://chasm-tls-unavailable.invalid';
+}
 
 putenv('API_BASE_URL=' . $chasmHttpUrl);
 putenv('CHASM_HTTP_URL=' . $chasmHttpUrl);
