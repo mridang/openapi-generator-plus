@@ -124,10 +124,8 @@ impl {{classname}} {
 {{#vendorExtensions.op.signatureArgs}}
 {{#isPath}}        {{paramName}}: {{{dataType}}},
 {{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
-{{/isBody}}{{#isOptions}}
-        options: Option<&{{{dataType}}}>,
-{{/isOptions}}{{#isServer}}
-        server: Option<&dyn {{{dataType}}}>,
+{{/isBody}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
 {{/isServer}}{{/vendorExtensions.op.signatureArgs}}
     ) -> Result<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.{{operationId}}_with_http_info(
@@ -156,10 +154,8 @@ impl {{classname}} {
 {{#vendorExtensions.op.signatureArgs}}
 {{#isPath}}        {{paramName}}: {{{dataType}}},
 {{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
-{{/isBody}}{{#isOptions}}
-        options: Option<&{{{dataType}}}>,
-{{/isOptions}}{{#isServer}}
-        server: Option<&dyn {{{dataType}}}>,
+{{/isBody}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
 {{/isServer}}{{/vendorExtensions.op.signatureArgs}}
     ) -> Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>> {
 {{#pathParams}}
