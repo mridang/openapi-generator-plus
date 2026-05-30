@@ -4,6 +4,11 @@
         <!-- Generated docstrings carry raw spec description text that
              exceeds the 120-char default. Use 200 instead. -->
         <exclude name="Generic.Files.LineLength"/>
+        <!-- The mustache partial that emits the file header has a blank
+             line between <?php and /** in some generators' output;
+             we also don't track @package per file. These are
+             non-PSR12 strictness items. -->
+        <exclude name="Squiz.Commenting.FileComment"/>
     </rule>
     <rule ref="Generic.Files.LineLength">
         <properties>
@@ -39,9 +44,6 @@
         <exclude-pattern>test/</exclude-pattern>
     </rule>
     <rule ref="PSR12.Files.FileHeader.IncorrectOrder">
-        <exclude-pattern>test/</exclude-pattern>
-    </rule>
-    <rule ref="Squiz.Commenting.FileComment">
         <exclude-pattern>test/</exclude-pattern>
     </rule>
     <file>.</file>
