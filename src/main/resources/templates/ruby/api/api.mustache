@@ -109,15 +109,9 @@ module {{moduleName}}
       # Example: {{value}}
 {{/vendorExtensions.pluralExamples}}
 {{/bodyParam}}
-{{#queryParams}}{{#-first}}
-      # @param options [{{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options] options for query, header, form, and cookie parameters
-{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
-      # @param options [{{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options] options for query, header, form, and cookie parameters
-{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
-      # @param options [{{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options] options for query, header, form, and cookie parameters
-{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
-      # @param options [{{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options] options for query, header, form, and cookie parameters
-{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}
+      # @param options [{{{dataType}}}] options for query, header, form, and cookie parameters
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
       # @return [{{{returnType}}}{{^returnType}}nil{{/returnType}}]
       # @raise [ApiError] if fails to make API call
 {{#isDeprecated}}
