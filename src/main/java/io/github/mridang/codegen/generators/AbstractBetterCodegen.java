@@ -2898,7 +2898,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         final List<Map<String, Object>> args = new ArrayList<>();
         if (op.pathParams != null) {
             for (final CodegenParameter p : op.pathParams) {
-                args.add(signatureArg("path", p.paramName, p.dataType, false));
+                args.add(signatureArg("path", p.paramName, p.dataType, false, p.isNullable));
             }
         }
         if (op.bodyParam != null) {
@@ -2907,7 +2907,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                             "body",
                             op.bodyParam.paramName,
                             op.bodyParam.dataType,
-                            !op.bodyParam.required));
+                            !op.bodyParam.required,
+                            op.bodyParam.isNullable));
         }
         final boolean hasQuery = op.queryParams != null && !op.queryParams.isEmpty();
         final boolean hasHeader = op.headerParams != null && !op.headerParams.isEmpty();
@@ -2918,16 +2919,16 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             // only when ONLY cookie params populate it; otherwise it's
             // non-null (because at least one required-eligible kind exists).
             final boolean nullable = !hasQuery && !hasHeader && !hasForm && hasCookie;
-            args.add(signatureArg("options", "options", optionsClassName, nullable));
+            args.add(signatureArg("options", "options", optionsClassName, nullable, false));
         }
         if (includeServer && op.servers != null && !op.servers.isEmpty()) {
-            args.add(signatureArg("server", "server", serverClassName, true));
+            args.add(signatureArg("server", "server", serverClassName, true, false));
         }
         return args;
     }
 
     private static Map<String, Object> signatureArg(
-            String kind, String paramName, String dataType, boolean nullable) {
+            String kind, String paramName, String dataType, boolean nullable, boolean isNullable) {
         final Map<String, Object> m = new HashMap<>();
         m.put("kind", kind);
         m.put("isPath", "path".equals(kind));
@@ -2937,6 +2938,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         m.put("paramName", paramName);
         m.put("dataType", dataType);
         m.put("nullable", nullable);
+        m.put("isNullable", isNullable);
         return m;
     }
 
