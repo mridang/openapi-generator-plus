@@ -103,7 +103,13 @@ PROXY_NETWORK.connect(SQUID._container.id)
 # (line ~59). Re-register here so it runs BEFORE PROXY_NETWORK.remove
 # (LIFO: last-registered runs first). The earlier registration is now a
 # fallback; this re-add ensures the container detaches before network teardown.
-Minitest.after_run { CHASM.stop rescue nil }
+Minitest.after_run do
+  begin
+    CHASM.stop
+  rescue StandardError
+    nil
+  end
+end
 
 sleep 3
 

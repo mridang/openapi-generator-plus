@@ -26,6 +26,12 @@
     <rule ref="SlevomatCodingStandard.Namespaces.AlphabeticallySortedUses"/>
     <rule ref="SlevomatCodingStandard.PHP.TypeCast"/>
     <rule ref="SlevomatCodingStandard.PHP.ShortList"/>
+    <!-- Pest test files declare helper functions AND call test()/it() at
+         the top level (side effects). PSR1.Files.SideEffects flags that.
+         The pattern is intentional for Pest — exclude the rule. -->
+    <rule ref="PSR1.Files.SideEffects">
+        <exclude-pattern>test/</exclude-pattern>
+    </rule>
     <file>.</file>
     <exclude-pattern>vendor/</exclude-pattern>
 </ruleset>
