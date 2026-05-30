@@ -84,37 +84,37 @@ export class {{classname}} extends BaseApi {
    * @param auth authenticator for this operation
 {{/hasAuthMethods}}
 {{#pathParams}}
-   * @param {{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+   * @param {{paramName}} {{description}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
    * @example {{summary}} - {{value}}
 {{/vendorExtensions.pluralExamples}}
 {{/pathParams}}
 {{#bodyParam}}
-   * @param {{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+   * @param {{paramName}} {{description}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
    * @example {{summary}} - {{value}}
 {{/vendorExtensions.pluralExamples}}
 {{/bodyParam}}
 {{#queryParams}}
-   * @param options.{{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+   * @param options.{{paramName}} {{description}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
    * @example {{summary}} - {{value}}
 {{/vendorExtensions.pluralExamples}}
 {{/queryParams}}
 {{#headerParams}}
-   * @param options.{{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+   * @param options.{{paramName}} {{description}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
    * @example {{summary}} - {{value}}
 {{/vendorExtensions.pluralExamples}}
 {{/headerParams}}
 {{#formParams}}
-   * @param options.{{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+   * @param options.{{paramName}} {{description}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
    * @example {{summary}} - {{value}}
 {{/vendorExtensions.pluralExamples}}
 {{/formParams}}
 {{#cookieParams}}
-   * @param options.{{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+   * @param options.{{paramName}} {{description}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
    * @example {{summary}} - {{value}}
 {{/vendorExtensions.pluralExamples}}

@@ -102,7 +102,7 @@ class {{classname}}(BaseApi):
         :param auth: authenticator for this operation
 {{/hasAuthMethods}}
 {{#pathParams}}
-        :param {{paramName}}: {{description}}{{#required}} (required){{/required}}{{^required}} (optional{{^isContainer}}{{#defaultValue}}, default to {{.}}{{/defaultValue}}{{/isContainer}}){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+        :param {{paramName}}: {{description}}{{vendorExtensions.requiredLabelWithDefault}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
         # {{summary}}
         # {{description}}
@@ -110,7 +110,7 @@ class {{classname}}(BaseApi):
 {{/vendorExtensions.pluralExamples}}
 {{/pathParams}}
 {{#bodyParam}}
-        :param {{paramName}}: {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+        :param {{paramName}}: {{description}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
         # {{summary}}
         # {{description}}
@@ -200,10 +200,10 @@ class {{classname}}(BaseApi):
         :param auth: authenticator for this operation
 {{/hasAuthMethods}}
 {{#pathParams}}
-        :param {{paramName}}: {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}
+        :param {{paramName}}: {{description}}{{vendorExtensions.requiredLabelWithDefault}}
 {{/pathParams}}
 {{#bodyParam}}
-        :param {{paramName}}: {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}
+        :param {{paramName}}: {{description}}{{vendorExtensions.requiredLabel}}
 {{/bodyParam}}
 {{#vendorExtensions.op.signatureArgs}}{{#isOptions}}
         :param options: options for query, header, form, and cookie parameters
@@ -254,7 +254,7 @@ class {{classname}}(BaseApi):
 {{/required}}
 {{/cookieParams}}
         path = '{{{path}}}'{{#pathParams}}
-        path = path.replace('{' + '{{baseName}}' + '}', quote(str(ValueSerializer.serialize_styled('{{baseName}}', {{paramName}}, 'path', '{{dataType}}', None, '{{style}}', {{#isExplode}}True{{/isExplode}}{{^isExplode}}False{{/isExplode}})), safe="/;,=.~:!$&'()*+@")){{/pathParams}}
+        path = path.replace('{' + '{{baseName}}' + '}', quote(str(ValueSerializer.serialize_styled('{{baseName}}', {{paramName}}, 'path', '{{dataType}}', None, '{{style}}', {{vendorExtensions.isExplodeStrCap}})), safe="/;,=.~:!$&'()*+@")){{/pathParams}}
 {{#servers}}
 {{#-first}}
         if server is not None:
@@ -280,25 +280,25 @@ class {{classname}}(BaseApi):
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
         if options is not None:
             if options.{{paramName}} is not None:
-                query_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}None{{/collectionFormat}}, '{{style}}', {{#isExplode}}True{{/isExplode}}{{^isExplode}}False{{/isExplode}})
+                query_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}None{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStrCap}})
             else:
                 query_params['{{baseName}}'] = ''
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryStyled}}
         if options is not None and options.{{paramName}} is not None:
-            query_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}None{{/collectionFormat}}, '{{style}}', {{#isExplode}}True{{/isExplode}}{{^isExplode}}False{{/isExplode}})
+            query_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}None{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStrCap}})
 {{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}
         header_params: Dict[str, str] = {}
 {{#headerParams}}
         if options is not None and options.{{paramName}} is not None:
-            header_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, 'header', '{{dataType}}', None, '{{style}}', {{#isExplode}}True{{/isExplode}}{{^isExplode}}False{{/isExplode}})
+            header_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, 'header', '{{dataType}}', None, '{{style}}', {{vendorExtensions.isExplodeStrCap}})
 {{/headerParams}}
 {{#hasCookieParams}}
         cookie_parts = []
 {{#cookieParams}}
         if options is not None and options.{{paramName}} is not None:
-            cookie_parts.append(f'{{baseName}}={ValueSerializer.serialize_styled("{{baseName}}", options.{{paramName}}, "cookie", "{{dataType}}", None, "{{style}}", {{#isExplode}}True{{/isExplode}}{{^isExplode}}False{{/isExplode}})}')
+            cookie_parts.append(f'{{baseName}}={ValueSerializer.serialize_styled("{{baseName}}", options.{{paramName}}, "cookie", "{{dataType}}", None, "{{style}}", {{vendorExtensions.isExplodeStrCap}})}')
 {{/cookieParams}}
         if cookie_parts:
             header_params['Cookie'] = '; '.join(cookie_parts)

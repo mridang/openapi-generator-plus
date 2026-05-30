@@ -191,7 +191,7 @@ class {{classname}} extends BaseApi
         $path = '{{{path}}}';
 {{#pathParams}}
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('{{baseName}}', ${{paramName}}, 'path', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}, null, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
+        $pathValue = ValueSerializer::serializeStyled('{{baseName}}', ${{paramName}}, 'path', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}, null, '{{style}}', {{vendorExtensions.isExplodeStr}});
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [
@@ -226,21 +226,21 @@ class {{classname}} extends BaseApi
 {{/vendorExtensions.param.queryDeepObject}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
         if ($options->{{paramName}} !== null) {
-            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
+            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
         } else {
             $queryParams['{{baseName}}'] = '';
         }
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryStyled}}
         if ($options->{{paramName}} !== null) {
-            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
+            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
         }
 {{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}
         $headerParams = [];
 {{#headerParams}}
         if ($options->{{paramName}} !== null) {
-            $headerParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'header', '{{dataType}}', null, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
+            $headerParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'header', '{{dataType}}', null, '{{style}}', {{vendorExtensions.isExplodeStr}});
         }
 {{/headerParams}}
 {{#hasCookieParams}}
@@ -248,7 +248,7 @@ class {{classname}} extends BaseApi
 {{#cookieParams}}
         if ($options?->{{paramName}} !== null) {
             /** @var string $cookieValue */
-            $cookieValue = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'cookie', '{{dataType}}', null, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
+            $cookieValue = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'cookie', '{{dataType}}', null, '{{style}}', {{vendorExtensions.isExplodeStr}});
             $cookieParts[] = '{{baseName}}=' . $cookieValue;
         }
 {{/cookieParams}}
@@ -337,7 +337,7 @@ class {{classname}} extends BaseApi
         $path = '{{{path}}}';
 {{#pathParams}}
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('{{baseName}}', ${{paramName}}, 'path', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}, null, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
+        $pathValue = ValueSerializer::serializeStyled('{{baseName}}', ${{paramName}}, 'path', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}, null, '{{style}}', {{vendorExtensions.isExplodeStr}});
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [
@@ -372,21 +372,21 @@ class {{classname}} extends BaseApi
 {{/vendorExtensions.param.queryDeepObject}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
         if ($options->{{paramName}} !== null) {
-            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
+            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
         } else {
             $queryParams['{{baseName}}'] = '';
         }
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryStyled}}
         if ($options->{{paramName}} !== null) {
-            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
+            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
         }
 {{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}
         $headerParams = [];
 {{#headerParams}}
         if ($options->{{paramName}} !== null) {
-            $headerParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'header', '{{dataType}}', null, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
+            $headerParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'header', '{{dataType}}', null, '{{style}}', {{vendorExtensions.isExplodeStr}});
         }
 {{/headerParams}}
 {{#hasCookieParams}}
@@ -394,7 +394,7 @@ class {{classname}} extends BaseApi
 {{#cookieParams}}
         if ($options?->{{paramName}} !== null) {
             /** @var string $cookieValue */
-            $cookieValue = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'cookie', '{{dataType}}', null, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
+            $cookieValue = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'cookie', '{{dataType}}', null, '{{style}}', {{vendorExtensions.isExplodeStr}});
             $cookieParts[] = '{{baseName}}=' . $cookieValue;
         }
 {{/cookieParams}}

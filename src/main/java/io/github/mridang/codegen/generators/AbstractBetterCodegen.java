@@ -2750,6 +2750,24 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 p.vendorExtensions.put(
                         "pascalName", NamingConvention.PASCAL_CASE.apply(p.paramName));
             }
+            // Universal precomputed strings for the most repeated inline
+            // ternaries across api templates. Eliminates per-param
+            // {{#required}} (required){{/required}}{{^required}} (optional)
+            // {{/required}} and {{#isExplode}}true{{/isExplode}}…false… repeats.
+            p.vendorExtensions.put(
+                    "requiredLabel", p.required ? " (required)" : " (optional)");
+            final String requiredLabelWithDefault;
+            if (p.required) {
+                requiredLabelWithDefault = " (required)";
+            } else if (!p.isContainer && p.defaultValue != null && !p.defaultValue.isEmpty()) {
+                requiredLabelWithDefault =
+                        " (optional, default to " + p.defaultValue + ")";
+            } else {
+                requiredLabelWithDefault = " (optional)";
+            }
+            p.vendorExtensions.put("requiredLabelWithDefault", requiredLabelWithDefault);
+            p.vendorExtensions.put("isExplodeStr", p.isExplode ? "true" : "false");
+            p.vendorExtensions.put("isExplodeStrCap", p.isExplode ? "True" : "False");
         }
     }
 
