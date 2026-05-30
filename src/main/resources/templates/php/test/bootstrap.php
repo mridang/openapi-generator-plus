@@ -36,8 +36,7 @@ $chasmCertPath = $hostAppPath . '/test/fixtures/certs/server.pem';
 $chasmKeyPath = $hostAppPath . '/test/fixtures/certs/server-key.pem';
 
 $chasm = (new GenericContainer('mridang/chasm:1.3.0'))
-    ->withExposedPort(4010)
-    ->withExposedPort(8443)
+    ->withExposedPorts(4010, 8443)
     ->withMount($specPath, '/tmp/openapi.yaml')
     ->withMount($chasmCertPath, '/certs/cert.pem')
     ->withMount($chasmKeyPath, '/certs/key.pem')
