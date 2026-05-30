@@ -36,8 +36,6 @@ class FakeTokenClient
 end
 
 describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
-  parallelize_me!
-
   it 'extracts access token from response' do
     client = FakeTokenClient.new([
       { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }

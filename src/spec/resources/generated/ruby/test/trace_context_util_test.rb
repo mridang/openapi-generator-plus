@@ -6,8 +6,6 @@ require 'test_helper'
 require 'petstore_client/trace_context_util'
 
 describe PetstoreClient::TraceContextUtil do
-  parallelize_me!
-
   describe '.inject_trace_context' do
     it 'is a no-op without tracer' do
       headers = {}

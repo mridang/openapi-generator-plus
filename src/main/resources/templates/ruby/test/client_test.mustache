@@ -3,7 +3,6 @@
 require 'test_helper'
 
 describe {{moduleName}}::{{clientClassName}} do
-  parallelize_me!
 
   it 'constructs with authenticator only' do
     authenticator = {{moduleName}}::Auth::BearerAuthenticator.new('{{{basePath}}}', 'test-token')

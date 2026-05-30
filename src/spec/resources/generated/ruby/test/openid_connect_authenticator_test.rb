@@ -33,8 +33,6 @@ class FakeOidcClient
 end
 
 describe PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator do
-  parallelize_me!
-
   let(:discovery_response) do
     {
       status: 200,

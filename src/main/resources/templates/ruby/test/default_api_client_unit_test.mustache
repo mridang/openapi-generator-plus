@@ -7,7 +7,6 @@ require 'json'
 require '{{gemName}}'
 
 describe {{moduleName}}::DefaultApiClient do
-  parallelize_me!
 
   def stub_connection(stubs)
     Faraday.new('http://localhost') { |f| f.adapter :test, stubs }

@@ -5,8 +5,6 @@
 require 'test_helper'
 
 describe PetstoreClient::ValueSerializer do
-  parallelize_me!
-
   describe 'path location' do
     it 'null returns empty string' do
       _(PetstoreClient::ValueSerializer.serialize(nil, :path, 'string')).must_equal('')

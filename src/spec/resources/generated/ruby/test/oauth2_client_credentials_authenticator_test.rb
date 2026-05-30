@@ -30,8 +30,6 @@ class FakeClientCredentialsClient
 end
 
 describe PetstoreClient::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
-  parallelize_me!
-
   let(:client) { FakeClientCredentialsClient.new }
 
   let(:auth) do

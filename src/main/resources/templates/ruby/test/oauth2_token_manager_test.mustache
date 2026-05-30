@@ -31,7 +31,6 @@ class FakeTokenClient
 end
 
 describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
-  parallelize_me!
 
   it 'extracts access token from response' do
     client = FakeTokenClient.new([

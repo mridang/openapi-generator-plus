@@ -7,8 +7,6 @@ require 'json'
 require 'petstore_client'
 
 describe PetstoreClient::DefaultApiClient do
-  parallelize_me!
-
   def stub_connection(stubs)
     Faraday.new('http://localhost') { |f| f.adapter :test, stubs }
   end

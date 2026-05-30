@@ -34,8 +34,6 @@ module PetstoreClient
 end
 
 describe PetstoreClient::ObjectSerializer do
-  parallelize_me!
-
   describe 'DateTimeOffsetPreservation' do
     it 'UTC datetime serializes containing date-time and offset' do
       t = Time.new(2024, 1, 1, 12, 30, 45, '+00:00')

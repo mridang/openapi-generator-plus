@@ -14,8 +14,6 @@ require 'json'
 require 'petstore_client'
 
 describe PetstoreClient::Auth::OAuth::OAuth2ImplicitAuthenticator do
-  parallelize_me!
-
   let(:auth) do
     PetstoreClient::Auth::OAuth::OAuth2ImplicitAuthenticator.new(
       'https://api.example.com',
