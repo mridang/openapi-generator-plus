@@ -41,7 +41,7 @@ func newBaseApiAuth() *baseApiAuth {
 }
 
 func wiremockApi() *petstore.PetApi {
-	config := petstore.NewConfigurationBuilder().BaseURL(wiremockHTTPURL).Build()
+	config := petstore.NewConfigurationBuilder().BaseURL(chasmHTTPURL).Build()
 	return petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
 }
 
@@ -64,9 +64,9 @@ func TestBaseApi_ErrorDispatch(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(strings.ReplaceAll(tc.errType, "Error", ""), func(t *testing.T) {
-			// Use the DefaultApiClient directly to call WireMock error endpoints
+			// Use the DefaultApiClient directly to call chasm status endpoints
 			client := petstore.NewDefaultApiClient(nil)
-			resp, err := client.SendRequest("GET", wiremockHTTPURL+"/api/error/"+strings.TrimSpace(
+			resp, err := client.SendRequest("GET", chasmHTTPURL+"/test/status/"+strings.TrimSpace(
 				func() string {
 					return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(tc.errType, "BadRequestError", "400"), "UnauthorizedError", "401"), "ForbiddenError", "403"), "NotFoundError", "404"), "ConflictError", "409"), "UnprocessableEntityError", "422"), "InternalServerError", "500"), "ServerError", "502")
 				}()),
@@ -89,19 +89,19 @@ func TestBaseApi_ErrorDispatchViaApi(t *testing.T) {
 		path    string
 		errType string
 	}{
-		{400, "/api/error/400", "*apierrors.BadRequestError"},
-		{401, "/api/error/401", "*apierrors.UnauthorizedError"},
-		{403, "/api/error/403", "*apierrors.ForbiddenError"},
-		{404, "/api/error/404", "*apierrors.NotFoundError"},
-		{409, "/api/error/409", "*apierrors.ConflictError"},
-		{422, "/api/error/422", "*apierrors.UnprocessableEntityError"},
-		{500, "/api/error/500", "*apierrors.InternalServerError"},
-		{502, "/api/error/502", "*apierrors.ServerError"},
+		{400, "/test/status/400", "*apierrors.BadRequestError"},
+		{401, "/test/status/401", "*apierrors.UnauthorizedError"},
+		{403, "/test/status/403", "*apierrors.ForbiddenError"},
+		{404, "/test/status/404", "*apierrors.NotFoundError"},
+		{409, "/test/status/409", "*apierrors.ConflictError"},
+		{422, "/test/status/422", "*apierrors.UnprocessableEntityError"},
+		{500, "/test/status/500", "*apierrors.InternalServerError"},
+		{502, "/test/status/502", "*apierrors.ServerError"},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.errType, func(t *testing.T) {
-			config := petstore.NewConfigurationBuilder().BaseURL(wiremockHTTPURL + tc.path).Build()
+			config := petstore.NewConfigurationBuilder().BaseURL(chasmHTTPURL + tc.path).Build()
 			api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
 			_, err := api.GetPetById(int64(1), nil)
 			if err == nil {
@@ -114,7 +114,7 @@ func TestBaseApi_ErrorDispatchViaApi(t *testing.T) {
 // ── Error body parsing ──
 
 func TestBaseApi_ParsesJsonErrorBody(t *testing.T) {
-	config := petstore.NewConfigurationBuilder().BaseURL(wiremockHTTPURL + "/api/error/400").Build()
+	config := petstore.NewConfigurationBuilder().BaseURL(chasmHTTPURL + "/test/status/400").Build()
 	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
 
 	_, err := api.GetPetById(int64(1), nil)
@@ -134,7 +134,7 @@ func TestBaseApi_ParsesJsonErrorBody(t *testing.T) {
 // ── Exception hierarchy ──
 
 func TestBaseApi_NotFoundIsClientError(t *testing.T) {
-	config := petstore.NewConfigurationBuilder().BaseURL(wiremockHTTPURL + "/api/error/404").Build()
+	config := petstore.NewConfigurationBuilder().BaseURL(chasmHTTPURL + "/test/status/404").Build()
 	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
 
 	_, err := api.GetPetById(int64(1), nil)
@@ -150,7 +150,7 @@ func TestBaseApi_NotFoundIsClientError(t *testing.T) {
 }
 
 func TestBaseApi_InternalServerErrorIsServerError(t *testing.T) {
-	config := petstore.NewConfigurationBuilder().BaseURL(wiremockHTTPURL + "/api/error/500").Build()
+	config := petstore.NewConfigurationBuilder().BaseURL(chasmHTTPURL + "/test/status/500").Build()
 	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
 
 	_, err := api.GetPetById(int64(1), nil)
@@ -169,7 +169,7 @@ func TestBaseApi_InternalServerErrorIsServerError(t *testing.T) {
 
 func TestBaseApi_DeserializesJSONResponse(t *testing.T) {
 	client := petstore.NewDefaultApiClient(nil)
-	resp, err := client.SendRequest("GET", wiremockHTTPURL+"/api/test", map[string]string{}, nil)
+	resp, err := client.SendRequest("GET", chasmHTTPURL+"/test/echo", map[string]string{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -177,8 +177,8 @@ func TestBaseApi_DeserializesJSONResponse(t *testing.T) {
 	if err := json.Unmarshal([]byte(resp.Body), &parsed); err != nil {
 		t.Fatalf("failed to parse raw body: %v", err)
 	}
-	if parsed["message"] != "success" {
-		t.Errorf("expected message 'success', got %v", parsed["message"])
+	if parsed["method"] != "GET" {
+		t.Errorf("expected method 'GET', got %v", parsed["method"])
 	}
 }
 
@@ -186,7 +186,7 @@ func TestBaseApi_DeserializesJSONResponse(t *testing.T) {
 
 func TestBaseApi_ReturnsRawBodyForNonJSON(t *testing.T) {
 	client := petstore.NewDefaultApiClient(nil)
-	resp, err := client.SendRequest("GET", wiremockHTTPURL+"/api/text", map[string]string{}, nil)
+	resp, err := client.SendRequest("GET", chasmHTTPURL+"/test/text-plain", map[string]string{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -212,14 +212,14 @@ func TestBaseApi_ReturnsNilWhenReturnTypeIsVoid(t *testing.T) {
 
 func TestBaseApi_ForwardsAuthHeaders(t *testing.T) {
 	config := petstore.NewConfigurationBuilder().
-		BaseURL(wiremockHTTPURL).
+		BaseURL(chasmHTTPURL).
 		DefaultHeader("Authorization", "Bearer test-token").
 		Build()
 	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
 
 	// Use the client directly to echo headers
 	client := petstore.NewDefaultApiClient(nil)
-	resp, err := client.SendRequest("GET", wiremockHTTPURL+"/api/echo-headers",
+	resp, err := client.SendRequest("GET", chasmHTTPURL+"/test/echo",
 		map[string]string{"Authorization": "Bearer test-token"}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -227,16 +227,17 @@ func TestBaseApi_ForwardsAuthHeaders(t *testing.T) {
 	_ = api
 	var parsed map[string]interface{}
 	_ = json.Unmarshal([]byte(resp.Body), &parsed)
-	// The response-template transformer lowercases header names
-	if parsed["authorization"] == nil {
-		t.Error("expected authorization header in echo response")
+	// chasm envelope preserves original header casing under .headers
+	headers, _ := parsed["headers"].(map[string]interface{})
+	if headers == nil || headers["Authorization"] == nil {
+		t.Error("expected Authorization header in echo response")
 	}
 }
 
 // ── Cookie injection via authenticator ──
 
 func TestBaseApi_SetsCookieFromAuth(t *testing.T) {
-	config := petstore.NewConfigurationBuilder().BaseURL(wiremockHTTPURL).Build()
+	config := petstore.NewConfigurationBuilder().BaseURL(chasmHTTPURL).Build()
 	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
 
 	auth := &baseApiAuth{
@@ -257,7 +258,7 @@ func TestBaseApi_SetsCookieFromAuth(t *testing.T) {
 
 func TestBaseApi_HandlesNilBody(t *testing.T) {
 	client := petstore.NewDefaultApiClient(nil)
-	resp, err := client.SendRequest("GET", wiremockHTTPURL+"/api/test", map[string]string{}, nil)
+	resp, err := client.SendRequest("GET", chasmHTTPURL+"/test/echo", map[string]string{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -461,7 +462,7 @@ func TestBaseApi_ExpandsArrayQueryParams(t *testing.T) {
 // ── 418 Teapot (unrecognized status) ──
 
 func TestBaseApi_418TeapotThrowsClientError(t *testing.T) {
-	config := petstore.NewConfigurationBuilder().BaseURL(wiremockHTTPURL + "/api/error/418").Build()
+	config := petstore.NewConfigurationBuilder().BaseURL(chasmHTTPURL + "/test/status/418").Build()
 	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
 
 	_, err := api.GetPetById(int64(1), nil)
@@ -905,7 +906,7 @@ func TestAuth_NilPerCallFallsBackToClientLevelAuthenticator(t *testing.T) {
 // ── #6 Per-status error structs via errors.As ──
 
 func TestErrorsAs_BadRequestErrorMatches(t *testing.T) {
-	config := petstore.NewConfigurationBuilder().BaseURL(wiremockHTTPURL + "/api/error/400").Build()
+	config := petstore.NewConfigurationBuilder().BaseURL(chasmHTTPURL + "/test/status/400").Build()
 	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
 	_, err := api.GetPetById(int64(1), nil)
 	if err == nil {
@@ -918,7 +919,7 @@ func TestErrorsAs_BadRequestErrorMatches(t *testing.T) {
 }
 
 func TestErrorsAs_NotFoundErrorMatches(t *testing.T) {
-	config := petstore.NewConfigurationBuilder().BaseURL(wiremockHTTPURL + "/api/error/404").Build()
+	config := petstore.NewConfigurationBuilder().BaseURL(chasmHTTPURL + "/test/status/404").Build()
 	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
 	_, err := api.GetPetById(int64(1), nil)
 	if err == nil {
@@ -933,7 +934,7 @@ func TestErrorsAs_NotFoundErrorMatches(t *testing.T) {
 // ── #7 Typed error-body accessor ──
 
 func TestGetTypedErrorBody_ParsesJsonIntoTarget(t *testing.T) {
-	config := petstore.NewConfigurationBuilder().BaseURL(wiremockHTTPURL + "/api/error/400").Build()
+	config := petstore.NewConfigurationBuilder().BaseURL(chasmHTTPURL + "/test/status/400").Build()
 	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
 	_, err := api.GetPetById(int64(1), nil)
 	if err == nil {

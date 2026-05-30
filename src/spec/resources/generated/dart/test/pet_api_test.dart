@@ -289,7 +289,7 @@ void main() {
 
     test('errorHandling_notFound', () async {
       final config = ConfigurationBuilder()
-          .baseUrl('$wiremockHttpUrl/api/error/404')
+          .baseUrl('$chasmHttpUrl/test/status/404')
           .build();
       final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
@@ -303,7 +303,7 @@ void main() {
 
     test('errorHandling_serverError', () async {
       final config = ConfigurationBuilder()
-          .baseUrl('$wiremockHttpUrl/api/error/500')
+          .baseUrl('$chasmHttpUrl/test/status/500')
           .build();
       final api = PetApi(apiClient: DefaultApiClient(), config: config);
 

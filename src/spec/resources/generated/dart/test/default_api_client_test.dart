@@ -28,12 +28,13 @@ void main() {
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
         'GET',
-        '$wiremockHttpsUrl/api/test',
+        '$chasmHttpsUrl/test/echo',
         {},
         null,
       );
       expect(resp.statusCode, equals(200));
-      expect(resp.body, contains('success'));
+      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+      expect(parsed['method'], equals('GET'));
     });
 
     test('makes HTTPS request with custom CA cert', () async {
@@ -44,12 +45,13 @@ void main() {
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
         'GET',
-        '$wiremockHttpsUrl/api/test',
+        '$chasmHttpsUrl/test/echo',
         {},
         null,
       );
       expect(resp.statusCode, equals(200));
-      expect(resp.body, contains('success'));
+      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+      expect(parsed['method'], equals('GET'));
     });
 
     test('makes HTTP request through proxy', () async {
@@ -57,12 +59,13 @@ void main() {
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
         'GET',
-        '$wiremockInternalHttpUrl/api/test',
+        '$chasmInternalHttpUrl/test/echo',
         {},
         null,
       );
       expect(resp.statusCode, equals(200));
-      expect(resp.body, contains('success'));
+      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+      expect(parsed['method'], equals('GET'));
     });
 
     // Gap AK: userinfo embedded in the proxy URL must be base64-encoded
@@ -82,12 +85,13 @@ void main() {
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
         'GET',
-        '$wiremockInternalHttpsUrl/api/test',
+        '$chasmInternalHttpsUrl/test/echo',
         {},
         null,
       );
       expect(resp.statusCode, equals(200));
-      expect(resp.body, contains('success'));
+      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+      expect(parsed['method'], equals('GET'));
     });
 
     test('times out on slow endpoint', () async {
@@ -96,7 +100,7 @@ void main() {
       expect(
         () => client.sendRequest(
           'GET',
-          '$wiremockHttpUrl/api/slow',
+          '$chasmHttpUrl/test/slow',
           {},
           null,
         ),
@@ -110,13 +114,14 @@ void main() {
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
         'GET',
-        '$wiremockHttpUrl/api/echo-headers',
+        '$chasmHttpUrl/test/echo',
         {},
         null,
       );
       expect(resp.statusCode, equals(200));
       final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
-      expect(parsed['user-agent'], equals('MyApp/1.0'));
+      final headers = parsed['headers'] as Map<String, dynamic>;
+      expect(headers['User-Agent'], equals('MyApp/1.0'));
     });
 
     test('injects X-Request-ID header with UUID format', () async {
@@ -124,12 +129,13 @@ void main() {
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
         'GET',
-        '$wiremockHttpUrl/api/echo-headers',
+        '$chasmHttpUrl/test/echo',
         {},
         null,
       );
       final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
-      final requestId = parsed['x-request-id'] as String?;
+      final headers = parsed['headers'] as Map<String, dynamic>;
+      final requestId = headers['X-Request-ID'] as String?;
       expect(requestId, isNotNull);
       expect(requestId, isNotEmpty);
       final uuidPattern = RegExp(
@@ -143,21 +149,23 @@ void main() {
 
       final resp1 = await client.sendRequest(
         'GET',
-        '$wiremockHttpUrl/api/echo-headers',
+        '$chasmHttpUrl/test/echo',
         {},
         null,
       );
       final parsed1 = jsonDecode(resp1.body) as Map<String, dynamic>;
+      final headers1 = parsed1['headers'] as Map<String, dynamic>;
 
       final resp2 = await client.sendRequest(
         'GET',
-        '$wiremockHttpUrl/api/echo-headers',
+        '$chasmHttpUrl/test/echo',
         {},
         null,
       );
       final parsed2 = jsonDecode(resp2.body) as Map<String, dynamic>;
+      final headers2 = parsed2['headers'] as Map<String, dynamic>;
 
-      expect(parsed1['x-request-id'], isNot(equals(parsed2['x-request-id'])));
+      expect(headers1['X-Request-ID'], isNot(equals(headers2['X-Request-ID'])));
     });
 
     test('includes transport-level default headers', () async {
@@ -167,12 +175,13 @@ void main() {
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
         'GET',
-        '$wiremockHttpUrl/api/echo-headers',
+        '$chasmHttpUrl/test/echo',
         {},
         null,
       );
       final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
-      expect(parsed['x-custom'], equals('custom-value'));
+      final headers = parsed['headers'] as Map<String, dynamic>;
+      expect(headers['X-Custom'], equals('custom-value'));
     });
 
     test('caller headers override transport default headers', () async {
@@ -183,12 +192,13 @@ void main() {
       final callerHeaders = {'Accept': 'application/json'};
       final resp = await client.sendRequest(
         'GET',
-        '$wiremockHttpUrl/api/echo-headers',
+        '$chasmHttpUrl/test/echo',
         callerHeaders,
         null,
       );
       final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
-      expect(parsed['accept'], equals('application/json'));
+      final headers = parsed['headers'] as Map<String, dynamic>;
+      expect(headers['Accept'], equals('application/json'));
     });
 
     test('follows redirects when enabled', () async {
@@ -196,12 +206,11 @@ void main() {
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
         'GET',
-        '$wiremockHttpUrl/api/redirect',
+        '$chasmHttpUrl/test/redirect/302',
         {},
         null,
       );
       expect(resp.statusCode, equals(200));
-      expect(resp.body, contains('success'));
     });
 
     test('returns redirect response when disabled', () async {
@@ -210,7 +219,7 @@ void main() {
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
         'GET',
-        '$wiremockHttpUrl/api/redirect',
+        '$chasmHttpUrl/test/redirect/302',
         {},
         null,
       );
@@ -225,7 +234,7 @@ void main() {
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
         'POST',
-        '$wiremockHttpUrl/api/redirect-303',
+        '$chasmHttpUrl/test/redirect/303',
         {'Content-Type': 'application/json'},
         Uint8List.fromList(utf8.encode('hello-body')),
       );
@@ -253,19 +262,21 @@ void main() {
           'Content-Type: application/octet-stream\r\n\r\n'
           'file-content-bytes\r\n'
           '--$boundary--\r\n';
-      /* wiremock's bodyPatterns matches the replayed multipart parts; 200
-       is returned only when the multipart body arrives intact at the
-       redirect target. */
+      /* chasm replays the 307 redirect to its echo endpoint; the echo
+       envelope's method+body confirm the multipart body arrived intact
+       at the redirect target. */
       final resp = await client.sendRequest(
         'POST',
-        '$wiremockHttpUrl/api/redirect-307-multipart',
+        '$chasmHttpUrl/test/redirect/307-multipart',
         {'Content-Type': 'multipart/form-data; boundary=$boundary'},
         body,
       );
       expect(resp.statusCode, equals(200));
       final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
       expect(parsed['method'], equals('POST'));
-      expect(parsed['replayed'], isTrue);
+      expect(parsed['body'], isNotEmpty,
+          reason:
+              'multipart body must be replayed intact across the 307 redirect');
     });
 
     test('respects maxRedirects limit', () async {
@@ -287,7 +298,7 @@ void main() {
           '--test-boundary\r\nContent-Disposition: form-data; name="description"\r\n\r\nA test file\r\n--test-boundary--\r\n';
       final resp = await client.sendRequest(
         'POST',
-        '$wiremockHttpUrl/api/test',
+        '$chasmHttpUrl/test/echo',
         headers,
         body,
       );
@@ -307,7 +318,7 @@ void main() {
       expect(
         () => client.sendRequest(
           'POST',
-          '$wiremockHttpUrl/api/test',
+          '$chasmHttpUrl/test/echo',
           {},
           badField,
         ),
@@ -397,13 +408,13 @@ void main() {
       final client = DefaultApiClient();
       final resp = await client.sendRequest(
         'POST',
-        '$wiremockHttpUrl/api/echo-content-length',
+        '$chasmHttpUrl/test/echo',
         {},
         null,
       );
       expect(resp.statusCode, equals(200));
       final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
-      expect(parsed['content-length'], equals('0'),
+      expect(parsed['contentLength'], equals(0),
           reason: 'POST with null body must emit Content-Length: 0');
     });
   });

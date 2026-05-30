@@ -57,10 +57,10 @@ class TestAuthenticator < PetstoreClient::Auth::Authenticator
 end
 
 describe PetstoreClient::Api::BaseApi do
-  let(:wiremock_url) { ENV.fetch('WIREMOCK_HTTP_URL') }
+  let(:chasm_url) { ENV.fetch('CHASM_HTTP_URL') }
 
   let(:api) do
-    config = PetstoreClient::Configuration.builder.base_url(wiremock_url).build
+    config = PetstoreClient::Configuration.builder.base_url(chasm_url).build
     TestableApi.new(PetstoreClient::DefaultApiClient.new, config)
   end
 
@@ -79,7 +79,7 @@ describe PetstoreClient::Api::BaseApi do
   }.each do |status, error_class|
     it "raises #{error_class} for status #{status}" do
       err = assert_raises(error_class) do
-        api.call('GET', "/api/error/#{status}", {}, {}, nil,
+        api.call('GET', "/test/status/#{status}", {}, {}, nil,
           ['application/json'], 'application/json', nil)
       end
       _(err.status_code).must_equal status
@@ -92,7 +92,7 @@ describe PetstoreClient::Api::BaseApi do
 
   it 'parses JSON error body' do
     err = assert_raises(PetstoreClient::Errors::BadRequestError) do
-      api.call('GET', '/api/error/400', {}, {}, nil,
+      api.call('GET', '/test/status/400', {}, {}, nil,
         ['application/json'], 'application/json', nil)
     end
     _(err.error_body).wont_be_nil
@@ -102,7 +102,7 @@ describe PetstoreClient::Api::BaseApi do
 
   it 'NotFoundError is a kind of ClientError and ApiError' do
     err = assert_raises(PetstoreClient::Errors::NotFoundError) do
-      api.call('GET', '/api/error/404', {}, {}, nil,
+      api.call('GET', '/test/status/404', {}, {}, nil,
         ['application/json'], 'application/json', nil)
     end
     assert_kind_of PetstoreClient::Errors::ClientError, err
@@ -111,7 +111,7 @@ describe PetstoreClient::Api::BaseApi do
 
   it 'InternalServerError is a kind of ServerError and ApiError' do
     err = assert_raises(PetstoreClient::Errors::InternalServerError) do
-      api.call('GET', '/api/error/500', {}, {}, nil,
+      api.call('GET', '/test/status/500', {}, {}, nil,
         ['application/json'], 'application/json', nil)
     end
     assert_kind_of PetstoreClient::Errors::ServerError, err
@@ -121,21 +121,21 @@ describe PetstoreClient::Api::BaseApi do
   # ── Success deserialization ──
 
   it 'deserializes JSON response' do
-    result = api.call('GET', '/api/test', {}, {}, nil,
+    result = api.call('GET', '/test/echo', {}, {}, nil,
       ['application/json'], 'application/json', 'Object')
     _(result).wont_be_nil
-    _(result[:message]).must_equal 'success'
+    _(result[:method]).must_equal 'GET'
   end
 
   it 'returns raw string for non-JSON response' do
-    result = api.call('GET', '/api/text', {}, {}, nil,
+    result = api.call('GET', '/test/text-plain', {}, {}, nil,
       ['text/plain'], 'application/json', 'String')
     _(result).wont_be_nil
     _(result).must_include 'hello plain text'
   end
 
   it 'returns nil when return_type is nil' do
-    result = api.call('GET', '/api/test', {}, {}, nil,
+    result = api.call('GET', '/test/echo', {}, {}, nil,
       ['application/json'], 'application/json', nil)
     assert_nil result
   end
@@ -143,13 +143,13 @@ describe PetstoreClient::Api::BaseApi do
   # ── Query parameters ──
 
   it 'appends query params to URL' do
-    result = api.call('GET', '/api/test', { 'foo' => 'bar' }, {}, nil,
+    result = api.call('GET', '/test/echo', { 'foo' => 'bar' }, {}, nil,
       ['application/json'], 'application/json', nil)
     assert_nil result
   end
 
   it 'includes empty value param in query string when value is empty string' do
-    result = api.call('GET', '/api/test', { 'filter' => '' }, {}, nil,
+    result = api.call('GET', '/test/echo', { 'filter' => '' }, {}, nil,
       ['application/json'], 'application/json', nil)
     assert_nil result
   end
@@ -158,29 +158,30 @@ describe PetstoreClient::Api::BaseApi do
 
   it 'forwards auth headers' do
     auth = TestAuthenticator.new(headers: { 'X-Custom' => 'auth-value' })
-    result = api.call('GET', '/api/echo-headers', {}, {}, nil,
+    result = api.call('GET', '/test/echo', {}, {}, nil,
       ['application/json'], 'application/json', 'Object', auth)
     _(result).wont_be_nil
-    _(result[:'x-custom']).must_equal 'auth-value'
+    _(result[:headers][:'X-Custom']).must_equal 'auth-value'
   end
 
   it 'sets Cookie header from auth cookies' do
     auth = TestAuthenticator.new(cookies: { 'session' => 'abc123' })
-    api.call('GET', '/api/test', {}, {}, nil,
+    api.call('GET', '/test/echo', {}, {}, nil,
       ['application/json'], 'application/json', nil, auth)
   end
 
   # ── Body serialization ──
 
   it 'serializes JSON body for POST' do
-    result = api.call('POST', '/api/echo-body', {}, {}, { 'key' => 'value' },
+    result = api.call('POST', '/test/echo', {}, {}, { 'key' => 'value' },
       ['application/json'], 'application/json', 'Object')
     _(result).wont_be_nil
-    _(result[:key]).must_equal 'value'
+    body = JSON.parse(result[:body], symbolize_names: true)
+    _(body[:key]).must_equal 'value'
   end
 
   it 'sends no body when body is nil' do
-    api.call('GET', '/api/test', {}, {}, nil,
+    api.call('GET', '/test/echo', {}, {}, nil,
       ['application/json'], 'application/json', nil)
   end
 
@@ -445,7 +446,7 @@ describe PetstoreClient::Api::BaseApi do
     client.instance_variable_set(:@_encoded, encoded)
     config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
-    result = test_api.call('GET', '/api/test', {}, {}, nil,
+    result = test_api.call('GET', '/test/echo', {}, {}, nil,
       ['application/octet-stream'], 'application/octet-stream', 'String')
     decoded = Base64.strict_decode64(result)
     assert_equal original_bytes, decoded.b, 'binary roundtrip must preserve bytes exactly'
@@ -462,7 +463,7 @@ describe PetstoreClient::Api::BaseApi do
     client.instance_variable_set(:@_encoded, encoded)
     config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
-    result = test_api.call('GET', '/api/img', {}, {}, nil,
+    result = test_api.call('GET', '/test/echo', {}, {}, nil,
       ['image/png'], 'image/png', 'String')
     decoded = Base64.strict_decode64(result)
     assert_equal original_bytes, decoded.b, 'binary roundtrip must preserve bytes exactly'
@@ -472,7 +473,7 @@ describe PetstoreClient::Api::BaseApi do
     client = CapturingApiClient.new
     config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
-    result = test_api.call('GET', '/api/test', {}, {}, nil,
+    result = test_api.call('GET', '/test/echo', {}, {}, nil,
       ['application/json'], 'application/json', nil)
     assert_nil result
   end
@@ -485,7 +486,7 @@ describe PetstoreClient::Api::BaseApi do
     end
     config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
-    result = test_api.call('GET', '/api/test', {}, {}, nil,
+    result = test_api.call('GET', '/test/echo', {}, {}, nil,
       ['text/plain'], 'application/json', 'String')
     _(result).must_equal 'hello world'
   end
@@ -498,7 +499,7 @@ describe PetstoreClient::Api::BaseApi do
     end
     config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
-    result = test_api.call('GET', '/api/test', {}, {}, nil,
+    result = test_api.call('GET', '/test/echo', {}, {}, nil,
       ['application/octet-stream'], 'application/octet-stream', nil)
     assert_nil result
   end
@@ -538,7 +539,7 @@ describe PetstoreClient::Api::BaseApi do
     client = CapturingApiClient.new
     config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
-    test_api.call('POST', '/api/test', {}, {}, nil,
+    test_api.call('POST', '/test/echo', {}, {}, nil,
       ['application/json'], 'application/json', nil)
     refute client.captured_headers.key?('Content-Type'),
       'Content-Type must NOT be sent when body is nil'
@@ -548,7 +549,7 @@ describe PetstoreClient::Api::BaseApi do
     client = CapturingApiClient.new
     config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
-    test_api.call('POST', '/api/test', {}, {}, '',
+    test_api.call('POST', '/test/echo', {}, {}, '',
       ['application/json'], 'application/json', nil)
     assert client.captured_headers.key?('Content-Type'),
       'Content-Type must be sent when body is empty string'
@@ -558,7 +559,7 @@ describe PetstoreClient::Api::BaseApi do
     client = CapturingApiClient.new
     config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
-    test_api.call('POST', '/api/test', {}, {}, '{}',
+    test_api.call('POST', '/test/echo', {}, {}, '{}',
       ['application/json'], 'application/json', nil)
     assert client.captured_headers.key?('Content-Type'),
       'Content-Type must be sent when body is {}'

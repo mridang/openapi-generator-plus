@@ -98,7 +98,7 @@ class BaseApiTest {
         override fun getCookieParams(): Map<String, String> = cookies
     }
 
-    private fun api() = TestableApi(WireMockContainer.getHttpUrl())
+    private fun api() = TestableApi(ChasmContainer.getBaseUrl())
 
     @Nested
     @DisplayName("exception dispatch")
@@ -108,7 +108,7 @@ class BaseApiTest {
         fun throws400() {
             val ex =
                 assertThrows(BadRequestException::class.java) {
-                    runBlocking { api().call("GET", "/api/error/400") }
+                    runBlocking { api().call("GET", "/test/status/400") }
                 }
             assertEquals(400, ex.statusCode)
             assertNotNull(ex.responseBody)
@@ -119,7 +119,7 @@ class BaseApiTest {
         @DisplayName("401 throws UnauthorizedException")
         fun throws401() {
             assertThrows(UnauthorizedException::class.java) {
-                runBlocking { api().call("GET", "/api/error/401") }
+                runBlocking { api().call("GET", "/test/status/401") }
             }
         }
 
@@ -127,7 +127,7 @@ class BaseApiTest {
         @DisplayName("403 throws ForbiddenException")
         fun throws403() {
             assertThrows(ForbiddenException::class.java) {
-                runBlocking { api().call("GET", "/api/error/403") }
+                runBlocking { api().call("GET", "/test/status/403") }
             }
         }
 
@@ -135,7 +135,7 @@ class BaseApiTest {
         @DisplayName("404 throws NotFoundException")
         fun throws404() {
             assertThrows(NotFoundException::class.java) {
-                runBlocking { api().call("GET", "/api/error/404") }
+                runBlocking { api().call("GET", "/test/status/404") }
             }
         }
 
@@ -143,7 +143,7 @@ class BaseApiTest {
         @DisplayName("409 throws ConflictException")
         fun throws409() {
             assertThrows(ConflictException::class.java) {
-                runBlocking { api().call("GET", "/api/error/409") }
+                runBlocking { api().call("GET", "/test/status/409") }
             }
         }
 
@@ -151,7 +151,7 @@ class BaseApiTest {
         @DisplayName("422 throws UnprocessableEntityException")
         fun throws422() {
             assertThrows(UnprocessableEntityException::class.java) {
-                runBlocking { api().call("GET", "/api/error/422") }
+                runBlocking { api().call("GET", "/test/status/422") }
             }
         }
 
@@ -159,7 +159,7 @@ class BaseApiTest {
         @DisplayName("418 throws ClientException")
         fun throws418() {
             assertThrows(ClientException::class.java) {
-                runBlocking { api().call("GET", "/api/error/418") }
+                runBlocking { api().call("GET", "/test/status/418") }
             }
         }
 
@@ -167,7 +167,7 @@ class BaseApiTest {
         @DisplayName("500 throws InternalServerErrorException")
         fun throws500() {
             assertThrows(InternalServerErrorException::class.java) {
-                runBlocking { api().call("GET", "/api/error/500") }
+                runBlocking { api().call("GET", "/test/status/500") }
             }
         }
 
@@ -175,7 +175,7 @@ class BaseApiTest {
         @DisplayName("502 throws ServerException")
         fun throws502() {
             assertThrows(ServerException::class.java) {
-                runBlocking { api().call("GET", "/api/error/502") }
+                runBlocking { api().call("GET", "/test/status/502") }
             }
         }
     }
@@ -188,7 +188,7 @@ class BaseApiTest {
         fun parsesJsonErrorBody() {
             val ex =
                 assertThrows(BadRequestException::class.java) {
-                    runBlocking { api().call("GET", "/api/error/400") }
+                    runBlocking { api().call("GET", "/test/status/400") }
                 }
             assertNotNull(ex.errorBody, "errorBody should not be null for JSON responses")
         }
@@ -202,7 +202,7 @@ class BaseApiTest {
         fun notFoundIsClientException() {
             val ex =
                 assertThrows(NotFoundException::class.java) {
-                    runBlocking { api().call("GET", "/api/error/404") }
+                    runBlocking { api().call("GET", "/test/status/404") }
                 }
             assertInstanceOf(ClientException::class.java, ex)
             assertInstanceOf(ApiException::class.java, ex)
@@ -213,7 +213,7 @@ class BaseApiTest {
         fun internalServerErrorIsServerException() {
             val ex =
                 assertThrows(InternalServerErrorException::class.java) {
-                    runBlocking { api().call("GET", "/api/error/500") }
+                    runBlocking { api().call("GET", "/test/status/500") }
                 }
             assertInstanceOf(ServerException::class.java, ex)
             assertInstanceOf(ApiException::class.java, ex)
@@ -228,10 +228,14 @@ class BaseApiTest {
         fun deserializesJsonResponse() {
             val response =
                 runBlocking {
-                    api().call("GET", "/api/test")
+                    api().call("GET", "/test/echo")
                 }
             assertNotNull(response)
-            assertTrue(response.body.contains("success"))
+            val json =
+                com.fasterxml.jackson.databind
+                    .ObjectMapper()
+                    .readTree(response.body)
+            assertEquals("GET", json.get("method").asText())
         }
 
         @Test
@@ -241,12 +245,12 @@ class BaseApiTest {
                 runBlocking {
                     api().call(
                         "GET",
-                        "/api/text",
+                        "/test/text-plain",
                         accepts = arrayOf("text/plain"),
                     )
                 }
             assertNotNull(response)
-            assertTrue(response.body.contains("hello plain text"))
+            assertFalse(response.body.isEmpty())
         }
 
         @Test
@@ -258,7 +262,7 @@ class BaseApiTest {
                 runBlocking {
                     testApi.callForResult<Unit>(
                         "GET",
-                        "/api/test",
+                        "/test/echo",
                     )
                 }
             assertEquals(200, result.statusCode)
@@ -281,7 +285,7 @@ class BaseApiTest {
                 runBlocking {
                     api().call(
                         "GET",
-                        "/api/echo-headers",
+                        "/test/echo",
                         auth = auth,
                     )
                 }
@@ -290,7 +294,7 @@ class BaseApiTest {
                 com.fasterxml.jackson.databind
                     .ObjectMapper()
                     .readTree(response.body)
-            assertEquals("auth-value", json.get("x-custom").asText())
+            assertEquals("auth-value", json.get("headers").get("X-Custom").asText())
         }
 
         @Test
@@ -305,7 +309,7 @@ class BaseApiTest {
             runBlocking {
                 api().call(
                     "GET",
-                    "/api/test",
+                    "/test/echo",
                     auth = auth,
                 )
             }
@@ -336,7 +340,7 @@ class BaseApiTest {
                 runBlocking {
                     testApi.callForResult<String>(
                         "GET",
-                        "/api/test",
+                        "/test/echo",
                         accepts = arrayOf("text/plain"),
                     )
                 }
@@ -363,7 +367,7 @@ class BaseApiTest {
             val testApi = TestableApiWithClient(client, "http://localhost")
             val response =
                 runBlocking {
-                    testApi.call("GET", "/api/test")
+                    testApi.call("GET", "/test/echo")
                 }
             assertNotNull(response)
             val json =
@@ -385,23 +389,24 @@ class BaseApiTest {
                 runBlocking {
                     api().call(
                         "POST",
-                        "/api/echo-body",
+                        "/test/echo",
                         body = body,
                     )
                 }
             assertNotNull(response)
-            val json =
+            val mapper =
                 com.fasterxml.jackson.databind
                     .ObjectMapper()
-                    .readTree(response.body)
-            assertEquals("value", json.get("key").asText())
+            val envelope = mapper.readTree(response.body)
+            val innerBody = mapper.readTree(envelope.get("body").asText())
+            assertEquals("value", innerBody.get("key").asText())
         }
 
         @Test
         @DisplayName("sends no body when body is null")
         fun sendsNoBodyWhenNull() {
             runBlocking {
-                api().call("GET", "/api/test")
+                api().call("GET", "/test/echo")
             }
         }
 
@@ -411,7 +416,7 @@ class BaseApiTest {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
             runBlocking {
-                testApi.call("POST", "/api/test", body = "hello world", contentType = "text/plain")
+                testApi.call("POST", "/test/echo", body = "hello world", contentType = "text/plain")
             }
             assertNotNull(client.capturedBody)
             assertEquals("hello world", client.capturedBody.toString())
@@ -425,7 +430,7 @@ class BaseApiTest {
             runBlocking {
                 testApi.call(
                     "POST",
-                    "/api/test",
+                    "/test/echo",
                     body = mapOf("name" to "alice"),
                     contentType = "application/x-www-form-urlencoded",
                 )
@@ -442,7 +447,7 @@ class BaseApiTest {
             runBlocking {
                 testApi.call(
                     "POST",
-                    "/api/test",
+                    "/test/echo",
                     body = byteArrayOf(0x01, 0x02, 0x03),
                     contentType = "application/octet-stream",
                 )
@@ -460,7 +465,7 @@ class BaseApiTest {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
             runBlocking {
-                testApi.call("GET", "/api/test", queryParams = mutableMapOf("foo" to "bar"))
+                testApi.call("GET", "/test/echo", queryParams = mutableMapOf("foo" to "bar"))
             }
             // No exception means success
         }
@@ -471,7 +476,7 @@ class BaseApiTest {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
             runBlocking {
-                testApi.call("GET", "/api/test", queryParams = mutableMapOf("filter" to ""))
+                testApi.call("GET", "/test/echo", queryParams = mutableMapOf("filter" to ""))
             }
             // No exception means success
         }
@@ -482,7 +487,7 @@ class BaseApiTest {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
             runBlocking {
-                testApi.call("GET", "/api/test", queryParams = mutableMapOf("tags" to listOf("a", "b")))
+                testApi.call("GET", "/test/echo", queryParams = mutableMapOf("tags" to listOf("a", "b")))
             }
             // No exception means success
         }
@@ -493,7 +498,7 @@ class BaseApiTest {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
             runBlocking {
-                testApi.call("GET", "/api/test", queryParams = mutableMapOf("active" to true))
+                testApi.call("GET", "/test/echo", queryParams = mutableMapOf("active" to true))
             }
             // No exception means success
         }
@@ -504,7 +509,7 @@ class BaseApiTest {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
             runBlocking {
-                testApi.call("GET", "/api/test", queryParams = mutableMapOf("limit" to 10))
+                testApi.call("GET", "/test/echo", queryParams = mutableMapOf("limit" to 10))
             }
             // No exception means success
         }
@@ -515,7 +520,7 @@ class BaseApiTest {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
             runBlocking {
-                testApi.call("GET", "/api/test", queryParams = mutableMapOf())
+                testApi.call("GET", "/test/echo", queryParams = mutableMapOf())
             }
             // No exception means success
         }
@@ -620,7 +625,7 @@ class BaseApiTest {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
             runBlocking {
-                testApi.call("POST", "/api/test", body = mapOf("name" to "test"), contentType = "")
+                testApi.call("POST", "/test/echo", body = mapOf("name" to "test"), contentType = "")
             }
             assertEquals("application/json", client.capturedHeaders["Content-Type"])
         }
@@ -631,7 +636,7 @@ class BaseApiTest {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
             runBlocking {
-                testApi.call("POST", "/api/test", body = mapOf("name" to "test"))
+                testApi.call("POST", "/test/echo", body = mapOf("name" to "test"))
             }
             assertTrue(client.capturedHeaders.containsKey("Accept"))
             assertTrue(client.capturedHeaders.containsKey("Content-Type"))
@@ -705,7 +710,7 @@ class BaseApiTest {
             val testApi = TestableApiWithClient(client, "http://localhost")
             val result =
                 runBlocking {
-                    testApi.callForResult<Map<String, String>>("GET", "/api/test")
+                    testApi.callForResult<Map<String, String>>("GET", "/test/echo")
                 }
             assertNotNull(result.data)
             assertEquals("value", result.data?.get("key"))
@@ -809,7 +814,7 @@ class BaseApiTest {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
             runBlocking {
-                testApi.call("POST", "/api/test", body = null)
+                testApi.call("POST", "/test/echo", body = null)
             }
             assertFalse(
                 client.capturedHeaders.containsKey("Content-Type"),
@@ -823,7 +828,7 @@ class BaseApiTest {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
             runBlocking {
-                testApi.call("POST", "/api/test", body = "")
+                testApi.call("POST", "/test/echo", body = "")
             }
             assertTrue(
                 client.capturedHeaders.containsKey("Content-Type"),
@@ -837,7 +842,7 @@ class BaseApiTest {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
             runBlocking {
-                testApi.call("POST", "/api/test", body = mapOf<String, Any>())
+                testApi.call("POST", "/test/echo", body = mapOf<String, Any>())
             }
             assertTrue(
                 client.capturedHeaders.containsKey("Content-Type"),

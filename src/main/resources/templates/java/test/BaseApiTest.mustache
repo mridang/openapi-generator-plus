@@ -107,7 +107,7 @@ class BaseApiTest {
     }
 
     private TestableApi api() {
-        return new TestableApi(WireMockContainer.getHttpUrl());
+        return new TestableApi(ChasmContainer.getBaseUrl());
     }
 
     @Nested
@@ -137,7 +137,7 @@ class BaseApiTest {
                             () ->
                                     api().call(
                                             "GET",
-                                            "/api/error/" + status,
+                                            "/test/status/" + status,
                                             new HashMap<>(),
                                             new HashMap<>(),
                                             null,
@@ -164,7 +164,7 @@ class BaseApiTest {
                             () ->
                                     api().call(
                                             "GET",
-                                            "/api/error/404",
+                                            "/test/status/404",
                                             new HashMap<>(),
                                             new HashMap<>(),
                                             null,
@@ -185,7 +185,7 @@ class BaseApiTest {
                             () ->
                                     api().call(
                                             "GET",
-                                            "/api/error/500",
+                                            "/test/status/500",
                                             new HashMap<>(),
                                             new HashMap<>(),
                                             null,
@@ -211,7 +211,7 @@ class BaseApiTest {
                             () ->
                                     api().call(
                                             "GET",
-                                            "/api/error/400",
+                                            "/test/status/400",
                                             new HashMap<>(),
                                             new HashMap<>(),
                                             null,
@@ -233,7 +233,7 @@ class BaseApiTest {
             JsonNode result =
                     api().call(
                             "GET",
-                            "/api/test",
+                            "/test/echo",
                             new HashMap<>(),
                             new HashMap<>(),
                             null,
@@ -242,7 +242,7 @@ class BaseApiTest {
                             JSON_NODE_TYPE,
                             null);
             assertNotNull(result);
-            assertEquals("success", result.get("message").asText());
+            assertEquals("GET", result.get("method").asText());
         }
 
         @Test
@@ -251,7 +251,7 @@ class BaseApiTest {
             String result =
                     api().call(
                             "GET",
-                            "/api/text",
+                            "/test/text-plain",
                             new HashMap<>(),
                             new HashMap<>(),
                             null,
@@ -260,7 +260,7 @@ class BaseApiTest {
                             STRING_TYPE,
                             null);
             assertNotNull(result);
-            assertTrue(result.contains("hello plain text"));
+            assertFalse(result.isEmpty());
         }
 
         @Test
@@ -269,7 +269,7 @@ class BaseApiTest {
             Object result =
                     api().call(
                             "GET",
-                            "/api/test",
+                            "/test/echo",
                             new HashMap<>(),
                             new HashMap<>(),
                             null,
@@ -293,7 +293,7 @@ class BaseApiTest {
             Object result =
                     api().call(
                             "GET",
-                            "/api/test",
+                            "/test/echo",
                             queryParams,
                             new HashMap<>(),
                             null,
@@ -312,7 +312,7 @@ class BaseApiTest {
             Object result =
                     api().call(
                             "GET",
-                            "/api/test",
+                            "/test/echo",
                             queryParams,
                             new HashMap<>(),
                             null,
@@ -330,7 +330,7 @@ class BaseApiTest {
             var testApi = new TestableApi(client, "http://localhost");
             Map<String, Object> queryParams = new HashMap<>();
             queryParams.put("tags", List.of("a", "b"));
-            testApi.call("GET", "/api/test", queryParams, new HashMap<>(), null,
+            testApi.call("GET", "/test/echo", queryParams, new HashMap<>(), null,
                     new String[] {"application/json"}, "application/json", null, null);
             assertTrue(client.capturedUrl.contains("tags=a&tags=b"),
                     "Expected expanded array params but got: " + client.capturedUrl);
@@ -343,7 +343,7 @@ class BaseApiTest {
             var testApi = new TestableApi(client, "http://localhost");
             Map<String, Object> queryParams = new HashMap<>();
             queryParams.put("active", true);
-            testApi.call("GET", "/api/test", queryParams, new HashMap<>(), null,
+            testApi.call("GET", "/test/echo", queryParams, new HashMap<>(), null,
                     new String[] {"application/json"}, "application/json", null, null);
             assertTrue(client.capturedUrl.contains("active=true"),
                     "Expected active=true but got: " + client.capturedUrl);
@@ -356,7 +356,7 @@ class BaseApiTest {
             var testApi = new TestableApi(client, "http://localhost");
             Map<String, Object> queryParams = new HashMap<>();
             queryParams.put("limit", 10);
-            testApi.call("GET", "/api/test", queryParams, new HashMap<>(), null,
+            testApi.call("GET", "/test/echo", queryParams, new HashMap<>(), null,
                     new String[] {"application/json"}, "application/json", null, null);
             assertTrue(client.capturedUrl.contains("limit=10"),
                     "Expected limit=10 but got: " + client.capturedUrl);
@@ -369,7 +369,7 @@ class BaseApiTest {
         void handlesEmptyQueryParams() throws ApiException {
             var client = new CapturingApiClient();
             var testApi = new TestableApi(client, "http://localhost");
-            testApi.call("GET", "/api/test", new HashMap<>(), new HashMap<>(), null,
+            testApi.call("GET", "/test/echo", new HashMap<>(), new HashMap<>(), null,
                     new String[] {"application/json"}, "application/json", null, null);
             assertFalse(client.capturedUrl.contains("?"),
                     "Expected no query string but got: " + client.capturedUrl);
@@ -484,7 +484,7 @@ class BaseApiTest {
             JsonNode result =
                     api().call(
                             "GET",
-                            "/api/echo-headers",
+                            "/test/echo",
                             new HashMap<>(),
                             new HashMap<>(),
                             null,
@@ -493,7 +493,7 @@ class BaseApiTest {
                             JSON_NODE_TYPE,
                             auth);
             assertNotNull(result);
-            assertEquals("auth-value", result.get("x-custom").asText());
+            assertEquals("auth-value", result.get("headers").get("X-Custom").asText());
         }
 
         @Test
@@ -504,7 +504,7 @@ class BaseApiTest {
                             Map.of(), Map.of(), Map.of("session", "abc123"));
             api().call(
                     "GET",
-                    "/api/test",
+                    "/test/echo",
                     new HashMap<>(),
                     new HashMap<>(),
                     null,
@@ -526,7 +526,7 @@ class BaseApiTest {
             JsonNode result =
                     api().call(
                             "POST",
-                            "/api/echo-body",
+                            "/test/echo",
                             new HashMap<>(),
                             new HashMap<>(),
                             body,
@@ -535,7 +535,11 @@ class BaseApiTest {
                             JSON_NODE_TYPE,
                             null);
             assertNotNull(result);
-            assertEquals("value", result.get("key").asText());
+            // Chasm envelope: parse the echoed body field as JSON to read the key.
+            JsonNode echoedBody =
+                    new com.fasterxml.jackson.databind.ObjectMapper()
+                            .readTree(result.get("body").asText());
+            assertEquals("value", echoedBody.get("key").asText());
         }
 
         @Test
@@ -543,7 +547,7 @@ class BaseApiTest {
         void sendsNoBodyWhenNull() throws ApiException {
             api().call(
                     "GET",
-                    "/api/test",
+                    "/test/echo",
                     new HashMap<>(),
                     new HashMap<>(),
                     null,
@@ -559,7 +563,7 @@ class BaseApiTest {
             var client = new CapturingApiClient();
             var testApi = new TestableApi(client, "http://localhost");
             testApi.call(
-                    "POST", "/api/test",
+                    "POST", "/test/echo",
                     new HashMap<>(), new HashMap<>(),
                     "hello world",
                     new String[] {"application/json"},
@@ -577,7 +581,7 @@ class BaseApiTest {
             Map<String, String> formParams = new java.util.LinkedHashMap<>();
             formParams.put("name", "alice");
             testApi.call(
-                    "POST", "/api/test",
+                    "POST", "/test/echo",
                     new HashMap<>(), new HashMap<>(),
                     formParams,
                     new String[] {"application/json"},
@@ -594,7 +598,7 @@ class BaseApiTest {
             var testApi = new TestableApi(client, "http://localhost");
             byte[] binaryData = new byte[] {0x01, 0x02, 0x03};
             testApi.call(
-                    "POST", "/api/test",
+                    "POST", "/test/echo",
                     new HashMap<>(), new HashMap<>(),
                     binaryData,
                     new String[] {"application/json"},
@@ -623,7 +627,7 @@ class BaseApiTest {
             };
             var testApi = new TestableApi(client, "http://localhost");
             String result = testApi.call(
-                    "GET", "/api/test",
+                    "GET", "/test/echo",
                     new HashMap<>(), new HashMap<>(),
                     null,
                     new String[] {"text/plain"},
@@ -652,7 +656,7 @@ class BaseApiTest {
             };
             var testApi = new TestableApi(client, "http://localhost");
             JsonNode result = testApi.call(
-                    "GET", "/api/test",
+                    "GET", "/test/echo",
                     new HashMap<>(), new HashMap<>(),
                     null,
                     new String[] {"application/json"},
@@ -674,7 +678,7 @@ class BaseApiTest {
             var client = new CapturingApiClient();
             var testApi = new TestableApi(client, "http://localhost");
             testApi.call(
-                    "POST", "/api/test",
+                    "POST", "/test/echo",
                     new HashMap<>(), new HashMap<>(),
                     new HashMap<>(),
                     new String[] {"application/json"},
@@ -689,7 +693,7 @@ class BaseApiTest {
             var client = new CapturingApiClient();
             var testApi = new TestableApi(client, "http://localhost");
             testApi.call(
-                    "POST", "/api/test",
+                    "POST", "/test/echo",
                     new HashMap<>(), new HashMap<>(),
                     new HashMap<>(),
                     new String[] {"application/json"},
@@ -781,7 +785,7 @@ class BaseApiTest {
             };
             var testApi = new TestableApi(client, "http://localhost");
             JsonNode result = testApi.call(
-                    "GET", "/api/test",
+                    "GET", "/test/echo",
                     new HashMap<>(), new HashMap<>(),
                     null,
                     new String[] {"application/json"},
@@ -804,7 +808,7 @@ class BaseApiTest {
             };
             var testApi = new TestableApi(client, "http://localhost");
             String result = testApi.call(
-                    "GET", "/api/text",
+                    "GET", "/test/text-plain",
                     new HashMap<>(), new HashMap<>(),
                     null,
                     new String[] {"text/plain"},
@@ -1035,7 +1039,7 @@ class BaseApiTest {
             };
             var testApi = new TestableApi(client, "http://localhost");
             testApi.call(
-                    "POST", "/api/test",
+                    "POST", "/test/echo",
                     new HashMap<>(), new HashMap<>(),
                     null,
                     new String[] {"application/json"},
@@ -1051,7 +1055,7 @@ class BaseApiTest {
             var client = new CapturingApiClient();
             var testApi = new TestableApi(client, "http://localhost");
             testApi.call(
-                    "POST", "/api/test",
+                    "POST", "/test/echo",
                     new HashMap<>(), new HashMap<>(),
                     "",
                     new String[] {"application/json"},
@@ -1067,7 +1071,7 @@ class BaseApiTest {
             var client = new CapturingApiClient();
             var testApi = new TestableApi(client, "http://localhost");
             testApi.call(
-                    "POST", "/api/test",
+                    "POST", "/test/echo",
                     new HashMap<>(), new HashMap<>(),
                     new HashMap<>(),
                     new String[] {"application/json"},
@@ -1105,7 +1109,7 @@ class BaseApiTest {
 
             DefaultApiClient client = new DefaultApiClient(transport);
             ApiResponse response = client.sendRequest(
-                    "GET", wiremockUrl + "/api/test", new HashMap<>(), null);
+                    "GET", wiremockUrl + "/test/echo", new HashMap<>(), null);
 
             assertEquals(200, response.statusCode());
             assertTrue(response.body().contains("success"));

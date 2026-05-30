@@ -8,33 +8,34 @@ from petstore_client.transport_options import TransportOptions
 
 
 class TestTlsVerificationDisabled:
-    def test_makes_https_request_with_verify_ssl_false(self, wiremock_https_url: Any) -> None:
+    def test_makes_https_request_with_verify_ssl_false(self, chasm_https_url: Any) -> None:
         transport = TransportOptions.builder().verify_ssl(False).build()
         client = DefaultApiClient(transport)
-        response = client.send_request('GET', wiremock_https_url + '/api/test', {}, None)
+        response = client.send_request('GET', chasm_https_url + '/test/echo', {}, None)
 
         assert response.status_code == 200
-        assert 'success' in response.body
+        # chasm echo envelope always includes a method field
+        assert '"method"' in response.body
 
 
 class TestCustomCaBundle:
-    def test_makes_https_request_with_custom_ca_cert(self, wiremock_https_url: Any, ca_cert_path: Any) -> None:
+    def test_makes_https_request_with_custom_ca_cert(self, chasm_https_url: Any, ca_cert_path: Any) -> None:
         transport = TransportOptions.builder().verify_ssl(True).ca_cert_path(ca_cert_path).build()
         client = DefaultApiClient(transport)
-        response = client.send_request('GET', wiremock_https_url + '/api/test', {}, None)
+        response = client.send_request('GET', chasm_https_url + '/test/echo', {}, None)
 
         assert response.status_code == 200
-        assert 'success' in response.body
+        assert '"method"' in response.body
 
 
 class TestHttpProxy:
-    def test_makes_http_request_through_proxy(self, wiremock_internal_http_url: Any, proxy_url: Any) -> None:
+    def test_makes_http_request_through_proxy(self, chasm_internal_http_url: Any, proxy_url: Any) -> None:
         transport = TransportOptions.builder().proxy(proxy_url).build()
         client = DefaultApiClient(transport)
-        response = client.send_request('GET', wiremock_internal_http_url + '/api/test', {}, None)
+        response = client.send_request('GET', chasm_internal_http_url + '/test/echo', {}, None)
 
         assert response.status_code == 200
-        assert 'success' in response.body
+        assert '"method"' in response.body
 
 
 class TestProxyWithCredentials:
@@ -57,44 +58,45 @@ class TestProxyWithCredentials:
 
 
 class TestHttpProxyWithTls:
-    def test_makes_https_request_through_proxy_with_verify_ssl_false(self, wiremock_internal_https_url: Any, proxy_url: Any) -> None:
+    def test_makes_https_request_through_proxy_with_verify_ssl_false(self, chasm_internal_https_url: Any, proxy_url: Any) -> None:
         transport = TransportOptions.builder().proxy(proxy_url).verify_ssl(False).build()
         client = DefaultApiClient(transport)
-        response = client.send_request('GET', wiremock_internal_https_url + '/api/test', {}, None)
+        response = client.send_request('GET', chasm_internal_https_url + '/test/echo', {}, None)
 
         assert response.status_code == 200
-        assert 'success' in response.body
+        assert '"method"' in response.body
 
 
 class TestRequestTimeout:
-    def test_times_out_on_slow_endpoint(self, wiremock_http_url: Any) -> None:
+    def test_times_out_on_slow_endpoint(self, chasm_http_url: Any) -> None:
         transport = TransportOptions.builder().timeout(1).build()
         client = DefaultApiClient(transport)
 
         with pytest.raises(Exception):
-            client.send_request('GET', wiremock_http_url + '/api/slow', {}, None)
+            client.send_request('GET', chasm_http_url + '/test/slow', {}, None)
 
 
 class TestUserAgentHeader:
-    def test_injects_custom_user_agent_header(self, wiremock_http_url: Any) -> None:
+    def test_injects_custom_user_agent_header(self, chasm_http_url: Any) -> None:
         transport = TransportOptions.builder().user_agent('MyApp/1.0').build()
         client = DefaultApiClient(transport)
-        response = client.send_request('GET', wiremock_http_url + '/api/echo-headers', {}, None)
+        response = client.send_request('GET', chasm_http_url + '/test/echo', {}, None)
 
         assert response.status_code == 200
         body = json.loads(response.body)
-        assert body['user-agent'] == 'MyApp/1.0'
+        # chasm preserves original header casing in the envelope
+        assert body['headers']['User-Agent'] == 'MyApp/1.0'
 
 
 class TestRequestIdInjection:
-    def test_injects_request_id_header(self, wiremock_http_url: Any) -> None:
+    def test_injects_request_id_header(self, chasm_http_url: Any) -> None:
         transport = TransportOptions.builder().inject_request_id(True).build()
         client = DefaultApiClient(transport)
-        response = client.send_request('GET', wiremock_http_url + '/api/echo-headers', {}, None)
+        response = client.send_request('GET', chasm_http_url + '/test/echo', {}, None)
 
         assert response.status_code == 200
         body = json.loads(response.body)
-        request_id = body['x-request-id']
+        request_id = body['headers']['X-Request-ID']
         assert request_id
         import re
 
@@ -103,62 +105,63 @@ class TestRequestIdInjection:
             request_id,
         )
 
-    def test_generates_unique_request_ids(self, wiremock_http_url: Any) -> None:
+    def test_generates_unique_request_ids(self, chasm_http_url: Any) -> None:
         transport = TransportOptions.builder().inject_request_id(True).build()
         client = DefaultApiClient(transport)
 
-        response1 = client.send_request('GET', wiremock_http_url + '/api/echo-headers', {}, None)
-        request_id1 = json.loads(response1.body)['x-request-id']
+        response1 = client.send_request('GET', chasm_http_url + '/test/echo', {}, None)
+        request_id1 = json.loads(response1.body)['headers']['X-Request-ID']
 
-        response2 = client.send_request('GET', wiremock_http_url + '/api/echo-headers', {}, None)
-        request_id2 = json.loads(response2.body)['x-request-id']
+        response2 = client.send_request('GET', chasm_http_url + '/test/echo', {}, None)
+        request_id2 = json.loads(response2.body)['headers']['X-Request-ID']
 
         assert request_id1 != request_id2
 
 
 class TestDefaultHeaders:
-    def test_includes_transport_default_headers(self, wiremock_http_url: Any) -> None:
+    def test_includes_transport_default_headers(self, chasm_http_url: Any) -> None:
         transport = TransportOptions.builder().default_header('X-Custom', 'custom-value').build()
         client = DefaultApiClient(transport)
-        response = client.send_request('GET', wiremock_http_url + '/api/echo-headers', {}, None)
+        response = client.send_request('GET', chasm_http_url + '/test/echo', {}, None)
 
         assert response.status_code == 200
         body = json.loads(response.body)
-        assert body['x-custom'] == 'custom-value'
+        assert body['headers']['X-Custom'] == 'custom-value'
 
-    def test_caller_headers_override_transport_defaults(self, wiremock_http_url: Any) -> None:
+    def test_caller_headers_override_transport_defaults(self, chasm_http_url: Any) -> None:
         transport = TransportOptions.builder().default_header('Accept', 'text/plain').build()
         client = DefaultApiClient(transport)
-        response = client.send_request('GET', wiremock_http_url + '/api/echo-headers', {'Accept': 'application/json'}, None)
+        response = client.send_request('GET', chasm_http_url + '/test/echo', {'Accept': 'application/json'}, None)
 
         assert response.status_code == 200
         body = json.loads(response.body)
-        assert body['accept'] == 'application/json'
+        assert body['headers']['Accept'] == 'application/json'
 
 
 class TestRedirectHandling:
-    def test_follows_redirects_when_enabled(self, wiremock_http_url: Any) -> None:
+    def test_follows_redirects_when_enabled(self, chasm_http_url: Any) -> None:
         transport = TransportOptions.builder().follow_redirects(True).build()
         client = DefaultApiClient(transport)
-        response = client.send_request('GET', wiremock_http_url + '/api/redirect', {}, None)
+        response = client.send_request('GET', chasm_http_url + '/test/redirect/302', {}, None)
 
         assert response.status_code == 200
-        assert 'success' in response.body
+        # chasm 302 redirect target lands on the echo envelope
+        assert '"method"' in response.body
 
-    def test_returns_redirect_when_disabled(self, wiremock_http_url: Any) -> None:
+    def test_returns_redirect_when_disabled(self, chasm_http_url: Any) -> None:
         transport = TransportOptions.builder().follow_redirects(False).build()
         client = DefaultApiClient(transport)
-        response = client.send_request('GET', wiremock_http_url + '/api/redirect', {}, None)
+        response = client.send_request('GET', chasm_http_url + '/test/redirect/302', {}, None)
 
         assert response.status_code == 302
 
-    def test_redirect_303_switches_to_get_and_drops_body(self, wiremock_http_url: Any) -> None:
+    def test_redirect_303_switches_to_get_and_drops_body(self, chasm_http_url: Any) -> None:
         """Gap T3: 303 forces follow-up to GET and drops body per RFC 7231 §6.4.4."""
         transport = TransportOptions.builder().follow_redirects(True).max_redirects(5).build()
         client = DefaultApiClient(transport)
         response = client.send_request(
             'POST',
-            wiremock_http_url + '/api/redirect-303',
+            chasm_http_url + '/test/redirect/303',
             {'Content-Type': 'application/json'},
             'hello-body',
         )
@@ -170,12 +173,12 @@ class TestRedirectHandling:
         assert parsed['method'] == 'GET'
         assert parsed['body'] == ''
 
-    def test_multipart_body_replayed_on_307_redirect(self, wiremock_http_url: Any) -> None:
+    def test_multipart_body_replayed_on_307_redirect(self, chasm_http_url: Any) -> None:
         """T-new-3: multipart bodies must be replayed across 307 redirects per
         RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
-        request after a 307 still carries the multipart form parts. wiremock's
-        bodyPatterns matches the replayed multipart parts; 200 is returned
-        only when the multipart body arrives intact at the redirect target."""
+        request after a 307 still carries the multipart form parts. chasm's
+        echo envelope returns the replayed body verbatim; we verify the
+        multipart parts are present in the body and method is preserved."""
         transport = TransportOptions.builder().follow_redirects(True).max_redirects(5).build()
         client = DefaultApiClient(transport)
         boundary = 'test-boundary'
@@ -183,7 +186,7 @@ class TestRedirectHandling:
         headers = {'Content-Type': f'multipart/form-data; boundary={boundary}'}
         response = client.send_request(
             'POST',
-            wiremock_http_url + '/api/redirect-307-multipart',
+            chasm_http_url + '/test/redirect/307-multipart',
             headers,
             body.encode('utf-8'),
         )
@@ -193,7 +196,9 @@ class TestRedirectHandling:
 
         parsed = _json.loads(response.body)
         assert parsed['method'] == 'POST', 'follow-up request method must remain POST'
-        assert parsed['replayed'] is True, 'redirect target must confirm multipart body replay'
+        # chasm has no `replayed` sentinel; verify the multipart body was
+        # replayed by checking the echoed body still contains the form parts.
+        assert 'file-content-bytes' in parsed['body'], 'redirect target must receive the replayed multipart body'
 
 
 class TestMaxRedirects:
@@ -205,20 +210,20 @@ class TestMaxRedirects:
 
 
 class TestMultipartBody:
-    def test_sends_multipart_form_data(self, wiremock_http_url: Any) -> None:
+    def test_sends_multipart_form_data(self, chasm_http_url: Any) -> None:
         client = DefaultApiClient()
         form_data = {'description': 'A test file', 'file': b'file content'}
-        response = client.send_request('POST', wiremock_http_url + '/api/test', {}, form_data)
+        response = client.send_request('POST', chasm_http_url + '/test/echo', {}, form_data)
         assert response is not None
 
-    def test_multipart_field_name_with_crlf_rejected_on_string_value(self, wiremock_http_url: Any) -> None:
+    def test_multipart_field_name_with_crlf_rejected_on_string_value(self, chasm_http_url: Any) -> None:
         """W-new-2: multipart field-name validation must run on every branch
         (not just binary). Even for a plain str value, a CR/LF in the field
         name must be rejected to prevent Content-Disposition smuggling."""
         client = DefaultApiClient()
         bad_fields = {'name\r\nInjected: yes': 'string-value'}
         with pytest.raises(Exception):
-            client.send_request('POST', wiremock_http_url + '/api/test', {}, bad_fields)
+            client.send_request('POST', chasm_http_url + '/test/echo', {}, bad_fields)
 
 
 class TestHttpCompression:
@@ -249,10 +254,11 @@ class TestNullBodyContentLength:
     # Content-Length: 0. Some servers / WAFs reject body-bearing verbs
     # with no Content-Length (411 Length Required). The client sets the
     # header explicitly on body-bearing verbs when the body is None.
-    def test_post_with_null_body_sends_content_length_zero(self, wiremock_http_url: Any) -> None:
+    def test_post_with_null_body_sends_content_length_zero(self, chasm_http_url: Any) -> None:
         client = DefaultApiClient()
-        response = client.send_request('POST', wiremock_http_url + '/api/echo-content-length', {}, None)
+        response = client.send_request('POST', chasm_http_url + '/test/echo', {}, None)
 
         assert response.status_code == 200
         payload = json.loads(response.body)
-        assert payload.get('content-length') == '0'
+        # chasm envelope uses camelCase `contentLength` as an integer (not string)
+        assert payload.get('contentLength') == 0

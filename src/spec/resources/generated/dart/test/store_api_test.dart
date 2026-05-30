@@ -85,7 +85,7 @@ void main() {
 
     test('getOrderNotFound', () async {
       final config = ConfigurationBuilder()
-          .baseUrl('$wiremockHttpUrl/api/error/404')
+          .baseUrl('$chasmHttpUrl/test/status/404')
           .build();
       final api = StoreApi(apiClient: DefaultApiClient(), config: config);
 
@@ -99,7 +99,7 @@ void main() {
 
     test('serverError', () async {
       final config = ConfigurationBuilder()
-          .baseUrl('$wiremockHttpUrl/api/error/500')
+          .baseUrl('$chasmHttpUrl/test/status/500')
           .build();
       final api = StoreApi(apiClient: DefaultApiClient(), config: config);
 

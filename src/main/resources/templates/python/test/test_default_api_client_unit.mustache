@@ -386,10 +386,11 @@ class TestProxyAuthentication:
 
         transport = TransportOptions.builder().proxy(proxy_url_with_auth).build()
         client = DefaultApiClient(transport)
-        response = client.send_request('GET', 'http://wiremock:8080/api/test', {}, None)
+        response = client.send_request('GET', 'http://chasm:8080/test/echo', {}, None)
 
         assert response.status_code == 200
-        assert 'success' in response.body
+        # chasm echo envelope always includes a method field
+        assert '"method"' in response.body
 
 
 class TestMultipartBinaryPreservation:

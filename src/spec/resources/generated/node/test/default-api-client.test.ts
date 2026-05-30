@@ -12,15 +12,15 @@ import * as zlib from 'node:zlib';
 describe('DefaultApiClient', () => {
   describe('TLS verification disabled', () => {
     test('makes HTTPS request with verifySsl=false', async () => {
-      const wiremockUrl = process.env['WIREMOCK_HTTPS_URL']!;
+      const chasmUrl = process.env['CHASM_HTTPS_URL']!;
 
       const transport = TransportOptions.builder().verifySsl(false).build();
 
       const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest('GET', `${wiremockUrl}/api/test`, {}, null);
+      const response = await client.sendRequest('GET', `${chasmUrl}/test/echo`, {}, null);
 
       expect(response.statusCode).toBe(200);
-      expect(response.body).toContain('success');
+      expect(response.body).toContain('"method"');
     }, 30000);
   });
 
@@ -36,8 +36,8 @@ describe('DefaultApiClient', () => {
      */
 
     function ipHttpsUrl(): string {
-      const wiremockUrl = process.env['WIREMOCK_HTTPS_URL']!;
-      const port = new URL(wiremockUrl).port;
+      const chasmUrl = process.env['CHASM_HTTPS_URL']!;
+      const port = new URL(chasmUrl).port;
       return `https://127.0.0.1:${port}`;
     }
 
@@ -47,7 +47,7 @@ describe('DefaultApiClient', () => {
       const transport = TransportOptions.builder().verifySsl(true).caCertPath(caCertPath).build();
 
       const client = new DefaultApiClient(transport);
-      await expect(client.sendRequest('GET', `${ipHttpsUrl()}/api/test`, {}, null)).rejects.toThrow();
+      await expect(client.sendRequest('GET', `${ipHttpsUrl()}/test/echo`, {}, null)).rejects.toThrow();
     });
 
     // GitHub-hosted runners can't bind WireMock testcontainer to 127.0.0.1 reliably (IPv4/6 mismatch); passes locally.
@@ -55,26 +55,26 @@ describe('DefaultApiClient', () => {
       const transport = TransportOptions.builder().verifySsl(false).build();
 
       const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest('GET', `${ipHttpsUrl()}/api/test`, {}, null);
+      const response = await client.sendRequest('GET', `${ipHttpsUrl()}/test/echo`, {}, null);
 
       expect(response.statusCode).toBe(200);
-      expect(response.body).toContain('success');
+      expect(response.body).toContain('"method"');
     });
   });
 
   describe('custom CA bundle', () => {
     // GitHub-hosted runners can't bind WireMock testcontainer to 127.0.0.1 reliably (IPv4/6 mismatch); passes locally.
     test.skip('makes HTTPS request with custom CA cert', async () => {
-      const wiremockUrl = process.env['WIREMOCK_HTTPS_URL']!;
+      const chasmUrl = process.env['CHASM_HTTPS_URL']!;
       const caCertPath = process.env['CA_CERT_PATH']!;
 
       const transport = TransportOptions.builder().verifySsl(true).caCertPath(caCertPath).build();
 
       const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest('GET', `${wiremockUrl}/api/test`, {}, null);
+      const response = await client.sendRequest('GET', `${chasmUrl}/test/echo`, {}, null);
 
       expect(response.statusCode).toBe(200);
-      expect(response.body).toContain('success');
+      expect(response.body).toContain('"method"');
     });
   });
 
@@ -100,88 +100,88 @@ describe('DefaultApiClient', () => {
 
   describe('HTTP proxy', () => {
     test('makes HTTP request through proxy', async () => {
-      const wiremockUrl = process.env['WIREMOCK_INTERNAL_HTTP_URL']!;
+      const chasmUrl = process.env['CHASM_INTERNAL_HTTP_URL']!;
       const proxyUrl = process.env['PROXY_URL']!;
 
       const transport = TransportOptions.builder().proxy(proxyUrl).build();
 
       const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest('GET', `${wiremockUrl}/api/test`, {}, null);
+      const response = await client.sendRequest('GET', `${chasmUrl}/test/echo`, {}, null);
 
       expect(response.statusCode).toBe(200);
-      expect(response.body).toContain('success');
+      expect(response.body).toContain('"method"');
     });
   });
 
   describe('HTTP proxy with TLS', () => {
     test('makes HTTPS request through proxy with verifySsl=false', async () => {
-      const wiremockUrl = process.env['WIREMOCK_INTERNAL_HTTPS_URL']!;
+      const chasmUrl = process.env['CHASM_INTERNAL_HTTPS_URL']!;
       const proxyUrl = process.env['PROXY_URL']!;
 
       const transport = TransportOptions.builder().proxy(proxyUrl).verifySsl(false).build();
 
       const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest('GET', `${wiremockUrl}/api/test`, {}, null);
+      const response = await client.sendRequest('GET', `${chasmUrl}/test/echo`, {}, null);
 
       expect(response.statusCode).toBe(200);
-      expect(response.body).toContain('success');
+      expect(response.body).toContain('"method"');
     });
   });
 
   describe('request timeout', () => {
     test('times out on slow endpoint', async () => {
-      const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
+      const chasmUrl = process.env['CHASM_HTTP_URL']!;
 
       const transport = TransportOptions.builder().timeout(1).build();
 
       const client = new DefaultApiClient(transport);
-      await expect(client.sendRequest('GET', `${wiremockUrl}/api/slow`, {}, null)).rejects.toThrow();
+      await expect(client.sendRequest('GET', `${chasmUrl}/test/slow`, {}, null)).rejects.toThrow();
     });
   });
 
   describe('User-Agent header', () => {
     test('injects custom User-Agent header', async () => {
-      const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
+      const chasmUrl = process.env['CHASM_HTTP_URL']!;
 
       const transport = TransportOptions.builder().userAgent('MyApp/1.0').build();
 
       const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest('GET', `${wiremockUrl}/api/echo-headers`, {}, null);
+      const response = await client.sendRequest('GET', `${chasmUrl}/test/echo`, {}, null);
 
       expect(response.statusCode).toBe(200);
       const json = JSON.parse(response.body);
-      expect(json['user-agent']).toBe('MyApp/1.0');
+      expect(json.headers['User-Agent']).toBe('MyApp/1.0');
     });
   });
 
   describe('X-Request-ID injection', () => {
     test('injects X-Request-ID header with UUID format', async () => {
-      const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
+      const chasmUrl = process.env['CHASM_HTTP_URL']!;
 
       const transport = TransportOptions.builder().injectRequestId(true).build();
 
       const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest('GET', `${wiremockUrl}/api/echo-headers`, {}, null);
+      const response = await client.sendRequest('GET', `${chasmUrl}/test/echo`, {}, null);
 
       expect(response.statusCode).toBe(200);
       const json = JSON.parse(response.body);
-      const requestId = json['x-request-id'];
+      const requestId = json.headers['X-Request-ID'];
       expect(requestId).toBeDefined();
       expect(requestId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
     });
 
     test('generates unique X-Request-ID per request', async () => {
-      const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
+      const chasmUrl = process.env['CHASM_HTTP_URL']!;
 
       const transport = TransportOptions.builder().injectRequestId(true).build();
 
       const client = new DefaultApiClient(transport);
 
-      const response1 = await client.sendRequest('GET', `${wiremockUrl}/api/echo-headers`, {}, null);
-      const requestId1 = JSON.parse(response1.body)['x-request-id'];
+      const response1 = await client.sendRequest('GET', `${chasmUrl}/test/echo`, {}, null);
+      const requestId1 = JSON.parse(response1.body).headers['X-Request-ID'];
 
-      const response2 = await client.sendRequest('GET', `${wiremockUrl}/api/echo-headers`, {}, null);
-      const requestId2 = JSON.parse(response2.body)['x-request-id'];
+      const response2 = await client.sendRequest('GET', `${chasmUrl}/test/echo`, {}, null);
+      const requestId2 = JSON.parse(response2.body).headers['X-Request-ID'];
 
       expect(requestId1).not.toBe(requestId2);
     });
@@ -189,70 +189,65 @@ describe('DefaultApiClient', () => {
 
   describe('default headers', () => {
     test('includes transport-level default headers', async () => {
-      const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
+      const chasmUrl = process.env['CHASM_HTTP_URL']!;
 
       const transport = TransportOptions.builder().defaultHeader('X-Custom', 'custom-value').build();
 
       const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest('GET', `${wiremockUrl}/api/echo-headers`, {}, null);
+      const response = await client.sendRequest('GET', `${chasmUrl}/test/echo`, {}, null);
 
       expect(response.statusCode).toBe(200);
       const json = JSON.parse(response.body);
-      expect(json['x-custom']).toBe('custom-value');
+      expect(json.headers['X-Custom']).toBe('custom-value');
     });
 
     test('caller headers override transport default headers', async () => {
-      const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
+      const chasmUrl = process.env['CHASM_HTTP_URL']!;
 
       const transport = TransportOptions.builder().defaultHeader('Accept', 'text/plain').build();
 
       const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest(
-        'GET',
-        `${wiremockUrl}/api/echo-headers`,
-        { Accept: 'application/json' },
-        null
-      );
+      const response = await client.sendRequest('GET', `${chasmUrl}/test/echo`, { Accept: 'application/json' }, null);
 
       expect(response.statusCode).toBe(200);
       const json = JSON.parse(response.body);
-      expect(json['accept']).toBe('application/json');
+      expect(json.headers['Accept']).toBe('application/json');
     });
   });
 
   describe('redirect handling', () => {
     test('follows redirects when enabled', async () => {
-      const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
+      const chasmUrl = process.env['CHASM_HTTP_URL']!;
 
       const transport = TransportOptions.builder().followRedirects(true).build();
 
       const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest('GET', `${wiremockUrl}/api/redirect`, {}, null);
+      const response = await client.sendRequest('GET', `${chasmUrl}/test/redirect/302`, {}, null);
 
       expect(response.statusCode).toBe(200);
-      expect(response.body).toContain('success');
+      expect(response.body).toContain('"method"');
     });
 
     test('returns redirect response when disabled', async () => {
-      const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
+      const chasmUrl = process.env['CHASM_HTTP_URL']!;
 
       const transport = TransportOptions.builder().followRedirects(false).build();
 
       const client = new DefaultApiClient(transport);
-      const response = await client.sendRequest('GET', `${wiremockUrl}/api/redirect`, {}, null);
+      const response = await client.sendRequest('GET', `${chasmUrl}/test/redirect/302`, {}, null);
 
       expect(response.statusCode).toBe(302);
     });
 
     test('303 switches to GET and drops body (Gap T3)', async () => {
-      const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
+      const chasmUrl = process.env['CHASM_HTTP_URL']!;
 
       const transport = TransportOptions.builder().followRedirects(true).maxRedirects(5).build();
 
       const client = new DefaultApiClient(transport);
       const response = await client.sendRequest(
         'POST',
-        `${wiremockUrl}/api/redirect-303`,
+        `${chasmUrl}/test/redirect/303`,
         { 'Content-Type': 'application/json' },
         'hello-body'
       );
@@ -267,7 +262,7 @@ describe('DefaultApiClient', () => {
     // RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
     // request after a 307 still carries the multipart form parts.
     test('replays multipart body across 307 redirects (T-new-3)', async () => {
-      const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
+      const chasmUrl = process.env['CHASM_HTTP_URL']!;
 
       const transport = TransportOptions.builder().followRedirects(true).maxRedirects(5).build();
 
@@ -288,7 +283,7 @@ describe('DefaultApiClient', () => {
       // redirect target.
       const response = await client.sendRequest(
         'POST',
-        `${wiremockUrl}/api/redirect-307-multipart`,
+        `${chasmUrl}/test/redirect/307-multipart`,
         { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
         body
       );
@@ -296,7 +291,11 @@ describe('DefaultApiClient', () => {
       expect(response.statusCode).toBe(200);
       const json = JSON.parse(response.body as string);
       expect(json.method).toBe('POST');
-      expect(json.replayed).toBe(true);
+      // chasm has no equivalent of WireMock's `replayed:true` sentinel.
+      // Loosened: assert the replayed body arrived intact at the redirect target.
+      expect(typeof json.body).toBe('string');
+      expect(json.body.length).toBeGreaterThan(0);
+      expect(json.body).toContain('file-content-bytes');
     });
   });
 
@@ -312,13 +311,13 @@ describe('DefaultApiClient', () => {
 
   describe('multipart body', () => {
     test('sends multipart form data', async () => {
-      const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
+      const chasmUrl = process.env['CHASM_HTTP_URL']!;
 
       const client = new DefaultApiClient();
       const formData: Buffer = Buffer.from(JSON.stringify({ description: 'A test file' }));
       const response = await client.sendRequest(
         'POST',
-        `${wiremockUrl}/api/test`,
+        `${chasmUrl}/test/echo`,
         { 'Content-Type': 'multipart/form-data' },
         formData
       );
@@ -330,12 +329,12 @@ describe('DefaultApiClient', () => {
     // just binary). Confirm that even for a plain string value, a CR/LF in
     // the field name is rejected, preventing Content-Disposition smuggling.
     test('multipart_field_name_with_crlf_rejected_on_string_value', async () => {
-      const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
+      const chasmUrl = process.env['CHASM_HTTP_URL']!;
       const client = new DefaultApiClient();
       const badFields: Record<string, unknown> = {
         'name\r\nInjected: yes': 'string-value'
       };
-      await expect(client.sendRequest('POST', `${wiremockUrl}/api/test`, {}, badFields)).rejects.toThrow();
+      await expect(client.sendRequest('POST', `${chasmUrl}/test/echo`, {}, badFields)).rejects.toThrow();
     });
   });
 
@@ -390,13 +389,15 @@ describe('DefaultApiClient', () => {
      * the body is null.
      */
     test('post_with_null_body_sends_content_length_zero', async () => {
-      const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
+      const chasmUrl = process.env['CHASM_HTTP_URL']!;
       const client = new DefaultApiClient();
-      const response = await client.sendRequest('POST', `${wiremockUrl}/api/echo-content-length`, {}, null);
+      const response = await client.sendRequest('POST', `${chasmUrl}/test/echo`, {}, null);
 
       expect(response.statusCode).toBe(200);
-      const payload = JSON.parse(response.body) as Record<string, string>;
-      expect(payload['content-length']).toBe('0');
+      const payload = JSON.parse(response.body) as { method: string; contentLength: number };
+      expect(payload.method).toBe('POST');
+      // chasm reports contentLength as a camelCase integer (not a string keyed 'content-length').
+      expect(payload.contentLength).toBe(0);
     }, 30000);
   });
 });

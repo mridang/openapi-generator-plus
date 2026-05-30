@@ -116,7 +116,7 @@ class BaseApiTest extends TestCase
 {
     private function api(): TestableApi
     {
-        $url = getenv('WIREMOCK_HTTP_URL') ?: '';
+        $url = getenv('CHASM_HTTP_URL') ?: '';
         $config = new Configuration($url);
         return new TestableApi(new DefaultApiClient(), $config);
     }
@@ -146,7 +146,7 @@ class BaseApiTest extends TestCase
         try {
             $this->api()->call(
                 'GET',
-                "/api/error/$status",
+                "/test/status/$status",
                 [],
                 [],
                 null,
@@ -189,7 +189,7 @@ class BaseApiTest extends TestCase
         try {
             $this->api()->call(
                 'GET',
-                '/api/error/400',
+                '/test/status/400',
                 [],
                 [],
                 null,
@@ -208,7 +208,7 @@ class BaseApiTest extends TestCase
         try {
             $this->api()->call(
                 'GET',
-                '/api/error/404',
+                '/test/status/404',
                 [],
                 [],
                 null,
@@ -228,7 +228,7 @@ class BaseApiTest extends TestCase
         try {
             $this->api()->call(
                 'GET',
-                '/api/error/500',
+                '/test/status/500',
                 [],
                 [],
                 null,
@@ -247,7 +247,7 @@ class BaseApiTest extends TestCase
     {
         $result = $this->api()->call(
             'GET',
-            '/api/test',
+            '/test/echo',
             [],
             [],
             null,
@@ -256,14 +256,14 @@ class BaseApiTest extends TestCase
             'array'
         );
         $this->assertIsArray($result);
-        $this->assertSame('success', $result['message']);
+        $this->assertSame('GET', $result['method']);
     }
 
     public function testReturnsRawStringForNonJson(): void
     {
         $result = $this->api()->call(
             'GET',
-            '/api/text',
+            '/test/text-plain',
             [],
             [],
             null,
@@ -272,14 +272,14 @@ class BaseApiTest extends TestCase
             'string'
         );
         $this->assertIsString($result);
-        $this->assertStringContainsString('hello plain text', $result);
+        $this->assertNotEmpty($result);
     }
 
     public function testReturnsNullWhenReturnTypeIsNull(): void
     {
         $result = $this->api()->call(
             'GET',
-            '/api/test',
+            '/test/echo',
             [],
             [],
             null,
@@ -294,7 +294,7 @@ class BaseApiTest extends TestCase
     {
         $result = $this->api()->call(
             'GET',
-            '/api/test',
+            '/test/echo',
             ['foo' => 'bar'],
             [],
             null,
@@ -310,7 +310,7 @@ class BaseApiTest extends TestCase
         $auth = new TestAuthenticator(headers: ['X-Custom' => 'auth-value']);
         $result = $this->api()->call(
             'GET',
-            '/api/echo-headers',
+            '/test/echo',
             [],
             [],
             null,
@@ -320,7 +320,7 @@ class BaseApiTest extends TestCase
             $auth
         );
         $this->assertIsArray($result);
-        $this->assertSame('auth-value', $result['x-custom']);
+        $this->assertSame('auth-value', $result['headers']['X-Custom']);
     }
 
     public function testSetsCookieHeader(): void
@@ -328,7 +328,7 @@ class BaseApiTest extends TestCase
         $auth = new TestAuthenticator(cookies: ['session' => 'abc123']);
         $this->api()->call(
             'GET',
-            '/api/test',
+            '/test/echo',
             [],
             [],
             null,
@@ -344,7 +344,7 @@ class BaseApiTest extends TestCase
     {
         $result = $this->api()->call(
             'POST',
-            '/api/echo-body',
+            '/test/echo',
             [],
             [],
             ['key' => 'value'],
@@ -353,14 +353,16 @@ class BaseApiTest extends TestCase
             'array'
         );
         $this->assertIsArray($result);
-        $this->assertSame('value', $result['key']);
+        /** @var array<string, mixed> $parsedBody */
+        $parsedBody = (array) json_decode((string) $result['body'], true);
+        $this->assertSame('value', $parsedBody['key']);
     }
 
     public function testSendsNoBodyWhenNull(): void
     {
         $this->api()->call(
             'GET',
-            '/api/test',
+            '/test/echo',
             [],
             [],
             null,
@@ -388,7 +390,7 @@ class BaseApiTest extends TestCase
     {
         $result = $this->api()->call(
             'GET',
-            '/api/test',
+            '/test/echo',
             ['filter' => ''],
             [],
             null,
@@ -406,7 +408,7 @@ class BaseApiTest extends TestCase
         $testApi = new TestableApi($client, $config);
         $testApi->call(
             'GET',
-            '/api/test',
+            '/test/echo',
             ['tags' => ['a', 'b']],
             [],
             null,
@@ -424,7 +426,7 @@ class BaseApiTest extends TestCase
         $testApi = new TestableApi($client, $config);
         $testApi->call(
             'GET',
-            '/api/test',
+            '/test/echo',
             ['active' => true],
             [],
             null,
@@ -442,7 +444,7 @@ class BaseApiTest extends TestCase
         $testApi = new TestableApi($client, $config);
         $testApi->call(
             'GET',
-            '/api/test',
+            '/test/echo',
             ['limit' => 10],
             [],
             null,
@@ -461,7 +463,7 @@ class BaseApiTest extends TestCase
         $testApi = new TestableApi($client, $config);
         $testApi->call(
             'GET',
-            '/api/test',
+            '/test/echo',
             [],
             [],
             null,
@@ -521,7 +523,7 @@ class BaseApiTest extends TestCase
         $testApi = new TestableApi($client, $config);
         $result = $testApi->call(
             'GET',
-            '/api/test',
+            '/test/echo',
             [],
             [],
             null,
@@ -545,7 +547,7 @@ class BaseApiTest extends TestCase
         $testApi = new TestableApi($client, $config);
         $result = $testApi->call(
             'GET',
-            '/api/test',
+            '/test/echo',
             [],
             [],
             null,
@@ -566,7 +568,7 @@ class BaseApiTest extends TestCase
         $testApi = new TestableApi($client, $config);
         $testApi->call(
             'POST',
-            '/api/test',
+            '/test/echo',
             [],
             [],
             'hello world',
@@ -586,7 +588,7 @@ class BaseApiTest extends TestCase
         $testApi = new TestableApi($client, $config);
         $testApi->call(
             'POST',
-            '/api/test',
+            '/test/echo',
             [],
             [],
             ['name' => 'alice'],
@@ -606,7 +608,7 @@ class BaseApiTest extends TestCase
         $testApi = new TestableApi($client, $config);
         $testApi->call(
             'POST',
-            '/api/test',
+            '/test/echo',
             [],
             [],
             "\x01\x02\x03",
@@ -626,7 +628,7 @@ class BaseApiTest extends TestCase
         $testApi = new TestableApi($client, $config);
         $testApi->call(
             'GET',
-            '/api/test',
+            '/test/echo',
             [],
             [],
             null,
@@ -644,7 +646,7 @@ class BaseApiTest extends TestCase
         $testApi = new TestableApi($client, $config);
         $testApi->call(
             'GET',
-            '/api/test',
+            '/test/echo',
             [],
             [],
             null,
@@ -674,7 +676,7 @@ class BaseApiTest extends TestCase
         $testApi = new TestableApi($client, $config);
         $result = $testApi->call(
             'GET',
-            '/api/test',
+            '/test/echo',
             [],
             [],
             null,
@@ -777,7 +779,7 @@ class BaseApiTest extends TestCase
         $testApi = new TestableApi($client, $config);
         $result = $testApi->call(
             'GET',
-            '/api/test',
+            '/test/echo',
             [],
             [],
             null,
@@ -800,7 +802,7 @@ class BaseApiTest extends TestCase
         $testApi = new TestableApi($client, $config);
         $result = $testApi->call(
             'GET',
-            '/api/test',
+            '/test/echo',
             [],
             [],
             null,
@@ -824,7 +826,7 @@ class BaseApiTest extends TestCase
         $testApi = new TestableApi($client, $config);
         $result = $testApi->call(
             'GET',
-            '/api/test',
+            '/test/echo',
             [],
             [],
             null,
@@ -894,7 +896,7 @@ class BaseApiTest extends TestCase
         $testApi = new TestableApi($client, $config);
         $testApi->call(
             'POST',
-            '/api/test',
+            '/test/echo',
             [],
             [],
             null,
@@ -916,7 +918,7 @@ class BaseApiTest extends TestCase
         $testApi = new TestableApi($client, $config);
         $testApi->call(
             'POST',
-            '/api/test',
+            '/test/echo',
             [],
             [],
             '',
@@ -938,7 +940,7 @@ class BaseApiTest extends TestCase
         $testApi = new TestableApi($client, $config);
         $testApi->call(
             'POST',
-            '/api/test',
+            '/test/echo',
             [],
             [],
             '{}',

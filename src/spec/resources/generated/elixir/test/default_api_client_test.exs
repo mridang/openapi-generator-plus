@@ -2,18 +2,20 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
   use ExUnit.Case, async: false
 
   test "makes HTTPS request with verify_ssl=false" do
-    wiremock_url = System.fetch_env!("WIREMOCK_HTTPS_URL")
+    chasm_url = System.fetch_env!("CHASM_HTTPS_URL")
 
     transport = PetstoreClient.TransportOptions.new(verify_ssl: false)
     client = PetstoreClient.DefaultApiClient.new(transport)
-    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{wiremock_url}/api/test", %{}, nil)
+    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/echo", %{}, nil)
 
     assert response.status_code == 200
-    assert String.contains?(response.body, "success")
+    # chasm /test/echo returns a JSON envelope; assert the method field is present
+    json = Jason.decode!(response.body)
+    assert json["method"] == "GET"
   end
 
   test "makes HTTPS request with custom CA cert" do
-    wiremock_url = System.fetch_env!("WIREMOCK_HTTPS_URL")
+    chasm_url = System.fetch_env!("CHASM_HTTPS_URL")
     ca_cert_path = System.fetch_env!("CA_CERT_PATH")
 
     transport =
@@ -23,23 +25,25 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
       )
 
     client = PetstoreClient.DefaultApiClient.new(transport)
-    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{wiremock_url}/api/test", %{}, nil)
+    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/echo", %{}, nil)
 
     assert response.status_code == 200
-    assert String.contains?(response.body, "success")
+    json = Jason.decode!(response.body)
+    assert json["method"] == "GET"
   end
 
   @tag :skip
   test "makes HTTP request through proxy" do
-    wiremock_url = System.fetch_env!("WIREMOCK_INTERNAL_HTTP_URL")
+    chasm_url = System.fetch_env!("CHASM_INTERNAL_HTTP_URL")
     proxy_url = System.fetch_env!("PROXY_URL")
 
     transport = PetstoreClient.TransportOptions.new(proxy: proxy_url)
     client = PetstoreClient.DefaultApiClient.new(transport)
-    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{wiremock_url}/api/test", %{}, nil)
+    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/echo", %{}, nil)
 
     assert response.status_code == 200
-    assert String.contains?(response.body, "success")
+    json = Jason.decode!(response.body)
+    assert json["method"] == "GET"
   end
 
   # Gap AK: userinfo embedded in the proxy URL must be base64-encoded
@@ -55,25 +59,26 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
 
   @tag :skip
   test "makes HTTPS request through proxy with verify_ssl=false" do
-    wiremock_url = System.fetch_env!("WIREMOCK_INTERNAL_HTTPS_URL")
+    chasm_url = System.fetch_env!("CHASM_INTERNAL_HTTPS_URL")
     proxy_url = System.fetch_env!("PROXY_URL")
 
     transport = PetstoreClient.TransportOptions.new(proxy: proxy_url, verify_ssl: false)
     client = PetstoreClient.DefaultApiClient.new(transport)
-    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{wiremock_url}/api/test", %{}, nil)
+    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/echo", %{}, nil)
 
     assert response.status_code == 200
-    assert String.contains?(response.body, "success")
+    json = Jason.decode!(response.body)
+    assert json["method"] == "GET"
   end
 
   test "times out on slow endpoint" do
-    wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(timeout: 1)
     client = PetstoreClient.DefaultApiClient.new(transport)
 
     try do
-      PetstoreClient.DefaultApiClient.send_request(client, :get, "#{wiremock_url}/api/slow", %{}, nil)
+      PetstoreClient.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/slow", %{}, nil)
       flunk("Expected a transport error but none was raised")
     rescue
       _ in [PetstoreClient.ApiError, Req.TransportError, Finch.TransportError] -> :ok
@@ -81,61 +86,62 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
   end
 
   test "injects custom User-Agent header" do
-    wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(user_agent: "MyApp/1.0")
     client = PetstoreClient.DefaultApiClient.new(transport)
-    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{wiremock_url}/api/echo-headers", %{}, nil)
+    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/echo", %{}, nil)
 
     assert response.status_code == 200
     json = Jason.decode!(response.body)
-    assert json["user-agent"] == "MyApp/1.0"
+    # chasm envelope preserves original header casing in the .headers map
+    assert json["headers"]["User-Agent"] == "MyApp/1.0"
   end
 
   test "injects X-Request-ID header with UUID format" do
-    wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(inject_request_id: true)
     client = PetstoreClient.DefaultApiClient.new(transport)
-    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{wiremock_url}/api/echo-headers", %{}, nil)
+    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/echo", %{}, nil)
 
     assert response.status_code == 200
     json = Jason.decode!(response.body)
-    request_id = json["x-request-id"]
+    request_id = json["headers"]["X-Request-ID"]
     assert request_id != nil
     assert Regex.match?(~r/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/, request_id)
   end
 
   test "generates unique X-Request-ID per request" do
-    wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(inject_request_id: true)
     client = PetstoreClient.DefaultApiClient.new(transport)
 
-    response1 = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{wiremock_url}/api/echo-headers", %{}, nil)
-    request_id1 = Jason.decode!(response1.body)["x-request-id"]
+    response1 = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/echo", %{}, nil)
+    request_id1 = Jason.decode!(response1.body)["headers"]["X-Request-ID"]
 
-    response2 = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{wiremock_url}/api/echo-headers", %{}, nil)
-    request_id2 = Jason.decode!(response2.body)["x-request-id"]
+    response2 = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/echo", %{}, nil)
+    request_id2 = Jason.decode!(response2.body)["headers"]["X-Request-ID"]
 
     assert request_id1 != request_id2
   end
 
   test "includes transport-level default headers" do
-    wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(default_headers: %{"X-Custom" => "custom-value"})
 
     client = PetstoreClient.DefaultApiClient.new(transport)
-    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{wiremock_url}/api/echo-headers", %{}, nil)
+    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/echo", %{}, nil)
 
     assert response.status_code == 200
     json = Jason.decode!(response.body)
-    assert json["x-custom"] == "custom-value"
+    assert json["headers"]["X-Custom"] == "custom-value"
   end
 
   test "caller headers override transport default headers" do
-    wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(default_headers: %{"Accept" => "text/plain"})
 
@@ -145,39 +151,40 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
       PetstoreClient.DefaultApiClient.send_request(
         client,
         :get,
-        "#{wiremock_url}/api/echo-headers",
+        "#{chasm_url}/test/echo",
         %{"Accept" => "application/json"},
         nil
       )
 
     assert response.status_code == 200
     json = Jason.decode!(response.body)
-    assert json["accept"] == "application/json"
+    assert json["headers"]["Accept"] == "application/json"
   end
 
   test "follows redirects when enabled" do
-    wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(follow_redirects: true)
     client = PetstoreClient.DefaultApiClient.new(transport)
-    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{wiremock_url}/api/redirect", %{}, nil)
+    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/redirect/302", %{}, nil)
 
     assert response.status_code == 200
-    assert String.contains?(response.body, "success")
+    json = Jason.decode!(response.body)
+    assert json["method"] == "GET"
   end
 
   test "returns redirect response when disabled" do
-    wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(follow_redirects: false)
     client = PetstoreClient.DefaultApiClient.new(transport)
-    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{wiremock_url}/api/redirect", %{}, nil)
+    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/redirect/302", %{}, nil)
 
     assert response.status_code == 302
   end
 
   test "303 switches to GET and drops body (Gap T3)" do
-    wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport =
       PetstoreClient.TransportOptions.new(
@@ -191,7 +198,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
       PetstoreClient.DefaultApiClient.send_request(
         client,
         :post,
-        "#{wiremock_url}/api/redirect-303",
+        "#{chasm_url}/test/redirect/303",
         %{"Content-Type" => "application/json"},
         "hello-body"
       )
@@ -206,7 +213,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
   # RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
   # request after a 307 still carries the multipart form parts.
   test "replays multipart body across 307 redirects (T-new-3)" do
-    wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport =
       PetstoreClient.TransportOptions.new(
@@ -231,14 +238,17 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
         "file-content-bytes\r\n" <>
         "--" <> boundary <> "--\r\n"
 
-    # wiremock's bodyPatterns matches the replayed multipart parts; 200
-    # is returned only when the multipart body arrives intact at the
-    # redirect target.
+    # chasm's /test/redirect/307-multipart issues a 307 to /test/echo; the
+    # multipart body must survive replay. 200 is returned only when the
+    # multipart body arrives intact at the redirect target. The chasm
+    # envelope exposes the replayed body in .body; there is no .replayed
+    # sentinel, so we assert the method is preserved and the multipart
+    # body was forwarded.
     response =
       PetstoreClient.DefaultApiClient.send_request(
         client,
         :post,
-        "#{wiremock_url}/api/redirect-307-multipart",
+        "#{chasm_url}/test/redirect/307-multipart",
         %{"Content-Type" => "multipart/form-data; boundary=#{boundary}"},
         multipart_body
       )
@@ -246,7 +256,8 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert response.status_code == 200
     json = Jason.decode!(response.body)
     assert json["method"] == "POST"
-    assert json["replayed"] == true
+    assert is_binary(json["body"])
+    assert String.contains?(json["body"], "file-content-bytes")
   end
 
   test "respects max_redirects limit" do
@@ -262,17 +273,17 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
   end
 
   test "sends multipart form data" do
-    wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     client = PetstoreClient.DefaultApiClient.new()
     form_data = %{"description" => "A test file", "file" => "file content"}
-    response = PetstoreClient.DefaultApiClient.send_request(client, :post, "#{wiremock_url}/api/test", %{}, form_data)
+    response = PetstoreClient.DefaultApiClient.send_request(client, :post, "#{chasm_url}/test/echo", %{}, form_data)
 
     assert response != nil
   end
 
   test "rejects multipart field name with CRLF (Gap W2)" do
-    wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     client = PetstoreClient.DefaultApiClient.new()
     bad_field = %{"name\r\nInjected: yes" => "value"}
@@ -281,7 +292,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
       PetstoreClient.DefaultApiClient.send_request(
         client,
         :post,
-        "#{wiremock_url}/api/test",
+        "#{chasm_url}/test/echo",
         %{},
         bad_field
       )
@@ -292,7 +303,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
   # just binary). Confirm that even for a plain String value, a CR/LF in the
   # field name is rejected, preventing Content-Disposition smuggling.
   test "multipart_field_name_with_crlf_rejected_on_string_value" do
-    wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     client = PetstoreClient.DefaultApiClient.new()
     bad_field = %{"name\r\nInjected: yes" => "string-value"}
@@ -301,7 +312,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
       PetstoreClient.DefaultApiClient.send_request(
         client,
         :post,
-        "#{wiremock_url}/api/test",
+        "#{chasm_url}/test/echo",
         %{},
         bad_field
       )
@@ -372,20 +383,21 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
   # with no Content-Length (411 Length Required). The client sends an
   # empty string and Content-Length: 0 explicitly on body-bearing verbs.
   test "post_with_null_body_sends_content_length_zero" do
-    wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
     client = PetstoreClient.DefaultApiClient.new()
 
     response =
       PetstoreClient.DefaultApiClient.send_request(
         client,
         :post,
-        "#{wiremock_url}/api/echo-content-length",
+        "#{chasm_url}/test/echo",
         %{},
         nil
       )
 
     assert response.status_code == 200
     parsed = Jason.decode!(response.body)
-    assert Map.get(parsed, "content-length") == "0"
+    # chasm envelope exposes contentLength as a camelCase integer
+    assert parsed["contentLength"] == 0
   end
 end

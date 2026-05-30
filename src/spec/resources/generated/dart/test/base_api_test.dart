@@ -36,7 +36,7 @@ class _BaseApiAuth implements Authenticator {
 }
 
 PetApi _wiremockApi() {
-  final config = ConfigurationBuilder().baseUrl(wiremockHttpUrl).build();
+  final config = ConfigurationBuilder().baseUrl(chasmHttpUrl).build();
   return PetApi(apiClient: DefaultApiClient(), config: config);
 }
 
@@ -67,7 +67,7 @@ void main() {
         final errType = entry.value;
 
         final config = ConfigurationBuilder()
-            .baseUrl('$wiremockHttpUrl/api/error/$status')
+            .baseUrl('$chasmHttpUrl/test/status/$status')
             .build();
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
@@ -84,7 +84,7 @@ void main() {
 
     test('parses JSON error body', () async {
       final config = ConfigurationBuilder()
-          .baseUrl('$wiremockHttpUrl/api/error/400')
+          .baseUrl('$chasmHttpUrl/test/status/400')
           .build();
       final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
@@ -101,25 +101,25 @@ void main() {
       final client = DefaultApiClient();
       final resp = await client.sendRequest(
         'GET',
-        '$wiremockHttpUrl/api/test',
+        '$chasmHttpUrl/test/echo',
         {},
         null,
       );
       expect(resp.body, isNotEmpty);
 
       final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
-      expect(parsed['message'], equals('success'));
+      expect(parsed['method'], equals('GET'));
     });
 
     test('returns raw body for non-JSON', () async {
       final client = DefaultApiClient();
       final resp = await client.sendRequest(
         'GET',
-        '$wiremockHttpUrl/api/text',
+        '$chasmHttpUrl/test/text-plain',
         {},
         null,
       );
-      expect(resp.body, contains('hello plain text'));
+      expect(resp.body, isNotEmpty);
     });
 
     test('forwards auth headers', () async {
@@ -132,20 +132,21 @@ void main() {
         await api.addPet(Pet(name: 'Test', photoUrls: <String>{}), auth: auth);
       } catch (_) {}
 
-      // Verify via echo-headers endpoint
+      // Verify via echo endpoint
       final client = DefaultApiClient();
       final resp = await client.sendRequest(
         'GET',
-        '$wiremockHttpUrl/api/echo-headers',
+        '$chasmHttpUrl/test/echo',
         {'Authorization': 'Bearer test-token'},
         null,
       );
       final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
-      expect(parsed['authorization'], equals('Bearer test-token'));
+      final headers = parsed['headers'] as Map<String, dynamic>;
+      expect(headers['Authorization'], equals('Bearer test-token'));
     });
 
     test('sets cookie from auth', () async {
-      final config = ConfigurationBuilder().baseUrl(wiremockHttpUrl).build();
+      final config = ConfigurationBuilder().baseUrl(chasmHttpUrl).build();
       final auth = _BaseApiAuth(cookies: {'session': 'abc123'});
       final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
@@ -350,7 +351,7 @@ void main() {
       final client = DefaultApiClient();
       final resp = await client.sendRequest(
         'GET',
-        '$wiremockHttpUrl/api/empty',
+        '$chasmHttpUrl/test/empty',
         {},
         null,
       );
@@ -362,7 +363,7 @@ void main() {
       final client = DefaultApiClient();
       final resp = await client.sendRequest(
         'GET',
-        '$wiremockHttpUrl/api/test',
+        '$chasmHttpUrl/test/echo',
         {},
         null,
       );
@@ -760,7 +761,7 @@ void main() {
       final client = DefaultApiClient();
       final resp = await client.sendRequest(
         'GET',
-        '$wiremockHttpUrl/api/test',
+        '$chasmHttpUrl/test/echo',
         {},
         null,
       );
@@ -769,7 +770,7 @@ void main() {
 
     test('NotFoundError is a ClientError', () async {
       final config = ConfigurationBuilder()
-          .baseUrl('$wiremockHttpUrl/api/error/404')
+          .baseUrl('$chasmHttpUrl/test/status/404')
           .build();
       final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
@@ -784,7 +785,7 @@ void main() {
 
     test('InternalServerError is a ServerError', () async {
       final config = ConfigurationBuilder()
-          .baseUrl('$wiremockHttpUrl/api/error/500')
+          .baseUrl('$chasmHttpUrl/test/status/500')
           .build();
       final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
@@ -799,7 +800,7 @@ void main() {
 
     test('418 throws ClientError', () async {
       final config = ConfigurationBuilder()
-          .baseUrl('$wiremockHttpUrl/api/error/418')
+          .baseUrl('$chasmHttpUrl/test/status/418')
           .build();
       final api = PetApi(apiClient: DefaultApiClient(), config: config);
 

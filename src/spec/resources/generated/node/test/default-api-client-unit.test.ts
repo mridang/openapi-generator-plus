@@ -276,13 +276,13 @@ describe('DefaultApiClient proxy authentication', () => {
   // proxy URL (http://user:pass@host:port) are forwarded as a
   // Proxy-Authorization header on the CONNECT/HTTP request.
   test.skip('forwards basic credentials from proxy URL to upstream proxy', async () => {
-    const wiremockUrl = process.env['WIREMOCK_INTERNAL_HTTP_URL']!;
+    const chasmUrl = process.env['CHASM_INTERNAL_HTTP_URL']!;
     const proxyHostPort = (process.env['PROXY_URL'] ?? '').replace(/^https?:\/\//, '');
     const proxyUrl = `http://user:pass@${proxyHostPort}`;
 
     const transport = TransportOptions.builder().proxy(proxyUrl).build();
     const client = new DefaultApiClient(transport);
-    const response = await client.sendRequest('GET', `${wiremockUrl}/api/test`, {}, null);
+    const response = await client.sendRequest('GET', `${chasmUrl}/test/echo`, {}, null);
     expect(response.statusCode).toBe(200);
   });
 });

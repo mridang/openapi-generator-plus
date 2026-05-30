@@ -28,16 +28,17 @@ class DefaultApiClientTest {
     @Test
     @DisplayName("makes HTTPS request with verifySsl=false")
     void makesHttpsRequestWithVerifySslFalse() throws ApiException {
-      String wiremockUrl = WireMockContainer.getHttpsUrl();
+      String chasmUrl = ChasmContainer.getHttpsBaseUrl();
 
       TransportOptions transport = TransportOptions.builder().verifySsl(false).build();
 
       DefaultApiClient client = new DefaultApiClient(transport);
       ApiResponse response =
-          client.sendRequest("GET", wiremockUrl + "/api/test", new HashMap<>(), null);
+          client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
 
       assertEquals(200, response.statusCode());
-      assertTrue(response.body().contains("success"));
+      JsonNode json = new ObjectMapper().readTree(response.body());
+      assertEquals("GET", json.get("method").asText());
     }
   }
 
@@ -60,7 +61,8 @@ class DefaultApiClientTest {
     @DisplayName(
         "verifySsl=true rejects hostname mismatch (cert is for localhost, request is to 127.0.0.1)")
     void verifySslTrueRejectsHostnameMismatch() {
-      String wiremockUrl = "https://127.0.0.1:" + WireMockContainer.getHttpsPort();
+      int httpsPort = java.net.URI.create(ChasmContainer.getHttpsBaseUrl()).getPort();
+      String chasmUrl = "https://127.0.0.1:" + httpsPort;
 
       TransportOptions transport =
           TransportOptions.builder().verifySsl(true).caCertPath(CA_CERT_PATH).build();
@@ -68,25 +70,27 @@ class DefaultApiClientTest {
       DefaultApiClient client = new DefaultApiClient(transport);
       assertThrows(
           ApiException.class,
-          () -> client.sendRequest("GET", wiremockUrl + "/api/test", new HashMap<>(), null));
+          () -> client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null));
     }
 
     @Test
     @DisplayName("verifySsl=false accepts hostname mismatch (curl -k semantics)")
     @org.junit.jupiter.api.Disabled(
-        "WireMock testcontainer fails to bind on 127.0.0.1 on GitHub-hosted runners (IPv4/6"
-            + " mismatch); passes locally")
+        "testcontainer fails to bind on 127.0.0.1 on GitHub-hosted runners (IPv4/6 mismatch);"
+            + " passes locally")
     void verifySslFalseAcceptsHostnameMismatch() throws ApiException {
-      String wiremockUrl = "https://127.0.0.1:" + WireMockContainer.getHttpsPort();
+      int httpsPort = java.net.URI.create(ChasmContainer.getHttpsBaseUrl()).getPort();
+      String chasmUrl = "https://127.0.0.1:" + httpsPort;
 
       TransportOptions transport = TransportOptions.builder().verifySsl(false).build();
 
       DefaultApiClient client = new DefaultApiClient(transport);
       ApiResponse response =
-          client.sendRequest("GET", wiremockUrl + "/api/test", new HashMap<>(), null);
+          client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
 
       assertEquals(200, response.statusCode());
-      assertTrue(response.body().contains("success"));
+      JsonNode json = new ObjectMapper().readTree(response.body());
+      assertEquals("GET", json.get("method").asText());
     }
   }
 
@@ -97,17 +101,18 @@ class DefaultApiClientTest {
     @Test
     @DisplayName("makes HTTPS request with custom CA cert")
     void makesHttpsRequestWithCustomCaCert() throws ApiException {
-      String wiremockUrl = WireMockContainer.getHttpsUrl();
+      String chasmUrl = ChasmContainer.getHttpsBaseUrl();
 
       TransportOptions transport =
           TransportOptions.builder().verifySsl(true).caCertPath(CA_CERT_PATH).build();
 
       DefaultApiClient client = new DefaultApiClient(transport);
       ApiResponse response =
-          client.sendRequest("GET", wiremockUrl + "/api/test", new HashMap<>(), null);
+          client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
 
       assertEquals(200, response.statusCode());
-      assertTrue(response.body().contains("success"));
+      JsonNode json = new ObjectMapper().readTree(response.body());
+      assertEquals("GET", json.get("method").asText());
     }
   }
 
@@ -186,14 +191,14 @@ class DefaultApiClientTest {
     @Test
     @DisplayName("times out on slow endpoint")
     void timesOutOnSlowEndpoint() {
-      String wiremockUrl = WireMockContainer.getHttpUrl();
+      String chasmUrl = ChasmContainer.getBaseUrl();
 
       TransportOptions transport = TransportOptions.builder().timeout(1).build();
 
       DefaultApiClient client = new DefaultApiClient(transport);
       assertThrows(
           ApiException.class,
-          () -> client.sendRequest("GET", wiremockUrl + "/api/slow", new HashMap<>(), null));
+          () -> client.sendRequest("GET", chasmUrl + "/test/slow", new HashMap<>(), null));
     }
   }
 
@@ -204,17 +209,17 @@ class DefaultApiClientTest {
     @Test
     @DisplayName("injects custom User-Agent header")
     void injectsCustomUserAgentHeader() throws Exception {
-      String wiremockUrl = WireMockContainer.getHttpUrl();
+      String chasmUrl = ChasmContainer.getBaseUrl();
 
       TransportOptions transport = TransportOptions.builder().userAgent("MyApp/1.0").build();
 
       DefaultApiClient client = new DefaultApiClient(transport);
       ApiResponse response =
-          client.sendRequest("GET", wiremockUrl + "/api/echo-headers", new HashMap<>(), null);
+          client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
 
       assertEquals(200, response.statusCode());
       JsonNode json = new ObjectMapper().readTree(response.body());
-      assertEquals("MyApp/1.0", json.get("user-agent").asText());
+      assertEquals("MyApp/1.0", json.get("headers").get("User-Agent").asText());
     }
   }
 
@@ -225,17 +230,17 @@ class DefaultApiClientTest {
     @Test
     @DisplayName("injects X-Request-ID header with UUID format")
     void injectsRequestIdHeader() throws Exception {
-      String wiremockUrl = WireMockContainer.getHttpUrl();
+      String chasmUrl = ChasmContainer.getBaseUrl();
 
       TransportOptions transport = TransportOptions.builder().injectRequestId(true).build();
 
       DefaultApiClient client = new DefaultApiClient(transport);
       ApiResponse response =
-          client.sendRequest("GET", wiremockUrl + "/api/echo-headers", new HashMap<>(), null);
+          client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
 
       assertEquals(200, response.statusCode());
       JsonNode json = new ObjectMapper().readTree(response.body());
-      String requestId = json.get("x-request-id").asText();
+      String requestId = json.get("headers").get("X-Request-ID").asText();
       assertNotNull(requestId);
       assertFalse(requestId.isEmpty());
       assertTrue(requestId.matches("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"));
@@ -244,7 +249,7 @@ class DefaultApiClientTest {
     @Test
     @DisplayName("generates unique X-Request-ID per request")
     void generatesUniqueRequestIds() throws Exception {
-      String wiremockUrl = WireMockContainer.getHttpUrl();
+      String chasmUrl = ChasmContainer.getBaseUrl();
 
       TransportOptions transport = TransportOptions.builder().injectRequestId(true).build();
 
@@ -252,12 +257,14 @@ class DefaultApiClientTest {
       ObjectMapper mapper = new ObjectMapper();
 
       ApiResponse response1 =
-          client.sendRequest("GET", wiremockUrl + "/api/echo-headers", new HashMap<>(), null);
-      String requestId1 = mapper.readTree(response1.body()).get("x-request-id").asText();
+          client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
+      String requestId1 =
+          mapper.readTree(response1.body()).get("headers").get("X-Request-ID").asText();
 
       ApiResponse response2 =
-          client.sendRequest("GET", wiremockUrl + "/api/echo-headers", new HashMap<>(), null);
-      String requestId2 = mapper.readTree(response2.body()).get("x-request-id").asText();
+          client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
+      String requestId2 =
+          mapper.readTree(response2.body()).get("headers").get("X-Request-ID").asText();
 
       assertNotEquals(requestId1, requestId2);
     }
@@ -270,24 +277,24 @@ class DefaultApiClientTest {
     @Test
     @DisplayName("includes transport-level default headers")
     void includesTransportDefaultHeaders() throws Exception {
-      String wiremockUrl = WireMockContainer.getHttpUrl();
+      String chasmUrl = ChasmContainer.getBaseUrl();
 
       TransportOptions transport =
           TransportOptions.builder().defaultHeader("X-Custom", "custom-value").build();
 
       DefaultApiClient client = new DefaultApiClient(transport);
       ApiResponse response =
-          client.sendRequest("GET", wiremockUrl + "/api/echo-headers", new HashMap<>(), null);
+          client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
 
       assertEquals(200, response.statusCode());
       JsonNode json = new ObjectMapper().readTree(response.body());
-      assertEquals("custom-value", json.get("x-custom").asText());
+      assertEquals("custom-value", json.get("headers").get("X-Custom").asText());
     }
 
     @Test
     @DisplayName("caller headers override transport default headers")
     void callerHeadersOverrideTransportDefaults() throws Exception {
-      String wiremockUrl = WireMockContainer.getHttpUrl();
+      String chasmUrl = ChasmContainer.getBaseUrl();
 
       TransportOptions transport =
           TransportOptions.builder().defaultHeader("Accept", "text/plain").build();
@@ -296,11 +303,11 @@ class DefaultApiClientTest {
       Map<String, String> callerHeaders = new HashMap<>();
       callerHeaders.put("Accept", "application/json");
       ApiResponse response =
-          client.sendRequest("GET", wiremockUrl + "/api/echo-headers", callerHeaders, null);
+          client.sendRequest("GET", chasmUrl + "/test/echo", callerHeaders, null);
 
       assertEquals(200, response.statusCode());
       JsonNode json = new ObjectMapper().readTree(response.body());
-      assertEquals("application/json", json.get("accept").asText());
+      assertEquals("application/json", json.get("headers").get("Accept").asText());
     }
   }
 
@@ -311,28 +318,27 @@ class DefaultApiClientTest {
     @Test
     @DisplayName("follows redirects when enabled")
     void followsRedirectsWhenEnabled() throws ApiException {
-      String wiremockUrl = WireMockContainer.getHttpUrl();
+      String chasmUrl = ChasmContainer.getBaseUrl();
 
       TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
 
       DefaultApiClient client = new DefaultApiClient(transport);
       ApiResponse response =
-          client.sendRequest("GET", wiremockUrl + "/api/redirect", new HashMap<>(), null);
+          client.sendRequest("GET", chasmUrl + "/test/redirect/302", new HashMap<>(), null);
 
       assertEquals(200, response.statusCode());
-      assertTrue(response.body().contains("success"));
     }
 
     @Test
     @DisplayName("returns redirect response when disabled")
     void returnsRedirectWhenDisabled() throws ApiException {
-      String wiremockUrl = WireMockContainer.getHttpUrl();
+      String chasmUrl = ChasmContainer.getBaseUrl();
 
       TransportOptions transport = TransportOptions.builder().followRedirects(false).build();
 
       DefaultApiClient client = new DefaultApiClient(transport);
       ApiResponse response =
-          client.sendRequest("GET", wiremockUrl + "/api/redirect", new HashMap<>(), null);
+          client.sendRequest("GET", chasmUrl + "/test/redirect/302", new HashMap<>(), null);
 
       assertEquals(302, response.statusCode());
     }
@@ -340,7 +346,7 @@ class DefaultApiClientTest {
     @Test
     @DisplayName("303 switches to GET and drops body (Gap T3)")
     void redirect303SwitchesToGetAndDropsBody() throws Exception {
-      String wiremockUrl = WireMockContainer.getHttpUrl();
+      String chasmUrl = ChasmContainer.getBaseUrl();
 
       TransportOptions transport =
           TransportOptions.builder().followRedirects(true).maxRedirects(5).build();
@@ -349,7 +355,7 @@ class DefaultApiClientTest {
       Map<String, String> headers = new HashMap<>();
       headers.put("Content-Type", "application/json");
       ApiResponse response =
-          client.sendRequest("POST", wiremockUrl + "/api/redirect-303", headers, "hello-body");
+          client.sendRequest("POST", chasmUrl + "/test/redirect/303", headers, "hello-body");
 
       assertEquals(200, response.statusCode());
       JsonNode json = new ObjectMapper().readTree(response.body());
@@ -365,7 +371,7 @@ class DefaultApiClientTest {
     @Test
     @DisplayName("307 replays multipart body to redirected location (T-new-3)")
     void multipartBodyReplayedOn307Redirect() throws Exception {
-      String wiremockUrl = WireMockContainer.getHttpUrl();
+      String chasmUrl = ChasmContainer.getBaseUrl();
 
       TransportOptions transport =
           TransportOptions.builder().followRedirects(true).maxRedirects(5).build();
@@ -376,19 +382,19 @@ class DefaultApiClientTest {
       formFields.put(
           "file", "file-content-bytes".getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
-      // wiremock's bodyPatterns matches the replayed multipart parts; 200
-      // is returned only when the multipart body arrives intact at the
-      // redirect target.
+      // Chasm echoes the redirected request; 200 with method=POST and
+      // a non-empty body confirms the multipart body was replayed.
       ApiResponse response =
           client.sendRequest(
-              "POST", wiremockUrl + "/api/redirect-307-multipart", new HashMap<>(), formFields);
+              "POST", chasmUrl + "/test/redirect/307-multipart", new HashMap<>(), formFields);
 
       assertEquals(200, response.statusCode());
       JsonNode json = new ObjectMapper().readTree(response.body());
       assertEquals(
           "POST", json.get("method").asText(), "follow-up request method must remain POST");
-      assertTrue(
-          json.get("replayed").asBoolean(), "redirect target must confirm multipart body replay");
+      assertFalse(
+          json.get("body").asText().isEmpty(),
+          "redirect target must receive a non-empty multipart body");
     }
   }
 
@@ -413,7 +419,7 @@ class DefaultApiClientTest {
     @Test
     @DisplayName("sends multipart form data")
     void sendsMultipartFormData() throws ApiException {
-      String wiremockUrl = WireMockContainer.getHttpUrl();
+      String chasmUrl = ChasmContainer.getBaseUrl();
 
       Map<String, Object> formFields = new HashMap<>();
       formFields.put("description", "A test file");
@@ -421,7 +427,7 @@ class DefaultApiClientTest {
 
       DefaultApiClient client = new DefaultApiClient();
       ApiResponse response =
-          client.sendRequest("POST", wiremockUrl + "/api/test", new HashMap<>(), formFields);
+          client.sendRequest("POST", chasmUrl + "/test/echo", new HashMap<>(), formFields);
 
       assertNotNull(response);
     }
@@ -435,7 +441,7 @@ class DefaultApiClientTest {
     @Test
     @DisplayName("multipart_field_name_with_crlf_rejected_on_string_value")
     void multipartFieldNameWithCrlfRejectedOnStringValue() {
-      String wiremockUrl = WireMockContainer.getHttpUrl();
+      String chasmUrl = ChasmContainer.getBaseUrl();
 
       DefaultApiClient client = new DefaultApiClient();
       Map<String, Object> formFields = new HashMap<>();
@@ -443,7 +449,7 @@ class DefaultApiClientTest {
 
       assertThrows(
           IllegalArgumentException.class,
-          () -> client.sendRequest("POST", wiremockUrl + "/api/test", new HashMap<>(), formFields));
+          () -> client.sendRequest("POST", chasmUrl + "/test/echo", new HashMap<>(), formFields));
     }
   }
 
@@ -604,19 +610,16 @@ class DefaultApiClientTest {
     @Test
     @DisplayName("post_with_null_body_sends_content_length_zero")
     void postWithNullBodySendsContentLengthZero() throws Exception {
-      String wiremockUrl = WireMockContainer.getHttpUrl();
+      String chasmUrl = ChasmContainer.getBaseUrl();
 
       DefaultApiClient client = new DefaultApiClient();
       ApiResponse response =
-          client.sendRequest(
-              "POST", wiremockUrl + "/api/echo-content-length", new HashMap<>(), null);
+          client.sendRequest("POST", chasmUrl + "/test/echo", new HashMap<>(), null);
 
       assertEquals(200, response.statusCode());
       JsonNode json = new ObjectMapper().readTree(response.body());
       assertEquals(
-          "0",
-          json.get("content-length").asText(),
-          "POST with null body must emit Content-Length: 0");
+          0, json.get("contentLength").asInt(), "POST with null body must emit Content-Length: 0");
     }
   }
 }

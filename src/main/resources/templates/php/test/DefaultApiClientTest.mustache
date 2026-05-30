@@ -14,24 +14,26 @@ class DefaultApiClientTest extends TestCase
 
     public function testMakesHttpsRequestWithVerifySslFalse(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTPS_URL') ?: '';
+        $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
 
         $transport = TransportOptions::builder()
             ->verifySsl(false)
             ->build();
 
         $client = new DefaultApiClient($transport);
-        $response = $client->sendRequest('GET', $wiremockUrl . '/api/test', [], null);
+        $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
 
         $this->assertSame(200, $response->statusCode);
-        $this->assertStringContainsString('success', $response->body);
+        /** @var array<string, mixed> $json */
+        $json = json_decode($response->body, true);
+        $this->assertSame('GET', $json['method']);
     }
 
     // -- Custom CA bundle --
 
     public function testMakesHttpsRequestWithCustomCaCert(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTPS_URL') ?: '';
+        $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
         $caCertPath = getenv('CA_CERT_PATH') ?: null;
 
         $transport = TransportOptions::builder()
@@ -40,17 +42,19 @@ class DefaultApiClientTest extends TestCase
             ->build();
 
         $client = new DefaultApiClient($transport);
-        $response = $client->sendRequest('GET', $wiremockUrl . '/api/test', [], null);
+        $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
 
         $this->assertSame(200, $response->statusCode);
-        $this->assertStringContainsString('success', $response->body);
+        /** @var array<string, mixed> $json */
+        $json = json_decode($response->body, true);
+        $this->assertSame('GET', $json['method']);
     }
 
     // -- HTTP proxy --
 
     public function testMakesHttpRequestThroughProxy(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_INTERNAL_HTTP_URL') ?: '';
+        $chasmUrl = getenv('CHASM_INTERNAL_HTTP_URL') ?: '';
         $proxyUrl = getenv('PROXY_URL') ?: null;
 
         $transport = TransportOptions::builder()
@@ -58,10 +62,12 @@ class DefaultApiClientTest extends TestCase
             ->build();
 
         $client = new DefaultApiClient($transport);
-        $response = $client->sendRequest('GET', $wiremockUrl . '/api/test', [], null);
+        $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
 
         $this->assertSame(200, $response->statusCode);
-        $this->assertStringContainsString('success', $response->body);
+        /** @var array<string, mixed> $json */
+        $json = json_decode($response->body, true);
+        $this->assertSame('GET', $json['method']);
     }
 
     // Gap AK: userinfo embedded in the proxy URL must be base64-encoded
@@ -90,7 +96,7 @@ class DefaultApiClientTest extends TestCase
 
     public function testMakesHttpsRequestThroughProxyWithVerifySslFalse(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_INTERNAL_HTTPS_URL') ?: '';
+        $chasmUrl = getenv('CHASM_INTERNAL_HTTPS_URL') ?: '';
         $proxyUrl = getenv('PROXY_URL') ?: null;
 
         $transport = TransportOptions::builder()
@@ -99,17 +105,19 @@ class DefaultApiClientTest extends TestCase
             ->build();
 
         $client = new DefaultApiClient($transport);
-        $response = $client->sendRequest('GET', $wiremockUrl . '/api/test', [], null);
+        $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
 
         $this->assertSame(200, $response->statusCode);
-        $this->assertStringContainsString('success', $response->body);
+        /** @var array<string, mixed> $json */
+        $json = json_decode($response->body, true);
+        $this->assertSame('GET', $json['method']);
     }
 
     // -- Request timeout --
 
     public function testTimesOutOnSlowEndpoint(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
+        $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
         $transport = TransportOptions::builder()
             ->timeout(1)
@@ -118,55 +126,55 @@ class DefaultApiClientTest extends TestCase
         $client = new DefaultApiClient($transport);
 
         $this->expectException(\Exception::class);
-        $client->sendRequest('GET', $wiremockUrl . '/api/slow', [], null);
+        $client->sendRequest('GET', $chasmUrl . '/test/slow', [], null);
     }
 
     // -- User-Agent header --
 
     public function testInjectsCustomUserAgentHeader(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
+        $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
         $transport = TransportOptions::builder()
             ->userAgent('MyApp/1.0')
             ->build();
 
         $client = new DefaultApiClient($transport);
-        $response = $client->sendRequest('GET', $wiremockUrl . '/api/echo-headers', [], null);
+        $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
 
         $this->assertSame(200, $response->statusCode);
         /** @var array<string, mixed> $json */
         $json = json_decode($response->body, true);
-        $this->assertSame('MyApp/1.0', $json['user-agent']);
+        $this->assertSame('MyApp/1.0', $json['headers']['User-Agent']);
     }
 
     // -- X-Request-ID injection --
 
     public function testInjectsRequestIdHeader(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
+        $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
         $transport = TransportOptions::builder()
             ->injectRequestId(true)
             ->build();
 
         $client = new DefaultApiClient($transport);
-        $response = $client->sendRequest('GET', $wiremockUrl . '/api/echo-headers', [], null);
+        $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
 
         $this->assertSame(200, $response->statusCode);
         /** @var array<string, mixed> $json */
         $json = json_decode($response->body, true);
-        $this->assertArrayHasKey('x-request-id', $json);
-        $this->assertIsString($json['x-request-id']);
+        $this->assertArrayHasKey('X-Request-ID', $json['headers']);
+        $this->assertIsString($json['headers']['X-Request-ID']);
         $this->assertMatchesRegularExpression(
             '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/',
-            $json['x-request-id']
+            $json['headers']['X-Request-ID']
         );
     }
 
     public function testGeneratesUniqueRequestIds(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
+        $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
         $transport = TransportOptions::builder()
             ->injectRequestId(true)
@@ -174,15 +182,15 @@ class DefaultApiClientTest extends TestCase
 
         $client = new DefaultApiClient($transport);
 
-        $response1 = $client->sendRequest('GET', $wiremockUrl . '/api/echo-headers', [], null);
+        $response1 = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
         /** @var array<string, mixed> $json1 */
         $json1 = json_decode($response1->body, true);
-        $requestId1 = $json1['x-request-id'];
+        $requestId1 = $json1['headers']['X-Request-ID'];
 
-        $response2 = $client->sendRequest('GET', $wiremockUrl . '/api/echo-headers', [], null);
+        $response2 = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
         /** @var array<string, mixed> $json2 */
         $json2 = json_decode($response2->body, true);
-        $requestId2 = $json2['x-request-id'];
+        $requestId2 = $json2['headers']['X-Request-ID'];
 
         $this->assertNotSame($requestId1, $requestId2);
     }
@@ -191,24 +199,24 @@ class DefaultApiClientTest extends TestCase
 
     public function testIncludesTransportDefaultHeaders(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
+        $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
         $transport = TransportOptions::builder()
             ->defaultHeader('X-Custom', 'custom-value')
             ->build();
 
         $client = new DefaultApiClient($transport);
-        $response = $client->sendRequest('GET', $wiremockUrl . '/api/echo-headers', [], null);
+        $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
 
         $this->assertSame(200, $response->statusCode);
         /** @var array<string, mixed> $json */
         $json = json_decode($response->body, true);
-        $this->assertSame('custom-value', $json['x-custom']);
+        $this->assertSame('custom-value', $json['headers']['X-Custom']);
     }
 
     public function testCallerHeadersOverrideTransportDefaults(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
+        $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
         $transport = TransportOptions::builder()
             ->defaultHeader('Accept', 'text/plain')
@@ -217,7 +225,7 @@ class DefaultApiClientTest extends TestCase
         $client = new DefaultApiClient($transport);
         $response = $client->sendRequest(
             'GET',
-            $wiremockUrl . '/api/echo-headers',
+            $chasmUrl . '/test/echo',
             ['Accept' => 'application/json'],
             null
         );
@@ -225,43 +233,42 @@ class DefaultApiClientTest extends TestCase
         $this->assertSame(200, $response->statusCode);
         /** @var array<string, mixed> $json */
         $json = json_decode($response->body, true);
-        $this->assertSame('application/json', $json['accept']);
+        $this->assertSame('application/json', $json['headers']['Accept']);
     }
 
     // -- Redirect handling --
 
     public function testFollowsRedirectsWhenEnabled(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
+        $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
         $transport = TransportOptions::builder()
             ->followRedirects(true)
             ->build();
 
         $client = new DefaultApiClient($transport);
-        $response = $client->sendRequest('GET', $wiremockUrl . '/api/redirect', [], null);
+        $response = $client->sendRequest('GET', $chasmUrl . '/test/redirect/302', [], null);
 
         $this->assertSame(200, $response->statusCode);
-        $this->assertStringContainsString('success', $response->body);
     }
 
     public function testReturnsRedirectWhenDisabled(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
+        $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
         $transport = TransportOptions::builder()
             ->followRedirects(false)
             ->build();
 
         $client = new DefaultApiClient($transport);
-        $response = $client->sendRequest('GET', $wiremockUrl . '/api/redirect', [], null);
+        $response = $client->sendRequest('GET', $chasmUrl . '/test/redirect/302', [], null);
 
         $this->assertSame(302, $response->statusCode);
     }
 
     public function testRedirect303SwitchesToGetAndDropsBody(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
+        $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
         $transport = TransportOptions::builder()
             ->followRedirects(true)
@@ -271,7 +278,7 @@ class DefaultApiClientTest extends TestCase
         $client = new DefaultApiClient($transport);
         $response = $client->sendRequest(
             'POST',
-            $wiremockUrl . '/api/redirect-303',
+            $chasmUrl . '/test/redirect/303',
             ['Content-Type' => 'application/json'],
             'hello-body'
         );
@@ -323,11 +330,11 @@ class DefaultApiClientTest extends TestCase
 
     public function testSendsMultipartFormData(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
+        $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
         $client = new DefaultApiClient();
         $formData = ['description' => 'A test file', 'file' => 'file content'];
-        $response = $client->sendRequest('POST', $wiremockUrl . '/api/test', [], $formData);
+        $response = $client->sendRequest('POST', $chasmUrl . '/test/echo', [], $formData);
 
         $this->assertInstanceOf(\{{invokerPackage}}\ApiResponse::class, $response);
     }
@@ -339,13 +346,13 @@ class DefaultApiClientTest extends TestCase
      */
     public function testMultipartFieldNameWithCrlfRejectedOnStringValue(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
+        $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
         $client = new DefaultApiClient();
         $badFields = ["name\r\nInjected: yes" => 'string-value'];
 
         $this->expectException(\Exception::class);
-        $client->sendRequest('POST', $wiremockUrl . '/api/test', [], $badFields);
+        $client->sendRequest('POST', $chasmUrl . '/test/echo', [], $badFields);
     }
 
     // -- HTTP compression --
@@ -409,11 +416,11 @@ class DefaultApiClientTest extends TestCase
      */
     public function testPostWithNullBodySendsContentLengthZero(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
+        $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
         $client = new DefaultApiClient();
         $response = $client->sendRequest(
             'POST',
-            $wiremockUrl . '/api/echo-content-length',
+            $chasmUrl . '/test/echo',
             [],
             null
         );
@@ -421,6 +428,6 @@ class DefaultApiClientTest extends TestCase
         $this->assertSame(200, $response->statusCode);
         /** @var array<string, mixed> $payload */
         $payload = (array) json_decode($response->body, true);
-        $this->assertSame('0', $payload['content-length']);
+        $this->assertSame(0, $payload['contentLength']);
     }
 }

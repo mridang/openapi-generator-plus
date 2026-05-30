@@ -15,13 +15,13 @@ use petstore::errors::*;
 use petstore::models::*;
 use petstore::*;
 
-// -- Error dispatch via WireMock --
+// -- Error dispatch via chasm --
 
 #[tokio::test]
 async fn test_base_api_error_dispatch_400() {
     let base_url = format!(
-        "{}/api/error/400",
-        testcontainers_helper::wiremock_http_url()
+        "{}/test/status/400",
+        testcontainers_helper::chasm_http_url()
     );
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
@@ -34,8 +34,8 @@ async fn test_base_api_error_dispatch_400() {
 #[tokio::test]
 async fn test_base_api_error_dispatch_401() {
     let base_url = format!(
-        "{}/api/error/401",
-        testcontainers_helper::wiremock_http_url()
+        "{}/test/status/401",
+        testcontainers_helper::chasm_http_url()
     );
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
@@ -48,8 +48,8 @@ async fn test_base_api_error_dispatch_401() {
 #[tokio::test]
 async fn test_base_api_error_dispatch_403() {
     let base_url = format!(
-        "{}/api/error/403",
-        testcontainers_helper::wiremock_http_url()
+        "{}/test/status/403",
+        testcontainers_helper::chasm_http_url()
     );
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
@@ -62,8 +62,8 @@ async fn test_base_api_error_dispatch_403() {
 #[tokio::test]
 async fn test_base_api_error_dispatch_404() {
     let base_url = format!(
-        "{}/api/error/404",
-        testcontainers_helper::wiremock_http_url()
+        "{}/test/status/404",
+        testcontainers_helper::chasm_http_url()
     );
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
@@ -76,8 +76,8 @@ async fn test_base_api_error_dispatch_404() {
 #[tokio::test]
 async fn test_base_api_error_dispatch_409() {
     let base_url = format!(
-        "{}/api/error/409",
-        testcontainers_helper::wiremock_http_url()
+        "{}/test/status/409",
+        testcontainers_helper::chasm_http_url()
     );
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
@@ -90,8 +90,8 @@ async fn test_base_api_error_dispatch_409() {
 #[tokio::test]
 async fn test_base_api_error_dispatch_422() {
     let base_url = format!(
-        "{}/api/error/422",
-        testcontainers_helper::wiremock_http_url()
+        "{}/test/status/422",
+        testcontainers_helper::chasm_http_url()
     );
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
@@ -104,8 +104,8 @@ async fn test_base_api_error_dispatch_422() {
 #[tokio::test]
 async fn test_base_api_error_dispatch_500() {
     let base_url = format!(
-        "{}/api/error/500",
-        testcontainers_helper::wiremock_http_url()
+        "{}/test/status/500",
+        testcontainers_helper::chasm_http_url()
     );
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
@@ -118,8 +118,8 @@ async fn test_base_api_error_dispatch_500() {
 #[tokio::test]
 async fn test_base_api_error_dispatch_502() {
     let base_url = format!(
-        "{}/api/error/502",
-        testcontainers_helper::wiremock_http_url()
+        "{}/test/status/502",
+        testcontainers_helper::chasm_http_url()
     );
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
@@ -134,8 +134,8 @@ async fn test_base_api_error_dispatch_502() {
 #[tokio::test]
 async fn test_base_api_parses_json_error_body() {
     let base_url = format!(
-        "{}/api/error/400",
-        testcontainers_helper::wiremock_http_url()
+        "{}/test/status/400",
+        testcontainers_helper::chasm_http_url()
     );
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
@@ -162,7 +162,7 @@ async fn test_base_api_handles_empty_200_response() {
     let resp = client
         .send_request(
             "GET",
-            &format!("{}/api/empty", testcontainers_helper::wiremock_http_url()),
+            &format!("{}/test/empty", testcontainers_helper::chasm_http_url()),
             &headers,
             None,
         )
@@ -182,15 +182,18 @@ async fn test_base_api_deserializes_json_response() {
     let resp = client
         .send_request(
             "GET",
-            &format!("{}/api/test", testcontainers_helper::wiremock_http_url()),
+            &format!("{}/test/echo", testcontainers_helper::chasm_http_url()),
             &headers,
             None,
         )
         .await
         .expect("unexpected error");
 
+    /* chasm's /test/echo returns a JSON envelope ({method, body, headers, cookies, contentLength}).
+     * The previous WireMock stub returned {"message":"success"}; loosen the check
+     * to assert the response is valid JSON with the expected envelope shape. */
     let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
-    assert_eq!(json["message"], "success");
+    assert_eq!(json["method"], "GET");
 }
 
 // -- Non-JSON response --
@@ -202,7 +205,10 @@ async fn test_base_api_returns_raw_body_for_non_json() {
     let resp = client
         .send_request(
             "GET",
-            &format!("{}/api/text", testcontainers_helper::wiremock_http_url()),
+            &format!(
+                "{}/test/text-plain",
+                testcontainers_helper::chasm_http_url()
+            ),
             &headers,
             None,
         )
@@ -267,18 +273,19 @@ async fn test_base_api_forwards_auth_headers() {
     let resp = client
         .send_request(
             "GET",
-            &format!(
-                "{}/api/echo-headers",
-                testcontainers_helper::wiremock_http_url()
-            ),
+            &format!("{}/test/echo", testcontainers_helper::chasm_http_url()),
             &headers,
             None,
         )
         .await
         .expect("unexpected error");
 
+    /* chasm preserves the original header casing inside the `headers` map of the
+     * echo envelope (e.g. `headers["Authorization"]`). The previous WireMock stub
+     * returned a flat lowercase object; check both shapes in the envelope's headers. */
     let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
-    assert!(json.get("authorization").is_some() || json.get("Authorization").is_some());
+    let h = &json["headers"];
+    assert!(h.get("Authorization").is_some() || h.get("authorization").is_some());
 }
 
 // -- Nil body handling --
@@ -290,7 +297,7 @@ async fn test_base_api_handles_nil_body() {
     let resp = client
         .send_request(
             "GET",
-            &format!("{}/api/test", testcontainers_helper::wiremock_http_url()),
+            &format!("{}/test/echo", testcontainers_helper::chasm_http_url()),
             &headers,
             None,
         )
@@ -623,8 +630,8 @@ fn test_serialize_body_none() {
 #[tokio::test]
 async fn test_base_api_error_dispatch_418() {
     let base_url = format!(
-        "{}/api/error/418",
-        testcontainers_helper::wiremock_http_url()
+        "{}/test/status/418",
+        testcontainers_helper::chasm_http_url()
     );
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
@@ -645,8 +652,8 @@ async fn test_base_api_error_dispatch_418() {
 #[tokio::test]
 async fn test_base_api_not_found_is_client_error() {
     let base_url = format!(
-        "{}/api/error/404",
-        testcontainers_helper::wiremock_http_url()
+        "{}/test/status/404",
+        testcontainers_helper::chasm_http_url()
     );
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
@@ -665,8 +672,8 @@ async fn test_base_api_not_found_is_client_error() {
 #[tokio::test]
 async fn test_base_api_internal_server_error_is_server_error() {
     let base_url = format!(
-        "{}/api/error/500",
-        testcontainers_helper::wiremock_http_url()
+        "{}/test/status/500",
+        testcontainers_helper::chasm_http_url()
     );
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
@@ -1313,7 +1320,7 @@ async fn test_base_api_routes_through_proxy_with_basic_auth() {
      * The point is the URL parser accepts user:pass, not that the proxy
      * actually challenges. Tighten this test when the helper grows a
      * Squid-with-basic-auth fixture. */
-    let wiremock_url = testcontainers_helper::wiremock_internal_http_url();
+    let chasm_url = testcontainers_helper::chasm_internal_http_url();
     let proxy = testcontainers_helper::proxy_url();
     /* Splice credentials into the proxy URL: http://user:pass@host:port */
     let proxy_with_auth = proxy.replacen("http://", "http://proxyuser:proxypass@", 1);
@@ -1323,7 +1330,7 @@ async fn test_base_api_routes_through_proxy_with_basic_auth() {
     let client = petstore::DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let result = client
-        .send_request("GET", &format!("{}/api/test", wiremock_url), &headers, None)
+        .send_request("GET", &format!("{}/test/echo", chasm_url), &headers, None)
         .await;
     /* Either Ok(any status) or Err -- both are acceptable shapes here.
      * The test verifies the proxy URL was parsed and applied without panic. */
