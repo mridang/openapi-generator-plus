@@ -89,6 +89,14 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         // validates the canonical 8-4-4-4-12 hex shape.
         typeMapping.put("UUID", "UUID");
         typeMapping.put("URI", "string");
+        // 4.8: `format: time` (RFC 3339 partial-time) and `format: duration`
+        // (ISO 8601 duration). Node has no native time-of-day or duration
+        // type, so we adopt `temporal-polyfill` which ships the TC39 Temporal
+        // proposal. PlainTime/Duration round-trip via their `.from(string)`
+        // factory and `.toString()` — wired up at the ObjectSerializer
+        // boundary and via @Transform decorators on the model fields.
+        typeMapping.put("time", "Temporal.PlainTime");
+        typeMapping.put("duration", "Temporal.Duration");
         typeMapping.put("object", "object");
         typeMapping.put("AnyType", "unknown");
         typeMapping.put("array", "Array");
@@ -100,7 +108,11 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 new HashSet<>(
                         Arrays.asList(
                                 "number", "boolean", "string", "object", "any", "unknown",
-                                "void", "undefined", "null", "Array", "Set", "Buffer", "UUID"));
+                                "void", "undefined", "null", "Array", "Set", "Buffer", "UUID",
+                                // 4.8 — Temporal.* types come from `temporal-polyfill`,
+                                // not from generated models, so the model-import filter
+                                // must not treat them as model classes.
+                                "Temporal.PlainTime", "Temporal.Duration"));
 
         reservedWords = loadReservedWords("/reserved-words/node.txt");
 
@@ -832,6 +844,40 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     protected boolean shouldApplyTypeDecorators() {
         return true;
+    }
+
+    /**
+     * 4.8 — Flag any model that has at least one {@code Temporal.PlainTime}
+     * or {@code Temporal.Duration} property so the model template emits the
+     * {@code import { Temporal } from 'temporal-polyfill'} line. The Gap 14
+     * {@code type:} substring matcher matches "Temporal." against the
+     * property's {@code dataType}, so a single flag covers both PlainTime
+     * and Duration.
+     */
+    @Override
+    protected Map<String, String> getModelContextFlags() {
+        return Map.of("type:Temporal.", "hasTemporalImport");
+    }
+
+    /**
+     * 4.8 — Set per-property {@code isTimeFormat} / {@code isDurationFormat}
+     * boolean flags on {@link CodegenProperty#vendorExtensions} so the model
+     * template can branch on the OAS format without doing string equality on
+     * {@code dataType}. Upstream populates {@link CodegenProperty#dataFormat}
+     * directly from the schema's {@code format:}, so this is the simplest way
+     * to surface it to Mustache (which lacks string equality).
+     */
+    @Override
+    public void postProcessModelProperty(
+            org.openapitools.codegen.CodegenModel model,
+            org.openapitools.codegen.CodegenProperty property) {
+        super.postProcessModelProperty(model, property);
+        if ("time".equals(property.dataFormat)) {
+            property.vendorExtensions.put("isTimeFormat", true);
+        }
+        if ("duration".equals(property.dataFormat)) {
+            property.vendorExtensions.put("isDurationFormat", true);
+        }
     }
 
     /**

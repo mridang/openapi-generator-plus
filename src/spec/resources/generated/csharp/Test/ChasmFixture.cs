@@ -25,7 +25,7 @@ public class ChasmFixture : IAsyncLifetime
     public string InternalHttpsUrl { get; } = "https://chasm:8443";
     public string ProxyUrl { get; private set; } = string.Empty;
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         var hostAppPath =
             Environment.GetEnvironmentVariable("HOST_APP_PATH") ?? Directory.GetCurrentDirectory();
@@ -77,7 +77,7 @@ public class ChasmFixture : IAsyncLifetime
         Environment.SetEnvironmentVariable("API_BASE_URL", BaseUrl);
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         await _squid.DisposeAsync();
         await _chasm.DisposeAsync();

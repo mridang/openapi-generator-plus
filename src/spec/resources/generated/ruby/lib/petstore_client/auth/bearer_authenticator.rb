@@ -23,7 +23,7 @@ module PetstoreClient
         # silently-mangled non-ASCII bytes.
         if token.match?(/[^\t\x20-\x7E]/)
           raise ArgumentError,
-            'Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)'
+                'Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)'
         end
         @host = host
         @token = token

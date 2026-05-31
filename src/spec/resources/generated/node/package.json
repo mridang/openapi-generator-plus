@@ -22,7 +22,8 @@
   },
   "dependencies": {
     "class-transformer": "^0.5",
-    "reflect-metadata": "^0.2"
+    "reflect-metadata": "^0.2",
+    "temporal-polyfill": "^0.3"
   },
   "devDependencies": {
     "typescript": "^5.7",

@@ -361,9 +361,12 @@ class {{classname}} {
 {{#isUuid}}
       {{name}}: UuidValue.fromString(json['{{baseName}}'] as String),
 {{/isUuid}}
-{{^isDateTime}}{{^isDate}}{{^isUuid}}
+{{#isDuration}}
+      {{name}}: parseIso8601Duration(json['{{baseName}}'] as String),
+{{/isDuration}}
+{{^isDateTime}}{{^isDate}}{{^isUuid}}{{^isDuration}}
       {{name}}: json['{{baseName}}'] as {{{dataType}}},
-{{/isUuid}}{{/isDate}}{{/isDateTime}}
+{{/isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
       {{name}}: {{{dataType}}}.fromJson(json['{{baseName}}'] as Map<String, dynamic>),
@@ -419,14 +422,17 @@ class {{classname}} {
 {{#isUuid}}
       {{name}}: json['{{baseName}}'] != null ? UuidValue.fromString(json['{{baseName}}'] as String) : null,
 {{/isUuid}}
-{{^isDateTime}}{{^isDate}}{{^isUuid}}
+{{#isDuration}}
+      {{name}}: json['{{baseName}}'] != null ? parseIso8601Duration(json['{{baseName}}'] as String) : null,
+{{/isDuration}}
+{{^isDateTime}}{{^isDate}}{{^isUuid}}{{^isDuration}}
 {{#defaultValue}}
       {{name}}: json['{{baseName}}'] != null ? json['{{baseName}}'] as {{{dataType}}} : {{{defaultValue}}},
 {{/defaultValue}}
 {{^defaultValue}}
       {{name}}: json['{{baseName}}'] as {{{dataType}}}?,
 {{/defaultValue}}
-{{/isUuid}}{{/isDate}}{{/isDateTime}}
+{{/isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
 {{#defaultValue}}
@@ -487,9 +493,12 @@ class {{classname}} {
 {{#isUuid}}
     json['{{baseName}}'] = {{name}}.toString();
 {{/isUuid}}
-{{^isDateTime}}{{^isDate}}{{^isUuid}}
+{{#isDuration}}
+    json['{{baseName}}'] = formatIso8601Duration({{name}});
+{{/isDuration}}
+{{^isDateTime}}{{^isDate}}{{^isUuid}}{{^isDuration}}
     json['{{baseName}}'] = {{name}};
-{{/isUuid}}{{/isDate}}{{/isDateTime}}
+{{/isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
 {{#isMap}}
@@ -539,9 +548,12 @@ class {{classname}} {
 {{#isUuid}}
       json['{{baseName}}'] = {{name}}?.toString();
 {{/isUuid}}
-{{^isDateTime}}{{^isDate}}{{^isUuid}}
+{{#isDuration}}
+      json['{{baseName}}'] = formatIso8601Duration({{name}}!);
+{{/isDuration}}
+{{^isDateTime}}{{^isDate}}{{^isUuid}}{{^isDuration}}
       json['{{baseName}}'] = {{name}};
-{{/isUuid}}{{/isDate}}{{/isDateTime}}
+{{/isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
 {{#isMap}}

@@ -404,4 +404,98 @@ import Testing
         let decoded = try ObjectSerializer.deserialize(json, as: Holder.self)
         #expect(decoded?.id == nil)
     }
+
+    // MARK: - ISO-8601 Duration (format:duration)
+
+    @Test func testDurationParseHoursAndMinutes() throws {
+        let value = try ObjectSerializer.decodeDuration("PT1H30M")
+        #expect(value == 5_400)
+    }
+
+    @Test func testDurationParseDaysHoursMinutesSeconds() throws {
+        let value = try ObjectSerializer.decodeDuration("P1DT2H3M4S")
+        #expect(value == 86_400 + 7_200 + 180 + 4)
+    }
+
+    @Test func testDurationParseFractionalSeconds() throws {
+        let value = try ObjectSerializer.decodeDuration("PT15.5S")
+        #expect(value == 15.5)
+    }
+
+    @Test func testDurationParseCommaDecimalSeparator() throws {
+        let value = try ObjectSerializer.decodeDuration("PT15,25S")
+        #expect(value == 15.25)
+    }
+
+    @Test func testDurationParseWeeks() throws {
+        let value = try ObjectSerializer.decodeDuration("P2W")
+        #expect(value == 14 * 86_400)
+    }
+
+    @Test func testDurationParseNegative() throws {
+        let value = try ObjectSerializer.decodeDuration("-PT5M")
+        #expect(value == -300)
+    }
+
+    @Test func testDurationParseRejectsEmpty() {
+        #expect(throws: (any Error).self) {
+            try ObjectSerializer.decodeDuration("")
+        }
+    }
+
+    @Test func testDurationParseRejectsMissingP() {
+        #expect(throws: (any Error).self) {
+            try ObjectSerializer.decodeDuration("T1H")
+        }
+    }
+
+    @Test func testDurationParseRejectsNoComponents() {
+        #expect(throws: (any Error).self) {
+            try ObjectSerializer.decodeDuration("P")
+        }
+    }
+
+    @Test func testDurationParseRejectsUnknownDesignator() {
+        #expect(throws: (any Error).self) {
+            try ObjectSerializer.decodeDuration("P1X")
+        }
+    }
+
+    @Test func testDurationFormatZero() {
+        #expect(ObjectSerializer.encodeDuration(0) == "PT0S")
+    }
+
+    @Test func testDurationFormatHoursMinutesSeconds() {
+        #expect(ObjectSerializer.encodeDuration(3_725) == "PT1H2M5S")
+    }
+
+    @Test func testDurationFormatDays() {
+        #expect(ObjectSerializer.encodeDuration(2 * 86_400) == "P2D")
+    }
+
+    @Test func testDurationFormatNegative() {
+        #expect(ObjectSerializer.encodeDuration(-300) == "-PT5M")
+    }
+
+    @Test func testDurationFormatFractionalSeconds() {
+        let out = ObjectSerializer.encodeDuration(1.5)
+        #expect(out == "PT1.5S")
+    }
+
+    @Test func testDurationRoundTrip() throws {
+        let original: TimeInterval = 86_400 + 7_200 + 180 + 4
+        let literal = ObjectSerializer.encodeDuration(original)
+        let parsed = try ObjectSerializer.decodeDuration(literal)
+        #expect(parsed == original)
+    }
+
+    // MARK: - format:time (validated String)
+
+    @Test func testTimeFormatStaysAsString() throws {
+        // format:time maps to String — round-trip the wire value unchanged.
+        struct Holder: Codable { let at: String }
+        let json = "{\"at\":\"14:30:00\"}"
+        let decoded = try ObjectSerializer.deserialize(json, as: Holder.self)
+        #expect(decoded?.at == "14:30:00")
+    }
 }

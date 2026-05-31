@@ -30,6 +30,7 @@ pub mod configuration;
 pub mod default_api_client;
 pub mod errors;
 pub mod header_selector;
+pub mod iso8601_duration;
 pub mod models;
 pub mod object_serializer;
 pub mod server_configuration;

@@ -4,6 +4,8 @@
 
 require 'test_helper'
 require 'base64'
+require 'iso8601'
+require 'tod'
 
 # Stub enum modules for ObjectSerializer enum-handling tests.
 # Defined at file scope to avoid Lint/ConstantDefinitionInBlock and to ensure
@@ -528,6 +530,95 @@ describe PetstoreClient::ObjectSerializer do
       model = PetstoreClient::Models::TestFormatModel.new(identifier: uuid)
       json = PetstoreClient::ObjectSerializer.serialize(model)
       _(JSON.parse(json)['identifier']).must_equal(uuid)
+    end
+  end
+
+  # ── format: time (Tod::TimeOfDay surface, 4.8) ──
+
+  describe 'format: time round-tripping' do
+    it 'stringify emits HH:MM:SS for a Tod::TimeOfDay' do
+      t = Tod::TimeOfDay.new(13, 45, 30)
+      _(PetstoreClient::ObjectSerializer.stringify(t)).must_equal('13:45:30')
+    end
+
+    it 'serialize emits HH:MM:SS for a Tod::TimeOfDay inside a hash' do
+      t = Tod::TimeOfDay.new(9, 0, 0)
+      json = PetstoreClient::ObjectSerializer.serialize({ 'opens_at' => t })
+      _(JSON.parse(json)['opens_at']).must_equal('09:00:00')
+    end
+
+    it 'convert_to_type parses HH:MM:SS into a Tod::TimeOfDay' do
+      result = PetstoreClient::ObjectSerializer.convert_to_type('13:45:30', 'Tod::TimeOfDay')
+      _(result).must_be_kind_of(Tod::TimeOfDay)
+      _(result.hour).must_equal(13)
+      _(result.minute).must_equal(45)
+      _(result.second).must_equal(30)
+    end
+
+    it 'convert_to_type passes through an existing Tod::TimeOfDay' do
+      original = Tod::TimeOfDay.new(7, 30, 15)
+      result = PetstoreClient::ObjectSerializer.convert_to_type(original, 'Tod::TimeOfDay')
+      _(result).must_equal(original)
+    end
+
+    it 'round-trip time yields equivalent value' do
+      original = Tod::TimeOfDay.new(7, 30, 15)
+      serialized = PetstoreClient::ObjectSerializer.stringify(original)
+      parsed = PetstoreClient::ObjectSerializer.convert_to_type(serialized, 'Tod::TimeOfDay')
+      _(parsed).must_equal(original)
+    end
+
+    it 'convert_to_type raises on malformed time string' do
+      assert_raises(ArgumentError) do
+        PetstoreClient::ObjectSerializer.convert_to_type('not-a-time', 'Tod::TimeOfDay')
+      end
+    end
+  end
+
+  # ── format: duration (ISO8601::Duration surface, 4.8) ──
+
+  describe 'format: duration round-tripping' do
+    it 'stringify emits canonical ISO-8601 for an ISO8601::Duration' do
+      d = ISO8601::Duration.new('PT1H30M')
+      out = PetstoreClient::ObjectSerializer.stringify(d)
+      _(out).must_equal('PT1H30M')
+    end
+
+    it 'serialize emits the canonical duration string inside a hash' do
+      d = ISO8601::Duration.new('PT5M')
+      json = PetstoreClient::ObjectSerializer.serialize({ 'ttl' => d })
+      _(JSON.parse(json)['ttl']).must_equal('PT5M')
+    end
+
+    it 'serialize emits a duration with days' do
+      d = ISO8601::Duration.new('P2DT3H')
+      json = PetstoreClient::ObjectSerializer.serialize({ 'window' => d })
+      _(JSON.parse(json)['window']).must_equal('P2DT3H')
+    end
+
+    it 'convert_to_type parses ISO-8601 into an ISO8601::Duration' do
+      result = PetstoreClient::ObjectSerializer.convert_to_type('PT1H30M', 'ISO8601::Duration')
+      _(result).must_be_kind_of(ISO8601::Duration)
+      _(result.to_seconds).must_equal(5400)
+    end
+
+    it 'convert_to_type passes through an existing ISO8601::Duration' do
+      original = ISO8601::Duration.new('PT1H')
+      result = PetstoreClient::ObjectSerializer.convert_to_type(original, 'ISO8601::Duration')
+      _(result).must_equal(original)
+    end
+
+    it 'round-trip duration yields equivalent value' do
+      original = ISO8601::Duration.new('P1DT2H3M4S')
+      serialized = PetstoreClient::ObjectSerializer.stringify(original)
+      parsed = PetstoreClient::ObjectSerializer.convert_to_type(serialized, 'ISO8601::Duration')
+      _(parsed.to_seconds).must_equal(original.to_seconds)
+    end
+
+    it 'convert_to_type raises on malformed duration string' do
+      assert_raises(StandardError) do
+        PetstoreClient::ObjectSerializer.convert_to_type('not-a-duration', 'ISO8601::Duration')
+      end
     end
   end
 end

@@ -381,19 +381,24 @@ void main() {
       );
     });
 
-    test('throws when token request fails', skip: 'Dart OAuth2 token-manager error-mapping shape needs review (FakeApiClient enqueue path)', () async {
+    test('throws when token request fails', () async {
       final client = _FakeApiClient();
       client.enqueue('{"error":"invalid_client"}', statusCode: 401);
 
       final manager = OAuth2TokenManager();
       manager.setApiClient(client);
 
-      expect(
+      /* The token manager maps a 4xx token-endpoint response to a
+       * typed OAuth2TokenError (see oauth2_token_manager.mustache
+       * `_parseOAuth2ServerError`). Tests use that type — not the
+       * generic StateError used elsewhere — so callers can
+       * `catch (OAuth2TokenError)` and recover with a refresh. */
+      await expectLater(
         () => manager.getAccessToken(
           'https://auth.example.com/token',
           {'grant_type': 'client_credentials'},
         ),
-        throwsA(isA<StateError>()),
+        throwsA(isA<OAuth2TokenError>()),
       );
     });
   });

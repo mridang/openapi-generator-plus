@@ -8,6 +8,7 @@
 import { ObjectSerializer } from '../src/object-serializer.js';
 import { Category, DryFood, WetFood, PetPassport } from '../src/models/index.js';
 import { uuid, isUuid } from '../src/brand.js';
+import { Temporal } from 'temporal-polyfill';
 
 describe('ObjectSerializer', () => {
   describe('DateTimeOffsetPreservationTests', () => {
@@ -468,6 +469,99 @@ describe('ObjectSerializer', () => {
       expect(dry).toBeInstanceOf(DryFood);
       expect(dry!.foodType).toBe('dry');
       expect(dry!.weightKg).toBe(2.5);
+    });
+  });
+
+  describe('TemporalRoundTrip (4.8)', () => {
+    // 4.8 — `format: time` maps to Temporal.PlainTime; `format: duration` to
+    // Temporal.Duration. Both come from `temporal-polyfill` and round-trip
+    // through their ISO 8601 canonical string form. These tests exercise the
+    // ObjectSerializer scalar paths directly — generated model field
+    // round-trip is covered by the model-level constructor + @Transform
+    // decorators emitted by model.mustache.
+
+    describe('Temporal.PlainTime', () => {
+      test('stringify: PlainTime emits canonical HH:MM:SS', () => {
+        const t = Temporal.PlainTime.from('14:30:00');
+        expect(ObjectSerializer.stringify(t)).toBe('14:30:00');
+      });
+
+      test('stringify: PlainTime preserves sub-second precision', () => {
+        const t = Temporal.PlainTime.from('09:15:30.250');
+        expect(ObjectSerializer.stringify(t)).toBe('09:15:30.25');
+      });
+
+      test('toQueryValue: PlainTime serialises to its ISO string', () => {
+        const t = Temporal.PlainTime.from('06:00:00');
+        expect(ObjectSerializer.toQueryValue(t)).toBe('06:00:00');
+      });
+
+      test('toHeaderValue: PlainTime serialises to its ISO string', () => {
+        const t = Temporal.PlainTime.from('23:59:59');
+        expect(ObjectSerializer.toHeaderValue(t)).toBe('23:59:59');
+      });
+
+      test('toPathValue: PlainTime serialises to its ISO string', () => {
+        const t = Temporal.PlainTime.from('00:00:00');
+        expect(ObjectSerializer.toPathValue(t)).toBe('00:00:00');
+      });
+
+      test('serialize: PlainTime in a plain object becomes a JSON string', () => {
+        const json = ObjectSerializer.serialize({ openAt: Temporal.PlainTime.from('08:00:00') });
+        expect(JSON.parse(json)).toEqual({ openAt: '08:00:00' });
+      });
+
+      test('Temporal.PlainTime.from: rejects a malformed time string', () => {
+        expect(() => Temporal.PlainTime.from('25:99:99')).toThrow();
+      });
+
+      test('round-trip: stringify then PlainTime.from yields an equal value', () => {
+        const original = Temporal.PlainTime.from('11:22:33');
+        const restored = Temporal.PlainTime.from(ObjectSerializer.stringify(original));
+        expect(restored.equals(original)).toBe(true);
+      });
+    });
+
+    describe('Temporal.Duration', () => {
+      test('stringify: Duration emits canonical ISO 8601 (PT15M)', () => {
+        const d = Temporal.Duration.from({ minutes: 15 });
+        expect(ObjectSerializer.stringify(d)).toBe('PT15M');
+      });
+
+      test('stringify: hours/minutes/seconds composite duration', () => {
+        const d = Temporal.Duration.from('PT2H30M15S');
+        expect(ObjectSerializer.stringify(d)).toBe('PT2H30M15S');
+      });
+
+      test('stringify: day-level duration uses P prefix', () => {
+        const d = Temporal.Duration.from('P3D');
+        expect(ObjectSerializer.stringify(d)).toBe('P3D');
+      });
+
+      test('toQueryValue: Duration serialises to its ISO 8601 string', () => {
+        const d = Temporal.Duration.from('PT45S');
+        expect(ObjectSerializer.toQueryValue(d)).toBe('PT45S');
+      });
+
+      test('toHeaderValue: Duration serialises to its ISO 8601 string', () => {
+        const d = Temporal.Duration.from('PT1H');
+        expect(ObjectSerializer.toHeaderValue(d)).toBe('PT1H');
+      });
+
+      test('serialize: Duration in a plain object becomes a JSON string', () => {
+        const json = ObjectSerializer.serialize({ ttl: Temporal.Duration.from('PT5M') });
+        expect(JSON.parse(json)).toEqual({ ttl: 'PT5M' });
+      });
+
+      test('Temporal.Duration.from: rejects a malformed duration string', () => {
+        expect(() => Temporal.Duration.from('not-a-duration')).toThrow();
+      });
+
+      test('round-trip: stringify then Duration.from yields an equivalent value', () => {
+        const original = Temporal.Duration.from('PT1H30M');
+        const restored = Temporal.Duration.from(ObjectSerializer.stringify(original));
+        expect(restored.total('seconds')).toBe(original.total('seconds'));
+      });
     });
   });
 });

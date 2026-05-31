@@ -73,6 +73,16 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         typeMapping.put("decimal", "Double");
         typeMapping.put("date", "String");
         typeMapping.put("DateTime", "Date");
+        // 4.8: format:time and format:duration. Foundation has no civil-time
+        // type (Date is an instant, not a wall-clock HH:MM:SS), so `time`
+        // stays a String validated at the call site. `duration` maps to
+        // TimeInterval (alias for Double seconds) — Swift's stdlib-native
+        // duration scalar. DateComponents could model it structurally but
+        // has no ISO-8601 parser; the generated ISO8601Duration.swift file
+        // ships parseISO8601Duration / formatISO8601Duration helpers for
+        // converting between TimeInterval and the canonical PnDTnHnMnS form.
+        typeMapping.put("time", "String");
+        typeMapping.put("duration", "TimeInterval");
         typeMapping.put("array", "Array");
         typeMapping.put("List", "Array");
         typeMapping.put("set", "Set");
@@ -97,6 +107,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                                 "Double",
                                 "Data",
                                 "Date",
+                                "TimeInterval",
                                 "UUID",
                                 "Void",
                                 "Any",
@@ -262,6 +273,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/unprocessable_entity_error.mustache", errorsDir, "UnprocessableEntityError.swift"),
             new SupportingFileSpec("errors/internal_server_error.mustache", errorsDir, "InternalServerError.swift"),
             new SupportingFileSpec("header_selector.mustache", srcDir, "HeaderSelector.swift"),
+            new SupportingFileSpec("iso8601_duration.mustache", srcDir, "ISO8601Duration.swift"),
             new SupportingFileSpec("object_serializer.mustache", srcDir, "ObjectSerializer.swift"),
             new SupportingFileSpec("value_serializer.mustache", srcDir, "ValueSerializer.swift"),
             new SupportingFileSpec("trace_context_util.mustache", srcDir, "TraceContextUtil.swift"),

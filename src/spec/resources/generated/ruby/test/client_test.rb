@@ -50,12 +50,12 @@ describe PetstoreClient::Client do
     # mangling that varies per HTTP lib.
     _(-> {
       PetstoreClient::Auth::ApiKeyAuthenticator.new('/api/v3', 'X-Api-Key', "abc\r\nInjected: yes",
-        PetstoreClient::Auth::ApiKeyLocation::HEADER)
+                                                    PetstoreClient::Auth::ApiKeyLocation::HEADER)
     }).must_raise ArgumentError
 
     _(-> {
       PetstoreClient::Auth::ApiKeyAuthenticator.new('/api/v3', 'X-Api-Key', 'kéy',
-        PetstoreClient::Auth::ApiKeyLocation::HEADER)
+                                                    PetstoreClient::Auth::ApiKeyLocation::HEADER)
     }).must_raise ArgumentError
 
     # Non-header locations accept arbitrary chars.

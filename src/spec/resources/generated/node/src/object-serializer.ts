@@ -7,6 +7,7 @@
 
 import 'reflect-metadata';
 import { plainToInstance, type ClassConstructor } from 'class-transformer';
+import { Temporal } from 'temporal-polyfill';
 import * as models from './models/index.js';
 
 /**
@@ -142,6 +143,14 @@ export class ObjectSerializer {
          * its toJSON which yields `{ type: 'Buffer', data: [...] }`.
          */
         if (Buffer.isBuffer(this[_key])) return (this[_key] as Buffer).toString('base64');
+        /**
+         * 4.8 — `format: time` and `format: duration` map to
+         * Temporal.PlainTime / Temporal.Duration. Both serialise to their
+         * canonical ISO 8601 string via toString(); without this branch
+         * JSON.stringify would emit the polyfill's internal object shape.
+         */
+        if (this[_key] instanceof Temporal.PlainTime) return (this[_key] as Temporal.PlainTime).toString();
+        if (this[_key] instanceof Temporal.Duration) return (this[_key] as Temporal.Duration).toString();
         if (value === null && _key !== '') return undefined;
         return value;
       });
@@ -306,6 +315,18 @@ export class ObjectSerializer {
     }
     if (value instanceof Date) {
       return ObjectSerializer.formatDateTimeOffset(value);
+    }
+    /**
+     * 4.8 — Temporal types: emit their canonical ISO 8601 representation
+     * (e.g. "14:30:00" for PlainTime, "PT15M" for Duration). Calling the
+     * default String() would invoke the polyfill's toString, but going
+     * through `.toString()` explicitly documents the wire shape.
+     */
+    if (value instanceof Temporal.PlainTime) {
+      return value.toString();
+    }
+    if (value instanceof Temporal.Duration) {
+      return value.toString();
     }
     return String(value);
   }

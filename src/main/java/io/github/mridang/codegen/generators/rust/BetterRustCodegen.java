@@ -86,6 +86,17 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         // RFC-3339 string by default (compatible with OAS).
         typeMapping.put("date", "chrono::NaiveDate");
         typeMapping.put("DateTime", "chrono::DateTime<chrono::Utc>");
+        // Gap 4.8: `format: time` maps to `chrono::NaiveTime`, which serde-
+        // serialises as an RFC-3339 partial-time string ("HH:MM:SS[.fff]")
+        // out of the box (via the `serde` feature already enabled on
+        // chrono). `format: duration` maps to `chrono::Duration`; chrono's
+        // built-in serde impl writes Durations as integer milliseconds —
+        // not ISO-8601 — so the generated model template applies
+        // `#[serde(with = "crate::iso8601_duration")]` to fields whose
+        // {{isDuration}} is truthy, routing them through the hand-rolled
+        // helper in src/iso8601_duration.rs.
+        typeMapping.put("time", "chrono::NaiveTime");
+        typeMapping.put("duration", "chrono::Duration");
         typeMapping.put("array", "Vec");
         typeMapping.put("List", "Vec");
         typeMapping.put("set", "std::collections::HashSet");
@@ -443,6 +454,8 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 new SupportingFileSpec("errors/mod.mustache", "src/errors", "mod.rs"),
                 new SupportingFileSpec(
                         "models/base64_serde.mustache", "src/models", "base64_serde.rs"),
+                new SupportingFileSpec(
+                        "iso8601_duration.mustache", "src", "iso8601_duration.rs"),
                 new SupportingFileSpec("header_selector.mustache", "src", "header_selector.rs"),
                 new SupportingFileSpec(
                         "object_serializer.mustache", "src", "object_serializer.rs"),

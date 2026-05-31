@@ -89,6 +89,14 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         typeMapping.put("decimal", "Float");
         typeMapping.put("date", "Date");
         typeMapping.put("DateTime", "Time");
+        // 4.8: format: time → tod gem (Tod::TimeOfDay) — no native
+        // time-of-day type in Ruby stdlib; tod is the canonical small,
+        // focused, well-maintained library for this surface.
+        typeMapping.put("time", "Tod::TimeOfDay");
+        // 4.8: format: duration → iso8601 gem (ISO8601::Duration) — Ruby
+        // stdlib has no ISO-8601 duration parser; iso8601 is small and
+        // well-maintained, far lighter than ActiveSupport::Duration.
+        typeMapping.put("duration", "ISO8601::Duration");
         typeMapping.put("array", "Array");
         typeMapping.put("set", "Set");
         typeMapping.put("List", "Array");
@@ -106,6 +114,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                 new HashSet<>(
                         Arrays.asList(
                                 "String", "Boolean", "Integer", "Float", "Date", "Time",
+                                "Tod::TimeOfDay", "ISO8601::Duration",
                                 "Array", "Set", "Hash", "File", "Object"));
 
         instantiationTypes.put("map", "Hash");

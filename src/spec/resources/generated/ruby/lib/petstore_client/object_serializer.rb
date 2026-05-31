@@ -9,9 +9,11 @@
 
 require 'base64'
 require 'date'
+require 'iso8601'
 require 'json'
 require 'set'
 require 'time'
+require 'tod'
 
 module PetstoreClient
   # Exception raised when serialization or deserialization fails.
@@ -103,6 +105,13 @@ module PetstoreClient
         value ? 'true' : 'false'
       when Time, DateTime
         value.strftime(DEFAULT_DATETIME_FORMAT)
+      when Tod::TimeOfDay
+        # 4.8: format: time → HH:MM:SS wire form (seconds precision).
+        value.strftime('%H:%M:%S')
+      when ISO8601::Duration
+        # 4.8: format: duration → canonical ISO-8601 duration string
+        # (e.g. PT1H30M). ISO8601::Duration#to_s already emits this.
+        value.to_s
       else
         value.to_s
       end
@@ -168,6 +177,12 @@ module PetstoreClient
         object.to_s
       when Time, DateTime
         object.strftime(DEFAULT_DATETIME_FORMAT)
+      when Tod::TimeOfDay
+        # 4.8: format: time — emit HH:MM:SS for JSON wire form.
+        object.strftime('%H:%M:%S')
+      when ISO8601::Duration
+        # 4.8: format: duration — emit canonical ISO-8601 string.
+        object.to_s
       when Array, Set, Hash
         visited ||= Set.new
         obj_id = object.object_id
@@ -256,6 +271,20 @@ module PetstoreClient
         Time.parse(data.to_s)
       when 'Date'
         Date.parse(data.to_s)
+      when 'Tod::TimeOfDay'
+        # 4.8: format: time — parse HH:MM[:SS] from the wire.
+        # Tod::TimeOfDay.parse raises ArgumentError on malformed input,
+        # which is wrapped into SerializationError by the outer rescue.
+        return data if data.is_a?(Tod::TimeOfDay)
+
+        Tod::TimeOfDay.parse(data.to_s)
+      when 'ISO8601::Duration'
+        # 4.8: format: duration — parse canonical ISO-8601 duration.
+        # ISO8601::Duration.new raises ISO8601::Errors::UnknownPattern
+        # on malformed input; the outer rescue wraps it.
+        return data if data.is_a?(ISO8601::Duration)
+
+        ISO8601::Duration.new(data.to_s)
       when 'Object'
         data
       when /\AArray<(.+)>\z/

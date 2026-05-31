@@ -167,14 +167,16 @@ class DefaultApiClient implements ApiClient {
      * We disable auto-redirect on the underlying request and follow
      * Location headers manually below, stripping sensitive headers
      * when the next URL's origin differs from the original. */
-    if (body is Map<String, Object>) {
+    if (body is Map<String, Object?>) {
       final multipartRequest = http.MultipartRequest(method, uri);
       multipartRequest.headers.addAll(merged);
       for (final entry in body.entries) {
         final name = entry.key;
         final value = entry.value;
+        if (value == null) continue;
         if (value is List) {
           for (final item in value) {
+            if (item == null) continue;
             _addMultipartField(multipartRequest, name, item as Object);
           }
         } else {
@@ -193,6 +195,13 @@ class DefaultApiClient implements ApiClient {
       standardRequest.followRedirects = false;
       if (body is Uint8List) {
         standardRequest.bodyBytes = body;
+      } else if (body is String) {
+        /* String bodies (e.g. pre-serialised multipart payloads handed
+         * in directly by tests or callers that build their own
+         * envelope) need to flow to the wire as UTF-8 bytes. Previously
+         * we silently dropped them, which made the multipart-replay
+         * test pass for the wrong reason. */
+        standardRequest.bodyBytes = Uint8List.fromList(utf8.encode(body));
       } else if (body == null) {
         /* Some servers / WAFs treat POST/PUT/PATCH with no body and no
            Content-Length as malformed (411 Length Required). Setting
@@ -290,6 +299,12 @@ class DefaultApiClient implements ApiClient {
           next.followRedirects = false;
           if (nextBody is Uint8List) {
             next.bodyBytes = nextBody;
+          } else if (nextBody is String) {
+            /* RFC 7231 §6.4.7 / RFC 7538: 307/308 must replay the
+             * original method and body. A String body (e.g. a
+             * pre-built multipart envelope) is re-encoded as UTF-8
+             * bytes on each hop so the form parts arrive intact. */
+            next.bodyBytes = Uint8List.fromList(utf8.encode(nextBody));
           }
           currentUri = nextUri;
           currentMethod = nextMethod;

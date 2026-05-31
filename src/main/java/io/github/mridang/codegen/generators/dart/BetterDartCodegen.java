@@ -78,6 +78,20 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         typeMapping.put("decimal", "double");
         typeMapping.put("date", "String");
         typeMapping.put("DateTime", "DateTime");
+        // 4.8: format:time → RFC 3339 partial-time (e.g. "14:30:00").
+        // Dart has no civil-time type outside Flutter (TimeOfDay), and
+        // pulling in Flutter for a single struct would explode the
+        // dependency surface for any non-UI consumer. Keep `time` as
+        // `String`; the generated object_serializer.dart ships a
+        // regex-validated guard (HH:MM:SS(.fff)?) callers may use.
+        // 4.8: format:duration → ISO-8601 duration (e.g. "P1DT2H").
+        // Dart's stdlib `Duration` does NOT round-trip through JSON
+        // as ISO-8601 (its toString() prints "HH:MM:SS.mmmmmm"), so
+        // the generated iso8601_duration.dart helper provides
+        // parseIso8601Duration / formatIso8601Duration to bridge the
+        // wire format and `Duration`. No 3rd-party dep required.
+        typeMapping.put("time", "String");
+        typeMapping.put("duration", "Duration");
         typeMapping.put("array", "List");
         typeMapping.put("List", "List");
         typeMapping.put("set", "Set");
@@ -107,6 +121,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                                 "void",
                                 "Null",
                                 "DateTime",
+                                "Duration",
                                 "List<int>",
                                 "UuidValue"));
 
@@ -292,6 +307,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("errors/internal_server_error.mustache", errorsDir, "internal_server_error.dart"),
             new SupportingFileSpec("header_selector.mustache", srcDir, "header_selector.dart"),
             new SupportingFileSpec("object_serializer.mustache", srcDir, "object_serializer.dart"),
+            new SupportingFileSpec("iso8601_duration.mustache", srcDir, "iso8601_duration.dart"),
             new SupportingFileSpec("value_serializer.mustache", srcDir, "value_serializer.dart"),
             new SupportingFileSpec("trace_context_util.mustache", srcDir, "trace_context_util.dart"),
             new SupportingFileSpec("api_response.mustache", srcDir, "api_response.dart"),

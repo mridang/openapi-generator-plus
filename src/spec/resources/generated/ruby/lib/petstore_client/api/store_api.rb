@@ -35,7 +35,7 @@ module PetstoreClient
       def delete_order(order_id)
         if order_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'order_id' when calling StoreApi.delete_order"
+                "Missing the required parameter 'order_id' when calling StoreApi.delete_order"
         end
 
         delete_order_with_http_info(order_id).data
@@ -46,7 +46,7 @@ module PetstoreClient
       def delete_order_with_http_info(order_id)
         if order_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'order_id' when calling StoreApi.delete_order"
+                "Missing the required parameter 'order_id' when calling StoreApi.delete_order"
         end
 
         path = '/store/order/{orderId}'
@@ -101,7 +101,7 @@ module PetstoreClient
       def get_order_by_id(order_id)
         if order_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'order_id' when calling StoreApi.get_order_by_id"
+                "Missing the required parameter 'order_id' when calling StoreApi.get_order_by_id"
         end
 
         get_order_by_id_with_http_info(order_id).data
@@ -112,7 +112,7 @@ module PetstoreClient
       def get_order_by_id_with_http_info(order_id)
         if order_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'order_id' when calling StoreApi.get_order_by_id"
+                "Missing the required parameter 'order_id' when calling StoreApi.get_order_by_id"
         end
 
         path = '/store/order/{orderId}'
@@ -167,11 +167,11 @@ module PetstoreClient
       # matrix/label/simple styles use as structural separators.
       def encode_path_segment(value)
         CGI.escape(value.to_s)
-          .gsub('+', '%20')
-          .gsub('%3B', ';').gsub('%3D', '=').gsub('%2C', ',').gsub('%3A', ':')
-          .gsub('%40', '@').gsub('%21', '!').gsub('%24', '$').gsub('%26', '&')
-          .gsub('%27', "'").gsub('%28', '(').gsub('%29', ')').gsub('%2A', '*')
-          .gsub('%2B', '+')
+           .gsub('+', '%20')
+           .gsub('%3B', ';').gsub('%3D', '=').gsub('%2C', ',').gsub('%3A', ':')
+           .gsub('%40', '@').gsub('%21', '!').gsub('%24', '$').gsub('%26', '&')
+           .gsub('%27', "'").gsub('%28', '(').gsub('%29', ')').gsub('%2A', '*')
+           .gsub('%2B', '+')
       end
     end
   end

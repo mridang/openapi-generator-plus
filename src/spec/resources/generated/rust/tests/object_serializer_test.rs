@@ -560,3 +560,134 @@ fn test_serialize_includes_fields_set_to_default_values() {
         json
     );
 }
+
+// Gap 4.8: ISO-8601 duration helper. These tests cover the hand-rolled
+// `format`/`parse` round-trip and the serde shim used by generated
+// models with `format: duration`. Time-of-day (`format: time`) is
+// covered by chrono's own `NaiveTime` serde impl and exercised here as
+// a smoke test to lock the wire format the codegen relies on.
+#[test]
+fn test_iso8601_duration_format_basic() {
+    use chrono::Duration;
+    use petstore::iso8601_duration;
+
+    assert_eq!(iso8601_duration::format(&Duration::zero()), "PT0S");
+    assert_eq!(iso8601_duration::format(&Duration::seconds(45)), "PT45S");
+    assert_eq!(
+        iso8601_duration::format(&(Duration::hours(1) + Duration::minutes(30))),
+        "PT1H30M"
+    );
+    assert_eq!(
+        iso8601_duration::format(&(Duration::days(1) + Duration::hours(2))),
+        "P1DT2H"
+    );
+    assert_eq!(iso8601_duration::format(&-Duration::minutes(5)), "-PT5M");
+}
+
+#[test]
+fn test_iso8601_duration_parse_basic() {
+    use chrono::Duration;
+    use petstore::iso8601_duration;
+
+    assert_eq!(iso8601_duration::parse("PT0S").unwrap(), Duration::zero());
+    assert_eq!(
+        iso8601_duration::parse("PT1H30M").unwrap(),
+        Duration::hours(1) + Duration::minutes(30)
+    );
+    assert_eq!(
+        iso8601_duration::parse("P1DT2H").unwrap(),
+        Duration::days(1) + Duration::hours(2)
+    );
+    assert_eq!(
+        iso8601_duration::parse("-PT5M").unwrap(),
+        -Duration::minutes(5)
+    );
+    assert_eq!(iso8601_duration::parse("P1W").unwrap(), Duration::days(7));
+}
+
+#[test]
+fn test_iso8601_duration_round_trip() {
+    use chrono::Duration;
+    use petstore::iso8601_duration;
+
+    for d in [
+        Duration::zero(),
+        Duration::seconds(1),
+        Duration::milliseconds(1500),
+        Duration::hours(1) + Duration::minutes(30) + Duration::seconds(15),
+        Duration::days(2) + Duration::hours(3),
+        -(Duration::hours(1) + Duration::minutes(30)),
+    ] {
+        let s = iso8601_duration::format(&d);
+        let parsed =
+            iso8601_duration::parse(&s).unwrap_or_else(|e| panic!("parse({:?}) failed: {}", s, e));
+        assert_eq!(parsed, d, "round trip mismatch for {:?} -> {:?}", d, s);
+    }
+}
+
+#[test]
+fn test_iso8601_duration_rejects_year_month() {
+    use petstore::iso8601_duration;
+
+    assert!(iso8601_duration::parse("P1Y").is_err());
+    assert!(iso8601_duration::parse("P1M").is_err());
+    assert!(iso8601_duration::parse("").is_err());
+    assert!(iso8601_duration::parse("1H").is_err());
+}
+
+#[test]
+fn test_iso8601_duration_serde_round_trip() {
+    use chrono::Duration;
+    use petstore::iso8601_duration;
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Debug, Serialize, Deserialize, PartialEq)]
+    struct Wrap {
+        #[serde(with = "iso8601_duration")]
+        d: Duration,
+        #[serde(with = "iso8601_duration::option")]
+        e: Option<Duration>,
+    }
+
+    let value = Wrap {
+        d: Duration::hours(1) + Duration::minutes(30),
+        e: Some(Duration::seconds(45)),
+    };
+    let json = serde_json::to_string(&value).expect("serialize");
+    assert!(json.contains("\"d\":\"PT1H30M\""), "got: {}", json);
+    assert!(json.contains("\"e\":\"PT45S\""), "got: {}", json);
+
+    let back: Wrap = serde_json::from_str(&json).expect("deserialize");
+    assert_eq!(back, value);
+
+    let none = Wrap {
+        d: Duration::zero(),
+        e: None,
+    };
+    let json2 = serde_json::to_string(&none).expect("serialize none");
+    assert!(json2.contains("\"e\":null"), "got: {}", json2);
+}
+
+#[test]
+fn test_naive_time_serde_round_trip() {
+    use chrono::NaiveTime;
+    use serde::{Deserialize, Serialize};
+
+    // Locks the wire format chrono produces for the type mapping that
+    // BetterRustCodegen installs for `format: time` (NaiveTime). If
+    // chrono's default representation ever drifts the codegen would
+    // silently produce non-RFC-3339-partial-time output.
+    #[derive(Debug, Serialize, Deserialize, PartialEq)]
+    struct Wrap {
+        t: NaiveTime,
+    }
+
+    let value = Wrap {
+        t: NaiveTime::from_hms_opt(12, 34, 56).expect("valid time"),
+    };
+    let json = serde_json::to_string(&value).expect("serialize");
+    assert!(json.contains("\"t\":\"12:34:56\""), "got: {}", json);
+
+    let back: Wrap = serde_json::from_str(&json).expect("deserialize");
+    assert_eq!(back, value);
+}

@@ -1,0 +1,183 @@
+{{>api_info}}
+package {{packageName}}
+
+import (
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+)
+
+// 4.8: helpers for OAS `format: time` and `format: duration`. Go's stdlib
+// has no civil-time type and `time.Duration` does not JSON-encode as
+// ISO-8601 by default (it serialises as int64 nanoseconds). Rather than
+// pulling in a 3rd-party parser like sosodev/duration or the heavyweight
+// cloud.google.com/go/civil dep, we ship a small stdlib-only parser /
+// formatter for the canonical PnDTnHnMnS form and a partial-time
+// HH:MM:SS[.fff] formatter for `format: time`.
+//
+// Wire-format note: both formats are surfaced as `string` in generated
+// models so they round-trip through encoding/json unchanged. Callers can
+// convert to/from `time.Duration` via MarshalDurationISO8601 /
+// UnmarshalDurationISO8601, and to/from `time.Time` (using only the
+// time-of-day component) via FormatTimeOfDay / ParseTimeOfDay.
+
+// MarshalDurationISO8601 formats a time.Duration as a canonical ISO-8601
+// duration string (e.g. PT1H30M, PT45S, P0D for zero). The output uses
+// only the time portion (PnDTnHnMnS with the date portion expressed as
+// whole days), because time.Duration has no concept of months or years.
+// Negative durations are prefixed with a leading "-" per the ISO-8601
+// extended form supported by RFC 3339 §6.
+func MarshalDurationISO8601(d time.Duration) string {
+	if d == 0 {
+		return "PT0S"
+	}
+	neg := d < 0
+	if neg {
+		d = -d
+	}
+	days := int64(d / (24 * time.Hour))
+	d -= time.Duration(days) * 24 * time.Hour
+	hours := int64(d / time.Hour)
+	d -= time.Duration(hours) * time.Hour
+	mins := int64(d / time.Minute)
+	d -= time.Duration(mins) * time.Minute
+	secs := d.Seconds()
+
+	var b strings.Builder
+	if neg {
+		b.WriteByte('-')
+	}
+	b.WriteByte('P')
+	if days > 0 {
+		fmt.Fprintf(&b, "%dD", days)
+	}
+	if hours > 0 || mins > 0 || secs > 0 {
+		b.WriteByte('T')
+		if hours > 0 {
+			fmt.Fprintf(&b, "%dH", hours)
+		}
+		if mins > 0 {
+			fmt.Fprintf(&b, "%dM", mins)
+		}
+		if secs > 0 {
+			// Drop trailing zeros so 1.0s -> "1S" not "1.000000S".
+			s := strconv.FormatFloat(secs, 'f', -1, 64)
+			fmt.Fprintf(&b, "%sS", s)
+		}
+	}
+	return b.String()
+}
+
+// UnmarshalDurationISO8601 parses a canonical ISO-8601 duration string
+// (e.g. PT1H30M, P1DT2H, -PT5M) and returns the corresponding
+// time.Duration. Year and month designators (Y, M before T) are rejected
+// because they have no fixed length in time.Duration nanoseconds; callers
+// who need calendar arithmetic should use a higher-level library.
+func UnmarshalDurationISO8601(s string) (time.Duration, error) {
+	if s == "" {
+		return 0, fmt.Errorf("ISO-8601 duration: empty string")
+	}
+	neg := false
+	if s[0] == '-' {
+		neg = true
+		s = s[1:]
+	} else if s[0] == '+' {
+		s = s[1:]
+	}
+	if len(s) == 0 || s[0] != 'P' {
+		return 0, fmt.Errorf("ISO-8601 duration: must start with P, got %q", s)
+	}
+	s = s[1:]
+
+	var total time.Duration
+	inTime := false
+	var num strings.Builder
+
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c == 'T' {
+			if num.Len() > 0 {
+				return 0, fmt.Errorf("ISO-8601 duration: unexpected number before T in %q", s)
+			}
+			inTime = true
+			continue
+		}
+		if (c >= '0' && c <= '9') || c == '.' || c == ',' {
+			if c == ',' {
+				c = '.'
+			}
+			num.WriteByte(c)
+			continue
+		}
+		// Designator.
+		raw := num.String()
+		num.Reset()
+		if raw == "" {
+			return 0, fmt.Errorf("ISO-8601 duration: designator %c without value in %q", c, s)
+		}
+		val, err := strconv.ParseFloat(raw, 64)
+		if err != nil {
+			return 0, fmt.Errorf("ISO-8601 duration: bad number %q: %w", raw, err)
+		}
+		switch c {
+		case 'Y', 'M':
+			if !inTime {
+				// Year/month not supported because their nanosecond length
+				// depends on the anchor date; consumers needing calendar
+				// arithmetic should compose with time.AddDate.
+				if c == 'Y' {
+					return 0, fmt.Errorf("ISO-8601 duration: year designator not supported")
+				}
+				return 0, fmt.Errorf("ISO-8601 duration: month designator not supported")
+			}
+			// inTime: M means minutes.
+			total += time.Duration(val * float64(time.Minute))
+		case 'W':
+			total += time.Duration(val * float64(7*24*time.Hour))
+		case 'D':
+			total += time.Duration(val * float64(24*time.Hour))
+		case 'H':
+			if !inTime {
+				return 0, fmt.Errorf("ISO-8601 duration: H designator must follow T in %q", s)
+			}
+			total += time.Duration(val * float64(time.Hour))
+		case 'S':
+			if !inTime {
+				return 0, fmt.Errorf("ISO-8601 duration: S designator must follow T in %q", s)
+			}
+			total += time.Duration(val * float64(time.Second))
+		default:
+			return 0, fmt.Errorf("ISO-8601 duration: unknown designator %c in %q", c, s)
+		}
+	}
+	if num.Len() > 0 {
+		return 0, fmt.Errorf("ISO-8601 duration: trailing number without designator in %q", s)
+	}
+	if neg {
+		total = -total
+	}
+	return total, nil
+}
+
+// FormatTimeOfDay returns the HH:MM:SS portion of a time.Time, matching
+// the wire format for OAS `format: time` (RFC 3339 partial-time). Sub-
+// second precision is dropped to keep parity with the other generators
+// (Java LocalTime#toString, C# TimeOnly, Python datetime.time isoformat
+// at second granularity for spec values).
+func FormatTimeOfDay(t time.Time) string {
+	return t.Format("15:04:05")
+}
+
+// ParseTimeOfDay parses an ISO-8601 partial-time string (HH:MM:SS or
+// HH:MM:SS.fff) and returns a time.Time on the zero date in UTC. The
+// time portion is the only meaningful field; callers should treat the
+// date portion as undefined.
+func ParseTimeOfDay(s string) (time.Time, error) {
+	for _, layout := range []string{"15:04:05.000", "15:04:05.00", "15:04:05.0", "15:04:05"} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("ISO-8601 time: cannot parse %q (expected HH:MM:SS[.fff])", s)
+}

@@ -207,6 +207,30 @@ public enum ObjectSerializer {
         return stringify(value)
     }
 
+    /// Encodes a ``TimeInterval`` (seconds) as a canonical ISO-8601
+    /// duration literal (e.g. ``PT1H30M``). Used by generated models
+    /// when a property's OpenAPI schema is ``format: duration`` — the
+    /// underlying wire type is a String even though the Swift type is
+    /// TimeInterval. See ``ISO8601Duration.swift`` for the parser.
+    public static func encodeDuration(_ interval: TimeInterval) -> String {
+        return formatISO8601Duration(interval)
+    }
+
+    /// Decodes an ISO-8601 duration literal into a ``TimeInterval``.
+    /// Throws ``SerializationError`` (wrapping ``ISO8601DurationError``)
+    /// when the literal is malformed, so the call site only needs to
+    /// catch a single error type.
+    public static func decodeDuration(_ literal: String) throws -> TimeInterval {
+        do {
+            return try parseISO8601Duration(literal)
+        } catch {
+            throw SerializationError(
+                message: "Failed to decode ISO-8601 duration",
+                cause: error
+            )
+        }
+    }
+
     /// Converts a value to a representation suitable for use as a query parameter.
     /// For collections, joins using the specified collection format delimiter.
     public static func toQueryValue(_ value: Any?, collectionFormat: String = "") -> Any? {

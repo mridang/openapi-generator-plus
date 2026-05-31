@@ -430,6 +430,139 @@ void main() {
       expect(restored, equals(u));
     });
 
+    // -- Iso8601DurationTests (4.8) --
+    //
+    // OpenAPI `format: duration` maps to Dart's `Duration`, but Dart's
+    // default `Duration.toString()` (`HH:MM:SS.mmmmmm`) is not the wire
+    // form. parseIso8601Duration / formatIso8601Duration bridge between
+    // `PnDTnHnMnS` on the wire and `Duration` in memory.
+
+    test('parseIso8601Duration parses hours and minutes', () {
+      expect(parseIso8601Duration('PT1H30M'),
+          equals(const Duration(hours: 1, minutes: 30)));
+    });
+
+    test('parseIso8601Duration parses days, hours, minutes, seconds', () {
+      expect(
+        parseIso8601Duration('P1DT2H3M4S'),
+        equals(const Duration(days: 1, hours: 2, minutes: 3, seconds: 4)),
+      );
+    });
+
+    test('parseIso8601Duration accepts weeks', () {
+      expect(parseIso8601Duration('P1W'), equals(const Duration(days: 7)));
+    });
+
+    test('parseIso8601Duration approximates years and months', () {
+      expect(parseIso8601Duration('P1Y'), equals(const Duration(days: 365)));
+      expect(parseIso8601Duration('P1M'), equals(const Duration(days: 30)));
+    });
+
+    test('parseIso8601Duration handles fractional seconds at micro resolution',
+        () {
+      expect(
+        parseIso8601Duration('PT0.5S'),
+        equals(const Duration(milliseconds: 500)),
+      );
+      expect(
+        parseIso8601Duration('PT1.000001S'),
+        equals(const Duration(seconds: 1, microseconds: 1)),
+      );
+    });
+
+    test('parseIso8601Duration handles negative durations', () {
+      expect(parseIso8601Duration('-PT1H'), equals(const Duration(hours: -1)));
+    });
+
+    test('parseIso8601Duration rejects malformed input', () {
+      expect(() => parseIso8601Duration('not-a-duration'),
+          throwsA(isA<Iso8601DurationFormatException>()));
+      expect(() => parseIso8601Duration(''),
+          throwsA(isA<Iso8601DurationFormatException>()));
+      // Empty P / PT carries no components.
+      expect(() => parseIso8601Duration('P'),
+          throwsA(isA<Iso8601DurationFormatException>()));
+      expect(() => parseIso8601Duration('PT'),
+          throwsA(isA<Iso8601DurationFormatException>()));
+    });
+
+    test('formatIso8601Duration emits canonical zero', () {
+      expect(formatIso8601Duration(Duration.zero), equals('PT0S'));
+    });
+
+    test('formatIso8601Duration emits hours/minutes/seconds', () {
+      expect(
+        formatIso8601Duration(const Duration(hours: 1, minutes: 30)),
+        equals('PT1H30M'),
+      );
+      expect(
+        formatIso8601Duration(
+          const Duration(days: 1, hours: 2, minutes: 3, seconds: 4),
+        ),
+        equals('P1DT2H3M4S'),
+      );
+    });
+
+    test(
+        'formatIso8601Duration emits fractional seconds without trailing zeros',
+        () {
+      expect(
+        formatIso8601Duration(const Duration(milliseconds: 500)),
+        equals('PT0.5S'),
+      );
+      expect(
+        formatIso8601Duration(
+          const Duration(seconds: 1, microseconds: 1),
+        ),
+        equals('PT1.000001S'),
+      );
+    });
+
+    test('formatIso8601Duration emits negative durations with leading sign',
+        () {
+      expect(
+        formatIso8601Duration(const Duration(hours: -1)),
+        equals('-PT1H'),
+      );
+    });
+
+    test('Duration round-trips through format then parse', () {
+      const original = Duration(days: 3, hours: 4, minutes: 5, seconds: 6);
+      final wire = formatIso8601Duration(original);
+      expect(parseIso8601Duration(wire), equals(original));
+    });
+
+    test('stringify Duration emits ISO-8601 form, not Dart default', () {
+      // Dart's Duration.toString() would print "1:30:00.000000" — we
+      // explicitly want the ISO-8601 wire form on every transport-side
+      // conversion path.
+      final result = stringify(const Duration(hours: 1, minutes: 30));
+      expect(result, equals('PT1H30M'));
+    });
+
+    // -- PartialTimeTests (4.8) --
+    //
+    // `format: time` stays as String (no civil-time stdlib type in Dart
+    // outside Flutter), but the generated helper validates the wire shape
+    // so callers opting into validation get a useful failure mode.
+
+    test('validatePartialTime accepts HH:MM:SS', () {
+      expect(validatePartialTime('14:30:00'), equals('14:30:00'));
+    });
+
+    test('validatePartialTime accepts fractional seconds', () {
+      expect(
+        validatePartialTime('14:30:00.123'),
+        equals('14:30:00.123'),
+      );
+    });
+
+    test('validatePartialTime rejects malformed input', () {
+      expect(() => validatePartialTime('2pm'), throwsFormatException);
+      expect(() => validatePartialTime('14:30'), throwsFormatException);
+      expect(() => validatePartialTime(''), throwsFormatException);
+    });
+
     test('fromJson then toJson does not leak unknown fields back to wire', () {
       final input = <String, dynamic>{
         'id': 9,

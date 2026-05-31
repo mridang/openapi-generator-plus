@@ -1,0 +1,229 @@
+{{>api_info}}
+
+// Gap 4.8: serde helper for round-tripping `chrono::Duration` as an
+// ISO-8601 duration string (e.g. `PT1H30M`, `P1DT2H`, `-PT5M`). chrono's
+// own serde impl encodes `Duration` as integer milliseconds, not a
+// string, so it cannot satisfy OAS `format: duration`. Rather than add
+// another crate (`iso8601-duration`, `speedate`), this module hand-rolls
+// the canonical `PnDTnHnMnS` grammar against the stdlib + chrono. Year
+// and month designators are rejected because their nanosecond length
+// depends on an anchor date — consumers needing calendar arithmetic
+// should layer that on top.
+
+use chrono::Duration;
+use serde::{Deserialize, Deserializer, Serializer, de};
+
+/// Format a `chrono::Duration` as an ISO-8601 duration string.
+///
+/// Output uses only the time portion (`PnDTnHnMnS`), with whole days
+/// pulled out of the time component. Zero serialises as `PT0S`.
+/// Negative durations are emitted with a leading `-`, per the RFC 3339
+/// §6 extended form.
+pub fn format(d: &Duration) -> String {
+    if d.is_zero() {
+        return "PT0S".to_string();
+    }
+    let mut remaining = *d;
+    let neg = remaining < Duration::zero();
+    if neg {
+        remaining = -remaining;
+    }
+    let total_secs = remaining.num_seconds();
+    let nanos = (remaining - Duration::seconds(total_secs))
+        .num_nanoseconds()
+        .unwrap_or(0);
+
+    let days = total_secs / 86_400;
+    let rem_after_days = total_secs - days * 86_400;
+    let hours = rem_after_days / 3_600;
+    let rem_after_hours = rem_after_days - hours * 3_600;
+    let mins = rem_after_hours / 60;
+    let secs = rem_after_hours - mins * 60;
+
+    let mut out = String::new();
+    if neg {
+        out.push('-');
+    }
+    out.push('P');
+    if days > 0 {
+        out.push_str(&format!("{}D", days));
+    }
+    let has_time = hours > 0 || mins > 0 || secs > 0 || nanos > 0;
+    if has_time {
+        out.push('T');
+        if hours > 0 {
+            out.push_str(&format!("{}H", hours));
+        }
+        if mins > 0 {
+            out.push_str(&format!("{}M", mins));
+        }
+        if secs > 0 || nanos > 0 {
+            if nanos == 0 {
+                out.push_str(&format!("{}S", secs));
+            } else {
+                // Trim trailing zeros on the fractional part; never
+                // emit a trailing `.` if all the fractional digits
+                // are zero.
+                let frac = format!("{:09}", nanos.abs());
+                let trimmed = frac.trim_end_matches('0');
+                if trimmed.is_empty() {
+                    out.push_str(&format!("{}S", secs));
+                } else {
+                    out.push_str(&format!("{}.{}S", secs, trimmed));
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Parse a canonical ISO-8601 duration string into `chrono::Duration`.
+///
+/// Accepts `P[nD][T[nH][nM][n[.f]S]]`, with optional leading sign and
+/// week designator (`nW`). Year and month designators are rejected.
+pub fn parse(s: &str) -> Result<Duration, String> {
+    if s.is_empty() {
+        return Err("ISO-8601 duration: empty string".into());
+    }
+    let mut rest = s;
+    let neg = if let Some(stripped) = rest.strip_prefix('-') {
+        rest = stripped;
+        true
+    } else if let Some(stripped) = rest.strip_prefix('+') {
+        rest = stripped;
+        false
+    } else {
+        false
+    };
+    let Some(after_p) = rest.strip_prefix('P') else {
+        return Err(format!("ISO-8601 duration: must start with P, got {:?}", s));
+    };
+
+    let mut total = Duration::zero();
+    let mut in_time = false;
+    let mut num = String::new();
+
+    for c in after_p.chars() {
+        if c == 'T' {
+            if !num.is_empty() {
+                return Err(format!(
+                    "ISO-8601 duration: unexpected number before T in {:?}",
+                    s
+                ));
+            }
+            in_time = true;
+            continue;
+        }
+        if c.is_ascii_digit() || c == '.' || c == ',' {
+            num.push(if c == ',' { '.' } else { c });
+            continue;
+        }
+        if num.is_empty() {
+            return Err(format!(
+                "ISO-8601 duration: designator {} without value in {:?}",
+                c, s
+            ));
+        }
+        let raw = std::mem::take(&mut num);
+        let val: f64 = raw
+            .parse()
+            .map_err(|_| format!("ISO-8601 duration: bad number {:?}", raw))?;
+        match c {
+            'Y' => {
+                return Err(
+                    "ISO-8601 duration: year designator not supported".into()
+                );
+            }
+            'M' if !in_time => {
+                return Err(
+                    "ISO-8601 duration: month designator not supported".into()
+                );
+            }
+            'M' => {
+                total = total + Duration::nanoseconds((val * 60.0 * 1_000_000_000.0) as i64);
+            }
+            'W' => {
+                total = total
+                    + Duration::nanoseconds(
+                        (val * 7.0 * 86_400.0 * 1_000_000_000.0) as i64,
+                    );
+            }
+            'D' => {
+                total = total
+                    + Duration::nanoseconds((val * 86_400.0 * 1_000_000_000.0) as i64);
+            }
+            'H' => {
+                if !in_time {
+                    return Err(format!(
+                        "ISO-8601 duration: H designator must follow T in {:?}",
+                        s
+                    ));
+                }
+                total = total
+                    + Duration::nanoseconds((val * 3_600.0 * 1_000_000_000.0) as i64);
+            }
+            'S' => {
+                if !in_time {
+                    return Err(format!(
+                        "ISO-8601 duration: S designator must follow T in {:?}",
+                        s
+                    ));
+                }
+                total =
+                    total + Duration::nanoseconds((val * 1_000_000_000.0) as i64);
+            }
+            other => {
+                return Err(format!(
+                    "ISO-8601 duration: unknown designator {} in {:?}",
+                    other, s
+                ));
+            }
+        }
+    }
+    if !num.is_empty() {
+        return Err(format!(
+            "ISO-8601 duration: trailing number without designator in {:?}",
+            s
+        ));
+    }
+    if neg {
+        total = -total;
+    }
+    Ok(total)
+}
+
+/// `#[serde(with = "crate::iso8601_duration")]` entry point.
+pub fn serialize<S: Serializer>(d: &Duration, s: S) -> Result<S::Ok, S::Error> {
+    s.serialize_str(&format(d))
+}
+
+/// `#[serde(with = "crate::iso8601_duration")]` entry point.
+pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Duration, D::Error> {
+    let raw = String::deserialize(d)?;
+    parse(&raw).map_err(de::Error::custom)
+}
+
+/// `Option<chrono::Duration>` variant.
+pub mod option {
+    use super::*;
+
+    pub fn serialize<S: Serializer>(
+        d: &Option<Duration>,
+        s: S,
+    ) -> Result<S::Ok, S::Error> {
+        match d {
+            Some(v) => s.serialize_str(&super::format(v)),
+            None => s.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        d: D,
+    ) -> Result<Option<Duration>, D::Error> {
+        let raw: Option<String> = Option::deserialize(d)?;
+        match raw {
+            Some(s) => super::parse(&s).map(Some).map_err(de::Error::custom),
+            None => Ok(None),
+        }
+    }
+}

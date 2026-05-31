@@ -1,0 +1,178 @@
+{{>api_info}}
+import Foundation
+
+/// ISO8601DurationError signals an invalid ISO-8601 duration literal.
+public struct ISO8601DurationError: Error, LocalizedError {
+    public let message: String
+
+    public init(_ message: String) {
+        self.message = message
+    }
+
+    public var errorDescription: String? {
+        return message
+    }
+}
+
+/// Parses an ISO-8601 duration literal (e.g. `P1DT2H30M`, `PT15.5S`,
+/// `-PT5M`) into a ``TimeInterval`` (seconds, possibly fractional).
+///
+/// Supports the `PnYnMnWnDTnHnMnS` form. Year and month components are
+/// resolved using the Gregorian calendar's average length (365.2425 days
+/// / 30.436875 days) because a calendar-relative anchor is unavailable
+/// at the wire-format boundary. Weeks expand to 7 days. A leading `-`
+/// negates the result; a `+` is accepted and ignored.
+///
+/// Throws ``ISO8601DurationError`` for malformed input.
+public func parseISO8601Duration(_ input: String) throws -> TimeInterval {
+    if input.isEmpty {
+        throw ISO8601DurationError("empty duration literal")
+    }
+    var s = Substring(input)
+    var sign: Double = 1
+    if s.first == "-" {
+        sign = -1
+        s = s.dropFirst()
+    } else if s.first == "+" {
+        s = s.dropFirst()
+    }
+    guard s.first == "P" else {
+        throw ISO8601DurationError("ISO-8601 duration must start with 'P': \(input)")
+    }
+    s = s.dropFirst()
+    if s.isEmpty {
+        throw ISO8601DurationError("duration has no components: \(input)")
+    }
+
+    // Average Gregorian year / month lengths in seconds.
+    let secondsPerYear: Double = 365.2425 * 86_400
+    let secondsPerMonth: Double = 30.436875 * 86_400
+    let secondsPerWeek: Double = 7 * 86_400
+    let secondsPerDay: Double = 86_400
+    let secondsPerHour: Double = 3_600
+    let secondsPerMinute: Double = 60
+
+    var total: Double = 0
+    var inTime = false
+    var sawAnyComponent = false
+    var numberBuffer = ""
+
+    func consumeNumber() throws -> Double {
+        if numberBuffer.isEmpty {
+            throw ISO8601DurationError("missing numeric value before designator: \(input)")
+        }
+        // Accept optional decimal point. Reject signs/exponents.
+        guard let value = Double(numberBuffer) else {
+            throw ISO8601DurationError("invalid numeric value '\(numberBuffer)' in: \(input)")
+        }
+        numberBuffer = ""
+        return value
+    }
+
+    for ch in s {
+        if ch == "T" {
+            if inTime {
+                throw ISO8601DurationError("duplicate 'T' separator in: \(input)")
+            }
+            if !numberBuffer.isEmpty {
+                throw ISO8601DurationError("orphan number before 'T' in: \(input)")
+            }
+            inTime = true
+            continue
+        }
+        if ch.isNumber || ch == "." || ch == "," {
+            // Accept ',' as the alternate decimal mark per ISO-8601.
+            numberBuffer.append(ch == "," ? "." : ch)
+            continue
+        }
+        let value = try consumeNumber()
+        sawAnyComponent = true
+        if inTime {
+            switch ch {
+            case "H": total += value * secondsPerHour
+            case "M": total += value * secondsPerMinute
+            case "S": total += value
+            default:
+                throw ISO8601DurationError("unexpected time designator '\(ch)' in: \(input)")
+            }
+        } else {
+            switch ch {
+            case "Y": total += value * secondsPerYear
+            case "M": total += value * secondsPerMonth
+            case "W": total += value * secondsPerWeek
+            case "D": total += value * secondsPerDay
+            default:
+                throw ISO8601DurationError("unexpected date designator '\(ch)' in: \(input)")
+            }
+        }
+    }
+    if !numberBuffer.isEmpty {
+        throw ISO8601DurationError("trailing number without designator in: \(input)")
+    }
+    if !sawAnyComponent {
+        throw ISO8601DurationError("duration has no components: \(input)")
+    }
+    return sign * total
+}
+
+/// Formats a ``TimeInterval`` (seconds) as a canonical ISO-8601 duration
+/// literal. Uses the `PnDTnHnMnS` form — years/months are not emitted
+/// because they have no fixed second-count, so a round-trip through
+/// ``parseISO8601Duration`` would not be lossless. Fractional seconds
+/// are preserved with up to nine decimal places (trailing zeros
+/// trimmed). Negative intervals get a leading `-`. Zero returns `PT0S`.
+public func formatISO8601Duration(_ interval: TimeInterval) -> String {
+    if interval == 0 {
+        return "PT0S"
+    }
+    let negative = interval < 0
+    var remaining = abs(interval)
+
+    let secondsPerDay: Double = 86_400
+    let secondsPerHour: Double = 3_600
+    let secondsPerMinute: Double = 60
+
+    let days = floor(remaining / secondsPerDay)
+    remaining -= days * secondsPerDay
+    let hours = floor(remaining / secondsPerHour)
+    remaining -= hours * secondsPerHour
+    let minutes = floor(remaining / secondsPerMinute)
+    remaining -= minutes * secondsPerMinute
+    let seconds = remaining
+
+    var out = negative ? "-P" : "P"
+    if days > 0 {
+        out += "\(Int(days))D"
+    }
+    var timeBody = ""
+    if hours > 0 {
+        timeBody += "\(Int(hours))H"
+    }
+    if minutes > 0 {
+        timeBody += "\(Int(minutes))M"
+    }
+    if seconds > 0 {
+        if seconds.truncatingRemainder(dividingBy: 1) == 0 {
+            timeBody += "\(Int(seconds))S"
+        } else {
+            // Trim trailing zeros from a fixed-point representation.
+            var literal = String(format: "%.9f", seconds)
+            while literal.hasSuffix("0") {
+                literal.removeLast()
+            }
+            if literal.hasSuffix(".") {
+                literal.removeLast()
+            }
+            timeBody += "\(literal)S"
+        }
+    }
+    if !timeBody.isEmpty {
+        out += "T" + timeBody
+    } else if days == 0 {
+        // Non-zero interval shorter than a designator boundary —
+        // should not happen given the math above, but keep the
+        // output well-formed.
+        out += "T0S"
+    }
+    return out
+}

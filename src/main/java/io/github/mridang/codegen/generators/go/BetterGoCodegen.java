@@ -74,6 +74,17 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         typeMapping.put("decimal", "float64");
         typeMapping.put("date", "string");
         typeMapping.put("DateTime", "time.Time");
+        // 4.8: format:time and format:duration. Go's stdlib has no
+        // civil-time type and time.Duration's default JSON encoding is
+        // int64 nanoseconds, not ISO-8601. cloud.google.com/go/civil
+        // would supply civil.Time but drags in a 100MB+ dep tree just
+        // for a struct, so both formats map to string on the wire. The
+        // generated iso8601.go file ships MarshalDurationISO8601 /
+        // UnmarshalDurationISO8601 helpers so callers can convert
+        // between time.Duration and the canonical PnDTnHnMnS form
+        // without reaching for a 3rd-party parser.
+        typeMapping.put("time", "string");
+        typeMapping.put("duration", "string");
         typeMapping.put("array", "[]");
         typeMapping.put("List", "[]");
         typeMapping.put("map", "map");
@@ -364,6 +375,11 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                             "object_serializer_test.go"));
             supportingFiles.add(
                     new SupportingFile(
+                            "test/iso8601_test.mustache",
+                            "test",
+                            "iso8601_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
                             "test/value_serializer_test.mustache",
                             "test",
                             "value_serializer_test.go"));
@@ -479,6 +495,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 new SupportingFileSpec("header_selector.mustache", "pkg", "header_selector.go"),
                 new SupportingFileSpec(
                         "object_serializer.mustache", "pkg", "object_serializer.go"),
+                new SupportingFileSpec("iso8601.mustache", "pkg", "iso8601.go"),
                 new SupportingFileSpec("value_serializer.mustache", "pkg", "value_serializer.go"),
                 new SupportingFileSpec(
                         "trace_context_util.mustache", "pkg", "trace_context_util.go"),

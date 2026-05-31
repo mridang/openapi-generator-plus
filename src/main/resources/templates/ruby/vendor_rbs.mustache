@@ -87,6 +87,28 @@ module Zstd
   def self.decompress: (String) -> String
 end
 
+# 4.8: format: time — Tod::TimeOfDay surface for HH:MM:SS values.
+module Tod
+  class TimeOfDay
+    def self.parse: (String) -> TimeOfDay
+    def self.new: (Integer, ?Integer, ?Integer) -> TimeOfDay
+    def strftime: (String) -> String
+    def to_s: () -> String
+    def hour: () -> Integer
+    def minute: () -> Integer
+    def second: () -> Integer
+  end
+end
+
+# 4.8: format: duration — ISO8601::Duration surface for ISO-8601 durations.
+module ISO8601
+  class Duration
+    def self.new: (String) -> Duration
+    def to_s: () -> String
+    def to_seconds: () -> Numeric
+  end
+end
+
 module Faraday
   def self.new: (?String?) ?{ (Connection) -> void } -> Connection
 

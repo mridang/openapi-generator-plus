@@ -145,7 +145,10 @@ export class {{classname}} {
 {{/-first}}
 {{/anyOf}}
 {{^anyOf}}
-import { Expose{{#hasTypeDecorator}}, Type{{/hasTypeDecorator}} } from 'class-transformer';
+import { Expose{{#hasTypeDecorator}}, Type{{/hasTypeDecorator}}{{#hasTemporalImport}}, Transform{{/hasTemporalImport}} } from 'class-transformer';
+{{#hasTemporalImport}}
+import { Temporal } from 'temporal-polyfill';
+{{/hasTemporalImport}}
 
 {{#isDeprecated}}
 /**
@@ -224,6 +227,16 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/deprecated}}
 {{/description}}
   @Expose({ name: '{{baseName}}' })
+{{#vendorExtensions.isTimeFormat}}
+  // 4.8 — `format: time` round-trips via Temporal.PlainTime.
+  @Transform(({ value }) => (typeof value === 'string' ? Temporal.PlainTime.from(value) : value), { toClassOnly: true })
+  @Transform(({ value }) => (value != null && typeof (value as { toString?: unknown }).toString === 'function' ? (value as Temporal.PlainTime).toString() : value), { toPlainOnly: true })
+{{/vendorExtensions.isTimeFormat}}
+{{#vendorExtensions.isDurationFormat}}
+  // 4.8 — `format: duration` round-trips via Temporal.Duration (ISO 8601).
+  @Transform(({ value }) => (typeof value === 'string' ? Temporal.Duration.from(value) : value), { toClassOnly: true })
+  @Transform(({ value }) => (value != null && typeof (value as { toString?: unknown }).toString === 'function' ? (value as Temporal.Duration).toString() : value), { toPlainOnly: true })
+{{/vendorExtensions.isDurationFormat}}
 {{#isDateTime}}
   @Type(() => Date)
 {{/isDateTime}}
@@ -358,9 +371,13 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{#isString}}
 {{^isByteArray}}
 {{^isUuid}}
+{{^vendorExtensions.isTimeFormat}}
+{{^vendorExtensions.isDurationFormat}}
     if (this.{{name}} != null && typeof this.{{name}} !== 'string') {
       throw new TypeError(`{{name}} must be a string, got ${typeof this.{{name}}}`);
     }
+{{/vendorExtensions.isDurationFormat}}
+{{/vendorExtensions.isTimeFormat}}
 {{/isUuid}}
 {{/isByteArray}}
 {{#isByteArray}}
@@ -390,6 +407,36 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
       }
     }
 {{/isUuid}}
+{{#vendorExtensions.isTimeFormat}}
+    /**
+     * 4.8 — `format: time`. Accept a string (parsed via
+     * Temporal.PlainTime.from, which throws RangeError on bad input) or
+     * an already-constructed PlainTime instance. The @Transform decorator
+     * normally handles the string case but bypasses ObjectSerializer when
+     * callers construct models by hand.
+     */
+    if (this.{{name}} != null) {
+      if (typeof this.{{name}} === 'string') {
+        this.{{name}} = Temporal.PlainTime.from(this.{{name}} as unknown as string) as unknown as {{{dataType}}};
+      } else if (!(this.{{name}} instanceof Temporal.PlainTime)) {
+        throw new TypeError(`{{name}} must be a Temporal.PlainTime or ISO time string, got ${typeof this.{{name}}}`);
+      }
+    }
+{{/vendorExtensions.isTimeFormat}}
+{{#vendorExtensions.isDurationFormat}}
+    /**
+     * 4.8 — `format: duration`. Accept a string (parsed via
+     * Temporal.Duration.from, which throws RangeError on bad input) or an
+     * already-constructed Duration instance.
+     */
+    if (this.{{name}} != null) {
+      if (typeof this.{{name}} === 'string') {
+        this.{{name}} = Temporal.Duration.from(this.{{name}} as unknown as string) as unknown as {{{dataType}}};
+      } else if (!(this.{{name}} instanceof Temporal.Duration)) {
+        throw new TypeError(`{{name}} must be a Temporal.Duration or ISO 8601 duration string, got ${typeof this.{{name}}}`);
+      }
+    }
+{{/vendorExtensions.isDurationFormat}}
 {{/isString}}
 {{/isArray}}
 {{#isArray}}

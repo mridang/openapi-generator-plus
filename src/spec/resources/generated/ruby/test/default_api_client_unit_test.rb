@@ -499,8 +499,7 @@ describe PetstoreClient::DefaultApiClient do
     end
     client = PetstoreClient::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
-      resp = client.send_request(:POST, 'http://localhost/token', {}, 'grant_type=client_credentials',
-        no_redirect: true)
+      resp = client.send_request(:POST, 'http://localhost/token', {}, 'grant_type=client_credentials', no_redirect: true)
       _(resp.status_code).must_equal 200
     end
   end

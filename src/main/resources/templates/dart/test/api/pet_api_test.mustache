@@ -142,14 +142,14 @@ void main() {
 
       final result = await api.getPetAvatar(1);
       expect(result, isNotNull);
-    }, skip: 'chasm returns JSON-encoded "binary" placeholder for binary response types; Dart SDK cast to List<int> needs lenient string handling');
+    });
 
     test('getPetAvatarThumbnail', () async {
       final api = _newPetApiForIntegration();
 
       final result = await api.getPetAvatarThumbnail(1);
       expect(result, isNotNull);
-    }, skip: 'chasm returns JSON-encoded "binary" placeholder for binary response types');
+    });
 
     test('setPetAvatarThumbnail', () async {
       final api = _newPetApiForIntegration();
@@ -198,13 +198,13 @@ void main() {
 
       final result = await api.downloadPetDocument(1, 1);
       expect(result, isNotNull);
-    }, skip: 'chasm returns JSON-encoded "binary" placeholder for binary response types');
+    });
 
     test('getPetPhoto', () async {
       final api = _newPetApiForIntegration();
       final result = await api.getPetPhoto(1, 1);
       expect(result, isNotNull);
-    }, skip: 'chasm returns JSON-encoded "binary" placeholder for binary response types');
+    });
 
     test('getPetTag', () async {
       final api = _newPetApiForIntegration();
@@ -239,7 +239,7 @@ void main() {
       } finally {
         await server.close();
       }
-    }, skip: 'Dart SDK binary response cast (List<int>) needs lenient handling for the WithHTTPInfo wrapper');
+    });
 
     test('uploadMultipartMock', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

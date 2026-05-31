@@ -26,7 +26,13 @@ Gem::Specification.new do |s|
   s.add_dependency 'dry-types', '~> 1.7'
   s.add_dependency 'faraday', '~> 2.0'
   s.add_dependency 'faraday-follow_redirects', '~> 0.3'
+  # 4.8: format: duration — ISO-8601 duration parsing/formatting (no
+  # stdlib equivalent; lighter than ActiveSupport::Duration).
+  s.add_dependency 'iso8601', '~> 0.13'
   s.add_dependency 'oj', '~> 3.0'
+  # 4.8: format: time — time-of-day (HH:MM:SS) values; Ruby has no
+  # native time-of-day type so we standardise on Tod::TimeOfDay.
+  s.add_dependency 'tod', '~> 2.3'
 
   s.files = Dir['lib/**/*', 'sig/**/*', 'README.md', 'Gemfile', 'petstore_client.gemspec']
   s.require_paths = ['lib']

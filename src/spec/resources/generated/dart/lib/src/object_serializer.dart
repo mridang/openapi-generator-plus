@@ -7,6 +7,14 @@
 
 import 'dart:convert';
 
+import 'iso8601_duration.dart';
+export 'iso8601_duration.dart'
+    show
+        Iso8601DurationFormatException,
+        formatIso8601Duration,
+        parseIso8601Duration,
+        validatePartialTime;
+
 /// SerializationError is thrown when serialization or deserialization fails.
 class SerializationError implements Exception {
   final String message;
@@ -163,6 +171,9 @@ String stringify(Object? value) {
 
   if (value is bool) return value ? 'true' : 'false';
   if (value is DateTime) return _formatDateTimeOffset(value);
+  // OpenAPI `format: duration` round-trips as ISO-8601 (`PnDTnHnMnS`),
+  // NOT Dart's default `Duration.toString()` form.
+  if (value is Duration) return formatIso8601Duration(value);
   if (value is String) return value;
   if (value is int) return value.toString();
   if (value is double) return value.toString();

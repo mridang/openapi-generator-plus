@@ -1,0 +1,209 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"testing"
+	"time"
+
+	"{{packageName}}/pkg"
+)
+
+// 4.8: format:duration ↔ time.Duration round-trip helpers.
+
+func TestMarshalDurationISO8601_Zero(t *testing.T) {
+	t.Parallel()
+	if got := {{packageName}}.MarshalDurationISO8601(0); got != "PT0S" {
+		t.Errorf("expected PT0S, got %q", got)
+	}
+}
+
+func TestMarshalDurationISO8601_HoursMinutes(t *testing.T) {
+	t.Parallel()
+	d := time.Hour + 30*time.Minute
+	if got := {{packageName}}.MarshalDurationISO8601(d); got != "PT1H30M" {
+		t.Errorf("expected PT1H30M, got %q", got)
+	}
+}
+
+func TestMarshalDurationISO8601_DaysAndTime(t *testing.T) {
+	t.Parallel()
+	d := 2*24*time.Hour + 3*time.Hour
+	if got := {{packageName}}.MarshalDurationISO8601(d); got != "P2DT3H" {
+		t.Errorf("expected P2DT3H, got %q", got)
+	}
+}
+
+func TestMarshalDurationISO8601_SecondsOnly(t *testing.T) {
+	t.Parallel()
+	if got := {{packageName}}.MarshalDurationISO8601(45 * time.Second); got != "PT45S" {
+		t.Errorf("expected PT45S, got %q", got)
+	}
+}
+
+func TestMarshalDurationISO8601_Negative(t *testing.T) {
+	t.Parallel()
+	if got := {{packageName}}.MarshalDurationISO8601(-(time.Hour + time.Minute)); got != "-PT1H1M" {
+		t.Errorf("expected -PT1H1M, got %q", got)
+	}
+}
+
+func TestUnmarshalDurationISO8601_HoursMinutes(t *testing.T) {
+	t.Parallel()
+	got, err := {{packageName}}.UnmarshalDurationISO8601("PT1H30M")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != time.Hour+30*time.Minute {
+		t.Errorf("expected 1h30m, got %v", got)
+	}
+}
+
+func TestUnmarshalDurationISO8601_DaysHours(t *testing.T) {
+	t.Parallel()
+	got, err := {{packageName}}.UnmarshalDurationISO8601("P1DT2H")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := 24*time.Hour + 2*time.Hour
+	if got != want {
+		t.Errorf("expected %v, got %v", want, got)
+	}
+}
+
+func TestUnmarshalDurationISO8601_Weeks(t *testing.T) {
+	t.Parallel()
+	got, err := {{packageName}}.UnmarshalDurationISO8601("P1W")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != 7*24*time.Hour {
+		t.Errorf("expected 7d, got %v", got)
+	}
+}
+
+func TestUnmarshalDurationISO8601_FractionalSeconds(t *testing.T) {
+	t.Parallel()
+	got, err := {{packageName}}.UnmarshalDurationISO8601("PT1.5S")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != 1500*time.Millisecond {
+		t.Errorf("expected 1.5s, got %v", got)
+	}
+}
+
+func TestUnmarshalDurationISO8601_Negative(t *testing.T) {
+	t.Parallel()
+	got, err := {{packageName}}.UnmarshalDurationISO8601("-PT5M")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != -5*time.Minute {
+		t.Errorf("expected -5m, got %v", got)
+	}
+}
+
+func TestUnmarshalDurationISO8601_RejectsYears(t *testing.T) {
+	t.Parallel()
+	if _, err := {{packageName}}.UnmarshalDurationISO8601("P1Y"); err == nil {
+		t.Fatal("expected error for year designator")
+	}
+}
+
+func TestUnmarshalDurationISO8601_RejectsMonths(t *testing.T) {
+	t.Parallel()
+	if _, err := {{packageName}}.UnmarshalDurationISO8601("P1M"); err == nil {
+		t.Fatal("expected error for month designator")
+	}
+}
+
+func TestUnmarshalDurationISO8601_RejectsMalformed(t *testing.T) {
+	t.Parallel()
+	cases := []string{"", "1H", "PTH", "P", "PXY"}
+	for _, c := range cases {
+		if _, err := {{packageName}}.UnmarshalDurationISO8601(c); err == nil {
+			t.Errorf("expected error for %q", c)
+		}
+	}
+}
+
+func TestDuration_RoundTrip(t *testing.T) {
+	t.Parallel()
+	originals := []time.Duration{
+		0,
+		time.Second,
+		90 * time.Minute,
+		25 * time.Hour,
+		-3 * time.Hour,
+	}
+	for _, orig := range originals {
+		wire := {{packageName}}.MarshalDurationISO8601(orig)
+		got, err := {{packageName}}.UnmarshalDurationISO8601(wire)
+		if err != nil {
+			t.Errorf("round-trip parse failed for %v (%q): %v", orig, wire, err)
+			continue
+		}
+		if got != orig {
+			t.Errorf("round-trip mismatch: original=%v wire=%q parsed=%v", orig, wire, got)
+		}
+	}
+}
+
+// 4.8: format:time ↔ time-of-day helpers.
+
+func TestFormatTimeOfDay_Basic(t *testing.T) {
+	t.Parallel()
+	ts := time.Date(2024, 1, 15, 12, 30, 45, 0, time.UTC)
+	if got := {{packageName}}.FormatTimeOfDay(ts); got != "12:30:45" {
+		t.Errorf("expected 12:30:45, got %q", got)
+	}
+}
+
+func TestFormatTimeOfDay_Midnight(t *testing.T) {
+	t.Parallel()
+	ts := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
+	if got := {{packageName}}.FormatTimeOfDay(ts); got != "00:00:00" {
+		t.Errorf("expected 00:00:00, got %q", got)
+	}
+}
+
+func TestParseTimeOfDay_Basic(t *testing.T) {
+	t.Parallel()
+	got, err := {{packageName}}.ParseTimeOfDay("09:15:30")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.Hour() != 9 || got.Minute() != 15 || got.Second() != 30 {
+		t.Errorf("expected 09:15:30, got %v", got)
+	}
+}
+
+func TestParseTimeOfDay_WithFraction(t *testing.T) {
+	t.Parallel()
+	got, err := {{packageName}}.ParseTimeOfDay("09:15:30.500")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.Hour() != 9 || got.Minute() != 15 || got.Second() != 30 {
+		t.Errorf("expected hours/mins/secs from 09:15:30.500, got %v", got)
+	}
+}
+
+func TestParseTimeOfDay_Invalid(t *testing.T) {
+	t.Parallel()
+	if _, err := {{packageName}}.ParseTimeOfDay("not a time"); err == nil {
+		t.Fatal("expected error for invalid time string")
+	}
+}
+
+func TestTimeOfDay_RoundTrip(t *testing.T) {
+	t.Parallel()
+	original := "14:25:00"
+	parsed, err := {{packageName}}.ParseTimeOfDay(original)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := {{packageName}}.FormatTimeOfDay(parsed); got != original {
+		t.Errorf("round-trip mismatch: original=%q got=%q", original, got)
+	}
+}
