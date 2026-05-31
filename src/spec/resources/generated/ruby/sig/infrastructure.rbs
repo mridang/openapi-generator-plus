@@ -160,6 +160,8 @@ module PetstoreClient
     def effective_port: (URI::Generic) -> Integer
   end
 
+  UUID_REGEX: Regexp
+
   class SerializationError < StandardError
     attr_reader cause: Exception?
     def initialize: (String, ?Exception?) -> void
@@ -186,7 +188,6 @@ module PetstoreClient
 
   class ObjectSerializer
     DEFAULT_DATETIME_FORMAT: String
-    UUID_REGEX: Regexp
     def self.stringify: (untyped) -> String
     def self.serialize: (untyped) -> String
     def self.deserialize: (untyped, String) -> untyped

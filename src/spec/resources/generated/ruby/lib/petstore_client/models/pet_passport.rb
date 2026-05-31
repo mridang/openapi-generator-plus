@@ -59,6 +59,7 @@ module PetstoreClient
       # `uuid[]` variants apply the same transform to every item of an
       # array-typed property. Consumed by PetstoreClient::ObjectSerializer
       # on the (de)serialize path.
+      # @type const OPENAPI_FORMATS: Hash[Symbol, String]
       OPENAPI_FORMATS = {
 
         thumbnail: 'byte',

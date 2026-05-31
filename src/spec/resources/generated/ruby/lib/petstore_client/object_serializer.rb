@@ -172,16 +172,16 @@ module PetstoreClient
         nil
       when String, Integer, Float, TrueClass, FalseClass
         object
-      when Date
+      when Date, ISO8601::Duration
+        # Date#to_s emits ISO-8601 calendar form; ISO8601::Duration#to_s
+        # emits canonical ISO-8601 duration form (e.g. PT1H30M). Both
+        # collapse into the same call site.
         object.to_s
       when Time, DateTime
         object.strftime(DEFAULT_DATETIME_FORMAT)
       when Tod::TimeOfDay
         # 4.8: format: time — emit HH:MM:SS for JSON wire form.
         object.strftime('%H:%M:%S')
-      when ISO8601::Duration
-        # 4.8: format: duration — emit canonical ISO-8601 string.
-        object.to_s
       when Array, Set, Hash
         visited ||= Set.new
         obj_id = object.object_id
