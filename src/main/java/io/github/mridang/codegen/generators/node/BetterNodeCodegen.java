@@ -861,9 +861,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
 
     /**
      * 4.8 — Set per-property {@code isTimeFormat} / {@code isDurationFormat}
-     * boolean flags on {@link CodegenProperty#vendorExtensions} so the model
+     * boolean flags on {@code CodegenProperty.vendorExtensions} so the model
      * template can branch on the OAS format without doing string equality on
-     * {@code dataType}. Upstream populates {@link CodegenProperty#dataFormat}
+     * {@code dataType}. Upstream populates {@code CodegenProperty.dataFormat}
      * directly from the schema's {@code format:}, so this is the simplest way
      * to surface it to Mustache (which lacks string equality).
      */
