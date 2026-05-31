@@ -93,7 +93,7 @@ describe('PetApi', () => {
   });
 
   test('setPetAvatarThumbnail', async () => {
-    const request: SetPetAvatarThumbnailRequest = 'aGVsbG8=';
+    const request: SetPetAvatarThumbnailRequest = Buffer.from('aGVsbG8=', 'base64');
 
     await api.setPetAvatarThumbnail(1, request);
   });

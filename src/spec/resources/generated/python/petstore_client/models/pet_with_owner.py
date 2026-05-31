@@ -100,12 +100,12 @@ class PetWithOwner(BaseModel):
     )
 
 
-from petstore_client.models.category import Category
-from petstore_client.models.tag import Tag
-from pydantic import EmailStr
-from pydantic import HttpUrl
-from pydantic import StrictFloat
-from pydantic import StrictInt
-from pydantic import StrictStr
+from petstore_client.models.category import Category  # noqa: F401
+from petstore_client.models.tag import Tag  # noqa: F401
+from pydantic import EmailStr  # noqa: F401
+from pydantic import HttpUrl  # noqa: F401
+from pydantic import StrictFloat  # noqa: F401
+from pydantic import StrictInt  # noqa: F401
+from pydantic import StrictStr  # noqa: F401
 
 PetWithOwner.model_rebuild(raise_errors=False)

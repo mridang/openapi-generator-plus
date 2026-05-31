@@ -81,9 +81,9 @@ class Order(BaseModel):
     )
 
 
-from pydantic import AwareDatetime
-from pydantic import StrictBool
-from pydantic import StrictInt
-from pydantic import StrictStr
+from pydantic import AwareDatetime  # noqa: F401
+from pydantic import StrictBool  # noqa: F401
+from pydantic import StrictInt  # noqa: F401
+from pydantic import StrictStr  # noqa: F401
 
 Order.model_rebuild(raise_errors=False)

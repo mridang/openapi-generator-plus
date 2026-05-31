@@ -55,9 +55,9 @@ class PetTreatment(BaseModel):
         return v
 
 
-from petstore_client.models.medication import Medication
-from petstore_client.models.surgery import Surgery
-from pydantic import StrictInt
-from pydantic import StrictStr
+from petstore_client.models.medication import Medication  # noqa: F401
+from petstore_client.models.surgery import Surgery  # noqa: F401
+from pydantic import StrictInt  # noqa: F401
+from pydantic import StrictStr  # noqa: F401
 
 PetTreatment.model_rebuild(raise_errors=False)

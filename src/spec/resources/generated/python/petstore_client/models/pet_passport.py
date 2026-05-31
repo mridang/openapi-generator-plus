@@ -71,8 +71,8 @@ class PetPassport(BaseModel):
     )
 
 
-from petstore_client.models.pet import Pet
-from pydantic import AwareDatetime
-from pydantic import StrictStr
+from petstore_client.models.pet import Pet  # noqa: F401
+from pydantic import AwareDatetime  # noqa: F401
+from pydantic import StrictStr  # noqa: F401
 
 PetPassport.model_rebuild(raise_errors=False)

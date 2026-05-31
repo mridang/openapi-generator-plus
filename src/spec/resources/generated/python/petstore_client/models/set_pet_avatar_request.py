@@ -68,6 +68,6 @@ class SetPetAvatarRequest(BaseModel):
     )
 
 
-from pydantic import StrictStr
+from pydantic import StrictStr  # noqa: F401
 
 SetPetAvatarRequest.model_rebuild(raise_errors=False)

@@ -70,8 +70,8 @@ class Photo(BaseModel):
     )
 
 
-from pydantic import StrictBool
-from pydantic import StrictInt
-from pydantic import StrictStr
+from pydantic import StrictBool  # noqa: F401
+from pydantic import StrictInt  # noqa: F401
+from pydantic import StrictStr  # noqa: F401
 
 Photo.model_rebuild(raise_errors=False)

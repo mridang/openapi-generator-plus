@@ -74,7 +74,7 @@ class Category(BaseModel):
     )
 
 
-from pydantic import StrictInt
-from pydantic import StrictStr
+from pydantic import StrictInt  # noqa: F401
+from pydantic import StrictStr  # noqa: F401
 
 Category.model_rebuild(raise_errors=False)

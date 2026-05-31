@@ -221,7 +221,7 @@ class BaseApi {
     );
   }
 
-  static bool _isBinaryContentType(String contentType) {
+  bool _isBinaryContentType(String contentType) {
     final mediaType = contentType.split(';').first.trim().toLowerCase();
     if (mediaType.isEmpty) return false;
     return mediaType == 'application/octet-stream'
@@ -254,7 +254,7 @@ class BaseApi {
     return parts.join('&');
   }
 
-  static Uint8List? _serializeBody(Object? body, String contentType) {
+  Uint8List? _serializeBody(Object? body, String contentType) {
     if (body == null) return null;
 
     if (contentType == 'multipart/form-data') {
@@ -288,7 +288,7 @@ class BaseApi {
   /// Each entry value may be a `List<int>` (binary), a `List` (repeated
   /// field), or any other value which is converted to its string
   /// representation.
-  static Uint8List _buildMultipartBody(Map<String, Object?> formFields, String boundary) {
+  Uint8List _buildMultipartBody(Map<String, Object?> formFields, String boundary) {
     final parts = <List<int>>[];
 
     for (final entry in formFields.entries) {
@@ -311,7 +311,7 @@ class BaseApi {
     return builder.toBytes();
   }
 
-  static void _appendMultipartField(
+  void _appendMultipartField(
     List<List<int>> parts,
     String boundary,
     String name,
@@ -350,7 +350,7 @@ class BaseApi {
     }
   }
 
-  static String _generateUuid() {
+  String _generateUuid() {
     final random = Random.secure();
     final bytes = List<int>.generate(16, (_) => random.nextInt(256));
     bytes[6] = (bytes[6] & 0x0f) | 0x40;
@@ -361,7 +361,7 @@ class BaseApi {
         '${hex.substring(20, 32)}';
   }
 
-  static ApiError _throwApiError(HttpApiResponse response) {
+  ApiError _throwApiError(HttpApiResponse response) {
     final code = response.statusCode;
     final msg = 'API returned status code $code';
     final body = response.body;

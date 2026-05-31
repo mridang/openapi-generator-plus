@@ -68,6 +68,6 @@ class PhotoMetadataLocation(BaseModel):
     )
 
 
-from pydantic import StrictFloat
+from pydantic import StrictFloat  # noqa: F401
 
 PhotoMetadataLocation.model_rebuild(raise_errors=False)

@@ -86,10 +86,10 @@ class PetFood(BaseModel):
             super().__init__(**kwargs)
 
 
-from petstore_client.models.dry_food import DryFood
-from petstore_client.models.wet_food import WetFood
-from pydantic import StrictFloat
-from pydantic import StrictInt
-from pydantic import StrictStr
+from petstore_client.models.dry_food import DryFood  # noqa: F401
+from petstore_client.models.wet_food import WetFood  # noqa: F401
+from pydantic import StrictFloat  # noqa: F401
+from pydantic import StrictInt  # noqa: F401
+from pydantic import StrictStr  # noqa: F401
 
 PetFood.model_rebuild(raise_errors=False)

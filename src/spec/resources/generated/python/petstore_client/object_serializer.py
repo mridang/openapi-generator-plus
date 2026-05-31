@@ -87,7 +87,7 @@ def _parse_timedelta_iso8601(value: str) -> datetime.timedelta:
     raise ValueError(f'Could not parse {value!r} as a fixed-length duration')
 
 
-import petstore_client.models
+import petstore_client.models  # noqa: E402
 
 T = TypeVar('T')
 

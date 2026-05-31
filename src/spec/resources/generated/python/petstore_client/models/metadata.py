@@ -67,6 +67,6 @@ class Metadata(BaseModel):
     )
 
 
-from pydantic import AwareDatetime
+from pydantic import AwareDatetime  # noqa: F401
 
 Metadata.model_rebuild(raise_errors=False)

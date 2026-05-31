@@ -68,7 +68,7 @@ class DryFood(BaseModel):
     )
 
 
-from pydantic import StrictFloat
-from pydantic import StrictStr
+from pydantic import StrictFloat  # noqa: F401
+from pydantic import StrictStr  # noqa: F401
 
 DryFood.model_rebuild(raise_errors=False)

@@ -70,9 +70,9 @@ class PhotoMetadata(BaseModel):
     )
 
 
-from petstore_client.models.photo_metadata_location import PhotoMetadataLocation
-from pydantic import AwareDatetime
-from pydantic import StrictBool
-from pydantic import StrictStr
+from petstore_client.models.photo_metadata_location import PhotoMetadataLocation  # noqa: F401
+from pydantic import AwareDatetime  # noqa: F401
+from pydantic import StrictBool  # noqa: F401
+from pydantic import StrictStr  # noqa: F401
 
 PhotoMetadata.model_rebuild(raise_errors=False)

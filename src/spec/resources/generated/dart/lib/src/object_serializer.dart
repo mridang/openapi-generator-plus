@@ -171,8 +171,8 @@ String stringify(Object? value) {
 
   if (value is bool) return value ? 'true' : 'false';
   if (value is DateTime) return _formatDateTimeOffset(value);
-  // OpenAPI `format: duration` round-trips as ISO-8601 (`PnDTnHnMnS`),
-  // NOT Dart's default `Duration.toString()` form.
+  /* OpenAPI `format: duration` round-trips as ISO-8601 (`PnDTnHnMnS`),
+     NOT Dart's default `Duration.toString()` form. */
   if (value is Duration) return formatIso8601Duration(value);
   if (value is String) return value;
   if (value is int) return value.toString();

@@ -44,7 +44,6 @@ public func parseISO8601Duration(_ input: String) throws -> TimeInterval {
         throw ISO8601DurationError("duration has no components: \(input)")
     }
 
-    // Average Gregorian year / month lengths in seconds.
     let secondsPerYear: Double = 365.2425 * 86_400
     let secondsPerMonth: Double = 30.436875 * 86_400
     let secondsPerWeek: Double = 7 * 86_400
@@ -61,7 +60,6 @@ public func parseISO8601Duration(_ input: String) throws -> TimeInterval {
         if numberBuffer.isEmpty {
             throw ISO8601DurationError("missing numeric value before designator: \(input)")
         }
-        // Accept optional decimal point. Reject signs/exponents.
         guard let value = Double(numberBuffer) else {
             throw ISO8601DurationError("invalid numeric value '\(numberBuffer)' in: \(input)")
         }
@@ -81,7 +79,6 @@ public func parseISO8601Duration(_ input: String) throws -> TimeInterval {
             continue
         }
         if ch.isNumber || ch == "." || ch == "," {
-            // Accept ',' as the alternate decimal mark per ISO-8601.
             numberBuffer.append(ch == "," ? "." : ch)
             continue
         }
@@ -155,7 +152,6 @@ public func formatISO8601Duration(_ interval: TimeInterval) -> String {
         if seconds.truncatingRemainder(dividingBy: 1) == 0 {
             timeBody += "\(Int(seconds))S"
         } else {
-            // Trim trailing zeros from a fixed-point representation.
             var literal = String(format: "%.9f", seconds)
             while literal.hasSuffix("0") {
                 literal.removeLast()
@@ -169,9 +165,6 @@ public func formatISO8601Duration(_ interval: TimeInterval) -> String {
     if !timeBody.isEmpty {
         out += "T" + timeBody
     } else if days == 0 {
-        // Non-zero interval shorter than a designator boundary —
-        // should not happen given the math above, but keep the
-        // output well-formed.
         out += "T0S"
     }
     return out
