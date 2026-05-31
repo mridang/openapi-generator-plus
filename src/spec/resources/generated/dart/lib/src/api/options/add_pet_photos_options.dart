@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../../models/photo_metadata.dart';
 
 /// AddPetPhotosOptions holds optional parameters for the addPetPhotos operation.

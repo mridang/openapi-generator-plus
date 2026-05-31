@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 /// GetPetTagOptions holds optional parameters for the getPetTag operation.
 class GetPetTagOptions {
   final List<String>? colors;

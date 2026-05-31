@@ -175,7 +175,7 @@ class BaseApi {
        * (`List<int>` / `Uint8List`), decode the base64 back to raw
        * bytes here rather than handing the caller a base64 string.
        * Detect binary by either the returnType signature or a binary
-       * content-type (octet-stream, image/*, audio/*, video/*). */
+       * content-type (octet-stream, image, audio, video media types). */
       final returnsBytes = returnType == 'List<int>' || returnType == 'Uint8List';
       final isBinaryContentType = _isBinaryContentType(responseContentType);
       if (returnsBytes) {

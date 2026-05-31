@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 /// FindPetsByStatusOptions holds optional parameters for the findPetsByStatus operation.
 class FindPetsByStatusOptions {
   /// Status values that need to be considered for filter

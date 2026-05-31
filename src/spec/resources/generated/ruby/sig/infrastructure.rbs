@@ -184,6 +184,7 @@ module PetstoreClient
 
   class ObjectSerializer
     DEFAULT_DATETIME_FORMAT: String
+    UUID_REGEX: Regexp
     def self.stringify: (untyped) -> String
     def self.serialize: (untyped) -> String
     def self.deserialize: (untyped, String) -> untyped
@@ -198,6 +199,11 @@ module PetstoreClient
     def self.deserialize_model: (untyped, untyped) -> untyped
     def self.resolve_one_of: (untyped, Array[Proc]) -> untyped
     def self.resolve_any_of: (untyped, Array[Proc]) -> untyped
+    def self.apply_format_on_deserialize: (untyped, String?) -> untyped
+    def self.apply_format_on_serialize: (untyped, String?) -> untyped
+    def self.validate_uuid: (untyped) -> String
+    def self.encode_byte: (untyped) -> String
+    def self.decode_byte: (untyped) -> String
   end
 
   class TraceContextUtil

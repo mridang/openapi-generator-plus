@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 /// UploadPetCertificateOptions holds optional parameters for the uploadPetCertificate operation.
 class UploadPetCertificateOptions {
   final Uint8List file;

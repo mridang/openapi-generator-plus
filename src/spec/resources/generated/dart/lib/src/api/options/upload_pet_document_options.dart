@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 /// UploadPetDocumentOptions holds optional parameters for the uploadPetDocument operation.
 class UploadPetDocumentOptions {
   final Uint8List file;
