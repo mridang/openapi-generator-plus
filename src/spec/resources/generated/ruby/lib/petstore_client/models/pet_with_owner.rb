@@ -75,9 +75,7 @@ module PetstoreClient
       # `uuid[]` variants apply the same transform to every item of an
       # array-typed property. Consumed by PetstoreClient::ObjectSerializer
       # on the (de)serialize path.
-      OPENAPI_FORMATS = {
-        
-      }.freeze
+      OPENAPI_FORMATS = {}.freeze
 
       # Transform incoming hash keys from JSON format to Ruby attribute names.
       transform_keys do |key|

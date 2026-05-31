@@ -14,7 +14,7 @@ public class PhpClientSpec extends AbstractClientSpec implements PhpSpec {
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {"mkdir -p .out && vendor/bin/pest --testdox --parallel"};
+    return new String[] {"mkdir -p .out && vendor/bin/pest test --testdox --parallel"};
   }
 
   @Override

@@ -53,9 +53,7 @@ module PetstoreClient
       # `uuid[]` variants apply the same transform to every item of an
       # array-typed property. Consumed by PetstoreClient::ObjectSerializer
       # on the (de)serialize path.
-      OPENAPI_FORMATS = {
-        
-      }.freeze
+      OPENAPI_FORMATS = {}.freeze
 
       # Transform incoming hash keys from JSON format to Ruby attribute names.
       transform_keys do |key|
@@ -71,7 +69,7 @@ module PetstoreClient
         skey = key.to_s
         if !JSON_KEY_MAP.key?(skey) && !ATTRIBUTE_MAP.key?(key.to_sym)
           raise ArgumentError,
-                "Unknown property '#{skey}' on StrictTag (unevaluatedProperties:false)"
+            "Unknown property '#{skey}' on StrictTag (unevaluatedProperties:false)"
         end
         JSON_KEY_MAP[skey] || key.to_sym
       end

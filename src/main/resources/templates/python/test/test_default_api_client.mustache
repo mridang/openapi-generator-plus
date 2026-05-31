@@ -238,7 +238,7 @@ class TestRedirectSecurityGuards:
         from {{packageName}}.errors import ApiException
 
         class _FakeResp:
-            def __init__(self, status: int, headers: dict) -> None:
+            def __init__(self, status: int, headers: dict[str, Any]) -> None:
                 self.status = status
                 self.headers = headers
             def read(self) -> bytes:
@@ -248,7 +248,7 @@ class TestRedirectSecurityGuards:
 
         class _FakePool:
             def __init__(self) -> None:
-                self.calls: list = []
+                self.calls: list[Any] = []
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 self.calls.append((method, url))
                 # First response is a 302 pointing at file:///etc/passwd.
@@ -271,7 +271,7 @@ class TestRedirectSecurityGuards:
         is not enough: the scheme change is the threat."""
 
         class _FakeResp:
-            def __init__(self, status: int, headers: dict) -> None:
+            def __init__(self, status: int, headers: dict[str, Any]) -> None:
                 self.status = status
                 self.headers = headers
             def read(self) -> bytes:
@@ -281,7 +281,7 @@ class TestRedirectSecurityGuards:
 
         class _FakePool:
             def __init__(self) -> None:
-                self.calls: list = []
+                self.calls: list[Any] = []
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 self.calls.append((method, url, dict(kwargs.get('headers') or {})))
                 if len(self.calls) == 1:
@@ -307,7 +307,7 @@ class TestRedirectSecurityGuards:
         unrelated requests still authenticate to the proxy."""
 
         class _FakeResp:
-            def __init__(self, status: int, headers: dict) -> None:
+            def __init__(self, status: int, headers: dict[str, Any]) -> None:
                 self.status = status
                 self.headers = headers
             def read(self) -> bytes:
@@ -315,12 +315,12 @@ class TestRedirectSecurityGuards:
             def release_conn(self) -> None:
                 return None
 
-        observed_proxy_headers_on_followup: dict = {}
+        observed_proxy_headers_on_followup: dict[str, str] = {}
 
         class _FakePool:
             def __init__(self) -> None:
-                self.proxy_headers: dict = {'Proxy-Authorization': 'Basic dXNlcjpwYXNz'}
-                self.calls: list = []
+                self.proxy_headers: dict[str, str] = {'Proxy-Authorization': 'Basic dXNlcjpwYXNz'}
+                self.calls: list[Any] = []
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 self.calls.append((method, url))
                 if len(self.calls) == 1:

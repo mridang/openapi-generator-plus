@@ -55,7 +55,7 @@ module PetstoreClient
       # on the (de)serialize path.
       OPENAPI_FORMATS = {
         data: 'byte',
-        
+
       }.freeze
 
       # Transform incoming hash keys from JSON format to Ruby attribute names.

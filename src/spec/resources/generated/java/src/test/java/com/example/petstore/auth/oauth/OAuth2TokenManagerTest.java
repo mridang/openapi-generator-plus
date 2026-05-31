@@ -430,7 +430,7 @@ class OAuth2TokenManagerTest {
           public ApiResponse sendRequest(
               String method, String url, Map<String, String> headers, @Nullable Object body) {
             // Must NOT be called: the manager must use the 5-arg overload.
-            seenFlag.set(Boolean.FALSE);
+            seenFlag.set(false);
             return new ApiResponse(200, "{\"access_token\":\"t\",\"expires_in\":3600}", Map.of());
           }
 
@@ -452,8 +452,7 @@ class OAuth2TokenManagerTest {
     params.put("grant_type", "client_credentials");
     manager.getAccessToken("https://auth.example.com/token", params);
 
-    assertEquals(
-        Boolean.TRUE, seenFlag.get(), "token POST must pass noRedirect=true to the ApiClient");
+    assertEquals(true, seenFlag.get(), "token POST must pass noRedirect=true to the ApiClient");
   }
 
   /*

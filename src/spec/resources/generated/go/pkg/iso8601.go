@@ -98,6 +98,7 @@ func UnmarshalDurationISO8601(s string) (time.Duration, error) {
 
 	var total time.Duration
 	inTime := false
+	processedAny := false
 	var num strings.Builder
 
 	for i := 0; i < len(s); i++ {
@@ -122,6 +123,7 @@ func UnmarshalDurationISO8601(s string) (time.Duration, error) {
 		if raw == "" {
 			return 0, fmt.Errorf("ISO-8601 duration: designator %c without value in %q", c, s)
 		}
+		processedAny = true
 		val, err := strconv.ParseFloat(raw, 64)
 		if err != nil {
 			return 0, fmt.Errorf("ISO-8601 duration: bad number %q: %w", raw, err)
@@ -159,6 +161,9 @@ func UnmarshalDurationISO8601(s string) (time.Duration, error) {
 	}
 	if num.Len() > 0 {
 		return 0, fmt.Errorf("ISO-8601 duration: trailing number without designator in %q", s)
+	}
+	if !processedAny {
+		return 0, fmt.Errorf("ISO-8601 duration: no designators in %q", s)
 	}
 	if neg {
 		total = -total

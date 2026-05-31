@@ -60,11 +60,11 @@ module PetstoreClient
       # array-typed property. Consumed by PetstoreClient::ObjectSerializer
       # on the (de)serialize path.
       OPENAPI_FORMATS = {
-        
+
         thumbnail: 'byte',
-        
+
         scans: 'byte[]',
-        
+
       }.freeze
 
       # Transform incoming hash keys from JSON format to Ruby attribute names.

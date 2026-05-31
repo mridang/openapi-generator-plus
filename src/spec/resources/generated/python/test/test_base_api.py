@@ -36,7 +36,7 @@ class CapturingApiClient:
         self.captured_headers: dict[str, str] = {}
         self.captured_body: Any = None
 
-    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None) -> ApiResponse:
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiResponse:
         self.captured_url = url
         self.captured_headers = headers
         self.captured_body = body
@@ -275,7 +275,7 @@ class TestBodySerialization:
 class PlainTextApiClient(CapturingApiClient):
     """API client that returns a plain-text response instead of JSON."""
 
-    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None) -> ApiResponse:
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiResponse:
         super().send_request(method, url, headers, body)
         return ApiResponse(status_code=200, body='hello', headers={'Content-Type': 'text/plain'})
 
@@ -283,7 +283,7 @@ class PlainTextApiClient(CapturingApiClient):
 class VendorJsonApiClient(CapturingApiClient):
     """API client that returns a vendor JSON response (application/problem+json)."""
 
-    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None) -> ApiResponse:
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiResponse:
         super().send_request(method, url, headers, body)
         return ApiResponse(status_code=200, body='{"title":"Not Found"}', headers={'Content-Type': 'application/problem+json'})
 
@@ -347,7 +347,7 @@ class BinaryOctetStreamApiClient(CapturingApiClient):
         super().__init__()
         self._encoded_body = encoded_body
 
-    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None) -> ApiResponse:
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiResponse:
         super().send_request(method, url, headers, body)
         return ApiResponse(status_code=200, body=self._encoded_body, headers={'Content-Type': 'application/octet-stream'})
 
@@ -359,7 +359,7 @@ class ImagePngApiClient(CapturingApiClient):
         super().__init__()
         self._encoded_body = encoded_body
 
-    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None) -> ApiResponse:
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiResponse:
         super().send_request(method, url, headers, body)
         return ApiResponse(status_code=200, body=self._encoded_body, headers={'Content-Type': 'image/png'})
 
@@ -367,7 +367,7 @@ class ImagePngApiClient(CapturingApiClient):
 class EmptyBinaryApiClient(CapturingApiClient):
     """API client that returns an empty application/octet-stream response."""
 
-    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None) -> ApiResponse:
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiResponse:
         super().send_request(method, url, headers, body)
         return ApiResponse(status_code=200, body='', headers={'Content-Type': 'application/octet-stream'})
 

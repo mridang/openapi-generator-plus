@@ -415,7 +415,7 @@ class _FakeResp:
     standing up a real HTTP server. ``read``/``release_conn`` mirror the
     urllib3 contract the loop relies on."""
 
-    def __init__(self, status: int, headers: dict) -> None:
+    def __init__(self, status: int, headers: dict[str, Any]) -> None:
         self.status = status
         self.headers = headers
 
@@ -432,10 +432,10 @@ class TestNoRedirectOnTokenPost:
     body against an attacker-controlled endpoint. 301/302/303 still flow
     through the normal coerce-to-GET / strip-body path."""
 
-    def _make_pool(self, responses: list) -> Any:
+    def _make_pool(self, responses: list[Any]) -> Any:
         class _Pool:
             def __init__(self) -> None:
-                self.calls: list = []
+                self.calls: list[Any] = []
                 self._responses = list(responses)
 
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
@@ -535,7 +535,7 @@ class TestBodyReplayOnTlsDowngrade:
 
         class _Pool:
             def __init__(self) -> None:
-                self.calls: list = []
+                self.calls: list[Any] = []
 
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 self.calls.append((method, url))
@@ -562,7 +562,7 @@ class TestBodyReplayOnTlsDowngrade:
 
         class _Pool:
             def __init__(self) -> None:
-                self.calls: list = []
+                self.calls: list[Any] = []
 
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 self.calls.append((method, url))
@@ -587,7 +587,7 @@ class TestBodyReplayOnTlsDowngrade:
         # not a concern. The Authorization-strip guard still runs.
         class _Pool:
             def __init__(self) -> None:
-                self.calls: list = []
+                self.calls: list[Any] = []
 
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 self.calls.append((method, url, dict(kwargs.get('headers') or {})))
@@ -611,7 +611,7 @@ class TestBodyReplayOnTlsDowngrade:
         # Upgrade is not a downgrade; the body must replay normally.
         class _Pool:
             def __init__(self) -> None:
-                self.calls: list = []
+                self.calls: list[Any] = []
 
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 self.calls.append((method, url, kwargs.get('body')))
@@ -640,7 +640,7 @@ class TestContentLengthStrippedOnRedirect:
     def test_303_drops_content_length_when_body_is_dropped(self) -> None:
         class _Pool:
             def __init__(self) -> None:
-                self.calls: list = []
+                self.calls: list[Any] = []
 
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 self.calls.append((method, url, dict(kwargs.get('headers') or {})))
@@ -667,7 +667,7 @@ class TestContentLengthStrippedOnRedirect:
         # and the other 11 SDKs). The body and its length headers must go.
         class _Pool:
             def __init__(self) -> None:
-                self.calls: list = []
+                self.calls: list[Any] = []
 
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 self.calls.append((method, url, dict(kwargs.get('headers') or {})))
@@ -718,7 +718,7 @@ class TestApiKeyHeaderStrippedOnCrossOrigin:
 
         class _Pool:
             def __init__(self) -> None:
-                self.calls: list = []
+                self.calls: list[Any] = []
 
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 self.calls.append((method, url, dict(kwargs.get('headers') or {})))

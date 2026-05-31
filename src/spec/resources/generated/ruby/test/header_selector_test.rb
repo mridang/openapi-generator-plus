@@ -246,7 +246,7 @@ describe PetstoreClient::HeaderSelector do
       )
       accept = headers['Accept']
       assert(accept.start_with?('application/json,') || accept == 'application/json',
-             "Expected Accept to start with application/json, got: #{accept}")
+        "Expected Accept to start with application/json, got: #{accept}")
     end
 
     it 'formats quality weight correctly' do
@@ -257,7 +257,7 @@ describe PetstoreClient::HeaderSelector do
       )
       accept = headers['Accept']
       assert(accept.include?('text/html;q=0.9') || accept.include?('text/html;q=0.'),
-             "Expected Accept to include text/html with quality weight, got: #{accept}")
+        "Expected Accept to include text/html with quality weight, got: #{accept}")
     end
 
     it 'removes trailing zeros from quality weight' do

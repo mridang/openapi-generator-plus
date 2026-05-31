@@ -43,7 +43,7 @@ module PetstoreClient
             o = c.ord
             if c != "\t" && (o < 0x20 || o >= 0x7F)
               raise ArgumentError,
-                    'Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)'
+                'Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)'
             end
           end
           @access_token = token

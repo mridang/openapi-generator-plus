@@ -61,9 +61,7 @@ module PetstoreClient
       # `uuid[]` variants apply the same transform to every item of an
       # array-typed property. Consumed by PetstoreClient::ObjectSerializer
       # on the (de)serialize path.
-      OPENAPI_FORMATS = {
-        
-      }.freeze
+      OPENAPI_FORMATS = {}.freeze
 
       # Transform incoming hash keys from JSON format to Ruby attribute names.
       transform_keys do |key|
@@ -80,7 +78,8 @@ module PetstoreClient
       attribute :ship_date, Types::Any.optional.meta(omittable: true)
       # Order Status
       # @example approved
-      attribute :status, Types::String.enum('placed', 'approved', 'delivered').optional.meta(omittable: true).default('placed')
+      attribute :status,
+        Types::String.enum('placed', 'approved', 'delivered').optional.meta(omittable: true).default('placed')
       # @example null
       attribute :complete, Types::Any.optional.meta(omittable: true)
     end
