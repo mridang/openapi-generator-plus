@@ -1,0 +1,60 @@
+{{>api_info}}
+namespace {{invokerPackage}}\Serializer;
+
+use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
+use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
+
+/**
+ * Round-trips PHP 8.5's native {@see \Uri\Rfc3986\Uri} type ↔ a wire string.
+ *
+ * Symfony's ObjectNormalizer does not know about the PHP 8.5 native URI type,
+ * so without this normalizer URI-typed properties either serialize as
+ * stdClass dumps of the internal URI components or fail denormalization
+ * entirely. On encode we round-trip through the URI's __toString
+ * representation; on decode we parse the wire string via the static
+ * factory.
+ */
+final class UriNormalizer implements NormalizerInterface, DenormalizerInterface
+{
+    /**
+     * @param array<string, mixed> $context
+     */
+    public function normalize(mixed $object, ?string $format = null, array $context = []): string
+    {
+        \assert($object instanceof \Uri\Rfc3986\Uri);
+        return (string) $object;
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    public function supportsNormalization(mixed $data, ?string $format = null, array $context = []): bool
+    {
+        return $data instanceof \Uri\Rfc3986\Uri;
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    public function denormalize(mixed $data, string $type, ?string $format = null, array $context = []): \Uri\Rfc3986\Uri
+    {
+        \assert(is_string($data));
+        return \Uri\Rfc3986\Uri::parse($data);
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    public function supportsDenormalization(mixed $data, string $type, ?string $format = null, array $context = []): bool
+    {
+        return is_string($data) && ($type === \Uri\Rfc3986\Uri::class || ltrim($type, '\\') === 'Uri\\Rfc3986\\Uri');
+    }
+
+    /**
+     * @return array<string, bool>
+     */
+    public function getSupportedTypes(?string $format): array
+    {
+        return [\Uri\Rfc3986\Uri::class => true];
+    }
+}

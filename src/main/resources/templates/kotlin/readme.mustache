@@ -103,3 +103,13 @@ into the generated tree as part of your release pipeline before
 publishing to a registry — most registries warn or block on a missing
 file, and the GitHub license auto-detect cannot pick up a manifest-only
 declaration.
+
+### URI normalization
+
+OAS `format: uri` properties are typed as `io.ktor.http.Url`. Ktor's
+`Url` parser is lenient and round-trips through `toString()`, but it
+also normalises some inputs — most notably it appends a trailing `/`
+to the authority-only form (`"https://example.com"` becomes
+`"https://example.com/"`). If you need byte-perfect URI preservation
+or accept relative refs, use `format: uri-reference` in your spec
+instead — `uri-reference` and `uri-template` stay as plain `String`.

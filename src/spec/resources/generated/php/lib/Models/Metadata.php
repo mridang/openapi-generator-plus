@@ -21,8 +21,8 @@ class Metadata
     #[SerializedName('createdAt')]
     public ?\DateTime $createdAt = null;
 
-    /** @var array<string, mixed> */
-    public array $additionalProperties = [];
+    /** @var \Ds\Map<string, mixed>|null */
+    public ?\Ds\Map $additionalProperties = null;
 
     /**
      */

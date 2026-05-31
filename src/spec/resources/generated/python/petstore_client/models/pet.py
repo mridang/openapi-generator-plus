@@ -31,19 +31,19 @@ class Pet(BaseModel):
         `Learn more about the Pet model <https://example.com/docs/pet>`_
     """
 
-    id: Optional[int] = Field(default=None, alias='id', strict=True)
-    name: str = Field(alias='name', strict=True)
+    id: Optional[StrictInt] = Field(default=None, alias='id')
+    name: StrictStr = Field(alias='name')
     category: Optional[Category] = Field(default=None, alias='category')
-    photo_urls: Set[str] = Field(alias='photoUrls')
+    photo_urls: Set[StrictStr] = Field(alias='photoUrls')
     tags: Optional[List[Tag]] = Field(default=None, alias='tags')
     # .. deprecated:: This property is deprecated.
     status: Optional[PetStatusEnum] = Field(default=None, alias='status', description='pet status in the store')
     location: Optional[List[object]] = Field(default=None, alias='location')
-    homepage_url: Optional[str] = Field(default=None, alias='homepageUrl', description="Absolute URL to the pet's public profile page", strict=True)
-    thumbnail_ref: Optional[str] = Field(default=None, alias='thumbnailRef', description='Optionally-relative thumbnail location', strict=True)
-    link_template: Optional[str] = Field(default=None, alias='linkTemplate', description='RFC 6570 template for related-resource links', strict=True)
-    owner_email: Optional[str] = Field(default=None, alias='ownerEmail', description="Contact email for the pet's owner", strict=True)
-    weight_kg: Optional[float] = Field(default=None, alias='weightKg', description='Pet weight in kilograms (decimal precision)')
+    homepage_url: Optional[HttpUrl] = Field(default=None, alias='homepageUrl', description="Absolute URL to the pet's public profile page")
+    thumbnail_ref: Optional[StrictStr] = Field(default=None, alias='thumbnailRef', description='Optionally-relative thumbnail location')
+    link_template: Optional[StrictStr] = Field(default=None, alias='linkTemplate', description='RFC 6570 template for related-resource links')
+    owner_email: Optional[EmailStr] = Field(default=None, alias='ownerEmail', description="Contact email for the pet's owner")
+    weight_kg: Optional[StrictFloat] = Field(default=None, alias='weightKg', description='Pet weight in kilograms (decimal precision)')
     additional_properties: Dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode='before')
@@ -91,12 +91,10 @@ class Pet(BaseModel):
             )
         return value
 
-    # Pydantic default mode (lenient) is kept here. strict=True was tried
-    # for Gap S but it rejects legitimate JSON-to-Python coercions like
-    # list-to-Set (JSON has no Set type) and string-to-Enum (JSON encodes
-    # enums as their string value). Surfacing wire-type bugs would
-    # require per-field validators on int/bool/float specifically —
-    # tracked in AGENT.md as a deferred sub-gap.
+    # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
+    # per-field strictness, so the model-wide ConfigDict no longer needs
+    # strict=True. populate_by_name keeps both alias and snake_case
+    # field-name kwargs working in constructors.
     model_config = ConfigDict(
         populate_by_name=True,
         validate_assignment=True,
@@ -106,5 +104,10 @@ class Pet(BaseModel):
 
 from petstore_client.models.category import Category
 from petstore_client.models.tag import Tag
+from pydantic import EmailStr
+from pydantic import HttpUrl
+from pydantic import StrictFloat
+from pydantic import StrictInt
+from pydantic import StrictStr
 
 Pet.model_rebuild(raise_errors=False)

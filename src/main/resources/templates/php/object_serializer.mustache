@@ -1,6 +1,10 @@
 {{>api_info}}
 namespace {{invokerPackage}};
 
+use {{invokerPackage}}\Serializer\DsMapNormalizer;
+use {{invokerPackage}}\Serializer\DsSetNormalizer;
+use {{invokerPackage}}\Serializer\DsVectorNormalizer;
+use {{invokerPackage}}\Serializer\UriNormalizer;
 use Symfony\Component\PropertyInfo\Extractor\PhpDocExtractor;
 use Symfony\Component\PropertyInfo\Extractor\ReflectionExtractor;
 use Symfony\Component\PropertyInfo\PropertyInfoExtractor;
@@ -45,6 +49,10 @@ class ObjectSerializer
             self::$serializer = new Serializer([
                 new BackedEnumNormalizer(),
                 new DateTimeNormalizer([DateTimeNormalizer::FORMAT_KEY => self::DATE_TIME_FORMAT]),
+                new UriNormalizer(),
+                new DsMapNormalizer(),
+                new DsSetNormalizer(),
+                new DsVectorNormalizer(),
                 new ArrayDenormalizer(),
                 new ObjectNormalizer(
                     propertyTypeExtractor: $propertyTypeExtractor,

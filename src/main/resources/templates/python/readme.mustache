@@ -48,6 +48,35 @@ pytest
 - Name: `{{packageName}}`
 - Version: `{{packageVersion}}`
 
+## OpenAPI type mapping
+
+This SDK leans on pydantic 2's native typed surfaces:
+
+| OAS `type` / `format`              | Python type                       |
+| ---------------------------------- | --------------------------------- |
+| `string`                           | `pydantic.StrictStr`              |
+| `integer`                          | `pydantic.StrictInt`              |
+| `number`                           | `pydantic.StrictFloat`            |
+| `boolean`                          | `pydantic.StrictBool`             |
+| `string`, `format: uri`            | `pydantic.HttpUrl`                |
+| `string`, `format: uri-reference`  | `pydantic.StrictStr` (may be relative) |
+| `string`, `format: uri-template`   | `pydantic.StrictStr` (RFC 6570)   |
+| `string`, `format: email`          | `pydantic.EmailStr`               |
+| `string`, `format: password`       | `pydantic.SecretStr`              |
+| `string`, `format: ipv4`           | `ipaddress.IPv4Address`           |
+| `string`, `format: ipv6`           | `ipaddress.IPv6Address`           |
+| `string`, `format: date-time`      | `pydantic.AwareDatetime` (tz-aware) |
+| `string`, `format: date`           | `datetime.date`                   |
+| `string`, `format: time`           | `datetime.time`                   |
+| `string`, `format: duration`       | `datetime.timedelta`              |
+| `string`, `format: uuid`           | `uuid.UUID`                       |
+| `string`, `format: byte/binary`    | `bytes`                           |
+
+`Strict*` types reject lax coercion (`"1"` → `1`, `1.0` → `1`, etc.),
+matching the strict-type-coercion contract of the other SDKs.
+`AwareDatetime` rejects naive datetimes — RFC 3339 mandates a timezone
+offset.
+
 ## Not supported
 
 ### Webhooks and callbacks
@@ -69,12 +98,16 @@ validator library for your language.
 
 ### Numeric / string constraint validation
 
-OpenAPI keywords like `minLength`, `maxLength`, `minimum`, `maximum`,
-`pattern`, `minItems`, `maxItems`, `uniqueItems`, `multipleOf` are
-**not enforced** by this SDK. The server is the authoritative
-validator; client-side enforcement is a DX nicety, not a correctness
-requirement. If you want fast-fail validation before the network
-round trip, plug in a JSON Schema validator library for your language.
+OpenAPI keywords `minLength`, `maxLength`, `pattern`, `minimum`,
+`maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`,
+`minItems`, `maxItems`, and `uniqueItems` ARE enforced client-side on
+generated models via pydantic 2's native `Field(...)` constraints
+(`min_length`, `max_length`, `pattern`, `ge`/`gt`, `le`/`lt`,
+`multiple_of`). Constraint violations raise `pydantic.ValidationError`,
+which the `ObjectSerializer` surfaces as a `SerializationError` /
+`DeserializationError` to the caller. The server remains the
+authoritative validator; the client-side check is a fast-fail
+convenience before the network round trip.
 
 
 ### SOCKS proxies

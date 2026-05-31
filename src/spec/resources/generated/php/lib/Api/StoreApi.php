@@ -78,19 +78,19 @@ class StoreApi extends BaseApi
     /**
      * Returns pet inventories by status
 
-     * @return array<string,int>
+     * @return \Ds\Map
      * @throws \PetstoreClient\ApiException
      */
     public function getInventory()
     {
-        /** @var array<string,int> $result */
+        /** @var \Ds\Map $result */
         $result = $this->getInventoryWithHttpInfo()->data;
         return $result;
     }
 
     /**
 
-     * @return ApiResult<array<string,int>>
+     * @return ApiResult<\Ds\Map>
      * @throws \PetstoreClient\ApiException
      */
     public function getInventoryWithHttpInfo(): ApiResult
@@ -100,7 +100,7 @@ class StoreApi extends BaseApi
         $headerParams = [];
         $requestBody = null;
 
-        /** @var ApiResult<array<string,int>> $result */
+        /** @var ApiResult<\Ds\Map> $result */
         $result = $this->invokeApiForResult(
             'GET',
             $path,
@@ -109,7 +109,7 @@ class StoreApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            'array<string,int>'
+            '\Ds\Map'
         );
         return $result;
     }

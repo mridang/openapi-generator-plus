@@ -2,7 +2,7 @@
     "license": "MIT",
     "version": "1.0.0",
     "require": {
-        "php": ">=8.4",
+        "php": "^8.5",
         "ext-curl": "*",
         "ext-json": "*",
         "ext-mbstring": "*",
@@ -12,7 +12,8 @@
         "symfony/property-access": "^6.0|^7.0",
         "symfony/property-info": "^6.0|^7.0",
         "symfony/uid": "^6.0|^7.0",
-        "phpdocumentor/reflection-docblock": "^5.3"
+        "phpdocumentor/reflection-docblock": "^5.3",
+        "php-ds/php-ds": "^1.5"
     },
     "require-dev": {
         "pestphp/pest": "^4.0",
@@ -33,6 +34,7 @@
     "suggest": {
         "ext-brotli": "For brotli response decompression",
         "ext-zstd": "For zstd response decompression",
+        "ext-ds": "Use the PECL ext-ds for native performance",
         "open-telemetry/api": "For automatic W3C Trace Context (traceparent) propagation on API calls"
     },
     "autoload": {

@@ -4,9 +4,12 @@ Auto-generated PHP SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
 ## Requirements
 
-- PHP 8.4 or newer
+- PHP 8.5 or newer
 - Composer 2.x
 - PHP extensions: `ext-curl`, `ext-json`, `ext-mbstring`
+- Optional: PECL `ext-ds` (auto-replaces the `php-ds/php-ds` userland
+  `\Ds\Vector` / `\Ds\Set` / `\Ds\Map` classes with their native C
+  implementations for ~5–10x throughput on container-heavy payloads)
 
 ## Install
 

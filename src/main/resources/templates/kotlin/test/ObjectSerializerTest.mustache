@@ -1,5 +1,7 @@
 {{>api_info}}
 
+@file:OptIn(kotlin.uuid.ExperimentalUuidApi::class)
+
 package {{invokerPackage}}
 
 import org.junit.jupiter.api.DisplayName
@@ -9,7 +11,7 @@ import org.junit.jupiter.api.Assertions.*
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
-import java.util.UUID
+import kotlin.uuid.Uuid
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -289,7 +291,7 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("UUID returns string representation")
         fun uuidReturnsString() {
-            val uuid = UUID.fromString("550e8400-e29b-41d4-a716-446655440000")
+            val uuid = Uuid.parse("550e8400-e29b-41d4-a716-446655440000")
             assertEquals("550e8400-e29b-41d4-a716-446655440000", serializer.stringify(uuid))
         }
 
@@ -502,8 +504,8 @@ class ObjectSerializerTest {
 
     @Serializable
     data class UuidHolder(
-        @SerialName("id") @Contextual val id: UUID,
-        @SerialName("optional") @Contextual val optional: UUID? = null,
+        @SerialName("id") @Contextual val id: Uuid,
+        @SerialName("optional") @Contextual val optional: Uuid? = null,
     )
 
     @Nested
@@ -513,7 +515,7 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("UUID field serializes to canonical lowercase hex string")
         fun uuidFieldSerializesToCanonicalString() {
-            val id = UUID.fromString("550e8400-e29b-41d4-a716-446655440000")
+            val id = Uuid.parse("550e8400-e29b-41d4-a716-446655440000")
             val holder = UuidHolder(id = id)
             val json = serializer.serialize(holder)
             assertTrue(
@@ -523,20 +525,20 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("UUID field deserializes from canonical string into java.util.UUID")
+        @DisplayName("UUID field deserializes from canonical string into kotlin.uuid.Uuid")
         fun uuidFieldDeserializesFromString() {
             val raw = "{\"id\":\"550e8400-e29b-41d4-a716-446655440000\"}"
             val holder = serializer.deserialize<UuidHolder>(raw)
             assertNotNull(holder)
-            assertEquals(UUID.fromString("550e8400-e29b-41d4-a716-446655440000"), holder!!.id)
+            assertEquals(Uuid.parse("550e8400-e29b-41d4-a716-446655440000"), holder!!.id)
         }
 
         @Test
         @DisplayName("UUID round-trip preserves identity")
         fun uuidRoundTripPreservesIdentity() {
             val original = UuidHolder(
-                id = UUID.fromString("123e4567-e89b-12d3-a456-426614174000"),
-                optional = UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                id = Uuid.parse("123e4567-e89b-12d3-a456-426614174000"),
+                optional = Uuid.parse("00000000-0000-0000-0000-000000000001"),
             )
             val encoded = serializer.serialize(original)
             val decoded = serializer.deserialize<UuidHolder>(encoded)

@@ -84,13 +84,14 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         typeMapping.put("time", "\\DateTimeImmutable");
         typeMapping.put("duration", "\\DateInterval");
         typeMapping.put("UUID", "\\Symfony\\Component\\Uid\\Uuid");
-        typeMapping.put("URI", "string");
+        typeMapping.put("URI", "\\Uri\\Rfc3986\\Uri");
         typeMapping.put("object", "object");
         typeMapping.put("AnyType", "mixed");
-        typeMapping.put("array", "array");
-        typeMapping.put("set", "array");
-        typeMapping.put("map", "array");
-        typeMapping.put("list", "array");
+        typeMapping.put("array", "\\Ds\\Vector");
+        typeMapping.put("set", "\\Ds\\Set");
+        typeMapping.put("map", "\\Ds\\Map");
+        typeMapping.put("Map", "\\Ds\\Map");
+        typeMapping.put("list", "\\Ds\\Vector");
         typeMapping.put("file", "\\SplFileObject");
         typeMapping.put("File", "\\SplFileObject");
 
@@ -114,10 +115,16 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                                 "\\DateTimeImmutable",
                                 "\\DateInterval",
                                 "\\SplFileObject",
-                                "\\Symfony\\Component\\Uid\\Uuid"));
+                                "\\Symfony\\Component\\Uid\\Uuid",
+                                "\\Uri\\Rfc3986\\Uri",
+                                "\\Ds\\Vector",
+                                "\\Ds\\Set",
+                                "\\Ds\\Map"));
 
-        instantiationTypes.put("array", "array");
-        instantiationTypes.put("map", "array");
+        instantiationTypes.put("array", "\\Ds\\Vector");
+        instantiationTypes.put("set", "\\Ds\\Set");
+        instantiationTypes.put("map", "\\Ds\\Map");
+        instantiationTypes.put("list", "\\Ds\\Vector");
 
         reservedWords = loadReservedWords("/reserved-words/php.txt");
 
@@ -204,6 +211,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         final String invokerFolder = SRC_BASE_PATH;
         final String apiFolder = Path.of(SRC_BASE_PATH, API_DIR_NAME).toString();
         final String errorsFolder = Path.of(SRC_BASE_PATH, "Errors").toString();
+        final String serializerFolder = Path.of(SRC_BASE_PATH, "Serializer").toString();
         return List.of(
             new SupportingFileSpec("readme.mustache", "", "README.md"),
             new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
@@ -211,6 +219,10 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("configuration_builder.mustache", invokerFolder, "ConfigurationBuilder.php"),
             new SupportingFileSpec("object_serializer.mustache", invokerFolder, "ObjectSerializer.php"),
             new SupportingFileSpec("value_serializer.mustache", invokerFolder, "ValueSerializer.php"),
+            new SupportingFileSpec("serializer/uri_normalizer.mustache", serializerFolder, "UriNormalizer.php"),
+            new SupportingFileSpec("serializer/ds_vector_normalizer.mustache", serializerFolder, "DsVectorNormalizer.php"),
+            new SupportingFileSpec("serializer/ds_set_normalizer.mustache", serializerFolder, "DsSetNormalizer.php"),
+            new SupportingFileSpec("serializer/ds_map_normalizer.mustache", serializerFolder, "DsMapNormalizer.php"),
             new SupportingFileSpec("api_error.mustache", invokerFolder, "ApiException.php"),
             new SupportingFileSpec("errors/ClientException.mustache", errorsFolder, "ClientException.php"),
             new SupportingFileSpec("errors/ServerException.mustache", errorsFolder, "ServerException.php"),
@@ -459,15 +471,9 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     @Override
     public String getTypeDeclaration(Schema p) {
         if (ModelUtils.isArraySchema(p)) {
-            return Optional.ofNullable(ModelUtils.getSchemaItems(p))
-                    .map(inner -> getTypeDeclaration(inner) + "[]")
-                    .orElse("string[]");
+            return Boolean.TRUE.equals(p.getUniqueItems()) ? "\\Ds\\Set" : "\\Ds\\Vector";
         } else if (ModelUtils.isMapSchema(p)) {
-            final Schema inner = ModelUtils.getAdditionalProperties(p);
-            if (inner == null) {
-                return "array<string,string>";
-            }
-            return getSchemaType(p) + "<string," + getTypeDeclaration(inner) + ">";
+            return "\\Ds\\Map";
         } else if (isNotBlank(p.get$ref())) {
             final String type = super.getTypeDeclaration(p);
             if (!languageSpecificPrimitives.contains(type)) {
@@ -799,6 +805,19 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             return "array<string, " + valueType + ">";
         }
         return p.dataType;
+    }
+
+    /**
+     * Honour URI subformat discrimination — {@code format: uri-reference}
+     * and {@code format: uri-template} stay as plain {@code string} per
+     * {@link AbstractBetterCodegen#keepStringForUriSubformats}, only the
+     * absolute-URI {@code format: uri} maps to the native PHP 8.5
+     * {@code \Uri\Rfc3986\Uri}.
+     */
+    @Override
+    public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
+        super.postProcessModelProperty(model, property);
+        keepStringForUriSubformats(property, "string");
     }
 
     /** {@inheritDoc} */

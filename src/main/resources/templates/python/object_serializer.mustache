@@ -11,7 +11,7 @@ from enum import Enum
 from typing import Any, Callable, ClassVar, Optional, Type, TypeVar, Union
 
 from dateutil.parser import parse
-from pydantic import BaseModel, SecretStr
+from pydantic import BaseModel, SecretStr, TypeAdapter
 
 try:
     import isodate as _isodate  # type: ignore[import-untyped]
@@ -92,6 +92,29 @@ import {{packageName}}.models
 T = TypeVar('T')
 
 
+# Module-level TypeAdapter cache for Item 10. TypeAdapter compiles a
+# validator + serializer for a generic type once; reusing the instance
+# across calls avoids paying that cost on every list/dict deserialization.
+_LIST_ADAPTER_CACHE: dict[type, TypeAdapter[Any]] = {}
+_DICT_ADAPTER_CACHE: dict[type, TypeAdapter[Any]] = {}
+
+
+def _list_adapter(inner: type) -> TypeAdapter[Any]:
+    cached = _LIST_ADAPTER_CACHE.get(inner)
+    if cached is None:
+        cached = TypeAdapter(list[inner])  # type: ignore[valid-type]
+        _LIST_ADAPTER_CACHE[inner] = cached
+    return cached
+
+
+def _dict_adapter(inner: type) -> TypeAdapter[Any]:
+    cached = _DICT_ADAPTER_CACHE.get(inner)
+    if cached is None:
+        cached = TypeAdapter(dict[str, inner])  # type: ignore[valid-type]
+        _DICT_ADAPTER_CACHE[inner] = cached
+    return cached
+
+
 class SerializationError(Exception):
     """Exception raised when serialization or deserialization fails."""
 
@@ -120,11 +143,23 @@ class ObjectSerializer:
         'bytes': bytes,
         'date': datetime.date,
         'datetime': datetime.datetime,
+        # Item 5 — pydantic AwareDatetime resolves to the stdlib datetime
+        # at runtime; pydantic enforces the tz-awareness invariant during
+        # model validation, not in this hand-rolled fallback path.
+        'AwareDatetime': datetime.datetime,
         'datetime.time': datetime.time,
         'datetime.timedelta': datetime.timedelta,
         'decimal': decimal.Decimal,
         'uuid.UUID': uuid.UUID,
         'object': object,
+        # Item 8 — pydantic StrictXxx aliases resolve to their stdlib
+        # primitives for the top-level _deserialize() fallback path.
+        # Strictness is enforced by per-field StrictXxx annotations on
+        # generated models, not by this map.
+        'StrictInt': int,
+        'StrictFloat': float,
+        'StrictBool': bool,
+        'StrictStr': str,
     }
 
     def __init__(self) -> None:
@@ -243,6 +278,23 @@ class ObjectSerializer:
         else:
             return str(obj)
 
+    def _resolve_klass_name(self, name: str) -> Optional[type]:
+        """Resolve a flat type-name string to a Python type for TypeAdapter.
+
+        Returns ``None`` when the name is a composite (``List[...]`` /
+        ``Dict[...]``) so the caller falls back to recursive deserialization.
+        Used by the Item 10 TypeAdapter fast path for ``List[T]`` /
+        ``Dict[str, T]`` collections.
+        """
+        if name.startswith('List[') or name.startswith('Dict['):
+            return None
+        if name in self._NATIVE_TYPES_MAPPING:
+            return self._NATIVE_TYPES_MAPPING[name]
+        resolved = getattr({{packageName}}.models, name, None)
+        if isinstance(resolved, type):
+            return resolved
+        return None
+
     def _deserialize(self, data: Any, klass: Any) -> Any:
         """Deserialize parsed data to the target type.
 
@@ -256,12 +308,22 @@ class ObjectSerializer:
                 m = re.match(r'List\[(.*)]', klass)
                 assert m is not None, 'Malformed List type definition'
                 sub_kls = m.group(1)
+                inner = self._resolve_klass_name(sub_kls)
+                # Item 10 — pydantic TypeAdapter handles list-of-model
+                # validation natively (one cached adapter per inner type).
+                # Falls back to the element-wise recursion only for inner
+                # types the adapter can't express (e.g. nested 'List[X]').
+                if inner is not None:
+                    return _list_adapter(inner).validate_python(data)
                 return [self._deserialize(item, sub_kls) for item in data]
 
             if klass.startswith('Dict['):
                 m = re.match(r'Dict\[([^,]*), (.*)]', klass)
                 assert m is not None, 'Malformed Dict type definition'
                 sub_kls = m.group(2)
+                inner = self._resolve_klass_name(sub_kls)
+                if inner is not None:
+                    return _dict_adapter(inner).validate_python(data)
                 return {k: self._deserialize(v, sub_kls) for k, v in data.items()}
 
             if klass in self._NATIVE_TYPES_MAPPING:

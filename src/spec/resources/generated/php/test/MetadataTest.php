@@ -25,14 +25,15 @@ test('deserializes additional string properties', function (): void {
     /** @var Metadata $metadata */
     $metadata = ObjectSerializer::deserialize($json, Metadata::class);
     expect($metadata)->toBeInstanceOf(Metadata::class);
-    expect($metadata->additionalProperties)->toHaveKey('customField');
-    expect($metadata->additionalProperties['customField'])->toBe('hello');
+    expect($metadata->additionalProperties)->toBeInstanceOf(\Ds\Map::class);
+    expect($metadata->additionalProperties->hasKey('customField'))->toBeTrue();
+    expect($metadata->additionalProperties->get('customField'))->toBe('hello');
 });
 
 test('round trip preserves additional properties', function (): void {
     $metadata = new Metadata();
     $metadata->createdAt = new \DateTime('2024-01-01T00:00:00+00:00');
-    $metadata->additionalProperties = ['customField' => 'hello', 'anotherField' => 'world'];
+    $metadata->additionalProperties = new \Ds\Map(['customField' => 'hello', 'anotherField' => 'world']);
 
     $json = ObjectSerializer::serialize($metadata);
     /** @var Metadata $deserialized */
@@ -40,9 +41,9 @@ test('round trip preserves additional properties', function (): void {
     expect($deserialized)->toBeInstanceOf(Metadata::class);
 });
 
-test('additional properties field is string typed', function (): void {
+test('additional properties field is Ds\\Map typed', function (): void {
     $metadata = new Metadata();
-    $metadata->additionalProperties = ['key' => 'value'];
-    expect($metadata->additionalProperties)->toBeArray();
-    expect($metadata->additionalProperties['key'])->toBe('value');
+    $metadata->additionalProperties = new \Ds\Map(['key' => 'value']);
+    expect($metadata->additionalProperties)->toBeInstanceOf(\Ds\Map::class);
+    expect($metadata->additionalProperties->get('key'))->toBe('value');
 });

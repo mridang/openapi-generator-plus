@@ -84,8 +84,8 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         typeMapping.put("date-time", "OffsetDateTime");
         typeMapping.put("time", "LocalTime");
         typeMapping.put("duration", "Duration");
-        typeMapping.put("UUID", "UUID");
-        typeMapping.put("URI", "String");
+        typeMapping.put("UUID", "Uuid");
+        typeMapping.put("URI", "Url");
         typeMapping.put("BigDecimal", "BigDecimal");
 
         importMapping.put("List", "kotlin.collections.List");
@@ -99,7 +99,8 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         importMapping.put("LocalTime", "java.time.LocalTime");
         importMapping.put("Duration", "java.time.Duration");
         importMapping.put("BigDecimal", "java.math.BigDecimal");
-        importMapping.put("UUID", "java.util.UUID");
+        importMapping.put("Uuid", "kotlin.uuid.Uuid");
+        importMapping.put("Url", "io.ktor.http.Url");
 
         languageSpecificPrimitives =
                 new HashSet<>(
@@ -622,6 +623,17 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                         "options",
                         optionsClassName + ".kt")
                 .toString();
+    }
+
+    /**
+     * Restores plain {@code String} for {@code format: uri-reference} and
+     * {@code format: uri-template} properties so only absolute
+     * {@code format: uri} maps to {@code io.ktor.http.Url}.
+     */
+    @Override
+    public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
+        super.postProcessModelProperty(model, property);
+        keepStringForUriSubformats(property, "String");
     }
 
     /**

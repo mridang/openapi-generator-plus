@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator  # noqa: F401
-from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
+from typing import Annotated, Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
 from typing_extensions import Self  # noqa: F401
 
 
@@ -19,6 +19,17 @@ class SetPetAvatarThumbnailRequest(BaseModel):
 
     one_of_0: Optional[bytes] = None
     one_of_1: Optional[List[bytes]] = None
+    # Item 6 — pydantic 2 native discriminated unions
+    # (Annotated[Union[...], Field(discriminator='X')]) require each
+    # branch's discriminator field to be typed as Literal['mapping-name'].
+    # The OAS-driven codegen here emits StrictStr with a Field default
+    # (e.g. food_type: StrictStr = Field(default='DryFood', alias='foodType'))
+    # so the literal-typing precondition does not hold and the native
+    # Annotated form would raise PydanticUserError(discriminator-no-field)
+    # at import time. We keep a plain Union here and dispatch through
+    # `get_discriminator_value` in `ObjectSerializer._deserialize_composed`,
+    # which gives us the same explicit-error guarantee as the native form
+    # without needing a template-level overhaul of the child models.
     actual_instance: Optional[Union[List[bytes], bytes]] = None
     one_of_schemas: ClassVar[Set[str]] = {'List[bytes]', 'bytes'}
 

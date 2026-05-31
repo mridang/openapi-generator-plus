@@ -57,5 +57,7 @@ class PetTreatment(BaseModel):
 
 from petstore_client.models.medication import Medication
 from petstore_client.models.surgery import Surgery
+from pydantic import StrictInt
+from pydantic import StrictStr
 
 PetTreatment.model_rebuild(raise_errors=False)

@@ -47,7 +47,7 @@ function newPetApiForMock(int $statusCode, string $contentType, string $body): P
 // -- Integration tests via Chasm --
 
 test('add pet', function (): void {
-    $pet = new Pet(name: 'TestDog', photoUrls: ['http://example.com/photo.jpg']);
+    $pet = new Pet(name: 'TestDog', photoUrls: new \Ds\Set(['http://example.com/photo.jpg']));
     $pet->id = 12345;
     $pet->status = PetStatusEnum::AVAILABLE;
 
@@ -57,7 +57,7 @@ test('add pet', function (): void {
 });
 
 test('add pet with http info exposes status and headers', function (): void {
-    $pet = new Pet(name: 'TestDog', photoUrls: ['http://example.com/photo.jpg']);
+    $pet = new Pet(name: 'TestDog', photoUrls: new \Ds\Set(['http://example.com/photo.jpg']));
     $pet->id = 67890;
     $pet->status = PetStatusEnum::AVAILABLE;
 
@@ -89,7 +89,7 @@ test('get pet passport', function (): void {
 });
 
 test('update pet', function (): void {
-    $pet = new Pet(name: 'UpdatedDog', photoUrls: ['http://example.com/updated.jpg']);
+    $pet = new Pet(name: 'UpdatedDog', photoUrls: new \Ds\Set(['http://example.com/updated.jpg']));
     $pet->id = 1;
     $pet->status = PetStatusEnum::PENDING;
 
@@ -270,7 +270,7 @@ test('add pet per call auth override', function (): void {
     $api = new PetApi(apiClient: $client, config: $config);
     $perCallAuth = new BearerAuthenticator('http://localhost:9999', 'per-call-token');
 
-    $pet = new Pet(name: 'OverrideDog', photoUrls: ['http://example.com/p.jpg']);
+    $pet = new Pet(name: 'OverrideDog', photoUrls: new \Ds\Set(['http://example.com/p.jpg']));
     $pet->id = 1;
     $api->addPet($pet, auth: $perCallAuth);
 

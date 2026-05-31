@@ -39,13 +39,13 @@ class Pet
     #[SerializedName('category')]
     public ?\PetstoreClient\Models\Category $category = null;
 
-    /** @var string[] */
+    /** @var \Ds\Set<string> */
     #[SerializedName('photoUrls')]
-    public array $photoUrls;
+    public \Ds\Set $photoUrls;
 
-    /** @var \PetstoreClient\Models\Tag[]|null */
+    /** @var \Ds\Vector<\PetstoreClient\Models\Tag>|null */
     #[SerializedName('tags')]
-    public ?array $tags = null;
+    public ?\Ds\Vector $tags = null;
 
     /**
      * pet status in the store
@@ -55,16 +55,16 @@ class Pet
     #[SerializedName('status')]
     public ?PetStatusEnum $status = null;
 
-    /** @var mixed[]|null */
+    /** @var \Ds\Vector<mixed>|null */
     #[SerializedName('location')]
-    public ?array $location = null;
+    public ?\Ds\Vector $location = null;
 
     /**
      * Absolute URL to the pet's public profile page
      * @example https://example.com/pets/fido
      */
     #[SerializedName('homepageUrl')]
-    public ?string $homepageUrl = null;
+    public ?\Uri\Rfc3986\Uri $homepageUrl = null;
 
     /**
      * Optionally-relative thumbnail location
@@ -95,19 +95,19 @@ class Pet
     public ?float $weightKg = null;
 
     /**
-     * @param string[] $photoUrls
-     * @param \PetstoreClient\Models\Tag[]|null $tags
-     * @param mixed[]|null $location
+     * @param \Ds\Set<string> $photoUrls
+     * @param \Ds\Vector<\PetstoreClient\Models\Tag>|null $tags
+     * @param \Ds\Vector<mixed>|null $location
      */
     public function __construct(
         string $name,
-        array $photoUrls,
+        \Ds\Set $photoUrls,
         ?int $id = null,
         ?\PetstoreClient\Models\Category $category = null,
-        ?array $tags = null,
+        ?\Ds\Vector $tags = null,
         ?PetStatusEnum $status = null,
-        ?array $location = null,
-        ?string $homepageUrl = null,
+        ?\Ds\Vector $location = null,
+        ?\Uri\Rfc3986\Uri $homepageUrl = null,
         ?string $thumbnailRef = null,
         ?string $linkTemplate = null,
         ?string $ownerEmail = null,
@@ -116,11 +116,7 @@ class Pet
         $this->id = $id;
         $this->name = $name;
         $this->category = $category;
-        /* uniqueItems:true — dedupe at construction so PHP's
-           associative-array semantics don't leak duplicates that the
-           schema forbids. array_values() re-indexes after array_unique()
-           strips duplicates, producing a clean 0-based list. */
-        $this->photoUrls = array_values(array_unique($photoUrls, SORT_REGULAR));
+        $this->photoUrls = $photoUrls;
         $this->tags = $tags;
         $this->status = $status;
         $this->location = $location;

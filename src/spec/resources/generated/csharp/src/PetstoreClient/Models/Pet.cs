@@ -82,7 +82,7 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     /// <example>https://example.com/pets/fido</example>
 
     [JsonPropertyName("homepageUrl")]
-    public string? HomepageUrl { get; set; }
+    public Uri? HomepageUrl { get; set; }
 
     /// <summary>
     /// Optionally-relative thumbnail location
@@ -135,7 +135,7 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
                     && EqualityComparer<List<Tag>?>.Default.Equals(this.Tags, other.Tags)
                     && EqualityComparer<StatusEnum?>.Default.Equals(this.Status, other.Status)
                     && EqualityComparer<List<Object>?>.Default.Equals(this.Location, other.Location)
-                    && EqualityComparer<string?>.Default.Equals(this.HomepageUrl, other.HomepageUrl)
+                    && EqualityComparer<Uri?>.Default.Equals(this.HomepageUrl, other.HomepageUrl)
                     && EqualityComparer<string?>.Default.Equals(
                         this.ThumbnailRef,
                         other.ThumbnailRef

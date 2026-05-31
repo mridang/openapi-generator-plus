@@ -252,12 +252,22 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
     /**
      * {{{.}}}
 {{#isContainer}}
+{{#isArray}}
 {{#required}}
-     * @var {{{dataType}}}
+     * @var {{{dataType}}}<{{{items.dataType}}}>
 {{/required}}
 {{^required}}
-     * @var {{{dataType}}}|null
+     * @var {{{dataType}}}<{{{items.dataType}}}>|null
 {{/required}}
+{{/isArray}}
+{{#isMap}}
+{{#required}}
+     * @var {{{dataType}}}<string, {{{items.dataType}}}>
+{{/required}}
+{{^required}}
+     * @var {{{dataType}}}<string, {{{items.dataType}}}>|null
+{{/required}}
+{{/isMap}}
 {{/isContainer}}
 {{#example}}
      * @example {{{.}}}
@@ -280,22 +290,42 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{#isContainer}}
 {{#deprecated}}
     /**
+{{#isArray}}
 {{#required}}
-     * @var {{{dataType}}}
+     * @var {{{dataType}}}<{{{items.dataType}}}>
 {{/required}}
 {{^required}}
-     * @var {{{dataType}}}|null
+     * @var {{{dataType}}}<{{{items.dataType}}}>|null
 {{/required}}
+{{/isArray}}
+{{#isMap}}
+{{#required}}
+     * @var {{{dataType}}}<string, {{{items.dataType}}}>
+{{/required}}
+{{^required}}
+     * @var {{{dataType}}}<string, {{{items.dataType}}}>|null
+{{/required}}
+{{/isMap}}
      * @deprecated This property is deprecated.
      */
 {{/deprecated}}
 {{^deprecated}}
+{{#isArray}}
 {{#required}}
-    /** @var {{{dataType}}} */
+    /** @var {{{dataType}}}<{{{items.dataType}}}> */
 {{/required}}
 {{^required}}
-    /** @var {{{dataType}}}|null */
+    /** @var {{{dataType}}}<{{{items.dataType}}}>|null */
 {{/required}}
+{{/isArray}}
+{{#isMap}}
+{{#required}}
+    /** @var {{{dataType}}}<string, {{{items.dataType}}}> */
+{{/required}}
+{{^required}}
+    /** @var {{{dataType}}}<string, {{{items.dataType}}}>|null */
+{{/required}}
+{{/isMap}}
 {{/deprecated}}
 {{/isContainer}}
 {{^isContainer}}
@@ -321,7 +351,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
     #[SerializedName('{{{baseName}}}')]
 {{#required}}
 {{#isContainer}}
-    public array ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
+    public {{{dataType}}} ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
 {{/isContainer}}
 {{^isContainer}}
 {{#isEnum}}
@@ -335,10 +365,10 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{^required}}
 {{#isContainer}}
 {{#defaultValue}}
-    public array ${{name}} = {{{.}}};
+    public {{{dataType}}} ${{name}} = {{{.}}};
 {{/defaultValue}}
 {{^defaultValue}}
-    public ?array ${{name}} = null;
+    public ?{{{dataType}}} ${{name}} = null;
 {{/defaultValue}}
 {{/isContainer}}
 {{^isContainer}}
@@ -366,8 +396,8 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
 
-    /** @var array<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}mixed{{/additionalPropertiesType}}> */
-    public array $additionalProperties = [];
+    /** @var \Ds\Map<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}mixed{{/additionalPropertiesType}}>|null */
+    public ?\Ds\Map $additionalProperties = null;
 {{/isAdditionalPropertiesTrue}}
 {{#isUnevaluatedPropertiesFalse}}
 
@@ -395,25 +425,36 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 
     /**
 {{#requiredVars}}
-{{#isContainer}}
-     * @param {{{dataType}}} ${{name}}
-{{/isContainer}}
+{{#isArray}}
+     * @param {{{dataType}}}<{{{items.dataType}}}> ${{name}}
+{{/isArray}}
+{{#isMap}}
+     * @param {{{dataType}}}<string, {{{items.dataType}}}> ${{name}}
+{{/isMap}}
 {{/requiredVars}}
 {{#optionalVars}}
-{{#isContainer}}
+{{#isArray}}
 {{#defaultValue}}
-     * @param {{{dataType}}} ${{name}}
+     * @param {{{dataType}}}<{{{items.dataType}}}> ${{name}}
 {{/defaultValue}}
 {{^defaultValue}}
-     * @param {{{dataType}}}|null ${{name}}
+     * @param {{{dataType}}}<{{{items.dataType}}}>|null ${{name}}
 {{/defaultValue}}
-{{/isContainer}}
+{{/isArray}}
+{{#isMap}}
+{{#defaultValue}}
+     * @param {{{dataType}}}<string, {{{items.dataType}}}> ${{name}}
+{{/defaultValue}}
+{{^defaultValue}}
+     * @param {{{dataType}}}<string, {{{items.dataType}}}>|null ${{name}}
+{{/defaultValue}}
+{{/isMap}}
 {{/optionalVars}}
      */
     public function __construct(
 {{#requiredVars}}
 {{#isContainer}}
-        array ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}},
+        {{{dataType}}} ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}},
 {{/isContainer}}
 {{^isContainer}}
 {{#isEnum}}
@@ -427,10 +468,10 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{#optionalVars}}
 {{#isContainer}}
 {{#defaultValue}}
-        array ${{name}} = {{{.}}},
+        {{{dataType}}} ${{name}} = {{{.}}},
 {{/defaultValue}}
 {{^defaultValue}}
-        ?array ${{name}} = null,
+        ?{{{dataType}}} ${{name}} = null,
 {{/defaultValue}}
 {{/isContainer}}
 {{^isContainer}}
@@ -454,21 +495,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{/optionalVars}}
     ) {
 {{#vars}}
-{{#isArray}}
-{{#uniqueItems}}
-        /* uniqueItems:true — dedupe at construction so PHP's
-           associative-array semantics don't leak duplicates that the
-           schema forbids. array_values() re-indexes after array_unique()
-           strips duplicates, producing a clean 0-based list. */
-        $this->{{name}} = {{^required}}${{name}} === null ? null : {{/required}}array_values(array_unique(${{name}}, SORT_REGULAR));
-{{/uniqueItems}}
-{{^uniqueItems}}
         $this->{{name}} = ${{name}};
-{{/uniqueItems}}
-{{/isArray}}
-{{^isArray}}
-        $this->{{name}} = ${{name}};
-{{/isArray}}
 {{/vars}}
     }
 {{#vars}}

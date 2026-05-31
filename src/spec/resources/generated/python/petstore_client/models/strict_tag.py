@@ -19,8 +19,8 @@ class StrictTag(BaseModel):
     StrictTag
     """
 
-    id: Optional[int] = Field(default=None, alias='id', strict=True)
-    name: Optional[str] = Field(default=None, alias='name', strict=True)
+    id: Optional[StrictInt] = Field(default=None, alias='id')
+    name: Optional[StrictStr] = Field(default=None, alias='name')
     additional_properties: Dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode='before')
@@ -57,34 +57,22 @@ class StrictTag(BaseModel):
         merged['additional_properties'] = extras
         return merged
 
-    # Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
-    # Pydantic must reject any JSON key not declared as a field above.
-    @model_validator(mode='before')
-    @classmethod
-    def _reject_unknown_keys(cls, values: Any) -> Any:
-        if not isinstance(values, dict):
-            return values
-        known: Set[str] = set()
-        for fname, finfo in cls.model_fields.items():
-            known.add(fname)
-            if finfo.alias is not None:
-                known.add(finfo.alias)
-        for key in values.keys():
-            if key not in known:
-                raise ValueError("Unknown property '" + str(key) + "' on StrictTag (unevaluatedProperties:false)")
-        return values
-
-    # Pydantic default mode (lenient) is kept here. strict=True was tried
-    # for Gap S but it rejects legitimate JSON-to-Python coercions like
-    # list-to-Set (JSON has no Set type) and string-to-Enum (JSON encodes
-    # enums as their string value). Surfacing wire-type bugs would
-    # require per-field validators on int/bool/float specifically —
-    # tracked in AGENT.md as a deferred sub-gap.
+    # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
+    # per-field strictness, so the model-wide ConfigDict no longer needs
+    # strict=True. populate_by_name keeps both alias and snake_case
+    # field-name kwargs working in constructors.
     model_config = ConfigDict(
         populate_by_name=True,
         validate_assignment=True,
         protected_namespaces=(),
+        # Item 9 — OAS 3.1 unevaluatedProperties:false → pydantic native
+        # rejection of extra JSON keys (replaces the hand-rolled
+        # _reject_unknown_keys model_validator).
+        extra='forbid',
     )
 
+
+from pydantic import StrictInt
+from pydantic import StrictStr
 
 StrictTag.model_rebuild(raise_errors=False)

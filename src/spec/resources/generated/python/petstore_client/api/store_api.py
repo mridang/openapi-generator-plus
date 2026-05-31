@@ -33,7 +33,7 @@ class StoreApi(BaseApi):
 
     async def delete_order(
         self,
-        order_id: int,
+        order_id: StrictInt,
         base_url: Optional[str] = None,
     ) -> None:
         """Delete purchase order by ID
@@ -50,7 +50,7 @@ class StoreApi(BaseApi):
 
     async def delete_order_with_http_info(
         self,
-        order_id: int,
+        order_id: StrictInt,
         base_url: Optional[str] = None,
     ) -> 'ApiResult[None]':
         """Delete purchase order by ID (with HTTP info)
@@ -63,7 +63,7 @@ class StoreApi(BaseApi):
             raise ValueError("Missing the required parameter 'order_id'")
 
         path = '/store/order/{orderId}'
-        path = path.replace('{' + 'orderId' + '}', quote(str(ValueSerializer.serialize_styled('orderId', order_id, 'path', 'int', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
+        path = path.replace('{' + 'orderId' + '}', quote(str(ValueSerializer.serialize_styled('orderId', order_id, 'path', 'StrictInt', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
         if base_url is not None:
             if base_url.startswith('http://') or base_url.startswith('https://'):
                 path = base_url.rstrip('/') + path
@@ -86,10 +86,10 @@ class StoreApi(BaseApi):
     async def get_inventory(
         self,
         base_url: Optional[str] = None,
-    ) -> Dict[str, int]:
+    ) -> Dict[str, StrictInt]:
         """Returns pet inventories by status
 
-        :return: Dict[str, int]
+        :return: Dict[str, StrictInt]
         :raises ApiException: if fails to make API call
         """
         result = await self.get_inventory_with_http_info(base_url=base_url)
@@ -100,7 +100,7 @@ class StoreApi(BaseApi):
     async def get_inventory_with_http_info(
         self,
         base_url: Optional[str] = None,
-    ) -> 'ApiResult[Dict[str, int]]':
+    ) -> 'ApiResult[Dict[str, StrictInt]]':
         """Returns pet inventories by status (with HTTP info)
 
         :return: ApiResult containing the response data, status code, raw body, and headers
@@ -122,13 +122,13 @@ class StoreApi(BaseApi):
             body,
             ['application/json'],
             'application/json',
-            'Dict[str, int]',
+            'Dict[str, StrictInt]',
             None,
         )
 
     async def get_order_by_id(
         self,
-        order_id: int,
+        order_id: StrictInt,
         base_url: Optional[str] = None,
     ) -> Order:
         """Find purchase order by ID
@@ -147,7 +147,7 @@ class StoreApi(BaseApi):
 
     async def get_order_by_id_with_http_info(
         self,
-        order_id: int,
+        order_id: StrictInt,
         base_url: Optional[str] = None,
     ) -> 'ApiResult[Order]':
         """Find purchase order by ID (with HTTP info)
@@ -160,7 +160,7 @@ class StoreApi(BaseApi):
             raise ValueError("Missing the required parameter 'order_id'")
 
         path = '/store/order/{orderId}'
-        path = path.replace('{' + 'orderId' + '}', quote(str(ValueSerializer.serialize_styled('orderId', order_id, 'path', 'int', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
+        path = path.replace('{' + 'orderId' + '}', quote(str(ValueSerializer.serialize_styled('orderId', order_id, 'path', 'StrictInt', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
         if base_url is not None:
             if base_url.startswith('http://') or base_url.startswith('https://'):
                 path = base_url.rstrip('/') + path

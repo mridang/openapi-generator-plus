@@ -44,14 +44,29 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterPythonCodegen.class);
 
     /** Maps Python built-in datatype names to their required import statement. */
-    private static final Map<String, String> TYPE_IMPORTS =
-            Map.of(
-                    "datetime", "from datetime import datetime",
-                    "date", "from datetime import date",
-                    "datetime.time", "from datetime import time",
-                    "datetime.timedelta", "from datetime import timedelta",
-                    "Decimal", "from decimal import Decimal",
-                    "uuid.UUID", "import uuid");
+    private static final Map<String, String> TYPE_IMPORTS;
+
+    static {
+        final Map<String, String> imports = new HashMap<>();
+        imports.put("date", "from datetime import date");
+        imports.put("datetime.time", "from datetime import time");
+        imports.put("datetime.timedelta", "from datetime import timedelta");
+        imports.put("Decimal", "from decimal import Decimal");
+        imports.put("uuid.UUID", "import uuid");
+        // Pydantic 2 native types
+        imports.put("HttpUrl", "from pydantic import HttpUrl");
+        imports.put("EmailStr", "from pydantic import EmailStr");
+        imports.put("SecretStr", "from pydantic import SecretStr");
+        imports.put("AwareDatetime", "from pydantic import AwareDatetime");
+        imports.put("StrictInt", "from pydantic import StrictInt");
+        imports.put("StrictStr", "from pydantic import StrictStr");
+        imports.put("StrictBool", "from pydantic import StrictBool");
+        imports.put("StrictFloat", "from pydantic import StrictFloat");
+        // stdlib ipaddress for ipv4/ipv6 formats
+        imports.put("IPv4Address", "from ipaddress import IPv4Address");
+        imports.put("IPv6Address", "from ipaddress import IPv6Address");
+        TYPE_IMPORTS = Map.copyOf(imports);
+    }
 
     protected String packageName = "openapi_client";
     protected String packageVersion = "1.0.0";
@@ -69,22 +84,26 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         modelTemplateFiles.put("models/model.mustache", ".py");
         apiTemplateFiles.put("api/api.mustache", ".py");
 
-        typeMapping.put("integer", "int");
-        typeMapping.put("long", "int");
-        typeMapping.put("float", "float");
-        typeMapping.put("double", "float");
-        typeMapping.put("number", "float");
-        typeMapping.put("boolean", "bool");
-        typeMapping.put("string", "str");
+        // Item 8: pydantic 2 strict primitives — kills lax JSON coercion
+        typeMapping.put("integer", "StrictInt");
+        typeMapping.put("long", "StrictInt");
+        typeMapping.put("float", "StrictFloat");
+        typeMapping.put("double", "StrictFloat");
+        typeMapping.put("number", "StrictFloat");
+        typeMapping.put("boolean", "StrictBool");
+        typeMapping.put("string", "StrictStr");
         typeMapping.put("byte", "bytes");
         typeMapping.put("binary", "bytes");
         typeMapping.put("ByteArray", "bytes");
         typeMapping.put("date", "date");
-        typeMapping.put("DateTime", "datetime");
+        // Item 5: format: date-time → AwareDatetime (rejects naive datetimes)
+        typeMapping.put("DateTime", "AwareDatetime");
         typeMapping.put("time", "datetime.time");
         typeMapping.put("duration", "datetime.timedelta");
         typeMapping.put("UUID", "uuid.UUID");
-        typeMapping.put("URI", "str");
+        // Item 1: format: uri → pydantic.HttpUrl (uri-reference/uri-template
+        // are downgraded back to StrictStr in postProcessModelProperty).
+        typeMapping.put("URI", "HttpUrl");
         typeMapping.put("object", "object");
         typeMapping.put("AnyType", "object");
         typeMapping.put("array", "List");
@@ -92,7 +111,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         typeMapping.put("map", "Dict");
         typeMapping.put("file", "bytes");
         typeMapping.put("File", "bytes");
-        typeMapping.put("decimal", "float");
+        typeMapping.put("decimal", "StrictFloat");
 
         languageSpecificPrimitives =
                 new HashSet<>(
@@ -100,7 +119,13 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                                 "int", "float", "bool", "str", "bytes", "object",
                                 "date", "datetime", "datetime.time", "datetime.timedelta",
                                 "uuid.UUID", "List", "Dict", "Set",
-                                "Tuple", "Optional"));
+                                "Tuple", "Optional",
+                                // Pydantic 2 native types treated as primitives so the
+                                // generic-import machinery does not try to emit
+                                // `from petstore_client.models.HttpUrl import HttpUrl`.
+                                "HttpUrl", "EmailStr", "SecretStr", "AwareDatetime",
+                                "StrictInt", "StrictStr", "StrictBool", "StrictFloat",
+                                "IPv4Address", "IPv6Address"));
 
         reservedWords = loadReservedWords("/reserved-words/python.txt");
 
@@ -504,7 +529,60 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     /** {@inheritDoc} */
     @Override
     protected Set<String> getNumericDataTypes() {
-        return Set.of("int", "float");
+        return Set.of("int", "float", "StrictInt", "StrictFloat");
+    }
+
+    /**
+     * Overrides the base class to honour OAS {@code format} hints that the
+     * default typeMapping cannot express (one mapping per OAS type only).
+     *
+     * <ul>
+     *   <li>{@code format: uri-reference} / {@code uri-template} downgrade
+     *       {@link io.github.mridang.codegen.generators.AbstractBetterCodegen#keepStringForUriSubformats}
+     *       the type from {@code HttpUrl} back to {@code str} — these may
+     *       be relative or contain RFC 6570 placeholders.</li>
+     *   <li>{@code format: email} → {@code EmailStr} (Item 2).</li>
+     *   <li>{@code format: password} → {@code SecretStr} (Item 3) — redacts
+     *       in {@code __repr__}/{@code __str__}.</li>
+     *   <li>{@code format: ipv4} → stdlib {@code ipaddress.IPv4Address}
+     *       (Item 4).</li>
+     *   <li>{@code format: ipv6} → stdlib {@code ipaddress.IPv6Address}
+     *       (Item 4).</li>
+     * </ul>
+     */
+    @Override
+    public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
+        super.postProcessModelProperty(model, property);
+
+        // Item 1 — uri subformat guard. The typeMapping rewrites `URI` to
+        // `HttpUrl`; revert to `str` for non-absolute subformats. Use the
+        // strict primitive so that the lax-coercion guarantee is preserved.
+        keepStringForUriSubformats(property, "StrictStr");
+
+        final String fmt = property.dataFormat;
+        if (fmt == null) {
+            return;
+        }
+        switch (fmt) {
+            case "email":
+                property.dataType = "EmailStr";
+                property.datatypeWithEnum = "EmailStr";
+                break;
+            case "password":
+                property.dataType = "SecretStr";
+                property.datatypeWithEnum = "SecretStr";
+                break;
+            case "ipv4":
+                property.dataType = "IPv4Address";
+                property.datatypeWithEnum = "IPv4Address";
+                break;
+            case "ipv6":
+                property.dataType = "IPv6Address";
+                property.datatypeWithEnum = "IPv6Address";
+                break;
+            default:
+                break;
+        }
     }
 
 

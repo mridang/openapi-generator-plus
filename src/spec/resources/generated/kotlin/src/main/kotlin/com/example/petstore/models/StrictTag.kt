@@ -7,6 +7,7 @@
 
 @file:Suppress("DEPRECATION")
 @file:UseSerializers(Base64ByteArraySerializer::class)
+@file:OptIn(kotlin.uuid.ExperimentalUuidApi::class)
 
 package com.example.petstore.models
 

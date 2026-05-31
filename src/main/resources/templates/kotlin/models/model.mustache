@@ -2,6 +2,7 @@
 
 @file:Suppress("DEPRECATION")
 @file:UseSerializers(Base64ByteArraySerializer::class)
+@file:OptIn(kotlin.uuid.ExperimentalUuidApi::class)
 
 package {{modelPackage}}
 
@@ -238,7 +239,10 @@ class {{classname}}(
 {{#isDateTime}}  @Contextual
 {{/isDateTime}}{{#isDate}}  @Contextual
 {{/isDate}}{{#isUuid}}  @Contextual
-{{/isUuid}}  val {{name}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}{{^required}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}}{{/required}}{{#required}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{/required}}{{^-last}},{{/-last}}
+{{/isUuid}}{{#isUri}}  @Contextual
+{{/isUri}}{{#isDecimal}}  @Contextual
+{{/isDecimal}}{{^isDecimal}}{{#isNumber}}  @Contextual
+{{/isNumber}}{{/isDecimal}}  val {{name}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}{{^required}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}}{{/required}}{{#required}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{/required}}{{^-last}},{{/-last}}
 {{/vars}}
 ){{#parent}} : {{{.}}}(){{/parent}} {
 {{#vars}}

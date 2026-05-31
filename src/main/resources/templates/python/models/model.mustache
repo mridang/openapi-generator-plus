@@ -23,7 +23,7 @@ class {{classname}}(str, Enum):
 from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator  # noqa: F401
-from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
+from typing import Annotated, Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
 from typing_extensions import Self  # noqa: F401
 
 
@@ -45,6 +45,17 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
 {{#composedSchemas.oneOf}}
     {{name}}: Optional[{{{dataType}}}] = None
 {{/composedSchemas.oneOf}}
+    # Item 6 — pydantic 2 native discriminated unions
+    # (Annotated[Union[...], Field(discriminator='X')]) require each
+    # branch's discriminator field to be typed as Literal['mapping-name'].
+    # The OAS-driven codegen here emits StrictStr with a Field default
+    # (e.g. food_type: StrictStr = Field(default='DryFood', alias='foodType'))
+    # so the literal-typing precondition does not hold and the native
+    # Annotated form would raise PydanticUserError(discriminator-no-field)
+    # at import time. We keep a plain Union here and dispatch through
+    # `get_discriminator_value` in `ObjectSerializer._deserialize_composed`,
+    # which gives us the same explicit-error guarantee as the native form
+    # without needing a template-level overhaul of the child models.
     actual_instance: Optional[Union[{{#oneOf}}{{{.}}}{{^-last}}, {{/-last}}{{/oneOf}}]] = None
     one_of_schemas: ClassVar[Set[str]] = { {{#oneOf}}'{{.}}'{{^-last}}, {{/-last}}{{/oneOf}} }
 
@@ -110,6 +121,7 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
         else:
             super().__init__(**kwargs)
 
+{{^discriminator}}
     @field_validator('actual_instance')
     def actual_instance_must_validate_oneof(cls, v: Any) -> Any:
         {{#isNullable}}
@@ -156,6 +168,7 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
             )
         else:
             return v
+{{/discriminator}}
 
 {{/-first}}
 {{/oneOf}}
@@ -299,7 +312,7 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
     {{name}}: {{classname}}{{enumName}} = Field(alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}}{{#defaultValue}}, default={{{.}}}{{/defaultValue}})
 {{/isEnum}}
 {{^isEnum}}
-    {{name}}: {{{dataType}}} = Field(alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}}{{#defaultValue}}, default={{{.}}}{{/defaultValue}}{{#isInteger}}, strict=True{{/isInteger}}{{^isInteger}}{{#isLong}}, strict=True{{/isLong}}{{/isInteger}}{{#isBoolean}}, strict=True{{/isBoolean}}{{#isFloat}}, strict=True{{/isFloat}}{{^isFloat}}{{#isDouble}}, strict=True{{/isDouble}}{{/isFloat}}{{#isString}}, strict=True{{/isString}})
+    {{name}}: {{{dataType}}} = Field(alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}}{{#defaultValue}}, default={{{.}}}{{/defaultValue}}{{#minLength}}, min_length={{minLength}}{{/minLength}}{{#maxLength}}, max_length={{maxLength}}{{/maxLength}}{{#pattern}}, pattern=r'{{{pattern}}}'{{/pattern}}{{#minimum}}{{#exclusiveMinimum}}, gt={{minimum}}{{/exclusiveMinimum}}{{^exclusiveMinimum}}, ge={{minimum}}{{/exclusiveMinimum}}{{/minimum}}{{#maximum}}{{#exclusiveMaximum}}, lt={{maximum}}{{/exclusiveMaximum}}{{^exclusiveMaximum}}, le={{maximum}}{{/exclusiveMaximum}}{{/maximum}}{{#multipleOf}}, multiple_of={{multipleOf}}{{/multipleOf}}{{#minItems}}, min_length={{minItems}}{{/minItems}}{{#maxItems}}, max_length={{maxItems}}{{/maxItems}})
 {{/isEnum}}
 {{/required}}
 {{^required}}
@@ -307,7 +320,7 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
     {{name}}: Optional[{{classname}}{{enumName}}] = Field(default={{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}None{{/defaultValue}}, alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}})
 {{/isEnum}}
 {{^isEnum}}
-    {{name}}: Optional[{{{dataType}}}] = Field(default={{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}None{{/defaultValue}}, alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}}{{#isInteger}}, strict=True{{/isInteger}}{{^isInteger}}{{#isLong}}, strict=True{{/isLong}}{{/isInteger}}{{#isBoolean}}, strict=True{{/isBoolean}}{{#isFloat}}, strict=True{{/isFloat}}{{^isFloat}}{{#isDouble}}, strict=True{{/isDouble}}{{/isFloat}}{{#isString}}, strict=True{{/isString}})
+    {{name}}: Optional[{{{dataType}}}] = Field(default={{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}None{{/defaultValue}}, alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}}{{#minLength}}, min_length={{minLength}}{{/minLength}}{{#maxLength}}, max_length={{maxLength}}{{/maxLength}}{{#pattern}}, pattern=r'{{{pattern}}}'{{/pattern}}{{#minimum}}{{#exclusiveMinimum}}, gt={{minimum}}{{/exclusiveMinimum}}{{^exclusiveMinimum}}, ge={{minimum}}{{/exclusiveMinimum}}{{/minimum}}{{#maximum}}{{#exclusiveMaximum}}, lt={{maximum}}{{/exclusiveMaximum}}{{^exclusiveMaximum}}, le={{maximum}}{{/exclusiveMaximum}}{{/maximum}}{{#multipleOf}}, multiple_of={{multipleOf}}{{/multipleOf}}{{#minItems}}, min_length={{minItems}}{{/minItems}}{{#maxItems}}, max_length={{maxItems}}{{/maxItems}})
 {{/isEnum}}
 {{/required}}
 {{/vars}}
@@ -348,27 +361,10 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
         merged['additional_properties'] = extras
         return merged
 {{/isAdditionalPropertiesTrue}}
-{{#isUnevaluatedPropertiesFalse}}
-
-    # Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
-    # Pydantic must reject any JSON key not declared as a field above.
-    @model_validator(mode='before')
-    @classmethod
-    def _reject_unknown_keys(cls, values: Any) -> Any:
-        if not isinstance(values, dict):
-            return values
-        known: Set[str] = set()
-        for fname, finfo in cls.model_fields.items():
-            known.add(fname)
-            if finfo.alias is not None:
-                known.add(finfo.alias)
-        for key in values.keys():
-            if key not in known:
-                raise ValueError(
-                    "Unknown property '" + str(key)
-                    + "' on {{classname}} (unevaluatedProperties:false)")
-        return values
-{{/isUnevaluatedPropertiesFalse}}
+{{! Item 9 — Gap AX.1 unevaluatedProperties:false is enforced natively
+    via ConfigDict(extra='forbid') on the model_config below; no
+    hand-rolled model_validator is required because pydantic 2 raises
+    a ValidationError on extra keys when extra='forbid'. }}
 {{#vars}}
     {{#pattern}}
 
@@ -396,16 +392,20 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
     {{/deprecated}}
 {{/vars}}
 
-    # Pydantic default mode (lenient) is kept here. strict=True was tried
-    # for Gap S but it rejects legitimate JSON-to-Python coercions like
-    # list-to-Set (JSON has no Set type) and string-to-Enum (JSON encodes
-    # enums as their string value). Surfacing wire-type bugs would
-    # require per-field validators on int/bool/float specifically —
-    # tracked in AGENT.md as a deferred sub-gap.
+    # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
+    # per-field strictness, so the model-wide ConfigDict no longer needs
+    # strict=True. populate_by_name keeps both alias and snake_case
+    # field-name kwargs working in constructors.
     model_config = ConfigDict(
         populate_by_name=True,
         validate_assignment=True,
         protected_namespaces=(),
+{{#isUnevaluatedPropertiesFalse}}
+        # Item 9 — OAS 3.1 unevaluatedProperties:false → pydantic native
+        # rejection of extra JSON keys (replaces the hand-rolled
+        # _reject_unknown_keys model_validator).
+        extra='forbid',
+{{/isUnevaluatedPropertiesFalse}}
     )
 
 {{#hasChildren}}

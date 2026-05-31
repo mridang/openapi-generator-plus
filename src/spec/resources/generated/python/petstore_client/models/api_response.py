@@ -19,9 +19,9 @@ class ApiResponse(BaseModel):
     ApiResponse
     """
 
-    code: Optional[int] = Field(default=None, alias='code', strict=True)
-    type: Optional[str] = Field(default=None, alias='type', strict=True)
-    message: Optional[str] = Field(default=None, alias='message', strict=True)
+    code: Optional[StrictInt] = Field(default=None, alias='code')
+    type: Optional[StrictStr] = Field(default=None, alias='type')
+    message: Optional[StrictStr] = Field(default=None, alias='message')
     additional_properties: Dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode='before')
@@ -58,17 +58,18 @@ class ApiResponse(BaseModel):
         merged['additional_properties'] = extras
         return merged
 
-    # Pydantic default mode (lenient) is kept here. strict=True was tried
-    # for Gap S but it rejects legitimate JSON-to-Python coercions like
-    # list-to-Set (JSON has no Set type) and string-to-Enum (JSON encodes
-    # enums as their string value). Surfacing wire-type bugs would
-    # require per-field validators on int/bool/float specifically —
-    # tracked in AGENT.md as a deferred sub-gap.
+    # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
+    # per-field strictness, so the model-wide ConfigDict no longer needs
+    # strict=True. populate_by_name keeps both alias and snake_case
+    # field-name kwargs working in constructors.
     model_config = ConfigDict(
         populate_by_name=True,
         validate_assignment=True,
         protected_namespaces=(),
     )
 
+
+from pydantic import StrictInt
+from pydantic import StrictStr
 
 ApiResponse.model_rebuild(raise_errors=False)

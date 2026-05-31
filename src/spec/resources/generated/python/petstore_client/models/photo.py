@@ -19,10 +19,10 @@ class Photo(BaseModel):
     Photo
     """
 
-    id: Optional[int] = Field(default=None, alias='id', strict=True)
-    caption: Optional[str] = Field(default=None, alias='caption', strict=True)
-    is_primary: Optional[bool] = Field(default=None, alias='isPrimary', strict=True)
-    url: Optional[str] = Field(default=None, alias='url', strict=True)
+    id: Optional[StrictInt] = Field(default=None, alias='id')
+    caption: Optional[StrictStr] = Field(default=None, alias='caption')
+    is_primary: Optional[StrictBool] = Field(default=None, alias='isPrimary')
+    url: Optional[StrictStr] = Field(default=None, alias='url')
     additional_properties: Dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode='before')
@@ -59,17 +59,19 @@ class Photo(BaseModel):
         merged['additional_properties'] = extras
         return merged
 
-    # Pydantic default mode (lenient) is kept here. strict=True was tried
-    # for Gap S but it rejects legitimate JSON-to-Python coercions like
-    # list-to-Set (JSON has no Set type) and string-to-Enum (JSON encodes
-    # enums as their string value). Surfacing wire-type bugs would
-    # require per-field validators on int/bool/float specifically —
-    # tracked in AGENT.md as a deferred sub-gap.
+    # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
+    # per-field strictness, so the model-wide ConfigDict no longer needs
+    # strict=True. populate_by_name keeps both alias and snake_case
+    # field-name kwargs working in constructors.
     model_config = ConfigDict(
         populate_by_name=True,
         validate_assignment=True,
         protected_namespaces=(),
     )
 
+
+from pydantic import StrictBool
+from pydantic import StrictInt
+from pydantic import StrictStr
 
 Photo.model_rebuild(raise_errors=False)

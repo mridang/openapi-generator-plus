@@ -13,6 +13,10 @@ declare(strict_types=1);
 
 namespace PetstoreClient;
 
+use PetstoreClient\Serializer\DsMapNormalizer;
+use PetstoreClient\Serializer\DsSetNormalizer;
+use PetstoreClient\Serializer\DsVectorNormalizer;
+use PetstoreClient\Serializer\UriNormalizer;
 use Symfony\Component\PropertyInfo\Extractor\PhpDocExtractor;
 use Symfony\Component\PropertyInfo\Extractor\ReflectionExtractor;
 use Symfony\Component\PropertyInfo\PropertyInfoExtractor;
@@ -57,6 +61,10 @@ class ObjectSerializer
             self::$serializer = new Serializer([
                 new BackedEnumNormalizer(),
                 new DateTimeNormalizer([DateTimeNormalizer::FORMAT_KEY => self::DATE_TIME_FORMAT]),
+                new UriNormalizer(),
+                new DsMapNormalizer(),
+                new DsSetNormalizer(),
+                new DsVectorNormalizer(),
                 new ArrayDenormalizer(),
                 new ObjectNormalizer(
                     propertyTypeExtractor: $propertyTypeExtractor,

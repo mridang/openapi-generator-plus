@@ -205,12 +205,12 @@ class PetApi extends BaseApi
 
      * @param AddPetPhotosOptions $options Options for query, header, form, and cookie parameters
 
-     * @return \PetstoreClient\Models\Photo[]
+     * @return \Ds\Vector
      * @throws \PetstoreClient\ApiException
      */
     public function addPetPhotos(int $petId, AddPetPhotosOptions $options)
     {
-        /** @var \PetstoreClient\Models\Photo[] $result */
+        /** @var \Ds\Vector $result */
         $result = $this->addPetPhotosWithHttpInfo($petId, $options)->data;
         return $result;
     }
@@ -219,7 +219,7 @@ class PetApi extends BaseApi
 
      * @param AddPetPhotosOptions $options Options for query, header, form, and cookie parameters
 
-     * @return ApiResult<\PetstoreClient\Models\Photo[]>
+     * @return ApiResult<\Ds\Vector>
      * @throws \PetstoreClient\ApiException
      */
     public function addPetPhotosWithHttpInfo(int $petId, AddPetPhotosOptions $options): ApiResult
@@ -242,7 +242,7 @@ class PetApi extends BaseApi
         $requestBody['files'] = $options->files;
         $requestBody['metadata'] = $options->metadata;
 
-        /** @var ApiResult<\PetstoreClient\Models\Photo[]> $result */
+        /** @var ApiResult<\Ds\Vector> $result */
         $result = $this->invokeApiForResult(
             'POST',
             $path,
@@ -251,7 +251,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'multipart/form-data',
-            '\PetstoreClient\Models\Photo[]'
+            '\Ds\Vector'
         );
         return $result;
     }
@@ -439,14 +439,14 @@ class PetApi extends BaseApi
 
      * @param FindPetsByStatusOptions $options Options for query, header, form, and cookie parameters
 
-     * @return \PetstoreClient\Models\Pet[]
+     * @return \Ds\Vector
      * @throws \PetstoreClient\ApiException
      * @deprecated This operation is deprecated.
      * @see https://example.com/docs/filtering Find out more about filtering
      */
     public function findPetsByStatus(FindPetsByStatusOptions $options)
     {
-        /** @var \PetstoreClient\Models\Pet[] $result */
+        /** @var \Ds\Vector $result */
         $result = $this->findPetsByStatusWithHttpInfo($options)->data;
         return $result;
     }
@@ -455,7 +455,7 @@ class PetApi extends BaseApi
 
      * @param FindPetsByStatusOptions $options Options for query, header, form, and cookie parameters
 
-     * @return ApiResult<\PetstoreClient\Models\Pet[]>
+     * @return ApiResult<\Ds\Vector>
      * @throws \PetstoreClient\ApiException
      */
     public function findPetsByStatusWithHttpInfo(FindPetsByStatusOptions $options): ApiResult
@@ -473,7 +473,7 @@ class PetApi extends BaseApi
         $headerParams = [];
         $requestBody = null;
 
-        /** @var ApiResult<\PetstoreClient\Models\Pet[]> $result */
+        /** @var ApiResult<\Ds\Vector> $result */
         $result = $this->invokeApiForResult(
             'GET',
             $path,
@@ -482,7 +482,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet[]'
+            '\Ds\Vector'
         );
         return $result;
     }
@@ -925,10 +925,10 @@ class PetApi extends BaseApi
         $path = str_replace('{' . 'tagName' . '}', $pathValue, $path);
         $queryParams = [];
         if ($options->colors !== null) {
-            $queryParams['colors'] = ValueSerializer::serializeStyled('colors', $options->colors, 'query', 'string[]', 'pipes', 'pipeDelimited', false);
+            $queryParams['colors'] = ValueSerializer::serializeStyled('colors', $options->colors, 'query', '\Ds\Vector', 'pipes', 'pipeDelimited', false);
         }
         if ($options->sizes !== null) {
-            $queryParams['sizes'] = ValueSerializer::serializeStyled('sizes', $options->sizes, 'query', 'string[]', 'ssv', 'spaceDelimited', false);
+            $queryParams['sizes'] = ValueSerializer::serializeStyled('sizes', $options->sizes, 'query', '\Ds\Vector', 'ssv', 'spaceDelimited', false);
         }
         if ($options->filter !== null) {
             $queryParams['filter'] = ValueSerializer::serializeStyled('filter', $options->filter, 'query', 'string', null, 'form', true);

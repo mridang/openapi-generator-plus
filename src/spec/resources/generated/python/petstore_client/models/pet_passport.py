@@ -22,8 +22,8 @@ class PetPassport(BaseModel):
     pet: Optional[Pet] = Field(default=None, alias='pet')
     thumbnail: Optional[bytes] = Field(default=None, alias='thumbnail', description='Base64-encoded primary thumbnail')
     scans: Optional[List[bytes]] = Field(default=None, alias='scans', description='Base64-encoded scans of each passport page')
-    issued_at: Optional[datetime] = Field(default=None, alias='issuedAt')
-    biometric_chip: Optional[str] = Field(default=None, alias='biometricChip', description='Embedded chip data (OAS 3.1 contentEncoding form)', strict=True)
+    issued_at: Optional[AwareDatetime] = Field(default=None, alias='issuedAt')
+    biometric_chip: Optional[StrictStr] = Field(default=None, alias='biometricChip', description='Embedded chip data (OAS 3.1 contentEncoding form)')
     additional_properties: Dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode='before')
@@ -60,12 +60,10 @@ class PetPassport(BaseModel):
         merged['additional_properties'] = extras
         return merged
 
-    # Pydantic default mode (lenient) is kept here. strict=True was tried
-    # for Gap S but it rejects legitimate JSON-to-Python coercions like
-    # list-to-Set (JSON has no Set type) and string-to-Enum (JSON encodes
-    # enums as their string value). Surfacing wire-type bugs would
-    # require per-field validators on int/bool/float specifically —
-    # tracked in AGENT.md as a deferred sub-gap.
+    # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
+    # per-field strictness, so the model-wide ConfigDict no longer needs
+    # strict=True. populate_by_name keeps both alias and snake_case
+    # field-name kwargs working in constructors.
     model_config = ConfigDict(
         populate_by_name=True,
         validate_assignment=True,
@@ -73,7 +71,8 @@ class PetPassport(BaseModel):
     )
 
 
-from datetime import datetime
 from petstore_client.models.pet import Pet
+from pydantic import AwareDatetime
+from pydantic import StrictStr
 
 PetPassport.model_rebuild(raise_errors=False)

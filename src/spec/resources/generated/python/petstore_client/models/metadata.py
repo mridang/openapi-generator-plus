@@ -19,7 +19,7 @@ class Metadata(BaseModel):
     Metadata
     """
 
-    created_at: Optional[datetime] = Field(default=None, alias='createdAt')
+    created_at: Optional[AwareDatetime] = Field(default=None, alias='createdAt')
     additional_properties: Dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode='before')
@@ -56,12 +56,10 @@ class Metadata(BaseModel):
         merged['additional_properties'] = extras
         return merged
 
-    # Pydantic default mode (lenient) is kept here. strict=True was tried
-    # for Gap S but it rejects legitimate JSON-to-Python coercions like
-    # list-to-Set (JSON has no Set type) and string-to-Enum (JSON encodes
-    # enums as their string value). Surfacing wire-type bugs would
-    # require per-field validators on int/bool/float specifically —
-    # tracked in AGENT.md as a deferred sub-gap.
+    # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
+    # per-field strictness, so the model-wide ConfigDict no longer needs
+    # strict=True. populate_by_name keeps both alias and snake_case
+    # field-name kwargs working in constructors.
     model_config = ConfigDict(
         populate_by_name=True,
         validate_assignment=True,
@@ -69,6 +67,6 @@ class Metadata(BaseModel):
     )
 
 
-from datetime import datetime
+from pydantic import AwareDatetime
 
 Metadata.model_rebuild(raise_errors=False)

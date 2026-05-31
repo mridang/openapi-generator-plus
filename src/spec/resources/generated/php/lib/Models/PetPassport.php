@@ -30,11 +30,11 @@ class PetPassport
 
     /**
      * Base64-encoded scans of each passport page
-     * @var string[]|null
+     * @var \Ds\Vector<string>|null
      * @example null
      */
     #[SerializedName('scans')]
-    public ?array $scans = null;
+    public ?\Ds\Vector $scans = null;
 
     /** @example null */
     #[SerializedName('issuedAt')]
@@ -48,12 +48,12 @@ class PetPassport
     public ?string $biometricChip = null;
 
     /**
-     * @param string[]|null $scans
+     * @param \Ds\Vector<string>|null $scans
      */
     public function __construct(
         ?\PetstoreClient\Models\Pet $pet = null,
         ?string $thumbnail = null,
-        ?array $scans = null,
+        ?\Ds\Vector $scans = null,
         ?\DateTime $issuedAt = null,
         ?string $biometricChip = null,
     ) {

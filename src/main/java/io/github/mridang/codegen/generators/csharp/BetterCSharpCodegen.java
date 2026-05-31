@@ -80,7 +80,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         typeMapping.put("time", "TimeOnly");
         typeMapping.put("duration", "TimeSpan");
         typeMapping.put("UUID", "Guid");
-        typeMapping.put("URI", "string");
+        typeMapping.put("URI", "Uri");
         typeMapping.put("object", "Object");
         typeMapping.put("AnyType", "Object");
         typeMapping.put("array", "List");
@@ -702,5 +702,20 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                         "Options",
                         optionsClassName + ".cs")
                 .toString();
+    }
+
+    /**
+     * URI subformat discrimination: only {@code format: uri} maps to
+     * {@code System.Uri}. The {@code uri-reference} format may be relative
+     * and {@code uri-template} contains RFC 6570 placeholders, so both stay
+     * as plain {@code string}. See
+     * {@link AbstractBetterCodegen#keepStringForUriSubformats}.
+     */
+    @Override
+    public void postProcessModelProperty(
+            org.openapitools.codegen.CodegenModel model,
+            org.openapitools.codegen.CodegenProperty property) {
+        super.postProcessModelProperty(model, property);
+        keepStringForUriSubformats(property, "string");
     }
 }

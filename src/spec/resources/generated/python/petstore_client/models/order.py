@@ -28,12 +28,12 @@ class Order(BaseModel):
     Order
     """
 
-    id: Optional[int] = Field(default=None, alias='id', strict=True)
-    pet_id: Optional[int] = Field(default=None, alias='petId', strict=True)
-    quantity: Optional[int] = Field(default=None, alias='quantity', strict=True)
-    ship_date: Optional[datetime] = Field(default=None, alias='shipDate')
+    id: Optional[StrictInt] = Field(default=None, alias='id')
+    pet_id: Optional[StrictInt] = Field(default=None, alias='petId')
+    quantity: Optional[StrictInt] = Field(default=None, alias='quantity')
+    ship_date: Optional[AwareDatetime] = Field(default=None, alias='shipDate')
     status: Optional[OrderStatusEnum] = Field(default=OrderStatusEnum.PLACED, alias='status', description='Order Status')
-    complete: Optional[bool] = Field(default=None, alias='complete', strict=True)
+    complete: Optional[StrictBool] = Field(default=None, alias='complete')
     additional_properties: Dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode='before')
@@ -70,12 +70,10 @@ class Order(BaseModel):
         merged['additional_properties'] = extras
         return merged
 
-    # Pydantic default mode (lenient) is kept here. strict=True was tried
-    # for Gap S but it rejects legitimate JSON-to-Python coercions like
-    # list-to-Set (JSON has no Set type) and string-to-Enum (JSON encodes
-    # enums as their string value). Surfacing wire-type bugs would
-    # require per-field validators on int/bool/float specifically —
-    # tracked in AGENT.md as a deferred sub-gap.
+    # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
+    # per-field strictness, so the model-wide ConfigDict no longer needs
+    # strict=True. populate_by_name keeps both alias and snake_case
+    # field-name kwargs working in constructors.
     model_config = ConfigDict(
         populate_by_name=True,
         validate_assignment=True,
@@ -83,6 +81,9 @@ class Order(BaseModel):
     )
 
 
-from datetime import datetime
+from pydantic import AwareDatetime
+from pydantic import StrictBool
+from pydantic import StrictInt
+from pydantic import StrictStr
 
 Order.model_rebuild(raise_errors=False)

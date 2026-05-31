@@ -19,8 +19,8 @@ class Medication(BaseModel):
     Medication
     """
 
-    drug_name: str = Field(alias='drugName', strict=True)
-    dosage: Optional[str] = Field(default=None, alias='dosage', strict=True)
+    drug_name: StrictStr = Field(alias='drugName')
+    dosage: Optional[StrictStr] = Field(default=None, alias='dosage')
     additional_properties: Dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode='before')
@@ -57,17 +57,17 @@ class Medication(BaseModel):
         merged['additional_properties'] = extras
         return merged
 
-    # Pydantic default mode (lenient) is kept here. strict=True was tried
-    # for Gap S but it rejects legitimate JSON-to-Python coercions like
-    # list-to-Set (JSON has no Set type) and string-to-Enum (JSON encodes
-    # enums as their string value). Surfacing wire-type bugs would
-    # require per-field validators on int/bool/float specifically —
-    # tracked in AGENT.md as a deferred sub-gap.
+    # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
+    # per-field strictness, so the model-wide ConfigDict no longer needs
+    # strict=True. populate_by_name keeps both alias and snake_case
+    # field-name kwargs working in constructors.
     model_config = ConfigDict(
         populate_by_name=True,
         validate_assignment=True,
         protected_namespaces=(),
     )
 
+
+from pydantic import StrictStr
 
 Medication.model_rebuild(raise_errors=False)

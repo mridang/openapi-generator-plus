@@ -7,12 +7,14 @@
 
 @file:Suppress("DEPRECATION")
 @file:UseSerializers(Base64ByteArraySerializer::class)
+@file:OptIn(kotlin.uuid.ExperimentalUuidApi::class)
 
 package com.example.petstore.models
 
 import com.example.petstore.Base64ByteArraySerializer
 import com.example.petstore.models.Category
 import com.example.petstore.models.Tag
+import io.ktor.http.Url
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -62,7 +64,8 @@ data class Pet(
      * Example: `https://example.com/pets/fido`
      */
     @SerialName("homepageUrl")
-    val homepageUrl: String? = null,
+    @Contextual
+    val homepageUrl: Url? = null,
     /**
      * Optionally-relative thumbnail location
      *
@@ -90,6 +93,7 @@ data class Pet(
      * Example: `12.345`
      */
     @SerialName("weightKg")
+    @Contextual
     val weightKg: BigDecimal? = null,
 ) {
     @Serializable
