@@ -249,6 +249,11 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   @Transform(({ value }) => (typeof value === 'string' ? Temporal.Duration.from(value) : value), { toClassOnly: true })
   @Transform(({ value }) => (value != null && typeof (value as { toString?: unknown }).toString === 'function' ? (value as Temporal.Duration).toString() : value), { toPlainOnly: true })
 {{/vendorExtensions.isDurationFormat}}
+{{#isByteArray}}
+  // 2.1 — `format: byte` round-trips Buffer <-> base64 string at the serde boundary.
+  @Transform(({ value }) => (typeof value === 'string' ? Buffer.from(value, 'base64') : value), { toClassOnly: true })
+  @Transform(({ value }) => (Buffer.isBuffer(value) ? (value as Buffer).toString('base64') : value), { toPlainOnly: true })
+{{/isByteArray}}
 {{#isDateTime}}
   @Type(() => Date)
 {{/isDateTime}}
@@ -404,11 +409,12 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/vendorExtensions.isTimeFormat}}
 {{/isUuid}}
 {{/isByteArray}}
+{{/isString}}
 {{#isByteArray}}
     /**
-     * 2.1 — `format: byte`. The wire form is base64; the model field is a
-     * Buffer. When data arrives from JSON (string), decode it; when the
-     * caller hands us a Buffer directly, pass it through.
+     * 2.1 — format: byte. The wire form is base64; the model field is a
+     * Buffer. Lives outside the isString block because typeMapping
+     * (ByteArray to Buffer) flips isString to false at codegen time.
      */
     if (this.{{name}} != null && typeof this.{{name}} === 'string') {
       this.{{name}} = Buffer.from(this.{{name}} as unknown as string, 'base64') as unknown as {{{dataType}}};
@@ -416,6 +422,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
       throw new TypeError(`{{name}} must be a Buffer or base64 string, got ${typeof this.{{name}}}`);
     }
 {{/isByteArray}}
+{{#isString}}
 {{#isUuid}}
     /**
      * 2.2 — `format: uuid`. Branded string; validate the canonical

@@ -13,6 +13,11 @@ export class SetPetAvatarRequest {
    * @example null
    */
   @Expose({ name: 'data' })
+  // 2.1 — `format: byte` round-trips Buffer <-> base64 string at the serde boundary.
+  @Transform(({ value }) => (typeof value === 'string' ? Buffer.from(value, 'base64') : value), { toClassOnly: true })
+  @Transform(({ value }) => (Buffer.isBuffer(value) ? (value as Buffer).toString('base64') : value), {
+    toPlainOnly: true
+  })
   data!: Buffer;
   /** @example image/jpeg */
   @Expose({ name: 'mimeType' })
@@ -27,6 +32,16 @@ export class SetPetAvatarRequest {
       if (this.mimeType == null) {
         throw new Error('mimeType is required');
       }
+    }
+    /**
+     * 2.1 — format: byte. The wire form is base64; the model field is a
+     * Buffer. Lives outside the isString block because typeMapping
+     * (ByteArray to Buffer) flips isString to false at codegen time.
+     */
+    if (this.data != null && typeof this.data === 'string') {
+      this.data = Buffer.from(this.data as unknown as string, 'base64') as unknown as Buffer;
+    } else if (this.data != null && !Buffer.isBuffer(this.data)) {
+      throw new TypeError(`data must be a Buffer or base64 string, got ${typeof this.data}`);
     }
     if (this.mimeType != null && typeof this.mimeType !== 'string') {
       throw new TypeError(`mimeType must be a string, got ${typeof this.mimeType}`);

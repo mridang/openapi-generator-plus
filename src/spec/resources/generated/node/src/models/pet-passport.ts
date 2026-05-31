@@ -18,6 +18,11 @@ export class PetPassport {
    * @example dGVzdC10aHVtYm5haWw=
    */
   @Expose({ name: 'thumbnail' })
+  // 2.1 — `format: byte` round-trips Buffer <-> base64 string at the serde boundary.
+  @Transform(({ value }) => (typeof value === 'string' ? Buffer.from(value, 'base64') : value), { toClassOnly: true })
+  @Transform(({ value }) => (Buffer.isBuffer(value) ? (value as Buffer).toString('base64') : value), {
+    toPlainOnly: true
+  })
   thumbnail?: Buffer;
   /**
    * Base64-encoded scans of each passport page
@@ -38,6 +43,16 @@ export class PetPassport {
 
   constructor(data?: Partial<PetPassport>) {
     Object.assign(this, data);
+    /**
+     * 2.1 — format: byte. The wire form is base64; the model field is a
+     * Buffer. Lives outside the isString block because typeMapping
+     * (ByteArray to Buffer) flips isString to false at codegen time.
+     */
+    if (this.thumbnail != null && typeof this.thumbnail === 'string') {
+      this.thumbnail = Buffer.from(this.thumbnail as unknown as string, 'base64') as unknown as Buffer;
+    } else if (this.thumbnail != null && !Buffer.isBuffer(this.thumbnail)) {
+      throw new TypeError(`thumbnail must be a Buffer or base64 string, got ${typeof this.thumbnail}`);
+    }
     if (this.scans != null && !Array.isArray(this.scans) && !((this.scans as unknown) instanceof Set)) {
       throw new TypeError(`scans must be an array, got ${typeof this.scans}`);
     }
