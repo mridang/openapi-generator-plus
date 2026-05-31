@@ -136,11 +136,13 @@ module {{moduleName}}
   end
 
   class DefaultApiClient < ApiClient
+    EXTRA_SENSITIVE_HEADER_NAMES: Array[String]
     def initialize: (?TransportOptions?) -> void
     def send_request: (Symbol, String, Hash[String, String], untyped, ?no_redirect: bool) -> ApiResponse
     def close: () -> void
     def self.supported_encodings: () -> String
     private
+    def https_to_http_downgrade?: (URI::Generic, URI::Generic) -> bool
     def text_content_type?: (String) -> bool
     def decode_text_body: (String, String?) -> String
     def detect_encoding: (String?) -> Encoding

@@ -113,11 +113,15 @@ export class PetWithOwner {
     }
     /**
      * 2.5 — `type: number` (no numeric format). Carried as a branded
-     * Decimal string to preserve arbitrary precision; reject anything
-     * other than a string at the boundary.
+     * Decimal string to preserve arbitrary precision. The wire form can
+     * arrive as a JSON number (no explicit format means no precision
+     * guarantee from the server); coerce to its canonical string form
+     * here so downstream typed-string ops are safe.
      */
-    if (this.weightKg != null && typeof this.weightKg !== 'string') {
-      throw new TypeError(`weightKg must be a Decimal string, got ${typeof this.weightKg}`);
+    if (this.weightKg != null && typeof this.weightKg === 'number') {
+      this.weightKg = String(this.weightKg) as unknown as Decimal;
+    } else if (this.weightKg != null && typeof this.weightKg !== 'string') {
+      throw new TypeError(`weightKg must be a Decimal string or number, got ${typeof this.weightKg}`);
     }
     if (this.ownerName != null && typeof this.ownerName !== 'string') {
       throw new TypeError(`ownerName must be a string, got ${typeof this.ownerName}`);

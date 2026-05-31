@@ -384,11 +384,15 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{#vendorExtensions.isDecimalFormat}}
     /**
      * 2.5 — `type: number` (no numeric format). Carried as a branded
-     * Decimal string to preserve arbitrary precision; reject anything
-     * other than a string at the boundary.
+     * Decimal string to preserve arbitrary precision. The wire form can
+     * arrive as a JSON number (no explicit format means no precision
+     * guarantee from the server); coerce to its canonical string form
+     * here so downstream typed-string ops are safe.
      */
-    if (this.{{name}} != null && typeof this.{{name}} !== 'string') {
-      throw new TypeError(`{{name}} must be a Decimal string, got ${typeof this.{{name}}}`);
+    if (this.{{name}} != null && typeof this.{{name}} === 'number') {
+      this.{{name}} = String(this.{{name}}) as unknown as {{{dataType}}};
+    } else if (this.{{name}} != null && typeof this.{{name}} !== 'string') {
+      throw new TypeError(`{{name}} must be a Decimal string or number, got ${typeof this.{{name}}}`);
     }
 {{/vendorExtensions.isDecimalFormat}}
 {{/isNumber}}
