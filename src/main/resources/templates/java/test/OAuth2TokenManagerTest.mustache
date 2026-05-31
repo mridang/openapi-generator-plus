@@ -9,6 +9,7 @@ import {{invokerPackage}}.ApiResponse;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.Nullable;
 import org.junit.jupiter.api.Test;
 
 class OAuth2TokenManagerTest {
@@ -400,7 +401,7 @@ class OAuth2TokenManagerTest {
         ApiClient client = new ApiClient() {
             @Override
             public ApiResponse sendRequest(String method, String url,
-                    Map<String, String> headers, Object body) {
+                    Map<String, String> headers, @Nullable Object body) {
                 // Must NOT be called: the manager must use the 5-arg overload.
                 seenFlag.set(Boolean.FALSE);
                 return new ApiResponse(200,
@@ -408,7 +409,7 @@ class OAuth2TokenManagerTest {
             }
             @Override
             public ApiResponse sendRequest(String method, String url,
-                    Map<String, String> headers, Object body, boolean noRedirect) {
+                    Map<String, String> headers, @Nullable Object body, boolean noRedirect) {
                 seenFlag.set(noRedirect);
                 return new ApiResponse(200,
                         "{\"access_token\":\"t\",\"expires_in\":3600}", Map.of());
@@ -435,12 +436,12 @@ class OAuth2TokenManagerTest {
         ApiClient client = new ApiClient() {
             @Override
             public ApiResponse sendRequest(String method, String url,
-                    Map<String, String> headers, Object body) {
+                    Map<String, String> headers, @Nullable Object body) {
                 return sendRequest(method, url, headers, body, false);
             }
             @Override
             public ApiResponse sendRequest(String method, String url,
-                    Map<String, String> headers, Object body, boolean noRedirect) {
+                    Map<String, String> headers, @Nullable Object body, boolean noRedirect) {
                 return new ApiResponse(307, "",
                         Map.of("location", "https://attacker.example/take"));
             }

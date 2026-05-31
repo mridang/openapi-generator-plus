@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any, Dict, List, Optional  # noqa: F401
 from urllib.parse import quote  # noqa: F401
+from pydantic import StrictBool, StrictFloat, StrictInt, StrictStr  # noqa: F401
 
 from petstore_client.models.api_response import ApiResponse  # noqa: F401
 from petstore_client.models.pet import Pet  # noqa: F401

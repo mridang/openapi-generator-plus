@@ -14,6 +14,7 @@ import com.example.petstore.ApiResponse;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.Nullable;
 import org.junit.jupiter.api.Test;
 
 class OAuth2TokenManagerTest {
@@ -427,7 +428,7 @@ class OAuth2TokenManagerTest {
         new ApiClient() {
           @Override
           public ApiResponse sendRequest(
-              String method, String url, Map<String, String> headers, Object body) {
+              String method, String url, Map<String, String> headers, @Nullable Object body) {
             // Must NOT be called: the manager must use the 5-arg overload.
             seenFlag.set(Boolean.FALSE);
             return new ApiResponse(200, "{\"access_token\":\"t\",\"expires_in\":3600}", Map.of());
@@ -438,7 +439,7 @@ class OAuth2TokenManagerTest {
               String method,
               String url,
               Map<String, String> headers,
-              Object body,
+              @Nullable Object body,
               boolean noRedirect) {
             seenFlag.set(noRedirect);
             return new ApiResponse(200, "{\"access_token\":\"t\",\"expires_in\":3600}", Map.of());
@@ -466,7 +467,7 @@ class OAuth2TokenManagerTest {
         new ApiClient() {
           @Override
           public ApiResponse sendRequest(
-              String method, String url, Map<String, String> headers, Object body) {
+              String method, String url, Map<String, String> headers, @Nullable Object body) {
             return sendRequest(method, url, headers, body, false);
           }
 
@@ -475,7 +476,7 @@ class OAuth2TokenManagerTest {
               String method,
               String url,
               Map<String, String> headers,
-              Object body,
+              @Nullable Object body,
               boolean noRedirect) {
             return new ApiResponse(307, "", Map.of("location", "https://attacker.example/take"));
           }

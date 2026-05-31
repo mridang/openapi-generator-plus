@@ -32,7 +32,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'oj', '~> 3.0'
   # 4.8: format: time — time-of-day (HH:MM:SS) values; Ruby has no
   # native time-of-day type so we standardise on Tod::TimeOfDay.
-  s.add_dependency 'tod', '~> 2.3'
+  s.add_dependency 'tod', '~> 3.1'
 
   s.files = Dir['lib/**/*', 'sig/**/*', 'README.md', 'Gemfile', 'petstore_client.gemspec']
   s.require_paths = ['lib']

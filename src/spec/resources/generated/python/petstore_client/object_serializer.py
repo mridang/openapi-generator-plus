@@ -21,7 +21,7 @@ from pydantic import BaseModel, SecretStr, TypeAdapter
 try:
     import isodate as _isodate  # type: ignore[import-untyped]
 except ImportError:  # pragma: no cover - isodate is a hard dep at runtime
-    _isodate = None  # type: ignore[assignment]
+    _isodate = None
 
 
 def _format_timedelta_iso8601(value: datetime.timedelta) -> str:

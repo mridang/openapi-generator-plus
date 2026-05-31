@@ -7,6 +7,7 @@
 
 from typing import Any, Dict, List, Optional  # noqa: F401
 from urllib.parse import quote  # noqa: F401
+from pydantic import StrictBool, StrictFloat, StrictInt, StrictStr  # noqa: F401
 
 from petstore_client.models.order import Order  # noqa: F401
 
