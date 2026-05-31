@@ -141,14 +141,13 @@ pub fn parse(s: &str) -> Result<Duration, String> {
                 return Err("ISO-8601 duration: month designator not supported".into());
             }
             'M' => {
-                total = total + Duration::nanoseconds((val * 60.0 * 1_000_000_000.0) as i64);
+                total += Duration::nanoseconds((val * 60.0 * 1_000_000_000.0) as i64);
             }
             'W' => {
-                total =
-                    total + Duration::nanoseconds((val * 7.0 * 86_400.0 * 1_000_000_000.0) as i64);
+                total += Duration::nanoseconds((val * 7.0 * 86_400.0 * 1_000_000_000.0) as i64);
             }
             'D' => {
-                total = total + Duration::nanoseconds((val * 86_400.0 * 1_000_000_000.0) as i64);
+                total += Duration::nanoseconds((val * 86_400.0 * 1_000_000_000.0) as i64);
             }
             'H' => {
                 if !in_time {
@@ -157,7 +156,7 @@ pub fn parse(s: &str) -> Result<Duration, String> {
                         s
                     ));
                 }
-                total = total + Duration::nanoseconds((val * 3_600.0 * 1_000_000_000.0) as i64);
+                total += Duration::nanoseconds((val * 3_600.0 * 1_000_000_000.0) as i64);
             }
             'S' => {
                 if !in_time {
@@ -166,7 +165,7 @@ pub fn parse(s: &str) -> Result<Duration, String> {
                         s
                     ));
                 }
-                total = total + Duration::nanoseconds((val * 1_000_000_000.0) as i64);
+                total += Duration::nanoseconds((val * 1_000_000_000.0) as i64);
             }
             other => {
                 return Err(format!(

@@ -279,10 +279,14 @@ func buildHTTPClient(opts *TransportOptions) *http.Client {
 				return nil
 			}
 			origURL := via[0].URL
-			prev := via[len(via)-1]
+			/* `req.Response` is the response that caused THIS request
+			 * (the redirect response). `via[].Response` is nil for the
+			 * original request and only set for subsequent redirects,
+			 * so reading the status from `req.Response` is the correct
+			 * source of the redirect's status code. */
 			var prevStatus int
-			if prev.Response != nil {
-				prevStatus = prev.Response.StatusCode
+			if req.Response != nil {
+				prevStatus = req.Response.StatusCode
 			}
 			/* Gap 3.3: refuse to replay a request body across an
 			 * HTTPS → HTTP scheme downgrade. 307 / 308 preserve method
