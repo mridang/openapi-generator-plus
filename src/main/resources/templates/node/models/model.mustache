@@ -145,7 +145,7 @@ export class {{classname}} {
 {{/-first}}
 {{/anyOf}}
 {{^anyOf}}
-import { Expose{{#hasTypeDecorator}}, Type{{/hasTypeDecorator}}{{#hasTemporalImport}}, Transform{{/hasTemporalImport}} } from 'class-transformer';
+import { Expose{{#hasTypeDecorator}}, Type{{/hasTypeDecorator}}{{#hasTemporalImport}}, Transform{{/hasTemporalImport}}{{^hasTemporalImport}}{{#hasBufferImport}}, Transform{{/hasBufferImport}}{{/hasTemporalImport}} } from 'class-transformer';
 {{#hasTemporalImport}}
 import { Temporal } from 'temporal-polyfill';
 {{/hasTemporalImport}}
@@ -250,7 +250,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   @Transform(({ value }) => (value != null && typeof (value as { toString?: unknown }).toString === 'function' ? (value as Temporal.Duration).toString() : value), { toPlainOnly: true })
 {{/vendorExtensions.isDurationFormat}}
 {{#isByteArray}}
-  // 2.1 — `format: byte` round-trips Buffer <-> base64 string at the serde boundary.
+  /** 2.1 — `format: byte` round-trips Buffer <-> base64 string at the serde boundary. */
   @Transform(({ value }) => (typeof value === 'string' ? Buffer.from(value, 'base64') : value), { toClassOnly: true })
   @Transform(({ value }) => (Buffer.isBuffer(value) ? (value as Buffer).toString('base64') : value), { toPlainOnly: true })
 {{/isByteArray}}

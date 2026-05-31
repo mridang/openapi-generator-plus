@@ -876,7 +876,8 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 "type:UUID", "hasUuidImport",
                 "type:URI", "hasUriImport",
                 "type:Email", "hasEmailImport",
-                "type:Decimal", "hasDecimalImport");
+                "type:Decimal", "hasDecimalImport",
+                "type:Buffer", "hasBufferImport");
     }
 
     /**

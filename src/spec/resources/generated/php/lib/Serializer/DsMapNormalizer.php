@@ -34,13 +34,13 @@ final class DsMapNormalizer implements NormalizerInterface, DenormalizerInterfac
     /**
      * @param array<string, mixed> $context
      */
-    public function normalize(mixed $object, ?string $format = null, array $context = []): \stdClass
+    public function normalize(mixed $object, ?string $format = null, array $context = []): \ArrayObject
     {
         \assert($object instanceof \Ds\Map);
-        $out = new \stdClass();
+        $out = new \ArrayObject([], \ArrayObject::ARRAY_AS_PROPS);
         foreach ($object as $key => $value) {
             $k = (string) $key;
-            $out->$k = is_scalar($value) || $value === null
+            $out[$k] = is_scalar($value) || $value === null
                 ? $value
                 : $this->normalizer->normalize($value, $format, $context);
         }
