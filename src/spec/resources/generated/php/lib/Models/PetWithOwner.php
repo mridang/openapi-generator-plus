@@ -59,13 +59,41 @@ class PetWithOwner
     #[SerializedName('location')]
     public ?array $location = null;
 
-    /** @example null */
-    #[SerializedName('ownerName')]
-    public string $ownerName;
+    /**
+     * Absolute URL to the pet's public profile page
+     * @example https://example.com/pets/fido
+     */
+    #[SerializedName('homepageUrl')]
+    public ?string $homepageUrl = null;
+
+    /**
+     * Optionally-relative thumbnail location
+     * @example /assets/thumb-fido.png
+     */
+    #[SerializedName('thumbnailRef')]
+    public ?string $thumbnailRef = null;
+
+    /**
+     * RFC 6570 template for related-resource links
+     * @example https://example.com/pets/{id}/photos{?size}
+     */
+    #[SerializedName('linkTemplate')]
+    public ?string $linkTemplate = null;
 
     /** @example null */
     #[SerializedName('ownerEmail')]
     public ?string $ownerEmail = null;
+
+    /**
+     * Pet weight in kilograms (decimal precision)
+     * @example 12.345
+     */
+    #[SerializedName('weightKg')]
+    public ?float $weightKg = null;
+
+    /** @example null */
+    #[SerializedName('ownerName')]
+    public string $ownerName;
 
     /**
      * @param string[] $photoUrls
@@ -81,7 +109,11 @@ class PetWithOwner
         ?array $tags = null,
         ?PetWithOwnerStatusEnum $status = null,
         ?array $location = null,
+        ?string $homepageUrl = null,
+        ?string $thumbnailRef = null,
+        ?string $linkTemplate = null,
         ?string $ownerEmail = null,
+        ?float $weightKg = null,
     ) {
         $this->id = $id;
         $this->name = $name;
@@ -94,7 +126,11 @@ class PetWithOwner
         $this->tags = $tags;
         $this->status = $status;
         $this->location = $location;
-        $this->ownerName = $ownerName;
+        $this->homepageUrl = $homepageUrl;
+        $this->thumbnailRef = $thumbnailRef;
+        $this->linkTemplate = $linkTemplate;
         $this->ownerEmail = $ownerEmail;
+        $this->weightKg = $weightKg;
+        $this->ownerName = $ownerName;
     }
 }

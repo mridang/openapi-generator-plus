@@ -31,11 +31,11 @@ type fakePasswordResponse struct {
 	statusCode int
 }
 
-func (c *fakePasswordClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*auth.HttpResponse, error) {
+func (c *fakePasswordClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.HttpResponse, error) {
 	return c.SendRequestWithOptions(method, url, headers, body, nil)
 }
 
-func (c *fakePasswordClient) SendRequestWithOptions(method, url string, headers map[string]string, body interface{}, opts *auth.RequestOptions) (*auth.HttpResponse, error) {
+func (c *fakePasswordClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *auth.RequestOptions) (*auth.HttpResponse, error) {
 	_ = opts
 	c.LastURL = url
 	c.LastHeaders = headers

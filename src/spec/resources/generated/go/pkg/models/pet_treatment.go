@@ -14,7 +14,7 @@ import (
 
 // PetTreatment A treatment that can match a medication, a surgery, or both
 type PetTreatment struct {
-	value interface{}
+	value any
 }
 
 // MarshalJSON implements the json.Marshaler interface.
@@ -38,6 +38,6 @@ func (o *PetTreatment) UnmarshalJSON(data []byte) error {
 }
 
 // Value returns the underlying value of the union type.
-func (o *PetTreatment) Value() interface{} {
+func (o *PetTreatment) Value() any {
 	return o.value
 }

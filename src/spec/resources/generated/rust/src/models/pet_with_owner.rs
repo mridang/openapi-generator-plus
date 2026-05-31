@@ -50,12 +50,28 @@ pub struct PetWithOwner {
     /// Example: `null`
     #[serde(rename = "location", skip_serializing_if = "Option::is_none")]
     pub location: Option<Vec<serde_json::Value>>,
-    /// Example: `null`
-    #[serde(rename = "ownerName")]
-    pub owner_name: String,
+    /// Absolute URL to the pet's public profile page
+    /// Example: `https://example.com/pets/fido`
+    #[serde(rename = "homepageUrl", skip_serializing_if = "Option::is_none")]
+    pub homepage_url: Option<String>,
+    /// Optionally-relative thumbnail location
+    /// Example: `/assets/thumb-fido.png`
+    #[serde(rename = "thumbnailRef", skip_serializing_if = "Option::is_none")]
+    pub thumbnail_ref: Option<String>,
+    /// RFC 6570 template for related-resource links
+    /// Example: `https://example.com/pets/{id}/photos{?size}`
+    #[serde(rename = "linkTemplate", skip_serializing_if = "Option::is_none")]
+    pub link_template: Option<String>,
     /// Example: `null`
     #[serde(rename = "ownerEmail", skip_serializing_if = "Option::is_none")]
     pub owner_email: Option<String>,
+    /// Pet weight in kilograms (decimal precision)
+    /// Example: `12.345`
+    #[serde(rename = "weightKg", skip_serializing_if = "Option::is_none")]
+    pub weight_kg: Option<f64>,
+    /// Example: `null`
+    #[serde(rename = "ownerName")]
+    pub owner_name: String,
 }
 
 #[allow(deprecated)]
@@ -75,7 +91,11 @@ impl PetWithOwner {
             tags: None,
             status: None,
             location: None,
+            homepage_url: None,
+            thumbnail_ref: None,
+            link_template: None,
             owner_email: None,
+            weight_kg: None,
         }
     }
 }

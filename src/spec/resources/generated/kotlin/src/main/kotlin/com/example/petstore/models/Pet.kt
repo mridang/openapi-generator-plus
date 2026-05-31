@@ -17,6 +17,7 @@ import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
+import java.math.BigDecimal
 import kotlin.collections.List
 import kotlin.collections.Set
 
@@ -55,6 +56,41 @@ data class Pet(
     /** Example: `null` */
     @SerialName("location")
     val location: List<@Contextual Any>? = mutableListOf(),
+    /**
+     * Absolute URL to the pet's public profile page
+     *
+     * Example: `https://example.com/pets/fido`
+     */
+    @SerialName("homepageUrl")
+    val homepageUrl: String? = null,
+    /**
+     * Optionally-relative thumbnail location
+     *
+     * Example: `/assets/thumb-fido.png`
+     */
+    @SerialName("thumbnailRef")
+    val thumbnailRef: String? = null,
+    /**
+     * RFC 6570 template for related-resource links
+     *
+     * Example: `https://example.com/pets/{id}/photos{?size}`
+     */
+    @SerialName("linkTemplate")
+    val linkTemplate: String? = null,
+    /**
+     * Contact email for the pet's owner
+     *
+     * Example: `owner@example.com`
+     */
+    @SerialName("ownerEmail")
+    val ownerEmail: String? = null,
+    /**
+     * Pet weight in kilograms (decimal precision)
+     *
+     * Example: `12.345`
+     */
+    @SerialName("weightKg")
+    val weightKg: BigDecimal? = null,
 ) {
     @Serializable
     enum class StatusEnum(

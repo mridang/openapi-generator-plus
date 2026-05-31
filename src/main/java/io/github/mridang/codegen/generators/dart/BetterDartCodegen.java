@@ -98,15 +98,23 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         typeMapping.put("map", "Map");
         typeMapping.put("object", "Object");
         typeMapping.put("AnyType", "Object");
-        typeMapping.put("file", "List<int>");
-        typeMapping.put("binary", "List<int>");
-        typeMapping.put("ByteArray", "List<int>");
+        typeMapping.put("file", "Uint8List");
+        typeMapping.put("binary", "Uint8List");
+        typeMapping.put("ByteArray", "Uint8List");
+        typeMapping.put("byte", "Uint8List");
         // UUID values are exposed as `UuidValue` from `package:uuid`. The wrapper
         // gives a typed public API (instead of a stringly-typed `String`) and
         // validates on construction (`UuidValue.fromString` throws on malformed
         // input). Serialization round-trips via `toString()` / `fromString()`.
         typeMapping.put("UUID", "UuidValue");
         typeMapping.put("URI", "String");
+
+        // Binary surface (byte/binary/file/ByteArray) maps to `Uint8List` from
+        // `dart:typed_data`. `Uint8List` IS-A `List<int>` so existing consumer
+        // code that expects `List<int>` continues to compile, but generated
+        // method signatures expose the tighter type. The import must be wired
+        // here so the `api.mustache` `{{#imports}}` loop emits the SDK import.
+        importMapping.put("Uint8List", "dart:typed_data");
 
         languageSpecificPrimitives =
                 new HashSet<>(
@@ -123,6 +131,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                                 "DateTime",
                                 "Duration",
                                 "List<int>",
+                                "Uint8List",
                                 "UuidValue"));
 
         reservedWords = loadReservedWords("/reserved-words/dart.txt");
@@ -553,6 +562,13 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         final List<Map<String, String>> imports =
                 (List<Map<String, String>>) objs.get("imports");
         if (imports != null) {
+            // Drop synthetic SDK imports (e.g. `dart:typed_data` for `Uint8List`) — the
+            // template emits these statically at the top of the file, not via `{{#imports}}`.
+            imports.removeIf(
+                    imp -> {
+                        final String value = imp.get("import");
+                        return value != null && value.startsWith("dart:");
+                    });
             for (final Map<String, String> imp : imports) {
                 if (!imp.containsKey("className") && imp.containsKey("import")) {
                     String className = imp.get("import");

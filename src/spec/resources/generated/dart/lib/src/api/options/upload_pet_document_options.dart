@@ -1,6 +1,6 @@
 /// UploadPetDocumentOptions holds optional parameters for the uploadPetDocument operation.
 class UploadPetDocumentOptions {
-  final List<int> file;
+  final Uint8List file;
 
   final String? documentType;
 

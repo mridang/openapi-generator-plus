@@ -27,11 +27,11 @@ type fakeResponse struct {
 	statusCode int
 }
 
-func (c *fakeTokenClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*auth.HttpResponse, error) {
+func (c *fakeTokenClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.HttpResponse, error) {
 	return c.SendRequestWithOptions(method, url, headers, body, nil)
 }
 
-func (c *fakeTokenClient) SendRequestWithOptions(method, url string, headers map[string]string, body interface{}, opts *auth.RequestOptions) (*auth.HttpResponse, error) {
+func (c *fakeTokenClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *auth.RequestOptions) (*auth.HttpResponse, error) {
 	c.LastURL = url
 	if opts != nil {
 		c.LastNoRedirect = opts.NoRedirect
@@ -130,7 +130,7 @@ func TestOAuth2TokenManager_ReturnsCachedTokenWhenNotExpired(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt32(&callCount, 1)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		json.NewEncoder(w).Encode(map[string]any{
 			"access_token": "tok1",
 			"expires_in":   3600,
 		})

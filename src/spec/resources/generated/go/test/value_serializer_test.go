@@ -202,7 +202,7 @@ func TestSerializeValue_QuerySingleElementArray(t *testing.T) {
 
 func TestSerializeValue_QueryIntegerArray(t *testing.T) {
 	t.Parallel()
-	result := petstore.SerializeValue([]interface{}{1, 2, 3}, "query", "array", "csv")
+	result := petstore.SerializeValue([]any{1, 2, 3}, "query", "array", "csv")
 	if result != "1,2,3" {
 		t.Errorf("expected '1,2,3', got %v", result)
 	}
@@ -210,7 +210,7 @@ func TestSerializeValue_QueryIntegerArray(t *testing.T) {
 
 func TestSerializeValue_QueryBooleanArray(t *testing.T) {
 	t.Parallel()
-	result := petstore.SerializeValue([]interface{}{true, false}, "query", "array", "csv")
+	result := petstore.SerializeValue([]any{true, false}, "query", "array", "csv")
 	if result != "true,false" {
 		t.Errorf("expected 'true,false', got %v", result)
 	}
@@ -270,7 +270,7 @@ func TestSerializeValue_HeaderEmptyArray(t *testing.T) {
 
 func TestSerializeValue_HeaderIntegerArray(t *testing.T) {
 	t.Parallel()
-	result := petstore.SerializeValue([]interface{}{1, 2, 3}, "header", "array", "")
+	result := petstore.SerializeValue([]any{1, 2, 3}, "header", "array", "")
 	if result != "1,2,3" {
 		t.Errorf("expected '1,2,3', got %v", result)
 	}
@@ -520,7 +520,7 @@ func TestSerializeStyled_PipeDelimitedScalar(t *testing.T) {
 
 func TestSerializeDeepObject(t *testing.T) {
 	t.Parallel()
-	result := petstore.SerializeDeepObject("filter", map[string]interface{}{
+	result := petstore.SerializeDeepObject("filter", map[string]any{
 		"status": "active",
 		"type":   "dog",
 	})

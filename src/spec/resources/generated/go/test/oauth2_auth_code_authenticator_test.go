@@ -30,11 +30,11 @@ type fakeAuthCodeResponse struct {
 	statusCode int
 }
 
-func (c *fakeAuthCodeClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*auth.HttpResponse, error) {
+func (c *fakeAuthCodeClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.HttpResponse, error) {
 	return c.SendRequestWithOptions(method, url, headers, body, nil)
 }
 
-func (c *fakeAuthCodeClient) SendRequestWithOptions(method, url string, headers map[string]string, body interface{}, opts *auth.RequestOptions) (*auth.HttpResponse, error) {
+func (c *fakeAuthCodeClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *auth.RequestOptions) (*auth.HttpResponse, error) {
 	_ = opts
 	c.LastURL = url
 	if body != nil {

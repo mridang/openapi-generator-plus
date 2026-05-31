@@ -16,7 +16,7 @@ import (
 type Metadata struct {
 	CreatedAt *time.Time `json:"createdAt,omitempty"`
 	/* AdditionalProperties holds any extra fields not defined in the schema. */
-	AdditionalProperties map[string]interface{} `json:"-"`
+	AdditionalProperties map[string]any `json:"-"`
 }
 
 // NewMetadata creates a new Metadata instance.
@@ -63,9 +63,9 @@ func (o *Metadata) UnmarshalJSON(data []byte) error {
 	for key, val := range raw {
 		if !knownFields[key] {
 			if o.AdditionalProperties == nil {
-				o.AdditionalProperties = make(map[string]interface{})
+				o.AdditionalProperties = make(map[string]any)
 			}
-			var v interface{}
+			var v any
 			if err := json.Unmarshal(val, &v); err != nil {
 				return err
 			}

@@ -123,7 +123,7 @@ func (a *{{classname}}) {{operationId}}({{#hasAuthMethods}}auth Authenticator, {
 }
 
 // {{operationId}}WithHTTPInfo performs the {{operationId}} operation and returns the full API result.
-func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Authenticator, {{/hasAuthMethods}}{{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}) (*ApiResult[{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}interface{}{{/returnType}}], error) {
+func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Authenticator, {{/hasAuthMethods}}{{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}) (*ApiResult[{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}any{{/returnType}}], error) {
 {{#pathParams}}
 {{#required}}
 {{#isString}}
@@ -157,7 +157,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 {{/-first}}
 {{/servers}}
 
-	queryParams := make(map[string]interface{})
+	queryParams := make(map[string]any)
 {{#queryParams}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
 	if options != nil {
@@ -207,7 +207,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 {{/hasCookieParams}}
 
 {{#hasFormParams}}
-	formBody := make(map[string]interface{})
+	formBody := make(map[string]any)
 	if options != nil {
 {{#formParams}}
 {{#required}}
@@ -220,14 +220,14 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 {{/required}}
 {{/formParams}}
 	}
-	var requestBody interface{} = formBody
+	var requestBody any = formBody
 {{/hasFormParams}}
 {{^hasFormParams}}
 {{#bodyParam}}
-	var requestBody interface{} = {{paramName}}
+	var requestBody any = {{paramName}}
 {{/bodyParam}}
 {{^bodyParam}}
-	var requestBody interface{}
+	var requestBody any
 {{/bodyParam}}
 {{/hasFormParams}}
 
@@ -279,7 +279,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 	}, nil
 {{/returnType}}
 {{^returnType}}
-	return &ApiResult[interface{}]{
+	return &ApiResult[any]{
 		StatusCode: response.StatusCode,
 		Data:       nil,
 		RawBody:    response.Body,

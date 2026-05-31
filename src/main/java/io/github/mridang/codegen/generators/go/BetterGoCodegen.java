@@ -88,8 +88,8 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         typeMapping.put("array", "[]");
         typeMapping.put("List", "[]");
         typeMapping.put("map", "map");
-        typeMapping.put("object", "interface{}");
-        typeMapping.put("AnyType", "interface{}");
+        typeMapping.put("object", "any");
+        typeMapping.put("AnyType", "any");
         typeMapping.put("file", "*os.File");
         typeMapping.put("binary", "[]byte");
         typeMapping.put("ByteArray", "[]byte");
@@ -106,7 +106,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                                 "float32",
                                 "float64",
                                 "byte",
-                                "interface{}",
+                                "any",
                                 "error",
                                 "uuid.UUID"));
 
@@ -270,12 +270,12 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Returns {@code interface{}} as the default map value
-     * type for Go's universal empty interface.
+     * Returns {@code any} as the default map value
+     * type for Go's universal empty interface alias.
      */
     @Override
     protected String getMapDefaultValueType() {
-        return "interface{}";
+        return "any";
     }
 
     /**
@@ -599,7 +599,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         final Set<String> goPrimitives =
                 Set.of(
                         "string", "bool", "int32", "int64", "float32", "float64",
-                        "interface{}", "byte", "[]byte");
+                        "any", "byte", "[]byte");
         boolean hasModelImport = false;
         boolean hasOsImport = false;
         boolean hasUuidImport = false;

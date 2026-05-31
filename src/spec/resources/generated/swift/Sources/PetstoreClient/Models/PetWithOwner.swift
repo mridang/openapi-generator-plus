@@ -32,10 +32,22 @@ public struct PetWithOwner: Codable, Sendable {
     public var status: PetWithOwnerStatusEnum?
     /// Example: `null`
     public var location: [AnyCodable]?
-    /// Example: `null`
-    public var ownerName: String
+    /// Absolute URL to the pet's public profile page
+    /// Example: `https://example.com/pets/fido`
+    public var homepageUrl: String?
+    /// Optionally-relative thumbnail location
+    /// Example: `/assets/thumb-fido.png`
+    public var thumbnailRef: String?
+    /// RFC 6570 template for related-resource links
+    /// Example: `https://example.com/pets/{id}/photos{?size}`
+    public var linkTemplate: String?
     /// Example: `null`
     public var ownerEmail: String?
+    /// Pet weight in kilograms (decimal precision)
+    /// Example: `12.345`
+    public var weightKg: Double?
+    /// Example: `null`
+    public var ownerName: String
 
     enum CodingKeys: String, CodingKey {
         case id = "id"
@@ -45,15 +57,20 @@ public struct PetWithOwner: Codable, Sendable {
         case tags = "tags"
         case status = "status"
         case location = "location"
-        case ownerName = "ownerName"
+        case homepageUrl = "homepageUrl"
+        case thumbnailRef = "thumbnailRef"
+        case linkTemplate = "linkTemplate"
         case ownerEmail = "ownerEmail"
+        case weightKg = "weightKg"
+        case ownerName = "ownerName"
     }
 
     /// Creates a new PetWithOwner instance.
     public init(
         name: String, photoUrls: Set<String>, ownerName: String, id: Int64? = nil, category: Category? = nil,
         tags: [Tag]? = nil, status: PetWithOwnerStatusEnum? = nil, location: [AnyCodable]? = nil,
-        ownerEmail: String? = nil
+        homepageUrl: String? = nil, thumbnailRef: String? = nil, linkTemplate: String? = nil, ownerEmail: String? = nil,
+        weightKg: Double? = nil
     ) {
         self.name = name
         self.photoUrls = photoUrls
@@ -63,7 +80,11 @@ public struct PetWithOwner: Codable, Sendable {
         self.tags = tags
         self.status = status
         self.location = location
+        self.homepageUrl = homepageUrl
+        self.thumbnailRef = thumbnailRef
+        self.linkTemplate = linkTemplate
         self.ownerEmail = ownerEmail
+        self.weightKg = weightKg
     }
 
     /// Decodes this instance from the given decoder.
@@ -80,8 +101,12 @@ public struct PetWithOwner: Codable, Sendable {
         self.tags = try container.decodeIfPresent([Tag].self, forKey: .tags)
         self.status = try container.decodeIfPresent(PetWithOwnerStatusEnum.self, forKey: .status)
         self.location = try container.decodeIfPresent([AnyCodable].self, forKey: .location)
-        self.ownerName = try container.decode(String.self, forKey: .ownerName)
+        self.homepageUrl = try container.decodeIfPresent(String.self, forKey: .homepageUrl)
+        self.thumbnailRef = try container.decodeIfPresent(String.self, forKey: .thumbnailRef)
+        self.linkTemplate = try container.decodeIfPresent(String.self, forKey: .linkTemplate)
         self.ownerEmail = try container.decodeIfPresent(String.self, forKey: .ownerEmail)
+        self.weightKg = try container.decodeIfPresent(Double.self, forKey: .weightKg)
+        self.ownerName = try container.decode(String.self, forKey: .ownerName)
     }
 
     /// Encodes this instance, omitting nil optional fields from the JSON output.
@@ -98,7 +123,11 @@ public struct PetWithOwner: Codable, Sendable {
         try container.encodeIfPresent(tags, forKey: .tags)
         try container.encodeIfPresent(status, forKey: .status)
         try container.encodeIfPresent(location, forKey: .location)
-        try container.encode(ownerName, forKey: .ownerName)
+        try container.encodeIfPresent(homepageUrl, forKey: .homepageUrl)
+        try container.encodeIfPresent(thumbnailRef, forKey: .thumbnailRef)
+        try container.encodeIfPresent(linkTemplate, forKey: .linkTemplate)
         try container.encodeIfPresent(ownerEmail, forKey: .ownerEmail)
+        try container.encodeIfPresent(weightKg, forKey: .weightKg)
+        try container.encode(ownerName, forKey: .ownerName)
     }
 }

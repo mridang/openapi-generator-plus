@@ -47,9 +47,9 @@ func NewBaseApi(apiClient ApiClient, config *Configuration, authenticator Authen
 type invokeApiParams struct {
 	method      string
 	path        string
-	queryParams map[string]interface{}
+	queryParams map[string]any
 	headerParams map[string]string
-	body        interface{}
+	body        any
 	accepts     []string
 	contentType string
 	returnType  string
@@ -73,7 +73,7 @@ func (b *BaseApi) invokeApiForResult(params invokeApiParams) (*HttpResponse, err
 	if effectiveAuth != nil {
 		authQueryParams := effectiveAuth.QueryParams()
 		if params.queryParams == nil {
-			params.queryParams = make(map[string]interface{})
+			params.queryParams = make(map[string]any)
 		}
 		for k, v := range authQueryParams {
 			params.queryParams[k] = v
@@ -138,9 +138,9 @@ func (b *BaseApi) invokeApiForResult(params invokeApiParams) (*HttpResponse, err
 	 * the boundary can be injected into the Content-Type header. */
 	var serializedBody []byte
 	if params.contentType == "multipart/form-data" && params.body != nil {
-		formFields, ok := params.body.(map[string]interface{})
+		formFields, ok := params.body.(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("multipart body must be map[string]interface{}")
+			return nil, fmt.Errorf("multipart body must be map[string]any")
 		}
 		boundary := uuid.New().String()
 		headers["Content-Type"] = "multipart/form-data; boundary=" + boundary
@@ -182,7 +182,7 @@ func (b *BaseApi) invokeApi(params invokeApiParams) (*HttpResponse, error) {
 	return b.invokeApiForResult(params)
 }
 
-func buildQueryString(queryParams map[string]interface{}) string {
+func buildQueryString(queryParams map[string]any) string {
 	if len(queryParams) == 0 {
 		return ""
 	}
@@ -209,7 +209,7 @@ func buildQueryString(queryParams map[string]interface{}) string {
 	return strings.Join(parts, "&")
 }
 
-func serializeBody(body interface{}, contentType string) ([]byte, error) {
+func serializeBody(body any, contentType string) ([]byte, error) {
 	if body == nil {
 		return nil, nil
 	}
@@ -233,7 +233,7 @@ func serializeBody(body interface{}, contentType string) ([]byte, error) {
 	}
 
 	if contentType == "application/x-www-form-urlencoded" {
-		if params, ok := body.(map[string]interface{}); ok {
+		if params, ok := body.(map[string]any); ok {
 			values := url.Values{}
 			for k, v := range params {
 				values.Set(k, fmt.Sprintf("%v", v))
@@ -248,7 +248,7 @@ func serializeBody(body interface{}, contentType string) ([]byte, error) {
 /* buildMultipartBody constructs a multipart/form-data request body from
  * a map of form fields. Each value may be a string, number, boolean,
  * slice (repeated field), map (serialized as JSON part), or nil (skipped). */
-func buildMultipartBody(formFields map[string]interface{}, boundary string) ([]byte, error) {
+func buildMultipartBody(formFields map[string]any, boundary string) ([]byte, error) {
 	var buf strings.Builder
 	writer := multipart.NewWriter(&buf)
 	_ = writer.SetBoundary(boundary)
@@ -258,7 +258,7 @@ func buildMultipartBody(formFields map[string]interface{}, boundary string) ([]b
 			continue
 		}
 		switch v := value.(type) {
-		case []interface{}:
+		case []any:
 			for _, item := range v {
 				if err := writeMultipartField(writer, name, item); err != nil {
 					return nil, err
@@ -274,7 +274,7 @@ func buildMultipartBody(formFields map[string]interface{}, boundary string) ([]b
 	return []byte(buf.String()), nil
 }
 
-func writeMultipartField(writer *multipart.Writer, name string, value interface{}) error {
+func writeMultipartField(writer *multipart.Writer, name string, value any) error {
 	if value == nil {
 		return nil
 	}
@@ -309,7 +309,7 @@ func writeMultipartField(writer *multipart.Writer, name string, value interface{
 		}
 		_, err = part.Write(v)
 		return err
-	case map[string]interface{}:
+	case map[string]any:
 		jsonBytes, err := json.Marshal(v)
 		if err != nil {
 			return fmt.Errorf("failed to marshal multipart field %q as JSON: %w", name, err)
@@ -471,7 +471,7 @@ func throwAPIError(response *HttpResponse) error {
 	msg := fmt.Sprintf("API returned status code %d", code)
 	body := response.Body
 
-	var parsed interface{}
+	var parsed any
 	if body != "" {
 		_ = json.Unmarshal([]byte(body), &parsed)
 	}

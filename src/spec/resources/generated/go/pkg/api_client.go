@@ -33,11 +33,11 @@ type ApiClient interface {
 	 *   - method: HTTP method (GET, POST, PUT, DELETE, etc.)
 	 *   - url: fully qualified URL
 	 *   - headers: caller-provided headers
-	 *   - body: request body as []byte, map[string]interface{} for multipart
+	 *   - body: request body as []byte, map[string]any for multipart
 	 *           form data, or nil
 	 *
 	 * Returns an HttpResponse and any error that occurred. */
-	SendRequest(method, url string, headers map[string]string, body interface{}) (*HttpResponse, error)
+	SendRequest(method, url string, headers map[string]string, body any) (*HttpResponse, error)
 
 	/* SendRequestWithOptions sends an HTTP request applying the supplied
 	 * per-request RequestOptions on top of the transport-level defaults.
@@ -45,5 +45,5 @@ type ApiClient interface {
 	 * RequestOptions. Used by OAuth2TokenManager to force NoRedirect on
 	 * token endpoint POSTs without polluting the package-level
 	 * TransportOptions. */
-	SendRequestWithOptions(method, url string, headers map[string]string, body interface{}, opts *RequestOptions) (*HttpResponse, error)
+	SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *RequestOptions) (*HttpResponse, error)
 }

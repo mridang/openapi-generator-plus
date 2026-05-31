@@ -179,7 +179,7 @@ func TestBaseApi_DeserializesJSONResponse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	if err := json.Unmarshal([]byte(resp.Body), &parsed); err != nil {
 		t.Fatalf("failed to parse raw body: %v", err)
 	}
@@ -234,10 +234,10 @@ func TestBaseApi_ForwardsAuthHeaders(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	_ = api
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	_ = json.Unmarshal([]byte(resp.Body), &parsed)
 	// chasm envelope preserves original header casing under .headers
-	headers, _ := parsed["headers"].(map[string]interface{})
+	headers, _ := parsed["headers"].(map[string]any)
 	if headers == nil || headers["authorization"] == nil {
 		t.Error("expected Authorization header in echo response")
 	}
@@ -281,14 +281,14 @@ func TestBaseApi_HandlesNilBody(t *testing.T) {
 // capturingApiClient captures the headers and body sent by BaseApi.
 type capturingApiClient struct {
 	capturedHeaders map[string]string
-	capturedBody    interface{}
+	capturedBody    any
 }
 
-func (c *capturingApiClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*petstore.HttpResponse, error) {
+func (c *capturingApiClient) SendRequest(method, url string, headers map[string]string, body any) (*petstore.HttpResponse, error) {
 	return c.SendRequestWithOptions(method, url, headers, body, nil)
 }
 
-func (c *capturingApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body interface{}, opts *petstore.RequestOptions) (*petstore.HttpResponse, error) {
+func (c *capturingApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *petstore.RequestOptions) (*petstore.HttpResponse, error) {
 	_ = opts
 	c.capturedHeaders = make(map[string]string)
 	for k, v := range headers {
@@ -339,11 +339,11 @@ type contentTypeApiClient struct {
 	responseBody        string
 }
 
-func (c *contentTypeApiClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*petstore.HttpResponse, error) {
+func (c *contentTypeApiClient) SendRequest(method, url string, headers map[string]string, body any) (*petstore.HttpResponse, error) {
 	return c.SendRequestWithOptions(method, url, headers, body, nil)
 }
 
-func (c *contentTypeApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body interface{}, opts *petstore.RequestOptions) (*petstore.HttpResponse, error) {
+func (c *contentTypeApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *petstore.RequestOptions) (*petstore.HttpResponse, error) {
 	_ = opts
 	return &petstore.HttpResponse{
 		StatusCode: 200,
@@ -379,7 +379,7 @@ func TestBaseApi_DeserializesVendorJsonMimeType(t *testing.T) {
 	 * If it fails, it should not be because of a content-type mismatch. */
 	if err != nil {
 		// Parse the raw response to verify it was valid JSON
-		var parsed map[string]interface{}
+		var parsed map[string]any
 		if jsonErr := json.Unmarshal([]byte(client.responseBody), &parsed); jsonErr != nil {
 			t.Fatalf("response body is not valid JSON: %v", jsonErr)
 		}
@@ -411,11 +411,11 @@ type queryCapturingApiClient struct {
 	capturedURL string
 }
 
-func (c *queryCapturingApiClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*petstore.HttpResponse, error) {
+func (c *queryCapturingApiClient) SendRequest(method, url string, headers map[string]string, body any) (*petstore.HttpResponse, error) {
 	return c.SendRequestWithOptions(method, url, headers, body, nil)
 }
 
-func (c *queryCapturingApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body interface{}, opts *petstore.RequestOptions) (*petstore.HttpResponse, error) {
+func (c *queryCapturingApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *petstore.RequestOptions) (*petstore.HttpResponse, error) {
 	_ = opts
 	c.capturedURL = url
 	return &petstore.HttpResponse{StatusCode: 200, Body: "{}", Headers: map[string]string{"content-type": "application/json"}}, nil
@@ -596,15 +596,15 @@ func TestBaseApi_SerializesNumberQueryParams(t *testing.T) {
 // ── Body serialization by content type ──
 
 type bodyCapturingApiClient struct {
-	capturedBody    interface{}
+	capturedBody    any
 	capturedHeaders map[string]string
 }
 
-func (c *bodyCapturingApiClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*petstore.HttpResponse, error) {
+func (c *bodyCapturingApiClient) SendRequest(method, url string, headers map[string]string, body any) (*petstore.HttpResponse, error) {
 	return c.SendRequestWithOptions(method, url, headers, body, nil)
 }
 
-func (c *bodyCapturingApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body interface{}, opts *petstore.RequestOptions) (*petstore.HttpResponse, error) {
+func (c *bodyCapturingApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *petstore.RequestOptions) (*petstore.HttpResponse, error) {
 	_ = opts
 	c.capturedBody = body
 	c.capturedHeaders = make(map[string]string)
@@ -659,11 +659,11 @@ type binaryResponseApiClient struct {
 	responseContentType string
 }
 
-func (c *binaryResponseApiClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*petstore.HttpResponse, error) {
+func (c *binaryResponseApiClient) SendRequest(method, url string, headers map[string]string, body any) (*petstore.HttpResponse, error) {
 	return c.SendRequestWithOptions(method, url, headers, body, nil)
 }
 
-func (c *binaryResponseApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body interface{}, opts *petstore.RequestOptions) (*petstore.HttpResponse, error) {
+func (c *binaryResponseApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *petstore.RequestOptions) (*petstore.HttpResponse, error) {
 	_ = opts
 	return &petstore.HttpResponse{
 		StatusCode: 200,
@@ -948,11 +948,11 @@ type authHeaderCapturingClient struct {
 	headers map[string]string
 }
 
-func (c *authHeaderCapturingClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*petstore.HttpResponse, error) {
+func (c *authHeaderCapturingClient) SendRequest(method, url string, headers map[string]string, body any) (*petstore.HttpResponse, error) {
 	return c.SendRequestWithOptions(method, url, headers, body, nil)
 }
 
-func (c *authHeaderCapturingClient) SendRequestWithOptions(method, url string, headers map[string]string, body interface{}, opts *petstore.RequestOptions) (*petstore.HttpResponse, error) {
+func (c *authHeaderCapturingClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *petstore.RequestOptions) (*petstore.HttpResponse, error) {
 	_ = opts
 	c.headers = make(map[string]string)
 	for k, v := range headers {
@@ -1023,7 +1023,7 @@ func TestGetTypedErrorBody_ParsesJsonIntoTarget(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected *BadRequestError, got %T", err)
 	}
-	var body map[string]interface{}
+	var body map[string]any
 	if uerr := bre.GetTypedErrorBody(&body); uerr != nil {
 		t.Fatalf("GetTypedErrorBody returned error: %v", uerr)
 	}

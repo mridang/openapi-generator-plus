@@ -18,7 +18,12 @@ defmodule PetstoreClient.Models.Pet do
           photo_urls: MapSet.t(String.t()) | nil,
           tags: [Tag] | nil,
           status: :available | :pending | :sold | nil,
-          location: [any()] | nil
+          location: [any()] | nil,
+          homepage_url: String.t() | nil,
+          thumbnail_ref: String.t() | nil,
+          link_template: String.t() | nil,
+          owner_email: String.t() | nil,
+          weight_kg: float() | nil
         }
 
   @enforce_keys [
@@ -32,7 +37,12 @@ defmodule PetstoreClient.Models.Pet do
     :photo_urls,
     :tags,
     :status,
-    :location
+    :location,
+    :homepage_url,
+    :thumbnail_ref,
+    :link_template,
+    :owner_email,
+    :weight_kg
   ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."
@@ -45,7 +55,12 @@ defmodule PetstoreClient.Models.Pet do
       photo_urls: "photoUrls",
       tags: "tags",
       status: "status",
-      location: "location"
+      location: "location",
+      homepage_url: "homepageUrl",
+      thumbnail_ref: "thumbnailRef",
+      link_template: "linkTemplate",
+      owner_email: "ownerEmail",
+      weight_kg: "weightKg"
     }
   end
 
@@ -65,7 +80,12 @@ defmodule PetstoreClient.Models.Pet do
       photo_urls: "MapSet.t(String.t())",
       tags: "[Tag]",
       status: "String.t()",
-      location: "[any()]"
+      location: "[any()]",
+      homepage_url: "String.t()",
+      thumbnail_ref: "String.t()",
+      link_template: "String.t()",
+      owner_email: "String.t()",
+      weight_kg: "float()"
     }
   end
 end

@@ -240,7 +240,7 @@ final pet = Pet(name: 'Fido', status: 'available');
 
 ## Binary / File Uploads
 
-File upload parameters accept `List<int>` (byte lists). Binary response bodies are returned as `List<int>`.
+File upload parameters accept `Uint8List` (from `dart:typed_data`). Binary response bodies are returned as `Uint8List`. `Uint8List` is a subtype of `List<int>`, so any code that consumes the result as `List<int>` continues to work; producers should wrap byte literals via `Uint8List.fromList([...])`.
 
 ## Comment Style
 

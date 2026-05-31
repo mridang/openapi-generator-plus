@@ -76,6 +76,46 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     [JsonPropertyName("location")]
     public List<Object>? Location { get; set; }
 
+    /// <summary>
+    /// Absolute URL to the pet's public profile page
+    /// </summary>
+    /// <example>https://example.com/pets/fido</example>
+
+    [JsonPropertyName("homepageUrl")]
+    public string? HomepageUrl { get; set; }
+
+    /// <summary>
+    /// Optionally-relative thumbnail location
+    /// </summary>
+    /// <example>/assets/thumb-fido.png</example>
+
+    [JsonPropertyName("thumbnailRef")]
+    public string? ThumbnailRef { get; set; }
+
+    /// <summary>
+    /// RFC 6570 template for related-resource links
+    /// </summary>
+    /// <example>https://example.com/pets/{id}/photos{?size}</example>
+
+    [JsonPropertyName("linkTemplate")]
+    public string? LinkTemplate { get; set; }
+
+    /// <summary>
+    /// Contact email for the pet's owner
+    /// </summary>
+    /// <example>owner@example.com</example>
+
+    [JsonPropertyName("ownerEmail")]
+    public string? OwnerEmail { get; set; }
+
+    /// <summary>
+    /// Pet weight in kilograms (decimal precision)
+    /// </summary>
+    /// <example>12.345</example>
+
+    [JsonPropertyName("weightKg")]
+    public decimal? WeightKg { get; set; }
+
     /// <summary>Value-equality based on all declared fields. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in
     /// test assertions.</summary>
@@ -95,6 +135,17 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
                     && EqualityComparer<List<Tag>?>.Default.Equals(this.Tags, other.Tags)
                     && EqualityComparer<StatusEnum?>.Default.Equals(this.Status, other.Status)
                     && EqualityComparer<List<Object>?>.Default.Equals(this.Location, other.Location)
+                    && EqualityComparer<string?>.Default.Equals(this.HomepageUrl, other.HomepageUrl)
+                    && EqualityComparer<string?>.Default.Equals(
+                        this.ThumbnailRef,
+                        other.ThumbnailRef
+                    )
+                    && EqualityComparer<string?>.Default.Equals(
+                        this.LinkTemplate,
+                        other.LinkTemplate
+                    )
+                    && EqualityComparer<string?>.Default.Equals(this.OwnerEmail, other.OwnerEmail)
+                    && EqualityComparer<decimal?>.Default.Equals(this.WeightKg, other.WeightKg)
                 )
             );
     }
@@ -114,6 +165,11 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
         hash.Add(this.Tags);
         hash.Add(this.Status);
         hash.Add(this.Location);
+        hash.Add(this.HomepageUrl);
+        hash.Add(this.ThumbnailRef);
+        hash.Add(this.LinkTemplate);
+        hash.Add(this.OwnerEmail);
+        hash.Add(this.WeightKg);
         return hash.ToHashCode();
     }
 }

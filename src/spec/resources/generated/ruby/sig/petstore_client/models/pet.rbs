@@ -10,5 +10,10 @@ module PetstoreClient::Models
     attr_reader tags: Array[Tag]?
     attr_reader status: String?
     attr_reader location: Array[untyped]?
+    attr_reader homepage_url: String?
+    attr_reader thumbnail_ref: String?
+    attr_reader link_template: String?
+    attr_reader owner_email: String?
+    attr_reader weight_kg: Float?
   end
 end

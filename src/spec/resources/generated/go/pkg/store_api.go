@@ -39,16 +39,16 @@ func (a *StoreApi) DeleteOrder(orderId int64) error {
 }
 
 // DeleteOrderWithHTTPInfo performs the DeleteOrder operation and returns the full API result.
-func (a *StoreApi) DeleteOrderWithHTTPInfo(orderId int64) (*ApiResult[interface{}], error) {
+func (a *StoreApi) DeleteOrderWithHTTPInfo(orderId int64) (*ApiResult[any], error) {
 
 	path := "/store/order/{orderId}"
 	path = replacePathParam(path, "orderId", fmt.Sprintf("%v", orderId))
 
-	queryParams := make(map[string]interface{})
+	queryParams := make(map[string]any)
 
 	headerParams := make(map[string]string)
 
-	var requestBody interface{}
+	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "DELETE",
@@ -65,7 +65,7 @@ func (a *StoreApi) DeleteOrderWithHTTPInfo(orderId int64) (*ApiResult[interface{
 		return nil, err
 	}
 
-	return &ApiResult[interface{}]{
+	return &ApiResult[any]{
 		StatusCode: response.StatusCode,
 		Data:       nil,
 		RawBody:    response.Body,
@@ -88,11 +88,11 @@ func (a *StoreApi) GetInventoryWithHTTPInfo() (*ApiResult[map[string]int32], err
 
 	path := "/store/inventory"
 
-	queryParams := make(map[string]interface{})
+	queryParams := make(map[string]any)
 
 	headerParams := make(map[string]string)
 
-	var requestBody interface{}
+	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "GET",
@@ -158,11 +158,11 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], e
 	path := "/store/order/{orderId}"
 	path = replacePathParam(path, "orderId", fmt.Sprintf("%v", orderId))
 
-	queryParams := make(map[string]interface{})
+	queryParams := make(map[string]any)
 
 	headerParams := make(map[string]string)
 
-	var requestBody interface{}
+	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "GET",
@@ -226,11 +226,11 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(order *Order) (*ApiResult[Order], erro
 
 	path := "/store/order"
 
-	queryParams := make(map[string]interface{})
+	queryParams := make(map[string]any)
 
 	headerParams := make(map[string]string)
 
-	var requestBody interface{} = order
+	var requestBody any = order
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "POST",

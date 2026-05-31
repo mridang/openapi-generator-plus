@@ -19,7 +19,7 @@ import (
 
 func TestSerialize_MapToJSON(t *testing.T) {
 	t.Parallel()
-	input := map[string]interface{}{
+	input := map[string]any{
 		"name": "Fido",
 		"age":  3,
 	}
@@ -32,7 +32,7 @@ func TestSerialize_MapToJSON(t *testing.T) {
 		t.Fatal("expected non-empty serialized data")
 	}
 
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	if err := json.Unmarshal(data, &parsed); err != nil {
 		t.Fatalf("failed to parse serialized JSON: %v", err)
 	}
@@ -45,7 +45,7 @@ func TestDeserialize_JSONToMap(t *testing.T) {
 	t.Parallel()
 	input := []byte(`{"name":"Fido","age":3}`)
 
-	var result map[string]interface{}
+	var result map[string]any
 	err := petstore.Deserialize(input, &result)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -57,7 +57,7 @@ func TestDeserialize_JSONToMap(t *testing.T) {
 
 func TestDeserialize_EmptyData(t *testing.T) {
 	t.Parallel()
-	var result map[string]interface{}
+	var result map[string]any
 	err := petstore.Deserialize([]byte{}, &result)
 	if err != nil {
 		t.Fatalf("unexpected error for empty data: %v", err)
@@ -66,7 +66,7 @@ func TestDeserialize_EmptyData(t *testing.T) {
 
 func TestDeserialize_InvalidJSON(t *testing.T) {
 	t.Parallel()
-	var result map[string]interface{}
+	var result map[string]any
 	err := petstore.Deserialize([]byte("not json"), &result)
 	if err == nil {
 		t.Fatal("expected error for invalid JSON")
@@ -477,7 +477,7 @@ func TestDateTimeOffset_RoundTrip(t *testing.T) {
 
 func TestNonAscii_AccentedCharacterNotEscaped(t *testing.T) {
 	t.Parallel()
-	input := map[string]interface{}{"key": "café"}
+	input := map[string]any{"key": "café"}
 	data, err := petstore.Serialize(input)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -489,7 +489,7 @@ func TestNonAscii_AccentedCharacterNotEscaped(t *testing.T) {
 
 func TestNonAscii_CjkCharactersNotEscaped(t *testing.T) {
 	t.Parallel()
-	input := map[string]interface{}{"key": "日本"}
+	input := map[string]any{"key": "日本"}
 	data, err := petstore.Serialize(input)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -501,7 +501,7 @@ func TestNonAscii_CjkCharactersNotEscaped(t *testing.T) {
 
 func TestNonAscii_TabCharacterEscapedProperly(t *testing.T) {
 	t.Parallel()
-	input := map[string]interface{}{"key": "a\tb"}
+	input := map[string]any{"key": "a\tb"}
 	data, err := petstore.Serialize(input)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -515,7 +515,7 @@ func TestNonAscii_TabCharacterEscapedProperly(t *testing.T) {
 
 func TestDeserializationError_TruncatedJsonReturnsSerializationError(t *testing.T) {
 	t.Parallel()
-	var result map[string]interface{}
+	var result map[string]any
 	err := petstore.Deserialize([]byte("{"), &result)
 	if err == nil {
 		t.Fatal("expected error for truncated JSON")
@@ -527,7 +527,7 @@ func TestDeserializationError_TruncatedJsonReturnsSerializationError(t *testing.
 
 func TestDeserializationError_InvalidJsonReturnsSerializationError(t *testing.T) {
 	t.Parallel()
-	var result map[string]interface{}
+	var result map[string]any
 	err := petstore.Deserialize([]byte(`"hello"`), &result)
 	if err == nil {
 		t.Fatal("expected error for invalid JSON for map target")
@@ -539,7 +539,7 @@ func TestDeserializationError_InvalidJsonReturnsSerializationError(t *testing.T)
 
 func TestDeserializationError_ErrorHasCause(t *testing.T) {
 	t.Parallel()
-	var result map[string]interface{}
+	var result map[string]any
 	err := petstore.Deserialize([]byte("{"), &result)
 	if err == nil {
 		t.Fatal("expected error for truncated JSON")

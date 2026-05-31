@@ -18,7 +18,7 @@ const dateOnlyFormat = "2006-01-02"
 // Used for `format: date` path/query/header/cookie parameters so the wire value
 // matches what the spec asks for (date-only) rather than a full RFC 3339
 // datetime with offset.
-func StringifyDate(value interface{}) string {
+func StringifyDate(value any) string {
 	if value == nil {
 		return ""
 	}
@@ -61,12 +61,12 @@ func (e *SerializationError) Unwrap() error {
 
 // oneOfUnwrapper is implemented by oneOf/anyOf wrapper types.
 type oneOfUnwrapper interface {
-	GetActualInstance() interface{}
+	GetActualInstance() any
 }
 
 // Serialize converts an object to a JSON byte slice.
 // Unwraps oneOf/anyOf wrapper types before serialization.
-func Serialize(object interface{}) ([]byte, error) {
+func Serialize(object any) ([]byte, error) {
 	if wrapper, ok := object.(oneOfUnwrapper); ok {
 		object = wrapper.GetActualInstance()
 	}
@@ -88,7 +88,7 @@ func Serialize(object interface{}) ([]byte, error) {
 const MaxJSONDepth = 1000
 
 // Deserialize parses a JSON byte slice into the target value.
-func Deserialize(data []byte, target interface{}) error {
+func Deserialize(data []byte, target any) error {
 	if len(data) == 0 {
 		return nil
 	}
@@ -174,7 +174,7 @@ func formatFloat(v float64) string {
 // This is the canonical type-conversion method used by all parameter
 // encoding helpers (ToPathValue, ToQueryValue, etc.) and by
 // ValueSerializer for transport formatting.
-func Stringify(value interface{}) string {
+func Stringify(value any) string {
 	if value == nil {
 		return ""
 	}
@@ -217,13 +217,13 @@ func Stringify(value interface{}) string {
 }
 
 // ToPathValue converts a value to a string suitable for use as a URL path parameter.
-func ToPathValue(value interface{}) string {
+func ToPathValue(value any) string {
 	return Stringify(value)
 }
 
 // ToQueryValue converts a value to a representation suitable for use as a query parameter.
 // For collections, joins using the specified collection format delimiter.
-func ToQueryValue(value interface{}, collectionFormat string) interface{} {
+func ToQueryValue(value any, collectionFormat string) any {
 	if value == nil {
 		return nil
 	}
@@ -231,7 +231,7 @@ func ToQueryValue(value interface{}, collectionFormat string) interface{} {
 	switch v := value.(type) {
 	case []string:
 		return joinCollection(v, collectionFormat)
-	case []interface{}:
+	case []any:
 		items := make([]string, len(v))
 		for i, item := range v {
 			items[i] = Stringify(item)
@@ -243,7 +243,7 @@ func ToQueryValue(value interface{}, collectionFormat string) interface{} {
 }
 
 // ToHeaderValue converts a value to a string suitable for use as an HTTP header value.
-func ToHeaderValue(value interface{}) string {
+func ToHeaderValue(value any) string {
 	if value == nil {
 		return ""
 	}
@@ -251,7 +251,7 @@ func ToHeaderValue(value interface{}) string {
 	switch v := value.(type) {
 	case []string:
 		return strings.Join(v, ",")
-	case []interface{}:
+	case []any:
 		items := make([]string, len(v))
 		for i, item := range v {
 			items[i] = Stringify(item)
@@ -264,19 +264,19 @@ func ToHeaderValue(value interface{}) string {
 
 // ToCookieValue converts a value to a string suitable for use as an HTTP cookie value.
 // Cookie values follow the same encoding rules as header values.
-func ToCookieValue(value interface{}) string {
+func ToCookieValue(value any) string {
 	return ToHeaderValue(value)
 }
 
 // ToFormValue converts a value to a representation suitable for use as a form parameter.
-func ToFormValue(value interface{}) string {
+func ToFormValue(value any) string {
 	return Stringify(value)
 }
 
 // ResolveOneOf attempts deserialization against each candidate factory function.
 // Each factory receives parsed JSON (map/slice/primitive) and returns a deserialized
 // value or an error. Returns the first successful result, or nil if none match.
-func ResolveOneOf(data interface{}, candidates []func(interface{}) (interface{}, error)) (interface{}, error) {
+func ResolveOneOf(data any, candidates []func(any) (any, error)) (any, error) {
 	for _, candidate := range candidates {
 		result, err := candidate(data)
 		if err == nil {
@@ -288,11 +288,11 @@ func ResolveOneOf(data interface{}, candidates []func(interface{}) (interface{},
 
 // ResolveAnyOf attempts deserialization against each candidate factory function.
 // Returns the first successful result.
-func ResolveAnyOf(data interface{}, candidates []func(interface{}) (interface{}, error)) (interface{}, error) {
+func ResolveAnyOf(data any, candidates []func(any) (any, error)) (any, error) {
 	return ResolveOneOf(data, candidates)
 }
 
-func joinCollection(items []string, collectionFormat string) interface{} {
+func joinCollection(items []string, collectionFormat string) any {
 	switch collectionFormat {
 	case "ssv":
 		return strings.Join(items, " ")

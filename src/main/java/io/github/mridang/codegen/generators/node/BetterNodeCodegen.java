@@ -62,11 +62,17 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         typeMapping.put("long", "number");
         typeMapping.put("float", "number");
         typeMapping.put("double", "number");
+        // `number` (no format) and `decimal` map to a branded `Decimal`
+        // string at the property level (set in postProcessModelProperty).
+        // We intentionally leave the typeMapping for `number` as `number`
+        // here because the double-lookup in getSchemaType would otherwise
+        // turn `long`/`integer` (which map to `number`) into `Decimal`.
         typeMapping.put("number", "number");
         typeMapping.put("short", "number");
         typeMapping.put("boolean", "boolean");
         typeMapping.put("string", "string");
-        typeMapping.put("decimal", "string");
+        typeMapping.put("decimal", "Decimal");
+        typeMapping.put("Decimal", "Decimal");
         // Map OpenAPI date-time formats to the JS Date type so
         // class-transformer's @Type(() => Date) decorator can
         // hydrate ISO-8601 strings into actual Date instances
@@ -88,7 +94,15 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         // string without runtime overhead; the model constructor
         // validates the canonical 8-4-4-4-12 hex shape.
         typeMapping.put("UUID", "UUID");
-        typeMapping.put("URI", "string");
+        // 2.3 — `format: uri` (absolute URI per RFC 3986). Use a branded
+        // alias for compile-time discrimination from a free-form string,
+        // mirroring UUID. The `uri-reference` and `uri-template` subformats
+        // are demoted back to plain `string` in `postProcessModelProperty`
+        // because neither is guaranteed absolute.
+        typeMapping.put("URI", "URI");
+        // 2.4 — `format: email` produces a branded `Email = string & {...}`
+        // so a callsite can declare intent and prevent free-form strings.
+        typeMapping.put("Email", "Email");
         // 4.8: `format: time` (RFC 3339 partial-time) and `format: duration`
         // (ISO 8601 duration). Node has no native time-of-day or duration
         // type, so we adopt `temporal-polyfill` which ships the TC39 Temporal
@@ -109,6 +123,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                         Arrays.asList(
                                 "number", "boolean", "string", "object", "any", "unknown",
                                 "void", "undefined", "null", "Array", "Set", "Buffer", "UUID",
+                                "URI", "Email", "Decimal",
                                 // 4.8 — Temporal.* types come from `temporal-polyfill`,
                                 // not from generated models, so the model-import filter
                                 // must not treat them as model classes.
@@ -856,7 +871,12 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
      */
     @Override
     protected Map<String, String> getModelContextFlags() {
-        return Map.of("type:Temporal.", "hasTemporalImport");
+        return Map.of(
+                "type:Temporal.", "hasTemporalImport",
+                "type:UUID", "hasUuidImport",
+                "type:URI", "hasUriImport",
+                "type:Email", "hasEmailImport",
+                "type:Decimal", "hasDecimalImport");
     }
 
     /**
@@ -877,6 +897,27 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         }
         if ("duration".equals(property.dataFormat)) {
             property.vendorExtensions.put("isDurationFormat", true);
+        }
+        // 2.3 — revert `uri-reference` / `uri-template` back to plain `string`;
+        // only `format: uri` retains the branded URI alias.
+        keepStringForUriSubformats(property, "string");
+        // 2.4 — `format: email` becomes a branded Email alias.
+        if ("email".equals(property.dataFormat)) {
+            property.dataType = "Email";
+            property.datatypeWithEnum = "Email";
+        }
+        // 2.5 — `type: number` (no numeric format) and `type: string,
+        // format: decimal` become a branded `Decimal` string. The
+        // `number` schema type defaults to the `number` JS primitive at
+        // the typeMapping layer to avoid collateral damage with `long`
+        // and `integer`; we override at the property level here.
+        final boolean isPlainNumber =
+                property.isNumber && (property.dataFormat == null);
+        final boolean isStringDecimal = "decimal".equals(property.dataFormat);
+        if (isPlainNumber || isStringDecimal) {
+            property.dataType = "Decimal";
+            property.datatypeWithEnum = "Decimal";
+            property.vendorExtensions.put("isDecimalFormat", true);
         }
     }
 

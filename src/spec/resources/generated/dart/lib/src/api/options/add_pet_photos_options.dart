@@ -2,7 +2,7 @@ import '../../models/photo_metadata.dart';
 
 /// AddPetPhotosOptions holds optional parameters for the addPetPhotos operation.
 class AddPetPhotosOptions {
-  final List<List<int>> files;
+  final List<Uint8List> files;
 
   final PhotoMetadata metadata;
 

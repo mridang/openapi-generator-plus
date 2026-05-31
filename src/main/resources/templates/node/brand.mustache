@@ -39,3 +39,42 @@ export function uuid(value: string): UUID {
   }
   return value as UUID;
 }
+
+/**
+ * Branded string type for OpenAPI `format: uri` values (RFC 3986 absolute
+ * URI). Like {@link UUID}, the brand exists only at the type level — no
+ * runtime boxing, no interop tax. `uri-reference` and `uri-template` stay
+ * plain strings because neither is guaranteed absolute.
+ */
+export type URI = string & { readonly __brand: 'URI' };
+
+/**
+ * Brand a raw string as a {@link URI}. Zero-cost cast; callers asserting
+ * the input is a valid absolute URI.
+ */
+export const URI = (s: string): URI => s as URI;
+
+/**
+ * Branded string type for OpenAPI `format: email` values. The brand exists
+ * only at the type level; runtime is still a plain string.
+ */
+export type Email = string & { readonly __brand: 'Email' };
+
+/**
+ * Brand a raw string as an {@link Email}. Zero-cost cast; callers asserting
+ * the input is a valid email address.
+ */
+export const Email = (s: string): Email => s as Email;
+
+/**
+ * Branded string type for OpenAPI `type: number` (no format) and
+ * `type: string, format: decimal` — arbitrary-precision numeric values
+ * that must be carried as strings on the wire to avoid IEEE 754 loss.
+ */
+export type Decimal = string & { readonly __brand: 'Decimal' };
+
+/**
+ * Brand a raw string as a {@link Decimal}. Zero-cost cast; callers
+ * asserting the input is a syntactically valid decimal number.
+ */
+export const Decimal = (s: string): Decimal => s as Decimal;

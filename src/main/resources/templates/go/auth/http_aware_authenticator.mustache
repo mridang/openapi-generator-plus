@@ -33,13 +33,13 @@ type RequestOptions struct {
 // auth subpackage and the root module package.
 type ApiClient interface {
 	/* SendRequest sends an HTTP request and returns the response. */
-	SendRequest(method, url string, headers map[string]string, body interface{}) (*HttpResponse, error)
+	SendRequest(method, url string, headers map[string]string, body any) (*HttpResponse, error)
 
 	/* SendRequestWithOptions sends an HTTP request applying the supplied
 	 * per-request RequestOptions on top of the transport-level defaults.
 	 * Implementations MUST treat a nil opts the same as a zero-value
 	 * RequestOptions. */
-	SendRequestWithOptions(method, url string, headers map[string]string, body interface{}, opts *RequestOptions) (*HttpResponse, error)
+	SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *RequestOptions) (*HttpResponse, error)
 }
 
 // HttpAwareAuthenticator is implemented by authentication schemes that

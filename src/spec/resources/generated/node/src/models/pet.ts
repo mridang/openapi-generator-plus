@@ -8,6 +8,9 @@
 import { Category } from './category.js';
 import { Tag } from './tag.js';
 import { Expose, Type } from 'class-transformer';
+import { URI } from '../brand.js';
+import { Email } from '../brand.js';
+import { Decimal } from '../brand.js';
 
 /**
  * @see {@link https://example.com/docs/pet} Learn more about the Pet model
@@ -40,6 +43,36 @@ export class Pet {
   /** @example null */
   @Expose({ name: 'location' })
   location?: Array<unknown>;
+  /**
+   * Absolute URL to the pet's public profile page
+   * @example https://example.com/pets/fido
+   */
+  @Expose({ name: 'homepageUrl' })
+  homepageUrl?: URI;
+  /**
+   * Optionally-relative thumbnail location
+   * @example /assets/thumb-fido.png
+   */
+  @Expose({ name: 'thumbnailRef' })
+  thumbnailRef?: string;
+  /**
+   * RFC 6570 template for related-resource links
+   * @example https://example.com/pets/{id}/photos{?size}
+   */
+  @Expose({ name: 'linkTemplate' })
+  linkTemplate?: string;
+  /**
+   * Contact email for the pet's owner
+   * @example owner@example.com
+   */
+  @Expose({ name: 'ownerEmail' })
+  ownerEmail?: Email;
+  /**
+   * Pet weight in kilograms (decimal precision)
+   * @example 12.345
+   */
+  @Expose({ name: 'weightKg' })
+  weightKg?: Decimal;
 
   constructor(data?: Partial<Pet>) {
     Object.assign(this, data);
@@ -62,6 +95,26 @@ export class Pet {
     }
     if (this.location != null && !Array.isArray(this.location) && !((this.location as unknown) instanceof Set)) {
       throw new TypeError(`location must be an array, got ${typeof this.location}`);
+    }
+    if (this.homepageUrl != null && typeof this.homepageUrl !== 'string') {
+      throw new TypeError(`homepageUrl must be a string, got ${typeof this.homepageUrl}`);
+    }
+    if (this.thumbnailRef != null && typeof this.thumbnailRef !== 'string') {
+      throw new TypeError(`thumbnailRef must be a string, got ${typeof this.thumbnailRef}`);
+    }
+    if (this.linkTemplate != null && typeof this.linkTemplate !== 'string') {
+      throw new TypeError(`linkTemplate must be a string, got ${typeof this.linkTemplate}`);
+    }
+    if (this.ownerEmail != null && typeof this.ownerEmail !== 'string') {
+      throw new TypeError(`ownerEmail must be a string, got ${typeof this.ownerEmail}`);
+    }
+    /**
+     * 2.5 — `type: number` (no numeric format). Carried as a branded
+     * Decimal string to preserve arbitrary precision; reject anything
+     * other than a string at the boundary.
+     */
+    if (this.weightKg != null && typeof this.weightKg !== 'string') {
+      throw new TypeError(`weightKg must be a Decimal string, got ${typeof this.weightKg}`);
     }
     if (this.status != null) {
       const statusValues = Object.values(PetStatusEnum);

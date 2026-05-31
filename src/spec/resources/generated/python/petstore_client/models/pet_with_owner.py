@@ -36,8 +36,12 @@ class PetWithOwner(BaseModel):
     # .. deprecated:: This property is deprecated.
     status: Optional[PetWithOwnerStatusEnum] = Field(default=None, alias='status', description='pet status in the store')
     location: Optional[List[object]] = Field(default=None, alias='location')
-    owner_name: str = Field(alias='ownerName', strict=True)
+    homepage_url: Optional[str] = Field(default=None, alias='homepageUrl', description="Absolute URL to the pet's public profile page", strict=True)
+    thumbnail_ref: Optional[str] = Field(default=None, alias='thumbnailRef', description='Optionally-relative thumbnail location', strict=True)
+    link_template: Optional[str] = Field(default=None, alias='linkTemplate', description='RFC 6570 template for related-resource links', strict=True)
     owner_email: Optional[str] = Field(default=None, alias='ownerEmail', strict=True)
+    weight_kg: Optional[float] = Field(default=None, alias='weightKg', description='Pet weight in kilograms (decimal precision)')
+    owner_name: str = Field(alias='ownerName', strict=True)
     additional_properties: Dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode='before')

@@ -14,7 +14,7 @@ import (
 
 // PetFood Food for pets, discriminated by foodType
 type PetFood struct {
-	value interface{}
+	value any
 }
 
 // MarshalJSON implements the json.Marshaler interface.
@@ -55,6 +55,6 @@ func (o *PetFood) UnmarshalJSON(data []byte) error {
 }
 
 // Value returns the underlying value of the union type.
-func (o *PetFood) Value() interface{} {
+func (o *PetFood) Value() any {
 	return o.value
 }

@@ -76,7 +76,7 @@ func NewDefaultApiClient(transportOptions *TransportOptions) *DefaultApiClient {
 //
 // Convenience wrapper that delegates to SendRequestWithOptions with no
 // per-request overrides.
-func (c *DefaultApiClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*HttpResponse, error) {
+func (c *DefaultApiClient) SendRequest(method, url string, headers map[string]string, body any) (*HttpResponse, error) {
 	return c.SendRequestWithOptions(method, url, headers, body, nil)
 }
 
@@ -88,7 +88,7 @@ func (c *DefaultApiClient) SendRequest(method, url string, headers map[string]st
 // loop refuses every 3xx response and returns it to the caller verbatim —
 // used by OAuth2TokenManager on token endpoint POSTs so 307/308 cannot
 // replay the form-encoded client_secret onto an attacker host.
-func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body interface{}, opts *RequestOptions) (*HttpResponse, error) {
+func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *RequestOptions) (*HttpResponse, error) {
 	merged := make(map[string]string)
 	for k, v := range c.transportOptions.DefaultHeaders() {
 		merged[k] = v
@@ -113,7 +113,7 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 		delete(merged, "Content-Type")
 	case []byte:
 		bodyReader = bytes.NewReader(b)
-	case map[string]interface{}:
+	case map[string]any:
 		buf, contentType, err := buildTransportMultipartBody(b)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build multipart body: %w", err)
@@ -530,7 +530,7 @@ func isTextContentType(contentType string) bool {
 // buildTransportMultipartBody constructs a multipart/form-data request body from
 // a map of form field names to values. Values may be []byte (sent as file parts),
 // strings/numbers/bools (sent as text parts), or any other type (JSON-serialized).
-func buildTransportMultipartBody(formFields map[string]interface{}) (*bytes.Buffer, string, error) {
+func buildTransportMultipartBody(formFields map[string]any) (*bytes.Buffer, string, error) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
@@ -571,7 +571,7 @@ func buildTransportMultipartBody(formFields map[string]interface{}) (*bytes.Buff
 			if err := writer.WriteField(fieldName, fmt.Sprintf("%v", v)); err != nil {
 				return nil, "", err
 			}
-		case []interface{}:
+		case []any:
 			for _, item := range v {
 				if b, ok := item.([]byte); ok {
 					if err := ValidateMultipartFilename(fieldName); err != nil {

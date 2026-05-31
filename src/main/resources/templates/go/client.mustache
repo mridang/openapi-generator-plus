@@ -77,11 +77,11 @@ type authApiClientAdapter struct {
 	inner ApiClient
 }
 
-func (a *authApiClientAdapter) SendRequest(method, url string, headers map[string]string, body interface{}) (*auth.HttpResponse, error) {
+func (a *authApiClientAdapter) SendRequest(method, url string, headers map[string]string, body any) (*auth.HttpResponse, error) {
 	return a.SendRequestWithOptions(method, url, headers, body, nil)
 }
 
-func (a *authApiClientAdapter) SendRequestWithOptions(method, url string, headers map[string]string, body interface{}, opts *auth.RequestOptions) (*auth.HttpResponse, error) {
+func (a *authApiClientAdapter) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *auth.RequestOptions) (*auth.HttpResponse, error) {
 	var inner *RequestOptions
 	if opts != nil {
 		inner = &RequestOptions{NoRedirect: opts.NoRedirect}

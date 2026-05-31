@@ -1740,6 +1740,43 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
+     * URI-subformat type-surface guard. Only OAS {@code format: uri}
+     * maps to the per-language typed URI surface ({@code io.ktor.http.Url},
+     * {@code System.Uri}, {@code pydantic.HttpUrl}, branded {@code URI} in
+     * TS, etc.). The two related formats stay as plain strings:
+     *
+     * <ul>
+     *   <li>{@code format: uri-reference} — may be relative
+     *       ({@code "/path?x=1"}); most typed URI constructors reject
+     *       non-absolute input</li>
+     *   <li>{@code format: uri-template} — RFC 6570 templates contain
+     *       {@code "{var}"} placeholders that no real URI parser
+     *       accepts</li>
+     * </ul>
+     *
+     * Each lang's {@code postProcessModelProperty} override calls this
+     * after {@code super} to revert the typeMapping-driven typed URI back
+     * to the plain string type when the property carries one of these
+     * non-absolute subformats.
+     *
+     * @param property the property being post-processed
+     * @param stringType the language's plain string type
+     *                   (e.g. {@code "String"}, {@code "string"},
+     *                   {@code "str"})
+     */
+    protected static void keepStringForUriSubformats(
+            CodegenProperty property, String stringType) {
+        final String fmt = property.dataFormat;
+        if (fmt == null) {
+            return;
+        }
+        if ("uri-reference".equals(fmt) || "uri-template".equals(fmt)) {
+            property.dataType = stringType;
+            property.datatypeWithEnum = stringType;
+        }
+    }
+
+    /**
      * Strips garbage {@code [B@hex} toString output from byte
      * array examples. OpenAPI Generator converts
      * {@code format: byte} example strings into Java byte

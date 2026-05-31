@@ -79,17 +79,49 @@ public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerNa
     [JsonPropertyName("location")]
     public List<Object>? Location { get; set; }
 
+    /// <summary>
+    /// Absolute URL to the pet's public profile page
+    /// </summary>
+    /// <example>https://example.com/pets/fido</example>
+
+    [JsonPropertyName("homepageUrl")]
+    public string? HomepageUrl { get; set; }
+
+    /// <summary>
+    /// Optionally-relative thumbnail location
+    /// </summary>
+    /// <example>/assets/thumb-fido.png</example>
+
+    [JsonPropertyName("thumbnailRef")]
+    public string? ThumbnailRef { get; set; }
+
+    /// <summary>
+    /// RFC 6570 template for related-resource links
+    /// </summary>
+    /// <example>https://example.com/pets/{id}/photos{?size}</example>
+
+    [JsonPropertyName("linkTemplate")]
+    public string? LinkTemplate { get; set; }
+
+    /// <example>null</example>
+
+    [JsonPropertyName("ownerEmail")]
+    public string? OwnerEmail { get; set; }
+
+    /// <summary>
+    /// Pet weight in kilograms (decimal precision)
+    /// </summary>
+    /// <example>12.345</example>
+
+    [JsonPropertyName("weightKg")]
+    public decimal? WeightKg { get; set; }
+
     /// <example>null</example>
 
     [JsonRequired]
     [JsonPropertyName("ownerName")]
     public string OwnerName { get; set; } =
         ownerName ?? throw new ArgumentNullException(nameof(ownerName));
-
-    /// <example>null</example>
-
-    [JsonPropertyName("ownerEmail")]
-    public string? OwnerEmail { get; set; }
 
     /// <summary>Value-equality based on all declared fields. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in
@@ -110,8 +142,18 @@ public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerNa
                     && EqualityComparer<List<Tag>?>.Default.Equals(this.Tags, other.Tags)
                     && EqualityComparer<StatusEnum?>.Default.Equals(this.Status, other.Status)
                     && EqualityComparer<List<Object>?>.Default.Equals(this.Location, other.Location)
-                    && EqualityComparer<string>.Default.Equals(this.OwnerName, other.OwnerName)
+                    && EqualityComparer<string?>.Default.Equals(this.HomepageUrl, other.HomepageUrl)
+                    && EqualityComparer<string?>.Default.Equals(
+                        this.ThumbnailRef,
+                        other.ThumbnailRef
+                    )
+                    && EqualityComparer<string?>.Default.Equals(
+                        this.LinkTemplate,
+                        other.LinkTemplate
+                    )
                     && EqualityComparer<string?>.Default.Equals(this.OwnerEmail, other.OwnerEmail)
+                    && EqualityComparer<decimal?>.Default.Equals(this.WeightKg, other.WeightKg)
+                    && EqualityComparer<string>.Default.Equals(this.OwnerName, other.OwnerName)
                 )
             );
     }
@@ -131,8 +173,12 @@ public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerNa
         hash.Add(this.Tags);
         hash.Add(this.Status);
         hash.Add(this.Location);
-        hash.Add(this.OwnerName);
+        hash.Add(this.HomepageUrl);
+        hash.Add(this.ThumbnailRef);
+        hash.Add(this.LinkTemplate);
         hash.Add(this.OwnerEmail);
+        hash.Add(this.WeightKg);
+        hash.Add(this.OwnerName);
         return hash.ToHashCode();
     }
 }

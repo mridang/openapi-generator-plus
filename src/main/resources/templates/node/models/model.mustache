@@ -149,6 +149,18 @@ import { Expose{{#hasTypeDecorator}}, Type{{/hasTypeDecorator}}{{#hasTemporalImp
 {{#hasTemporalImport}}
 import { Temporal } from 'temporal-polyfill';
 {{/hasTemporalImport}}
+{{#hasUuidImport}}
+import { UUID } from '../brand{{importFileExtension}}';
+{{/hasUuidImport}}
+{{#hasUriImport}}
+import { URI } from '../brand{{importFileExtension}}';
+{{/hasUriImport}}
+{{#hasEmailImport}}
+import { Email } from '../brand{{importFileExtension}}';
+{{/hasEmailImport}}
+{{#hasDecimalImport}}
+import { Decimal } from '../brand{{importFileExtension}}';
+{{/hasDecimalImport}}
 
 {{#isDeprecated}}
 /**
@@ -359,9 +371,21 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     }
 {{/isDouble}}
 {{#isNumber}}
+{{^vendorExtensions.isDecimalFormat}}
     if (this.{{name}} != null && typeof this.{{name}} !== 'number') {
       throw new TypeError(`{{name}} must be a number, got ${typeof this.{{name}}}`);
     }
+{{/vendorExtensions.isDecimalFormat}}
+{{#vendorExtensions.isDecimalFormat}}
+    /**
+     * 2.5 — `type: number` (no numeric format). Carried as a branded
+     * Decimal string to preserve arbitrary precision; reject anything
+     * other than a string at the boundary.
+     */
+    if (this.{{name}} != null && typeof this.{{name}} !== 'string') {
+      throw new TypeError(`{{name}} must be a Decimal string, got ${typeof this.{{name}}}`);
+    }
+{{/vendorExtensions.isDecimalFormat}}
 {{/isNumber}}
 {{#isBoolean}}
     if (this.{{name}} != null && typeof this.{{name}} !== 'boolean') {

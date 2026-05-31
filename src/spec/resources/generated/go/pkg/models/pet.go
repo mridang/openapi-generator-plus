@@ -59,7 +59,17 @@ type Pet struct {
 
 	// Deprecated: This field is deprecated.
 	Status   *PetStatusEnum `json:"status,omitempty"`
-	Location *[]interface{} `json:"location,omitempty"`
+	Location *[]any         `json:"location,omitempty"`
+	/* HomepageUrl Absolute URL to the pet's public profile page */
+	HomepageUrl *string `json:"homepageUrl,omitempty"`
+	/* ThumbnailRef Optionally-relative thumbnail location */
+	ThumbnailRef *string `json:"thumbnailRef,omitempty"`
+	/* LinkTemplate RFC 6570 template for related-resource links */
+	LinkTemplate *string `json:"linkTemplate,omitempty"`
+	/* OwnerEmail Contact email for the pet's owner */
+	OwnerEmail *string `json:"ownerEmail,omitempty"`
+	/* WeightKg Pet weight in kilograms (decimal precision) */
+	WeightKg *float64 `json:"weightKg,omitempty"`
 }
 
 // NewPet creates a new Pet instance.

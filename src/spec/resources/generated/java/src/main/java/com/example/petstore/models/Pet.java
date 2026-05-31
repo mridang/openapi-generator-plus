@@ -11,6 +11,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.math.BigDecimal;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -93,6 +95,51 @@ public class Pet {
   @Nullable
   public List<Object> location = new ArrayList<>();
 
+  /**
+   * Absolute URL to the pet's public profile page
+   *
+   * <p>Example: {@code https://example.com/pets/fido}
+   */
+  @JsonProperty("homepageUrl")
+  @Nullable
+  public URI homepageUrl;
+
+  /**
+   * Optionally-relative thumbnail location
+   *
+   * <p>Example: {@code /assets/thumb-fido.png}
+   */
+  @JsonProperty("thumbnailRef")
+  @Nullable
+  public String thumbnailRef;
+
+  /**
+   * RFC 6570 template for related-resource links
+   *
+   * <p>Example: {@code https://example.com/pets/{id}/photos{?size}}
+   */
+  @JsonProperty("linkTemplate")
+  @Nullable
+  public String linkTemplate;
+
+  /**
+   * Contact email for the pet's owner
+   *
+   * <p>Example: {@code owner@example.com}
+   */
+  @JsonProperty("ownerEmail")
+  @Nullable
+  public String ownerEmail;
+
+  /**
+   * Pet weight in kilograms (decimal precision)
+   *
+   * <p>Example: {@code 12.345}
+   */
+  @JsonProperty("weightKg")
+  @Nullable
+  public BigDecimal weightKg;
+
   @SuppressWarnings("NullAway.Init")
   public Pet() {}
 
@@ -123,11 +170,28 @@ public class Pet {
         && java.util.Objects.equals(this.photoUrls, other.photoUrls)
         && java.util.Objects.equals(this.tags, other.tags)
         && java.util.Objects.equals(this.status, other.status)
-        && java.util.Objects.equals(this.location, other.location);
+        && java.util.Objects.equals(this.location, other.location)
+        && java.util.Objects.equals(this.homepageUrl, other.homepageUrl)
+        && java.util.Objects.equals(this.thumbnailRef, other.thumbnailRef)
+        && java.util.Objects.equals(this.linkTemplate, other.linkTemplate)
+        && java.util.Objects.equals(this.ownerEmail, other.ownerEmail)
+        && java.util.Objects.equals(this.weightKg, other.weightKg);
   }
 
   @Override
   public int hashCode() {
-    return java.util.Objects.hash(id, name, category, photoUrls, tags, status, location);
+    return java.util.Objects.hash(
+        id,
+        name,
+        category,
+        photoUrls,
+        tags,
+        status,
+        location,
+        homepageUrl,
+        thumbnailRef,
+        linkTemplate,
+        ownerEmail,
+        weightKg);
   }
 }

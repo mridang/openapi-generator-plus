@@ -138,11 +138,11 @@ func TestDefaultApiClient_InjectsCustomUserAgentHeader(t *testing.T) {
 	if resp.StatusCode != 200 {
 		t.Errorf("expected status 200, got %d", resp.StatusCode)
 	}
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	if err := json.Unmarshal([]byte(resp.Body), &parsed); err != nil {
 		t.Fatalf("failed to parse body: %v", err)
 	}
-	headers, _ := parsed["headers"].(map[string]interface{})
+	headers, _ := parsed["headers"].(map[string]any)
 	if headers == nil || headers["user-agent"] != "MyApp/1.0" {
 		t.Errorf("expected User-Agent 'MyApp/1.0', got %v", headers["user-agent"])
 	}
@@ -158,11 +158,11 @@ func TestDefaultApiClient_InjectsRequestIdHeader(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	if err := json.Unmarshal([]byte(resp.Body), &parsed); err != nil {
 		t.Fatalf("failed to parse body: %v", err)
 	}
-	headers, _ := parsed["headers"].(map[string]interface{})
+	headers, _ := parsed["headers"].(map[string]any)
 	if headers == nil {
 		t.Fatal("expected headers map in envelope")
 	}
@@ -187,18 +187,18 @@ func TestDefaultApiClient_GeneratesUniqueRequestIds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	var parsed1 map[string]interface{}
+	var parsed1 map[string]any
 	_ = json.Unmarshal([]byte(resp1.Body), &parsed1)
 
 	resp2, err := client.SendRequest("GET", chasmHTTPURL+"/test/echo", map[string]string{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	var parsed2 map[string]interface{}
+	var parsed2 map[string]any
 	_ = json.Unmarshal([]byte(resp2.Body), &parsed2)
 
-	headers1, _ := parsed1["headers"].(map[string]interface{})
-	headers2, _ := parsed2["headers"].(map[string]interface{})
+	headers1, _ := parsed1["headers"].(map[string]any)
+	headers2, _ := parsed2["headers"].(map[string]any)
 	if headers1 == nil || headers2 == nil {
 		t.Fatal("expected headers map in both envelopes")
 	}
@@ -217,9 +217,9 @@ func TestDefaultApiClient_IncludesTransportDefaultHeaders(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	_ = json.Unmarshal([]byte(resp.Body), &parsed)
-	headers, _ := parsed["headers"].(map[string]interface{})
+	headers, _ := parsed["headers"].(map[string]any)
 	if headers == nil || headers["x-custom"] != "custom-value" {
 		t.Errorf("expected X-Custom 'custom-value', got %v", headers["x-custom"])
 	}
@@ -236,9 +236,9 @@ func TestDefaultApiClient_CallerHeadersOverrideTransportDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	_ = json.Unmarshal([]byte(resp.Body), &parsed)
-	headers, _ := parsed["headers"].(map[string]interface{})
+	headers, _ := parsed["headers"].(map[string]any)
 	if headers == nil || headers["accept"] != "application/json" {
 		t.Errorf("expected Accept 'application/json', got %v", headers["accept"])
 	}
@@ -298,7 +298,7 @@ func TestDefaultApiClient_Redirect303SwitchesToGetAndDropsBody(t *testing.T) {
 	if resp.StatusCode != 200 {
 		t.Fatalf("expected status 200 after 303 redirect, got %d", resp.StatusCode)
 	}
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	if err := json.Unmarshal([]byte(resp.Body), &parsed); err != nil {
 		t.Fatalf("invalid json body: %v", err)
 	}
@@ -341,7 +341,7 @@ func TestDefaultApiClient_MultipartBodyReplayedOn307Redirect(t *testing.T) {
 	if resp.StatusCode != 200 {
 		t.Fatalf("expected status 200 after 307 redirect, got %d", resp.StatusCode)
 	}
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	if err := json.Unmarshal([]byte(resp.Body), &parsed); err != nil {
 		t.Fatalf("invalid json body: %v", err)
 	}
@@ -445,7 +445,7 @@ func TestMultipart_MultipartFieldNameCRLFRejected(t *testing.T) {
 func TestMultipart_FieldNameWithCRLFRejectedOnStringValue(t *testing.T) {
 	t.Parallel()
 	client := petstore.NewDefaultApiClient(nil)
-	badFields := map[string]interface{}{
+	badFields := map[string]any{
 		"name\r\nInjected: yes": "string-value",
 	}
 	_, err := client.SendRequest("POST", "http://127.0.0.1:1/unused",
@@ -549,7 +549,7 @@ func TestDefaultApiClient_PostWithNullBodySendsContentLengthZero(t *testing.T) {
 	if resp.StatusCode != 200 {
 		t.Fatalf("expected status 200, got %d", resp.StatusCode)
 	}
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	if err := json.Unmarshal([]byte(resp.Body), &parsed); err != nil {
 		t.Fatalf("failed to parse body: %v", err)
 	}

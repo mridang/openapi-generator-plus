@@ -50,7 +50,7 @@ func EncodePathSegment(value string) string {
 //   - collectionFormat: legacy collection format (e.g. "csv", "ssv", "tsv", "pipes", "multi")
 //
 // Returns the serialized string value.
-func SerializeValue(value interface{}, location, schemaType, collectionFormat string) interface{} {
+func SerializeValue(value any, location, schemaType, collectionFormat string) any {
 	if value == nil {
 		return serializeNil(location)
 	}
@@ -83,15 +83,15 @@ func SerializeValue(value interface{}, location, schemaType, collectionFormat st
 // SerializeDeepObject serializes a deepObject-style query parameter.
 //
 // Produces a map of flattened keys in the form paramName[key] to stringified values.
-// Accepts map[string]interface{}, map[string]string, or pointers to these types.
-func SerializeDeepObject(paramName string, value interface{}) map[string]string {
+// Accepts map[string]any, map[string]string, or pointers to these types.
+func SerializeDeepObject(paramName string, value any) map[string]string {
 	result := make(map[string]string)
 	if value == nil {
 		return result
 	}
 
 	switch m := value.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		for key, val := range m {
 			result[fmt.Sprintf("%s[%s]", paramName, key)] = Stringify(val)
 		}
@@ -99,7 +99,7 @@ func SerializeDeepObject(paramName string, value interface{}) map[string]string 
 		for key, val := range m {
 			result[fmt.Sprintf("%s[%s]", paramName, key)] = val
 		}
-	case *map[string]interface{}:
+	case *map[string]any:
 		if m != nil {
 			for key, val := range *m {
 				result[fmt.Sprintf("%s[%s]", paramName, key)] = Stringify(val)
@@ -125,7 +125,7 @@ func SerializeDeepObject(paramName string, value interface{}) map[string]string 
 //   - collectionFormat: legacy collection format
 //   - style: OAS 3.0 style (e.g. "matrix", "label", "form", "simple", "spaceDelimited", "pipeDelimited")
 //   - explode: whether to explode array values
-func SerializeStyled(paramName string, value interface{}, location, schemaType, collectionFormat, style string, explode bool) interface{} {
+func SerializeStyled(paramName string, value any, location, schemaType, collectionFormat, style string, explode bool) any {
 	/* Path parameters are required components of the URL — accepting an
 	 * empty string would silently produce a malformed URL like
 	 * `/pet//details`, which most servers route to 404 instead of
@@ -251,20 +251,20 @@ func SerializeStyled(paramName string, value interface{}, location, schemaType, 
 	}
 }
 
-func serializeNil(location string) interface{} {
+func serializeNil(location string) any {
 	if location == "query" {
 		return nil
 	}
 	return ""
 }
 
-// toStringSlice attempts to convert an interface{} to a []string.
+// toStringSlice attempts to convert an any to a []string.
 // Returns the string slice and true if the conversion was successful.
-func toStringSlice(value interface{}) ([]string, bool) {
+func toStringSlice(value any) ([]string, bool) {
 	switch v := value.(type) {
 	case []string:
 		return v, true
-	case []interface{}:
+	case []any:
 		items := make([]string, len(v))
 		for i, item := range v {
 			items[i] = Stringify(item)

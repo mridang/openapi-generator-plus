@@ -155,11 +155,11 @@ func (a *PetApi) AddPetWithHTTPInfo(auth Authenticator, pet Pet) (*ApiResult[Pet
 
 	path := "/pet"
 
-	queryParams := make(map[string]interface{})
+	queryParams := make(map[string]any)
 
 	headerParams := make(map[string]string)
 
-	var requestBody interface{} = pet
+	var requestBody any = pet
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "POST",
@@ -225,16 +225,16 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *AddPetPhotosOpti
 	path := "/pet/{petId}/photos"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
 
-	queryParams := make(map[string]interface{})
+	queryParams := make(map[string]any)
 
 	headerParams := make(map[string]string)
 
-	formBody := make(map[string]interface{})
+	formBody := make(map[string]any)
 	if options != nil {
 		formBody["files"] = options.Files
 		formBody["metadata"] = options.Metadata
 	}
-	var requestBody interface{} = formBody
+	var requestBody any = formBody
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "POST",
@@ -299,11 +299,11 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(auth Authenticator, petId int64, pe
 	path := "/pet/{petId}/treatment"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
 
-	queryParams := make(map[string]interface{})
+	queryParams := make(map[string]any)
 
 	headerParams := make(map[string]string)
 
-	var requestBody interface{} = petTreatment
+	var requestBody any = petTreatment
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "POST",
@@ -366,12 +366,12 @@ func (a *PetApi) DeletePet(auth Authenticator, petId int64, options *DeletePetOp
 }
 
 // DeletePetWithHTTPInfo performs the DeletePet operation and returns the full API result.
-func (a *PetApi) DeletePetWithHTTPInfo(auth Authenticator, petId int64, options *DeletePetOptions) (*ApiResult[interface{}], error) {
+func (a *PetApi) DeletePetWithHTTPInfo(auth Authenticator, petId int64, options *DeletePetOptions) (*ApiResult[any], error) {
 
 	path := "/pet/{petId}"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
 
-	queryParams := make(map[string]interface{})
+	queryParams := make(map[string]any)
 
 	headerParams := make(map[string]string)
 	var cookieParts []string
@@ -382,7 +382,7 @@ func (a *PetApi) DeletePetWithHTTPInfo(auth Authenticator, petId int64, options 
 		headerParams["Cookie"] = strings.Join(cookieParts, "; ")
 	}
 
-	var requestBody interface{}
+	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "DELETE",
@@ -399,7 +399,7 @@ func (a *PetApi) DeletePetWithHTTPInfo(auth Authenticator, petId int64, options 
 		return nil, err
 	}
 
-	return &ApiResult[interface{}]{
+	return &ApiResult[any]{
 		StatusCode: response.StatusCode,
 		Data:       nil,
 		RawBody:    response.Body,
@@ -425,11 +425,11 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) 
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
 	path = replacePathParam(path, "documentId", fmt.Sprintf("%v", documentId))
 
-	queryParams := make(map[string]interface{})
+	queryParams := make(map[string]any)
 
 	headerParams := make(map[string]string)
 
-	var requestBody interface{}
+	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "GET",
@@ -501,7 +501,7 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *FindPetsByStatusOptions) 
 
 	path := "/pet/findByStatus"
 
-	queryParams := make(map[string]interface{})
+	queryParams := make(map[string]any)
 	if options != nil {
 		if options.Status != nil {
 			queryParams["status"] = SerializeStyled("status", options.Status, "query", "string", "", "form", true)
@@ -517,7 +517,7 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *FindPetsByStatusOptions) 
 
 	headerParams := make(map[string]string)
 
-	var requestBody interface{}
+	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "GET",
@@ -588,11 +588,11 @@ func (a *PetApi) GetExternalPetInfoWithHTTPInfo(petId int64, server GetExternalP
 		}
 	}
 
-	queryParams := make(map[string]interface{})
+	queryParams := make(map[string]any)
 
 	headerParams := make(map[string]string)
 
-	var requestBody interface{}
+	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "GET",
@@ -663,11 +663,11 @@ func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(petId int64, server GetMultiS
 		}
 	}
 
-	queryParams := make(map[string]interface{})
+	queryParams := make(map[string]any)
 
 	headerParams := make(map[string]string)
 
-	var requestBody interface{}
+	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "GET",
@@ -733,11 +733,11 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(petId int64) (*ApiResult[*os.File], er
 	path := "/pet/{petId}/avatar"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
 
-	queryParams := make(map[string]interface{})
+	queryParams := make(map[string]any)
 
 	headerParams := make(map[string]string)
 
-	var requestBody interface{}
+	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "GET",
@@ -803,11 +803,11 @@ func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(petId int64) (*ApiResult[[]by
 	path := "/pet/{petId}/avatar/thumbnail"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
 
-	queryParams := make(map[string]interface{})
+	queryParams := make(map[string]any)
 
 	headerParams := make(map[string]string)
 
-	var requestBody interface{}
+	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "GET",
@@ -885,11 +885,11 @@ func (a *PetApi) GetPetByIdWithHTTPInfo(petId int64, server GetPetByIdServer) (*
 		}
 	}
 
-	queryParams := make(map[string]interface{})
+	queryParams := make(map[string]any)
 
 	headerParams := make(map[string]string)
 
-	var requestBody interface{}
+	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "GET",
@@ -955,11 +955,11 @@ func (a *PetApi) GetPetPassportWithHTTPInfo(petId int64) (*ApiResult[PetPassport
 	path := "/pet/{petId}/passport"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
 
-	queryParams := make(map[string]interface{})
+	queryParams := make(map[string]any)
 
 	headerParams := make(map[string]string)
 
-	var requestBody interface{}
+	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "GET",
@@ -1026,11 +1026,11 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
 	path = replacePathParam(path, "photoId", fmt.Sprintf("%v", photoId))
 
-	queryParams := make(map[string]interface{})
+	queryParams := make(map[string]any)
 
 	headerParams := make(map[string]string)
 
-	var requestBody interface{}
+	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "GET",
@@ -1099,7 +1099,7 @@ func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *Get
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
 	path = replacePathParam(path, "tagName", fmt.Sprintf("%v", tagName))
 
-	queryParams := make(map[string]interface{})
+	queryParams := make(map[string]any)
 	if options != nil && options.Colors != nil {
 		queryParams["colors"] = SerializeStyled("colors", options.Colors, "query", "[]string", "pipes", "pipeDelimited", false)
 	}
@@ -1116,7 +1116,7 @@ func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *Get
 
 	headerParams := make(map[string]string)
 
-	var requestBody interface{}
+	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "GET",
@@ -1187,11 +1187,11 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(petId int64, server GetStagingPet
 		}
 	}
 
-	queryParams := make(map[string]interface{})
+	queryParams := make(map[string]any)
 
 	headerParams := make(map[string]string)
 
-	var requestBody interface{}
+	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "GET",
@@ -1253,16 +1253,16 @@ func (a *PetApi) SetPetAvatar(petId int64, body *os.File) error {
 }
 
 // SetPetAvatarWithHTTPInfo performs the SetPetAvatar operation and returns the full API result.
-func (a *PetApi) SetPetAvatarWithHTTPInfo(petId int64, body *os.File) (*ApiResult[interface{}], error) {
+func (a *PetApi) SetPetAvatarWithHTTPInfo(petId int64, body *os.File) (*ApiResult[any], error) {
 
 	path := "/pet/{petId}/avatar"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
 
-	queryParams := make(map[string]interface{})
+	queryParams := make(map[string]any)
 
 	headerParams := make(map[string]string)
 
-	var requestBody interface{} = body
+	var requestBody any = body
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "PUT",
@@ -1279,7 +1279,7 @@ func (a *PetApi) SetPetAvatarWithHTTPInfo(petId int64, body *os.File) (*ApiResul
 		return nil, err
 	}
 
-	return &ApiResult[interface{}]{
+	return &ApiResult[any]{
 		StatusCode: response.StatusCode,
 		Data:       nil,
 		RawBody:    response.Body,
@@ -1300,16 +1300,16 @@ func (a *PetApi) SetPetAvatarThumbnail(petId int64, setPetAvatarThumbnailRequest
 }
 
 // SetPetAvatarThumbnailWithHTTPInfo performs the SetPetAvatarThumbnail operation and returns the full API result.
-func (a *PetApi) SetPetAvatarThumbnailWithHTTPInfo(petId int64, setPetAvatarThumbnailRequest SetPetAvatarThumbnailRequest) (*ApiResult[interface{}], error) {
+func (a *PetApi) SetPetAvatarThumbnailWithHTTPInfo(petId int64, setPetAvatarThumbnailRequest SetPetAvatarThumbnailRequest) (*ApiResult[any], error) {
 
 	path := "/pet/{petId}/avatar/thumbnail"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
 
-	queryParams := make(map[string]interface{})
+	queryParams := make(map[string]any)
 
 	headerParams := make(map[string]string)
 
-	var requestBody interface{} = setPetAvatarThumbnailRequest
+	var requestBody any = setPetAvatarThumbnailRequest
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "PUT",
@@ -1326,7 +1326,7 @@ func (a *PetApi) SetPetAvatarThumbnailWithHTTPInfo(petId int64, setPetAvatarThum
 		return nil, err
 	}
 
-	return &ApiResult[interface{}]{
+	return &ApiResult[any]{
 		StatusCode: response.StatusCode,
 		Data:       nil,
 		RawBody:    response.Body,
@@ -1352,11 +1352,11 @@ func (a *PetApi) UpdatePetWithHTTPInfo(petId int64, pet Pet) (*ApiResult[Pet], e
 	path := "/pet/{petId}"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
 
-	queryParams := make(map[string]interface{})
+	queryParams := make(map[string]any)
 
 	headerParams := make(map[string]string)
 
-	var requestBody interface{} = pet
+	var requestBody any = pet
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "PUT",
@@ -1422,15 +1422,15 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *UploadPe
 	path := "/pet/{petId}/certificate"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
 
-	queryParams := make(map[string]interface{})
+	queryParams := make(map[string]any)
 
 	headerParams := make(map[string]string)
 
-	formBody := make(map[string]interface{})
+	formBody := make(map[string]any)
 	if options != nil {
 		formBody["file"] = options.File
 	}
-	var requestBody interface{} = formBody
+	var requestBody any = formBody
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "POST",
@@ -1496,11 +1496,11 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *UploadPetDo
 	path := "/pet/{petId}/documents"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
 
-	queryParams := make(map[string]interface{})
+	queryParams := make(map[string]any)
 
 	headerParams := make(map[string]string)
 
-	formBody := make(map[string]interface{})
+	formBody := make(map[string]any)
 	if options != nil {
 		formBody["file"] = options.File
 		if options.DocumentType != nil {
@@ -1510,7 +1510,7 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *UploadPetDo
 			formBody["notes"] = *options.Notes
 		}
 	}
-	var requestBody interface{} = formBody
+	var requestBody any = formBody
 
 	response, err := a.invokeApi(invokeApiParams{
 		method:       "POST",

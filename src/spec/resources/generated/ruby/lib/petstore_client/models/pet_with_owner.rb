@@ -41,8 +41,12 @@ module PetstoreClient
         tags: 'tags',
         status: 'status',
         location: 'location',
-        owner_name: 'ownerName',
-        owner_email: 'ownerEmail'
+        homepage_url: 'homepageUrl',
+        thumbnail_ref: 'thumbnailRef',
+        link_template: 'linkTemplate',
+        owner_email: 'ownerEmail',
+        weight_kg: 'weightKg',
+        owner_name: 'ownerName'
       }.freeze
 
       # Inverse mapping from JSON key to ruby attribute name.
@@ -57,8 +61,12 @@ module PetstoreClient
         tags: 'Array<Tag>',
         status: 'String',
         location: 'Array<Object>',
-        owner_name: 'String',
-        owner_email: 'String'
+        homepage_url: 'String',
+        thumbnail_ref: 'String',
+        link_template: 'String',
+        owner_email: 'String',
+        weight_kg: 'Float',
+        owner_name: 'String'
       }.freeze
 
       # Per-attribute OpenAPI `format` for properties whose wire form
@@ -92,10 +100,22 @@ module PetstoreClient
       attribute :status, Types::String.enum('available', 'pending', 'sold').optional.meta(omittable: true)
       # @example null
       attribute :location, Types::Any.optional.meta(omittable: true)
-      # @example null
-      attribute :owner_name, Types::Required
+      # Absolute URL to the pet's public profile page
+      # @example https://example.com/pets/fido
+      attribute :homepage_url, Types::Any.optional.meta(omittable: true)
+      # Optionally-relative thumbnail location
+      # @example /assets/thumb-fido.png
+      attribute :thumbnail_ref, Types::Any.optional.meta(omittable: true)
+      # RFC 6570 template for related-resource links
+      # @example https://example.com/pets/{id}/photos{?size}
+      attribute :link_template, Types::Any.optional.meta(omittable: true)
       # @example null
       attribute :owner_email, Types::Any.optional.meta(omittable: true)
+      # Pet weight in kilograms (decimal precision)
+      # @example 12.345
+      attribute :weight_kg, Types::Any.optional.meta(omittable: true)
+      # @example null
+      attribute :owner_name, Types::Required
     end
   end
 end

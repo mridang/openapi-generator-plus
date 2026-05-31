@@ -60,6 +60,41 @@ class Pet
     public ?array $location = null;
 
     /**
+     * Absolute URL to the pet's public profile page
+     * @example https://example.com/pets/fido
+     */
+    #[SerializedName('homepageUrl')]
+    public ?string $homepageUrl = null;
+
+    /**
+     * Optionally-relative thumbnail location
+     * @example /assets/thumb-fido.png
+     */
+    #[SerializedName('thumbnailRef')]
+    public ?string $thumbnailRef = null;
+
+    /**
+     * RFC 6570 template for related-resource links
+     * @example https://example.com/pets/{id}/photos{?size}
+     */
+    #[SerializedName('linkTemplate')]
+    public ?string $linkTemplate = null;
+
+    /**
+     * Contact email for the pet's owner
+     * @example owner@example.com
+     */
+    #[SerializedName('ownerEmail')]
+    public ?string $ownerEmail = null;
+
+    /**
+     * Pet weight in kilograms (decimal precision)
+     * @example 12.345
+     */
+    #[SerializedName('weightKg')]
+    public ?float $weightKg = null;
+
+    /**
      * @param string[] $photoUrls
      * @param \PetstoreClient\Models\Tag[]|null $tags
      * @param mixed[]|null $location
@@ -72,6 +107,11 @@ class Pet
         ?array $tags = null,
         ?PetStatusEnum $status = null,
         ?array $location = null,
+        ?string $homepageUrl = null,
+        ?string $thumbnailRef = null,
+        ?string $linkTemplate = null,
+        ?string $ownerEmail = null,
+        ?float $weightKg = null,
     ) {
         $this->id = $id;
         $this->name = $name;
@@ -84,5 +124,10 @@ class Pet
         $this->tags = $tags;
         $this->status = $status;
         $this->location = $location;
+        $this->homepageUrl = $homepageUrl;
+        $this->thumbnailRef = $thumbnailRef;
+        $this->linkTemplate = $linkTemplate;
+        $this->ownerEmail = $ownerEmail;
+        $this->weightKg = $weightKg;
     }
 }

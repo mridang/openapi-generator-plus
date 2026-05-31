@@ -28,7 +28,7 @@ type ApiError struct {
 	ResponseHeaders map[string]string
 
 	/* ErrorBody is the parsed response body, if JSON. */
-	ErrorBody interface{}
+	ErrorBody any
 
 	/* Cause is the underlying transport error, if any. Set when wrapping
 	 * a network failure so callers can drill down via errors.Unwrap or
@@ -62,7 +62,7 @@ func (e *ApiError) Error() string {
 }
 
 // TypedErrorBody deserializes the response body into the target value.
-func (e *ApiError) TypedErrorBody(target interface{}) error {
+func (e *ApiError) TypedErrorBody(target any) error {
 	if e.ResponseBody == "" {
 		return nil
 	}
@@ -73,6 +73,6 @@ func (e *ApiError) TypedErrorBody(target interface{}) error {
 // This is the canonical accessor for spec-declared error schemas — callers pass
 // a pointer to the typed struct they expect (e.g. `var e MyErrorBody;
 // apiErr.GetTypedErrorBody(&e)`).
-func (e *ApiError) GetTypedErrorBody(target interface{}) error {
+func (e *ApiError) GetTypedErrorBody(target any) error {
 	return e.TypedErrorBody(target)
 }

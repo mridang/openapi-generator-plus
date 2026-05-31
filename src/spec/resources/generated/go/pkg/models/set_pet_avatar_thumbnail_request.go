@@ -14,7 +14,7 @@ import (
 
 // SetPetAvatarThumbnailRequest is a union type (oneOf).
 type SetPetAvatarThumbnailRequest struct {
-	value interface{}
+	value any
 }
 
 // MarshalJSON implements the json.Marshaler interface.
@@ -39,6 +39,6 @@ func (o *SetPetAvatarThumbnailRequest) UnmarshalJSON(data []byte) error {
 }
 
 // Value returns the underlying value of the union type.
-func (o *SetPetAvatarThumbnailRequest) Value() interface{} {
+func (o *SetPetAvatarThumbnailRequest) Value() any {
 	return o.value
 }

@@ -1264,6 +1264,40 @@ components:
             - sold
         location:
           $ref: '#/components/schemas/GeoPoint'
+        # Type-surface exercise fields — each one drives a generator
+        # mapping that varies by language (branded URI in Node, HttpUrl in
+        # Python, System.Uri in C#, io.ktor.http.Url in Kotlin, etc.).
+        homepageUrl:
+          type: string
+          format: uri
+          description: Absolute URL to the pet's public profile page
+          example: https://example.com/pets/fido
+        # uri-reference may be relative; languages MUST keep this as a
+        # plain string surface even though `format: uri` is typed.
+        thumbnailRef:
+          type: string
+          format: uri-reference
+          description: Optionally-relative thumbnail location
+          example: /assets/thumb-fido.png
+        # uri-template (RFC 6570) contains {var} placeholders so no real
+        # URI parser will accept it — stays a plain string surface.
+        linkTemplate:
+          type: string
+          format: uri-template
+          description: RFC 6570 template for related-resource links
+          example: https://example.com/pets/{id}/photos{?size}
+        ownerEmail:
+          type: string
+          format: email
+          description: Contact email for the pet's owner
+          example: owner@example.com
+        # Plain `type: number` without a numeric format — decimal-precision
+        # surface. Becomes branded `Decimal` in Node, BigDecimal in
+        # Java/Kotlin, decimal.Decimal in Python, etc.
+        weightKg:
+          type: number
+          description: Pet weight in kilograms (decimal precision)
+          example: 12.345
 
     ApiResponse:
       type: object
