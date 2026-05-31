@@ -87,7 +87,11 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         typeMapping.put("file", "List<int>");
         typeMapping.put("binary", "List<int>");
         typeMapping.put("ByteArray", "List<int>");
-        typeMapping.put("UUID", "String");
+        // UUID values are exposed as `UuidValue` from `package:uuid`. The wrapper
+        // gives a typed public API (instead of a stringly-typed `String`) and
+        // validates on construction (`UuidValue.fromString` throws on malformed
+        // input). Serialization round-trips via `toString()` / `fromString()`.
+        typeMapping.put("UUID", "UuidValue");
         typeMapping.put("URI", "String");
 
         languageSpecificPrimitives =
@@ -103,7 +107,8 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                                 "void",
                                 "Null",
                                 "DateTime",
-                                "List<int>"));
+                                "List<int>",
+                                "UuidValue"));
 
         reservedWords = loadReservedWords("/reserved-words/dart.txt");
 

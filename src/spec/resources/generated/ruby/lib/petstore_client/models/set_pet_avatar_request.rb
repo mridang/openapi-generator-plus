@@ -45,6 +45,17 @@ module PetstoreClient
         mime_type: 'String'
       }.freeze
 
+      # Per-attribute OpenAPI `format` for properties whose wire form
+      # differs from their Ruby surface (`byte` → base64-decoded binary
+      # String, `uuid` → RFC 4122 validated String). The `byte[]` /
+      # `uuid[]` variants apply the same transform to every item of an
+      # array-typed property. Consumed by PetstoreClient::ObjectSerializer
+      # on the (de)serialize path.
+      OPENAPI_FORMATS = {
+        data: 'byte',
+
+      }.freeze
+
       # Transform incoming hash keys from JSON format to Ruby attribute names.
       transform_keys do |key|
         JSON_KEY_MAP[key.to_s] || key.to_sym

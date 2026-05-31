@@ -36,6 +36,17 @@ defmodule PetstoreClient.ComposedSchemaTest do
 
       assert serialized =~ "dry"
     end
+
+    # 4.7: the discriminator branch must reject a mapping that points
+    # at a schema outside the `oneOf` `$ref` list. The DeserializationError
+    # exception is declared in ObjectSerializer; verify it exists and is
+    # an Elixir exception module so generated discriminator code can
+    # raise it.
+    test "DeserializationError module is declared as an exception" do
+      assert function_exported?(PetstoreClient.DeserializationError, :exception, 1)
+      err = PetstoreClient.DeserializationError.exception(message: "boom")
+      assert err.message == "boom"
+    end
   end
 
   # -- anyOf without discriminator: PetTreatment --

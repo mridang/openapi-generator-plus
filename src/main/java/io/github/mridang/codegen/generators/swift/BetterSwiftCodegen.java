@@ -82,7 +82,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         typeMapping.put("file", "Data");
         typeMapping.put("binary", "Data");
         typeMapping.put("ByteArray", "Data");
-        typeMapping.put("UUID", "String");
+        typeMapping.put("UUID", "UUID");
         typeMapping.put("URI", "String");
 
         languageSpecificPrimitives =
@@ -97,6 +97,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                                 "Double",
                                 "Data",
                                 "Date",
+                                "UUID",
                                 "Void",
                                 "Any",
                                 "AnyObject"));

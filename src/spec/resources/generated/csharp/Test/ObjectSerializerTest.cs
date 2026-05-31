@@ -507,6 +507,64 @@ public class ObjectSerializerTest
         }
     }
 
+    // Gap #4.6 — Map-of-Model deep deserialise.
+    // When a JSON object's values are model schemas, deserialising into
+    // Dictionary<string, Foo> must return typed Foo entries with their
+    // fields populated, not raw JsonElement/object values. System.Text.Json
+    // handles this via reflection so long as no custom JsonConverter for
+    // Dictionary<string, T> intercepts the call and drops the element type.
+    public class MapOfModelDeepDeserializeTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void DictionaryOfPetReturnsTypedPetEntries()
+        {
+            var json =
+                "{"
+                + "\"fido\":{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[\"https://example.com/fido.jpg\"]},"
+                + "\"whiskers\":{\"id\":2,\"name\":\"Whiskers\",\"photoUrls\":[\"https://example.com/whiskers.jpg\"]}"
+                + "}";
+
+            var map = _serializer.Deserialize<Dictionary<string, Pet>>(json);
+
+            Assert.NotNull(map);
+            Assert.Equal(2, map!.Count);
+
+            var fido = map["fido"];
+            Assert.IsType<Pet>(fido);
+            Assert.Equal(1L, fido.Id);
+            Assert.Equal("Fido", fido.Name);
+            Assert.Contains("https://example.com/fido.jpg", fido.PhotoUrls);
+
+            var whiskers = map["whiskers"];
+            Assert.IsType<Pet>(whiskers);
+            Assert.Equal(2L, whiskers.Id);
+            Assert.Equal("Whiskers", whiskers.Name);
+            Assert.Contains("https://example.com/whiskers.jpg", whiskers.PhotoUrls);
+        }
+
+        [Fact]
+        public void DictionaryOfPetEntriesAreNotRawJsonElement()
+        {
+            var json = "{\"a\":{\"id\":7,\"name\":\"A\",\"photoUrls\":[\"u\"]}}";
+            var map = _serializer.Deserialize<Dictionary<string, Pet>>(json);
+
+            Assert.NotNull(map);
+            var entry = map!["a"];
+            Assert.IsNotType<System.Text.Json.JsonElement>(entry);
+            Assert.IsType<Pet>(entry);
+        }
+
+        [Fact]
+        public void EmptyDictionaryOfPetDeserializesToEmptyMap()
+        {
+            var map = _serializer.Deserialize<Dictionary<string, Pet>>("{}");
+            Assert.NotNull(map);
+            Assert.Empty(map!);
+        }
+    }
+
     // Gap #14 — discard extras on deserialize.
     // System.Text.Json silently skips unmapped JSON properties by default
     // (UnmappedMemberHandling.Skip). Deserialising a payload containing

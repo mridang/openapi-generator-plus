@@ -13,7 +13,7 @@ export class SetPetAvatarRequest {
    * @example null
    */
   @Expose({ name: 'data' })
-  data!: string;
+  data!: Buffer;
   /** @example image/jpeg */
   @Expose({ name: 'mimeType' })
   mimeType!: string;

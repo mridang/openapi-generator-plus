@@ -54,6 +54,17 @@ defmodule PetstoreClient.Models.PetFood do
             "Unknown discriminator value for PetFood: '#{discriminator_value}'"
     end
 
+    # Gap 4.7: the discriminator mapping must point at one of the
+    # `oneOf` `$ref` entries. A spec where the mapping references a
+    # schema outside the union is malformed; refuse to deserialize
+    # instead of silently building an off-union type.
+    unless klass_name in openapi_one_of() do
+      raise PetstoreClient.DeserializationError,
+        message:
+          "Discriminator '#{discriminator_value}' for PetFood resolves to " <>
+            "'#{klass_name}', which is not listed in oneOf"
+    end
+
     PetstoreClient.ObjectSerializer.convert_to_type(data, to_string(klass_name))
   end
 end

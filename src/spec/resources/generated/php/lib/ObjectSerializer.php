@@ -214,7 +214,12 @@ class ObjectSerializer
             $deserialized = [];
             if (strrpos($inner, ',') !== false) {
                 $subClassArray = explode(',', $inner, 2);
-                $subClass = trim($subClassArray[1]);
+                /* 4.6: qualify the value-type so map values deep-deserialize
+                 * into model instances. Without qualification the recursive
+                 * deserialize call sees an unqualified short name (e.g. 'Foo'),
+                 * class_exists() reports false, and the entry comes back as
+                 * the raw decoded array instead of a typed Foo. */
+                $subClass = self::qualifySchemaName(trim($subClassArray[1]));
                 /** @var array<string, mixed> $data */
                 foreach ($data as $key => $value) {
                     $deserialized[$key] = self::deserialize($value, $subClass);
@@ -575,6 +580,35 @@ class ObjectSerializer
         }
         $fqcn = 'PetstoreClient\Models\\' . $schema;
         return class_exists($fqcn) ? $fqcn : $schema;
+    }
+
+    /**
+     * 2.1 — Decode an OAS `format: byte` field value to its raw binary string.
+     * Returns null for null/empty input. Invalid base64 returns null rather
+     * than throwing so partially-populated payloads stay readable.
+     *
+     * The wire form for `format: byte` is a base64-encoded string; SDK users
+     * call this helper to recover the underlying bytes.
+     */
+    public static function decodeBytes(?string $encoded): ?string
+    {
+        if ($encoded === null || $encoded === '') {
+            return null;
+        }
+        $decoded = base64_decode($encoded, true);
+        return $decoded === false ? null : $decoded;
+    }
+
+    /**
+     * 2.1 — Encode raw bytes as a base64 string suitable for an OAS
+     * `format: byte` field. Returns null for null input.
+     */
+    public static function encodeBytes(?string $raw): ?string
+    {
+        if ($raw === null) {
+            return null;
+        }
+        return base64_encode($raw);
     }
 
     /**

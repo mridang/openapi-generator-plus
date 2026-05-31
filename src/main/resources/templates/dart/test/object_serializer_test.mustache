@@ -3,6 +3,7 @@
 import 'dart:convert';
 
 import 'package:test/test.dart';
+import 'package:uuid/uuid.dart';
 import 'package:{{packageName}}/{{packageName}}.dart';
 
 void main() {
@@ -342,6 +343,74 @@ void main() {
       // Declared optional fields stay null when absent.
       expect(pet.category, isNull);
       expect(pet.status, isNull);
+    });
+
+    // -- MapOfModelDeepDeserializeTests (4.6) --
+    //
+    // For a Map<String, Foo> field on a generated model, the template
+    // must recursively call Foo.fromJson on each entry value rather than
+    // leaving the raw decoded JSON map in place. This test exercises the
+    // same `.map((k, v) => MapEntry(k, Foo.fromJson(v as Map<String, dynamic>)))`
+    // shape that model.mustache emits for non-primitive map item types.
+    test('Map<String, Model> deserialize recurses into model factory', () {
+      final raw = <String, dynamic>{
+        'first': <String, dynamic>{'id': 1, 'name': 'tag-a'},
+        'second': <String, dynamic>{'id': 2, 'name': 'tag-b'},
+      };
+
+      final typed = raw.map(
+        (k, v) => MapEntry(k, Tag.fromJson(v as Map<String, dynamic>)),
+      );
+
+      expect(typed['first'], isA<Tag>());
+      expect(typed['first']!.id, equals(1));
+      expect(typed['first']!.name, equals('tag-a'));
+      expect(typed['second']!.name, equals('tag-b'));
+      // Raw map values were untyped — ensure deep conversion produced
+      // real Tag instances, not still-Map<String, dynamic> values.
+      expect(typed['first'], isNot(isA<Map<String, dynamic>>()));
+    });
+
+    test('Map<String, Model> round-trips through toJson per entry', () {
+      final tags = <String, Tag>{
+        'a': const Tag(id: 10, name: 'alpha'),
+        'b': const Tag(id: 20, name: 'beta'),
+      };
+
+      final wire = tags.map((k, v) => MapEntry(k, v.toJson()));
+      final restored = wire.map(
+        (k, v) => MapEntry(k, Tag.fromJson(v)),
+      );
+
+      expect(restored['a'], equals(tags['a']));
+      expect(restored['b'], equals(tags['b']));
+    });
+
+    // -- UuidValueTests (2.2) --
+    //
+    // `format: uuid` is exposed as `UuidValue` from `package:uuid` rather
+    // than a raw `String`, so the public API is typed and construction
+    // validates the wire shape. These tests cover the stringify/serialize
+    // path the generated `model.toJson()` calls into.
+    test('UuidValue stringifies via toString to canonical 36-char form', () {
+      final u = UuidValue.fromString('12345678-1234-1234-1234-1234567890ab');
+      expect(stringify(u), equals('12345678-1234-1234-1234-1234567890ab'));
+    });
+
+    test('UuidValue.fromString rejects malformed input', () {
+      // Constructor-side validation is the whole reason we wrap.
+      expect(
+        () => UuidValue.fromString('not-a-uuid'),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('UuidValue round-trips through jsonEncode/decode via toString', () {
+      final u = UuidValue.fromString('abcdef01-2345-6789-abcd-ef0123456789');
+      final encoded = jsonEncode({'id': u.toString()});
+      final decoded = jsonDecode(encoded) as Map<String, dynamic>;
+      final restored = UuidValue.fromString(decoded['id'] as String);
+      expect(restored, equals(u));
     });
 
     test('fromJson then toJson does not leak unknown fields back to wire', () {

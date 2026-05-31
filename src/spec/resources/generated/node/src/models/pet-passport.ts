@@ -18,13 +18,13 @@ export class PetPassport {
    * @example dGVzdC10aHVtYm5haWw=
    */
   @Expose({ name: 'thumbnail' })
-  thumbnail?: string;
+  thumbnail?: Buffer;
   /**
    * Base64-encoded scans of each passport page
    * @example null
    */
   @Expose({ name: 'scans' })
-  scans?: Array<string>;
+  scans?: Array<Buffer>;
   /** @example null */
   @Expose({ name: 'issuedAt' })
   @Type(() => Date)

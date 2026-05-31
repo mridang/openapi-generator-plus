@@ -7,6 +7,10 @@
 
 import 'dart:convert';
 
+import 'package:uuid/uuid.dart';
+
+import '../object_serializer.dart';
+
 import 'medication.dart';
 import 'surgery.dart';
 

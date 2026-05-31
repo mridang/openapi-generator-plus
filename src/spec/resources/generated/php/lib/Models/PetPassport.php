@@ -63,4 +63,27 @@ class PetPassport
         $this->issuedAt = $issuedAt;
         $this->biometricChip = $biometricChip;
     }
+
+    /**
+     * 2.1 — Returns the raw decoded bytes for the `thumbnail`
+     * field (OAS `format: byte`). The stored property holds the
+     * base64-encoded wire form; this getter applies base64_decode
+     * so callers receive the underlying binary string. Returns
+     * null when the field is unset or empty.
+     */
+    public function getThumbnailAsBytes(): ?string
+    {
+        return \PetstoreClient\ObjectSerializer::decodeBytes($this->thumbnail);
+    }
+
+    /**
+     * 2.1 — Stores raw bytes in the `thumbnail` field (OAS
+     * `format: byte`) by base64-encoding before assignment. The
+     * property keeps the wire form so serialization stays a
+     * straight string pass-through.
+     */
+    public function setThumbnailFromBytes(?string $raw): void
+    {
+        $this->thumbnail = \PetstoreClient\ObjectSerializer::encodeBytes($raw);
+    }
 }

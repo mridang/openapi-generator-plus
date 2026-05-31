@@ -19,6 +19,16 @@ defmodule PetstoreClient.SchemaMismatchError do
   defexception [:message]
 end
 
+defmodule PetstoreClient.DeserializationError do
+  @moduledoc """
+  Exception raised when deserialization fails because the wire data
+  cannot be reconciled with the declared schema — for example, a
+  discriminator value that does not point at any of the `oneOf`
+  `$ref` entries listed by the parent schema.
+  """
+  defexception [:message]
+end
+
 defmodule PetstoreClient.ObjectSerializer do
   @moduledoc """
   Handles JSON serialization and deserialization for API requests and responses.
@@ -314,13 +324,20 @@ defmodule PetstoreClient.ObjectSerializer do
     if function_exported?(module, :attribute_map, 0) do
       attr_map = module.attribute_map()
 
+      types =
+        if function_exported?(module, :openapi_types, 0) do
+          module.openapi_types()
+        else
+          %{}
+        end
+
       Enum.reduce(attr_map, %{}, fn {attr, json_key}, acc ->
         value = Map.get(struct, attr)
 
         if is_nil(value) do
           acc
         else
-          Map.put(acc, json_key, sanitize_for_serialization(value))
+          Map.put(acc, json_key, sanitize_field_value(value, Map.get(types, attr)))
         end
       end)
     else
@@ -328,6 +345,17 @@ defmodule PetstoreClient.ObjectSerializer do
       |> Map.from_struct()
       |> sanitize_for_serialization()
     end
+  end
+
+  # 2.1 format: byte — encode the native `binary()` bytes back to a
+  # base64 string before they hit the JSON encoder. The struct's
+  # openapi_types map tells us which fields carry byte semantics.
+  defp sanitize_field_value(value, "ByteArray") when is_binary(value) do
+    Base.encode64(value)
+  end
+
+  defp sanitize_field_value(value, _type) do
+    sanitize_for_serialization(value)
   end
 
   def sanitize_for_serialization(%{} = map) do
@@ -391,6 +419,43 @@ defmodule PetstoreClient.ObjectSerializer do
 
   def convert_to_type(data, "Object") do
     data
+  end
+
+  # 2.1 format: byte — wire form is a base64 string; decoded to native
+  # Elixir bytes (`binary()`). Matches the OpenAPI 3 spec which mandates
+  # base64 transport for `format: byte`.
+  def convert_to_type(data, "ByteArray") when is_binary(data) do
+    case Base.decode64(data) do
+      {:ok, bytes} ->
+        bytes
+
+      :error ->
+        raise PetstoreClient.SerializationError,
+          message: "Invalid base64 payload for ByteArray field: #{inspect(data)}"
+    end
+  end
+
+  def convert_to_type(data, "ByteArray") do
+    raise(ArgumentError, "Expected base64 String for ByteArray, got #{inspect(data)}")
+  end
+
+  # 2.2 format: uuid — RFC 4122 canonical 8-4-4-4-12 hex form, case
+  # insensitive. Validated at construction; invalid payloads surface as
+  # SerializationError instead of silently propagating an arbitrary
+  # String.
+  @uuid_regex ~r/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+
+  def convert_to_type(data, "UUID") when is_binary(data) do
+    if Regex.match?(@uuid_regex, data) do
+      data
+    else
+      raise PetstoreClient.SerializationError,
+        message: "Invalid UUID: #{inspect(data)}"
+    end
+  end
+
+  def convert_to_type(data, "UUID") do
+    raise(ArgumentError, "Expected UUID String, got #{inspect(data)}")
   end
 
   def convert_to_type(data, "DateTime") do

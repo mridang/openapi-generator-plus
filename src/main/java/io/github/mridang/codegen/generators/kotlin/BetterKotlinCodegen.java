@@ -82,7 +82,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         typeMapping.put("date", "LocalDate");
         typeMapping.put("DateTime", "OffsetDateTime");
         typeMapping.put("date-time", "OffsetDateTime");
-        typeMapping.put("UUID", "String");
+        typeMapping.put("UUID", "UUID");
         typeMapping.put("URI", "String");
         typeMapping.put("BigDecimal", "BigDecimal");
 
@@ -95,6 +95,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         importMapping.put("LocalDate", "java.time.LocalDate");
         importMapping.put("OffsetDateTime", "java.time.OffsetDateTime");
         importMapping.put("BigDecimal", "java.math.BigDecimal");
+        importMapping.put("UUID", "java.util.UUID");
 
         languageSpecificPrimitives =
                 new HashSet<>(

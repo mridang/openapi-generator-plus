@@ -37,7 +37,7 @@ serde_json = "1"
 reqwest = { version = "0.12", features = ["json", "brotli", "gzip", "deflate", "zstd", "multipart"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 base64 = "0.22"
-uuid = { version = "1", features = ["v4"] }
+uuid = { version = "1", features = ["serde", "v4"] }
 chrono = { version = "0.4", features = ["serde"] }
 regex = "1"
 urlencoding = "2"

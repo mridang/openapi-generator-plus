@@ -209,6 +209,131 @@ class TestMaxRedirects:
         assert transport.max_redirects == 5
 
 
+class TestRedirectSecurityGuards:
+    """Bucket 4.1: the three guards the urllib3.Retry path missed.
+
+    These exercise the manual redirect loop in DefaultApiClient.
+    """
+
+    def test_refuses_non_http_redirect_scheme(self) -> None:
+        """Guard 1: a Location: file:/// (or data:, javascript:, etc.)
+        must NOT be followed. urllib3's default Retry-based redirect
+        handling will happily walk into anything that parses as a URL,
+        which is a local-file / sandbox-escape vector."""
+        from petstore_client.errors import ApiException
+
+        class _FakeResp:
+            def __init__(self, status: int, headers: dict) -> None:
+                self.status = status
+                self.headers = headers
+
+            def read(self) -> bytes:
+                return b''
+
+            def release_conn(self) -> None:
+                return None
+
+        class _FakePool:
+            def __init__(self) -> None:
+                self.calls: list = []
+
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url))
+                # First response is a 302 pointing at file:///etc/passwd.
+                if len(self.calls) == 1:
+                    return _FakeResp(302, {'location': 'file:///etc/passwd'})
+                return _FakeResp(200, {})
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = _FakePool()
+        client = DefaultApiClient(transport, pool_manager=pool)
+        with pytest.raises(ApiException) as excinfo:
+            client.send_request('GET', 'http://example.com/start', {}, None)
+        assert 'non-HTTP(S)' in str(excinfo.value.message or '')
+        # The follow-up request must NEVER have been issued.
+        assert len(pool.calls) == 1
+
+    def test_strips_authorization_on_https_to_http_downgrade(self) -> None:
+        """Guard 2: an HTTPS -> HTTP redirect is a TLS downgrade and
+        MUST strip Authorization / Cookie before re-issuing. Same host
+        is not enough: the scheme change is the threat."""
+
+        class _FakeResp:
+            def __init__(self, status: int, headers: dict) -> None:
+                self.status = status
+                self.headers = headers
+
+            def read(self) -> bytes:
+                return b''
+
+            def release_conn(self) -> None:
+                return None
+
+        class _FakePool:
+            def __init__(self) -> None:
+                self.calls: list = []
+
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url, dict(kwargs.get('headers') or {})))
+                if len(self.calls) == 1:
+                    return _FakeResp(302, {'location': 'http://example.com/insecure'})
+                return _FakeResp(200, {})
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = _FakePool()
+        client = DefaultApiClient(transport, pool_manager=pool)
+        headers = {'Authorization': 'Bearer secret', 'Cookie': 'sid=abc'}
+        client.send_request('GET', 'https://example.com/start', headers, None)
+        assert len(pool.calls) == 2
+        followup_headers = pool.calls[1][2]
+        # Sensitive headers must be gone on the downgraded follow-up.
+        assert not any(k.lower() == 'authorization' for k in followup_headers)
+        assert not any(k.lower() == 'cookie' for k in followup_headers)
+
+    def test_clears_proxy_authorization_on_cross_origin_redirect(self) -> None:
+        """Guard 3: Proxy-Authorization lives on the pool manager's
+        proxy_headers bag, which urllib3.Retry.remove_headers_on_redirect
+        cannot reach. The manual loop must explicitly clear it on a
+        cross-origin hop, then restore it afterwards so subsequent
+        unrelated requests still authenticate to the proxy."""
+
+        class _FakeResp:
+            def __init__(self, status: int, headers: dict) -> None:
+                self.status = status
+                self.headers = headers
+
+            def read(self) -> bytes:
+                return b''
+
+            def release_conn(self) -> None:
+                return None
+
+        observed_proxy_headers_on_followup: dict = {}
+
+        class _FakePool:
+            def __init__(self) -> None:
+                self.proxy_headers: dict = {'Proxy-Authorization': 'Basic dXNlcjpwYXNz'}
+                self.calls: list = []
+
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url))
+                if len(self.calls) == 1:
+                    return _FakeResp(302, {'location': 'https://other.example.com/dest'})
+                observed_proxy_headers_on_followup.update(self.proxy_headers)
+                return _FakeResp(200, {})
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = _FakePool()
+        client = DefaultApiClient(transport, pool_manager=pool)
+        client.send_request('GET', 'https://example.com/start', {}, None)
+        assert len(pool.calls) == 2
+        # During the cross-origin follow-up, Proxy-Authorization must be absent.
+        assert not any(k.lower() == 'proxy-authorization' for k in observed_proxy_headers_on_followup)
+        # After the loop finishes, the original Proxy-Authorization is restored
+        # on the pool manager so the next request still authenticates.
+        assert pool.proxy_headers.get('Proxy-Authorization') == 'Basic dXNlcjpwYXNz'
+
+
 class TestMultipartBody:
     def test_sends_multipart_form_data(self, chasm_http_url: Any) -> None:
         client = DefaultApiClient()

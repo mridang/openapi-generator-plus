@@ -3,6 +3,7 @@
 # rubocop:disable Metrics/BlockLength, Lint/MissingCopEnableDirective
 
 require 'test_helper'
+require 'base64'
 
 # Stub enum modules for ObjectSerializer enum-handling tests.
 # Defined at file scope to avoid Lint/ConstantDefinitionInBlock and to ensure
@@ -28,6 +29,26 @@ module {{moduleName}}
 
           raise ArgumentError, "Unknown enum value: #{value.inspect}"
         end
+      end
+    end
+
+    # Stub model for format: byte / format: uuid surface tests. Mirrors the
+    # ATTRIBUTE_MAP / OPENAPI_TYPES / OPENAPI_FORMATS triplet emitted by the
+    # real model template so that ObjectSerializer treats it identically.
+    unless const_defined?(:TestFormatModel)
+      class TestFormatModel < Dry::Struct
+        ATTRIBUTE_MAP = { blob: 'blob', identifier: 'identifier', note: 'note' }.freeze
+        JSON_KEY_MAP = ATTRIBUTE_MAP.invert.freeze
+        OPENAPI_TYPES = { blob: 'String', identifier: 'String', note: 'String' }.freeze
+        OPENAPI_FORMATS = { blob: 'byte', identifier: 'uuid' }.freeze
+
+        transform_keys do |key|
+          JSON_KEY_MAP[key.to_s] || key.to_sym
+        end
+
+        attribute :blob, Types::Any.optional.meta(omittable: true)
+        attribute :identifier, Types::Any.optional.meta(omittable: true)
+        attribute :note, Types::Any.optional.meta(omittable: true)
       end
     end
   end
@@ -437,6 +458,75 @@ describe {{moduleName}}::ObjectSerializer do
       assert_raises({{moduleName}}::SerializationError) do
         {{moduleName}}::ObjectSerializer.deserialize('{"val": Infinity}', 'Object')
       end
+    end
+  end
+
+  # ── format: byte (Buffer/bytes surface, 2.1) ──
+
+  describe 'format: byte base64 transcoding' do
+    it 'decodes base64 wire value into binary-encoded String on deserialize' do
+      raw = "hello\x00\xFFworld".dup.force_encoding(Encoding::BINARY)
+      encoded = Base64.strict_encode64(raw)
+      json = %({"blob":"#{encoded}","note":"x"})
+      result = {{moduleName}}::ObjectSerializer.deserialize(json, 'TestFormatModel')
+      _(result.blob).must_equal(raw)
+      _(result.blob.encoding).must_equal(Encoding::BINARY)
+      _(result.note).must_equal('x')
+    end
+
+    it 'encodes binary String back to base64 on serialize' do
+      raw = "\x00\x01\x02\xFF".dup.force_encoding(Encoding::BINARY)
+      model = {{moduleName}}::Models::TestFormatModel.new(blob: raw, note: 'y')
+      json = {{moduleName}}::ObjectSerializer.serialize(model)
+      data = JSON.parse(json)
+      _(data['blob']).must_equal(Base64.strict_encode64(raw))
+      _(data['note']).must_equal('y')
+    end
+
+    it 'round-trip preserves bytes exactly' do
+      raw = (0..255).map(&:chr).join.dup.force_encoding(Encoding::BINARY)
+      model = {{moduleName}}::Models::TestFormatModel.new(blob: raw)
+      json = {{moduleName}}::ObjectSerializer.serialize(model)
+      restored = {{moduleName}}::ObjectSerializer.deserialize(json, 'TestFormatModel')
+      _(restored.blob).must_equal(raw)
+    end
+
+    it 'raises SerializationError on invalid base64 input' do
+      json = '{"blob":"not valid base64!!!"}'
+      _(proc {
+        {{moduleName}}::ObjectSerializer.deserialize(json, 'TestFormatModel')
+      }).must_raise({{moduleName}}::SerializationError)
+    end
+  end
+
+  # ── format: uuid (typed UUID surface, 2.2) ──
+
+  describe 'format: uuid validation' do
+    it 'accepts canonical RFC 4122 UUID on deserialize' do
+      json = '{"identifier":"550e8400-e29b-41d4-a716-446655440000"}'
+      result = {{moduleName}}::ObjectSerializer.deserialize(json, 'TestFormatModel')
+      _(result.identifier).must_equal('550e8400-e29b-41d4-a716-446655440000')
+    end
+
+    it 'raises SerializationError on malformed UUID' do
+      json = '{"identifier":"not-a-uuid"}'
+      _(proc {
+        {{moduleName}}::ObjectSerializer.deserialize(json, 'TestFormatModel')
+      }).must_raise({{moduleName}}::SerializationError)
+    end
+
+    it 'raises SerializationError on serialize with malformed UUID' do
+      model = {{moduleName}}::Models::TestFormatModel.new(identifier: 'bogus')
+      _(proc {
+        {{moduleName}}::ObjectSerializer.serialize(model)
+      }).must_raise({{moduleName}}::SerializationError)
+    end
+
+    it 'serializes a valid UUID unchanged' do
+      uuid = '00112233-4455-6677-8899-aabbccddeeff'
+      model = {{moduleName}}::Models::TestFormatModel.new(identifier: uuid)
+      json = {{moduleName}}::ObjectSerializer.serialize(model)
+      _(JSON.parse(json)['identifier']).must_equal(uuid)
     end
   end
 end

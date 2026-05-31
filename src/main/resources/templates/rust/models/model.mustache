@@ -173,15 +173,52 @@ impl {{classname}} {
 {{#discriminator}}
 // Discriminated oneOf — variant structs carry the discriminator
 // field themselves (initialised by their `new()`), so we use
-// `untagged` and let serde dispatch by matching the variant's
-// rename'd field rather than serde's `tag` rewrite. This keeps
-// the discriminator a real struct field callable code can read.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+// `untagged` for `Serialize` and let each variant's own rename'd
+// field reach the wire. This keeps the discriminator a real struct
+// field callable code can read.
+//
+// For `Deserialize` we hand-roll dispatch on the discriminator
+// property rather than relying on serde's untagged "try every
+// variant" fall-through: untagged would silently accept an unknown
+// discriminator value because the inner structs carry the
+// discriminator as a plain `String` (so any value parses). Instead
+// we read the discriminator field, match against the spec's
+// declared mapping, and return an `Err` on unknown values — Gap 4.7.
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum {{classname}} {
 {{#mappedModels}}
     {{{modelName}}}({{{modelName}}}),
 {{/mappedModels}}
+}
+
+impl<'de> serde::Deserialize<'de> for {{classname}} {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error;
+        let value = serde_json::Value::deserialize(deserializer)?;
+        let discriminator = value
+            .get("{{discriminator.propertyBaseName}}")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                D::Error::custom(format!(
+                    "missing discriminator field `{{discriminator.propertyBaseName}}` for {{classname}}"
+                ))
+            })?;
+        match discriminator {
+{{#mappedModels}}
+            "{{{mappingName}}}" => serde_json::from_value::<{{{modelName}}}>(value)
+                .map({{classname}}::{{{modelName}}})
+                .map_err(D::Error::custom),
+{{/mappedModels}}
+            other => Err(D::Error::custom(format!(
+                "unknown discriminator value `{}` for {{classname}}",
+                other
+            ))),
+        }
+    }
 }
 {{/discriminator}}
 {{^discriminator}}

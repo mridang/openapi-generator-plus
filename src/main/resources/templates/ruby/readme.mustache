@@ -62,6 +62,39 @@ body via `JSON.parse(body, decimal_class: BigDecimal)` and use
 precision (`Bignum`) and represents the full 64-bit range without
 loss.
 
+### `format: byte` is base64-decoded into binary Strings
+
+Properties typed `string` + `format: byte` are exposed as raw,
+binary-encoded Ruby `String`s on the model surface — **not** as the
+base64 text from the wire. The transport layer base64-decodes on
+read and base64-encodes (strict, no line breaks) on write.
+
+```ruby
+passport = PetstoreClient::ObjectSerializer.deserialize(json, 'PetPassport')
+passport.thumbnail.encoding  # => #<Encoding:ASCII-8BIT>
+File.binwrite('thumb.jpg', passport.thumbnail)
+```
+
+Assigning a non-base64 string when serializing raises
+`SerializationError`. Round-tripping a wire value preserves the
+original bytes exactly.
+
+### `format: uuid` is a validated String
+
+Properties typed `string` + `format: uuid` remain Ruby `String`s
+(no `uuid` gem dependency), but are validated against RFC 4122
+canonical form (`/\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/`) on both
+the deserialize and serialize paths. Invalid values raise
+`SerializationError`. Use `SecureRandom.uuid` to generate new
+identifiers.
+
+### Discriminator no-match raises
+
+A `oneOf` payload whose discriminator value is missing, or whose
+value is not listed in the schema's `discriminator.mapping`, raises
+`SerializationError` instead of silently falling through to the
+base type. This matches Python / Swift / Dart / Go / Rust behaviour.
+
 ## Not supported
 
 ### Webhooks and callbacks

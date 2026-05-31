@@ -50,7 +50,7 @@ defmodule PetstoreClient.Models.PetPassport do
   def openapi_types do
     %{
       pet: "Pet",
-      thumbnail: "binary()",
+      thumbnail: "ByteArray",
       scans: "[binary()]",
       issued_at: "DateTime.t()",
       biometric_chip: "String.t()"

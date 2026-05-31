@@ -128,11 +128,37 @@ defmodule {{moduleName}}.Models.{{classname}} do
             "Unknown discriminator value for {{classname}}: '#{discriminator_value}'"
     end
 
+    # Gap 4.7: the discriminator mapping must point at one of the
+    # `oneOf` `$ref` entries. A spec where the mapping references a
+    # schema outside the union is malformed; refuse to deserialize
+    # instead of silently building an off-union type.
+    unless klass_name in openapi_one_of() do
+      raise {{moduleName}}.DeserializationError,
+            message:
+              "Discriminator '#{discriminator_value}' for {{classname}} resolves to " <>
+                "'#{klass_name}', which is not listed in oneOf"
+    end
+
     {{moduleName}}.ObjectSerializer.convert_to_type(data, to_string(klass_name))
     {{/-first}}
     {{/mappedModels}}
     {{^mappedModels}}
-    {{moduleName}}.ObjectSerializer.convert_to_type(data, to_string(discriminator_value))
+    # Gap 4.7: with no explicit mapping the discriminator value is
+    # used as the type name directly. Refuse the build if that name
+    # is not one of the `oneOf` `$ref` entries.
+    candidate = to_string(discriminator_value)
+
+    listed? =
+      Enum.any?(openapi_one_of(), fn ref -> Atom.to_string(ref) == candidate end)
+
+    unless listed? do
+      raise {{moduleName}}.DeserializationError,
+            message:
+              "Discriminator value '#{discriminator_value}' for {{classname}} is not " <>
+                "listed in oneOf"
+    end
+
+    {{moduleName}}.ObjectSerializer.convert_to_type(data, candidate)
     {{/mappedModels}}
   end
   {{/discriminator}}
@@ -265,7 +291,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
   def openapi_types do
     %{
   {{#vars}}
-      {{name}}: "{{{dataType}}}"{{^-last}},{{/-last}}
+      {{name}}: "{{#isByteArray}}ByteArray{{/isByteArray}}{{^isByteArray}}{{#isUuid}}UUID{{/isUuid}}{{^isUuid}}{{{dataType}}}{{/isUuid}}{{/isByteArray}}"{{^-last}},{{/-last}}
   {{/vars}}
     }
   end

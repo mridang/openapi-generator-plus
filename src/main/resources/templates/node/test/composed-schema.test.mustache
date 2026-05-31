@@ -1,6 +1,6 @@
 {{>api_info}}
 
-import { ObjectSerializer } from '../src/object-serializer{{importFileExtension}}';
+import { ObjectSerializer, DeserializationError } from '../src/object-serializer{{importFileExtension}}';
 import { PetWithOwner, PetFood, DryFood, WetFood, PetTreatment, Medication, Surgery } from '../src/models/index{{importFileExtension}}';
 
 describe('Composed Schema', () => {
@@ -24,16 +24,32 @@ describe('Composed Schema', () => {
     expect(instance).toBeInstanceOf(WetFood);
   });
 
-  test('oneOf: unknown discriminator returns null', () => {
+  test('oneOf: unknown discriminator throws DeserializationError (4.7)', () => {
+    // 4.7 — A discriminator value that is not listed in the schema mapping
+    // used to silently fall through to the base envelope. We now surface
+    // the wire/spec mismatch so callers see the bug instead of an
+    // inexplicable empty object.
     const data = { foodType: 'raw', calories: 300 };
-    const result = ObjectSerializer.deserialize(data, PetFood);
-    expect(result).toBeNull();
+    expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(DeserializationError);
   });
 
-  test('oneOf: discriminator maps to unresolvable class returns null', () => {
-    // Simulate a misconfigured spec where the discriminator mapping points to a
-    // class name that does not exist in the models index. The deserializer should
-    // return null rather than falling through to the brute-force schema loop.
+  test('oneOf: unknown discriminator error names the offending value', () => {
+    const data = { foodType: 'raw', calories: 300 };
+    try {
+      ObjectSerializer.deserialize(data, PetFood);
+      fail('expected throw');
+    } catch (e) {
+      expect(e).toBeInstanceOf(DeserializationError);
+      expect((e as Error).message).toContain('raw');
+      expect((e as Error).message).toContain('foodType');
+    }
+  });
+
+  test('oneOf: discriminator maps to unresolvable class throws DeserializationError (4.7)', () => {
+    // Simulate a misconfigured spec where the discriminator mapping names a
+    // class that does not exist in the generated models index. Previously
+    // we returned null and silently fell through; now we throw so
+    // spec/codegen drift is visible at the seam where it matters.
     const FakePetFood = class {
       static readonly ONE_OF_SCHEMAS: string[] = ['DryFood', 'WetFood'];
       static readonly DISCRIMINATOR_PROPERTY = 'foodType';
@@ -49,8 +65,7 @@ describe('Composed Schema', () => {
       }
     };
     const data = { foodType: 'dry', weightKg: 2.5 };
-    const result = ObjectSerializer.deserialize(data, FakePetFood);
-    expect(result).toBeNull();
+    expect(() => ObjectSerializer.deserialize(data, FakePetFood)).toThrow(DeserializationError);
   });
 
   test('oneOf: serializes DryFood back to JSON', () => {

@@ -19,13 +19,19 @@ describe 'Composed Schema' do # rubocop:disable Metrics/BlockLength
       _(result).must_be_kind_of(PetstoreClient::Models::WetFood)
     end
 
-    it 'raises ArgumentError for unknown discriminator value' do
-      # Gap L: union deserialise with an unmapped discriminator now
-      # raises instead of silently returning nil. Aligns Ruby with
-      # Python / Swift / Dart / Go / Rust.
+    it 'raises SerializationError for unknown discriminator value' do
+      # Gap L / 4.7: union deserialise with an unmapped discriminator
+      # raises SerializationError instead of falling through to the
+      # base type. Aligns Ruby with Python / Swift / Dart / Go / Rust.
       json = '{"foodType":"raw","calories":300}'
       _ { PetstoreClient::ObjectSerializer.deserialize(json, 'PetFood') }
-        .must_raise ArgumentError
+        .must_raise PetstoreClient::SerializationError
+    end
+
+    it 'raises SerializationError for missing discriminator' do
+      json = '{"weightKg":2.5}'
+      _ { PetstoreClient::ObjectSerializer.deserialize(json, 'PetFood') }
+        .must_raise PetstoreClient::SerializationError
     end
 
     it 'serializes DryFood back to JSON' do

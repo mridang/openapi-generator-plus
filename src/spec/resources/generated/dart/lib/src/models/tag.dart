@@ -7,6 +7,10 @@
 
 import 'dart:convert';
 
+import 'package:uuid/uuid.dart';
+
+import '../object_serializer.dart';
+
 /// Tag Tags are deprecated, use categories instead
 @Deprecated('This schema is deprecated.')
 class Tag {

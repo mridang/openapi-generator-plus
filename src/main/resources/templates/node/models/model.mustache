@@ -356,9 +356,40 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     }
 {{/isBoolean}}
 {{#isString}}
+{{^isByteArray}}
+{{^isUuid}}
     if (this.{{name}} != null && typeof this.{{name}} !== 'string') {
       throw new TypeError(`{{name}} must be a string, got ${typeof this.{{name}}}`);
     }
+{{/isUuid}}
+{{/isByteArray}}
+{{#isByteArray}}
+    /**
+     * 2.1 — `format: byte`. The wire form is base64; the model field is a
+     * Buffer. When data arrives from JSON (string), decode it; when the
+     * caller hands us a Buffer directly, pass it through.
+     */
+    if (this.{{name}} != null && typeof this.{{name}} === 'string') {
+      this.{{name}} = Buffer.from(this.{{name}} as unknown as string, 'base64') as unknown as {{{dataType}}};
+    } else if (this.{{name}} != null && !Buffer.isBuffer(this.{{name}})) {
+      throw new TypeError(`{{name}} must be a Buffer or base64 string, got ${typeof this.{{name}}}`);
+    }
+{{/isByteArray}}
+{{#isUuid}}
+    /**
+     * 2.2 — `format: uuid`. Branded string; validate the canonical
+     * 8-4-4-4-12 hex shape at construction. Re-uses the regex bundled with
+     * the {@link UUID} type so callers and codegen agree.
+     */
+    if (this.{{name}} != null) {
+      if (typeof this.{{name}} !== 'string') {
+        throw new TypeError(`{{name}} must be a UUID string, got ${typeof this.{{name}}}`);
+      }
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(this.{{name}} as unknown as string)) {
+        throw new TypeError(`{{name}} is not a canonical UUID: ${JSON.stringify(this.{{name}})}`);
+      }
+    }
+{{/isUuid}}
 {{/isString}}
 {{/isArray}}
 {{#isArray}}
@@ -366,6 +397,37 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
       throw new TypeError(`{{name}} must be an array, got ${typeof this.{{name}}}`);
     }
 {{/isArray}}
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+{{#isMap}}
+{{#items}}
+{{^isPrimitiveType}}
+{{#complexType}}
+    /**
+     * 4.6 — Map-of-Model deep deserialise. When a field is typed
+     * `Record<string, {{complexType}}>`, the wire payload arrives as a
+     * plain JSON object whose values are bag-of-keys, not `{{complexType}}`
+     * instances. Walk each entry and route it back through the model's
+     * constructor (via ObjectSerializer) so the resulting record actually
+     * contains typed model instances.
+     */
+    if (this.{{name}} != null && typeof this.{{name}} === 'object' && !Array.isArray(this.{{name}})) {
+      const __raw_{{name}} = this.{{name}} as unknown as Record<string, unknown>;
+      const __out_{{name}}: Record<string, {{complexType}}> = {};
+      for (const __k of Object.keys(__raw_{{name}})) {
+        const __v = __raw_{{name}}[__k];
+        if (__v instanceof {{complexType}}) {
+          __out_{{name}}[__k] = __v;
+        } else if (__v != null && typeof __v === 'object') {
+          __out_{{name}}[__k] = new {{complexType}}(__v as Partial<{{complexType}}>);
+        }
+      }
+      this.{{name}} = __out_{{name}} as unknown as {{{dataType}}};
+    }
+{{/complexType}}
+{{/isPrimitiveType}}
+{{/items}}
+{{/isMap}}
 {{/isPrimitiveType}}
 {{/isEnum}}
 {{/vars}}

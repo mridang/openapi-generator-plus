@@ -28,6 +28,7 @@ import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAccessor
 import java.util.Base64
+import java.util.UUID
 
 /**
  * Serializer for [ByteArray] properties that uses Base64 encoding in JSON.
@@ -86,6 +87,7 @@ class ObjectSerializer(
             is Boolean -> if (value) "true" else "false"
             is LocalDate -> DateTimeFormatter.ISO_LOCAL_DATE.format(value)
             is TemporalAccessor -> DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssxxx").format(value)
+            is UUID -> value.toString()
             is Enum<*> -> {
                 try {
                     val method = value::class.java.getMethod("getValue")
@@ -196,6 +198,19 @@ class ObjectSerializer(
                 LocalDate.parse(decoder.decodeString(), DateTimeFormatter.ISO_LOCAL_DATE)
         }
 
+        /* 2.2: OpenAPI `format: uuid` is represented as java.util.UUID in
+         * generated models. kotlinx.serialization has no built-in serializer
+         * for java.util.UUID (its bundled UUIDSerializer targets the new
+         * kotlin.uuid.Uuid, Kotlin 2.0+), so register a contextual one that
+         * round-trips through the canonical RFC 4122 lowercase hex form. */
+        private object UUIDSerializer : KSerializer<UUID> {
+            override val descriptor = PrimitiveSerialDescriptor("UUID", PrimitiveKind.STRING)
+            override fun serialize(encoder: Encoder, value: UUID) =
+                encoder.encodeString(value.toString())
+            override fun deserialize(decoder: Decoder): UUID =
+                UUID.fromString(decoder.decodeString())
+        }
+
         /* Gap AZ: contextual serializer for raw `Any` so properties
          * generated from OAS 3.1 prefixItems (downgraded to
          * `items: {}` by NormalizePrefixItemsRule) compile and
@@ -260,6 +275,7 @@ class ObjectSerializer(
             serializersModule = SerializersModule {
                 contextual(OffsetDateTimeSerializer)
                 contextual(LocalDateSerializer)
+                contextual(UUIDSerializer)
                 contextual(Any::class, AnySerializer)
             }
         }

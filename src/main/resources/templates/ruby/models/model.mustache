@@ -107,17 +107,21 @@ module {{moduleName}}
         {{#discriminator}}
           discriminator_value = data[openapi_discriminator_name]
           # Raise on missing/unknown discriminator instead of silently
-          # returning nil. Aligns with Swift / Dart / Go / Rust / Python
-          # which throw on union no-match (5 of 12 SDKs already strict;
-          # we promote the other 7 here).
+          # falling through to the base type. Aligns with Swift / Dart /
+          # Go / Rust / Python which throw on union no-match (5 of 12
+          # SDKs already strict; we promote the other 7 here).
           if discriminator_value.nil?
-            raise ArgumentError, "Missing discriminator '#{openapi_discriminator_name}' for {{classname}}"
+            raise {{moduleName}}::SerializationError,
+                  "Missing discriminator '#{openapi_discriminator_name}' for {{classname}}"
           end
         {{#mappedModels}}
         {{#-first}}
 
           klass_name = openapi_discriminator_mapping[discriminator_value.to_s]
-          raise ArgumentError, "Unknown discriminator value for {{classname}}: '#{discriminator_value}'" unless klass_name
+          unless klass_name
+            raise {{moduleName}}::SerializationError,
+                  "Unknown discriminator value for {{classname}}: '#{discriminator_value}'"
+          end
 
           {{moduleName}}::ObjectSerializer.convert_to_type(data, klass_name.to_s)
         {{/-first}}
@@ -231,6 +235,28 @@ module {{moduleName}}
       OPENAPI_TYPES = {
         {{#vars}}
         {{{name}}}: '{{{dataType}}}'{{^-last}},{{/-last}}
+        {{/vars}}
+      }.freeze
+
+      # Per-attribute OpenAPI `format` for properties whose wire form
+      # differs from their Ruby surface (`byte` → base64-decoded binary
+      # String, `uuid` → RFC 4122 validated String). The `byte[]` /
+      # `uuid[]` variants apply the same transform to every item of an
+      # array-typed property. Consumed by {{moduleName}}::ObjectSerializer
+      # on the (de)serialize path.
+      OPENAPI_FORMATS = {
+        {{#vars}}
+        {{#isByteArray}}
+        {{{name}}}: 'byte',
+        {{/isByteArray}}
+        {{#isUuid}}
+        {{{name}}}: 'uuid',
+        {{/isUuid}}
+        {{^isByteArray}}{{^isUuid}}{{#items}}{{#isByteArray}}
+        {{{name}}}: 'byte[]',
+        {{/isByteArray}}{{#isUuid}}
+        {{{name}}}: 'uuid[]',
+        {{/isUuid}}{{/items}}{{/isUuid}}{{/isByteArray}}
         {{/vars}}
       }.freeze
 

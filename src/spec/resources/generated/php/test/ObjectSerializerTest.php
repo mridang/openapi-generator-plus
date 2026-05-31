@@ -364,3 +364,60 @@ test('deserialize throws on int overflow', function (): void {
     expect(fn () => ObjectSerializer::deserialize('9223372036854775808', 'int'))
         ->toThrow(\OverflowException::class);
 });
+
+// -- 2.1 format:byte helpers --
+
+test('decode bytes returns raw binary from base64', function (): void {
+    expect(ObjectSerializer::decodeBytes('aGVsbG8='))->toBe('hello');
+});
+
+test('decode bytes returns null for null input', function (): void {
+    expect(ObjectSerializer::decodeBytes(null))->toBeNull();
+});
+
+test('decode bytes returns null for empty string', function (): void {
+    expect(ObjectSerializer::decodeBytes(''))->toBeNull();
+});
+
+test('decode bytes returns null for invalid base64', function (): void {
+    expect(ObjectSerializer::decodeBytes('!!!not-base64!!!'))->toBeNull();
+});
+
+test('encode bytes returns base64 of raw bytes', function (): void {
+    expect(ObjectSerializer::encodeBytes('hello'))->toBe('aGVsbG8=');
+});
+
+test('encode bytes returns null for null input', function (): void {
+    expect(ObjectSerializer::encodeBytes(null))->toBeNull();
+});
+
+test('encode decode bytes roundtrip preserves binary', function (): void {
+    $raw = "\x00\x01\x02\xff\xfe\xfd";
+    $encoded = ObjectSerializer::encodeBytes($raw);
+    expect($encoded)->not->toBeNull();
+    /** @var string $encoded */
+    expect(ObjectSerializer::decodeBytes($encoded))->toBe($raw);
+});
+
+// -- 4.6 deep map-of-model deserialization --
+
+test('deep deserialize map of model values into typed instances', function (): void {
+    /* Without 4.6 qualification, recursive deserialize sees the
+     * unqualified 'Category' short name, class_exists() returns
+     * false, and the map values come back as raw arrays instead
+     * of typed Category instances. */
+    $json = '{"a":{"id":1,"name":"Dogs"},"b":{"id":2,"name":"Cats"}}';
+    /** @var array<string, mixed> $result */
+    $result = ObjectSerializer::deserialize($json, 'array<string,Category>');
+    expect($result)->toHaveKey('a');
+    expect($result['a'])->toBeInstanceOf(Category::class);
+    expect($result['a']->name)->toBe('Dogs');
+    expect($result['b'])->toBeInstanceOf(Category::class);
+    expect($result['b']->id)->toBe(2);
+});
+
+test('deep deserialize map of primitive values still works', function (): void {
+    /** @var array<string, int> $result */
+    $result = ObjectSerializer::deserialize('{"a":1,"b":2}', 'array<string,int>');
+    expect($result)->toBe(['a' => 1, 'b' => 2]);
+});

@@ -30,12 +30,25 @@ void main() {
       expect(food.value, isA<WetFood>());
     });
 
-    test('PetFood unknown discriminator throws', () {
+    test('PetFood unknown discriminator throws SerializationError', () {
+      // 4.7 — discriminator value not in the listed $ref mappings must
+      // surface as a SerializationError, not silently fall through nor
+      // bubble a generic ArgumentError.
       final json = <String, dynamic>{'foodType': 'raw', 'calories': 300};
 
       expect(
         () => PetFood.fromJson(json),
-        throwsA(isA<ArgumentError>()),
+        throwsA(isA<SerializationError>()),
+      );
+    });
+
+    test('PetFood missing discriminator throws SerializationError', () {
+      // No foodType key at all — disc is null, still not a listed value.
+      final json = <String, dynamic>{'calories': 300};
+
+      expect(
+        () => PetFood.fromJson(json),
+        throwsA(isA<SerializationError>()),
       );
     });
 

@@ -38,6 +38,55 @@ import Testing
         #expect(throws: (any Error).self) { try JSONDecoder().decode(PetFood.self, from: jsonData) }
     }
 
+    // MARK: - Gap 4.7 — Discriminator non-listed $ref throws DecodingError
+
+    /// An unknown discriminator value that is not in the listed mapping
+    /// must throw `DecodingError.dataCorrupted` — not fall through to a
+    /// catch-all anyOf-style match nor silently return nil. The message
+    /// must surface the offending discriminator value for diagnostics.
+    @Test func testPetFoodUnknownDiscriminatorThrowsDecodingError() {
+        let jsonData = Data("{\"foodType\":\"unknown\",\"weightKg\":1.0}".utf8)
+        do {
+            _ = try JSONDecoder().decode(PetFood.self, from: jsonData)
+            Issue.record("expected DecodingError for unknown discriminator")
+        } catch let DecodingError.dataCorrupted(ctx) {
+            #expect(
+                ctx.debugDescription.contains("unknown"),
+                "error must mention offending discriminator value: \(ctx.debugDescription)")
+        } catch {
+            Issue.record("expected DecodingError.dataCorrupted, got: \(error)")
+        }
+    }
+
+    @Test func testPetFoodMissingDiscriminatorThrows() {
+        // Payload missing the foodType key entirely must also fail loudly,
+        // since the wrapper cannot route to any listed subtype.
+        let jsonData = Data("{\"weightKg\":2.0}".utf8)
+        #expect(throws: (any Error).self) {
+            try JSONDecoder().decode(PetFood.self, from: jsonData)
+        }
+    }
+
+    /// The wrapper must NOT silently route a non-listed discriminator
+    /// to whichever subtype happens to structurally fit. Even when the
+    /// payload otherwise matches `DryFood` field-for-field, an
+    /// unrecognised `foodType` must abort decoding.
+    @Test func testPetFoodNonListedDiscriminatorWithMatchingShapeThrows() {
+        // Same shape as a valid DryFood payload, but the discriminator
+        // value is not in the listed mapping ("dry"/"wet").
+        let jsonData = Data("{\"foodType\":\"frozen\",\"weightKg\":3.0}".utf8)
+        do {
+            _ = try JSONDecoder().decode(PetFood.self, from: jsonData)
+            Issue.record("expected DecodingError for non-listed discriminator")
+        } catch let DecodingError.dataCorrupted(ctx) {
+            #expect(
+                ctx.debugDescription.contains("frozen"),
+                "error must surface offending value: \(ctx.debugDescription)")
+        } catch {
+            Issue.record("expected DecodingError.dataCorrupted, got: \(error)")
+        }
+    }
+
     @Test func testPetFoodSerializeDryFood() throws {
         let jsonData = Data("{\"foodType\":\"dry\",\"weightKg\":2.5}".utf8)
         let food = try JSONDecoder().decode(PetFood.self, from: jsonData)

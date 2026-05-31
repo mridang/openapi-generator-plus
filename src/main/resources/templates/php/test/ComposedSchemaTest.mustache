@@ -111,3 +111,23 @@ test('all of round trip', function (): void {
     expect($restored->name)->toBe($original->name);
     expect($restored->ownerName)->toBe($original->ownerName);
 });
+
+// -- 4.7 discriminator non-listed $ref --
+
+test('one of non-listed discriminator ref throws not falls through', function (): void {
+    /* 4.7: a discriminator value that doesn't appear in DISCRIMINATOR_MAPPING
+     * — including the case where the spec's oneOf lists a $ref without a
+     * corresponding mapping entry — must throw rather than wrap the raw
+     * array in an unmatchable container. */
+    $data = ['foodType' => 'frozen', 'weightKg' => 1.0];
+    expect(fn () => PetFood::build($data))
+        ->toThrow(\InvalidArgumentException::class, 'Unknown discriminator');
+});
+
+test('one of non-string discriminator ref throws', function (): void {
+    /* 4.7: a non-string discriminator value must throw deterministically
+     * rather than silently fall through to a wrap-the-raw-payload path. */
+    $data = ['foodType' => 42, 'weightKg' => 1.0];
+    expect(fn () => PetFood::build($data))
+        ->toThrow(\InvalidArgumentException::class);
+});

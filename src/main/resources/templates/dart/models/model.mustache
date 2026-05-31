@@ -3,6 +3,10 @@
 {{#model}}
 import 'dart:convert';
 
+import 'package:uuid/uuid.dart';
+
+import '../object_serializer.dart';
+
 {{#hasDartImports}}
 {{#dartImports}}
 import '{{filename}}.dart';
@@ -331,7 +335,16 @@ class {{classname}} {
 {{/isArray}}
 {{^isArray}}
 {{#isMap}}
-      {{name}}: json['{{baseName}}'] as {{{dataType}}},
+{{#items}}
+{{#isPrimitiveType}}
+      {{name}}: (json['{{baseName}}'] as Map<String, dynamic>).cast<String, {{{dataType}}}>(),
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+      {{name}}: (json['{{baseName}}'] as Map<String, dynamic>).map(
+        (k, v) => MapEntry(k, {{{dataType}}}.fromJson(v as Map<String, dynamic>)),
+      ),
+{{/isPrimitiveType}}
+{{/items}}
 {{/isMap}}
 {{^isMap}}
 {{#isByteArray}}
@@ -345,9 +358,12 @@ class {{classname}} {
 {{#isDate}}
       {{name}}: json['{{baseName}}'] as String,
 {{/isDate}}
-{{^isDateTime}}{{^isDate}}
+{{#isUuid}}
+      {{name}}: UuidValue.fromString(json['{{baseName}}'] as String),
+{{/isUuid}}
+{{^isDateTime}}{{^isDate}}{{^isUuid}}
       {{name}}: json['{{baseName}}'] as {{{dataType}}},
-{{/isDate}}{{/isDateTime}}
+{{/isUuid}}{{/isDate}}{{/isDateTime}}
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
       {{name}}: {{{dataType}}}.fromJson(json['{{baseName}}'] as Map<String, dynamic>),
@@ -377,7 +393,16 @@ class {{classname}} {
 {{/isArray}}
 {{^isArray}}
 {{#isMap}}
-      {{name}}: json['{{baseName}}'] as {{{dataType}}}?,
+{{#items}}
+{{#isPrimitiveType}}
+      {{name}}: (json['{{baseName}}'] as Map<String, dynamic>?)?.cast<String, {{{dataType}}}>(),
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+      {{name}}: (json['{{baseName}}'] as Map<String, dynamic>?)?.map(
+        (k, v) => MapEntry(k, {{{dataType}}}.fromJson(v as Map<String, dynamic>)),
+      ),
+{{/isPrimitiveType}}
+{{/items}}
 {{/isMap}}
 {{^isMap}}
 {{#isByteArray}}
@@ -391,14 +416,17 @@ class {{classname}} {
 {{#isDate}}
       {{name}}: json['{{baseName}}'] as String?,
 {{/isDate}}
-{{^isDateTime}}{{^isDate}}
+{{#isUuid}}
+      {{name}}: json['{{baseName}}'] != null ? UuidValue.fromString(json['{{baseName}}'] as String) : null,
+{{/isUuid}}
+{{^isDateTime}}{{^isDate}}{{^isUuid}}
 {{#defaultValue}}
       {{name}}: json['{{baseName}}'] != null ? json['{{baseName}}'] as {{{dataType}}} : {{{defaultValue}}},
 {{/defaultValue}}
 {{^defaultValue}}
       {{name}}: json['{{baseName}}'] as {{{dataType}}}?,
 {{/defaultValue}}
-{{/isDate}}{{/isDateTime}}
+{{/isUuid}}{{/isDate}}{{/isDateTime}}
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
 {{#defaultValue}}
@@ -456,9 +484,12 @@ class {{classname}} {
 {{#isDate}}
     json['{{baseName}}'] = {{name}};
 {{/isDate}}
-{{^isDateTime}}{{^isDate}}
+{{#isUuid}}
+    json['{{baseName}}'] = {{name}}.toString();
+{{/isUuid}}
+{{^isDateTime}}{{^isDate}}{{^isUuid}}
     json['{{baseName}}'] = {{name}};
-{{/isDate}}{{/isDateTime}}
+{{/isUuid}}{{/isDate}}{{/isDateTime}}
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
 {{#isMap}}
@@ -505,9 +536,12 @@ class {{classname}} {
 {{#isDate}}
       json['{{baseName}}'] = {{name}};
 {{/isDate}}
-{{^isDateTime}}{{^isDate}}
+{{#isUuid}}
+      json['{{baseName}}'] = {{name}}?.toString();
+{{/isUuid}}
+{{^isDateTime}}{{^isDate}}{{^isUuid}}
       json['{{baseName}}'] = {{name}};
-{{/isDate}}{{/isDateTime}}
+{{/isUuid}}{{/isDate}}{{/isDateTime}}
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
 {{#isMap}}
@@ -601,7 +635,12 @@ class {{classname}} {
         return {{classname}}._({{{modelName}}}.fromJson(json));
 {{/mappedModels}}
       default:
-        throw ArgumentError('Unknown discriminator value: $disc');
+        /* 4.7 — discriminator value not in the listed mappings.
+           Throw a SerializationError instead of falling through, so
+           callers can distinguish wire-shape failures from generic
+           argument errors. */
+        throw SerializationError(
+            'Unknown discriminator value for {{classname}}: $disc');
     }
 {{/discriminator}}
 {{^discriminator}}

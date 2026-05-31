@@ -7,6 +7,9 @@
 
 package com.example.petstore
 
+import kotlinx.serialization.Contextual
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
@@ -494,6 +497,61 @@ class ObjectSerializerTest {
         @DisplayName("converts false to \"false\"")
         fun convertsFalseToString() {
             assertEquals("false", serializer.toFormValue(false))
+        }
+    }
+
+    @Serializable
+    data class UuidHolder(
+        @SerialName("id") @Contextual val id: UUID,
+        @SerialName("optional") @Contextual val optional: UUID? = null,
+    )
+
+    @Nested
+    @DisplayName("UuidSerializationTests")
+    inner class UuidSerializationTests {
+        @Test
+        @DisplayName("UUID field serializes to canonical lowercase hex string")
+        fun uuidFieldSerializesToCanonicalString() {
+            val id = UUID.fromString("550e8400-e29b-41d4-a716-446655440000")
+            val holder = UuidHolder(id = id)
+            val json = serializer.serialize(holder)
+            assertTrue(
+                json.contains("\"id\":\"550e8400-e29b-41d4-a716-446655440000\""),
+                "should contain canonical UUID string, got: $json",
+            )
+        }
+
+        @Test
+        @DisplayName("UUID field deserializes from canonical string into java.util.UUID")
+        fun uuidFieldDeserializesFromString() {
+            val raw = "{\"id\":\"550e8400-e29b-41d4-a716-446655440000\"}"
+            val holder = serializer.deserialize<UuidHolder>(raw)
+            assertNotNull(holder)
+            assertEquals(UUID.fromString("550e8400-e29b-41d4-a716-446655440000"), holder!!.id)
+        }
+
+        @Test
+        @DisplayName("UUID round-trip preserves identity")
+        fun uuidRoundTripPreservesIdentity() {
+            val original =
+                UuidHolder(
+                    id = UUID.fromString("123e4567-e89b-12d3-a456-426614174000"),
+                    optional = UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                )
+            val encoded = serializer.serialize(original)
+            val decoded = serializer.deserialize<UuidHolder>(encoded)
+            assertNotNull(decoded)
+            assertEquals(original.id, decoded!!.id)
+            assertEquals(original.optional, decoded.optional)
+        }
+
+        @Test
+        @DisplayName("malformed UUID string raises SerializationException on decode")
+        fun malformedUuidThrows() {
+            val raw = "{\"id\":\"not-a-uuid\"}"
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<UuidHolder>(raw)
+            }
         }
     }
 }

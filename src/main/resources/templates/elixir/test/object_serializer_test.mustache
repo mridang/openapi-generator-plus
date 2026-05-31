@@ -280,6 +280,62 @@ defmodule {{moduleName}}.ObjectSerializerTest do
     end
   end
 
+  describe "format: byte (ByteArray)" do
+    test "decodes base64 wire value to raw bytes" do
+      bytes = {{moduleName}}.ObjectSerializer.convert_to_type("aGVsbG8=", "ByteArray")
+      assert bytes == "hello"
+    end
+
+    test "rejects malformed base64 with SerializationError" do
+      assert_raise {{moduleName}}.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.convert_to_type("not-base64!!!", "ByteArray")
+      end
+    end
+
+    test "rejects non-string payload with ArgumentError" do
+      assert_raise ArgumentError, fn ->
+        {{moduleName}}.ObjectSerializer.convert_to_type(123, "ByteArray")
+      end
+    end
+
+    test "round-trip via base64 encoding" do
+      original = <<1, 2, 3, 255, 0, 128>>
+      encoded = Base.encode64(original)
+      decoded = {{moduleName}}.ObjectSerializer.convert_to_type(encoded, "ByteArray")
+      assert decoded == original
+    end
+  end
+
+  describe "format: uuid (UUID)" do
+    test "accepts canonical lower-case UUID" do
+      uuid = "550e8400-e29b-41d4-a716-446655440000"
+      assert {{moduleName}}.ObjectSerializer.convert_to_type(uuid, "UUID") == uuid
+    end
+
+    test "accepts upper-case UUID" do
+      uuid = "550E8400-E29B-41D4-A716-446655440000"
+      assert {{moduleName}}.ObjectSerializer.convert_to_type(uuid, "UUID") == uuid
+    end
+
+    test "rejects malformed UUID" do
+      assert_raise {{moduleName}}.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.convert_to_type("not-a-uuid", "UUID")
+      end
+    end
+
+    test "rejects UUID with wrong segment lengths" do
+      assert_raise {{moduleName}}.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.convert_to_type("550e8400-e29b-41d4-a716-44665544", "UUID")
+      end
+    end
+
+    test "rejects non-string payload" do
+      assert_raise ArgumentError, fn ->
+        {{moduleName}}.ObjectSerializer.convert_to_type(42, "UUID")
+      end
+    end
+  end
+
   describe "deserialize/2" do
     test "deserializes JSON to typed model" do
       json_str = ~s({"id":1,"name":"Dogs"})

@@ -7,6 +7,10 @@
 
 import 'dart:convert';
 
+import 'package:uuid/uuid.dart';
+
+import '../object_serializer.dart';
+
 import 'dry_food.dart';
 import 'wet_food.dart';
 
@@ -40,7 +44,12 @@ class PetFood {
       case 'wet':
         return PetFood._(WetFood.fromJson(json));
       default:
-        throw ArgumentError('Unknown discriminator value: $disc');
+        /* 4.7 — discriminator value not in the listed mappings.
+           Throw a SerializationError instead of falling through, so
+           callers can distinguish wire-shape failures from generic
+           argument errors. */
+        throw SerializationError(
+            'Unknown discriminator value for PetFood: $disc');
     }
   }
 }

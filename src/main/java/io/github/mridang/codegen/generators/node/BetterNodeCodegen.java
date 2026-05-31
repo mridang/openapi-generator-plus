@@ -77,8 +77,17 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         typeMapping.put("binary", "Buffer");
         typeMapping.put("File", "Buffer");
         typeMapping.put("file", "Buffer");
-        typeMapping.put("ByteArray", "string");
-        typeMapping.put("UUID", "string");
+        // 2.1: `format: byte` (ByteArray) is base64-encoded binary on the
+        // wire. Exposing it as `string` shifts the encode/decode burden to
+        // the caller and discards type information. Map to `Buffer`; the
+        // ObjectSerializer round-trips Buffer <-> base64 string at the
+        // serde boundary so the model field stays typed as binary.
+        typeMapping.put("ByteArray", "Buffer");
+        // 2.2: `format: uuid` is a constrained string. Using a branded
+        // alias gives compile-time differentiation from a free-form
+        // string without runtime overhead; the model constructor
+        // validates the canonical 8-4-4-4-12 hex shape.
+        typeMapping.put("UUID", "UUID");
         typeMapping.put("URI", "string");
         typeMapping.put("object", "object");
         typeMapping.put("AnyType", "unknown");
@@ -91,7 +100,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 new HashSet<>(
                         Arrays.asList(
                                 "number", "boolean", "string", "object", "any", "unknown",
-                                "void", "undefined", "null", "Array", "Set", "Buffer"));
+                                "void", "undefined", "null", "Array", "Set", "Buffer", "UUID"));
 
         reservedWords = loadReservedWords("/reserved-words/node.txt");
 
@@ -247,6 +256,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("errors/conflict-error.mustache", "src/errors", "conflict-error.ts"),
             new SupportingFileSpec("errors/unprocessable-entity-error.mustache", "src/errors", "unprocessable-entity-error.ts"),
             new SupportingFileSpec("errors/internal-server-error.mustache", "src/errors", "internal-server-error.ts"),
+            new SupportingFileSpec("brand.mustache", "src", "brand.ts"),
             new SupportingFileSpec("object_serializer.mustache", "src", "object-serializer.ts"),
             new SupportingFileSpec("value_serializer.mustache", "src", "value-serializer.ts"),
             new SupportingFileSpec("header_selector.mustache", "src", "header-selector.ts"),

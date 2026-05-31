@@ -49,6 +49,38 @@ fn test_pet_food_deserialize_unknown_discriminator() {
 }
 
 #[test]
+fn test_pet_food_unknown_discriminator_error_mentions_value() {
+    /* Gap 4.7 — a discriminator value not listed in the spec mapping
+     * must surface as a real deserialization error, not a silent fall
+     * through to an untagged-style first-match. The error message
+     * should mention the offending value so callers can diagnose
+     * server/spec drift quickly. */
+    let json_data = r#"{"foodType":"raw","calories":300}"#;
+    let result = serde_json::from_str::<PetFood>(json_data);
+    let err = result.expect_err("expected error for unknown discriminator value");
+    let msg = err.to_string();
+    assert!(
+        msg.contains("raw"),
+        "error should mention unknown discriminator value `raw`, got: {msg}"
+    );
+}
+
+#[test]
+fn test_pet_food_missing_discriminator_field_errors() {
+    /* When the discriminator property is absent entirely, dispatch
+     * cannot proceed — the hand-rolled Deserialize impl must report
+     * the missing field rather than trying variants speculatively. */
+    let json_data = r#"{"weightKg":2.5}"#;
+    let result = serde_json::from_str::<PetFood>(json_data);
+    let err = result.expect_err("expected error for missing discriminator field");
+    let msg = err.to_string();
+    assert!(
+        msg.contains("foodType") || msg.contains("discriminator"),
+        "error should mention missing discriminator field, got: {msg}"
+    );
+}
+
+#[test]
 fn test_pet_food_serialize_dry_food() {
     let json_data = r#"{"foodType":"dry","weightKg":2.5}"#;
     let food: PetFood = serde_json::from_str(json_data).expect("failed to set up test");

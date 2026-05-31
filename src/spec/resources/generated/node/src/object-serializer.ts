@@ -23,6 +23,21 @@ export class SerializationError extends Error {
 }
 
 /**
+ * Exception raised specifically during deserialization. Used for wire-shape
+ * failures the caller may want to catch distinctly from general serde
+ * errors — currently raised when a polymorphic envelope's discriminator
+ * value resolves to a class that is not declared in the `oneOf`/`anyOf`
+ * mapping (4.7). Extending {@link SerializationError} preserves existing
+ * catch-blocks that match on the base type.
+ */
+export class DeserializationError extends SerializationError {
+  constructor(message: string, cause?: Error) {
+    super(message, cause);
+    this.name = 'DeserializationError';
+  }
+}
+
+/**
  * Maximum allowed JSON nesting depth. Node's JSON.parse has no built-in
  * cap and recurses through V8's call stack, so a malicious 100k-deep
  * `{"a":{"a":...}}` payload would stack-overflow / DoS. Matches the
@@ -119,6 +134,14 @@ export class ObjectSerializer {
       return JSON.stringify(obj, function (_key, value) {
         if (value instanceof Set) return [...value];
         if (this[_key] instanceof Date) return ObjectSerializer.formatDateTimeOffset(this[_key]);
+        /**
+         * 2.1 — `format: byte` is base64 on the wire. The model holds a
+         * Buffer; encode it here so callers never see the encoding step.
+         * Check the raw `this[_key]` (not the replacer's `value`) because
+         * Buffer is an object and JSON.stringify will have already invoked
+         * its toJSON which yields `{ type: 'Buffer', data: [...] }`.
+         */
+        if (Buffer.isBuffer(this[_key])) return (this[_key] as Buffer).toString('base64');
         if (value === null && _key !== '') return undefined;
         return value;
       });
@@ -159,8 +182,27 @@ export class ObjectSerializer {
               const instance = plainToInstance(targetCls, json, { excludeExtraneousValues: true });
               return new (cls as unknown as new (i: unknown) => T)(instance);
             }
+            /**
+             * 4.7 — The mapping names a class that doesn't exist in the
+             * models index. Previously we returned null and silently fell
+             * through; that hides spec/codegen drift. Surface it so callers
+             * see a real error instead of an inexplicable null.
+             */
+            throw new DeserializationError(
+              `Discriminator '${discProp}=${discValue}' maps to '${targetName}', ` + `which is not a generated model.`
+            );
           }
-          return null;
+          /**
+           * 4.7 — Discriminator value present but not listed in the
+           * `oneOf`/`anyOf` mapping. The previous fallthrough returned the
+           * base envelope unpopulated, which looked like a successful
+           * parse of an empty object. Throw so callers know the payload
+           * doesn't match any declared variant.
+           */
+          throw new DeserializationError(
+            `Discriminator value '${discValue}' on '${discProp}' is not listed in ` +
+              `the schema mapping (allowed: ${Object.keys(discMapping).join(', ') || '<empty>'}).`
+          );
         }
         for (const schemaName of schemas) {
           const schemaCls = (models as Record<string, unknown>)[schemaName] as ClassConstructor<unknown> | undefined;
@@ -213,6 +255,36 @@ export class ObjectSerializer {
       throw new SerializationError('Expected array but received: ' + typeof json);
     }
     return json.map((item: unknown) => ObjectSerializer.deserialize(item, cls)).filter((x): x is T => x !== null);
+  }
+
+  /**
+   * 4.6 — Deserialize a map (object) whose values are themselves typed
+   * models. Previously a `Record<string, Foo>` return type was forwarded as
+   * a raw JSON object, leaving callers with plain dicts where the spec
+   * promised `Foo` instances. Walks the entries, runs each value through
+   * {@link deserialize}, and rebuilds the record with typed values.
+   *
+   * @param json the parsed JSON object
+   * @param cls the class constructor to instantiate for each value
+   * @returns a record of deserialized objects keyed by the original keys
+   */
+  static deserializeMap<T>(json: unknown, cls: ClassConstructor<T>): Record<string, T> {
+    if (json === null || json === undefined) {
+      return {};
+    }
+    if (typeof json !== 'object' || Array.isArray(json)) {
+      throw new SerializationError(
+        'Expected map/object but received: ' + (Array.isArray(json) ? 'array' : typeof json)
+      );
+    }
+    const out: Record<string, T> = {};
+    for (const [k, v] of Object.entries(json as Record<string, unknown>)) {
+      const deserialized = ObjectSerializer.deserialize(v, cls);
+      if (deserialized !== null) {
+        out[k] = deserialized;
+      }
+    }
+    return out;
   }
 
   /**

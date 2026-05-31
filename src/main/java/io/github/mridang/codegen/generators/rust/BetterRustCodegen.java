@@ -95,7 +95,12 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         typeMapping.put("file", "Vec<u8>");
         typeMapping.put("binary", "Vec<u8>");
         typeMapping.put("ByteArray", "Vec<u8>");
-        typeMapping.put("UUID", "String");
+        // `format: uuid` maps to the `uuid` crate's strongly-typed `Uuid`
+        // type rather than a raw `String`. The `serde` feature on the
+        // `uuid` crate (declared in cargo_toml.mustache) provides
+        // transparent (de)serialization to/from the RFC-4122 string form,
+        // so derived `Serialize`/`Deserialize` impls "just work".
+        typeMapping.put("UUID", "uuid::Uuid");
         typeMapping.put("URI", "String");
 
         languageSpecificPrimitives =
@@ -115,7 +120,8 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                                 "f64",
                                 "char",
                                 "Vec",
-                                "HashMap"));
+                                "HashMap",
+                                "uuid::Uuid"));
 
         reservedWords = loadReservedWords("/reserved-words/rust.txt");
 

@@ -422,6 +422,78 @@ fn test_deserialization_error_has_cause() {
     assert!(err.cause.is_some(), "error should have a cause");
 }
 
+// UuidSerializationTests
+// Gap 2.2 — `format: uuid` maps to `uuid::Uuid` rather than raw `String`.
+// The `uuid` crate's `serde` feature provides transparent (de)serialization
+// to/from the RFC-4122 string form, so derived `Serialize`/`Deserialize`
+// impls on generated models containing a Uuid field "just work".
+
+#[test]
+fn test_uuid_serializes_as_rfc4122_string() {
+    let id: uuid::Uuid = "550e8400-e29b-41d4-a716-446655440000"
+        .parse()
+        .expect("valid UUID literal");
+    let serialized = object_serializer::serialize(&id).expect("serialize must succeed");
+    /* serde_json wraps strings in double quotes, so the on-wire form is
+     * the canonical hyphenated RFC-4122 representation. */
+    assert_eq!(serialized, "\"550e8400-e29b-41d4-a716-446655440000\"");
+}
+
+#[test]
+fn test_uuid_deserializes_from_rfc4122_string() {
+    let payload = br#""550e8400-e29b-41d4-a716-446655440000""#;
+    let result: Option<uuid::Uuid> = object_serializer::deserialize(payload)
+        .expect("deserialize must succeed");
+    let id = result.expect("expected Some(Uuid)");
+    assert_eq!(id.to_string(), "550e8400-e29b-41d4-a716-446655440000");
+}
+
+#[test]
+fn test_uuid_round_trip_preserves_value() {
+    let original: uuid::Uuid = "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+        .parse()
+        .expect("valid UUID literal");
+    let serialized = object_serializer::serialize(&original).expect("serialize must succeed");
+    let restored: Option<uuid::Uuid> = object_serializer::deserialize(serialized.as_bytes())
+        .expect("deserialize must succeed");
+    assert_eq!(restored.expect("Some"), original);
+}
+
+#[test]
+fn test_uuid_invalid_string_returns_error() {
+    /* The `uuid` crate validates the input via serde, so a non-UUID
+     * string must surface as a SerializationError rather than silently
+     * producing a placeholder value. */
+    let payload = br#""not-a-uuid""#;
+    let result: Result<Option<uuid::Uuid>, SerializationError> =
+        object_serializer::deserialize(payload);
+    assert!(result.is_err(), "expected error for invalid UUID string");
+}
+
+#[test]
+fn test_uuid_inside_json_object_round_trip() {
+    /* Verifies a Uuid embedded as a field in a JSON object survives a
+     * round-trip — this is the shape generated model structs take when
+     * the schema declares `type: string, format: uuid`. */
+    #[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug)]
+    struct Holder {
+        id: uuid::Uuid,
+    }
+    let original = Holder {
+        id: "550e8400-e29b-41d4-a716-446655440000"
+            .parse()
+            .expect("valid UUID literal"),
+    };
+    let serialized = object_serializer::serialize(&original).expect("serialize must succeed");
+    assert!(
+        serialized.contains("\"id\":\"550e8400-e29b-41d4-a716-446655440000\""),
+        "expected canonical UUID string in payload, got: {serialized}"
+    );
+    let restored: Option<Holder> = object_serializer::deserialize(serialized.as_bytes())
+        .expect("deserialize must succeed");
+    assert_eq!(restored.expect("Some"), original);
+}
+
 #[test]
 fn test_serialize_includes_fields_set_to_default_values() {
     let category = Category {

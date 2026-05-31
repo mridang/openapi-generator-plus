@@ -580,21 +580,21 @@ export class PetApi extends BaseApi {
    * Get the pet's avatar thumbnail as base64
    * Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
    * @param petId  (required)
-   * @return string
+   * @return Buffer
    * @throws {ApiError} if fails to make API call
    */
-  async getPetAvatarThumbnail(petId: number): Promise<string> {
+  async getPetAvatarThumbnail(petId: number): Promise<Buffer> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling getPetAvatarThumbnail');
     }
-    return (await this.getPetAvatarThumbnailWithHttpInfo(petId)).data as string;
+    return (await this.getPetAvatarThumbnailWithHttpInfo(petId)).data as Buffer;
   }
 
   /**
    * Get the pet's avatar thumbnail as base64 (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async getPetAvatarThumbnailWithHttpInfo(petId: number): Promise<ApiResult<string>> {
+  async getPetAvatarThumbnailWithHttpInfo(petId: number): Promise<ApiResult<Buffer>> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling getPetAvatarThumbnail');
     }
@@ -615,7 +615,7 @@ export class PetApi extends BaseApi {
       null,
       ['application/json'],
       'application/json',
-      (json: unknown) => json as string,
+      (json: unknown) => json as Buffer,
       null
     );
   }

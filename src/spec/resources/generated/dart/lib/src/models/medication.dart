@@ -7,6 +7,10 @@
 
 import 'dart:convert';
 
+import 'package:uuid/uuid.dart';
+
+import '../object_serializer.dart';
+
 /// Medication is a model class generated from the OpenAPI schema.
 class Medication {
   /// Example: `null`

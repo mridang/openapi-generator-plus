@@ -330,4 +330,78 @@ import Testing
         let food = try JSONDecoder().decode(PetFood.self, from: Data(payload.utf8))
         #expect(food.value() is DryFood)
     }
+
+    // MARK: - Gap 4.6 — Map-of-Model deep deserialise
+
+    /// `[String: Category]` must deep-decode each entry into a `Category`
+    /// struct, not leave the values as raw JSON. Foundation's Codable
+    /// handles this natively when the value type conforms to Codable.
+    @Test func testDeserializeMapOfModelDeepDecodes() throws {
+        let json = "{\"first\":{\"id\":1,\"name\":\"Dogs\"},\"second\":{\"id\":2,\"name\":\"Cats\"}}"
+        let result = try ObjectSerializer.deserialize(json, as: [String: Category].self)
+        #expect(result != nil)
+        #expect(result?.count == 2)
+        #expect(result?["first"]?.id == 1)
+        #expect(result?["first"]?.name == "Dogs")
+        #expect(result?["second"]?.id == 2)
+        #expect(result?["second"]?.name == "Cats")
+    }
+
+    @Test func testSerializeMapOfModelDeepEncodes() throws {
+        let map: [String: Category] = [
+            "a": Category(id: 7, name: "Birds")
+        ]
+        let json = try ObjectSerializer.serialize(map)
+        #expect(json.contains("\"id\":7"))
+        #expect(json.contains("\"name\":\"Birds\""))
+    }
+
+    @Test func testMapOfModelRoundTrip() throws {
+        let original: [String: Category] = [
+            "k1": Category(id: 1, name: "A"),
+            "k2": Category(id: 2, name: "B")
+        ]
+        let json = try ObjectSerializer.serialize(original)
+        let decoded = try ObjectSerializer.deserialize(json, as: [String: Category].self)
+        #expect(decoded?["k1"]?.id == 1)
+        #expect(decoded?["k2"]?.name == "B")
+    }
+
+    // MARK: - Gap 2.2 — format: uuid maps to Foundation.UUID
+
+    /// Foundation's `UUID` conforms to `Codable` and serialises as an
+    /// uppercased canonical string (e.g. "E621E1F8-C36C-495A-93FC-0C247A3E6E5F").
+    /// This guards the contract that `format: uuid` fields use `UUID`
+    /// directly rather than a raw `String`, so callers get type-safe
+    /// parsing failures on malformed values instead of silent acceptance.
+    @Test func testUUIDRoundTripViaCodable() throws {
+        struct Holder: Codable, Equatable {
+            let id: UUID
+        }
+        let original = Holder(id: UUID(uuidString: "E621E1F8-C36C-495A-93FC-0C247A3E6E5F")!)
+        let json = try ObjectSerializer.serialize(original)
+        #expect(json.contains("E621E1F8-C36C-495A-93FC-0C247A3E6E5F"),
+            "UUID should encode as canonical uppercased string: \(json)")
+        let decoded = try ObjectSerializer.deserialize(json, as: Holder.self)
+        #expect(decoded == original)
+    }
+
+    @Test func testUUIDInvalidStringFailsToDecode() {
+        struct Holder: Codable { let id: UUID }
+        // A malformed UUID string must fail to decode rather than be
+        // accepted as a raw String fallback.
+        let json = "{\"id\":\"not-a-uuid\"}"
+        #expect(throws: (any Error).self) {
+            try ObjectSerializer.deserialize(json, as: Holder.self)
+        }
+    }
+
+    @Test func testUUIDOptionalDecodesNil() throws {
+        struct Holder: Codable {
+            let id: UUID?
+        }
+        let json = "{}"
+        let decoded = try ObjectSerializer.deserialize(json, as: Holder.self)
+        #expect(decoded?.id == nil)
+    }
 }

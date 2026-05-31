@@ -44,7 +44,7 @@ defmodule PetstoreClient.Models.SetPetAvatarRequest do
   @spec openapi_types() :: %{atom() => String.t()}
   def openapi_types do
     %{
-      data: "binary()",
+      data: "ByteArray",
       mime_type: "String.t()"
     }
   end

@@ -7,6 +7,10 @@
 
 import 'dart:convert';
 
+import 'package:uuid/uuid.dart';
+
+import '../object_serializer.dart';
+
 /// Category is a model class generated from the OpenAPI schema.
 class Category {
   /// Example: `1`
