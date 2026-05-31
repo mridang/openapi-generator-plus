@@ -3,6 +3,7 @@ module PetstoreClient::Models
     ATTRIBUTE_MAP: Hash[Symbol, String]
     JSON_KEY_MAP: Hash[String, Symbol]
     OPENAPI_TYPES: Hash[Symbol, String]
+    OPENAPI_FORMATS: Hash[Symbol, String]
     UNEVALUATED_PROPERTIES_FALSE: bool
     attr_reader id: Integer?
     attr_reader name: String?

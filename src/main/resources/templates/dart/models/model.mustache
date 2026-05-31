@@ -332,7 +332,7 @@ class {{classname}} {
 {{/isEnum}}
 {{^isEnum}}
 {{#isArray}}
-      {{name}}: (json['{{baseName}}'] as List).map((e) => {{#items}}{{#isByteArray}}base64Decode(e as String) as Uint8List{{/isByteArray}}{{^isByteArray}}{{#isPrimitiveType}}e as {{{dataType}}}{{/isPrimitiveType}}{{^isPrimitiveType}}{{{dataType}}}.fromJson(e as Map<String, dynamic>){{/isPrimitiveType}}{{/isByteArray}}{{/items}}).{{#uniqueItems}}toSet(){{/uniqueItems}}{{^uniqueItems}}toList(){{/uniqueItems}},
+      {{name}}: (json['{{baseName}}'] as List).map((e) => {{#items}}{{#isByteArray}}base64Decode(e as String){{/isByteArray}}{{^isByteArray}}{{#isPrimitiveType}}e as {{{dataType}}}{{/isPrimitiveType}}{{^isPrimitiveType}}{{{dataType}}}.fromJson(e as Map<String, dynamic>){{/isPrimitiveType}}{{/isByteArray}}{{/items}}).{{#uniqueItems}}toSet(){{/uniqueItems}}{{^uniqueItems}}toList(){{/uniqueItems}},
 {{/isArray}}
 {{^isArray}}
 {{#isMap}}
@@ -393,7 +393,7 @@ class {{classname}} {
 {{/isEnum}}
 {{^isEnum}}
 {{#isArray}}
-      {{name}}: (json['{{baseName}}'] as List?)?.map((e) => {{#items}}{{#isByteArray}}base64Decode(e as String) as Uint8List{{/isByteArray}}{{^isByteArray}}{{#isPrimitiveType}}e as {{{dataType}}}{{/isPrimitiveType}}{{^isPrimitiveType}}{{{dataType}}}.fromJson(e as Map<String, dynamic>){{/isPrimitiveType}}{{/isByteArray}}{{/items}}).{{#uniqueItems}}toSet(){{/uniqueItems}}{{^uniqueItems}}toList(){{/uniqueItems}},
+      {{name}}: (json['{{baseName}}'] as List?)?.map((e) => {{#items}}{{#isByteArray}}base64Decode(e as String){{/isByteArray}}{{^isByteArray}}{{#isPrimitiveType}}e as {{{dataType}}}{{/isPrimitiveType}}{{^isPrimitiveType}}{{{dataType}}}.fromJson(e as Map<String, dynamic>){{/isPrimitiveType}}{{/isByteArray}}{{/items}}).{{#uniqueItems}}toSet(){{/uniqueItems}}{{^uniqueItems}}toList(){{/uniqueItems}},
 {{/isArray}}
 {{^isArray}}
 {{#isMap}}

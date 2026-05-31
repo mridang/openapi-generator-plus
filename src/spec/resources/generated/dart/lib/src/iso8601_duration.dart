@@ -78,8 +78,6 @@ Duration parseIso8601Duration(String input) {
   if (match == null) {
     throw Iso8601DurationFormatException('not an ISO-8601 duration', input);
   }
-  // Reject "P" and "PT" — grammar matches them, but they carry no
-  // components and are not valid representable durations.
   final hasAnyComponent =
       List<int>.generate(7, (i) => i + 2).any((g) => match.group(g) != null);
   if (!hasAnyComponent) {
@@ -107,7 +105,6 @@ Duration parseIso8601Duration(String input) {
     } else {
       wholeSeconds = int.parse(secondsStr.substring(0, dot));
       final fracStr = secondsStr.substring(dot + 1);
-      // Normalise to exactly 6 digits, truncating sub-microsecond precision.
       final normalised = fracStr.length >= 6
           ? fracStr.substring(0, 6)
           : fracStr.padRight(6, '0');
@@ -115,8 +112,6 @@ Duration parseIso8601Duration(String input) {
     }
   }
 
-  // Years/months approximated; calendar-aware conversion would
-  // require an anchor date we don't have.
   final totalDays = years * 365 + months * 30 + weeks * 7 + days;
   var duration = Duration(
     days: totalDays,
@@ -185,8 +180,6 @@ String formatIso8601Duration(Duration duration) {
       buf.write('S');
     }
   } else if (days == 0) {
-    // Should not be reachable (zero short-circuited above) but keep
-    // a safety net so we never emit a bare `P`.
     buf.write('T0S');
   }
   return buf.toString();

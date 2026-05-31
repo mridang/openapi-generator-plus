@@ -3,6 +3,7 @@ module PetstoreClient::Models
     ATTRIBUTE_MAP: Hash[Symbol, String]
     JSON_KEY_MAP: Hash[String, Symbol]
     OPENAPI_TYPES: Hash[Symbol, String]
+    OPENAPI_FORMATS: Hash[Symbol, String]
     attr_reader procedure_name: String
     attr_reader duration_minutes: Integer?
   end

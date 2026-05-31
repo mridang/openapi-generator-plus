@@ -248,8 +248,6 @@ class DefaultApiClient implements ApiClient {
           'authorization',
           'cookie',
           'proxy-authorization',
-          '',
-          '',
         };
         var hops = 0;
         var currentMethod = method;

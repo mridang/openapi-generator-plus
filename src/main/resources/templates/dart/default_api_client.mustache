@@ -236,7 +236,9 @@ class DefaultApiClient implements ApiClient {
           'cookie',
           'proxy-authorization',
 {{#apiKeyHeaderNames}}
+{{#nameLower}}
           '{{nameLower}}',
+{{/nameLower}}
 {{/apiKeyHeaderNames}}
         };
         var hops = 0;

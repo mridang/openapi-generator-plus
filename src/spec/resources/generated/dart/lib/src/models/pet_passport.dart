@@ -52,7 +52,7 @@ class PetPassport {
           ? base64Decode(json['thumbnail'] as String)
           : null,
       scans: (json['scans'] as List?)
-          ?.map((e) => base64Decode(e as String) as Uint8List)
+          ?.map((e) => base64Decode(e as String))
           .toList(),
       issuedAt: json['issuedAt'] != null
           ? DateTime.parse(json['issuedAt'] as String)
