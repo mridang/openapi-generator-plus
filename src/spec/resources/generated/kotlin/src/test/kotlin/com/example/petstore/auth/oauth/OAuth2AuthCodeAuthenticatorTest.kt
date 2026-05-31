@@ -33,6 +33,7 @@ class OAuth2AuthCodeAuthenticatorTest {
             url: String,
             headers: Map<String, String>,
             body: Any?,
+            noRedirect: Boolean,
         ): ApiResponse {
             lastUrl = url
             lastBody = body?.toString()

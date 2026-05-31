@@ -210,10 +210,48 @@ public final class DefaultApiClient implements ApiClient {
     this.proxyAuthHeader = null;
   }
 
+  /**
+   * Bucket 3.1 — sensitive header names that must be stripped on a cross-origin redirect. The
+   * static triple {Authorization, Cookie, Proxy-Authorization} is always present; any additional
+   * API-key header names harvested from the spec's {@code securitySchemes} (type=apiKey, in=header)
+   * are appended at codegen time so a credential header declared in the spec is never forwarded to
+   * an off-origin Location target. All entries are lowercased for case-insensitive comparison
+   * against runtime header keys.
+   */
+  static final Set<String> SENSITIVE_HEADER_NAMES;
+
+  static {
+    java.util.HashSet<String> s = new java.util.HashSet<>();
+    s.add("authorization");
+    s.add("cookie");
+    s.add("proxy-authorization");
+    s.add("x-api-key");
+    s.add("x-internal-key");
+    SENSITIVE_HEADER_NAMES = java.util.Collections.unmodifiableSet(s);
+  }
+
+  @Override
+  public ApiResponse sendRequest(
+      String method, String url, Map<String, String> headers, @Nullable Object body)
+      throws ApiException {
+    return sendRequest(method, url, headers, body, false);
+  }
+
+  /**
+   * Bucket 3.2 — extended {@code sendRequest} that lets the caller refuse to follow 3xx redirects
+   * for this single request. OAuth2 token POSTs pass {@code noRedirect=true} so a 307/308 from the
+   * IdP cannot replay the credentialed body to an attacker-controlled URL. When {@code noRedirect}
+   * is true the redirect loop below is skipped entirely and the first 3xx is surfaced to the caller
+   * as-is.
+   */
   @Override
   @SuppressWarnings("unchecked")
   public ApiResponse sendRequest(
-      String method, String url, Map<String, String> headers, @Nullable Object body)
+      String method,
+      String url,
+      Map<String, String> headers,
+      @Nullable Object body,
+      boolean noRedirect)
       throws ApiException {
 
     if (this.closed) {
@@ -281,11 +319,11 @@ public final class DefaultApiClient implements ApiClient {
        * underlying HttpClient has automatic redirects disabled in this
        * case, so we follow Location headers ourselves up to the limit.
        */
-      if (transportOptions.isFollowRedirects()) {
+      if (transportOptions.isFollowRedirects() && !noRedirect) {
         int redirectsRemaining =
             transportOptions.getMaxRedirects() != null ? transportOptions.getMaxRedirects() : 20;
         URI originalUri = URI.create(url);
-        Set<String> sensitiveHeaders = Set.of("authorization", "cookie", "proxy-authorization");
+        Set<String> sensitiveHeaders = SENSITIVE_HEADER_NAMES;
         String currentMethod = method;
         HttpRequest.BodyPublisher currentBody = bodyPublisher;
         Map<String, String> currentHeaders = new HashMap<>(mergedHeaders);
@@ -308,6 +346,24 @@ public final class DefaultApiClient implements ApiClient {
                 "Refusing to follow redirect to non-HTTP(S) URL: " + redirectUri);
           }
           boolean sameOrigin = sameOrigin(originalUri, redirectUri);
+
+          /* Bucket 3.3 — refuse to replay a request body when the redirect
+           * downgrades the scheme from HTTPS to HTTP. Round-4 already
+           * strips Authorization on the downgrade; this additionally
+           * prevents leaking a credentialed body (form fields, JSON
+           * tokens, multipart parts) into cleartext. We only refuse
+           * when the next-hop method would actually carry the original
+           * body — that means 307/308 redirects of a body-bearing
+           * request. 303 always coerces to GET and 301/302 historically
+           * drop the body for non-GET/HEAD, so those cases are safe. */
+          if (shouldRefuseHttpsToHttpBodyReplay(
+              originalUri,
+              redirectUri,
+              response.statusCode(),
+              currentBody != HttpRequest.BodyPublishers.noBody())) {
+            throw new ApiException(
+                "Refusing to replay request body across HTTPS->HTTP redirect: " + redirectUri);
+          }
 
           /* Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
            *   307 + 308: preserve original method and body.
@@ -446,6 +502,25 @@ public final class DefaultApiClient implements ApiClient {
         && redirectUri.getScheme().equalsIgnoreCase(originalUri.getScheme())
         && redirectUri.getHost().equalsIgnoreCase(originalUri.getHost())
         && effectivePort(redirectUri) == effectivePort(originalUri);
+  }
+
+  /**
+   * Bucket 3.3 — decide whether to refuse a redirect that would replay a request body across an
+   * HTTPS->HTTP scheme downgrade. Only 307/308 actually carry the body forward (303 forces GET,
+   * 301/302 historically drop the body for non-GET/HEAD), so this predicate is intentionally
+   * narrow: it fires exactly when the original was HTTPS, the target is HTTP, the response is 307
+   * or 308, and there is a non-empty body to leak.
+   */
+  static boolean shouldRefuseHttpsToHttpBodyReplay(
+      URI originalUri, URI redirectUri, int statusCode, boolean hasBody) {
+    if (!hasBody) {
+      return false;
+    }
+    if (statusCode != 307 && statusCode != 308) {
+      return false;
+    }
+    return "https".equalsIgnoreCase(originalUri.getScheme())
+        && "http".equalsIgnoreCase(redirectUri.getScheme());
   }
 
   private static final Pattern CHARSET_PATTERN =

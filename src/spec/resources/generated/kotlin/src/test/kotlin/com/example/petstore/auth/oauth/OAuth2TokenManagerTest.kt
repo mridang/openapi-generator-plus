@@ -27,6 +27,8 @@ class OAuth2TokenManagerTest {
             private set
         var lastUrl: String? = null
             private set
+        var lastNoRedirect: Boolean? = null
+            private set
 
         fun enqueue(
             body: String,
@@ -40,11 +42,34 @@ class OAuth2TokenManagerTest {
             url: String,
             headers: Map<String, String>,
             body: Any?,
+            noRedirect: Boolean,
         ): ApiResponse {
             lastUrl = url
             lastBody = body?.toString()
+            lastNoRedirect = noRedirect
             return responses.poll() ?: throw IllegalStateException("No responses queued")
         }
+    }
+
+    @Test
+    fun fetchTokenPassesNoRedirectTrue() {
+        // Gap 3.2: token endpoint POSTs must refuse 307/308 redirects so
+        // credentials in the form body can't be silently replayed.
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok","expires_in":3600}""")
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+        runBlocking {
+            manager.getAccessToken(
+                "https://auth.example.com/token",
+                mapOf("grant_type" to "client_credentials"),
+            )
+        }
+        assertEquals(
+            true,
+            client.lastNoRedirect,
+            "OAuth2TokenManager.fetchToken must invoke sendRequest with noRedirect=true",
+        )
     }
 
     @Test
@@ -184,6 +209,7 @@ class OAuth2TokenManagerTest {
                     url: String,
                     headers: Map<String, String>,
                     body: Any?,
+                    noRedirect: Boolean,
                 ): ApiResponse {
                     networkCalls.incrementAndGet()
                     // Tiny suspension to widen the race window for other coroutines.

@@ -4,6 +4,15 @@ defmodule {{moduleName}}.ApiClient do
   @moduledoc """
   Behaviour for HTTP clients. Implementations must define `send_request/5`
   to perform the actual HTTP call.
+
+  Implementations may optionally accept a 6th `opts` keyword list via
+  `send_request/6` to carry per-request transport hints. Currently recognised
+  keys:
+
+    * `:no_redirect` -- when `true`, refuse to follow any 3xx response and
+      surface the raw redirect to the caller. The Auth.OAuth.OAuth2TokenManager
+      uses this on token endpoint POSTs so a malicious 307/308 cannot be
+      coerced into replaying client credentials at an attacker host.
   """
 
   @doc """
@@ -29,6 +38,20 @@ defmodule {{moduleName}}.ApiClient do
             ) :: {{moduleName}}.ApiResponse.t()
 
   @doc """
+  Variant of `send_request/5` that carries a per-request `opts` keyword list.
+  Implementations are encouraged to delegate to `send_request/5` when no opts
+  are set, so legacy clients without this callback remain valid behaviours.
+  """
+  @callback send_request(
+              client :: struct(),
+              method :: atom(),
+              url :: String.t(),
+              headers :: %{optional(String.t()) => String.t()},
+              body :: term() | nil,
+              opts :: keyword()
+            ) :: {{moduleName}}.ApiResponse.t()
+
+  @doc """
   Gap T6: release any resources held by the client.
 
   Default implementations may be a no-op when the underlying HTTP library
@@ -37,5 +60,5 @@ defmodule {{moduleName}}.ApiClient do
   implementations that own per-client state.
   """
   @callback close(client :: struct()) :: :ok
-  @optional_callbacks close: 1
+  @optional_callbacks close: 1, send_request: 6
 end

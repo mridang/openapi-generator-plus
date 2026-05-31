@@ -125,7 +125,15 @@ module PetstoreClient
             'Content-Type' => 'application/x-www-form-urlencoded',
             'Accept' => 'application/json'
           }.merge(extra_headers)
-          response = client.send_request(:post, token_url, headers, URI.encode_www_form(params))
+          # Bucket 3.2: refuse 3xx redirects on the token POST. The form
+          # body carries the client credentials (client_id /
+          # client_secret) plus, on the refresh path, the refresh_token.
+          # Silently replaying that body to a redirect target would leak
+          # credentials to an attacker-controlled host.
+          response = client.send_request(
+            :post, token_url, headers, URI.encode_www_form(params),
+            no_redirect: true
+          )
           status = response.status_code
           # RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
           # `error` (required), `error_description`, `error_uri`. Parse them

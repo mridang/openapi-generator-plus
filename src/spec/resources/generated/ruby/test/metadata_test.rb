@@ -4,6 +4,8 @@ require 'test_helper'
 require 'json'
 
 describe PetstoreClient::Models::Metadata do
+  parallelize_me!
+
   it 'serializes empty metadata' do
     metadata = PetstoreClient::Models::Metadata.new
     json = PetstoreClient::ObjectSerializer.serialize(metadata)
@@ -27,6 +29,8 @@ describe PetstoreClient::Models::Metadata do
 end
 
 describe PetstoreClient::Models::Metadata, 'round-trip and constants' do
+  parallelize_me!
+
   it 'round-trip preserves known properties' do
     metadata = PetstoreClient::Models::Metadata.new(
       created_at: Time.new(2024, 1, 1, 0, 0, 0, '+00:00')

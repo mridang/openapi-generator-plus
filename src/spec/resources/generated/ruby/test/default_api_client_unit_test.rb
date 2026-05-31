@@ -7,6 +7,8 @@ require 'json'
 require 'petstore_client'
 
 describe PetstoreClient::DefaultApiClient do
+  parallelize_me!
+
   def stub_connection(stubs)
     Faraday.new('http://localhost') { |f| f.adapter :test, stubs }
   end
@@ -456,5 +458,143 @@ describe PetstoreClient::DefaultApiClient do
     _(captured_proxy).wont_be_nil
     _(captured_proxy.user).must_equal 'user'
     _(captured_proxy.password).must_equal 'pass'
+  end
+
+  # ── Bucket 3.2: no_redirect refuses 3xx on token POSTs ──
+
+  it 'raises ApiError when 302 is returned and no_redirect: true' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/token') do
+        [302, { 'location' => 'https://attacker.example.com/steal' }, '']
+      end
+    end
+    client = PetstoreClient::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      err = assert_raises(PetstoreClient::ApiError) do
+        client.send_request(:POST, 'http://localhost/token', {}, 'grant_type=client_credentials', no_redirect: true)
+      end
+      _(err.message).must_match(/Refusing to follow/)
+    end
+  end
+
+  it 'raises ApiError on 307 redirect when no_redirect: true' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/token') do
+        [307, { 'location' => 'https://attacker.example.com/steal' }, '']
+      end
+    end
+    client = PetstoreClient::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      assert_raises(PetstoreClient::ApiError) do
+        client.send_request(:POST, 'http://localhost/token', {}, 'client_id=abc&client_secret=xyz', no_redirect: true)
+      end
+    end
+  end
+
+  it 'returns 2xx normally when no_redirect: true and no redirect' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/token') do
+        [200, { 'content-type' => 'application/json' }, '{"access_token":"ok"}']
+      end
+    end
+    client = PetstoreClient::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:POST, 'http://localhost/token', {}, 'grant_type=client_credentials',
+        no_redirect: true)
+      _(resp.status_code).must_equal 200
+    end
+  end
+
+  # ── Bucket 3.3: refuse body replay on HTTPS -> HTTP downgrade ──
+
+  it 'raises ApiError when 307 redirects HTTPS -> HTTP and there is a body' do
+    # 307 preserves method+body, so the original POST body would be
+    # replayed over cleartext on the redirect. The downgrade guard
+    # MUST refuse rather than leak the body.
+    call_count = 0
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do
+        call_count += 1
+        [307, { 'location' => 'http://insecure.example.com/upload' }, '']
+      end
+    end
+    transport = PetstoreClient::TransportOptions.builder.follow_redirects(true).build
+    client = PetstoreClient::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      err = assert_raises(PetstoreClient::ApiError) do
+        client.send_request(:POST, 'https://localhost/upload', {}, 'secret=payload')
+      end
+      _(err.message).must_match(/TLS downgrade/)
+    end
+    _(call_count).must_equal 1
+  end
+
+  it 'allows HTTPS -> HTTP redirect when method demotes to GET with no body' do
+    # 302 of a POST demotes to GET and drops the body, so there is no
+    # body to replay across the downgrade — the guard MUST NOT refuse.
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/r') do
+        [302, { 'location' => 'http://localhost/landing' }, '']
+      end
+      stub.get('/landing') do
+        [200, { 'content-type' => 'text/plain' }, 'ok']
+      end
+    end
+    transport = PetstoreClient::TransportOptions.builder.follow_redirects(true).build
+    client = PetstoreClient::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:POST, 'https://localhost/r', {}, 'k=v')
+      _(resp.status_code).must_equal 200
+    end
+  end
+
+  # ── Bucket 3.1: API-key header names included in cross-origin strip set ──
+
+  it 'EXTRA_SENSITIVE_HEADER_NAMES is defined and lowercase' do
+    # Codegen populates this from `securitySchemes` entries with
+    # type=apiKey, in=header. Whether the spec under test contains any
+    # such schemes or not, the constant MUST exist and every entry
+    # MUST be lowercased so the cross-origin filter compares
+    # case-insensitively.
+    names = PetstoreClient::DefaultApiClient::EXTRA_SENSITIVE_HEADER_NAMES
+    _(names).must_be_kind_of Array
+    names.each do |n|
+      _(n).must_equal n.downcase
+    end
+    _(names).must_include ''
+    _(names).must_include ''
+  end
+
+  it 'strips configured api-key headers on cross-origin redirect (Bucket 3.1)' do
+    # 302 redirects from localhost to a different host. Sensitive
+    # headers (the static authorization/cookie/proxy-authorization plus
+    # any apiKey,in=header names harvested from the spec) MUST be
+    # dropped on the cross-origin follow-up so a malicious 302 cannot
+    # exfiltrate the API key.
+    captured_followup_headers = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/start') do
+        [302, { 'location' => 'http://otherhost.example.com/landing' }, '']
+      end
+      stub.get('http://otherhost.example.com/landing') do |env|
+        captured_followup_headers = env.request_headers
+        [200, { 'content-type' => 'text/plain' }, 'ok']
+      end
+    end
+    transport = PetstoreClient::TransportOptions.builder.follow_redirects(true).build
+    client = PetstoreClient::DefaultApiClient.new(transport)
+    headers = {
+      'Authorization' => 'Bearer secret',
+      'X-Api-Key' => 'k1',
+      'X-Internal-Key' => 'k2'
+    }
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request(:GET, 'http://localhost/start', headers, nil)
+    end
+    _(captured_followup_headers).wont_be_nil
+    lc = captured_followup_headers.transform_keys(&:downcase)
+    _(lc.key?('authorization')).must_equal false
+    _(lc.key?('')).must_equal false
+    _(lc.key?('')).must_equal false
   end
 end

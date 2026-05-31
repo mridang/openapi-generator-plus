@@ -25,6 +25,11 @@ type fakeOIDCResponse struct {
 }
 
 func (c *fakeOIDCClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*auth.HttpResponse, error) {
+	return c.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (c *fakeOIDCClient) SendRequestWithOptions(method, url string, headers map[string]string, body interface{}, opts *auth.RequestOptions) (*auth.HttpResponse, error) {
+	_ = opts
 	c.LastMethod = method
 	c.LastURL = url
 	if body != nil {

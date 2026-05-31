@@ -6,6 +6,7 @@ require 'json'
 require 'test_helper'
 
 describe {{moduleName}}::DefaultApiClient do
+  parallelize_me!
 
   describe 'TLS verification disabled' do
     it 'makes HTTPS request with verify_ssl=false' do

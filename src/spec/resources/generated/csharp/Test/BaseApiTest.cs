@@ -92,7 +92,8 @@ public class BaseApiTest
             string method,
             Uri url,
             Dictionary<string, string> headers,
-            object? body
+            object? body,
+            bool noRedirect = false
         )
         {
             CapturedUrl = url;
@@ -313,7 +314,8 @@ public class BaseApiTest
             string method,
             Uri url,
             Dictionary<string, string> headers,
-            object? body
+            object? body,
+            bool noRedirect = false
         )
         {
             return Task.FromResult(
@@ -350,7 +352,8 @@ public class BaseApiTest
             string method,
             Uri url,
             Dictionary<string, string> headers,
-            object? body
+            object? body,
+            bool noRedirect = false
         )
         {
             return Task.FromResult(
@@ -733,7 +736,8 @@ public class BaseApiTest
             string method,
             Uri url,
             Dictionary<string, string> headers,
-            object? body
+            object? body,
+            bool noRedirect = false
         )
         {
             return Task.FromResult(

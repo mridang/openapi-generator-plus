@@ -15,10 +15,11 @@ import (
 
 // fakeTokenClient implements auth.ApiClient for token manager tests.
 type fakeTokenClient struct {
-	responses []fakeResponse
-	index     int32
-	LastBody  string
-	LastURL   string
+	responses    []fakeResponse
+	index        int32
+	LastBody     string
+	LastURL      string
+	LastNoRedirect bool
 }
 
 type fakeResponse struct {
@@ -27,7 +28,16 @@ type fakeResponse struct {
 }
 
 func (c *fakeTokenClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*auth.HttpResponse, error) {
+	return c.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (c *fakeTokenClient) SendRequestWithOptions(method, url string, headers map[string]string, body interface{}, opts *auth.RequestOptions) (*auth.HttpResponse, error) {
 	c.LastURL = url
+	if opts != nil {
+		c.LastNoRedirect = opts.NoRedirect
+	} else {
+		c.LastNoRedirect = false
+	}
 	if body != nil {
 		if b, ok := body.([]byte); ok {
 			c.LastBody = string(b)
@@ -44,6 +54,32 @@ func (c *fakeTokenClient) SendRequest(method, url string, headers map[string]str
 
 func newFakeTokenClient(responses ...fakeResponse) *fakeTokenClient {
 	return &fakeTokenClient{responses: responses}
+}
+
+// Gap 3.2: every token endpoint POST must opt out of redirect-following so a
+// 307 / 308 from a malicious or misconfigured authorization server cannot
+// replay the form-encoded `client_secret` (and `refresh_token` on refresh
+// grants) onto the redirect target. Pins the option propagation from the
+// token manager down to the underlying ApiClient.
+func TestOAuth2TokenManager_TokenPostsSetNoRedirect(t *testing.T) {
+	t.Parallel()
+	client := newFakeTokenClient(fakeResponse{
+		body:       `{"access_token":"tok","expires_in":3600}`,
+		statusCode: 200,
+	})
+
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	_, err := manager.GetAccessToken("https://auth.example.com/token", map[string]string{
+		"grant_type": "client_credentials",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !client.LastNoRedirect {
+		t.Error("expected token POST to set RequestOptions.NoRedirect=true")
+	}
 }
 
 func TestOAuth2TokenManager_ExtractsAccessTokenFromResponse(t *testing.T) {

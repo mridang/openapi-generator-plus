@@ -26,8 +26,9 @@ class _FakeApiClient implements ApiClient {
     String method,
     String url,
     Map<String, String> headers,
-    Object? body,
-  ) async {
+    Object? body, {
+    bool noRedirect = false,
+  }) async {
     lastUrl = url;
     if (body != null) {
       lastBody = utf8.decode(body as List<int>);

@@ -7,6 +7,7 @@
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:test/test.dart';
 import 'package:petstore_client/petstore_client.dart';
@@ -509,6 +510,145 @@ void main() {
         }
       },
     );
+
+    /* Gap 3.1: API-key header names declared in the spec must be added
+     * to the sensitive-header strip set, so a cross-origin redirect does
+     * not leak `X-API-Key` (or any other spec-declared key) to the
+     * redirect target. */
+    test('strips spec-declared API-key header on cross-origin redirect',
+        () async {
+      String? targetApiKey;
+      String? targetAuthorization;
+      final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      target.listen((request) {
+        targetApiKey = request.headers.value('x-api-key');
+        targetAuthorization = request.headers.value('authorization');
+        request.response
+          ..statusCode = 200
+          ..write('ok')
+          ..close();
+      });
+
+      final source = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      source.listen((request) {
+        request.response
+          ..statusCode = 302
+          ..headers.set('Location', 'http://127.0.0.1:${target.port}/landed')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        await client.sendRequest(
+          'GET',
+          'http://localhost:${source.port}/start',
+          {'X-API-Key': 'secret-key', 'Authorization': 'Bearer t'},
+          null,
+        );
+        expect(targetApiKey, isNull,
+            reason:
+                'spec-declared X-API-Key must not survive cross-origin hop');
+        expect(targetAuthorization, isNull,
+            reason: 'Authorization must not survive cross-origin hop');
+      } finally {
+        await source.close();
+        await target.close();
+      }
+    });
+
+    /* Gap 3.2: when sendRequest is called with noRedirect:true the
+     * client must surface the raw 3xx response instead of following the
+     * Location header. */
+    test('noRedirect: true returns raw 307 without following', () async {
+      var targetHits = 0;
+      final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      target.listen((request) {
+        targetHits++;
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      final source = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      source.listen((request) {
+        request.response
+          ..statusCode = 307
+          ..headers.set('Location', 'http://127.0.0.1:${target.port}/landed')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'POST',
+          'http://localhost:${source.port}/token',
+          {},
+          null,
+          noRedirect: true,
+        );
+        expect(resp.statusCode, equals(307));
+        expect(targetHits, equals(0),
+            reason: 'noRedirect must suppress the redirect follow');
+      } finally {
+        await source.close();
+        await target.close();
+      }
+    });
+
+    /* Gap 3.3: a 307/308 from HTTPS to plain HTTP must not replay the
+     * original request body across the unencrypted hop. We spin up a
+     * self-signed HTTPS server that 307s to a plain-HTTP target and
+     * assert that the downgrade-replay guard stops the loop instead of
+     * forwarding `client_secret=hunter2` over the wire. */
+    test('does not replay body across https->http downgrade', () async {
+      final certDir = 'test/fixtures/certs';
+      final tlsContext = SecurityContext()
+        ..useCertificateChain('$certDir/server.pem')
+        ..usePrivateKey('$certDir/server-key.pem');
+
+      var targetHits = 0;
+      var targetBody = '';
+      final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      target.listen((request) async {
+        targetHits++;
+        targetBody = await utf8.decoder.bind(request).join();
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      final source = await HttpServer.bindSecure(
+        InternetAddress.loopbackIPv4,
+        0,
+        tlsContext,
+      );
+      source.listen((request) {
+        request.response
+          ..statusCode = 307
+          ..headers.set('Location', 'http://127.0.0.1:${target.port}/landed')
+          ..close();
+      });
+
+      try {
+        final transport = TransportOptionsBuilder().verifySSL(false).build();
+        final client = DefaultApiClient(transportOptions: transport);
+        final resp = await client.sendRequest(
+          'POST',
+          'https://127.0.0.1:${source.port}/secret',
+          {'Content-Type': 'application/x-www-form-urlencoded'},
+          Uint8List.fromList(utf8.encode('client_secret=hunter2')),
+        );
+        expect(resp.statusCode, equals(307),
+            reason: 'loop must terminate at the downgrade hop');
+        expect(targetHits, equals(0),
+            reason: 'plain-HTTP target must not be contacted after '
+                'an HTTPS->HTTP downgrade with a body');
+        expect(targetBody, isEmpty);
+      } finally {
+        await source.close();
+        await target.close();
+      }
+    });
 
     test('joins multi-value response headers', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

@@ -171,7 +171,23 @@ public class OAuth2TokenManager {
     headers.putAll(extraHeaders);
 
     try {
-      ApiResponse response = apiClient.sendRequest("POST", tokenUrl, headers, body.toString());
+      /* Bucket 3.2: refuse to follow 307/308 (and other 3xx) redirects on
+       * OAuth2 token POSTs. The token endpoint receives the client's
+       * credentials (or refresh token) in the request body — replaying
+       * that body to an attacker-controlled Location target would leak
+       * the credential. The ApiClient honours noRedirect=true by
+       * surfacing the first 3xx straight to us; we treat any redirect
+       * here as a server misconfiguration and abort. */
+      ApiResponse response =
+          apiClient.sendRequest("POST", tokenUrl, headers, body.toString(), true);
+      if (response.statusCode() >= 300 && response.statusCode() < 400) {
+        throw new OAuth2TokenError(
+            "Refusing to follow redirect on OAuth2 token endpoint "
+                + tokenUrl
+                + " (status "
+                + response.statusCode()
+                + ")");
+      }
       if (response.statusCode() < 200 || response.statusCode() >= 300) {
         /* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
          * `error` (required), `error_description`, `error_uri`. Parse

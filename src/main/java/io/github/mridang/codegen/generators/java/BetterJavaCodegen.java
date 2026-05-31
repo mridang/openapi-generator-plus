@@ -2,7 +2,9 @@ package io.github.mridang.codegen.generators.java;
 
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.NamingConvention;
+import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -84,6 +86,8 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         typeMapping.put("date", "LocalDate");
         typeMapping.put("DateTime", "OffsetDateTime");
         typeMapping.put("date-time", "OffsetDateTime");
+        typeMapping.put("time", "LocalTime");
+        typeMapping.put("duration", "Duration");
         typeMapping.put("UUID", "UUID");
         typeMapping.put("URI", "URI");
         typeMapping.put("BigDecimal", "BigDecimal");
@@ -97,6 +101,8 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         importMapping.put("HashMap", "java.util.HashMap");
         importMapping.put("LocalDate", "java.time.LocalDate");
         importMapping.put("OffsetDateTime", "java.time.OffsetDateTime");
+        importMapping.put("LocalTime", "java.time.LocalTime");
+        importMapping.put("Duration", "java.time.Duration");
         importMapping.put("BigDecimal", "java.math.BigDecimal");
         importMapping.put("UUID", "java.util.UUID");
         importMapping.put("URI", "java.net.URI");
@@ -276,6 +282,41 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                 "src/test/resources",
                 "junit-platform.properties")
         );
+    }
+
+    /**
+     * Harvests API-key header names from the spec's {@code securitySchemes}
+     * (type=apiKey, in=header) and exposes them as
+     * {@code apiKeyHeaderNames} for {@code DefaultApiClient.java} so they
+     * are added to the sensitive-header allowlist stripped on cross-origin
+     * redirects (Bucket 3.1).
+     */
+    @Override
+    public void processOpenAPI(OpenAPI openAPI) {
+        super.processOpenAPI(openAPI);
+        final List<Map<String, String>> apiKeyHeaderNames = new ArrayList<>();
+        final Set<String> seen = new HashSet<>();
+        if (openAPI.getComponents() != null
+                && openAPI.getComponents().getSecuritySchemes() != null) {
+            for (Map.Entry<String, SecurityScheme> entry :
+                    openAPI.getComponents().getSecuritySchemes().entrySet()) {
+                final SecurityScheme scheme = entry.getValue();
+                if (scheme.getType() == SecurityScheme.Type.APIKEY
+                        && scheme.getIn() == SecurityScheme.In.HEADER
+                        && scheme.getName() != null
+                        && !scheme.getName().isEmpty()) {
+                    final String lower = scheme.getName().toLowerCase(java.util.Locale.ROOT);
+                    if (seen.add(lower)) {
+                        final Map<String, String> e = new HashMap<>();
+                        e.put("name", scheme.getName());
+                        e.put("lowerName", lower);
+                        apiKeyHeaderNames.add(e);
+                    }
+                }
+            }
+        }
+        additionalProperties.put("apiKeyHeaderNames", apiKeyHeaderNames);
+        additionalProperties.put("hasApiKeyHeaderNames", !apiKeyHeaderNames.isEmpty());
     }
 
     @Override

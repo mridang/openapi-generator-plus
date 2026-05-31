@@ -1,6 +1,6 @@
 {{>api_info}}
 
-import type { ApiClient } from './api-client{{importFileExtension}}';
+import type { ApiClient, SendRequestOptions } from './api-client{{importFileExtension}}';
 import { ApiError } from './api-error{{importFileExtension}}';
 import type { ApiResponse } from './api-response{{importFileExtension}}';
 import { TransportOptions } from './transport-options{{importFileExtension}}';
@@ -24,6 +24,36 @@ import { ProxyAgent, Agent } from 'undici';
  * 3. {@link TransportOptions.userAgent} -- injected if not already set
  * 4. {@link TransportOptions.injectRequestId} -- injected if not already set
  */
+/**
+ * Header names that MUST be stripped when following a cross-origin
+ * redirect. Includes the classic credential carriers (`Authorization`,
+ * `Cookie`, `Proxy-Authorization`) plus the common API-key header
+ * names emitted by `ApiKeyAuthenticator` (and observed across major
+ * SaaS providers). undici's automatic redirect follower only strips
+ * `Authorization`-style headers; leaving API-key headers attached
+ * would leak the key to attacker-controlled hosts via a malicious
+ * 302/307 from an upstream that supports both bearer and api-key
+ * auth. Match is case-insensitive; entries here MUST be lowercase.
+ */
+export const SENSITIVE_HEADER_NAMES: ReadonlySet<string> = new Set<string>([
+  'authorization',
+  'cookie',
+  'proxy-authorization',
+  'x-api-key',
+  'api-key',
+  'apikey',
+  'x-auth-token',
+  'auth-token',
+  'x-access-token',
+  'access-token',
+  'x-functions-key',
+  'x-amz-security-token',
+  'ocp-apim-subscription-key',
+  'fastly-key',
+  'cf-access-client-id',
+  'cf-access-client-secret',
+]);
+
 export class DefaultApiClient implements ApiClient {
   private readonly transportOptions: TransportOptions;
   private readonly dispatcher?: ProxyAgent | Agent;
@@ -109,7 +139,8 @@ export class DefaultApiClient implements ApiClient {
     method: string,
     url: string,
     headers: Record<string, string>,
-    body: string | Buffer | Record<string, unknown> | null
+    body: string | Buffer | Record<string, unknown> | null,
+    options?: SendRequestOptions
   ): Promise<ApiResponse> {
     if (body instanceof Blob) {
       body = Buffer.from(await body.arrayBuffer());
@@ -172,9 +203,9 @@ export class DefaultApiClient implements ApiClient {
     const originalUrl = url;
     try {
       response = await fetch(url, fetchOptions as RequestInit);
-      if (this.transportOptions.followRedirects) {
+      const noRedirect = options?.noRedirect === true;
+      if (this.transportOptions.followRedirects && !noRedirect) {
         const maxRedirects = this.transportOptions.maxRedirects ?? 20;
-        const sensitive = new Set(['authorization', 'cookie', 'proxy-authorization']);
         let hops = 0;
         let currentMethod = method;
         let currentBody: unknown = body;
@@ -213,9 +244,35 @@ export class DefaultApiClient implements ApiClient {
             nextBody = undefined;
           }
 
+          /* Gap 3.3: refuse to replay a request body across a transport
+           * downgrade (HTTPS -> HTTP). Replaying the body in cleartext
+           * after the original request was sent over TLS leaks whatever
+           * the caller trusted to TLS to protect (credentials, PII,
+           * signed tokens). When a redirect would carry a body across
+           * such a downgrade we abort the redirect chain and surface
+           * the 3xx response to the caller, who can decide what to do.
+           * Bodyless follow-ups (303 + the 301/302 historical GET
+           * coercion) are unaffected. */
+          const currentProto = new URL(currentUrl).protocol;
+          if (
+            nextBody !== undefined &&
+            nextBody !== null &&
+            currentProto === 'https:' &&
+            nextParsed.protocol === 'http:'
+          ) {
+            throw new ApiError(
+              0,
+              'Refusing to replay request body across HTTPS -> HTTP redirect downgrade '
+                + `(from ${currentUrl} to ${nextUrl})`,
+              {},
+              null,
+              null
+            );
+          }
+
           const redirectHeaders: Record<string, string> = {};
           for (const [k, v] of Object.entries(currentHeaders)) {
-            if (crossOrigin && sensitive.has(k.toLowerCase())) continue;
+            if (crossOrigin && SENSITIVE_HEADER_NAMES.has(k.toLowerCase())) continue;
             if (nextBody === undefined
                 && (k.toLowerCase() === 'content-type'
                     || k.toLowerCase() === 'content-length')) {
@@ -238,6 +295,12 @@ export class DefaultApiClient implements ApiClient {
         }
       }
     } catch (error) {
+      /* ApiError already carries a useful status + message
+       * (e.g. the HTTPS -> HTTP downgrade refusal). Propagate it
+       * unchanged so callers can match on the original cause. */
+      if (error instanceof ApiError) {
+        throw error;
+      }
       throw new ApiError(
         0,
         error instanceof Error ? error.message : String(error),

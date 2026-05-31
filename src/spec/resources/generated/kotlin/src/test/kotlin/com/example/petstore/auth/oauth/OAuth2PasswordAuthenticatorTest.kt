@@ -36,6 +36,7 @@ class OAuth2PasswordAuthenticatorTest {
             url: String,
             headers: Map<String, String>,
             body: Any?,
+            noRedirect: Boolean,
         ): ApiResponse {
             lastUrl = url
             lastHeaders = headers

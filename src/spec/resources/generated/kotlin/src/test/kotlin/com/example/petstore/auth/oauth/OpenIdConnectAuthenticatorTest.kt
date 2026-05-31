@@ -35,6 +35,7 @@ class OpenIdConnectAuthenticatorTest {
             url: String,
             headers: Map<String, String>,
             body: Any?,
+            noRedirect: Boolean,
         ): ApiResponse {
             lastMethod = method
             lastUrl = url

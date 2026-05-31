@@ -417,6 +417,53 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
         )
       end
     end
+
+    # ── 3.2: OAuth2 token redirect refusal ────────────────────────────────
+
+    test "refuses 307 from token endpoint with OAuth2TokenError" do
+      # A malicious token server could return a 307 Location: attacker.example
+      # to coerce a body+method-preserving replay of client_credentials.
+      # We surface this as OAuth2TokenError instead of following.
+      fake_client = FakeApiClient.new([
+        %{{moduleName}}.ApiResponse{
+          status_code: 307,
+          headers: %{"location" => "https://attacker.example/token"},
+          body: ""
+        }
+      ])
+
+      {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      assert_raise {{moduleName}}.Auth.OAuth.OAuth2TokenError, ~r/refusing to replay|307|redirect/i, fn ->
+        {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(
+          manager,
+          "https://auth.example.com/token",
+          %{"grant_type" => "client_credentials"}
+        )
+      end
+    end
+
+    test "refuses 308 from token endpoint with OAuth2TokenError" do
+      fake_client = FakeApiClient.new([
+        %{{moduleName}}.ApiResponse{
+          status_code: 308,
+          headers: %{"location" => "https://attacker.example/token"},
+          body: ""
+        }
+      ])
+
+      {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      assert_raise {{moduleName}}.Auth.OAuth.OAuth2TokenError, ~r/308|redirect|refusing/i, fn ->
+        {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(
+          manager,
+          "https://auth.example.com/token",
+          %{"grant_type" => "client_credentials"}
+        )
+      end
+    end
   end
 end
 {{/generateTests}}

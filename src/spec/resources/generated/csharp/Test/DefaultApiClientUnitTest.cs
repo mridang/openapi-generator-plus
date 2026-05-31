@@ -545,6 +545,226 @@ public class DefaultApiClientUnitTest
         Assert.Equal("héllo", response.Body);
     }
 
+    // ---- 3.1: SensitiveHeaderNames default contents ----
+
+    [Fact]
+    public void SensitiveHeaderNamesIncludesUniversalCredentialHeaders()
+    {
+        Assert.Contains("Authorization", DefaultApiClient.SensitiveHeaderNames);
+        Assert.Contains("Cookie", DefaultApiClient.SensitiveHeaderNames);
+        Assert.Contains("Proxy-Authorization", DefaultApiClient.SensitiveHeaderNames);
+    }
+
+    [Fact]
+    public void SensitiveHeaderNamesIsCaseInsensitive()
+    {
+        // RFC 7230 §3.2 — header names are case-insensitive.
+        Assert.Contains("authorization", DefaultApiClient.SensitiveHeaderNames);
+        Assert.Contains("AUTHORIZATION", DefaultApiClient.SensitiveHeaderNames);
+    }
+
+    // ---- 3.1: cross-origin redirect strips sensitive headers ----
+
+    [Fact]
+    public async Task CrossOriginRedirectStripsSensitiveHeaders()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("http://other.example.com/landed")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string>
+            {
+                { "Authorization", "Bearer secret" },
+                { "X-Trace", "keep" },
+            },
+            null
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        HttpRequestMessage second = handler.Requests[1];
+        Assert.False(second.Headers.Contains("Authorization"));
+        Assert.True(second.Headers.Contains("X-Trace"));
+    }
+
+    [Fact]
+    public async Task SameOriginRedirectPreservesSensitiveHeaders()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("http://origin.example.com/landed")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string> { { "Authorization", "Bearer secret" } },
+            null
+        );
+
+        HttpRequestMessage second = handler.Requests[1];
+        Assert.True(second.Headers.Contains("Authorization"));
+    }
+
+    // ---- 3.2: noRedirect=true skips the redirect loop ----
+
+    [Fact]
+    public async Task NoRedirectSurfaces307Verbatim()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("http://other.example.com/landed")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var response = await client.SendRequestAsync(
+            "POST",
+            new Uri("http://origin.example.com/token"),
+            new Dictionary<string, string>(),
+            "grant_type=client_credentials",
+            noRedirect: true
+        );
+
+        Assert.Equal(307, response.StatusCode);
+        Assert.Single(handler.Requests);
+    }
+
+    [Fact]
+    public async Task NoRedirectFalseFollowsRedirects()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("http://origin.example.com/landed")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string>(),
+            null,
+            noRedirect: false
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    // ---- 3.3: HTTPS->HTTP body replay guard ----
+
+    [Fact]
+    public async Task RefusesBodyReplayOnHttpsToHttpDowngrade()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("http://downgraded.example.com/landed")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+        // POST with a body over HTTPS, redirected (307) to plain HTTP.
+        var response = await client.SendRequestAsync(
+            "POST",
+            new Uri("https://secure.example.com/start"),
+            new Dictionary<string, string>(),
+            "secret-payload"
+        );
+
+        // Only the original encrypted request must have been made; the
+        // downgraded follow-up must be refused.
+        Assert.Single(handler.Requests);
+        Assert.Equal(307, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AllowsBodylessGetOnHttpsToHttpDowngrade()
+    {
+        // GET without a body has nothing to replay — the downgrade
+        // guard only fires for body-preserving redirects with a body.
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("http://downgraded.example.com/landed")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("https://secure.example.com/start"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(200, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AllowsBodyReplayOnHttpsToHttpsRedirect()
+    {
+        // No downgrade — both legs are HTTPS. Body replay is allowed
+        // on 307 because the wire is still encrypted end-to-end.
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("https://secure.example.com/landed")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var response = await client.SendRequestAsync(
+            "POST",
+            new Uri("https://secure.example.com/start"),
+            new Dictionary<string, string>(),
+            "payload"
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(200, response.StatusCode);
+    }
+
+    /// <summary>
+    /// First request returns <paramref name="firstStatus"/> with a Location
+    /// header pointing at <paramref name="location"/>; subsequent requests
+    /// return 200 OK with an empty body. Records every request received
+    /// so tests can assert on stripped/preserved headers and the count of
+    /// hops actually performed.
+    /// </summary>
+    private sealed class RedirectingHandler : HttpMessageHandler
+    {
+        private readonly HttpStatusCode _firstStatus;
+        private readonly Uri _location;
+        public List<HttpRequestMessage> Requests { get; } = [];
+
+        public RedirectingHandler(HttpStatusCode firstStatus, Uri location)
+        {
+            _firstStatus = firstStatus;
+            _location = location;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            // Snapshot the request — DefaultApiClient disposes it after
+            // the redirect hop, which would otherwise clear Headers.
+            var snapshot = new HttpRequestMessage(request.Method, request.RequestUri);
+            foreach (var h in request.Headers)
+            {
+                snapshot.Headers.TryAddWithoutValidation(h.Key, h.Value);
+            }
+            Requests.Add(snapshot);
+
+            if (Requests.Count == 1)
+            {
+                var redirect = new HttpResponseMessage(_firstStatus)
+                {
+                    Content = new StringContent(""),
+                };
+                redirect.Headers.Location = _location;
+                return Task.FromResult(redirect);
+            }
+            return Task.FromResult(
+                new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("") }
+            );
+        }
+    }
+
     private sealed class RawByteHandler : HttpMessageHandler
     {
         private readonly HttpStatusCode _statusCode;

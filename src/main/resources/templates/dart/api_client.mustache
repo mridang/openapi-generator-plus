@@ -14,12 +14,18 @@ abstract class ApiClient {
   ///   - [headers]: caller-provided headers
   ///   - [body]: request body as [Uint8List], [Map<String, Object>] for
   ///     multipart form data, or null
+  ///   - [noRedirect]: when true, the client must not follow any 3xx
+  ///     redirect and must return the raw redirect response to the caller.
+  ///     Used by the OAuth2 token manager to refuse 307/308 redirects on
+  ///     token endpoints (Gap 3.2), where silently replaying client
+  ///     credentials to a different host would be a credential leak.
   ///
   /// Returns an [HttpApiResponse] and throws on transport errors.
   Future<HttpApiResponse> sendRequest(
     String method,
     String url,
     Map<String, String> headers,
-    Object? body,
-  );
+    Object? body, {
+    bool noRedirect = false,
+  });
 }

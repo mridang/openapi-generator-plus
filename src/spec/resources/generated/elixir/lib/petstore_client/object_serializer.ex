@@ -203,6 +203,17 @@ defmodule PetstoreClient.ObjectSerializer do
     Date.to_iso8601(d)
   end
 
+  # 4.8: ISO-8601 wire formatting for format:time (HH:MM:SS[.fff]) and
+  # format:duration (PnYnMnDTnHnMnS). Both round-trip through the matching
+  # `convert_to_type/2` clauses below.
+  def stringify(%Time{} = t) do
+    Time.to_iso8601(t)
+  end
+
+  def stringify(%Duration{} = d) do
+    Duration.to_iso8601(d)
+  end
+
   def stringify(value) do
     to_string(value)
   end
@@ -314,6 +325,15 @@ defmodule PetstoreClient.ObjectSerializer do
 
   def sanitize_for_serialization(%NaiveDateTime{} = dt) do
     NaiveDateTime.to_iso8601(dt)
+  end
+
+  # 4.8: serialize stdlib Time / Duration as ISO-8601 strings on the wire.
+  def sanitize_for_serialization(%Time{} = t) do
+    Time.to_iso8601(t)
+  end
+
+  def sanitize_for_serialization(%Duration{} = d) do
+    Duration.to_iso8601(d)
   end
 
   def sanitize_for_serialization(%{__struct__: _module, actual_instance: inner}) do
@@ -467,6 +487,28 @@ defmodule PetstoreClient.ObjectSerializer do
 
   def convert_to_type(data, "Date") do
     case Date.from_iso8601(to_string(data)) do
+      {:ok, d} -> d
+      _ -> data
+    end
+  end
+
+  # 4.8: format:time — ISO-8601 HH:MM:SS[.fff] decoded to stdlib `Time.t()`.
+  # Matches both the bare name and the typespec form ("Time.t()") that
+  # `openapi_types/0` emits via the codegen's typeMapping. Falls back to the
+  # raw payload on parse failure (matches the lenient behaviour of the
+  # Date/DateTime decoders above).
+  def convert_to_type(data, type) when type in ["Time", "Time.t()"] do
+    case Time.from_iso8601(to_string(data)) do
+      {:ok, t} -> t
+      _ -> data
+    end
+  end
+
+  # 4.8: format:duration — ISO-8601 PnYnMnDTnHnMnS decoded to stdlib
+  # `Duration.t()` (Elixir 1.17+). Stdlib floor is enforced via mix.exs
+  # `elixir: "~> 1.18"`. Falls back to the raw payload on parse failure.
+  def convert_to_type(data, type) when type in ["Duration", "Duration.t()"] do
+    case Duration.from_iso8601(to_string(data)) do
       {:ok, d} -> d
       _ -> data
     end

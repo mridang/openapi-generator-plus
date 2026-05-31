@@ -10,7 +10,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
-use petstore::api_client::{ApiClient, RequestBody};
+use petstore::api_client::{ApiClient, RequestBody, RequestOptions};
 use petstore::api_response::ApiResponse;
 use petstore::auth::oauth::OAuth2TokenManager;
 
@@ -18,6 +18,7 @@ struct FakeApiClient {
     responses: Mutex<Vec<ApiResponse>>,
     last_url: Mutex<Option<String>>,
     last_body: Mutex<Option<String>>,
+    last_no_redirect: Mutex<Option<bool>>,
 }
 
 impl FakeApiClient {
@@ -26,6 +27,7 @@ impl FakeApiClient {
             responses: Mutex::new(Vec::new()),
             last_url: Mutex::new(None),
             last_body: Mutex::new(None),
+            last_no_redirect: Mutex::new(None),
         }
     }
 
@@ -42,10 +44,30 @@ impl FakeApiClient {
 impl ApiClient for FakeApiClient {
     fn send_request(
         &self,
+        method: &str,
+        url: &str,
+        headers: &HashMap<String, String>,
+        body: Option<&RequestBody>,
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
+                + Send
+                + '_,
+        >,
+    > {
+        // Delegate so the no_redirect flag is captured (some callers go
+        // through send_request directly, e.g. the OpenID Connect
+        // authenticator's GET /.well-known/openid-configuration discovery).
+        self.send_request_with_options(method, url, headers, body, &RequestOptions::default())
+    }
+
+    fn send_request_with_options(
+        &self,
         _method: &str,
         url: &str,
         _headers: &HashMap<String, String>,
         body: Option<&RequestBody>,
+        options: &RequestOptions,
     ) -> Pin<
         Box<
             dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
@@ -56,6 +78,10 @@ impl ApiClient for FakeApiClient {
         {
             let mut last_url = self.last_url.lock().unwrap();
             *last_url = Some(url.to_string());
+        }
+        {
+            let mut last_no_redirect = self.last_no_redirect.lock().unwrap();
+            *last_no_redirect = Some(options.no_redirect);
         }
         if let Some(RequestBody::Bytes(b)) = body {
             let mut last_body = self.last_body.lock().unwrap();
@@ -501,6 +527,35 @@ async fn test_expires_in_negative_skips_caching() {
 
     assert_eq!("neg1", first);
     assert_eq!("neg2", second);
+}
+
+/// Gap 3.2: OAuth2 token POSTs must pass `no_redirect=true` so a 307/308
+/// from the IdP cannot replay the credentialed body (client_secret /
+/// refresh_token / authorization code) to an attacker-chosen URL.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_token_post_uses_no_redirect() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"tok","expires_in":3600}"#, 200);
+
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client.clone());
+
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+    params.insert("client_id".to_string(), "cid".to_string());
+    params.insert("client_secret".to_string(), "csecret".to_string());
+
+    manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect("should succeed");
+
+    let captured = client.last_no_redirect.lock().unwrap().clone();
+    assert_eq!(
+        Some(true),
+        captured,
+        "OAuth2 token POST must call send_request_with_options with no_redirect=true"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]

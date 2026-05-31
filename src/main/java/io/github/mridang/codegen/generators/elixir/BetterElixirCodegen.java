@@ -76,6 +76,14 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         // and DateTime.from_iso8601/1 on decode.
         typeMapping.put("date", "Date.t()");
         typeMapping.put("DateTime", "DateTime.t()");
+        // 4.8: format:time -> Elixir stdlib Time.t() (ISO-8601 HH:MM:SS[.fff]).
+        // format:duration -> Elixir 1.17+ stdlib Duration.t() (ISO-8601
+        // PnYnMnDTnHnMnS). Both are round-tripped through ObjectSerializer's
+        // dedicated convert_to_type clauses. mix.exs targets ~> 1.18, so
+        // Duration is always available; the older 1.16/Timex.Duration
+        // fallback isn't shipped here because the supported floor is 1.18.
+        typeMapping.put("time", "Time.t()");
+        typeMapping.put("duration", "Duration.t()");
         typeMapping.put("array", "list");
         typeMapping.put("List", "list");
         typeMapping.put("set", "MapSet.t()");
@@ -100,7 +108,12 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                                 "any()",
                                 "atom()",
                                 "list",
-                                "nil"));
+                                "nil",
+                                // 4.8: stdlib types -- treat as primitives so
+                                // the codegen doesn't try to emit a model for
+                                // them or wrap them in Module.t() etc.
+                                "Time.t()",
+                                "Duration.t()"));
 
         reservedWords = loadReservedWords("/reserved-words/elixir.txt");
 

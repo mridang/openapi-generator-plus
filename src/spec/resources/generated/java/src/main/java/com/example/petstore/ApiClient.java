@@ -34,6 +34,36 @@ public interface ApiClient extends AutoCloseable {
       throws ApiException;
 
   /**
+   * Send an HTTP request, optionally refusing to follow redirects.
+   *
+   * <p>When {@code noRedirect} is true, any 3xx response (including 307/308) is returned to the
+   * caller as-is rather than being replayed to the {@code Location} target. OAuth2
+   * token/revoke/authorize endpoint POSTs use this guard so a malicious or misconfigured server
+   * cannot replay the credentialed body to an attacker-controlled URL (Bucket 3.2).
+   *
+   * <p>The default implementation delegates to {@link #sendRequest(String, String, Map, Object)}
+   * for backwards compatibility; transport implementations that own the redirect loop should
+   * override this method and honour the flag.
+   *
+   * @param method HTTP method
+   * @param url Fully qualified URL
+   * @param headers HTTP headers
+   * @param body Request body (may be null)
+   * @param noRedirect when {@code true}, do not follow 3xx responses
+   * @return ApiResponse containing status code, body, and headers
+   * @throws ApiException if the request fails
+   */
+  default ApiResponse sendRequest(
+      String method,
+      String url,
+      Map<String, String> headers,
+      @Nullable Object body,
+      boolean noRedirect)
+      throws ApiException {
+    return sendRequest(method, url, headers, body);
+  }
+
+  /**
    * Releases any resources held by this client (connection pool, executor threads, sockets).
    * Default implementation is a no-op; implementations that own a pooled HTTP client should
    * override and dispose of it.

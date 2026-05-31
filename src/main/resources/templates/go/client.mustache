@@ -78,7 +78,15 @@ type authApiClientAdapter struct {
 }
 
 func (a *authApiClientAdapter) SendRequest(method, url string, headers map[string]string, body interface{}) (*auth.HttpResponse, error) {
-	resp, err := a.inner.SendRequest(method, url, headers, body)
+	return a.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (a *authApiClientAdapter) SendRequestWithOptions(method, url string, headers map[string]string, body interface{}, opts *auth.RequestOptions) (*auth.HttpResponse, error) {
+	var inner *RequestOptions
+	if opts != nil {
+		inner = &RequestOptions{NoRedirect: opts.NoRedirect}
+	}
+	resp, err := a.inner.SendRequestWithOptions(method, url, headers, body, inner)
 	if err != nil {
 		return nil, err
 	}

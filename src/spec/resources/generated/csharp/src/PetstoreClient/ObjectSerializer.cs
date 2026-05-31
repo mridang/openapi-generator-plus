@@ -61,6 +61,8 @@ public class ObjectSerializer
     /// <summary>
     /// Convert a scalar value to its canonical string representation.
     /// Booleans are lowercased, date/time values use ISO 8601 round-trip format,
+    /// <see cref="TimeOnly"/> uses HH:mm:ss (OAS <c>format:time</c>),
+    /// <see cref="TimeSpan"/> uses ISO-8601 duration form (OAS <c>format:duration</c>),
     /// and null values return an empty string.
     /// </summary>
     public static string Stringify(object? value)
@@ -73,6 +75,8 @@ public class ObjectSerializer
                 "yyyy-MM-dd",
                 System.Globalization.CultureInfo.InvariantCulture
             ),
+            TimeOnly t => t.ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture),
+            TimeSpan ts => Iso8601DurationConverter.Format(ts),
             DateTimeOffset dto => dto.ToString(
                 "yyyy-MM-dd'T'HH:mm:sszzz",
                 System.Globalization.CultureInfo.InvariantCulture
@@ -227,6 +231,12 @@ public class ObjectSerializer
         };
         options.Converters.Add(new JsonStringEnumConverter());
         options.Converters.Add(new DateTimeOffsetJsonConverter());
+        /* 4.8: TimeSpan's default System.Text.Json form is the .NET
+         * "[d.]hh:mm:ss[.fff]" string, which would not round-trip with
+         * any other language SDK. Register the ISO-8601 duration
+         * converter so format:duration values are emitted as
+         * "PT1H30M"-style strings matching the OAS spec. */
+        options.Converters.Add(new Iso8601DurationConverter());
         return options;
     }
 
@@ -262,5 +272,228 @@ public class ObjectSerializer
                 value.ToString(Format, System.Globalization.CultureInfo.InvariantCulture)
             );
         }
+    }
+}
+
+/// <summary>
+/// Serializes <see cref="TimeSpan"/> values as ISO-8601 duration strings
+/// (RFC 3339 appendix A — <c>PT1H30M</c>, <c>P1DT2H</c>, …) so that
+/// <c>format:duration</c> schema values round-trip with the other
+/// language SDKs. .NET's default <c>TimeSpan</c> JSON form is
+/// <c>[d.]hh:mm:ss[.fff]</c>, which is non-portable.
+///
+/// Supports days (<c>D</c>), hours (<c>H</c>), minutes (<c>M</c>),
+/// and seconds (<c>S</c>) including fractional seconds. Weeks (<c>W</c>)
+/// are accepted on parse only. Negative durations are emitted with a
+/// leading <c>-</c> per ISO-8601. Calendar-date designators
+/// (<c>Y</c>, month <c>M</c>) are rejected because <see cref="TimeSpan"/>
+/// has no concept of calendar months / years.
+/// </summary>
+public sealed class Iso8601DurationConverter : JsonConverter<TimeSpan>
+{
+    public override TimeSpan Read(
+        ref Utf8JsonReader reader,
+        Type typeToConvert,
+        JsonSerializerOptions options
+    )
+    {
+        string? s = reader.GetString();
+        if (string.IsNullOrEmpty(s))
+        {
+            throw new JsonException("ISO-8601 duration string must not be empty");
+        }
+        return Parse(s);
+    }
+
+    public override void Write(Utf8JsonWriter writer, TimeSpan value, JsonSerializerOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(writer);
+        writer.WriteStringValue(Format(value));
+    }
+
+    /// <summary>
+    /// Formats a <see cref="TimeSpan"/> as an ISO-8601 duration string.
+    /// Zero produces <c>PT0S</c> (the canonical empty-duration form).
+    /// </summary>
+    public static string Format(TimeSpan value)
+    {
+        if (value == TimeSpan.Zero)
+        {
+            return "PT0S";
+        }
+        TimeSpan abs = value < TimeSpan.Zero ? value.Negate() : value;
+        System.Text.StringBuilder sb = new();
+        if (value < TimeSpan.Zero)
+        {
+            _ = sb.Append('-');
+        }
+        _ = sb.Append('P');
+        int days = abs.Days;
+        if (days > 0)
+        {
+            _ = sb.Append(days.ToString(System.Globalization.CultureInfo.InvariantCulture))
+                .Append('D');
+        }
+        int hours = abs.Hours;
+        int minutes = abs.Minutes;
+        int seconds = abs.Seconds;
+        int fractionalTicks = (int)(abs.Ticks % TimeSpan.TicksPerSecond);
+        bool hasTime = hours > 0 || minutes > 0 || seconds > 0 || fractionalTicks > 0;
+        if (hasTime)
+        {
+            _ = sb.Append('T');
+            if (hours > 0)
+            {
+                _ = sb.Append(hours.ToString(System.Globalization.CultureInfo.InvariantCulture))
+                    .Append('H');
+            }
+            if (minutes > 0)
+            {
+                _ = sb.Append(minutes.ToString(System.Globalization.CultureInfo.InvariantCulture))
+                    .Append('M');
+            }
+            if (seconds > 0 || fractionalTicks > 0)
+            {
+                if (fractionalTicks > 0)
+                {
+                    decimal secs = seconds + ((decimal)fractionalTicks / TimeSpan.TicksPerSecond);
+                    _ = sb.Append(
+                        secs.ToString(
+                            "0.#######",
+                            System.Globalization.CultureInfo.InvariantCulture
+                        )
+                    );
+                }
+                else
+                {
+                    _ = sb.Append(
+                        seconds.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                    );
+                }
+                _ = sb.Append('S');
+            }
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Parses an ISO-8601 duration string into a <see cref="TimeSpan"/>.
+    /// Throws <see cref="JsonException"/> on malformed input.
+    /// </summary>
+    public static TimeSpan Parse(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        int idx = 0;
+        bool negative = false;
+        if (idx < text.Length && (text[idx] == '-' || text[idx] == '+'))
+        {
+            negative = text[idx] == '-';
+            idx++;
+        }
+        if (idx >= text.Length || text[idx] != 'P')
+        {
+            throw new JsonException($"Invalid ISO-8601 duration (missing leading 'P'): {text}");
+        }
+        idx++;
+
+        long days = 0;
+        long hours = 0;
+        long minutes = 0;
+        decimal seconds = 0m;
+        bool inTime = false;
+        bool sawAny = false;
+
+        while (idx < text.Length)
+        {
+            if (text[idx] == 'T')
+            {
+                inTime = true;
+                idx++;
+                continue;
+            }
+            int numStart = idx;
+            while (
+                idx < text.Length
+                && (char.IsDigit(text[idx]) || text[idx] == '.' || text[idx] == ',')
+            )
+            {
+                idx++;
+            }
+            if (numStart == idx || idx >= text.Length)
+            {
+                throw new JsonException($"Invalid ISO-8601 duration: {text}");
+            }
+            string numText = text[numStart..idx].Replace(',', '.');
+            char designator = text[idx];
+            idx++;
+            sawAny = true;
+            if (!inTime)
+            {
+                switch (designator)
+                {
+                    case 'D':
+                        days = long.Parse(
+                            numText,
+                            System.Globalization.CultureInfo.InvariantCulture
+                        );
+                        break;
+                    case 'W':
+                        days +=
+                            long.Parse(numText, System.Globalization.CultureInfo.InvariantCulture)
+                            * 7L;
+                        break;
+                    case 'Y':
+                    case 'M':
+                        throw new JsonException(
+                            $"ISO-8601 duration designators 'Y' and date-'M' are not supported by TimeSpan: {text}"
+                        );
+                    default:
+                        throw new JsonException(
+                            $"Invalid date designator '{designator}' in ISO-8601 duration: {text}"
+                        );
+                }
+            }
+            else
+            {
+                switch (designator)
+                {
+                    case 'H':
+                        hours = long.Parse(
+                            numText,
+                            System.Globalization.CultureInfo.InvariantCulture
+                        );
+                        break;
+                    case 'M':
+                        minutes = long.Parse(
+                            numText,
+                            System.Globalization.CultureInfo.InvariantCulture
+                        );
+                        break;
+                    case 'S':
+                        seconds = decimal.Parse(
+                            numText,
+                            System.Globalization.CultureInfo.InvariantCulture
+                        );
+                        break;
+                    default:
+                        throw new JsonException(
+                            $"Invalid time designator '{designator}' in ISO-8601 duration: {text}"
+                        );
+                }
+            }
+        }
+
+        if (!sawAny)
+        {
+            throw new JsonException($"Invalid ISO-8601 duration (no components): {text}");
+        }
+
+        long totalTicks =
+            (days * TimeSpan.TicksPerDay)
+            + (hours * TimeSpan.TicksPerHour)
+            + (minutes * TimeSpan.TicksPerMinute)
+            + (long)(seconds * TimeSpan.TicksPerSecond);
+        TimeSpan result = TimeSpan.FromTicks(totalTicks);
+        return negative ? result.Negate() : result;
     }
 }

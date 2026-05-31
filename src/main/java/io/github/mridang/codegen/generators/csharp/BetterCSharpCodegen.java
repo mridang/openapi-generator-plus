@@ -71,6 +71,14 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         typeMapping.put("date", "DateOnly");
         typeMapping.put("DateTime", "DateTimeOffset");
         typeMapping.put("date-time", "DateTimeOffset");
+        // 4.8: format:time → TimeOnly (.NET 6+), format:duration → TimeSpan
+        // (rendered/parsed as ISO-8601 by Iso8601DurationConverter in
+        // ObjectSerializer). TimeSpan's default JSON form is the .NET
+        // "[d.]hh:mm:ss[.fff]" string, which would break interop with
+        // every other language SDK that round-trips PT1H30M-style ISO
+        // strings — hence the custom converter.
+        typeMapping.put("time", "TimeOnly");
+        typeMapping.put("duration", "TimeSpan");
         typeMapping.put("UUID", "Guid");
         typeMapping.put("URI", "string");
         typeMapping.put("object", "Object");
@@ -85,7 +93,8 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                 new HashSet<>(
                         Arrays.asList(
                                 "int", "long", "float", "double", "decimal", "bool", "string",
-                                "byte[]", "void", "Object", "DateOnly", "DateTimeOffset", "Guid"));
+                                "byte[]", "void", "Object", "DateOnly", "DateTimeOffset", "Guid",
+                                "TimeOnly", "TimeSpan"));
 
         instantiationTypes.put("array", "List");
         instantiationTypes.put("set", "HashSet");

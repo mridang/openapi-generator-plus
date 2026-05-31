@@ -28,8 +28,9 @@ class _FakeApiClient implements ApiClient {
     String method,
     String url,
     Map<String, String> headers,
-    Object? body,
-  ) async {
+    Object? body, {
+    bool noRedirect = false,
+  }) async {
     lastUrl = url;
     if (body != null) {
       lastBody = utf8.decode(body as List<int>);
@@ -53,8 +54,9 @@ class _GatedApiClient implements ApiClient {
     String method,
     String url,
     Map<String, String> headers,
-    Object? body,
-  ) async {
+    Object? body, {
+    bool noRedirect = false,
+  }) async {
     requestCount++;
     await gate.future;
     return HttpApiResponse(statusCode: 200, body: responseBody, headers: {});
@@ -350,6 +352,42 @@ void main() {
       expect(first, equals('neg1'));
       expect(second, equals('neg2'));
       expect(client.requestCount, equals(2));
+    });
+
+    /* Gap 3.2: a 307/308 on the token endpoint must be refused outright
+     * instead of replaying `client_id` / `client_secret` to a redirected
+     * host. The token manager also passes `noRedirect: true` to the
+     * underlying ApiClient so the raw 3xx status surfaces here. */
+    test('refuses 307 redirect on token endpoint', () async {
+      final client = _FakeApiClient();
+      client.enqueue('', statusCode: 307);
+
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+
+      await expectLater(
+        () => manager.getAccessToken(
+          'https://auth.example.com/token',
+          {'grant_type': 'client_credentials'},
+        ),
+        throwsA(isA<OAuth2TokenError>()),
+      );
+    });
+
+    test('refuses 308 redirect on token endpoint', () async {
+      final client = _FakeApiClient();
+      client.enqueue('', statusCode: 308);
+
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+
+      await expectLater(
+        () => manager.getAccessToken(
+          'https://auth.example.com/token',
+          {'grant_type': 'client_credentials'},
+        ),
+        throwsA(isA<OAuth2TokenError>()),
+      );
     });
 
     test('throws when token request fails',

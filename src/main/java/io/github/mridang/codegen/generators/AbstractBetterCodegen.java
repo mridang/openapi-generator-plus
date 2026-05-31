@@ -111,6 +111,16 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     protected boolean hasBasicAuth;
     protected boolean hasBearerAuth;
     protected boolean hasApiKeyAuth;
+
+    /**
+     * Names of API-key headers harvested from {@code securitySchemes} with
+     * {@code type=apiKey, in=header}. Per-language redirect loops merge these
+     * into their static sensitive-header allowlist (Authorization, Cookie,
+     * Proxy-Authorization) so cross-origin redirects strip caller-provided
+     * API-key headers even when the key is not named "Authorization".
+     */
+    protected final java.util.LinkedHashSet<String> apiKeyHeaderNames = new java.util.LinkedHashSet<>();
+
     protected boolean hasOAuth2ClientCredentials;
     protected boolean hasOAuth2Password;
     protected boolean hasOAuth2AuthorizationCode;
@@ -525,6 +535,15 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         additionalProperties.put("hasBasicAuth", hasBasicAuth);
         additionalProperties.put("hasBearerAuth", hasBearerAuth);
         additionalProperties.put("hasApiKeyAuth", hasApiKeyAuth);
+        final List<Map<String, Object>> apiKeyHeaderNamesList = new ArrayList<>();
+        for (final String name : apiKeyHeaderNames) {
+            final Map<String, Object> entry = new HashMap<>();
+            entry.put("name", name);
+            entry.put("lowerName", name.toLowerCase(java.util.Locale.ROOT));
+            apiKeyHeaderNamesList.add(entry);
+        }
+        additionalProperties.put("apiKeyHeaderNames", apiKeyHeaderNamesList);
+        additionalProperties.put("hasApiKeyHeaderNames", !apiKeyHeaderNamesList.isEmpty());
         additionalProperties.put("hasOAuth2ClientCredentials", hasOAuth2ClientCredentials);
         additionalProperties.put("hasOAuth2Password", hasOAuth2Password);
         additionalProperties.put("hasOAuth2AuthorizationCode", hasOAuth2AuthorizationCode);
@@ -623,6 +642,24 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 }
             } else if (scheme.getType() == SecurityScheme.Type.APIKEY) {
                 hasApiKeyAuth = true;
+                if (scheme.getIn() == SecurityScheme.In.HEADER
+                        && scheme.getName() != null
+                        && !scheme.getName().isEmpty()) {
+                    // Case-insensitive dedupe: HTTP header names are
+                    // case-insensitive per RFC 7230, so X-Token and x-token
+                    // collapse into a single entry. First seen wins.
+                    final String candidate = scheme.getName();
+                    boolean dup = false;
+                    for (final String existing : apiKeyHeaderNames) {
+                        if (existing.equalsIgnoreCase(candidate)) {
+                            dup = true;
+                            break;
+                        }
+                    }
+                    if (!dup) {
+                        apiKeyHeaderNames.add(candidate);
+                    }
+                }
             } else if (scheme.getType() == SecurityScheme.Type.OAUTH2
                     && scheme.getFlows() != null) {
                 if (scheme.getFlows().getClientCredentials() != null) {

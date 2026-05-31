@@ -6,6 +6,7 @@ require 'minitest/autorun'
 require '{{gemName}}'
 
 describe {{moduleName}}::TransportOptions do
+  parallelize_me!
 
   it 'verify_ssl defaults to true' do
     opts = {{moduleName}}::TransportOptions.builder.build

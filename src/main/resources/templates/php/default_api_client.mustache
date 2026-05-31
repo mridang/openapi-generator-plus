@@ -26,6 +26,25 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  */
 class DefaultApiClient implements ApiClient
 {
+    /**
+     * Gap 3.1: headers stripped from cross-origin redirect hops. Includes
+     * the static set {Authorization, Cookie, Proxy-Authorization} plus any
+     * `apiKey, in=header` names harvested from the OpenAPI document at
+     * codegen time so cross-origin redirects strip caller-provided API-key
+     * headers even when the key is not named "Authorization". Compared
+     * case-insensitively (entries are already lowercased here).
+     *
+     * @var list<string>
+     */
+    private const array SENSITIVE_HEADER_NAMES = [
+        'authorization',
+        'cookie',
+        'proxy-authorization',
+{{#apiKeyHeaderNames}}
+        '{{nameLower}}',
+{{/apiKeyHeaderNames}}
+    ];
+
     /** @var HttpClientInterface The underlying Symfony HTTP client. */
     private readonly HttpClientInterface $client;
 
@@ -95,17 +114,26 @@ class DefaultApiClient implements ApiClient
      * X-Request-ID injection, handles multipart form data, and decompresses
      * the response body.
      *
-     * @param string               $method  HTTP method
-     * @param string               $url     Fully qualified URL
-     * @param array<string, string> $headers HTTP headers
-     * @param mixed                $body    Request body
+     * @param string                $method     HTTP method
+     * @param string                $url        Fully qualified URL
+     * @param array<string, string> $headers    HTTP headers
+     * @param mixed                 $body       Request body
+     * @param bool                  $noRedirect when true, suppress redirect following
+     *                                          regardless of {@see TransportOptions::followRedirects}
+     *                                          (Gap 3.2 — used by {@see OAuth2TokenManager}
+     *                                          to refuse 307/308 on token POSTs)
      *
      * @return ApiResponse the HTTP response
      *
      * @throws \RuntimeException if the request fails at the transport level
      */
-    public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
-    {
+    public function sendRequest(
+        string $method,
+        string $url,
+        array $headers,
+        mixed $body,
+        bool $noRedirect = false,
+    ): ApiResponse {
         $mergedHeaders = array_merge($this->transportOptions->defaultHeaders, $headers);
 
         if (
@@ -235,7 +263,7 @@ class DefaultApiClient implements ApiClient
              * Location: headers ourselves here, removing Authorization /
              * Cookie / Proxy-Authorization whenever the next URL's origin
              * differs from the original. */
-            if ($this->transportOptions->followRedirects) {
+            if ($this->transportOptions->followRedirects && !$noRedirect) {
                 $maxRedirects = $this->transportOptions->maxRedirects ?? 20;
                 $originalUrl = $url;
                 $hops = 0;
@@ -264,6 +292,21 @@ class DefaultApiClient implements ApiClient
                      *              non-GET/HEAD requests, drop the body. */
                     $statusCode = $response->getStatusCode();
                     $methodUpper = strtoupper($currentMethod);
+
+                    /* Gap 3.3: refuse to replay a request body across an
+                     * HTTPS -> HTTP downgrade. A malicious 307/308 from an
+                     * upstream proxy can otherwise leak request bodies
+                     * (containing credentials, PII, etc.) onto the wire in
+                     * plaintext. The connection is closed and the original
+                     * 3xx response surfaces to the caller. */
+                    $prevScheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+                    $nextScheme = strtolower((string) $scheme);
+                    $isDowngrade = $prevScheme === 'https' && $nextScheme === 'http';
+                    $hasBody = isset($currentOptions['body']);
+                    if ($isDowngrade && $hasBody && ($statusCode === 307 || $statusCode === 308)) {
+                        break;
+                    }
+
                     if ($statusCode === 307 || $statusCode === 308) {
                         $nextMethod = $currentMethod;
                         $dropBody = false;
@@ -282,7 +325,7 @@ class DefaultApiClient implements ApiClient
                     if ($crossOrigin) {
                         foreach (array_keys($redirectHeaders) as $hname) {
                             $lower = strtolower((string) $hname);
-                            if (in_array($lower, ['authorization', 'cookie', 'proxy-authorization'], true)) {
+                            if (in_array($lower, self::SENSITIVE_HEADER_NAMES, true)) {
                                 unset($redirectHeaders[$hname]);
                             }
                         }

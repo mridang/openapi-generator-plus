@@ -76,6 +76,7 @@ class BaseApiTest {
             url: String,
             headers: Map<String, String>,
             body: Any?,
+            noRedirect: Boolean,
         ): ApiResponse {
             capturedUrl = url
             capturedHeaders = headers
@@ -329,6 +330,7 @@ class BaseApiTest {
                         url: String,
                         headers: Map<String, String>,
                         body: Any?,
+                        noRedirect: Boolean,
                     ): ApiResponse {
                         capturedHeaders = headers
                         capturedBody = body
@@ -358,6 +360,7 @@ class BaseApiTest {
                         url: String,
                         headers: Map<String, String>,
                         body: Any?,
+                        noRedirect: Boolean,
                     ): ApiResponse {
                         capturedHeaders = headers
                         capturedBody = body
@@ -664,6 +667,7 @@ class BaseApiTest {
                         url: String,
                         headers: Map<String, String>,
                         body: Any?,
+                        noRedirect: Boolean,
                     ): ApiResponse = ApiResponse(200, encoded, mapOf("Content-Type" to "application/octet-stream"))
                 }
             val response = runBlocking { client.sendRequest("GET", "/api/binary", emptyMap(), null) }
@@ -684,6 +688,7 @@ class BaseApiTest {
                         url: String,
                         headers: Map<String, String>,
                         body: Any?,
+                        noRedirect: Boolean,
                     ): ApiResponse = ApiResponse(200, "iVBORw0KGgo=", mapOf("Content-Type" to "image/png"))
                 }
             val response = runBlocking { client.sendRequest("GET", "/api/image", emptyMap(), null) }
@@ -705,6 +710,7 @@ class BaseApiTest {
                         url: String,
                         headers: Map<String, String>,
                         body: Any?,
+                        noRedirect: Boolean,
                     ): ApiResponse = ApiResponse(200, "{\"key\":\"value\"}", mapOf("Content-Type" to "application/json"))
                 }
             val testApi = TestableApiWithClient(client, "http://localhost")
@@ -726,6 +732,7 @@ class BaseApiTest {
                         url: String,
                         headers: Map<String, String>,
                         body: Any?,
+                        noRedirect: Boolean,
                     ): ApiResponse = ApiResponse(200, "hello", mapOf("Content-Type" to "text/plain"))
                 }
             val testApi = TestableApiWithClient(client, "http://localhost")
@@ -747,6 +754,7 @@ class BaseApiTest {
                         url: String,
                         headers: Map<String, String>,
                         body: Any?,
+                        noRedirect: Boolean,
                     ): ApiResponse = ApiResponse(200, "", mapOf("Content-Type" to "application/octet-stream"))
                 }
             val response = runBlocking { client.sendRequest("GET", "/api/binary/empty", emptyMap(), null) }
@@ -770,6 +778,7 @@ class BaseApiTest {
                         url: String,
                         headers: Map<String, String>,
                         body: Any?,
+                        noRedirect: Boolean,
                     ): ApiResponse {
                         capturedHeaders.putAll(headers)
                         return ApiResponse(200, "{}", mapOf("Content-Type" to "application/json"))

@@ -37,6 +37,29 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
     }
 
+    /// <summary>
+    /// Header names that MUST be stripped on every cross-origin redirect hop
+    /// (Gap BH / Gap 3.1). The set covers the universal credential headers
+    /// (<c>Authorization</c>, <c>Cookie</c>, <c>Proxy-Authorization</c>) and,
+    /// in addition, every API-key header name declared in the OpenAPI spec
+    /// — so a redirect to attacker-controlled origin cannot replay a custom
+    /// header like <c>X-Api-Key</c> that the OAS marks as a security
+    /// credential.
+    ///
+    /// Names are compared case-insensitively (RFC 7230 §3.2 — HTTP header
+    /// names are tokens, case-insensitive).
+    /// </summary>
+    public static readonly IReadOnlySet<string> SensitiveHeaderNames = new HashSet<string>(
+        StringComparer.OrdinalIgnoreCase
+    )
+    {
+        "Authorization",
+        "Cookie",
+        "Proxy-Authorization",
+        "X-API-Key",
+        "X-Internal-Key",
+    };
+
     private readonly HttpClient _httpClient;
     private readonly TransportOptions _transportOptions;
 
@@ -206,9 +229,12 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         string method,
         Uri url,
         Dictionary<string, string> headers,
-        object? body
+        object? body,
+        bool noRedirect = false
     )
     {
+        ArgumentNullException.ThrowIfNull(method);
+        ArgumentNullException.ThrowIfNull(url);
         ArgumentNullException.ThrowIfNull(headers);
 
         Dictionary<string, string> mergedHeaders = new(_transportOptions.DefaultHeaders);
@@ -300,8 +326,12 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         {
             response = await _httpClient.SendAsync(request).ConfigureAwait(false);
 
-            /* Gap BH: manual redirect loop with cross-origin sensitive-header strip. */
-            if (_transportOptions.FollowRedirects)
+            /* Gap BH: manual redirect loop with cross-origin sensitive-header strip.
+               Gap 3.2: when noRedirect is set the loop is skipped entirely so a
+               307/308 surfaces verbatim. Used by OAuth2TokenManager so a malicious
+               token endpoint cannot redirect-replay client credentials to an
+               attacker-controlled host. */
+            if (_transportOptions.FollowRedirects && !noRedirect)
             {
                 /* Default to 20 hops when caller does not configure an
                    explicit cap — unified across all 12 SDKs. */
@@ -309,12 +339,6 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                 Uri originalUrl = url;
                 Uri currentUrl = url;
                 int hops = 0;
-                HashSet<string> sensitive = new(StringComparer.OrdinalIgnoreCase)
-                {
-                    "Authorization",
-                    "Cookie",
-                    "Proxy-Authorization",
-                };
                 string currentMethod = method;
                 object? currentBody = body;
                 while (hops < maxRedirects && IsRedirectStatus((int)response.StatusCode))
@@ -331,6 +355,32 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                         break;
                     }
                     bool crossOrigin = !SameOrigin(originalUrl, nextUrl);
+
+                    /* Gap 3.3: HTTPS -> HTTP downgrade body-replay guard. A
+                       307/308 normally preserves the original method and body,
+                       but replaying a body that was sent over TLS in
+                       cleartext to a downgraded HTTP target leaks whatever
+                       was in it (request signatures, form-encoded
+                       credentials, PII). Refuse the hop entirely rather
+                       than silently downgrade. The original encrypted
+                       response is surfaced to the caller. */
+                    bool isDowngrade =
+                        string.Equals(
+                            currentUrl.Scheme,
+                            Uri.UriSchemeHttps,
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                        && string.Equals(
+                            nextUrl.Scheme,
+                            Uri.UriSchemeHttp,
+                            StringComparison.OrdinalIgnoreCase
+                        );
+                    int redirectStatus = (int)response.StatusCode;
+                    bool preservesBody = redirectStatus == 307 || redirectStatus == 308;
+                    if (isDowngrade && preservesBody && currentBody != null)
+                    {
+                        break;
+                    }
 
                     /* Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
                        307 + 308: preserve original method and body.
@@ -386,7 +436,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                         {
                             continue;
                         }
-                        if (crossOrigin && sensitive.Contains(header.Key))
+                        if (crossOrigin && SensitiveHeaderNames.Contains(header.Key))
                         {
                             continue;
                         }

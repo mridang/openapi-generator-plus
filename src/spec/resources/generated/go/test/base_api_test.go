@@ -285,6 +285,11 @@ type capturingApiClient struct {
 }
 
 func (c *capturingApiClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*petstore.HttpResponse, error) {
+	return c.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (c *capturingApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body interface{}, opts *petstore.RequestOptions) (*petstore.HttpResponse, error) {
+	_ = opts
 	c.capturedHeaders = make(map[string]string)
 	for k, v := range headers {
 		c.capturedHeaders[k] = v
@@ -335,6 +340,11 @@ type contentTypeApiClient struct {
 }
 
 func (c *contentTypeApiClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*petstore.HttpResponse, error) {
+	return c.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (c *contentTypeApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body interface{}, opts *petstore.RequestOptions) (*petstore.HttpResponse, error) {
+	_ = opts
 	return &petstore.HttpResponse{
 		StatusCode: 200,
 		Body:       c.responseBody,
@@ -402,6 +412,11 @@ type queryCapturingApiClient struct {
 }
 
 func (c *queryCapturingApiClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*petstore.HttpResponse, error) {
+	return c.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (c *queryCapturingApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body interface{}, opts *petstore.RequestOptions) (*petstore.HttpResponse, error) {
+	_ = opts
 	c.capturedURL = url
 	return &petstore.HttpResponse{StatusCode: 200, Body: "{}", Headers: map[string]string{"content-type": "application/json"}}, nil
 }
@@ -586,6 +601,11 @@ type bodyCapturingApiClient struct {
 }
 
 func (c *bodyCapturingApiClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*petstore.HttpResponse, error) {
+	return c.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (c *bodyCapturingApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body interface{}, opts *petstore.RequestOptions) (*petstore.HttpResponse, error) {
+	_ = opts
 	c.capturedBody = body
 	c.capturedHeaders = make(map[string]string)
 	for k, v := range headers {
@@ -640,6 +660,11 @@ type binaryResponseApiClient struct {
 }
 
 func (c *binaryResponseApiClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*petstore.HttpResponse, error) {
+	return c.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (c *binaryResponseApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body interface{}, opts *petstore.RequestOptions) (*petstore.HttpResponse, error) {
+	_ = opts
 	return &petstore.HttpResponse{
 		StatusCode: 200,
 		Body:       c.responseBody,
@@ -924,6 +949,11 @@ type authHeaderCapturingClient struct {
 }
 
 func (c *authHeaderCapturingClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*petstore.HttpResponse, error) {
+	return c.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (c *authHeaderCapturingClient) SendRequestWithOptions(method, url string, headers map[string]string, body interface{}, opts *petstore.RequestOptions) (*petstore.HttpResponse, error) {
+	_ = opts
 	c.headers = make(map[string]string)
 	for k, v := range headers {
 		c.headers[k] = v

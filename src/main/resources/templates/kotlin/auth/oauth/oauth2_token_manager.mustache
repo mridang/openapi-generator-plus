@@ -157,7 +157,11 @@ class OAuth2TokenManager {
             "Accept" to "application/json",
         ) + extraHeaders
 
-        val response: ApiResponse = client.sendRequest("POST", tokenUrl, headers, body)
+        // Gap 3.2: 307/308 redirects on the token endpoint would silently
+        // replay client credentials (client_secret, refresh_token, password)
+        // in the form body to a redirect target. Refuse them; let 301/302/303
+        // through because those drop the body anyway.
+        val response: ApiResponse = client.sendRequest("POST", tokenUrl, headers, body, noRedirect = true)
         if (response.statusCode < 200 || response.statusCode >= 300) {
             /* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
              * `error` (required), `error_description`, `error_uri`. Parse

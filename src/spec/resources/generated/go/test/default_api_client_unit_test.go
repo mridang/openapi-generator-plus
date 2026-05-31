@@ -465,3 +465,150 @@ func TestDefaultApiClient_FallsBackToUtf8ForUnknownCharset(t *testing.T) {
 		t.Errorf("expected unknown charset to fall back to UTF-8, got %q", resp.Body)
 	}
 }
+
+// Gap 3.2: NoRedirect on the per-request RequestOptions must short-circuit
+// every 3xx response, even when the transport itself follows redirects.
+// Pins the protection used by OAuth2TokenManager on token endpoint POSTs.
+func TestDefaultApiClient_NoRedirectOptionShortCircuits307(t *testing.T) {
+	t.Parallel()
+	var followUpHit bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/redirect") {
+			w.Header().Set("Location", "/followed")
+			w.WriteHeader(307)
+			return
+		}
+		followUpHit = true
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	client := petstore.NewDefaultApiClient(nil)
+	resp, err := client.SendRequestWithOptions(
+		"POST", server.URL+"/redirect",
+		map[string]string{"Content-Type": "application/x-www-form-urlencoded"},
+		[]byte("client_secret=hunter2"),
+		&petstore.RequestOptions{NoRedirect: true},
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 307 {
+		t.Errorf("expected raw 307 to surface, got %d", resp.StatusCode)
+	}
+	if followUpHit {
+		t.Error("follow-up endpoint must not be hit when NoRedirect is true")
+	}
+}
+
+// Gap 3.3: refuse to replay a request body across an HTTPS → HTTP
+// downgrade. A malicious 307 from an HTTPS endpoint to its HTTP twin
+// would otherwise leak the form-encoded body in plaintext on the wire.
+func TestDefaultApiClient_RefusesBodyReplayOnHttpsToHttpDowngrade(t *testing.T) {
+	t.Parallel()
+	plainServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+	defer plainServer.Close()
+
+	tlsServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", plainServer.URL+"/leaked")
+		w.WriteHeader(307)
+	}))
+	defer tlsServer.Close()
+
+	transport := petstore.NewTransportOptionsBuilder().
+		VerifySSL(false).
+		FollowRedirects(true).
+		Build()
+	client := petstore.NewDefaultApiClient(transport)
+	_, err := client.SendRequest(
+		"POST", tlsServer.URL+"/issue",
+		map[string]string{"Content-Type": "application/x-www-form-urlencoded"},
+		[]byte("client_secret=hunter2"),
+	)
+	if err == nil {
+		t.Fatal("expected error refusing HTTPS→HTTP body replay, got nil")
+	}
+	if !strings.Contains(err.Error(), "HTTPS") || !strings.Contains(err.Error(), "HTTP") {
+		t.Errorf("expected downgrade refusal message, got %q", err.Error())
+	}
+}
+
+// Gap 3.4: when a 303 forces the follow-up to GET and clears the body,
+// the outbound request must also drop the Content-Length header so it
+// reflects the now-empty body. Stale Content-Length on a GET trips some
+// origins / proxies and is undefined per RFC 7231 §3.3.2.
+func TestDefaultApiClient_Drops303ContentLengthOnCoercedGet(t *testing.T) {
+	t.Parallel()
+	var sawContentLengthOnGet string
+	var sawMethodOnFollowup string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/post", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", "/followup")
+		w.WriteHeader(303)
+	})
+	mux.HandleFunc("/followup", func(w http.ResponseWriter, r *http.Request) {
+		sawMethodOnFollowup = r.Method
+		sawContentLengthOnGet = r.Header.Get("Content-Length")
+		w.WriteHeader(200)
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	transport := petstore.NewTransportOptionsBuilder().
+		FollowRedirects(true).
+		Build()
+	client := petstore.NewDefaultApiClient(transport)
+	_, err := client.SendRequest(
+		"POST", server.URL+"/post",
+		map[string]string{"Content-Type": "application/json"},
+		[]byte(`{"hello":"world"}`),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sawMethodOnFollowup != "GET" {
+		t.Errorf("expected GET on 303 follow-up, got %q", sawMethodOnFollowup)
+	}
+	if sawContentLengthOnGet != "" && sawContentLengthOnGet != "0" {
+		t.Errorf("expected Content-Length to be dropped (or 0) on 303 follow-up, got %q",
+			sawContentLengthOnGet)
+	}
+}
+
+// Gap 3.1: an API-key header name harvested from the OpenAPI spec must be
+// stripped from a cross-origin 3xx redirect alongside the static sensitive
+// allowlist (Authorization, Cookie, Proxy-Authorization). When the spec
+// declares no API-key headers the dynamic portion of the allowlist is
+// empty and only the static names are present; the static names are
+// always stripped regardless of spec content.
+func TestDefaultApiClient_StripsAuthorizationAcrossCrossOriginRedirect(t *testing.T) {
+	t.Parallel()
+	var receivedAuth string
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedAuth = r.Header.Get("Authorization")
+		w.WriteHeader(200)
+	}))
+	defer target.Close()
+
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", target.URL+"/followed")
+		w.WriteHeader(302)
+	}))
+	defer origin.Close()
+
+	transport := petstore.NewTransportOptionsBuilder().
+		FollowRedirects(true).
+		Build()
+	client := petstore.NewDefaultApiClient(transport)
+	_, err := client.SendRequest("GET", origin.URL+"/start",
+		map[string]string{"Authorization": "Bearer leaked-token"}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if receivedAuth != "" {
+		t.Errorf("expected Authorization to be stripped across cross-origin redirect, got %q",
+			receivedAuth)
+	}
+}

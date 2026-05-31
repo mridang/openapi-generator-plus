@@ -9,6 +9,7 @@ require 'json'
 require '{{gemName}}'
 
 describe {{moduleName}}::Auth::OAuth::OAuth2ImplicitAuthenticator do
+  parallelize_me!
 
   let(:auth) do
     {{moduleName}}::Auth::OAuth::OAuth2ImplicitAuthenticator.new(

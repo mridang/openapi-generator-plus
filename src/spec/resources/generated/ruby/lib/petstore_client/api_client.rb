@@ -10,8 +10,14 @@
 module PetstoreClient
   # Abstract base class for HTTP clients. Subclasses must implement
   # +send_request+ to perform the actual HTTP call.
+  #
+  # @param no_redirect [Boolean] when true, the implementation MUST NOT
+  #   follow any 3xx redirect and MUST raise +ApiError+ if the server
+  #   returns one. Used by the OAuth2 token endpoint POST so that
+  #   credentials in the body are never silently replayed to a redirect
+  #   target. Defaults to false.
   class ApiClient
-    def send_request(method, url, headers, body)
+    def send_request(method, url, headers, body, no_redirect: false)
       raise NotImplementedError, "#{self.class}#send_request must be implemented"
     end
   end

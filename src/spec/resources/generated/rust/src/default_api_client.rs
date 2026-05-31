@@ -15,11 +15,21 @@ use reqwest::Proxy;
 use reqwest::{Client, ClientBuilder};
 use uuid::Uuid;
 
-use crate::api_client::{ApiClient, MultipartValue, RequestBody};
+use crate::api_client::{ApiClient, MultipartValue, RequestBody, RequestOptions};
 use crate::api_error::ApiError;
 use crate::api_response::ApiResponse;
 use crate::transport_options::TransportOptions;
 use crate::transport_options::TransportOptionsBuilder;
+
+/// Gap 3.1: lowercased credential-bearing header names that must be stripped
+/// from cross-origin redirects. The fixed entries (`authorization`, `cookie`,
+/// `proxy-authorization`) are joined at codegen time by every `apiKey, in:
+/// header` security scheme declared in the OpenAPI spec, so a custom
+/// `X-Api-Key` (or similarly named) header injected by the caller cannot leak
+/// to an attacker-controlled redirect target. Names are compared
+/// case-insensitively; entries here are already lowercased.
+pub const SENSITIVE_HEADER_NAMES: &[&str] =
+    &["authorization", "cookie", "proxy-authorization", "", ""];
 
 /// DefaultApiClient is the default HTTP client implementation backed by reqwest.
 ///
@@ -89,10 +99,32 @@ impl ApiClient for DefaultApiClient {
                 + '_,
         >,
     > {
+        self.send_request_with_options(method, url, headers, body, &RequestOptions::default())
+    }
+
+    /// Gap 3.2: extended `send_request` that honours per-request options.
+    /// Set `options.no_redirect=true` (e.g. on OAuth2 token POSTs) to refuse
+    /// 307/308 redirects so the credentialed body cannot be replayed to a
+    /// redirect target chosen by the remote server.
+    fn send_request_with_options(
+        &self,
+        method: &str,
+        url: &str,
+        headers: &HashMap<String, String>,
+        body: Option<&RequestBody>,
+        options: &RequestOptions,
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
+                + Send
+                + '_,
+        >,
+    > {
         let method = method.to_string();
         let url = url.to_string();
         let headers = headers.clone();
         let body = body.cloned();
+        let options = options.clone();
 
         Box::pin(async move {
             let mut merged: HashMap<String, String> = self.transport_options.default_headers();
@@ -183,11 +215,33 @@ impl ApiClient for DefaultApiClient {
                 let original_url = reqwest::Url::parse(&url).ok();
                 let mut current_url = original_url.clone();
                 let mut hops = 0usize;
-                let sensitive: [&str; 3] = ["authorization", "cookie", "proxy-authorization"];
                 let mut current_method = method.to_string();
                 let mut current_body: Option<Vec<u8>> = body_bytes.clone();
                 let mut current_headers: std::collections::HashMap<String, String> = merged.clone();
                 while is_redirect_status(response.status().as_u16()) && hops < max {
+                    // Gap 3.2: caller (typically an OAuth2 token POST) refuses
+                    // body-preserving 307/308 redirects so credentials in the
+                    // body cannot be replayed to a redirect target. 301/302/303
+                    // are unaffected because they drop the body anyway.
+                    let status_code = response.status().as_u16();
+                    if options.no_redirect && (status_code == 307 || status_code == 308) {
+                        return Err(Box::new(ApiError::new(
+                            status_code,
+                            format!(
+                                "Refusing to follow {} redirect when no_redirect=true (url={})",
+                                status_code,
+                                current_url
+                                    .as_ref()
+                                    .map(|u| u.to_string())
+                                    .unwrap_or_else(|| url.clone())
+                            ),
+                            None,
+                            None,
+                            None,
+                        ))
+                            as Box<dyn std::error::Error + Send + Sync>);
+                    }
+
                     let location = match response
                         .headers()
                         .get("location")
@@ -209,13 +263,39 @@ impl ApiClient for DefaultApiClient {
                         None => true,
                     };
 
+                    // Gap 3.3: refuse to replay a request body across an
+                    // HTTPS->HTTP downgrade. Only 307/308 preserve the body, so
+                    // we only guard those: a TLS-protected payload (POST/PUT
+                    // body) must not be silently re-sent in cleartext.
+                    if is_https_to_http_body_replay(
+                        status_code,
+                        current_url.as_ref(),
+                        &next_url,
+                        current_body.is_some(),
+                    ) {
+                        return Err(Box::new(ApiError::new(
+                            status_code,
+                            format!(
+                                "Refusing to replay request body across HTTPS->HTTP redirect: {} -> {}",
+                                current_url
+                                    .as_ref()
+                                    .map(|u| u.to_string())
+                                    .unwrap_or_else(|| url.clone()),
+                                next_url
+                            ),
+                            None,
+                            None,
+                            None,
+                        ))
+                            as Box<dyn std::error::Error + Send + Sync>);
+                    }
+
                     // Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 /
                     // RFC 7538.
                     //   307 + 308: preserve original method and body.
                     //   303:       force GET, drop the body (and Content-Type/Length).
                     //   301 + 302: historical browser behaviour — switch to GET
                     //              for non-GET/HEAD requests, drop the body.
-                    let status_code = response.status().as_u16();
                     let method_upper = current_method.to_uppercase();
                     let (next_method, next_body): (String, Option<Vec<u8>>) =
                         if status_code == 307 || status_code == 308 {
@@ -242,7 +322,7 @@ impl ApiClient for DefaultApiClient {
                     }
                     for (k, v) in &redirect_headers {
                         let lk = k.to_lowercase();
-                        if cross_origin && sensitive.iter().any(|s| *s == lk) {
+                        if cross_origin && SENSITIVE_HEADER_NAMES.iter().any(|s| *s == lk) {
                             continue;
                         }
                         redirect_builder = redirect_builder.header(k.as_str(), v.as_str());
@@ -353,6 +433,29 @@ fn build_http_client(opts: &TransportOptions) -> Client {
 /// Returns true for HTTP 3xx redirect status codes that carry a Location header.
 fn is_redirect_status(code: u16) -> bool {
     matches!(code, 301 | 302 | 303 | 307 | 308)
+}
+
+/// Gap 3.3: returns `true` when following the redirect would replay the
+/// in-flight request body across an HTTPS->HTTP downgrade. Only 307/308
+/// preserve the body per RFC 7231 §6.4.7 / RFC 7538, so the predicate is
+/// false for 301/302/303 even when the schemes differ.
+pub fn is_https_to_http_body_replay(
+    status_code: u16,
+    current_url: Option<&reqwest::Url>,
+    next_url: &reqwest::Url,
+    has_body: bool,
+) -> bool {
+    if status_code != 307 && status_code != 308 {
+        return false;
+    }
+    if !has_body {
+        return false;
+    }
+    let current_is_https = current_url
+        .map(|u| u.scheme().eq_ignore_ascii_case("https"))
+        .unwrap_or(false);
+    let next_is_http = next_url.scheme().eq_ignore_ascii_case("http");
+    current_is_https && next_is_http
 }
 
 /// Returns true when two URLs share scheme, host, and effective port.

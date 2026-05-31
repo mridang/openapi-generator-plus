@@ -193,7 +193,14 @@ class DefaultApiClient:
     ) -> None:
         self.close()
 
-    def send_request(self, method: str, url: str, headers: Dict[str, str], body: Any = None) -> ApiResponse:
+    def send_request(
+        self,
+        method: str,
+        url: str,
+        headers: Dict[str, str],
+        body: Any = None,
+        no_redirect: bool = False,
+    ) -> ApiResponse:
         """Send an HTTP request and return the response.
 
         Applies transport-level header injection (default headers, User-Agent,
@@ -206,6 +213,11 @@ class DefaultApiClient:
             headers: HTTP headers from the caller.
             body: Request body (serialized JSON string, bytes, dict for
                 multipart, or None).
+            no_redirect: When ``True``, the redirect loop refuses to follow
+                a 307 or 308 response and raises
+                :class:`~{{packageName}}.errors.ApiException`. Used by the
+                OAuth2 token manager so a credential-bearing POST cannot be
+                silently replayed against an attacker-controlled endpoint.
 
         Returns:
             :class:`ApiResponse` containing status code, body, and headers.
@@ -295,6 +307,20 @@ class DefaultApiClient:
                     initial_body=encoded_body,
                     initial_headers=merged_headers,
                     request_kwargs=request_kwargs,
+                    no_redirect=no_redirect,
+                )
+            elif no_redirect and response.status in (307, 308):
+                # Caller demanded "no 307/308 silently". With redirect
+                # following disabled altogether the status surfaces back
+                # to them anyway, but we still raise explicitly so the
+                # contract is identical regardless of the transport
+                # follow_redirects setting.
+                raise ApiException(
+                    message=(
+                        f'Refusing to follow {response.status} redirect: '
+                        'caller requested no_redirect (likely an OAuth2 '
+                        'token request)'
+                    )
                 )
         except urllib3.exceptions.HTTPError as e:
             raise ApiException(message=str(e)) from e
@@ -332,9 +358,19 @@ class DefaultApiClient:
     # Sensitive headers that MUST be stripped on a cross-origin redirect
     # to avoid leaking bearer tokens / cookies / proxy credentials to an
     # attacker-controlled host. Names are compared case-insensitively.
-    _SENSITIVE_HEADERS: FrozenSet[str] = frozenset(
-        ['authorization', 'cookie', 'proxy-authorization']
-    )
+    #
+    # The spec-declared API-key header names ({{#hasApiKeyHeaderNames}}{{#apiKeyHeaderNames}}{{name}}, {{/apiKeyHeaderNames}}{{/hasApiKeyHeaderNames}}{{^hasApiKeyHeaderNames}}none declared in this spec{{/hasApiKeyHeaderNames}})
+    # are merged in at codegen time so an API key sent in a custom header
+    # (e.g. ``X-API-Key``) is also treated as a credential and stripped on
+    # a cross-origin hop, matching the canonical SDKs.
+    _SENSITIVE_HEADERS: FrozenSet[str] = frozenset([
+        'authorization',
+        'cookie',
+        'proxy-authorization',
+        {{#apiKeyHeaderNames}}
+        '{{nameLower}}',
+        {{/apiKeyHeaderNames}}
+    ])
 
     # Body-related headers that must be cleared when the follow-up has
     # no body (303 coercion, or 301/302 demotion of POST -> GET).
@@ -352,6 +388,7 @@ class DefaultApiClient:
         initial_body: Any,
         initial_headers: Dict[str, str],
         request_kwargs: Dict[str, Any],
+        no_redirect: bool = False,
     ) -> Any:
         """Drive the redirect loop manually with security guards.
 
@@ -410,7 +447,45 @@ class DefaultApiClient:
                         message=f'Refusing to follow redirect to non-HTTP(S) URL: {next_url}'
                     )
 
+                # Guard 1b (3.2): caller-requested 307/308 refusal. Token
+                # POSTs to the OAuth2 endpoint set ``no_redirect=True`` so a
+                # malicious 307/308 cannot silently replay the credential-
+                # bearing body against an attacker-controlled host. We raise
+                # before the cross-origin / TLS-downgrade checks below so
+                # the failure mode is uniform whether or not the redirect
+                # also crosses origins.
+                if no_redirect and response.status in (307, 308):
+                    raise ApiException(
+                        message=(
+                            f'Refusing to follow {response.status} redirect: '
+                            'caller requested no_redirect (likely an OAuth2 '
+                            'token request)'
+                        )
+                    )
+
                 same_origin = self._same_origin(current_url, next_url)
+
+                # Guard 1c (3.3): HTTPS -> HTTP downgrade with a request
+                # body must not silently replay the body over plaintext.
+                # The Authorization strip below handles credential leakage,
+                # but body content can itself be sensitive (form fields,
+                # JSON payloads), so refuse outright when a body would be
+                # carried across the downgrade. 303 still coerces to GET
+                # and drops the body below, so the guard only triggers on
+                # 307 / 308 (body preserved) and on 301 / 302 of a body-
+                # bearing non-idempotent method that the matrix expects
+                # to replay.
+                if (
+                    current_body is not None
+                    and self._is_https_to_http_downgrade(current_url, next_url)
+                    and response.status in (307, 308)
+                ):
+                    raise ApiException(
+                        message=(
+                            f'Refusing to replay request body across HTTPS -> HTTP '
+                            f'downgrade redirect ({response.status}) to {next_url}'
+                        )
+                    )
 
                 # Pick follow-up method/body per RFC 7231 section 6.4 / RFC 7538.
                 status_code = response.status
@@ -530,6 +605,19 @@ class DefaultApiClient:
             parsed_location.query,
             parsed_location.fragment,
         ))
+
+    @staticmethod
+    def _is_https_to_http_downgrade(original_url: str, redirect_url: str) -> bool:
+        """Return ``True`` when ``original_url`` is HTTPS and ``redirect_url``
+        is HTTP. Used by the body-replay guard so we only refuse on the
+        TLS-removed direction; HTTP -> HTTPS and same-scheme hops are fine.
+        """
+        original = urlsplit(original_url)
+        redirect = urlsplit(redirect_url)
+        return (
+            (original.scheme or '').lower() == 'https'
+            and (redirect.scheme or '').lower() == 'http'
+        )
 
     @staticmethod
     def _effective_port(scheme: str, port: Optional[int]) -> int:

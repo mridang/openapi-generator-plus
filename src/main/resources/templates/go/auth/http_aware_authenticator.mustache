@@ -15,6 +15,18 @@ type HttpResponse struct {
 	Headers map[string]string
 }
 
+// RequestOptions carries per-request transport overrides for ApiClient calls
+// originating from the auth subpackage.
+//
+// Mirrors the main package's RequestOptions to avoid circular imports.
+type RequestOptions struct {
+	/* NoRedirect, when true, forces the transport to refuse every 3xx
+	 * response. Set by OAuth2TokenManager on token endpoint POSTs so a
+	 * 307 / 308 cannot replay the form-encoded `client_secret` /
+	 * `refresh_token` onto an attacker-controlled host. */
+	NoRedirect bool
+}
+
 // ApiClient is the interface for HTTP clients used by authentication components.
 //
 // Mirrors the main package's ApiClient to avoid circular imports between the
@@ -22,6 +34,12 @@ type HttpResponse struct {
 type ApiClient interface {
 	/* SendRequest sends an HTTP request and returns the response. */
 	SendRequest(method, url string, headers map[string]string, body interface{}) (*HttpResponse, error)
+
+	/* SendRequestWithOptions sends an HTTP request applying the supplied
+	 * per-request RequestOptions on top of the transport-level defaults.
+	 * Implementations MUST treat a nil opts the same as a zero-value
+	 * RequestOptions. */
+	SendRequestWithOptions(method, url string, headers map[string]string, body interface{}, opts *RequestOptions) (*HttpResponse, error)
 }
 
 // HttpAwareAuthenticator is implemented by authentication schemes that

@@ -104,6 +104,31 @@ defmodule PetstoreClient.DefaultApiClient do
           body :: term() | nil
         ) :: PetstoreClient.ApiResponse.t()
   def send_request(%__MODULE__{} = client, method, url, headers, body) do
+    send_request(client, method, url, headers, body, [])
+  end
+
+  @doc """
+  Variant of `send_request/5` that takes a per-request `opts` keyword list.
+
+  Currently honoured options:
+
+    * `:no_redirect` -- when `true`, suppress redirect following for this
+      single call regardless of the transport-level
+      `TransportOptions.follow_redirects` setting. Used by
+      `Auth.OAuth.OAuth2TokenManager` to refuse 307/308 token-endpoint
+      replays.
+  """
+  @impl PetstoreClient.ApiClient
+  @spec send_request(
+          t(),
+          method :: atom(),
+          url :: String.t(),
+          headers :: %{optional(String.t()) => String.t()},
+          body :: term() | nil,
+          opts :: keyword()
+        ) :: PetstoreClient.ApiResponse.t()
+  def send_request(%__MODULE__{} = client, method, url, headers, body, request_opts)
+      when is_list(request_opts) do
     opts = client.transport_options
     merged = Map.merge(opts.default_headers, headers)
 
@@ -157,6 +182,11 @@ defmodule PetstoreClient.DefaultApiClient do
     # build_static_req_options) and follow Location: headers manually
     # here, stripping the sensitive headers when the next URL's origin
     # (scheme + host + port) differs from the original.
+    # Gap 3.2: callers (notably Auth.OAuth.OAuth2TokenManager) can pass
+    # `no_redirect: true` to refuse to follow any 3xx for this single
+    # request, regardless of the transport-level follow_redirects setting.
+    no_redirect = Keyword.get(request_opts, :no_redirect, false)
+
     response =
       try do
         do_request_with_redirects(
@@ -165,7 +195,8 @@ defmodule PetstoreClient.DefaultApiClient do
           url,
           merged,
           serialized_body,
-          opts.max_redirects || 20
+          opts.max_redirects || 20,
+          no_redirect
         )
       rescue
         e -> raise PetstoreClient.ApiError, message: Exception.message(e), status_code: 0, cause: e
@@ -423,18 +454,30 @@ defmodule PetstoreClient.DefaultApiClient do
     req_opts
   end
 
-  @sensitive_redirect_headers ["authorization", "cookie", "proxy-authorization"]
+  # Gap BH (+ apiKey allowlist): credential-bearing headers that must be stripped
+  # before following a cross-origin redirect. Includes the static OAuth/cookie
+  # set plus any apiKey-in-header names declared by the OpenAPI security schemes
+  # so a malicious 302 can't exfiltrate a tenant's API key by sending the client
+  # at an attacker host. Names are compared case-insensitively (lower-cased here
+  # to match `String.downcase/1` of the request header key at the call site).
+  @sensitive_redirect_headers [
+    "authorization",
+    "cookie",
+    "proxy-authorization",
+    "",
+    ""
+  ]
 
-  defp do_request_with_redirects(client, method, url, headers, body, max_redirects) do
-    do_request_with_redirects(client, method, url, url, headers, body, max_redirects, 0)
+  defp do_request_with_redirects(client, method, url, headers, body, max_redirects, no_redirect \\ false) do
+    do_request_with_redirects(client, method, url, url, headers, body, max_redirects, 0, no_redirect)
   end
 
-  defp do_request_with_redirects(client, _method, _url, _orig_url, _headers, _body, max, hops)
+  defp do_request_with_redirects(client, _method, _url, _orig_url, _headers, _body, max, hops, _no_redirect)
        when hops > max do
     raise PetstoreClient.ApiError, message: "too many redirects", status_code: 0
   end
 
-  defp do_request_with_redirects(client, method, url, orig_url, headers, body, max, hops) do
+  defp do_request_with_redirects(client, method, url, orig_url, headers, body, max, hops, no_redirect) do
     # Catch inside the task so it always returns a tagged value and never
     # crashes the linked caller: Task.async links, so an uncaught raise
     # would take down this process before Task.yield could observe it.
@@ -483,7 +526,7 @@ defmodule PetstoreClient.DefaultApiClient do
           end
       end
 
-    if client.transport_options.follow_redirects and is_redirect_status(response.status) do
+    if not no_redirect and client.transport_options.follow_redirects and is_redirect_status(response.status) do
       case redirect_location(response.headers) do
         nil ->
           response
@@ -495,6 +538,20 @@ defmodule PetstoreClient.DefaultApiClient do
             response
           else
             cross_origin = not same_origin?(orig_url, next_url)
+
+            # Gap 3.3: refuse to replay a request body across a transport
+            # downgrade (HTTPS -> HTTP). A 307/308 normally preserves the
+            # method and body, but doing so would leak any sensitive payload
+            # the caller sent under TLS onto a plaintext wire. Abort the
+            # redirect chain instead of silently replaying.
+            if downgrade?(orig_url, next_url) and body != nil and
+                 response.status in [307, 308] do
+              raise PetstoreClient.ApiError,
+                message:
+                  "refusing to replay request body across HTTPS->HTTP downgrade " <>
+                    "(#{response.status} redirect from #{orig_url} to #{next_url})",
+                status_code: 0
+            end
 
             # Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
             #   307 + 308: preserve original method and body.
@@ -533,7 +590,8 @@ defmodule PetstoreClient.DefaultApiClient do
               next_headers,
               next_body,
               max,
-              hops + 1
+              hops + 1,
+              no_redirect
             )
           end
       end
@@ -598,6 +656,33 @@ defmodule PetstoreClient.DefaultApiClient do
     port_a = pa.port || default_port(pa.scheme)
     port_b = pb.port || default_port(pb.scheme)
     same_scheme && same_host && port_a == port_b
+  end
+
+  @doc false
+  # Gap 3.3: detect an HTTPS -> HTTP scheme downgrade between the original
+  # request URL and the next redirect hop. Returns true only when the
+  # original was `https` and the next is `http` (case-insensitive); same-
+  # scheme and HTTP -> HTTPS upgrades are safe.
+  @spec downgrade?(String.t(), String.t()) :: boolean()
+  def downgrade?(orig, next_url) do
+    o = URI.parse(orig)
+    n = URI.parse(next_url)
+
+    os =
+      if o.scheme do
+        String.downcase(o.scheme)
+      else
+        nil
+      end
+
+    ns =
+      if n.scheme do
+        String.downcase(n.scheme)
+      else
+        nil
+      end
+
+    os == "https" and ns == "http"
   end
 
   defp default_port("https") do

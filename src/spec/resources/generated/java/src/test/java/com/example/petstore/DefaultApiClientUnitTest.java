@@ -85,6 +85,14 @@ class DefaultApiClientUnitTest {
             os.write(response);
           }
         });
+    server.createContext(
+        "/redirect-307",
+        exchange -> {
+          // Self-loop 307: replays method + body
+          exchange.getResponseHeaders().add("Location", "/echo-headers");
+          exchange.sendResponseHeaders(307, -1);
+          exchange.close();
+        });
     server.start();
     baseUrl = "http://localhost:" + server.getAddress().getPort();
   }
@@ -316,5 +324,112 @@ class DefaultApiClientUnitTest {
         client.sendRequest("GET", baseUrl + "/echo-headers", callerHeaders, null);
     assertEquals(200, response.statusCode());
     assertTrue(response.body().contains("\"accept\":\"application/json\""));
+  }
+
+  /*
+   * Bucket 3.1 — sensitive-header allowlist must always include the
+   * static triple. When the spec declares additional apiKey-in-header
+   * schemes, their names (lowercased) are added at codegen time.
+   */
+  @Test
+  void sensitiveHeaderNamesIncludesStaticTriple() {
+    assertTrue(DefaultApiClient.SENSITIVE_HEADER_NAMES.contains("authorization"));
+    assertTrue(DefaultApiClient.SENSITIVE_HEADER_NAMES.contains("cookie"));
+    assertTrue(DefaultApiClient.SENSITIVE_HEADER_NAMES.contains("proxy-authorization"));
+  }
+
+  @Test
+  void sensitiveHeaderNamesEntriesAreLowercased() {
+    for (String name : DefaultApiClient.SENSITIVE_HEADER_NAMES) {
+      assertEquals(
+          name.toLowerCase(java.util.Locale.ROOT),
+          name,
+          "sensitive header names must be stored lowercased for case-insensitive lookup");
+    }
+  }
+
+  /*
+   * Bucket 3.2 — noRedirect=true must surface the first 3xx response
+   * to the caller without replaying to the Location target. This is
+   * what OAuth2 token POSTs rely on to avoid leaking credentialed
+   * request bodies to attacker-controlled redirect targets.
+   */
+  @Test
+  void noRedirectReturns307Response() throws Exception {
+    TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    ApiResponse response =
+        client.sendRequest("POST", baseUrl + "/redirect-307", Map.of(), "credentials=secret", true);
+    assertEquals(
+        307,
+        response.statusCode(),
+        "noRedirect=true must return the 3xx response as-is, never replay to Location");
+  }
+
+  @Test
+  void noRedirectFalseFollowsRedirectsAsBefore() throws Exception {
+    TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    ApiResponse response =
+        client.sendRequest("POST", baseUrl + "/redirect-307", Map.of(), "data", false);
+    // 307 is followed to /echo-headers which returns 200
+    assertEquals(200, response.statusCode());
+  }
+
+  @Test
+  void defaultSendRequestOverloadFollowsRedirects() throws Exception {
+    // The 4-arg overload (no noRedirect flag) must keep the historical
+    // behaviour of honouring TransportOptions.followRedirects().
+    TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    ApiResponse response = client.sendRequest("POST", baseUrl + "/redirect-307", Map.of(), "data");
+    assertEquals(200, response.statusCode());
+  }
+
+  /*
+   * Bucket 3.3 — HTTPS->HTTP body replay must be refused. We can't
+   * easily stand up an HTTPS server here, so we exercise the guard by
+   * driving the helper method directly: a 307 redirect whose Location
+   * downgrades the scheme is refused with an ApiException. The
+   * end-to-end variant runs in DefaultApiClientTest against the
+   * Chasm HTTPS server.
+   */
+  @Test
+  void httpsToHttpBodyReplayGuardFiresOn307() {
+    java.net.URI original = java.net.URI.create("https://api.example.com/secret");
+    java.net.URI target = java.net.URI.create("http://attacker.example/take");
+    assertTrue(DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(original, target, 307, true));
+    assertTrue(DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(original, target, 308, true));
+  }
+
+  @Test
+  void httpsToHttpBodyReplayGuardIgnoredWhenNoBody() {
+    java.net.URI original = java.net.URI.create("https://api.example.com/secret");
+    java.net.URI target = java.net.URI.create("http://attacker.example/take");
+    assertFalse(DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(original, target, 307, false));
+  }
+
+  @Test
+  void httpsToHttpBodyReplayGuardIgnoredForNonBodyPreservingStatuses() {
+    java.net.URI original = java.net.URI.create("https://api.example.com/secret");
+    java.net.URI target = java.net.URI.create("http://attacker.example/take");
+    // 301/302/303 either coerce to GET or historically drop the body, so the
+    // guard intentionally does not fire — the body is never replayed anyway.
+    assertFalse(DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(original, target, 301, true));
+    assertFalse(DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(original, target, 302, true));
+    assertFalse(DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(original, target, 303, true));
+  }
+
+  @Test
+  void httpsToHttpBodyReplayGuardIgnoredForSameSchemeRedirects() {
+    java.net.URI httpOrig = java.net.URI.create("http://api.example.com/x");
+    java.net.URI httpTarg = java.net.URI.create("http://api.example.com/y");
+    java.net.URI httpsOrig = java.net.URI.create("https://api.example.com/x");
+    java.net.URI httpsTarg = java.net.URI.create("https://api.example.com/y");
+    assertFalse(DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(httpOrig, httpTarg, 307, true));
+    assertFalse(
+        DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(httpsOrig, httpsTarg, 307, true));
+    // HTTP -> HTTPS is an upgrade, not a downgrade, so don't refuse.
+    assertFalse(DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(httpOrig, httpsTarg, 307, true));
   }
 }

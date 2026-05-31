@@ -21,8 +21,8 @@ class FakeOidcClient
     @requests = []
   end
 
-  def send_request(method, url, headers, body)
-    @requests << { method: method, url: url, headers: headers, body: body }
+  def send_request(method, url, headers, body, no_redirect: false)
+    @requests << { method: method, url: url, headers: headers, body: body, no_redirect: no_redirect }
     response = @responses.shift || @responses.last
     PetstoreClient::ApiResponse.new(
       status_code: response[:status],
@@ -33,6 +33,8 @@ class FakeOidcClient
 end
 
 describe PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator do
+  parallelize_me!
+
   let(:discovery_response) do
     {
       status: 200,

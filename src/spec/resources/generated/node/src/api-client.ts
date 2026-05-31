@@ -8,6 +8,20 @@
 import type { ApiResponse } from './api-response.js';
 
 /**
+ * Per-request transport overrides accepted by {@link ApiClient.sendRequest}.
+ *
+ * - `noRedirect` -- when `true`, the transport must NOT follow any 3xx
+ *   responses (regardless of the client's global `followRedirects`
+ *   setting). Intended for security-sensitive POSTs like OAuth2 token
+ *   exchange, where blindly following a 307/308 to an attacker-controlled
+ *   host would replay the body (containing client_secret / refresh_token)
+ *   to that host.
+ */
+export interface SendRequestOptions {
+  noRedirect?: boolean;
+}
+
+/**
  * Interface for API HTTP transport.
  *
  * Implementations handle the actual HTTP request/response cycle.
@@ -21,12 +35,14 @@ export interface ApiClient {
    * @param url Fully qualified URL
    * @param headers HTTP headers
    * @param body Request body (serialized JSON string, raw Buffer, or null)
+   * @param options optional per-request transport overrides (e.g. `noRedirect`)
    * @returns ApiResponse containing status code, body, and headers
    */
   sendRequest(
     method: string,
     url: string,
     headers: Record<string, string>,
-    body: string | Buffer | Record<string, unknown> | null
+    body: string | Buffer | Record<string, unknown> | null,
+    options?: SendRequestOptions
   ): Promise<ApiResponse>;
 }

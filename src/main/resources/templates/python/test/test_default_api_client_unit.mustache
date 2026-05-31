@@ -429,3 +429,319 @@ class TestMultipartBinaryPreservation:
         assert b'filename="file.pdf"' in body
         assert b"Content-Type: application/pdf" in body
         assert b"%PDF-1.4" in body
+
+
+class _FakeResp:
+    """Minimal response double for exercising the redirect loop without
+    standing up a real HTTP server. ``read``/``release_conn`` mirror the
+    urllib3 contract the loop relies on."""
+
+    def __init__(self, status: int, headers: dict) -> None:
+        self.status = status
+        self.headers = headers
+
+    def read(self) -> bytes:
+        return b""
+
+    def release_conn(self) -> None:
+        return None
+
+
+class TestNoRedirectOnTokenPost:
+    """3.2: ``no_redirect=True`` must refuse a 307/308 response on the
+    OAuth2 token POST so a malicious redirect cannot replay the credential
+    body against an attacker-controlled endpoint. 301/302/303 still flow
+    through the normal coerce-to-GET / strip-body path."""
+
+    def _make_pool(self, responses: list) -> Any:
+        class _Pool:
+            def __init__(self) -> None:
+                self.calls: list = []
+                self._responses = list(responses)
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url, dict(kwargs.get("headers") or {})))
+                return self._responses.pop(0)
+        return _Pool()
+
+    def test_307_on_token_post_raises_when_no_redirect(self) -> None:
+        from {{packageName}}.errors import ApiException
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = self._make_pool([
+            _FakeResp(307, {"location": "https://attacker.example.com/steal"}),
+        ])
+        client = DefaultApiClient(transport, pool_manager=pool)
+        with pytest.raises(ApiException):
+            client.send_request(
+                "POST",
+                "https://auth.example.com/token",
+                {"Content-Type": "application/x-www-form-urlencoded"},
+                "grant_type=client_credentials&client_id=x&client_secret=y",
+                no_redirect=True,
+            )
+        # The replay request to the attacker host must never have been issued.
+        assert len(pool.calls) == 1
+
+    def test_308_on_token_post_raises_when_no_redirect(self) -> None:
+        from {{packageName}}.errors import ApiException
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = self._make_pool([
+            _FakeResp(308, {"location": "https://attacker.example.com/steal"}),
+        ])
+        client = DefaultApiClient(transport, pool_manager=pool)
+        with pytest.raises(ApiException):
+            client.send_request(
+                "POST",
+                "https://auth.example.com/token",
+                {"Content-Type": "application/x-www-form-urlencoded"},
+                "grant_type=password&username=u&password=p",
+                no_redirect=True,
+            )
+        assert len(pool.calls) == 1
+
+    def test_303_on_token_post_still_follows_when_no_redirect(self) -> None:
+        # 303 coerces to GET and drops the body, so it is not a replay
+        # vector for the token endpoint and ``no_redirect`` does not block it.
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = self._make_pool([
+            _FakeResp(303, {"location": "https://auth.example.com/done"}),
+            _FakeResp(200, {}),
+        ])
+        client = DefaultApiClient(transport, pool_manager=pool)
+        client.send_request(
+            "POST",
+            "https://auth.example.com/token",
+            {"Content-Type": "application/x-www-form-urlencoded"},
+            "grant_type=client_credentials",
+            no_redirect=True,
+        )
+        assert len(pool.calls) == 2
+        assert pool.calls[1][0] == "GET"
+
+    def test_no_redirect_does_not_affect_normal_request(self) -> None:
+        # Without no_redirect, 307 follows normally (replays the body).
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = self._make_pool([
+            _FakeResp(307, {"location": "https://api.example.com/v2/echo"}),
+            _FakeResp(200, {}),
+        ])
+        client = DefaultApiClient(transport, pool_manager=pool)
+        client.send_request(
+            "POST",
+            "https://api.example.com/v1/echo",
+            {"Content-Type": "application/json"},
+            '{"hello":"world"}',
+        )
+        assert len(pool.calls) == 2
+
+
+class TestBodyReplayOnTlsDowngrade:
+    """3.3: an HTTPS -> HTTP downgrade must NOT silently replay a request
+    body over plaintext. The existing Authorization-strip guard covers the
+    credential header path; this guard covers the body itself."""
+
+    def test_307_downgrade_with_body_raises(self) -> None:
+        from {{packageName}}.errors import ApiException
+
+        class _Pool:
+            def __init__(self) -> None:
+                self.calls: list = []
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url))
+                if len(self.calls) == 1:
+                    return _FakeResp(307, {"location": "http://example.com/insecure"})
+                return _FakeResp(200, {})
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = _Pool()
+        client = DefaultApiClient(transport, pool_manager=pool)
+        with pytest.raises(ApiException) as excinfo:
+            client.send_request(
+                "POST",
+                "https://example.com/secure",
+                {"Content-Type": "application/json"},
+                '{"secret":"value"}',
+            )
+        assert "downgrade" in str(excinfo.value.message or "").lower()
+        # The replay over plaintext must never have happened.
+        assert len(pool.calls) == 1
+
+    def test_308_downgrade_with_body_raises(self) -> None:
+        from {{packageName}}.errors import ApiException
+
+        class _Pool:
+            def __init__(self) -> None:
+                self.calls: list = []
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url))
+                if len(self.calls) == 1:
+                    return _FakeResp(308, {"location": "http://example.com/insecure"})
+                return _FakeResp(200, {})
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = _Pool()
+        client = DefaultApiClient(transport, pool_manager=pool)
+        with pytest.raises(ApiException):
+            client.send_request(
+                "PUT",
+                "https://example.com/secure",
+                {"Content-Type": "application/json"},
+                '{"secret":"value"}',
+            )
+        assert len(pool.calls) == 1
+
+    def test_303_downgrade_with_body_is_allowed(self) -> None:
+        # 303 coerces to GET and drops the body, so plaintext replay is
+        # not a concern. The Authorization-strip guard still runs.
+        class _Pool:
+            def __init__(self) -> None:
+                self.calls: list = []
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url, dict(kwargs.get("headers") or {})))
+                if len(self.calls) == 1:
+                    return _FakeResp(303, {"location": "http://example.com/done"})
+                return _FakeResp(200, {})
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = _Pool()
+        client = DefaultApiClient(transport, pool_manager=pool)
+        client.send_request(
+            "POST",
+            "https://example.com/secure",
+            {"Content-Type": "application/json"},
+            '{"x":1}',
+        )
+        assert len(pool.calls) == 2
+        assert pool.calls[1][0] == "GET"
+
+    def test_http_to_https_upgrade_with_body_is_allowed(self) -> None:
+        # Upgrade is not a downgrade; the body must replay normally.
+        class _Pool:
+            def __init__(self) -> None:
+                self.calls: list = []
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url, kwargs.get("body")))
+                if len(self.calls) == 1:
+                    return _FakeResp(307, {"location": "https://example.com/secure"})
+                return _FakeResp(200, {})
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = _Pool()
+        client = DefaultApiClient(transport, pool_manager=pool)
+        client.send_request(
+            "POST",
+            "http://example.com/insecure",
+            {"Content-Type": "application/json"},
+            '{"x":1}',
+        )
+        assert len(pool.calls) == 2
+
+
+class TestContentLengthStrippedOnRedirect:
+    """3.4: the 303-coerce-to-GET (and 301/302 method-demotion) branch must
+    drop ``Content-Length`` along with the body, otherwise the follow-up
+    GET arrives advertising a Content-Length the server expects but the
+    request never sends."""
+
+    def test_303_drops_content_length_when_body_is_dropped(self) -> None:
+        class _Pool:
+            def __init__(self) -> None:
+                self.calls: list = []
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url, dict(kwargs.get("headers") or {})))
+                if len(self.calls) == 1:
+                    return _FakeResp(303, {"location": "https://example.com/done"})
+                return _FakeResp(200, {})
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = _Pool()
+        client = DefaultApiClient(transport, pool_manager=pool)
+        client.send_request(
+            "POST",
+            "https://example.com/start",
+            {"Content-Type": "application/json", "Content-Length": "11"},
+            '{"x":"yz"}',
+        )
+        assert len(pool.calls) == 2
+        followup_headers = pool.calls[1][2]
+        assert not any(k.lower() == "content-length" for k in followup_headers), \
+            f"Content-Length must be stripped on 303->GET; got {followup_headers!r}"
+        assert not any(k.lower() == "content-type" for k in followup_headers)
+
+    def test_302_post_to_get_drops_content_length(self) -> None:
+        # 302 on a POST demotes to GET in our loop (mirrors browser behaviour
+        # and the other 11 SDKs). The body and its length headers must go.
+        class _Pool:
+            def __init__(self) -> None:
+                self.calls: list = []
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url, dict(kwargs.get("headers") or {})))
+                if len(self.calls) == 1:
+                    return _FakeResp(302, {"location": "https://example.com/done"})
+                return _FakeResp(200, {})
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = _Pool()
+        client = DefaultApiClient(transport, pool_manager=pool)
+        client.send_request(
+            "POST",
+            "https://example.com/start",
+            {"Content-Type": "application/json", "Content-Length": "5"},
+            '{"a":1}',
+        )
+        assert len(pool.calls) == 2
+        assert pool.calls[1][0] == "GET"
+        followup_headers = pool.calls[1][2]
+        assert not any(k.lower() == "content-length" for k in followup_headers)
+
+
+class TestApiKeyHeaderStrippedOnCrossOrigin:
+    """3.1: spec-declared API-key header names are added to the cross-origin
+    sensitive-header allowlist at codegen time. When the spec declares no
+    apiKey-in-header schemes the allowlist is just the default trio."""
+
+    def test_default_sensitive_headers_includes_canonical_three(self) -> None:
+        from {{packageName}}.default_api_client import DefaultApiClient
+        assert "authorization" in DefaultApiClient._SENSITIVE_HEADERS
+        assert "cookie" in DefaultApiClient._SENSITIVE_HEADERS
+        assert "proxy-authorization" in DefaultApiClient._SENSITIVE_HEADERS
+
+    {{#hasApiKeyHeaderNames}}
+    def test_spec_declared_api_key_header_names_are_sensitive(self) -> None:
+        from {{packageName}}.default_api_client import DefaultApiClient
+        {{#apiKeyHeaderNames}}
+        assert '{{nameLower}}' in DefaultApiClient._SENSITIVE_HEADERS
+        {{/apiKeyHeaderNames}}
+
+    def test_api_key_header_stripped_on_cross_origin_redirect(self) -> None:
+        # Use the first spec-declared API-key header for the assertion.
+        api_key_header_names = [
+            {{#apiKeyHeaderNames}}'{{name}}', {{/apiKeyHeaderNames}}
+        ]
+        api_key_header = api_key_header_names[0]
+
+        class _Pool:
+            def __init__(self) -> None:
+                self.calls: list = []
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url, dict(kwargs.get("headers") or {})))
+                if len(self.calls) == 1:
+                    return _FakeResp(302, {"location": "https://other.example.com/dest"})
+                return _FakeResp(200, {})
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = _Pool()
+        client = DefaultApiClient(transport, pool_manager=pool)
+        client.send_request(
+            "GET",
+            "https://example.com/start",
+            {api_key_header: "secret-api-key-value"},
+            None,
+        )
+        assert len(pool.calls) == 2
+        followup_headers = pool.calls[1][2]
+        # The API-key header must be gone on the cross-origin follow-up.
+        assert not any(k.lower() == api_key_header.lower() for k in followup_headers), \
+            f"API-key header {api_key_header!r} leaked on cross-origin redirect: {followup_headers!r}"
+    {{/hasApiKeyHeaderNames}}

@@ -22,7 +22,7 @@ class FakePasswordClient
     @call_count = 0
   end
 
-  def send_request(_method, url, headers, body)
+  def send_request(_method, url, headers, body, no_redirect: false) # rubocop:disable Lint/UnusedMethodArgument
     @last_url = url
     @last_headers = headers
     @last_body = body
@@ -37,6 +37,8 @@ class FakePasswordClient
 end
 
 describe PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator do
+  parallelize_me!
+
   it 'sends password grant type' do
     client = FakePasswordClient.new([
       { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }

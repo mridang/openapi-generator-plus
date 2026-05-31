@@ -72,6 +72,15 @@ class ObjectSerializer
             return $data->format(self::DATE_TIME_FORMAT);
         }
 
+        if ($data instanceof \DateInterval) {
+            /* 4.8: serialize OAS `format: duration` as a canonical
+             * ISO-8601 duration string. \DateInterval::format does not
+             * implement ISO-8601 directly, so we assemble it explicitly:
+             * the date portion (PnYnMnD) followed by the time portion
+             * (TnHnMnS) when any time component is non-zero. */
+            return self::formatIso8601Duration($data);
+        }
+
         if ($data instanceof \Symfony\Component\Uid\Uuid) {
             return $data->toRfc4122();
         }
@@ -115,6 +124,10 @@ class ObjectSerializer
 
         if ($value instanceof \DateTimeInterface) {
             return $value->format(self::DATE_TIME_FORMAT);
+        }
+
+        if ($value instanceof \DateInterval) {
+            return self::formatIso8601Duration($value);
         }
 
         if ($value instanceof \Symfony\Component\Uid\Uuid) {
@@ -275,6 +288,47 @@ class ObjectSerializer
                     $cleaned = preg_replace('/(:\d{2}.\d{6})\d*/', '$1', $data);
                     return new \DateTime((string) $cleaned);
                 }
+            }
+            return null;
+        }
+
+        if ($class === 'DateTimeImmutable') {
+            /* 4.8: OAS `format: time` (RFC 3339 partial-time, e.g.
+             * "14:30:00") maps to \DateTimeImmutable. PHP has no
+             * dedicated time-of-day type; \DateTimeImmutable parses the
+             * wire string with today's date implied and callers project
+             * the time portion via format('H:i:s'). */
+            if (is_string($data)) {
+                $decoded = json_decode($data, true);
+                if (is_string($decoded)) {
+                    $data = $decoded;
+                }
+            }
+            if (is_string($data) && $data !== '') {
+                try {
+                    return new \DateTimeImmutable($data);
+                } catch (\Exception) {
+                    $cleaned = preg_replace('/(:\d{2}.\d{6})\d*/', '$1', $data);
+                    return new \DateTimeImmutable((string) $cleaned);
+                }
+            }
+            return null;
+        }
+
+        if ($class === 'DateInterval') {
+            /* 4.8: OAS `format: duration` is an ISO-8601 duration string
+             * (e.g. "P1DT2H30M"). \DateInterval's constructor parses this
+             * format natively, so deserialization is a one-liner. Invalid
+             * strings surface as the \Exception that the constructor
+             * throws. */
+            if (is_string($data)) {
+                $decoded = json_decode($data, true);
+                if (is_string($decoded)) {
+                    $data = $decoded;
+                }
+            }
+            if (is_string($data) && $data !== '') {
+                return new \DateInterval($data);
             }
             return null;
         }
@@ -597,6 +651,48 @@ class ObjectSerializer
             return null;
         }
         return base64_encode($raw);
+    }
+
+    /**
+     * 4.8: format a \DateInterval as an ISO-8601 duration string.
+     *
+     * \DateInterval::format does not emit ISO-8601 directly (it lets the
+     * caller assemble the parts), so this helper composes the canonical
+     * form: "P[nY][nM][nD][T[nH][nM][nS]]". Zero-valued components are
+     * omitted so a one-hour interval round-trips as "PT1H" rather than
+     * "P0Y0M0DT1H0M0S". An all-zero interval serializes as "PT0S" so the
+     * value stays a syntactically valid ISO-8601 duration.
+     */
+    public static function formatIso8601Duration(\DateInterval $interval): string
+    {
+        $date = '';
+        if ($interval->y > 0) {
+            $date .= $interval->y . 'Y';
+        }
+        if ($interval->m > 0) {
+            $date .= $interval->m . 'M';
+        }
+        if ($interval->d > 0) {
+            $date .= $interval->d . 'D';
+        }
+        $time = '';
+        if ($interval->h > 0) {
+            $time .= $interval->h . 'H';
+        }
+        if ($interval->i > 0) {
+            $time .= $interval->i . 'M';
+        }
+        if ($interval->s > 0) {
+            $time .= $interval->s . 'S';
+        }
+        if ($date === '' && $time === '') {
+            return 'PT0S';
+        }
+        $result = 'P' . $date;
+        if ($time !== '') {
+            $result .= 'T' . $time;
+        }
+        return $result;
     }
 
     /**

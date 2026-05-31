@@ -3,6 +3,8 @@
 require 'test_helper'
 
 describe PetstoreClient::Client do
+  parallelize_me!
+
   it 'constructs with authenticator only' do
     authenticator = PetstoreClient::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
 

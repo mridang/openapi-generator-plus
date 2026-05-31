@@ -205,7 +205,19 @@ public final class OAuth2TokenManager: @unchecked Sendable {
         for (key, value) in extraHeaders {
             headers[key] = value
         }
-        let response = try await client.sendRequest(method: "POST", url: tokenURL, headers: headers, body: bodyData)
+        /* Gap 3.2: token POST must NEVER be silently replayed across
+         * a 307/308 redirect. The body contains the client secret
+         * (or username+password / refresh_token / authorization
+         * code), and the Location header is attacker-controllable
+         * on a malicious OP. noRedirect=true makes the transport
+         * surface 307/308 as an ApiError instead of replaying. */
+        let response = try await client.sendRequest(
+            method: "POST",
+            url: tokenURL,
+            headers: headers,
+            body: bodyData,
+            noRedirect: true
+        )
 
         guard response.statusCode >= 200 && response.statusCode < 300 else {
             /* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with

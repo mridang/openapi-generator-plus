@@ -446,4 +446,195 @@ class DefaultApiClientUnitTest {
             assertEquals("val1, val2", value)
         }
     }
+
+    @Nested
+    @DisplayName("redirect guards")
+    inner class RedirectGuards {
+
+        @Test
+        @DisplayName("Gap 3.1: SENSITIVE_HEADER_NAMES includes static set")
+        fun sensitiveHeaderNamesIncludesStaticSet() {
+            // The constant must always contain the three RFC-standard sensitive
+            // headers regardless of whether the spec declared any apiKey schemes.
+            val names = DefaultApiClient.SENSITIVE_HEADER_NAMES
+            assertTrue(names.contains("authorization"))
+            assertTrue(names.contains("cookie"))
+            assertTrue(names.contains("proxy-authorization"))
+        }
+{{#hasApiKeyHeaderNames}}
+
+        @Test
+        @DisplayName("Gap 3.1: SENSITIVE_HEADER_NAMES includes API-key header names from spec")
+        fun sensitiveHeaderNamesIncludesApiKeyNames() {
+            val names = DefaultApiClient.SENSITIVE_HEADER_NAMES
+{{#apiKeyHeaderNames}}            assertTrue(
+                names.contains("{{lowerName}}"),
+                "expected SENSITIVE_HEADER_NAMES to contain harvested apiKey header '{{lowerName}}'"
+            )
+{{/apiKeyHeaderNames}}        }
+
+        @Test
+        @DisplayName("Gap 3.1: API-key header stripped on cross-origin redirect")
+        fun apiKeyHeaderStrippedOnCrossOriginRedirect() {
+{{#apiKeyHeaderNames}}{{#-first}}            val apiKeyHeader = "{{name}}"
+{{/-first}}{{/apiKeyHeaderNames}}            var hopHeaders: io.ktor.http.Headers? = null
+            var hopCount = 0
+            val engine = MockEngine { req ->
+                hopCount++
+                if (hopCount == 1) {
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.Found,
+                        headers = headersOf("Location", "http://other.example.com/dest"),
+                    )
+                } else {
+                    hopHeaders = req.headers
+                    respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                }
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine), transport)
+            runBlocking {
+                apiClient.sendRequest(
+                    "GET",
+                    "http://first.example.com/start",
+                    mapOf(apiKeyHeader to "secret"),
+                    null,
+                )
+            }
+            assertNull(hopHeaders?.get(apiKeyHeader),
+                "API-key header must be stripped on cross-origin redirect")
+        }
+{{/hasApiKeyHeaderNames}}
+
+        @Test
+        @DisplayName("Gap 3.2: noRedirect=true throws on 307")
+        fun noRedirectThrowsOn307() {
+            val engine = MockEngine { _ ->
+                respond(
+                    content = "",
+                    status = HttpStatusCode.TemporaryRedirect,
+                    headers = headersOf("Location", "http://other.example.com/dest"),
+                )
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine), transport)
+            val ex = assertThrows(ApiException::class.java) {
+                runBlocking {
+                    apiClient.sendRequest(
+                        "POST",
+                        "http://first.example.com/token",
+                        emptyMap(),
+                        "grant_type=client_credentials",
+                        noRedirect = true,
+                    )
+                }
+            }
+            assertTrue(ex.message!!.contains("307"), "exception message should mention 307")
+        }
+
+        @Test
+        @DisplayName("Gap 3.2: noRedirect=true throws on 308")
+        fun noRedirectThrowsOn308() {
+            val engine = MockEngine { _ ->
+                respond(
+                    content = "",
+                    status = HttpStatusCode.PermanentRedirect,
+                    headers = headersOf("Location", "http://other.example.com/dest"),
+                )
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine), transport)
+            val ex = assertThrows(ApiException::class.java) {
+                runBlocking {
+                    apiClient.sendRequest(
+                        "POST",
+                        "http://first.example.com/token",
+                        emptyMap(),
+                        "grant_type=client_credentials",
+                        noRedirect = true,
+                    )
+                }
+            }
+            assertTrue(ex.message!!.contains("308"), "exception message should mention 308")
+        }
+
+        @Test
+        @DisplayName("Gap 3.2: noRedirect=true still permits 302 (body dropped per RFC)")
+        fun noRedirectAllows302() {
+            var hopCount = 0
+            val engine = MockEngine { _ ->
+                hopCount++
+                if (hopCount == 1) {
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.Found,
+                        headers = headersOf("Location", "http://other.example.com/dest"),
+                    )
+                } else {
+                    respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                }
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine), transport)
+            val response = runBlocking {
+                apiClient.sendRequest(
+                    "POST", "http://first.example.com/x", emptyMap(), "body", noRedirect = true,
+                )
+            }
+            assertEquals(200, response.statusCode)
+        }
+
+        @Test
+        @DisplayName("Gap 3.3: refuses to replay body on HTTPS->HTTP downgrade")
+        fun refusesBodyReplayOnHttpsToHttpDowngrade() {
+            val engine = MockEngine { _ ->
+                respond(
+                    content = "",
+                    status = HttpStatusCode.TemporaryRedirect,
+                    headers = headersOf("Location", "http://insecure.example.com/dest"),
+                )
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine), transport)
+            val ex = assertThrows(ApiException::class.java) {
+                runBlocking {
+                    apiClient.sendRequest(
+                        "POST",
+                        "https://secure.example.com/x",
+                        emptyMap(),
+                        "secret-body",
+                    )
+                }
+            }
+            assertTrue(
+                ex.message!!.contains("HTTPS->HTTP"),
+                "exception message should mention HTTPS->HTTP downgrade",
+            )
+        }
+
+        @Test
+        @DisplayName("Gap 3.3: HTTPS->HTTP without body still allowed (no payload to leak)")
+        fun httpsToHttpAllowedWithoutBody() {
+            var hopCount = 0
+            val engine = MockEngine { _ ->
+                hopCount++
+                if (hopCount == 1) {
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.TemporaryRedirect,
+                        headers = headersOf("Location", "http://insecure.example.com/dest"),
+                    )
+                } else {
+                    respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                }
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine), transport)
+            val response = runBlocking {
+                apiClient.sendRequest("GET", "https://secure.example.com/x", emptyMap(), null)
+            }
+            assertEquals(200, response.statusCode)
+        }
+    }
 }

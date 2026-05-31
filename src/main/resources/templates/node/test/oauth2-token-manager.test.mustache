@@ -1,7 +1,7 @@
 {{>api_info}}
 
-import { OAuth2TokenManager } from '../src/auth/oauth/oauth2-token-manager{{importFileExtension}}';
-import type { ApiClient } from '../src/api-client{{importFileExtension}}';
+import { OAuth2TokenManager, OAuth2TokenError } from '../src/auth/oauth/oauth2-token-manager{{importFileExtension}}';
+import type { ApiClient, SendRequestOptions } from '../src/api-client{{importFileExtension}}';
 import type { ApiResponse } from '../src/api-response{{importFileExtension}}';
 
 class MockApiClient implements ApiClient {
@@ -9,25 +9,29 @@ class MockApiClient implements ApiClient {
   lastUrl = '';
   lastHeaders: Record<string, string> = {};
   lastBody: string | Buffer | null = null;
+  lastOptions: SendRequestOptions | undefined = undefined;
   responseBody = '';
   responseStatus = 200;
+  responseHeaders: Record<string, string> = { 'content-type': 'application/json' };
   callCount = 0;
 
   async sendRequest(
     method: string,
     url: string,
     headers: Record<string, string>,
-    body: string | Buffer | null
+    body: string | Buffer | null,
+    options?: SendRequestOptions
   ): Promise<ApiResponse> {
     this.lastMethod = method;
     this.lastUrl = url;
     this.lastHeaders = headers;
     this.lastBody = body;
+    this.lastOptions = options;
     this.callCount++;
     return {
       statusCode: this.responseStatus,
       body: this.responseBody,
-      headers: { 'content-type': 'application/json' }
+      headers: this.responseHeaders
     };
   }
 }
@@ -399,5 +403,64 @@ describe('OAuth2TokenManager', () => {
     expect(tokens.every(t => t === 'second-token')).toBe(true);
     // exactly one additional network call (callCount went 1 -> 2)
     expect(mockClient.callCount).toBe(2);
+  });
+
+  /*
+   * Gap 3.2: the token POST must opt out of redirect following at the
+   * transport layer (noRedirect: true) AND additionally refuse any 3xx
+   * status it does see, so callers get a loud error instead of the
+   * silent "missing access_token" fall-through.
+   */
+  describe('redirect refusal on token endpoint', () => {
+    test('passes noRedirect=true to the transport on every token POST', async () => {
+      mockClient.responseBody = JSON.stringify({
+        access_token: 'tok',
+        expires_in: 3600
+      });
+      await tokenManager.getAccessToken('https://auth.example.com/token', {
+        grant_type: 'client_credentials'
+      });
+      expect(mockClient.lastOptions).toBeDefined();
+      expect(mockClient.lastOptions?.noRedirect).toBe(true);
+    });
+
+    test.each([301, 302, 303, 307, 308])(
+      'refuses %i redirect on token endpoint with OAuth2TokenError',
+      async (status) => {
+        mockClient.responseStatus = status;
+        mockClient.responseBody = '';
+        mockClient.responseHeaders = {
+          'content-type': 'text/plain',
+          location: 'https://attacker.example/steal'
+        };
+
+        await expect(
+          tokenManager.getAccessToken('https://auth.example.com/token', {
+            grant_type: 'client_credentials',
+            client_secret: 'topsecret'
+          })
+        ).rejects.toBeInstanceOf(OAuth2TokenError);
+        await expect(
+          tokenManager.getAccessToken('https://auth.example.com/token', {
+            grant_type: 'client_credentials',
+            client_secret: 'topsecret'
+          })
+        ).rejects.toThrow(/Refusing to follow/);
+      }
+    );
+
+    test('redirect-refusal error includes the Location header for diagnostics', async () => {
+      mockClient.responseStatus = 307;
+      mockClient.responseBody = '';
+      mockClient.responseHeaders = {
+        'content-type': 'text/plain',
+        location: 'https://attacker.example/steal'
+      };
+      await expect(
+        tokenManager.getAccessToken('https://auth.example.com/token', {
+          grant_type: 'client_credentials'
+        })
+      ).rejects.toThrow(/attacker\.example/);
+    });
   });
 });

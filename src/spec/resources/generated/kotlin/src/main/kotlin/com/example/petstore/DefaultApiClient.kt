@@ -31,6 +31,24 @@ class DefaultApiClient internal constructor(
     private val httpClient: HttpClient,
     private val transportOptions: TransportOptions,
 ) : ApiClient {
+    internal companion object {
+        /**
+         * Headers stripped from cross-origin redirect hops. Includes the
+         * static set {Authorization, Cookie, Proxy-Authorization} plus any
+         * `apiKey, in=header` names harvested from the OpenAPI document at
+         * codegen time. Compared case-insensitively (entries are already
+         * lowercased here).
+         */
+        internal val SENSITIVE_HEADER_NAMES: Set<String> =
+            setOf(
+                "authorization",
+                "cookie",
+                "proxy-authorization",
+                "x-api-key",
+                "x-internal-key",
+            )
+    }
+
     /*
      * Gap AK: Ktor's CIO engine has no API for proxy basic-auth
      * credentials, so userinfo embedded in the proxy URL
@@ -75,6 +93,7 @@ class DefaultApiClient internal constructor(
         url: String,
         headers: Map<String, String>,
         body: Any?,
+        noRedirect: Boolean,
     ): ApiResponse {
         val mergedHeaders = mutableMapOf<String, String>()
         mergedHeaders.putAll(transportOptions.defaultHeaders)
@@ -114,7 +133,6 @@ class DefaultApiClient internal constructor(
         // cross-origin hops AND preserve the original verb+body per RFC 7231.
         // When `maxRedirects` is null we cap at 20 hops to avoid pathological loops.
         if (transportOptions.followRedirects) {
-            val sensitiveHeaders = setOf("authorization", "cookie", "proxy-authorization")
             var redirectsRemaining = transportOptions.maxRedirects ?: 20
             var currentUrl = url
             var currentHeaders: Map<String, String> = mergedHeaders.toMap()
@@ -123,6 +141,16 @@ class DefaultApiClient internal constructor(
 
             while (response.status.value in 300..399 && redirectsRemaining > 0) {
                 val location = response.headers[HttpHeaders.Location] ?: break
+                // Gap 3.2: caller (e.g. OAuth2 token POST) explicitly refuses
+                // to follow body-preserving 307/308 redirects so credentials
+                // in the request body cannot be replayed to a redirect
+                // target. 301/302/303 still permitted because those drop the
+                // body anyway.
+                if (noRedirect && response.status.value in 307..308) {
+                    throw ApiException(
+                        "Refusing to follow ${response.status.value} redirect when noRedirect=true (url=$currentUrl)",
+                    )
+                }
                 response.bodyAsBytes() // consume redirect body to release the connection
                 val originalUri = java.net.URI(currentUrl)
                 val redirectUri = originalUri.resolve(location)
@@ -146,8 +174,22 @@ class DefaultApiClient internal constructor(
                 if (!sameOrigin) {
                     val keysToRemove =
                         redirectHeaders.keys
-                            .filter { sensitiveHeaders.contains(it.lowercase()) }
+                            .filter { SENSITIVE_HEADER_NAMES.contains(it.lowercase()) }
                     keysToRemove.forEach { redirectHeaders.remove(it) }
+                }
+
+                // Gap 3.3: refuse to replay a request body across an
+                // HTTPS->HTTP downgrade. Only 307/308 preserve the body, so
+                // we only guard those: a TLS-protected payload (POST/PUT
+                // body) must not be silently re-sent in cleartext.
+                if (response.status.value in 307..308 &&
+                    currentBody != null &&
+                    "https".equals(originalUri.scheme, ignoreCase = true) &&
+                    "http".equals(redirectUri.scheme, ignoreCase = true)
+                ) {
+                    throw ApiException(
+                        "Refusing to replay request body across HTTPS->HTTP redirect: $currentUrl -> $redirectUri",
+                    )
                 }
 
                 // Gap T2: pick follow-up method+body per RFC 7231 / 7538.

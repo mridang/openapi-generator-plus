@@ -20,8 +20,13 @@ class StoreMockApiClient implements ApiClient
     }
 
     /** @param array<string, string> $headers */
-    public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
-    {
+    public function sendRequest(
+        string $method,
+        string $url,
+        array $headers,
+        mixed $body,
+        bool $noRedirect = false,
+    ): ApiResponse {
         return new ApiResponse($this->statusCode, $this->body, ['Content-Type' => $this->contentType]);
     }
 }

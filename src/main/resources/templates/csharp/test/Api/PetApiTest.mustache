@@ -253,7 +253,7 @@ public class PetApiTest
         }
 
         public Task<{{packageName}}.ApiResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body)
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
         {
             return Task.FromResult(new {{packageName}}.ApiResponse(_statusCode, _body, new Dictionary<string, string>
             {

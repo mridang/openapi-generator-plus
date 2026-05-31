@@ -388,4 +388,76 @@ class OAuth2TokenManagerTest {
         assertEquals("refresh token expired", serverError.getDescription());
         assertEquals("https://docs.example.com/errors/invalid_grant", serverError.getUri());
     }
+
+    /*
+     * Bucket 3.2 — token POSTs must invoke the noRedirect=true overload.
+     * We capture the boolean flag on a fake client to assert the contract.
+     */
+    @Test
+    void tokenPostInvokesNoRedirectOverload() {
+        java.util.concurrent.atomic.AtomicReference<Boolean> seenFlag =
+                new java.util.concurrent.atomic.AtomicReference<>(null);
+        ApiClient client = new ApiClient() {
+            @Override
+            public ApiResponse sendRequest(String method, String url,
+                    Map<String, String> headers, Object body) {
+                // Must NOT be called: the manager must use the 5-arg overload.
+                seenFlag.set(Boolean.FALSE);
+                return new ApiResponse(200,
+                        "{\"access_token\":\"t\",\"expires_in\":3600}", Map.of());
+            }
+            @Override
+            public ApiResponse sendRequest(String method, String url,
+                    Map<String, String> headers, Object body, boolean noRedirect) {
+                seenFlag.set(noRedirect);
+                return new ApiResponse(200,
+                        "{\"access_token\":\"t\",\"expires_in\":3600}", Map.of());
+            }
+        };
+        OAuth2TokenManager manager = new OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        Map<String, String> params = new HashMap<>();
+        params.put("grant_type", "client_credentials");
+        manager.getAccessToken("https://auth.example.com/token", params);
+
+        assertEquals(Boolean.TRUE, seenFlag.get(),
+                "token POST must pass noRedirect=true to the ApiClient");
+    }
+
+    /*
+     * Bucket 3.2 — if the token endpoint replies with a 3xx (because
+     * followRedirects was bypassed), the manager must treat it as an
+     * error rather than caching nothing and silently returning.
+     */
+    @Test
+    void tokenEndpointRedirectIsRejected() {
+        ApiClient client = new ApiClient() {
+            @Override
+            public ApiResponse sendRequest(String method, String url,
+                    Map<String, String> headers, Object body) {
+                return sendRequest(method, url, headers, body, false);
+            }
+            @Override
+            public ApiResponse sendRequest(String method, String url,
+                    Map<String, String> headers, Object body, boolean noRedirect) {
+                return new ApiResponse(307, "",
+                        Map.of("location", "https://attacker.example/take"));
+            }
+        };
+        OAuth2TokenManager manager = new OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        Map<String, String> params = new HashMap<>();
+        params.put("grant_type", "client_credentials");
+        params.put("client_secret", "super-secret");
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () ->
+                manager.getAccessToken("https://auth.example.com/token", params));
+        assertTrue(ex.getMessage() == null || ex.getMessage().contains("redirect")
+                        || (ex.getCause() != null && ex.getCause().getMessage() != null
+                                && ex.getCause().getMessage().contains("redirect"))
+                        || ex instanceof OAuth2TokenManager.OAuth2TokenError,
+                "expected redirect-refusal failure, got " + ex);
+    }
 }

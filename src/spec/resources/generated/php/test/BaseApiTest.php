@@ -35,8 +35,13 @@ class CapturingApiClient implements ApiClient
     public mixed $capturedBody = null;
 
     /** @param array<string, string> $headers */
-    public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
-    {
+    public function sendRequest(
+        string $method,
+        string $url,
+        array $headers,
+        mixed $body,
+        bool $noRedirect = false,
+    ): ApiResponse {
         $this->capturedUrl = $url;
         $this->capturedHeaders = $headers;
         $this->capturedBody = $body;
@@ -474,8 +479,13 @@ test('api request uses resolved server url', function (): void {
 test('skips deserialization for non json content type', function (): void {
     $client = new class implements ApiClient {
         /** @param array<string, string> $headers */
-        public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
-        {
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): ApiResponse {
             return new ApiResponse(200, 'hello', ['Content-Type' => 'text/plain']);
         }
     };
@@ -497,8 +507,13 @@ test('skips deserialization for non json content type', function (): void {
 test('deserializes vendor json mime types', function (): void {
     $client = new class implements ApiClient {
         /** @param array<string, string> $headers */
-        public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
-        {
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): ApiResponse {
             return new ApiResponse(200, '{"title":"Not Found"}', ['Content-Type' => 'application/problem+json']);
         }
     };
@@ -619,8 +634,13 @@ test('octet stream response decoded as base 64 bytes', function (): void {
     $encoded = base64_encode($binaryData);
     $client = new class implements ApiClient {
         public string $body = '';
-        public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
-        {
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): ApiResponse {
             return new ApiResponse(200, $this->body, ['Content-Type' => 'application/octet-stream']);
         }
     };
@@ -645,8 +665,13 @@ test('image png response decoded as bytes', function (): void {
     $encoded = base64_encode($binaryData);
     $client = new class implements ApiClient {
         public string $body = '';
-        public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
-        {
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): ApiResponse {
             return new ApiResponse(200, $this->body, ['Content-Type' => 'image/png']);
         }
     };
@@ -673,8 +698,13 @@ test('binary response roundtrips nul and high bytes', function (): void {
     $encoded = base64_encode($binaryData);
     $client = new class implements ApiClient {
         public string $body = '';
-        public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
-        {
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): ApiResponse {
             return new ApiResponse(200, $this->body, ['Content-Type' => 'application/octet-stream']);
         }
     };
@@ -697,8 +727,13 @@ test('binary response roundtrips nul and high bytes', function (): void {
 
 test('empty binary body yields null', function (): void {
     $client = new class implements ApiClient {
-        public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
-        {
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): ApiResponse {
             return new ApiResponse(200, '', ['Content-Type' => 'application/octet-stream']);
         }
     };
@@ -719,8 +754,13 @@ test('empty binary body yields null', function (): void {
 
 test('json response parsed to object', function (): void {
     $client = new class implements ApiClient {
-        public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
-        {
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): ApiResponse {
             return new ApiResponse(200, '{"id":42,"name":"test"}', ['Content-Type' => 'application/json']);
         }
     };
@@ -741,8 +781,13 @@ test('json response parsed to object', function (): void {
 
 test('text plain response returns string', function (): void {
     $client = new class implements ApiClient {
-        public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
-        {
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): ApiResponse {
             return new ApiResponse(200, 'hello world', ['Content-Type' => 'text/plain']);
         }
     };
@@ -764,8 +809,13 @@ test('text plain response returns string', function (): void {
 
 test('empty body yields null', function (): void {
     $client = new class implements ApiClient {
-        public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
-        {
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): ApiResponse {
             return new ApiResponse(200, '', ['Content-Type' => 'application/octet-stream']);
         }
     };

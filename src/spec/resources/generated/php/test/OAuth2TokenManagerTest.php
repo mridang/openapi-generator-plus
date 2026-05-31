@@ -272,3 +272,40 @@ test('throws when token request fails', function (): void {
     expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
         ->toThrow(\RuntimeException::class);
 });
+
+// -- 3.2: token POSTs refuse 307/308 redirects --
+
+test('token post requests no redirect from transport', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('tok', 3600));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+    $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    expect($client->capturedRequests)->toHaveCount(1);
+    expect($client->capturedRequests[0]['noRedirect'])->toBeTrue();
+    expect($client->capturedRequests[0]['method'])->toBe('POST');
+});
+
+test('token post 307 refused with runtime exception', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiResponse(307, '', ['Location' => 'https://attacker.example.com/token']));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
+        ->toThrow(\RuntimeException::class);
+});
+
+test('token post 308 refused with runtime exception', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiResponse(308, '', ['Location' => 'https://attacker.example.com/token']));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
+        ->toThrow(\RuntimeException::class);
+});

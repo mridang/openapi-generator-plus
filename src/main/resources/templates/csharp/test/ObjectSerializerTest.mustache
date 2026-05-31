@@ -572,4 +572,117 @@ public class ObjectSerializerTest
             Assert.Equal("Dogs", category.Name);
         }
     }
+
+    // ---- 4.8 format:time + format:duration round-trip ----
+
+    public class TimeOnlyAndDurationTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void TimeOnlyStringifiesAsHourMinuteSecond()
+        {
+            var t = new TimeOnly(9, 30, 15);
+            Assert.Equal("09:30:15", ObjectSerializer.Stringify(t));
+        }
+
+        [Fact]
+        public void TimeSpanStringifiesAsIso8601Duration()
+        {
+            // 1h30m → PT1H30M
+            var ts = new TimeSpan(1, 30, 0);
+            Assert.Equal("PT1H30M", ObjectSerializer.Stringify(ts));
+        }
+
+        [Fact]
+        public void TimeSpanZeroStringifiesAsPT0S()
+        {
+            Assert.Equal("PT0S", ObjectSerializer.Stringify(TimeSpan.Zero));
+        }
+
+        [Fact]
+        public void DurationConverterRoundTrip_HoursMinutes()
+        {
+            var original = new TimeSpan(2, 15, 30);
+            string formatted = Iso8601DurationConverter.Format(original);
+            Assert.Equal("PT2H15M30S", formatted);
+            TimeSpan parsed = Iso8601DurationConverter.Parse(formatted);
+            Assert.Equal(original, parsed);
+        }
+
+        [Fact]
+        public void DurationConverterRoundTrip_DaysAndTime()
+        {
+            var original = new TimeSpan(3, 4, 5, 6);
+            string formatted = Iso8601DurationConverter.Format(original);
+            Assert.Equal("P3DT4H5M6S", formatted);
+            Assert.Equal(original, Iso8601DurationConverter.Parse(formatted));
+        }
+
+        [Fact]
+        public void DurationConverterRoundTrip_Negative()
+        {
+            var original = new TimeSpan(0, -45, 0);
+            string formatted = Iso8601DurationConverter.Format(original);
+            Assert.Equal("-PT45M", formatted);
+            Assert.Equal(original, Iso8601DurationConverter.Parse(formatted));
+        }
+
+        [Fact]
+        public void DurationConverterParsesWeeks()
+        {
+            // 2 weeks = 14 days
+            TimeSpan parsed = Iso8601DurationConverter.Parse("P2W");
+            Assert.Equal(TimeSpan.FromDays(14), parsed);
+        }
+
+        [Fact]
+        public void DurationConverterParsesFractionalSeconds()
+        {
+            TimeSpan parsed = Iso8601DurationConverter.Parse("PT1.5S");
+            Assert.Equal(TimeSpan.FromMilliseconds(1500), parsed);
+        }
+
+        [Fact]
+        public void DurationConverterRejectsInvalid()
+        {
+            Assert.Throws<System.Text.Json.JsonException>(
+                () => Iso8601DurationConverter.Parse("not-a-duration"));
+            Assert.Throws<System.Text.Json.JsonException>(
+                () => Iso8601DurationConverter.Parse("P"));
+        }
+
+        [Fact]
+        public void DurationConverterRejectsCalendarMonthsAndYears()
+        {
+            Assert.Throws<System.Text.Json.JsonException>(
+                () => Iso8601DurationConverter.Parse("P1Y"));
+            Assert.Throws<System.Text.Json.JsonException>(
+                () => Iso8601DurationConverter.Parse("P1M"));
+        }
+
+        [Fact]
+        public void DurationSerializesThroughObjectSerializer()
+        {
+            var ts = new TimeSpan(1, 30, 0);
+            string json = _serializer.Serialize(ts);
+            Assert.Equal("\"PT1H30M\"", json);
+        }
+
+        [Fact]
+        public void DurationDeserializesThroughObjectSerializer()
+        {
+            TimeSpan ts = _serializer.Deserialize<TimeSpan>("\"PT2H15M\"");
+            Assert.Equal(new TimeSpan(2, 15, 0), ts);
+        }
+
+        [Fact]
+        public void DurationFullRoundTripThroughObjectSerializer()
+        {
+            var original = new TimeSpan(1, 2, 30, 45);
+            string json = _serializer.Serialize(original);
+            TimeSpan parsed = _serializer.Deserialize<TimeSpan>(json);
+            Assert.Equal(original, parsed);
+        }
+    }
 }

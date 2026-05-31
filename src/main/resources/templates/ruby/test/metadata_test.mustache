@@ -4,6 +4,7 @@ require 'test_helper'
 require 'json'
 
 describe {{moduleName}}::Models::Metadata do
+  parallelize_me!
 
   it 'serializes empty metadata' do
     metadata = {{moduleName}}::Models::Metadata.new
@@ -28,6 +29,7 @@ describe {{moduleName}}::Models::Metadata do
 end
 
 describe {{moduleName}}::Models::Metadata, 'round-trip and constants' do
+  parallelize_me!
 
   it 'round-trip preserves known properties' do
     metadata = {{moduleName}}::Models::Metadata.new(

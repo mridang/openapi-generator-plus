@@ -342,6 +342,83 @@ import Testing
         let enc = DefaultApiClient.encodingForContentType(nil)
         #expect(enc == .utf8)
     }
+
+    // MARK: - Sensitive-header allowlist (Gap 3.1)
+
+    /// The strip-set MUST include the RFC-defined credential triple
+    /// regardless of spec. Codegen appends `type=apiKey, in=header`
+    /// scheme names at generation time, but the base set is fixed.
+    @Test func testSensitiveRedirectHeadersIncludesAuthorization() {
+        let lowered = DefaultApiClient.sensitiveRedirectHeaders.map { $0.lowercased() }
+        #expect(
+            lowered.contains("authorization"),
+            "Authorization must always be on the strip-list")
+        #expect(
+            lowered.contains("cookie"),
+            "Cookie must always be on the strip-list")
+        #expect(
+            lowered.contains("proxy-authorization"),
+            "Proxy-Authorization must always be on the strip-list")
+    }
+
+    /// When the spec declares `type=apiKey, in=header` schemes, their
+    /// header names MUST appear in the strip-list so a malicious 302
+    /// cannot exfiltrate them to an attacker-controlled host.
+    @Test func testSensitiveRedirectHeadersIncludesSpecApiKeyHeaders() {
+        let lowered = Set(DefaultApiClient.sensitiveRedirectHeaders.map { $0.lowercased() })
+        #expect(
+            lowered.contains(""),
+            "spec apiKey header 'X-API-Key' must be on the strip-list")
+        #expect(
+            lowered.contains(""),
+            "spec apiKey header 'X-Internal-Key' must be on the strip-list")
+    }
+
+    // MARK: - noRedirect refusal (Gap 3.2)
+
+    /// noRedirect=true MUST surface a 307 as an ApiError instead of
+    /// silently replaying the request body to the Location target.
+    @Test func testNoRedirectRefuses307() async throws {
+        let client = makeClient { _ in (self.body("moved"), 307, ["Location": "https://other.example/x"]) }
+        do {
+            _ = try await client.sendRequest(
+                method: "POST", url: "https://auth.example.com/token",
+                headers: [:], body: Data("grant_type=client_credentials".utf8), noRedirect: true)
+            Issue.record("Expected ApiError on 307 with noRedirect=true")
+        } catch let err as ApiError {
+            #expect(err.statusCode == 307)
+        } catch {
+            Issue.record("Expected ApiError, got: \(error)")
+        }
+    }
+
+    /// 308 (Permanent Redirect) has the same body-replay risk as 307
+    /// per RFC 7538 §3, and MUST also be refused under noRedirect.
+    @Test func testNoRedirectRefuses308() async throws {
+        let client = makeClient { _ in (self.body("moved permanently"), 308, ["Location": "https://other.example/x"]) }
+        do {
+            _ = try await client.sendRequest(
+                method: "POST", url: "https://auth.example.com/token",
+                headers: [:], body: Data("grant_type=client_credentials".utf8), noRedirect: true)
+            Issue.record("Expected ApiError on 308 with noRedirect=true")
+        } catch let err as ApiError {
+            #expect(err.statusCode == 308)
+        } catch {
+            Issue.record("Expected ApiError, got: \(error)")
+        }
+    }
+
+    /// When noRedirect is omitted the default-arg overload routes
+    /// through the regular session and a 200 response is surfaced
+    /// untouched -- the OAuth2 path opts in, but BaseApi requests
+    /// must not regress.
+    @Test func testNoRedirectFalseAllowsNormalRequest() async throws {
+        let client = makeClient { _ in (self.body("ok"), 200, [:]) }
+        let resp = try await client.sendRequest(
+            method: "GET", url: "http://localhost/echo",
+            headers: [:], body: nil)
+        #expect(resp.statusCode == 200)
+    }
 }
 
 // MARK: - URL Protocol stub for unit tests

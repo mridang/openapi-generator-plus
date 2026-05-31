@@ -77,7 +77,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     /// Merges headers according to the priority order documented on the class,
     /// then dispatches via URLSession.
     public func sendRequest(
-        method: String, url: String, headers: [String: String], body: Any?
+        method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool = false
     ) async throws -> HttpResponse {
         guard let requestURL = URL(string: url) else {
             throw URLError(.badURL)
@@ -139,7 +139,17 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await session.data(for: request)
+            /* Gap 3.2: when noRedirect is set (used by the OAuth2 token
+             * endpoint POST), route through a dedicated, non-following
+             * session and surface a 307/308 as an ApiError rather than
+             * silently replaying the credential-bearing body to the
+             * Location target. 301/302/303 are still surfaced as 3xx
+             * responses for callers to inspect. */
+            let activeSession: URLSession =
+                noRedirect
+                ? DefaultApiClient.buildNoRedirectSession(transportOptions)
+                : session
+            (data, response) = try await activeSession.data(for: request)
         } catch let urlError as URLError {
             throw ApiError(
                 statusCode: 0,
@@ -150,6 +160,14 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw ApiError(statusCode: 0, message: "Unexpected non-HTTP response from server")
+        }
+
+        if noRedirect && (httpResponse.statusCode == 307 || httpResponse.statusCode == 308) {
+            throw ApiError(
+                statusCode: httpResponse.statusCode,
+                message: "Refusing to follow 307/308 redirect on no-redirect request "
+                    + "(would replay request body to Location target)"
+            )
         }
 
         /* Gap BE+BF: response header keys are normalised to lowercase so
@@ -441,6 +459,28 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         return (URLSession(configuration: config), nil)
     }
 
+    /// Builds an ephemeral session that refuses to follow any HTTP
+    /// redirect. Used for the OAuth2 token-endpoint POST (Gap 3.2)
+    /// where silently replaying a credential-bearing body to a
+    /// Location target is unacceptable. TLS settings are inherited
+    /// from ``TransportOptions`` so custom CA / verifySSL flags still
+    /// apply on the token request.
+    static func buildNoRedirectSession(_ opts: TransportOptions) -> URLSession {
+        let config = URLSessionConfiguration.ephemeral
+        if let timeout = opts.timeout {
+            let seconds = TimeInterval(timeout) / 1000.0
+            config.timeoutIntervalForRequest = seconds
+            config.timeoutIntervalForResource = seconds
+        }
+        let delegate = SessionDelegate(
+            verifySSL: opts.verifySSL,
+            caCertPath: opts.caCertPath,
+            followRedirects: false,
+            maxRedirects: 0
+        )
+        return URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
+    }
+
     /// Gap T6: release the underlying URLSession's connection pool /
     /// delegate queue. Calls `finishTasksAndInvalidate()` so in-flight
     /// requests can complete and the session is permanently invalidated.
@@ -556,32 +596,72 @@ private final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTas
          * default, which leaks bearer tokens to attacker-controlled
          * hosts via malicious 302. Strip these headers when the next
          * request's origin (scheme + host + port) differs from the
-         * originating request's origin. */
+         * originating request's origin.
+         *
+         * Gap 3.1: the strip-set is extended at codegen time with
+         * every `type=apiKey, in=header` scheme declared in the
+         * OpenAPI spec, so app-specific credential headers
+         * (X-API-Key, X-Internal-Token, …) are also stripped on
+         * cross-origin hops alongside the RFC-defined three. */
         var redirectRequest = request
         if let originalURL = task.originalRequest?.url,
             let nextURL = request.url,
             !DefaultApiClient.sameOrigin(originalURL, nextURL)
         {
-            for sensitive in ["Authorization", "Cookie", "Proxy-Authorization"] {
+            for sensitive in DefaultApiClient.sensitiveRedirectHeaders {
                 redirectRequest.setValue(nil, forHTTPHeaderField: sensitive)
             }
-            /* URLSession by default carries Authorization on the new
-             * request only when it set it via URLCredentialStorage;
-             * headers we set on the original URLRequest via
-             * setValue(_:forHTTPHeaderField:) are NOT auto-carried in
-             * some Foundation builds but ARE in others. The strip is
-             * safe to perform regardless. */
-            if let allHeaders = task.originalRequest?.allHTTPHeaderFields {
-                for sensitive in ["Authorization", "Cookie", "Proxy-Authorization"] {
-                    _ = allHeaders[sensitive]  // documented above
-                }
-            }
         }
+
+        /* Gap 3.3: refuse to replay a request body across an
+         * HTTPS -> HTTP transport downgrade. Replaying the body in
+         * cleartext after the original was sent over TLS leaks
+         * whatever the caller trusted to TLS to protect
+         * (credentials, PII, signed tokens). Bodyless follow-ups
+         * (303 + 301/302 GET coercion) are unaffected because
+         * URLSession clears httpBody for those. */
+        let originalScheme = task.originalRequest?.url?.scheme?.lowercased()
+        let nextScheme = request.url?.scheme?.lowercased()
+        let hasBody =
+            (redirectRequest.httpBody != nil)
+            || (redirectRequest.httpBodyStream != nil)
+        if hasBody, originalScheme == "https", nextScheme == "http" {
+            completionHandler(nil)
+            return
+        }
+
+        /* Gap 3.4: when the server returned 303 the spec requires
+         * a GET with no body. URLSession coerces the method to GET
+         * but does not always strip a stale `Content-Length: N`
+         * carried over from the original POST/PUT/PATCH, which
+         * leaves a now-empty GET claiming a non-zero body length
+         * and causes some servers (NGINX, AWS ALB) to either
+         * 400/411 or hang waiting for bytes that will never come. */
+        if response.statusCode == 303 {
+            redirectRequest.setValue(nil, forHTTPHeaderField: "Content-Length")
+            redirectRequest.setValue(nil, forHTTPHeaderField: "Content-Type")
+        }
+
         completionHandler(redirectRequest)
     }
 }
 
 extension DefaultApiClient {
+    /// Header names that MUST NOT be replayed across a cross-origin
+    /// 3xx redirect. The base set is the RFC-defined credential
+    /// triple; the trailing entries are app-specific `apiKey-in-header`
+    /// scheme names extracted from the OpenAPI spec at codegen time
+    /// (Gap 3.1). Comparisons are case-insensitive — the redirect
+    /// handler routes through `URLRequest.setValue(nil, forHTTPHeaderField:)`
+    /// which is itself case-insensitive on header names.
+    static let sensitiveRedirectHeaders: [String] = [
+        "Authorization",
+        "Cookie",
+        "Proxy-Authorization",
+        "X-API-Key",
+        "X-Internal-Key",
+    ]
+
     /// Compare two URLs by scheme + host + effective port.
     static func sameOrigin(_ a: URL, _ b: URL) -> Bool {
         guard let sa = a.scheme?.lowercased(),

@@ -13,11 +13,20 @@ package com.example.petstore
  * connection pool deterministically.
  */
 interface ApiClient : AutoCloseable {
+    /**
+     * Send an HTTP request and return the parsed response.
+     *
+     * @param noRedirect when true, the implementation MUST NOT follow 307/308
+     *   redirects and MUST throw an [ApiException] if the server returns one.
+     *   Used by the OAuth2 token endpoint POST so credentials in the body are
+     *   never silently replayed to a redirect target. Defaults to false.
+     */
     suspend fun sendRequest(
         method: String,
         url: String,
         headers: Map<String, String>,
         body: Any?,
+        noRedirect: Boolean = false,
     ): ApiResponse
 
     /**

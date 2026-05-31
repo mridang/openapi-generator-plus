@@ -346,3 +346,84 @@ class TestNanInfinityRejection:
     def test_deserialize_infinity_raises(self) -> None:
         with pytest.raises(SerializationError):
             ObjectSerializer().deserialize('{"val": Infinity}', 'object')
+
+
+class TestTimeFormat:
+    """4.8: ``format: time`` round-trips through ``datetime.time``."""
+
+    def test_stringify_time_emits_iso8601(self) -> None:
+        t = datetime.time(13, 45, 30)
+        assert ObjectSerializer.stringify(t) == '13:45:30'
+
+    def test_stringify_time_drops_microseconds(self) -> None:
+        # Like datetime, we serialize with second precision so the wire
+        # format matches the other 11 SDKs which all emit HH:MM:SS.
+        t = datetime.time(13, 45, 30, 123456)
+        assert ObjectSerializer.stringify(t) == '13:45:30'
+
+    def test_serialize_time_in_dict(self) -> None:
+        t = datetime.time(9, 0, 0)
+        result = ObjectSerializer().serialize({'opens_at': t})
+        assert '09:00:00' in result
+
+    def test_deserialize_time_from_iso8601(self) -> None:
+        result = ObjectSerializer()._deserialize('13:45:30', 'datetime.time')
+        assert result == datetime.time(13, 45, 30)
+
+    def test_round_trip_time_yields_same_value(self) -> None:
+        original = datetime.time(7, 30, 15)
+        serialized = ObjectSerializer.stringify(original)
+        parsed = ObjectSerializer()._deserialize(serialized, 'datetime.time')
+        assert parsed == original
+
+
+class TestDurationFormat:
+    """4.8: ``format: duration`` round-trips through ``datetime.timedelta``
+    using the ISO-8601 duration grammar (``PnDTnHnMnS``)."""
+
+    def test_stringify_simple_duration(self) -> None:
+        td = datetime.timedelta(hours=1, minutes=30)
+        # Either P1H30M or PT1H30M depending on the isodate canonicalisation,
+        # but the canonical form starts with PT for sub-day durations.
+        out = ObjectSerializer.stringify(td)
+        assert out.startswith('P') and 'T' in out and '1H' in out and '30M' in out
+
+    def test_stringify_duration_with_days(self) -> None:
+        td = datetime.timedelta(days=3, hours=4)
+        out = ObjectSerializer.stringify(td)
+        assert '3D' in out and '4H' in out
+
+    def test_stringify_zero_duration(self) -> None:
+        td = datetime.timedelta(0)
+        out = ObjectSerializer.stringify(td)
+        # PT0S is the canonical zero-duration representation.
+        assert out == 'PT0S'
+
+    def test_serialize_duration_in_dict(self) -> None:
+        td = datetime.timedelta(minutes=5)
+        result = ObjectSerializer().serialize({'ttl': td})
+        assert 'PT5M' in result or 'P0DT5M' in result or 'T5M' in result
+
+    def test_deserialize_duration_from_iso8601(self) -> None:
+        result = ObjectSerializer()._deserialize('PT1H30M', 'datetime.timedelta')
+        assert result == datetime.timedelta(hours=1, minutes=30)
+
+    def test_deserialize_duration_with_days(self) -> None:
+        result = ObjectSerializer()._deserialize('P2DT3H', 'datetime.timedelta')
+        assert result == datetime.timedelta(days=2, hours=3)
+
+    def test_round_trip_duration_yields_same_value(self) -> None:
+        original = datetime.timedelta(days=1, hours=2, minutes=3, seconds=4)
+        serialized = ObjectSerializer.stringify(original)
+        parsed = ObjectSerializer()._deserialize(serialized, 'datetime.timedelta')
+        assert parsed == original
+
+    def test_year_designator_is_rejected_as_ambiguous(self) -> None:
+        # P1Y could be 365 days or 366 days; we refuse rather than guess,
+        # matching the matrix's "no inexact widening" stance.
+        with pytest.raises(ValueError):
+            ObjectSerializer()._deserialize('P1Y', 'datetime.timedelta')
+
+    def test_month_designator_is_rejected_as_ambiguous(self) -> None:
+        with pytest.raises(ValueError):
+            ObjectSerializer()._deserialize('P1M', 'datetime.timedelta')

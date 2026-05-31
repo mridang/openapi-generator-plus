@@ -19,11 +19,19 @@ public interface IApiClient
     /// <param name="url">Fully qualified URL</param>
     /// <param name="headers">HTTP headers</param>
     /// <param name="body">Request body (JSON string, byte[], Stream, Dictionary for multipart, or null)</param>
+    /// <param name="noRedirect">
+    /// When <c>true</c>, the transport must NOT follow 3xx redirects on this call
+    /// and must surface a 307/308 response as-is. Used by the OAuth2 token
+    /// exchange so that a malicious 307 from a token endpoint cannot silently
+    /// replay client credentials to an attacker-controlled host (Gap 3.2).
+    /// Default <c>false</c> preserves the existing redirect-following behaviour.
+    /// </param>
     /// <returns>ApiResponse containing status code, body, and headers</returns>
     Task<ApiResponse> SendRequestAsync(
         string method,
         Uri url,
         Dictionary<string, string> headers,
-        object? body
+        object? body,
+        bool noRedirect = false
     );
 }

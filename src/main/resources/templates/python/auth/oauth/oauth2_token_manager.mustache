@@ -148,7 +148,15 @@ class OAuth2TokenManager:
         if extra_headers:
             headers.update(extra_headers)
 
-        response = self._api_client.send_request('POST', token_url, headers, body)
+        # no_redirect=True: refuse 307/308 on the token POST so a malicious
+        # redirect cannot silently replay the client_id/client_secret (or
+        # the resource owner's password grant credentials) against an
+        # attacker-controlled endpoint. RFC 6749 §3.2 forbids token-endpoint
+        # redirection chains in any case, but we enforce it on the client
+        # side for defence in depth.
+        response = self._api_client.send_request(
+            'POST', token_url, headers, body, no_redirect=True
+        )
         if response.status_code < 200 or response.status_code >= 300:
             # RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
             # `error` (required), `error_description`, `error_uri`. Parse

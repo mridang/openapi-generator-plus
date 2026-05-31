@@ -7,6 +7,23 @@
 
 package petstore
 
+// RequestOptions carries per-request transport overrides for SendRequest.
+//
+// Fields default to their zero value, which means "use the transport's
+// default behaviour". Implementations of ApiClient that do not honour a
+// given option MUST behave as if the option were unset rather than
+// silently ignoring it.
+type RequestOptions struct {
+	/* NoRedirect, when true, instructs the client to refuse every 3xx
+	 * response and return it verbatim. Set on OAuth2 token endpoint POSTs
+	 * (RFC 6749 §3.2) so a 307 / 308 from a malicious or misconfigured
+	 * authorization server cannot replay the form-encoded
+	 * `client_secret` / `refresh_token` onto an attacker-controlled host.
+	 * Implementations that follow 3xx by default MUST short-circuit when
+	 * this flag is set rather than rely on origin checks alone. */
+	NoRedirect bool
+}
+
 // ApiClient is the interface for HTTP clients. Implementations must provide
 // SendRequest to perform the actual HTTP call.
 type ApiClient interface {
@@ -21,4 +38,12 @@ type ApiClient interface {
 	 *
 	 * Returns an HttpResponse and any error that occurred. */
 	SendRequest(method, url string, headers map[string]string, body interface{}) (*HttpResponse, error)
+
+	/* SendRequestWithOptions sends an HTTP request applying the supplied
+	 * per-request RequestOptions on top of the transport-level defaults.
+	 * Implementations MUST treat a nil opts the same as a zero-value
+	 * RequestOptions. Used by OAuth2TokenManager to force NoRedirect on
+	 * token endpoint POSTs without polluting the package-level
+	 * TransportOptions. */
+	SendRequestWithOptions(method, url string, headers map[string]string, body interface{}, opts *RequestOptions) (*HttpResponse, error)
 }

@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'etc'
 require 'securerandom'
 require 'simplecov'
 require 'simplecov-cobertura'
@@ -23,6 +24,14 @@ Minitest::Reporters.use! [
 
 require 'minitest/autorun'
 require 'minitest/pride'
+
+# Run parallelizable test classes (those that call `parallelize_me!`) across
+# all available CPU cores. The previous attempt at this failed because rake
+# exited 1: Minitest.after_run hooks were running in the wrong order (network
+# removal before container stops). That ordering is now fixed below — the
+# CHASM.stop re-registration runs LAST (so via Minitest's LIFO it fires
+# FIRST), detaching the container before PROXY_NETWORK.remove is invoked.
+Minitest.parallel_executor = Minitest::Parallel::Executor.new(Etc.nprocessors)
 
 require 'testcontainers'
 require 'docker'

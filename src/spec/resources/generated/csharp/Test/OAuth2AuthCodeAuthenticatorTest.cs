@@ -29,7 +29,8 @@ public class OAuth2AuthCodeAuthenticatorTest
             string method,
             Uri url,
             Dictionary<string, string> headers,
-            object? body
+            object? body,
+            bool noRedirect = false
         )
         {
             LastUrl = url;

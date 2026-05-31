@@ -22,7 +22,7 @@ class FakeAuthCodeClient
     @call_index = 0
   end
 
-  def send_request(_method, url, _headers, body)
+  def send_request(_method, url, _headers, body, no_redirect: false) # rubocop:disable Lint/UnusedMethodArgument
     @last_url = url
     @last_body = body
     response = @responses[@call_index] || @responses.last
@@ -36,6 +36,8 @@ class FakeAuthCodeClient
 end
 
 describe PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
+  parallelize_me!
+
   let(:auth) do
     PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
       'https://api.example.com',

@@ -17,7 +17,7 @@ require 'petstore_client'
 class FakeClientCredentialsClient
   attr_reader :last_url, :last_body, :last_headers
 
-  def send_request(_method, url, headers, body)
+  def send_request(_method, url, headers, body, no_redirect: false) # rubocop:disable Lint/UnusedMethodArgument
     @last_url = url
     @last_headers = headers
     @last_body = body
@@ -30,6 +30,8 @@ class FakeClientCredentialsClient
 end
 
 describe PetstoreClient::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
+  parallelize_me!
+
   let(:client) { FakeClientCredentialsClient.new }
 
   let(:auth) do

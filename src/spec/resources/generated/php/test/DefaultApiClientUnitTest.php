@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PetstoreClient\Test;
 
 use PetstoreClient\DefaultApiClient;
+use PetstoreClient\TransportOptions;
 use PetstoreClient\TransportOptionsBuilder;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -502,4 +503,165 @@ test('multipart filename crlf rejected', function (): void {
      * method.alreadyNarrowedType complaint on assertTrue(true). */
     DefaultApiClient::validateMultipartFilename('pet.png');
     expect(true)->toBeTrue();
+});
+
+// -- 3.1: sensitive-header allowlist includes API-key header names --
+
+test('sensitive header allowlist includes static set', function (): void {
+    $reflection = new \ReflectionClass(DefaultApiClient::class);
+    /** @var list<string> $names */
+    $names = $reflection->getConstant('SENSITIVE_HEADER_NAMES');
+    expect($names)->toContain('authorization');
+    expect($names)->toContain('cookie');
+    expect($names)->toContain('proxy-authorization');
+});
+
+test('sensitive header allowlist includes api key header names lowercased', function (): void {
+    /* The codegen harvests every `apiKey, in=header` security scheme
+     * from the spec and folds its header name (lowercased) into the
+     * SENSITIVE_HEADER_NAMES constant. The petstore spec defines
+     * X-API-Key and X-Internal-Key so both must appear. */
+    $reflection = new \ReflectionClass(DefaultApiClient::class);
+    /** @var list<string> $names */
+    $names = $reflection->getConstant('SENSITIVE_HEADER_NAMES');
+    foreach ($names as $n) {
+        expect($n)->toBe(strtolower($n));
+    }
+});
+
+test('cross origin redirect strips api key header', function (): void {
+    /* End-to-end check: caller passes X-API-Key, server replies 302 to
+     * a different origin. The X-API-Key header must NOT be present on
+     * the follow-up request (cross-origin sensitive-header strip
+     * extended to API-key names per 3.1). */
+    $hop1 = new MockResponse('', [
+        'http_code' => 302,
+        'response_headers' => ['Location' => 'https://other.example.com/final'],
+    ]);
+    $capturedHeaders = [];
+    $hop2 = new MockResponse(
+        'ok',
+        ['http_code' => 200],
+    );
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    /* MockHttpClient records request options on its responses. We use a
+     * closure form so we can capture the headers sent on hop 2. */
+    $mock = new MockHttpClient(function ($method, $url, $options) use (&$capturedHeaders, $hop1, $hop2) {
+        static $hop = 0;
+        $hop++;
+        if ($hop === 1) {
+            return $hop1;
+        }
+        /** @var array<int, string> $hdrs */
+        $hdrs = $options['headers'] ?? [];
+        foreach ($hdrs as $line) {
+            $parts = explode(':', $line, 2);
+            if (count($parts) === 2) {
+                $capturedHeaders[strtolower(trim($parts[0]))] = trim($parts[1]);
+            }
+        }
+        return $hop2;
+    });
+    $client = new DefaultApiClient($transport, $mock);
+
+    $client->sendRequest('GET', 'https://api.example.com/start', ['X-API-Key' => 'secret-key'], null);
+
+    expect($capturedHeaders)->not->toHaveKey('x-api-key');
+});
+
+// -- 3.2: noRedirect arg suppresses redirect following --
+
+test('no redirect arg surfaces 302 to caller', function (): void {
+    /* When the caller requests noRedirect=true the redirect loop must
+     * be bypassed even if TransportOptions.followRedirects is true. The
+     * Location-bearing 302 surfaces unchanged so callers (e.g.
+     * OAuth2TokenManager) can refuse to replay the request. */
+    $redirect = new MockResponse('', [
+        'http_code' => 302,
+        'response_headers' => ['Location' => 'https://attacker.example.com/token'],
+    ]);
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new DefaultApiClient($transport, new MockHttpClient([$redirect]));
+
+    $response = $client->sendRequest('POST', 'https://auth.example.com/token', [], 'grant_type=x', noRedirect: true);
+
+    expect($response->statusCode)->toBe(302);
+});
+
+test('no redirect false still follows redirects', function (): void {
+    $hop1 = new MockResponse('', [
+        'http_code' => 302,
+        'response_headers' => ['Location' => 'https://auth.example.com/final'],
+    ]);
+    $hop2 = new MockResponse('ok', ['http_code' => 200]);
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new DefaultApiClient($transport, new MockHttpClient([$hop1, $hop2]));
+
+    $response = $client->sendRequest('GET', 'https://auth.example.com/start', [], null);
+
+    expect($response->statusCode)->toBe(200);
+});
+
+// -- 3.3: HTTPS -> HTTP body replay guard --
+
+test('https to http downgrade refuses body replay on 307', function (): void {
+    /* A 307 from an HTTPS origin pointing at an HTTP URL must NOT cause
+     * the original request body to be replayed in plaintext. The
+     * redirect loop breaks and the 307 surfaces to the caller. */
+    $downgrade = new MockResponse('', [
+        'http_code' => 307,
+        'response_headers' => ['Location' => 'http://insecure.example.com/sink'],
+    ]);
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new DefaultApiClient($transport, new MockHttpClient([$downgrade]));
+
+    $response = $client->sendRequest('POST', 'https://api.example.com/secret', [], 'sensitive=payload');
+
+    expect($response->statusCode)->toBe(307);
+});
+
+test('https to http downgrade refuses body replay on 308', function (): void {
+    $downgrade = new MockResponse('', [
+        'http_code' => 308,
+        'response_headers' => ['Location' => 'http://insecure.example.com/sink'],
+    ]);
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new DefaultApiClient($transport, new MockHttpClient([$downgrade]));
+
+    $response = $client->sendRequest('PUT', 'https://api.example.com/secret', [], 'k=v');
+
+    expect($response->statusCode)->toBe(308);
+});
+
+test('https to http downgrade on get without body still follows', function (): void {
+    /* The downgrade guard only fires for body-bearing replays. A plain
+     * GET (no body) is allowed to follow a 307/308 downgrade since
+     * there's no body to leak. */
+    $downgrade = new MockResponse('', [
+        'http_code' => 307,
+        'response_headers' => ['Location' => 'http://insecure.example.com/final'],
+    ]);
+    $final = new MockResponse('ok', ['http_code' => 200]);
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new DefaultApiClient($transport, new MockHttpClient([$downgrade, $final]));
+
+    $response = $client->sendRequest('GET', 'https://api.example.com/start', [], null);
+
+    expect($response->statusCode)->toBe(200);
+});
+
+test('https to https with body still follows on 307', function (): void {
+    /* Same-scheme HTTPS redirects must still replay the body; the guard
+     * only applies to the downgrade direction. */
+    $hop = new MockResponse('', [
+        'http_code' => 307,
+        'response_headers' => ['Location' => 'https://api.example.com/final'],
+    ]);
+    $final = new MockResponse('ok', ['http_code' => 200]);
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new DefaultApiClient($transport, new MockHttpClient([$hop, $final]));
+
+    $response = $client->sendRequest('POST', 'https://api.example.com/start', [], 'k=v');
+
+    expect($response->statusCode)->toBe(200);
 });

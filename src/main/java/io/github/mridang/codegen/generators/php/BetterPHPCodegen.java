@@ -75,6 +75,14 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         typeMapping.put("date", "\\DateTime");
         typeMapping.put("Date", "\\DateTime");
         typeMapping.put("DateTime", "\\DateTime");
+        /* 4.8: OAS string formats `time` (RFC 3339 partial-time, e.g.
+         * "14:30:00") and `duration` (ISO-8601 duration, e.g. "P1DT2H").
+         * PHP has no dedicated time-of-day type, so we use
+         * \DateTimeImmutable (callers project the time portion via
+         * format('H:i:s')). \DateInterval natively parses ISO-8601
+         * duration strings via its constructor. */
+        typeMapping.put("time", "\\DateTimeImmutable");
+        typeMapping.put("duration", "\\DateInterval");
         typeMapping.put("UUID", "\\Symfony\\Component\\Uid\\Uuid");
         typeMapping.put("URI", "string");
         typeMapping.put("object", "object");
@@ -103,6 +111,8 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                                 "byte",
                                 "number",
                                 "\\DateTime",
+                                "\\DateTimeImmutable",
+                                "\\DateInterval",
                                 "\\SplFileObject",
                                 "\\Symfony\\Component\\Uid\\Uuid"));
 

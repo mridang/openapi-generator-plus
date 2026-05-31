@@ -140,7 +140,19 @@ func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]strin
 		headers[k] = v
 	}
 
-	resp, err := client.SendRequest("POST", tokenURL, headers, []byte(values.Encode()))
+	/* Gap 3.2: refuse 307 / 308 on the token POST. RFC 7231 §6.4.7 /
+	 * RFC 7538 require the runtime to replay method and body when
+	 * following 307 / 308 — for a token POST that would forward the
+	 * form-encoded `client_secret` (and `refresh_token` on refresh
+	 * grants) onto the redirect target. If the token endpoint were
+	 * compromised or misconfigured to return a 307 / 308 pointing at an
+	 * attacker host, the credential would be exfiltrated in plain text.
+	 * NoRedirect makes the transport surface the 3xx verbatim so the
+	 * caller fails closed with an OAuth2 server error rather than
+	 * silently leaking the credential. */
+	resp, err := client.SendRequestWithOptions(
+		"POST", tokenURL, headers, []byte(values.Encode()),
+		&auth.RequestOptions{NoRedirect: true})
 	if err != nil {
 		return fmt.Errorf("token request failed: %w", err)
 	}

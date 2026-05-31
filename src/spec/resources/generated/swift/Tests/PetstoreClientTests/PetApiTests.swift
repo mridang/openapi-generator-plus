@@ -281,7 +281,7 @@ private final class MockApiClient: ApiClient, @unchecked Sendable {
     var responseHeaders: [String: String] = ["Content-Type": "application/json"]
 
     func sendRequest(
-        method: String, url: String, headers: [String: String], body: Any?
+        method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
     )
         async throws -> HttpResponse
     {

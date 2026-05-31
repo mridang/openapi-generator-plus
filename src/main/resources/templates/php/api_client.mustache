@@ -12,10 +12,20 @@ interface ApiClient
     /**
      * Send an HTTP request and return the response.
      *
-     * @param string               $method  HTTP method (GET, POST, PUT, DELETE, etc.)
-     * @param string               $url     Fully qualified URL
-     * @param array<string, string> $headers HTTP headers
-     * @param mixed                $body    Request body
+     * @param string                $method     HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param string                $url        Fully qualified URL
+     * @param array<string, string> $headers    HTTP headers
+     * @param mixed                 $body       Request body
+     * @param bool                  $noRedirect when true, do not follow 3xx responses
+     *                                          regardless of {@see TransportOptions::followRedirects}.
+     *                                          Set by callers (e.g. {@see OAuth2TokenManager})
+     *                                          that must refuse redirect-driven request replays.
      */
-    public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse;
+    public function sendRequest(
+        string $method,
+        string $url,
+        array $headers,
+        mixed $body,
+        bool $noRedirect = false,
+    ): ApiResponse;
 }

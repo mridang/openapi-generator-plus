@@ -23,7 +23,7 @@ end
 class CapturingApiClient
   attr_reader :captured_url, :captured_headers, :captured_body
 
-  def send_request(_method, url, headers, body)
+  def send_request(_method, url, headers, body, no_redirect: false) # rubocop:disable Lint/UnusedMethodArgument
     @captured_url = url
     @captured_headers = headers
     @captured_body = body
@@ -57,6 +57,8 @@ class TestAuthenticator < PetstoreClient::Auth::Authenticator
 end
 
 describe PetstoreClient::Api::BaseApi do
+  parallelize_me!
+
   let(:chasm_url) { ENV.fetch('CHASM_HTTP_URL') }
 
   let(:api) do

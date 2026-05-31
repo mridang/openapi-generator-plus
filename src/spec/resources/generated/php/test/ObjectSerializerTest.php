@@ -421,3 +421,64 @@ test('deep deserialize map of primitive values still works', function (): void {
     $result = ObjectSerializer::deserialize('{"a":1,"b":2}', 'array<string,int>');
     expect($result)->toBe(['a' => 1, 'b' => 2]);
 });
+
+// -- 4.8 format:time + format:duration --
+
+test('deserialize time as DateTimeImmutable preserves time portion', function (): void {
+    /** @var \DateTimeImmutable|null $result */
+    $result = ObjectSerializer::deserialize('"14:30:45"', 'DateTimeImmutable');
+    expect($result)->toBeInstanceOf(\DateTimeImmutable::class);
+    /** @var \DateTimeImmutable $result */
+    expect($result->format('H:i:s'))->toBe('14:30:45');
+});
+
+test('serialize DateTimeImmutable round trip via stringify', function (): void {
+    $now = new \DateTimeImmutable('2024-01-15T10:20:30+00:00');
+    $stringified = ObjectSerializer::stringify($now);
+    expect($stringified)->toContain('2024-01-15T10:20:30');
+});
+
+test('deserialize duration as DateInterval parses iso8601', function (): void {
+    /** @var \DateInterval|null $result */
+    $result = ObjectSerializer::deserialize('"P1DT2H30M"', 'DateInterval');
+    expect($result)->toBeInstanceOf(\DateInterval::class);
+    /** @var \DateInterval $result */
+    expect($result->d)->toBe(1);
+    expect($result->h)->toBe(2);
+    expect($result->i)->toBe(30);
+});
+
+test('serialize DateInterval formats canonical iso8601', function (): void {
+    $interval = new \DateInterval('PT1H30M');
+    expect(ObjectSerializer::formatIso8601Duration($interval))->toBe('PT1H30M');
+});
+
+test('serialize DateInterval with date and time components', function (): void {
+    $interval = new \DateInterval('P1Y2M3DT4H5M6S');
+    expect(ObjectSerializer::formatIso8601Duration($interval))->toBe('P1Y2M3DT4H5M6S');
+});
+
+test('serialize zero DateInterval emits PT0S', function (): void {
+    $interval = new \DateInterval('PT0S');
+    expect(ObjectSerializer::formatIso8601Duration($interval))->toBe('PT0S');
+});
+
+test('serialize DateInterval omits zero components', function (): void {
+    $interval = new \DateInterval('P0Y0M1DT0H0M0S');
+    expect(ObjectSerializer::formatIso8601Duration($interval))->toBe('P1D');
+});
+
+test('DateInterval round trips through stringify', function (): void {
+    $interval = new \DateInterval('PT45M');
+    $stringified = ObjectSerializer::stringify($interval);
+    expect($stringified)->toBe('PT45M');
+    $deserialized = ObjectSerializer::deserialize('"' . $stringified . '"', 'DateInterval');
+    expect($deserialized)->toBeInstanceOf(\DateInterval::class);
+    /** @var \DateInterval $deserialized */
+    expect($deserialized->i)->toBe(45);
+});
+
+test('DateInterval invalid string surfaces exception', function (): void {
+    expect(fn () => ObjectSerializer::deserialize('"not-a-duration"', 'DateInterval'))
+        ->toThrow(\Exception::class);
+});

@@ -14,17 +14,18 @@ require 'json'
 require 'petstore_client'
 
 class FakeTokenClient
-  attr_reader :last_url, :last_headers, :last_body, :call_count
+  attr_reader :last_url, :last_headers, :last_body, :call_count, :last_no_redirect
 
   def initialize(responses)
     @responses = responses
     @call_count = 0
   end
 
-  def send_request(_method, url, headers, body)
+  def send_request(_method, url, headers, body, no_redirect: false)
     @last_url = url
     @last_headers = headers
     @last_body = body
+    @last_no_redirect = no_redirect
     @call_count += 1
     response = @responses[@call_count - 1] || @responses.last
     PetstoreClient::ApiResponse.new(
@@ -36,6 +37,8 @@ class FakeTokenClient
 end
 
 describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
+  parallelize_me!
+
   it 'extracts access token from response' do
     client = FakeTokenClient.new([
       { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }
@@ -256,5 +259,20 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
     assert_raises(RuntimeError) do
       manager.get_access_token('https://auth.example.com/token', {})
     end
+  end
+
+  it 'token POST requests no_redirect from transport (Bucket 3.2)' do
+    # The token POST carries client_id / client_secret / refresh_token in
+    # the form body; the manager MUST flag the request as
+    # `no_redirect: true` so the transport refuses any 3xx instead of
+    # silently replaying the credentials body to a redirect target.
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'tok_nr', 'expires_in' => 3600 } }
+    ])
+    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    _(client.last_no_redirect).must_equal true
   end
 end

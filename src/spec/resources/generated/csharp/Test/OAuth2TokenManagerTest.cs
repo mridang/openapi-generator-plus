@@ -24,16 +24,19 @@ public class OAuth2TokenManagerTest
 
         public string? LastBody { get; private set; }
         public Uri? LastUrl { get; private set; }
+        public bool LastNoRedirect { get; private set; }
 
         public Task<ApiResponse> SendRequestAsync(
             string method,
             Uri url,
             Dictionary<string, string> headers,
-            object? body
+            object? body,
+            bool noRedirect = false
         )
         {
             LastUrl = url;
             LastBody = body?.ToString();
+            LastNoRedirect = noRedirect;
             return Task.FromResult(_responses.Dequeue());
         }
     }
@@ -212,7 +215,8 @@ public class OAuth2TokenManagerTest
             string method,
             Uri url,
             Dictionary<string, string> headers,
-            object? body
+            object? body,
+            bool noRedirect = false
         )
         {
             System.Threading.Interlocked.Increment(ref _callCount);
@@ -394,5 +398,66 @@ public class OAuth2TokenManagerTest
                     new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
                 )
         );
+    }
+
+    // ---- 3.2: token POSTs must refuse 307/308 redirects ----
+
+    [Fact]
+    public async Task TokenRequestSetsNoRedirect()
+    {
+        // The token manager must pass noRedirect=true so the transport
+        // does not silently follow a malicious 307 from the token URL.
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok\",\"expires_in\":3600}");
+
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        await manager.GetAccessTokenAsync(
+            new Uri("https://auth.example.com/token"),
+            new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+        );
+
+        Assert.True(client.LastNoRedirect);
+    }
+
+    [Fact]
+    public async Task RefusesRedirect307FromTokenEndpoint()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("", statusCode: 307);
+
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<OAuth2ServerError>(
+            () =>
+                manager.GetAccessTokenAsync(
+                    new Uri("https://auth.example.com/token"),
+                    new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+                )
+        );
+        Assert.Equal(307, ex.StatusCode);
+        Assert.Equal("redirect_refused", ex.Code);
+    }
+
+    [Fact]
+    public async Task RefusesRedirect308FromTokenEndpoint()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("", statusCode: 308);
+
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<OAuth2ServerError>(
+            () =>
+                manager.GetAccessTokenAsync(
+                    new Uri("https://auth.example.com/token"),
+                    new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+                )
+        );
+        Assert.Equal(308, ex.StatusCode);
+        Assert.Equal("redirect_refused", ex.Code);
     }
 }

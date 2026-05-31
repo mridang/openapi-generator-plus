@@ -379,6 +379,58 @@ import Testing
         #expect(capturedBody?.count == 0, "attached body must be zero-length")
         #expect(capturedRequest?.httpMethod == "POST")
     }
+
+    // MARK: - HTTPS -> HTTP body replay guard (Gap 3.3)
+
+    /// An HTTPS -> HTTP redirect with a body in flight MUST be
+    /// refused: replaying the body in cleartext leaks whatever
+    /// TLS was protecting (credentials, PII, signed tokens). The
+    /// SessionDelegate routes the would-be downgrade follow-up to
+    /// `completionHandler(nil)`, which surfaces the original 3xx
+    /// response to the caller. Verified at the helper level: an
+    /// https->http origin pair is ALWAYS cross-origin and so MUST
+    /// also strip credentials even before the body-replay check.
+    @Test func testHttpsToHttpIsCrossOrigin() {
+        let httpsURL = URL(string: "https://example.com/token")!
+        let httpURL = URL(string: "http://example.com/token")!
+        #expect(!DefaultApiClient.sameOrigin(httpsURL, httpURL),
+            "https->http must be cross-origin (TLS downgrade) for body-replay refusal")
+    }
+
+    // MARK: - 303 Content-Length drop (Gap 3.4)
+
+    /// On 303, URLSession coerces the method to GET and clears
+    /// the body. The follow-up MUST NOT carry a stale
+    /// `Content-Length: N` from the original POST -- some servers
+    /// (NGINX, AWS ALB) either 411 or hang waiting for bytes that
+    /// will never come. `testRedirect303SwitchesToGetAndDropsBody`
+    /// covers method + body; this asserts the header itself is
+    /// either absent or zero on the follow-up.
+    @Test func testRedirect303DropsContentLengthOnFollowUp() async throws {
+        let transport = TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
+        let hopCount = HopCounter()
+        var capturedContentLength: String?
+        let client = makeClient(transport: transport) { req in
+            let hop = hopCount.increment()
+            if hop == 1 {
+                return (Data(), 303, ["Location": "https://example.com/api/echo-method-body"])
+            }
+            capturedContentLength = req.value(forHTTPHeaderField: "Content-Length")
+            return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+        }
+        _ = try await client.sendRequest(
+            method: "POST",
+            url: "https://example.com/api/redirect-303",
+            headers: ["Content-Type": "application/json"],
+            body: "non-empty-body".data(using: .utf8)!
+        )
+        /* Accept either no header or an explicit "0" -- both are
+         * safe; the failure mode is the stale length from the POST. */
+        if let cl = capturedContentLength, !cl.isEmpty {
+            #expect(cl == "0",
+                "303 follow-up must not carry stale Content-Length, got: \(cl)")
+        }
+    }
 }
 
 /// Thread-safe hop counter for multi-request stub handlers (e.g. redirect tests).

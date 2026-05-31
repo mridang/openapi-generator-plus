@@ -66,7 +66,7 @@ public class BaseApiTest
         public object? CapturedBody { get; private set; }
 
         public Task<ApiResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body)
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
         {
             CapturedUrl = url;
             CapturedHeaders = new Dictionary<string, string>(headers);
@@ -230,7 +230,7 @@ public class BaseApiTest
     private sealed class TextPlainApiClient : IApiClient
     {
         public Task<ApiResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body)
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
         {
             return Task.FromResult(new ApiResponse(200, "hello", new Dictionary<string, string>
             {
@@ -256,7 +256,7 @@ public class BaseApiTest
     private sealed class VendorJsonApiClient : IApiClient
     {
         public Task<ApiResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body)
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
         {
             return Task.FromResult(new ApiResponse(200, "{\"title\":\"Not Found\"}", new Dictionary<string, string>
             {
@@ -544,7 +544,7 @@ public class BaseApiTest
         public string Body { get; set; } = "";
 
         public Task<ApiResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body)
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
         {
             return Task.FromResult(new ApiResponse(200, Body, new Dictionary<string, string>
             {

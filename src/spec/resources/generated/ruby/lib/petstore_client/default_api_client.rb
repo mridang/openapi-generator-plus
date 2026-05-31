@@ -45,6 +45,17 @@ module PetstoreClient
   # 3. {TransportOptions#user_agent} -- injected if not already set
   # 4. {TransportOptions#inject_request_id} -- injected if not already set
   class DefaultApiClient < ApiClient # rubocop:disable Metrics/ClassLength
+    # Bucket 3.1: extra header names stripped on cross-origin redirects in
+    # addition to the static {Authorization, Cookie, Proxy-Authorization}
+    # set. Populated at codegen time from `securitySchemes` entries whose
+    # `type` is `apiKey` and `in` is `header`, so a malicious 302 cannot
+    # leak the API key to a different host. Entries are already lowercase
+    # so the cross-origin filter can compare case-insensitively.
+    EXTRA_SENSITIVE_HEADER_NAMES = [
+      '',
+      ''
+    ].freeze
+
     # Create a client with default transport settings.
     #
     # Equivalent to +DefaultApiClient.new(TransportOptions.builder.build)+.
@@ -68,8 +79,12 @@ module PetstoreClient
     # @param url [String] fully qualified URL
     # @param headers [Hash{String => String}] caller-provided headers
     # @param body [Object, nil] request body
+    # @param no_redirect [Boolean] when true, refuse to follow any 3xx
+    #   redirect. Used by the OAuth2 token-endpoint POST so that
+    #   credentials in the form body are never silently replayed to a
+    #   redirect target (Bucket 3.2).
     # @return [ApiResponse] the HTTP response
-    def send_request(method, url, headers, body) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
+    def send_request(method, url, headers, body, no_redirect: false) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
       merged = @transport_options.default_headers.dup.merge(headers)
       merged['User-Agent'] ||= @transport_options.user_agent if @transport_options.user_agent
       merged['X-Request-ID'] ||= SecureRandom.uuid if @transport_options.inject_request_id
@@ -107,6 +122,17 @@ module PetstoreClient
         # follow Location: headers manually here, stripping the sensitive
         # headers when the next URL's origin (scheme + host + port) differs
         # from the original.
+        # Bucket 3.2: when the caller passed `no_redirect: true` (the OAuth2
+        # token endpoint POST does this), refuse to follow any 3xx. The
+        # token request carries `client_id` / `client_secret` /
+        # `refresh_token` in the form body; silently replaying that body
+        # to a redirect target would leak credentials to an attacker-
+        # controlled host. We surface the redirect as an ApiError instead.
+        if no_redirect && redirect_status?(response.status)
+          raise ApiError, "Refusing to follow #{response.status} redirect: " \
+                          'token endpoint redirects are not permitted'
+        end
+
         if @transport_options.follow_redirects
           max_redirects = @transport_options.max_redirects || 20
           original_url = url
@@ -143,10 +169,30 @@ module PetstoreClient
               next_body = nil
             end
 
+            # Bucket 3.3: an HTTPS -> HTTP redirect is a TLS downgrade. If
+            # the follow-up request still carries a body (the 307/308
+            # path, or the GET/HEAD same-method path), replaying it over
+            # cleartext would leak sensitive form data the application
+            # sent under TLS. Refuse the downgrade only when there is
+            # actually a body to replay — 301/302/303 demotions to GET
+            # drop the body and are allowed.
+            if !next_body.nil? && https_to_http_downgrade?(url, next_url)
+              raise ApiError, "Refusing to replay body across HTTPS -> HTTP " \
+                              "redirect (TLS downgrade): #{next_url}"
+            end
+
             redirect_headers = current_headers.dup
             if cross_origin
+              # Bucket 3.1: in addition to the static
+              # {authorization, cookie, proxy-authorization} set, strip
+              # any `apiKey, in=header` names harvested from the OpenAPI
+              # document at codegen time. Without this an `X-Api-Key`
+              # header would otherwise be silently replayed to an
+              # attacker-controlled host on a malicious 302.
               redirect_headers.delete_if do |k, _v|
-                %w[authorization cookie proxy-authorization].include?(k.to_s.downcase)
+                lower = k.to_s.downcase
+                %w[authorization cookie proxy-authorization].include?(lower) ||
+                  EXTRA_SENSITIVE_HEADER_NAMES.include?(lower)
               end
             end
             if next_body.nil?
@@ -345,6 +391,17 @@ module PetstoreClient
     # Return the URI's explicit port or the default port for its scheme.
     def effective_port(uri)
       uri.port || (uri.scheme == 'https' ? 443 : 80)
+    end
+
+    # Bucket 3.3: returns true when +url_a+ is an https URL and +url_b+ is
+    # a plain http URL — i.e. a TLS downgrade. Used by the redirect loop
+    # to refuse replaying a non-nil request body across the downgrade.
+    def https_to_http_downgrade?(url_a, url_b)
+      uri_a = safe_parse_uri(url_a)
+      uri_b = safe_parse_uri(url_b)
+      return false if uri_a.nil? || uri_b.nil?
+
+      uri_a.scheme.to_s.downcase == 'https' && uri_b.scheme.to_s.downcase == 'http'
     end
 
     def build_multipart_body(form_parts, boundary)

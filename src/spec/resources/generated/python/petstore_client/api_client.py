@@ -23,13 +23,28 @@ class ApiClient(Protocol):
     don't have to implement them.
     """
 
-    def send_request(self, method: str, url: str, headers: Dict[str, str], body: Any = None) -> ApiResponse:
+    def send_request(
+        self,
+        method: str,
+        url: str,
+        headers: Dict[str, str],
+        body: Any = None,
+        no_redirect: bool = False,
+    ) -> ApiResponse:
         """Send an HTTP request and return the response.
 
         :param method: HTTP method (GET, POST, PUT, DELETE, etc.)
         :param url: Fully qualified URL
         :param headers: HTTP headers
         :param body: Request body (serialized JSON string, bytes, dict for multipart, or None)
+        :param no_redirect: When ``True``, the implementation must refuse to
+            follow a 307 or 308 redirect on this request, raising
+            :class:`~petstore_client.errors.ApiException` instead. Used by
+            OAuth2 token requests so that a malicious 307/308 cannot replay
+            the credential-bearing token POST against an attacker-controlled
+            endpoint. Implementations are still free to follow 301/302/303
+            (which strip the request body and downgrade to GET) per the
+            usual security guards.
         :return: ApiResponse containing status code, body, and headers
         """
         ...

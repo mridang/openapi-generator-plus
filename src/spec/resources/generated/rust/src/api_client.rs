@@ -35,6 +35,33 @@ pub enum MultipartValue {
     List(Vec<MultipartValue>),
 }
 
+/// Per-request options that complement the transport-wide `TransportOptions`.
+///
+/// Gap 3.2: `no_redirect` lets a single caller (e.g. an OAuth2 token POST)
+/// refuse to follow body-preserving 307/308 redirects so the credentialed
+/// request body cannot be replayed to a redirect target chosen by the
+/// remote server. Other 3xx codes (301/302/303) drop the body per RFC 7231,
+/// so they are unaffected by this flag — only 307/308 are refused.
+#[derive(Debug, Clone, Default)]
+pub struct RequestOptions {
+    /// When `true`, the client MUST NOT follow 307 or 308 redirects and
+    /// MUST surface the first such response to the caller as-is.
+    pub no_redirect: bool,
+}
+
+impl RequestOptions {
+    /// Creates a new `RequestOptions` with all flags defaulted to `false`.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Sets the `no_redirect` flag.
+    pub fn no_redirect(mut self, value: bool) -> Self {
+        self.no_redirect = value;
+        self
+    }
+}
+
 /// ApiClient is the trait for HTTP clients. Implementations must provide
 /// `send_request` to perform the actual HTTP call.
 pub trait ApiClient: Send + Sync {
@@ -63,4 +90,27 @@ pub trait ApiClient: Send + Sync {
                 + '_,
         >,
     >;
+
+    /// Sends an HTTP request with per-request options that complement the
+    /// transport-wide `TransportOptions`.
+    ///
+    /// Default implementation ignores `options` and delegates to
+    /// `send_request`; implementations that honour `RequestOptions` (such
+    /// as `DefaultApiClient`) override this method.
+    fn send_request_with_options(
+        &self,
+        method: &str,
+        url: &str,
+        headers: &HashMap<String, String>,
+        body: Option<&RequestBody>,
+        _options: &RequestOptions,
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
+                + Send
+                + '_,
+        >,
+    > {
+        self.send_request(method, url, headers, body)
+    }
 }

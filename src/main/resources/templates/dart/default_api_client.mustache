@@ -133,8 +133,9 @@ class DefaultApiClient implements ApiClient {
     String method,
     String url,
     Map<String, String> headers,
-    Object? body,
-  ) async {
+    Object? body, {
+    bool noRedirect = false,
+  }) async {
     final merged = <String, String>{};
 
     merged.addAll(_transportOptions.defaultHeaders);
@@ -213,9 +214,22 @@ class DefaultApiClient implements ApiClient {
       streamedResponse = _transportOptions.timeout != null
           ? await pendingResponse.timeout(Duration(milliseconds: _transportOptions.timeout!))
           : await pendingResponse;
-      if (_transportOptions.followRedirects) {
+      if (_transportOptions.followRedirects && !noRedirect) {
         final maxRedirects = _transportOptions.maxRedirects ?? 20;
-        const sensitive = {'authorization', 'cookie', 'proxy-authorization'};
+        /* Gap 3.1: extend the cross-origin strip set with API-key header
+         * names declared in the spec. The standard `Authorization` /
+         * `Cookie` / `Proxy-Authorization` allowlist does not cover
+         * bespoke credentials carried in custom headers like
+         * `X-API-Key` or `X-Internal-Key`, so we add every spec-declared
+         * apiKey-in-header name (lowercased) here. */
+        const sensitive = <String>{
+          'authorization',
+          'cookie',
+          'proxy-authorization',
+{{#apiKeyHeaderNames}}
+          '{{nameLower}}',
+{{/apiKeyHeaderNames}}
+        };
         var hops = 0;
         var currentMethod = method;
         Object? currentBody = body;
@@ -227,6 +241,15 @@ class DefaultApiClient implements ApiClient {
           if (location == null || location.isEmpty) break;
           final nextUri = currentUri.resolve(location);
           if (nextUri.scheme != 'http' && nextUri.scheme != 'https') break;
+          /* Gap 3.3: refuse to replay a request body across an HTTPS→HTTP
+           * downgrade. A 307/308 from an HTTPS origin to plain HTTP would
+           * otherwise re-emit the original request body (which may contain
+           * credentials, PII, or signed payloads) over an unencrypted hop.
+           * Stop the redirect chain and surface the last response to the
+           * caller instead. */
+          final downgrade = uri.scheme.toLowerCase() == 'https'
+              && nextUri.scheme.toLowerCase() == 'http';
+          if (downgrade && currentBody != null) break;
           final crossOrigin = !_sameOrigin(uri, nextUri);
 
           /* Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.

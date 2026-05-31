@@ -75,7 +75,8 @@ class BaseApiTest {
             method: String,
             url: String,
             headers: Map<String, String>,
-            body: Any?
+            body: Any?,
+            noRedirect: Boolean
         ): ApiResponse {
             capturedUrl = url
             capturedHeaders = headers
@@ -310,7 +311,8 @@ class BaseApiTest {
                     method: String,
                     url: String,
                     headers: Map<String, String>,
-                    body: Any?
+                    body: Any?,
+                    noRedirect: Boolean
                 ): ApiResponse {
                     capturedHeaders = headers
                     capturedBody = body
@@ -336,7 +338,8 @@ class BaseApiTest {
                     method: String,
                     url: String,
                     headers: Map<String, String>,
-                    body: Any?
+                    body: Any?,
+                    noRedirect: Boolean
                 ): ApiResponse {
                     capturedHeaders = headers
                     capturedBody = body
@@ -614,7 +617,7 @@ class BaseApiTest {
             val encoded = java.util.Base64.getEncoder().encodeToString(original)
             val client = object : CapturingApiClient() {
                 override suspend fun sendRequest(
-                    method: String, url: String, headers: Map<String, String>, body: Any?
+                    method: String, url: String, headers: Map<String, String>, body: Any?, noRedirect: Boolean
                 ): ApiResponse {
                     return ApiResponse(200, encoded, mapOf("Content-Type" to "application/octet-stream"))
                 }
@@ -629,7 +632,7 @@ class BaseApiTest {
         fun imagePngResponseRepresentsBytes() {
             val client = object : CapturingApiClient() {
                 override suspend fun sendRequest(
-                    method: String, url: String, headers: Map<String, String>, body: Any?
+                    method: String, url: String, headers: Map<String, String>, body: Any?, noRedirect: Boolean
                 ): ApiResponse {
                     return ApiResponse(200, "iVBORw0KGgo=", mapOf("Content-Type" to "image/png"))
                 }
@@ -645,7 +648,7 @@ class BaseApiTest {
         fun jsonResponseParsesToObject() {
             val client = object : CapturingApiClient() {
                 override suspend fun sendRequest(
-                    method: String, url: String, headers: Map<String, String>, body: Any?
+                    method: String, url: String, headers: Map<String, String>, body: Any?, noRedirect: Boolean
                 ): ApiResponse {
                     return ApiResponse(200, "{\"key\":\"value\"}", mapOf("Content-Type" to "application/json"))
                 }
@@ -663,7 +666,7 @@ class BaseApiTest {
         fun textPlainResponseReturnsString() {
             val client = object : CapturingApiClient() {
                 override suspend fun sendRequest(
-                    method: String, url: String, headers: Map<String, String>, body: Any?
+                    method: String, url: String, headers: Map<String, String>, body: Any?, noRedirect: Boolean
                 ): ApiResponse {
                     return ApiResponse(200, "hello", mapOf("Content-Type" to "text/plain"))
                 }
@@ -681,7 +684,7 @@ class BaseApiTest {
         fun octetStreamEmptyBodyYieldsEmpty() {
             val client = object : CapturingApiClient() {
                 override suspend fun sendRequest(
-                    method: String, url: String, headers: Map<String, String>, body: Any?
+                    method: String, url: String, headers: Map<String, String>, body: Any?, noRedirect: Boolean
                 ): ApiResponse {
                     return ApiResponse(200, "", mapOf("Content-Type" to "application/octet-stream"))
                 }
@@ -703,7 +706,7 @@ class BaseApiTest {
             val capturedHeaders = mutableMapOf<String, String>()
             val client = object : CapturingApiClient() {
                 override suspend fun sendRequest(
-                    method: String, url: String, headers: Map<String, String>, body: Any?
+                    method: String, url: String, headers: Map<String, String>, body: Any?, noRedirect: Boolean
                 ): ApiResponse {
                     capturedHeaders.putAll(headers)
                     return ApiResponse(200, "{}", mapOf("Content-Type" to "application/json"))

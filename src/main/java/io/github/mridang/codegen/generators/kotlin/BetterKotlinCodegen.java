@@ -82,6 +82,8 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         typeMapping.put("date", "LocalDate");
         typeMapping.put("DateTime", "OffsetDateTime");
         typeMapping.put("date-time", "OffsetDateTime");
+        typeMapping.put("time", "LocalTime");
+        typeMapping.put("duration", "Duration");
         typeMapping.put("UUID", "UUID");
         typeMapping.put("URI", "String");
         typeMapping.put("BigDecimal", "BigDecimal");
@@ -94,6 +96,8 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         importMapping.put("LinkedHashSet", "kotlin.collections.LinkedHashSet");
         importMapping.put("LocalDate", "java.time.LocalDate");
         importMapping.put("OffsetDateTime", "java.time.OffsetDateTime");
+        importMapping.put("LocalTime", "java.time.LocalTime");
+        importMapping.put("Duration", "java.time.Duration");
         importMapping.put("BigDecimal", "java.math.BigDecimal");
         importMapping.put("UUID", "java.util.UUID");
 

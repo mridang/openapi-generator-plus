@@ -22,7 +22,7 @@ import Testing
         var lastBody: Data? = nil
 
         func sendRequest(
-            method: String, url: String, headers: [String: String], body: Any?
+            method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
         ) async throws -> HttpResponse {
             lastMethod = method
             lastURL = url

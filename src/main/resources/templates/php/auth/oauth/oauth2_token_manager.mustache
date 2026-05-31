@@ -167,7 +167,22 @@ final class OAuth2TokenManager
         $body = http_build_query($params);
 
         try {
-            $response = $this->apiClient->sendRequest('POST', $tokenUrl, $headers, $body);
+            /* Gap 3.2: token POSTs must not transparently follow 307/308
+             * redirects. A malicious upstream proxy that rewrites a token
+             * endpoint Location to an attacker-controlled host would
+             * otherwise harvest client credentials (or a refresh token)
+             * sent in the body. We disable redirect following on the
+             * transport via $noRedirect=true and additionally refuse a
+             * 307/308 response explicitly so callers get a clear failure
+             * mode instead of a silent token-endpoint hijack. */
+            $response = $this->apiClient->sendRequest('POST', $tokenUrl, $headers, $body, noRedirect: true);
+            if ($response->statusCode === 307 || $response->statusCode === 308) {
+                throw new \RuntimeException(
+                    'Refusing to follow ' . $response->statusCode
+                    . ' redirect on OAuth2 token endpoint; '
+                    . 'token POSTs must not be replayed across redirects.'
+                );
+            }
             if ($response->statusCode < 200 || $response->statusCode >= 300) {
                 /* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
                  * `error` (required), `error_description`, `error_uri`. Parse

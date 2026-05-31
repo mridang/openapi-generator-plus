@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 
 use tokio::sync::Mutex;
 
-use crate::api_client::{ApiClient, RequestBody};
+use crate::api_client::{ApiClient, RequestBody, RequestOptions};
 use crate::utils::form_url_encode;
 
 /// OAuth2TokenManager manages the OAuth2 token lifecycle: fetching, caching,
@@ -179,12 +179,20 @@ impl OAuth2TokenManager {
             .collect::<Vec<_>>()
             .join("&");
 
+        /* Gap 3.2: refuse 307/308 redirects on the token POST. The body
+         * carries the client_secret / refresh_token / authorization code;
+         * a 307/308 from a compromised or misconfigured IdP would replay
+         * those credentials verbatim to an attacker-chosen URL. 301/302/303
+         * still drop the body so they remain permitted by the redirect
+         * loop. */
+        let request_options = RequestOptions::new().no_redirect(true);
         let response = client
-            .send_request(
+            .send_request_with_options(
                 "POST",
                 token_url,
                 &headers,
                 Some(&RequestBody::Bytes(body.into_bytes())),
+                &request_options,
             )
             .await?;
 

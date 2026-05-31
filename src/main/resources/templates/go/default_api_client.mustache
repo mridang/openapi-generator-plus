@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"compress/zlib"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -25,6 +26,13 @@ import (
 
 	errors_pkg "{{packageName}}/pkg/errors"
 )
+
+// noRedirectContextKey is the unexported context key under which
+// SendRequestWithOptions stashes a true bool when the caller wants the
+// transport to refuse every 3xx redirect. The shared CheckRedirect
+// callback reads it back off req.Context() so the per-request flag does
+// not require constructing a one-off *http.Client.
+type noRedirectContextKey struct{}
 
 // DefaultApiClient is the default HTTP client implementation backed by net/http.
 //
@@ -60,9 +68,21 @@ func NewDefaultApiClient(transportOptions *TransportOptions) *DefaultApiClient {
 
 // SendRequest sends an HTTP request with transport-level settings applied.
 //
-// Merges headers according to the priority order documented on the struct,
-// then dispatches via net/http.
+// Convenience wrapper that delegates to SendRequestWithOptions with no
+// per-request overrides.
 func (c *DefaultApiClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*HttpResponse, error) {
+	return c.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+// SendRequestWithOptions sends an HTTP request applying RequestOptions on
+// top of the transport-level defaults.
+//
+// Merges headers according to the priority order documented on the struct,
+// then dispatches via net/http. When opts.NoRedirect is true the redirect
+// loop refuses every 3xx response and returns it to the caller verbatim —
+// used by OAuth2TokenManager on token endpoint POSTs so 307/308 cannot
+// replay the form-encoded client_secret onto an attacker host.
+func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body interface{}, opts *RequestOptions) (*HttpResponse, error) {
 	merged := make(map[string]string)
 	for k, v := range c.transportOptions.DefaultHeaders() {
 		merged[k] = v
@@ -110,7 +130,11 @@ func (c *DefaultApiClient) SendRequest(method, url string, headers map[string]st
 		}
 	}
 
-	req, err := http.NewRequest(method, url, bodyReader)
+	ctx := context.Background()
+	if opts != nil && opts.NoRedirect {
+		ctx = context.WithValue(ctx, noRedirectContextKey{}, true)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, url, bodyReader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -232,6 +256,16 @@ func buildHTTPClient(opts *TransportOptions) *http.Client {
 			maxRedirects = *opts.MaxRedirects()
 		}
 		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			/* Gap 3.2: per-request NoRedirect (set by OAuth2TokenManager
+			 * on token endpoint POSTs) hard-refuses every 3xx response so
+			 * a 307 / 308 from a malicious or misconfigured authorization
+			 * server cannot replay the form-encoded `client_secret` /
+			 * `refresh_token` onto an attacker-controlled host. The flag
+			 * is plumbed through request.Context so we do not have to
+			 * construct a one-off *http.Client per request. */
+			if v, _ := req.Context().Value(noRedirectContextKey{}).(bool); v {
+				return http.ErrUseLastResponse
+			}
 			if len(via) >= maxRedirects {
 				return fmt.Errorf("stopped after %d redirects", maxRedirects)
 			}
@@ -239,16 +273,60 @@ func buildHTTPClient(opts *TransportOptions) *http.Client {
 				return nil
 			}
 			origURL := via[0].URL
+			prev := via[len(via)-1]
+			var prevStatus int
+			if prev.Response != nil {
+				prevStatus = prev.Response.StatusCode
+			}
+			/* Gap 3.3: refuse to replay a request body across an
+			 * HTTPS → HTTP scheme downgrade. 307 / 308 preserve method
+			 * and body per RFC 7231 §6.4.7 / RFC 7538, so a malicious
+			 * 307 from an HTTPS endpoint to an HTTP one would leak the
+			 * request body (which may carry credentials, tokens, or
+			 * PII) onto the network in plaintext. */
+			if (prevStatus == 307 || prevStatus == 308) &&
+				strings.EqualFold(origURL.Scheme, "https") &&
+				strings.EqualFold(req.URL.Scheme, "http") {
+				return fmt.Errorf(
+					"refusing to replay request body across HTTPS→HTTP downgrade on %d redirect to %s",
+					prevStatus, req.URL.String())
+			}
 			if !sameOrigin(origURL, req.URL) {
-				req.Header.Del("Authorization")
-				req.Header.Del("Cookie")
-				req.Header.Del("Proxy-Authorization")
+				for _, name := range sensitiveHeaderAllowlist {
+					req.Header.Del(name)
+				}
+			}
+			/* Gap 3.4: when the previous response was 303 the Go runtime
+			 * coerces the follow-up to GET and clears the body (RFC 7231
+			 * §6.4.4). Explicitly drop the `Content-Length` header on the
+			 * outbound request so it reflects the empty body — matches
+			 * the Java/Kotlin/PHP/Node code paths and prevents stale
+			 * Content-Length: N being sent on a now-empty GET. */
+			if prevStatus == 303 {
+				req.Header.Del("Content-Length")
+				req.Header.Del("Content-Type")
 			}
 			return nil
 		}
 	}
 
 	return client
+}
+
+// sensitiveHeaderAllowlist names the request headers that must be stripped
+// from a cross-origin 3xx redirect. The static entries match the matrix
+// shared with the other 11 SDKs (Authorization, Cookie,
+// Proxy-Authorization); the dynamic entries are the API-key header names
+// harvested from the OpenAPI `securitySchemes` of type
+// `apiKey, in: header` so cross-origin redirects also strip caller-provided
+// API-key headers even when the key is not literally named "Authorization".
+var sensitiveHeaderAllowlist = []string{
+	"Authorization",
+	"Cookie",
+	"Proxy-Authorization",
+{{#apiKeyHeaderNames}}
+	"{{name}}",
+{{/apiKeyHeaderNames}}
 }
 
 // sameOrigin reports whether two URLs share scheme, host, and effective

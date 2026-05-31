@@ -13,6 +13,79 @@ from typing import Any, Callable, ClassVar, Optional, Type, TypeVar, Union
 from dateutil.parser import parse
 from pydantic import BaseModel, SecretStr
 
+try:
+    import isodate as _isodate  # type: ignore[import-untyped]
+except ImportError:  # pragma: no cover - isodate is a hard dep at runtime
+    _isodate = None  # type: ignore[assignment]
+
+
+def _format_timedelta_iso8601(value: datetime.timedelta) -> str:
+    """Format a :class:`datetime.timedelta` as an ISO-8601 duration string.
+
+    Uses :mod:`isodate` when available (canonical formatter), falling back
+    to a small manual ``PnDTnHnMnS`` builder so the generated client works
+    even if isodate is unavailable for some reason. Negative durations are
+    rendered with a leading ``-``.
+    """
+    if _isodate is not None:
+        result: str = _isodate.duration_isoformat(value)
+        return result
+    total = value.total_seconds()
+    if total == 0:
+        return 'PT0S'
+    sign = '-' if total < 0 else ''
+    total = abs(total)
+    days, remainder = divmod(int(total), 86400)
+    hours, remainder = divmod(remainder, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    fractional = abs(value.total_seconds()) - int(total)
+    seconds_part: str
+    if fractional > 0:
+        seconds_part = f'{seconds + fractional:g}S'
+    elif seconds:
+        seconds_part = f'{seconds}S'
+    else:
+        seconds_part = ''
+    out = sign + 'P'
+    if days:
+        out += f'{days}D'
+    if hours or minutes or seconds_part:
+        out += 'T'
+        if hours:
+            out += f'{hours}H'
+        if minutes:
+            out += f'{minutes}M'
+        if seconds_part:
+            out += seconds_part
+    if out.endswith('P'):
+        out += 'T0S'
+    return out
+
+
+def _parse_timedelta_iso8601(value: str) -> datetime.timedelta:
+    """Parse an ISO-8601 duration string into a :class:`datetime.timedelta`.
+
+    Raises :class:`ValueError` on malformed input. Delegates to
+    :mod:`isodate` which handles all designators including ``Y`` / ``M``
+    on a best-effort basis (years/months over a timedelta are inexact and
+    isodate normalises by treating Y=365d, M=30d when forced; we reject
+    those explicitly to surface the ambiguity rather than silently lose
+    days).
+    """
+    if _isodate is None:
+        raise ValueError(
+            'isodate is required to parse ISO-8601 duration strings'
+        )
+    if 'Y' in value or ('M' in value.split('T', 1)[0]):
+        raise ValueError(
+            'ISO-8601 durations containing years or months are ambiguous '
+            'for datetime.timedelta; use days/hours/minutes/seconds only'
+        )
+    parsed = _isodate.parse_duration(value)
+    if isinstance(parsed, datetime.timedelta):
+        return parsed
+    raise ValueError(f'Could not parse {value!r} as a fixed-length duration')
+
 import {{packageName}}.models
 
 
@@ -47,6 +120,8 @@ class ObjectSerializer:
         'bytes': bytes,
         'date': datetime.date,
         'datetime': datetime.datetime,
+        'datetime.time': datetime.time,
+        'datetime.timedelta': datetime.timedelta,
         'decimal': decimal.Decimal,
         'uuid.UUID': uuid.UUID,
         'object': object,
@@ -132,6 +207,13 @@ class ObjectSerializer:
         elif isinstance(obj, datetime.datetime):
             dt = obj if obj.tzinfo is not None else obj.replace(tzinfo=timezone.utc)
             return dt.isoformat(timespec='seconds')
+        elif isinstance(obj, datetime.timedelta):
+            # Must precede the datetime.date branch only because timedelta
+            # is not a date subclass; ordered alongside the other temporal
+            # types for readability.
+            return _format_timedelta_iso8601(obj)
+        elif isinstance(obj, datetime.time):
+            return obj.isoformat(timespec='seconds')
         elif isinstance(obj, datetime.date):
             return obj.isoformat()
         elif isinstance(obj, decimal.Decimal):
@@ -208,6 +290,14 @@ class ObjectSerializer:
             return parse(data).date()
         elif klass == datetime.datetime:
             return parse(data)
+        elif klass == datetime.time:
+            if isinstance(data, datetime.time):
+                return data
+            return datetime.time.fromisoformat(data)
+        elif klass == datetime.timedelta:
+            if isinstance(data, datetime.timedelta):
+                return data
+            return _parse_timedelta_iso8601(data)
         elif klass == decimal.Decimal:
             return decimal.Decimal(data)
         elif klass == uuid.UUID:
@@ -265,6 +355,10 @@ class ObjectSerializer:
         if isinstance(value, datetime.datetime):
             dt = value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
             return dt.isoformat(timespec='seconds')
+        if isinstance(value, datetime.timedelta):
+            return _format_timedelta_iso8601(value)
+        if isinstance(value, datetime.time):
+            return value.isoformat(timespec='seconds')
         if isinstance(value, datetime.date):
             return value.isoformat()
         if isinstance(value, uuid.UUID):

@@ -184,11 +184,34 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
 
     body = URI.encode_query(params)
 
+    # Gap 3.2: refuse to follow a 307/308 redirect on a token-endpoint POST.
+    # 307 + 308 preserve method *and* body, so a malicious or compromised
+    # token server (or an MITM that can inject a Location: header) could
+    # use a single redirect to coerce this client into POSTing
+    # `client_secret` + `refresh_token` + grant params at an attacker host.
+    # We pass `no_redirect: true` to the ApiClient when it supports the
+    # 6-arity callback; impls that only define `send_request/5` keep the
+    # legacy behaviour and we enforce the refusal on the response below.
     response =
       case client do
-        %{__struct__: mod} = c -> mod.send_request(c, :post, token_url, headers, body)
-        mod when is_atom(mod) -> mod.send_request(:post, token_url, headers, body)
+        %{__struct__: mod} = c ->
+          if function_exported?(mod, :send_request, 6) do
+            mod.send_request(c, :post, token_url, headers, body, no_redirect: true)
+          else
+            mod.send_request(c, :post, token_url, headers, body)
+          end
+
+        mod when is_atom(mod) ->
+          mod.send_request(:post, token_url, headers, body)
       end
+
+    if response.status_code in [307, 308] do
+      raise PetstoreClient.Auth.OAuth.OAuth2TokenError,
+        message:
+          "OAuth2 token endpoint returned #{response.status_code} redirect; " <>
+            "refusing to replay client credentials at the redirect target " <>
+            "(potential credential exfiltration via malicious Location header)"
+    end
 
     if response.status_code < 200 or response.status_code >= 300 do
       # RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
