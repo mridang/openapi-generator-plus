@@ -27,7 +27,7 @@ module {{moduleName}}
   # Canonical RFC 4122 UUID textual form. Validated on both the
   # deserialize and serialize paths for any `format: uuid` property.
   # Stdlib-only — no `uuid` gem dependency required.
-  UUID_REGEX = /\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/.freeze
+  UUID_REGEX = /\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/
 
   # Handles JSON serialization and deserialization for API requests and responses.
   #
@@ -103,11 +103,10 @@ module {{moduleName}}
       when Tod::TimeOfDay
         # 4.8: format: time → HH:MM:SS wire form (seconds precision).
         value.strftime('%H:%M:%S')
-      when ISO8601::Duration
-        # 4.8: format: duration → canonical ISO-8601 duration string
-        # (e.g. PT1H30M). ISO8601::Duration#to_s already emits this.
-        value.to_s
       else
+        # ISO8601::Duration#to_s already emits canonical form (PT1H30M),
+        # so it falls into this branch alongside everything else with a
+        # meaningful #to_s. format: duration is handled here implicitly.
         value.to_s
       end
     end

@@ -40,6 +40,14 @@ Style/StringLiterals:
   Enabled: false
 Style/Lambda:
   Enabled: false
+# Conditional mustache sections can't statically know which item is last in
+# generated hash literals like OPENAPI_FORMATS — accept trailing commas so
+# every emitted item carries the same shape (matches the diff-friendly
+# `consistent_comma` style most modern Ruby codebases prefer anyway).
+Style/TrailingCommaInHashLiteral:
+  EnforcedStyleForMultiline: consistent_comma
+Style/TrailingCommaInArrayLiteral:
+  EnforcedStyleForMultiline: consistent_comma
 Metrics/BlockLength:
   Enabled: false
 # Generated SDK methods (same_origin?, validate_api_key!) inherently exceed
