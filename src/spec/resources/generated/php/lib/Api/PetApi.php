@@ -251,7 +251,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'multipart/form-data',
-            '\Ds\Vector<Photo>'
+            '\Ds\Vector'
         );
         return $result;
     }
@@ -482,7 +482,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\Ds\Vector<Pet>'
+            '\Ds\Vector'
         );
         return $result;
     }

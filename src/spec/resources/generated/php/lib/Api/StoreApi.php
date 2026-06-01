@@ -109,7 +109,7 @@ class StoreApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\Ds\Map<int>'
+            '\Ds\Map'
         );
         return $result;
     }

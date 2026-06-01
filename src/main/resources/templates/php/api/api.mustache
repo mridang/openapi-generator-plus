@@ -287,7 +287,7 @@ class {{classname}} extends BaseApi
             $requestBody,
             [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
             '{{vendorExtensions.op.effectiveConsumes}}',
-            '{{#returnContainer}}{{{returnType}}}<{{returnBaseType}}>{{/returnContainer}}{{^returnContainer}}{{{returnType}}}{{/returnContainer}}'{{#hasAuthMethods}},
+            '{{{returnType}}}'{{#hasAuthMethods}},
             $auth{{/hasAuthMethods}}
         );
         return $result;
