@@ -16,12 +16,12 @@ jobs:
     steps:
       - name: Runner Common Setup
         uses: mridang/action-runner-common@v1
-
-      - name: Free disk space (GitHub runner ~14GB; we pull 12 lang Docker images during tests)
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
-          sudo docker image prune --all --force || true
-          df -h /
+        with:
+          # Polyglot test matrix pulls ~12 GB of language images during the
+          # job. Free runner bloat (Android SDK, .NET, Haskell, CodeQL,
+          # PyPy, etc.) up front so the post-step bin-pack has room to
+          # actually save those images to cache.
+          docker-cache-free-disk: 'true'
 
       - name: Checkout code
         uses: actions/checkout@v4
