@@ -34,4 +34,11 @@ interface PythonSpec extends LanguageSpec, DockerImageSpec {
   default List<String> getSetupCommands() {
     return List.of("pip install --quiet -e . --group dev");
   }
+
+  @Override
+  default Map<String, String> getCacheEnv() {
+    /* PIP_CACHE_DIR redirects the wheel cache. No compile artifacts to
+     * cache for Python. */
+    return Map.of("PIP_CACHE_DIR", "/root/.cache/python/pip");
+  }
 }

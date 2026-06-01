@@ -34,4 +34,14 @@ interface GoSpec extends LanguageSpec, DockerImageSpec {
     default List<String> getSetupCommands() {
         return List.of("go mod tidy");
     }
+
+    @Override
+    default Map<String, String> getCacheEnv() {
+        /* GOPATH owns the module cache ($GOPATH/pkg/mod); GOCACHE owns the
+         * incremental compile cache. Together they cover Go's full
+         * cross-invocation state. */
+        return Map.of(
+                "GOPATH", "/root/.cache/go/path",
+                "GOCACHE", "/root/.cache/go/build");
+    }
 }

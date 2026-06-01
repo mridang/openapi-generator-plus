@@ -75,6 +75,13 @@ final class SharedRuntimeContainer {
                   .withCreateContainerCmdModifier(cmd -> cmd.withUser("root"))
                   .withLogConsumer(new Slf4jLogConsumer(logger).withPrefix(name));
 
+          /* Per-language cache redirection: route the toolchain's package
+           * cache (and where supported, its build artifacts) at a path
+           * under /root that survives the inter-spec /work wipe. The exact
+           * env vars are defined on each per-language Spec interface and
+           * were docker-verified against the runtime image. */
+          spec.getCacheEnv().forEach(container::withEnv);
+
           container.start();
 
           logger.info("Shared container started:");

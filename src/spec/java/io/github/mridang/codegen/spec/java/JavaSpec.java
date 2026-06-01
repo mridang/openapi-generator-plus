@@ -31,4 +31,14 @@ interface JavaSpec extends LanguageSpec, DockerImageSpec {
         "apiPackage", "com.example.petstore.api",
         "invokerPackage", "com.example.petstore");
   }
+
+  @Override
+  default Map<String, String> getCacheEnv() {
+    /* Maven reads its local repository path from -Dmaven.repo.local; routing
+     * it under /root keeps resolved JARs around across JavaBuildSpec →
+     * JavaClientSpec → JavaStaticAnalysisSpec → JavaFormattingSpec. Project
+     * target/ stays local (relocating it would need a pom property), so this
+     * caches deps only — which is most of the cold-start cost. */
+    return Map.of("MAVEN_OPTS", "-Dmaven.repo.local=/root/.cache/java/m2");
+  }
 }

@@ -36,4 +36,11 @@ interface PhpSpec extends LanguageSpec, DockerImageSpec {
         "apk add --no-cache $PHPIZE_DEPS > /dev/null 2>&1 && pecl install pcov > /dev/null 2>&1 && docker-php-ext-enable pcov",
         "COMPOSER_PROCESS_TIMEOUT=600 composer install --no-interaction --prefer-dist");
   }
+
+  @Override
+  default Map<String, String> getCacheEnv() {
+    /* COMPOSER_HOME owns composer config + the package cache; vendor/
+     * stays project-local (no env-var redirect for it). */
+    return Map.of("COMPOSER_HOME", "/root/.cache/php/composer");
+  }
 }

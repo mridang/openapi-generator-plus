@@ -34,4 +34,11 @@ interface RubySpec extends LanguageSpec, DockerImageSpec {
   default List<String> getSetupCommands() {
     return List.of("bundle install --quiet");
   }
+
+  @Override
+  default Map<String, String> getCacheEnv() {
+    /* BUNDLE_PATH redirects gem installation away from /work — gems are
+     * interpreted so this is the only cache that matters. */
+    return Map.of("BUNDLE_PATH", "/root/.cache/ruby/bundle");
+  }
 }

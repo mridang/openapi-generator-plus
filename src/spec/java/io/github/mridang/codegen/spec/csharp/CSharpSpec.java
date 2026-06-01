@@ -34,4 +34,13 @@ interface CSharpSpec extends LanguageSpec, DockerImageSpec {
   default List<String> getSetupCommands() {
     return List.of("dotnet restore");
   }
+
+  @Override
+  default Map<String, String> getCacheEnv() {
+    /* NUGET_PACKAGES relocates the global package cache; .nuget/packages
+     * subtree survives across CSharpBuildSpec → CSharpClientSpec →
+     * CSharpStaticAnalysisSpec. Project bin/ and obj/ stay local (would
+     * need MSBuild BaseOutputPath property to relocate). */
+    return Map.of("NUGET_PACKAGES", "/root/.cache/csharp/nuget");
+  }
 }
