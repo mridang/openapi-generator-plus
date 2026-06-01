@@ -20,10 +20,18 @@
             <directory>tests/Api</directory>
         </testsuite>
     </testsuites>
-    <coverage>
+    <!-- Coverage source declaration uses phpunit 10/11's `<source>` schema
+         rather than the legacy `<coverage><include>` block. The legacy
+         form still parses but phpunit emits a "Filter for code coverage
+         has not been configured" warning that pest's parallel runner
+         treats as a fatal exit. The <source> form is the supported
+         shape going forward. -->
+    <source>
         <include>
             <directory suffix=".php">lib</directory>
         </include>
+    </source>
+    <coverage>
         <report>
             <cobertura outputFile=".out/coverage.xml"/>
         </report>
