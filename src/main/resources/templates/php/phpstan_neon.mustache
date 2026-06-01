@@ -6,13 +6,10 @@ parameters:
   # without inline generic <T> PHPDoc — the generic inner type lives in
   # CodegenOperation.returnBaseType which the api template would need to
   # compose into a `\Ds\Vector<\Foo\Bar>` PHPDoc tag for every operation.
-  # Until that template work lands, ignore the generic-missing reports
-  # for the Ds container family.
+  # Until that template work lands, ignore every missingType.generics
+  # report whose class is in the Ds container family.
   ignoreErrors:
-    - '#return type with generic class Ds\\(Vector|Set|Map) does not specify its types#'
-    - '#parameter .* with generic class Ds\\(Vector|Set|Map) does not specify its types#'
-    - '#return type has no value type specified in iterable type#'
-    - '#parameter .* has no value type specified in iterable type#'
+    - identifier: missingType.generics
   paths:
     - .
   excludePaths:

@@ -142,7 +142,7 @@ module {{moduleName}}
     def close: () -> void
     def self.supported_encodings: () -> String
     private
-    def https_to_http_downgrade?: (URI::Generic, URI::Generic) -> bool
+    def https_to_http_downgrade?: (String, String) -> bool
     def text_content_type?: (String) -> bool
     def decode_text_body: (String, String?) -> String
     def detect_encoding: (String?) -> Encoding
