@@ -36,7 +36,11 @@ function newStoreApiForMock(int $statusCode, string $contentType, string $body):
 test('get inventory', function (): void {
     $result = $this->api->getInventory();
 
-    expect($result)->toBeArray();
+    // Phase 2 PHP type-surface: OAS `map` now maps to `\Ds\Map` (was
+    // `array<string,int>`). The inventory endpoint declares
+    // `additionalProperties: { type: integer }`, so the typed return
+    // is a Ds\Map keyed by status string.
+    expect($result)->toBeInstanceOf(\Ds\Map::class);
 });
 
 test('get order by id', function (): void {

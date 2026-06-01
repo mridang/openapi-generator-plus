@@ -77,9 +77,10 @@ test('get pet by id', function (): void {
 test('find pets by status', function (): void {
     $result = $this->api->findPetsByStatus(new FindPetsByStatusOptions('available'));
 
-    expect($result)->toBeArray();
-    expect($result)->not->toBeEmpty();
-    expect($result[0])->toBeInstanceOf(Pet::class);
+    // Phase 2 PHP type-surface: OAS `array<Pet>` now maps to `\Ds\Vector<Pet>`.
+    expect($result)->toBeInstanceOf(\Ds\Vector::class);
+    expect($result->count())->toBeGreaterThan(0);
+    expect($result->first())->toBeInstanceOf(Pet::class);
 });
 
 test('get pet passport', function (): void {
@@ -167,9 +168,10 @@ test('add pet photos', function (): void {
     $metadata = new PhotoMetadata(caption: 'Test photo', isPrimary: true);
     $result = $this->api->addPetPhotos(1, new AddPetPhotosOptions([$file], $metadata));
 
-    expect($result)->toBeArray();
-    expect($result)->not->toBeEmpty();
-    expect($result[0])->toBeInstanceOf(Photo::class);
+    // Phase 2 PHP type-surface: OAS `array<Photo>` now maps to `\Ds\Vector<Photo>`.
+    expect($result)->toBeInstanceOf(\Ds\Vector::class);
+    expect($result->count())->toBeGreaterThan(0);
+    expect($result->first())->toBeInstanceOf(Photo::class);
     unlink($tmpFile);
 });
 
