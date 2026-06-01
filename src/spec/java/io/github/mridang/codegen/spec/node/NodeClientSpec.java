@@ -15,7 +15,7 @@ public class NodeClientSpec extends AbstractClientSpec implements NodeSpec {
   @Override
   protected String[] getBuildCommands() {
     return new String[] {
-      "npx jest --verbose --runInBand",
+      "npx jest --verbose",
       "mv .out/cobertura-coverage.xml .out/coverage.xml"
     };
   }
