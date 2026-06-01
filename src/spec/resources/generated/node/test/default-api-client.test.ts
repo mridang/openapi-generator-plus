@@ -365,18 +365,24 @@ describe('DefaultApiClient', () => {
     });
 
     const zstdAvailable = typeof zlib.zstdDecompress === 'function';
-    (zstdAvailable ? test : test.skip)('decompresses zstd response', async () => {
-      const client = new DefaultApiClient();
-      const response = await client.sendRequest(
-        'GET',
-        'https://jsonplaceholder.typicode.com/posts/1',
-        { 'Accept-Encoding': 'zstd' },
-        null
-      );
+    // 30s timeout because jsonplaceholder.typicode.com is an external host
+    // that occasionally times out in CI shared-runner network conditions.
+    (zstdAvailable ? test : test.skip)(
+      'decompresses zstd response',
+      async () => {
+        const client = new DefaultApiClient();
+        const response = await client.sendRequest(
+          'GET',
+          'https://jsonplaceholder.typicode.com/posts/1',
+          { 'Accept-Encoding': 'zstd' },
+          null
+        );
 
-      expect(response.statusCode).toBe(200);
-      expect(response.body).toContain('userId');
-    });
+        expect(response.statusCode).toBe(200);
+        expect(response.body).toContain('userId');
+      },
+      30_000
+    );
   });
 
   describe('null-body Content-Length', () => {
