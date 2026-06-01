@@ -174,7 +174,22 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
                 $items = [];
                 foreach ($parameterData as $itemKey => $item) {
                     if ($innerType !== null && is_array($item) && class_exists($innerType)) {
-                        $items[$itemKey] = $this->serializer->denormalize($item, $innerType, $format, $context);
+                        /* AbstractObjectNormalizer's parent stores the chain
+                         * Serializer on a nullable property — Symfony's
+                         * Serializer constructor calls setSerializer on every
+                         * normalizer that implements SerializerAwareInterface,
+                         * which we do, so by the time this code path runs the
+                         * chain reference is always populated. Narrow it for
+                         * PHPStan and fail loudly if the wiring ever changes
+                         * upstream so the bug stays visible rather than turning
+                         * into a NullPointerException at runtime. */
+                        $serializer = $this->serializer;
+                        if (!$serializer instanceof \Symfony\Component\Serializer\Normalizer\DenormalizerInterface) {
+                            throw new \LogicException(
+                                'DsAwareObjectNormalizer dispatched before the Symfony Serializer chain initialised it.',
+                            );
+                        }
+                        $items[$itemKey] = $serializer->denormalize($item, $innerType, $format, $context);
                     } else {
                         $items[$itemKey] = $item;
                     }
