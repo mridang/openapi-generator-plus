@@ -32,12 +32,13 @@ interface SwiftSpec extends LanguageSpec, DockerImageSpec {
 
   @Override
   default Map<String, String> getCacheEnv() {
-    /* SwiftPM has no env var that relocates `.build/` (the compile-output
-     * dir that swift test/build produce inside /work and the inter-spec
-     * wipe destroys). SwiftPM's small global manifest cache at
-     * ~/.cache/org.swift.swiftpm is already preserved by the per-container
-     * /root persistence. Routing .build/ would need each Swift command to
-     * grow a `--build-path /root/...` CLI flag — left for a follow-up. */
-    return Map.of();
+    /* SWIFTPM_BUILD_DIR — undocumented in `swift build --help` (SwiftPM's
+     * CLI help omits any ENVIRONMENT section entirely) but read by
+     * SwiftPM's CommandLineToolApiSupport when no --scratch-path flag
+     * is given. Relocates the entire .build/ tree (debug, repositories,
+     * checkouts, ModuleCache, Modules) outside /work so all three Swift
+     * specs (Build, Client, Linting) reuse the same compile artifacts.
+     * Verified empirically against swift:6.2 image. */
+    return Map.of("SWIFTPM_BUILD_DIR", "/root/.cache/swift/build");
   }
 }

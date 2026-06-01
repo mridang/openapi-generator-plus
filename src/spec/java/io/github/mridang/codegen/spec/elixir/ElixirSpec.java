@@ -32,17 +32,21 @@ interface ElixirSpec extends LanguageSpec, DockerImageSpec {
 
   @Override
   default Map<String, String> getCacheEnv() {
-    /* MIX_HOME holds runtime archives and the hex/rebar plugin state.
-     * HEX_HOME holds the registry cache. MIX_DEPS_PATH and MIX_BUILD_PATH
-     * relocate the project's deps/ and _build/ directories — those normally
-     * live under /work and get destroyed between specs, but routing them to
-     * /root/.cache/elixir keeps the compiled BEAM .beam files around so
-     * ElixirLintingSpec / ElixirClientSpec / ElixirBuildSpec each find their
-     * predecessors' compile work intact. */
+    /* MIX_HOME (runtime archives / hex+rebar plugin state), HEX_HOME
+     * (registry cache), MIX_DEPS_PATH (downloaded dep sources) — all safe
+     * to relocate outside /work. MIX_BUILD_PATH was tried in the previous
+     * wave but broke the generated discriminator deserialization test
+     * (ComposedSchemaTest oneOf → WetFood): Mix's runtime BEAM module
+     * discovery resolves Model modules relative to the on-disk _build/
+     * tree, and moving _build/ outside the project root made
+     * Code.ensure_loaded?/1 miss the generated structs at the moment
+     * the discriminator routes the JSON map into a typed struct,
+     * leaving the result as a raw map. Keeping _build/ project-local
+     * trades the per-spec compile cache for correctness — the wins on
+     * Hex / deps still survive. */
     return Map.of(
         "MIX_HOME", "/root/.cache/elixir/mix",
         "HEX_HOME", "/root/.cache/elixir/hex",
-        "MIX_DEPS_PATH", "/root/.cache/elixir/deps",
-        "MIX_BUILD_PATH", "/root/.cache/elixir/_build");
+        "MIX_DEPS_PATH", "/root/.cache/elixir/deps");
   }
 }
