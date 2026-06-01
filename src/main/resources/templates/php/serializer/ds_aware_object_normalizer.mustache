@@ -1,0 +1,99 @@
+{{>api_info}}
+namespace {{invokerPackage}}\Serializer;
+
+use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
+
+/**
+ * Phase-2 PHP type-surface bridge between Symfony's collection-aware
+ * denormalization and the PHP-DS immutable containers used as model
+ * field types.
+ *
+ * Background — why this subclass exists. The codegen emits model
+ * properties typed as `?\Ds\Vector` / `?\Ds\Set` / `?\Ds\Map` with
+ * PHPDoc `@param \Ds\Vector<\Foo\Bar> $items`. Symfony's
+ * {@see \Symfony\Component\PropertyInfo\Extractor\PhpDocExtractor}
+ * parses the generic and tells Symfony the parameter is a "collection
+ * of \Foo\Bar". Symfony's
+ * {@see \Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer::validateAndDenormalize}
+ * iterates the JSON array, denormalizes each element into a
+ * \Foo\Bar instance, and returns a PHP array — never wrapping the
+ * result into the declared \Ds\Vector container. PHP's strict type
+ * check on the constructor parameter then rejects the array with
+ * "Argument #N (\$name) must be of type ?Ds\Vector, array given".
+ *
+ * The fix is to intercept the per-parameter denormalization step
+ * (the protected {@see ObjectNormalizer::denormalizeParameter} hook)
+ * and, when the parameter's declared type is one of the three Ds
+ * containers, wrap the parent's denormalized array result in the
+ * matching container constructor. Inner items are already denormalized
+ * to the correct model type by Symfony's collection iteration; this
+ * subclass only reshapes the outer container.
+ */
+final class DsAwareObjectNormalizer extends ObjectNormalizer
+{
+    /**
+     * @var list<class-string>
+     */
+    private const DS_CONTAINER_CLASSES = [
+        \Ds\Vector::class,
+        \Ds\Set::class,
+        \Ds\Map::class,
+    ];
+
+    /**
+     * Override the per-parameter denormalization step. After delegating
+     * to the parent (which performs Symfony's standard collection
+     * iteration → plain-array denormalization), inspect the
+     * ReflectionParameter's declared type: if it names one of the
+     * Ds container classes and the parent returned a plain array,
+     * wrap that array in the typed container constructor. The Ds
+     * constructors accept any iterable, so the already-denormalized
+     * inner items (model instances, scalars, etc.) flow through
+     * unchanged.
+     *
+     * Nullable Ds container parameters with a null incoming value
+     * fall through unchanged — the parent returns null, which is
+     * not an array, so no wrapping occurs and the strict type check
+     * accepts it.
+     *
+     * @param array<string, mixed> $context
+     */
+    protected function denormalizeParameter(
+        \ReflectionClass $class,
+        \ReflectionParameter $parameter,
+        string $parameterName,
+        mixed $parameterData,
+        array $context,
+        ?string $format = null,
+    ): mixed {
+        /** @var mixed $result */
+        $result = parent::denormalizeParameter(
+            $class,
+            $parameter,
+            $parameterName,
+            $parameterData,
+            $context,
+            $format,
+        );
+
+        if (!is_array($result)) {
+            return $result;
+        }
+
+        $type = $parameter->getType();
+        if (!$type instanceof \ReflectionNamedType) {
+            return $result;
+        }
+
+        $className = $type->getName();
+        if (!in_array($className, self::DS_CONTAINER_CLASSES, true)) {
+            return $result;
+        }
+
+        /* The three Ds container constructors all accept an iterable;
+         * for \Ds\Map the incoming associative array's keys are
+         * preserved by the constructor's key=>value semantics. */
+        /** @var iterable<mixed> $result */
+        return new $className($result);
+    }
+}

@@ -78,12 +78,12 @@ test('find pets by status', function (): void {
     $result = $this->api->findPetsByStatus(new FindPetsByStatusOptions('available'));
 
     // Phase 2 PHP type-surface: OAS `array<Pet>` now maps to `\Ds\Vector<Pet>`.
-    // Item-level deserialization (raw array → Pet instance) requires a
-    // Symfony ObjectNormalizer extension to walk constructor args through
-    // the normalizer chain; tracked as a separate follow-up. For now the
-    // container is asserted; the items remain raw associative arrays.
+    // DsAwareObjectNormalizer wraps Symfony's collection-iteration plain
+    // array into the declared \Ds\Vector container while preserving the
+    // already-denormalized Pet instances inside.
     expect($result)->toBeInstanceOf(\Ds\Vector::class);
     expect($result->count())->toBeGreaterThan(0);
+    expect($result->first())->toBeInstanceOf(Pet::class);
 });
 
 test('get pet passport', function (): void {
@@ -172,10 +172,11 @@ test('add pet photos', function (): void {
     $result = $this->api->addPetPhotos(1, new AddPetPhotosOptions([$file], $metadata));
 
     // Phase 2 PHP type-surface: OAS `array<Photo>` now maps to `\Ds\Vector<Photo>`.
-    // Item-level deserialization tracked as separate follow-up; see
-    // `find pets by status` test for the underlying Symfony limitation.
+    // DsAwareObjectNormalizer wraps the inner-denormalized Photos into the
+    // typed Vector container; see `find pets by status` for full notes.
     expect($result)->toBeInstanceOf(\Ds\Vector::class);
     expect($result->count())->toBeGreaterThan(0);
+    expect($result->first())->toBeInstanceOf(Photo::class);
     unlink($tmpFile);
 });
 

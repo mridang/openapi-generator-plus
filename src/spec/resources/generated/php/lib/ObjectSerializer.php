@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace PetstoreClient;
 
+use PetstoreClient\Serializer\DsAwareObjectNormalizer;
 use PetstoreClient\Serializer\DsMapNormalizer;
 use PetstoreClient\Serializer\DsSetNormalizer;
 use PetstoreClient\Serializer\DsVectorNormalizer;
@@ -25,7 +26,6 @@ use Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer;
 use Symfony\Component\Serializer\Normalizer\ArrayDenormalizer;
 use Symfony\Component\Serializer\Normalizer\BackedEnumNormalizer;
 use Symfony\Component\Serializer\Normalizer\DateTimeNormalizer;
-use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
 use Symfony\Component\Serializer\Serializer;
 
 /**
@@ -66,7 +66,7 @@ class ObjectSerializer
                 new DsSetNormalizer(),
                 new DsVectorNormalizer(),
                 new ArrayDenormalizer(),
-                new ObjectNormalizer(
+                new DsAwareObjectNormalizer(
                     propertyTypeExtractor: $propertyTypeExtractor,
                 ),
             ], [new JsonEncoder()]);
