@@ -212,6 +212,38 @@ class ObjectSerializer
 
         $class = ltrim($class, '\\');
 
+        /* Phase-2 PHP type-surface: the api template emits a typed container
+         * hint like "Ds\Vector<Pet>" / "Ds\Set<Pet>" / "Ds\Map<integer>" so
+         * that array/set/map items are denormalized into model instances
+         * before being wrapped in the immutable Ds container. The inner
+         * type is qualified via qualifySchemaName so short model names
+         * (e.g. "Pet") resolve to the full FQN while primitives ("integer")
+         * pass through unchanged. */
+        if (preg_match('/^Ds\\\\(Vector|Set|Map)<(.+)>$/', $class, $containerMatch)) {
+            $container = $containerMatch[1];
+            $inner = self::qualifySchemaName(trim($containerMatch[2]));
+            $data = is_string($data) ? json_decode($data, true) : $data;
+            if (!is_array($data)) {
+                throw new \InvalidArgumentException("Invalid container '$class'");
+            }
+            if ($container === 'Map') {
+                /** @var array<string, mixed> $mapItems */
+                $mapItems = [];
+                /** @var array<array-key, mixed> $data */
+                foreach ($data as $key => $value) {
+                    $mapItems[(string) $key] = self::deserialize($value, $inner);
+                }
+                return new \Ds\Map($mapItems);
+            }
+            /** @var array<int, mixed> $vecItems */
+            $vecItems = [];
+            /** @var array<array-key, mixed> $data */
+            foreach ($data as $value) {
+                $vecItems[] = self::deserialize($value, $inner);
+            }
+            return $container === 'Set' ? new \Ds\Set($vecItems) : new \Ds\Vector($vecItems);
+        }
+
         if (str_ends_with($class, '[]')) {
             $data = is_string($data) ? json_decode($data, true) : $data;
 
