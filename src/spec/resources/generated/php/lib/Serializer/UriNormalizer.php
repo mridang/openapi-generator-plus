@@ -34,7 +34,10 @@ final class UriNormalizer implements NormalizerInterface, DenormalizerInterface
     public function normalize(mixed $object, ?string $format = null, array $context = []): string
     {
         \assert($object instanceof \Uri\Rfc3986\Uri);
-        return (string) $object;
+        // PHP 8.5's \Uri\Rfc3986\Uri exposes the canonical wire form
+        // via toRawString(); avoid the `(string)` cast since the class
+        // doesn't ship Stringable.
+        return $object->toRawString();
     }
 
     /**

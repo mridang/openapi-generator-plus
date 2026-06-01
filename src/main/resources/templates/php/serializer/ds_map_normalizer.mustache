@@ -25,9 +25,12 @@ final class DsMapNormalizer implements NormalizerInterface, DenormalizerInterfac
     public function normalize(mixed $object, ?string $format = null, array $context = []): \ArrayObject
     {
         \assert($object instanceof \Ds\Map);
+        /** @var \ArrayObject<string, mixed> $out */
         $out = new \ArrayObject([], \ArrayObject::ARRAY_AS_PROPS);
         foreach ($object as $key => $value) {
-            $k = (string) $key;
+            $k = is_scalar($key) || (is_object($key) && method_exists($key, '__toString'))
+                ? (string) $key
+                : '';
             $out[$k] = is_scalar($value) || $value === null
                 ? $value
                 : $this->normalizer->normalize($value, $format, $context);

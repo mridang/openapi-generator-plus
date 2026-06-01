@@ -521,7 +521,10 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
      */
     public function {{setter}}FromBytes(?string $raw): void
     {
-        $this->{{name}} = \{{invokerPackage}}\ObjectSerializer::encodeBytes($raw);
+        $encoded = \{{invokerPackage}}\ObjectSerializer::encodeBytes($raw);
+        if ($encoded !== null) {
+            $this->{{name}} = $encoded;
+        }
     }
 {{/isByteArray}}
 {{/vars}}

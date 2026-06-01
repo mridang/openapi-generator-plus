@@ -58,6 +58,9 @@ class SetPetAvatarRequest
      */
     public function setDataFromBytes(?string $raw): void
     {
-        $this->data = \PetstoreClient\ObjectSerializer::encodeBytes($raw);
+        $encoded = \PetstoreClient\ObjectSerializer::encodeBytes($raw);
+        if ($encoded !== null) {
+            $this->data = $encoded;
+        }
     }
 }

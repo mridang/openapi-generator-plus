@@ -84,6 +84,9 @@ class PetPassport
      */
     public function setThumbnailFromBytes(?string $raw): void
     {
-        $this->thumbnail = \PetstoreClient\ObjectSerializer::encodeBytes($raw);
+        $encoded = \PetstoreClient\ObjectSerializer::encodeBytes($raw);
+        if ($encoded !== null) {
+            $this->thumbnail = $encoded;
+        }
     }
 }
