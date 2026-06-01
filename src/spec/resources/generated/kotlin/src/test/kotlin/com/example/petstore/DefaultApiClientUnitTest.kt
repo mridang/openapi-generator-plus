@@ -35,7 +35,7 @@ class DefaultApiClientUnitTest {
                     headers = headersOf("Content-Type", "application/json"),
                 )
             }
-        return HttpClient(engine)
+        return HttpClient(engine) { followRedirects = false }
     }
 
     @Nested
@@ -307,7 +307,7 @@ class DefaultApiClientUnitTest {
                         headers = headersOf("X-Test-Header", "test-value"),
                     )
                 }
-            val client = HttpClient(engine)
+            val client = HttpClient(engine) { followRedirects = false }
             val apiClient = DefaultApiClient(client)
             var response: ApiResponse? = null
             runBlocking {
@@ -371,7 +371,7 @@ class DefaultApiClientUnitTest {
                         headers = headersOf("Content-Type", "application/vnd.api+json"),
                     )
                 }
-            val client = HttpClient(engine)
+            val client = HttpClient(engine) { followRedirects = false }
             val apiClient = DefaultApiClient(client)
             var response: ApiResponse? = null
             runBlocking {
@@ -393,7 +393,7 @@ class DefaultApiClientUnitTest {
                         headers = headersOf("Content-Type", "text/plain; charset=ISO-8859-1"),
                     )
                 }
-            val apiClient = DefaultApiClient(HttpClient(engine))
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
             val response =
                 runBlocking {
                     apiClient.sendRequest("GET", "http://localhost/latin1", emptyMap(), null)
@@ -412,7 +412,7 @@ class DefaultApiClientUnitTest {
                         headers = headersOf("Content-Type", "text/plain"),
                     )
                 }
-            val apiClient = DefaultApiClient(HttpClient(engine))
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
             val response =
                 runBlocking {
                     apiClient.sendRequest("GET", "http://localhost/no-charset", emptyMap(), null)
@@ -431,7 +431,7 @@ class DefaultApiClientUnitTest {
                         headers = headersOf("Content-Type", "text/plain; charset=not-a-real-charset"),
                     )
                 }
-            val apiClient = DefaultApiClient(HttpClient(engine))
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
             val response =
                 runBlocking {
                     apiClient.sendRequest("GET", "http://localhost/unknown-charset", emptyMap(), null)
@@ -454,7 +454,7 @@ class DefaultApiClientUnitTest {
                             },
                     )
                 }
-            val client = HttpClient(engine)
+            val client = HttpClient(engine) { followRedirects = false }
             val apiClient = DefaultApiClient(client)
             var response: ApiResponse? = null
             runBlocking {
@@ -519,7 +519,7 @@ class DefaultApiClientUnitTest {
                     }
                 }
             val transport = TransportOptions.builder().followRedirects(true).build()
-            val apiClient = DefaultApiClient(HttpClient(engine), transport)
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
             runBlocking {
                 apiClient.sendRequest(
                     "GET",
@@ -546,7 +546,7 @@ class DefaultApiClientUnitTest {
                     )
                 }
             val transport = TransportOptions.builder().followRedirects(true).build()
-            val apiClient = DefaultApiClient(HttpClient(engine), transport)
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
             val ex =
                 assertThrows(ApiException::class.java) {
                     runBlocking {
@@ -574,7 +574,7 @@ class DefaultApiClientUnitTest {
                     )
                 }
             val transport = TransportOptions.builder().followRedirects(true).build()
-            val apiClient = DefaultApiClient(HttpClient(engine), transport)
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
             val ex =
                 assertThrows(ApiException::class.java) {
                     runBlocking {
@@ -608,7 +608,7 @@ class DefaultApiClientUnitTest {
                     }
                 }
             val transport = TransportOptions.builder().followRedirects(true).build()
-            val apiClient = DefaultApiClient(HttpClient(engine), transport)
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
             val response =
                 runBlocking {
                     apiClient.sendRequest(
@@ -634,7 +634,7 @@ class DefaultApiClientUnitTest {
                     )
                 }
             val transport = TransportOptions.builder().followRedirects(true).build()
-            val apiClient = DefaultApiClient(HttpClient(engine), transport)
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
             val ex =
                 assertThrows(ApiException::class.java) {
                     runBlocking {
@@ -670,7 +670,7 @@ class DefaultApiClientUnitTest {
                     }
                 }
             val transport = TransportOptions.builder().followRedirects(true).build()
-            val apiClient = DefaultApiClient(HttpClient(engine), transport)
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
             val response =
                 runBlocking {
                     apiClient.sendRequest("GET", "https://secure.example.com/x", emptyMap(), null)

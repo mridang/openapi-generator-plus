@@ -51,10 +51,7 @@ module PetstoreClient
     # `type` is `apiKey` and `in` is `header`, so a malicious 302 cannot
     # leak the API key to a different host. Entries are already lowercase
     # so the cross-origin filter can compare case-insensitively.
-    EXTRA_SENSITIVE_HEADER_NAMES = [
-      'x-api-key',
-      'x-internal-key'
-    ].freeze
+    EXTRA_SENSITIVE_HEADER_NAMES = %w[x-api-key x-internal-key].freeze
 
     # Create a client with default transport settings.
     #
