@@ -32,12 +32,15 @@ def _format_timedelta_iso8601(value: datetime.timedelta) -> str:
     even if isodate is unavailable for some reason. Negative durations are
     rendered with a leading ``-``.
     """
+    # Zero-duration canonical form is PT0S across every other SDK we
+    # ship — isodate emits "P0D" which the cross-lang round-trip tests
+    # treat as a wire-format drift, so short-circuit before delegating.
+    if value == datetime.timedelta(0):
+        return 'PT0S'
     if _isodate is not None:
         result: str = _isodate.duration_isoformat(value)
         return result
     total = value.total_seconds()
-    if total == 0:
-        return 'PT0S'
     sign = '-' if total < 0 else ''
     total = abs(total)
     days, remainder = divmod(int(total), 86400)

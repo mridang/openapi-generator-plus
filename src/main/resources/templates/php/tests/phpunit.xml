@@ -8,14 +8,14 @@
          cacheResult="false">
     <testsuites>
         <testsuite name="Unit Tests">
-            <file>test/DefaultApiClientUnitTest.php</file>
-            <file>test/TransportOptionsTest.php</file>
-            <file>test/HeaderSelectorTest.php</file>
-            <file>test/ObjectSerializerTest.php</file>
-            <file>test/TraceContextUtilTest.php</file>
+            <file>tests/DefaultApiClientUnitTest.php</file>
+            <file>tests/TransportOptionsTest.php</file>
+            <file>tests/HeaderSelectorTest.php</file>
+            <file>tests/ObjectSerializerTest.php</file>
+            <file>tests/TraceContextUtilTest.php</file>
         </testsuite>
         <testsuite name="Integration Tests">
-            <file>test/DefaultApiClientTest.php</file>
+            <file>tests/DefaultApiClientTest.php</file>
         </testsuite>
         <testsuite name="API Tests">
             <directory>tests/Api</directory>
