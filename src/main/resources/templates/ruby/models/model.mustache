@@ -246,8 +246,8 @@ module {{moduleName}}
       # `uuid[]` variants apply the same transform to every item of an
       # array-typed property. Consumed by {{moduleName}}::ObjectSerializer
       # on the (de)serialize path.
-      # @type const OPENAPI_FORMATS: Hash[Symbol, String]
-      OPENAPI_FORMATS = {
+      # @type var openapi_formats: Hash[Symbol, String]
+      openapi_formats = {
         {{#vars}}
         {{#isByteArray}}
         {{{name}}}: 'byte',
@@ -261,7 +261,8 @@ module {{moduleName}}
         {{{name}}}: 'uuid[]',
         {{/isUuid}}{{/items}}{{/isUuid}}{{/isByteArray}}
         {{/vars}}
-      }.freeze
+      }
+      OPENAPI_FORMATS = openapi_formats.freeze
 
       # Transform incoming hash keys from JSON format to Ruby attribute names.
       transform_keys do |key|

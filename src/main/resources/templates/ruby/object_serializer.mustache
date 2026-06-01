@@ -206,6 +206,7 @@ module {{moduleName}}
           raise SerializationError, 'Circular reference detected during serialization' if visited.include?(obj_id)
 
           visited.add(obj_id)
+          # @type var formats: Hash[Symbol, String]
           formats = object.class.const_defined?(:OPENAPI_FORMATS) ? object.class::OPENAPI_FORMATS : {}
           begin
             # @type var hash: Hash[untyped, untyped]
@@ -321,6 +322,7 @@ module {{moduleName}}
       return nil unless data.is_a?(Hash)
 
       data = data.transform_keys(&:to_s)
+      # @type var formats: Hash[Symbol, String]
       formats = klass.const_defined?(:OPENAPI_FORMATS) ? klass::OPENAPI_FORMATS : {}
       # @type var transformed: Hash[untyped, untyped]
       transformed = {}
