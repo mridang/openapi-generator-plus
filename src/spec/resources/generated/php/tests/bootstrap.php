@@ -124,7 +124,16 @@ dockerApiRequest($socketPath, "/networks/$networkName/connect", 'POST', [
 // Give Squid a moment to initialize
 sleep(3);
 
-putenv('PROXY_URL=http://' . $squid->getHost() . ':' . safeGetMappedPort($squid, 3128));
+// PROXY_URL falls back the same way chasm HTTPS does — when
+// testcontainers-php can't read the mapped port, set a placeholder so
+// the bootstrap doesn't kill the whole pest run. Proxy-using tests
+// will fail individually with a clearer error.
+try {
+    putenv('PROXY_URL=http://' . $squid->getHost() . ':' . safeGetMappedPort($squid, 3128));
+} catch (\Throwable $e) {
+    fwrite(STDERR, "[bootstrap] could not resolve squid proxy port: " . $e->getMessage() . "\n");
+    putenv('PROXY_URL=http://proxy-unavailable.invalid:0');
+}
 putenv('CA_CERT_PATH=' . getcwd() . '/tests/fixtures/certs/ca.pem');
 
 register_shutdown_function(function () use ($chasm, $squid, $networkName, $socketPath): void {
