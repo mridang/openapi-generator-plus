@@ -368,8 +368,8 @@ class DefaultApiClient:
             'authorization',
             'cookie',
             'proxy-authorization',
-            '',
-            '',
+            'x-api-key',
+            'x-internal-key',
         ]
     )
 

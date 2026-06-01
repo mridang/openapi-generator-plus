@@ -464,8 +464,8 @@ defmodule PetstoreClient.DefaultApiClient do
     "authorization",
     "cookie",
     "proxy-authorization",
-    "",
-    ""
+    "x-api-key",
+    "x-internal-key"
   ]
 
   defp do_request_with_redirects(client, method, url, headers, body, max_redirects, no_redirect \\ false) do

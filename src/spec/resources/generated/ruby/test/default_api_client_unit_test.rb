@@ -561,8 +561,8 @@ describe PetstoreClient::DefaultApiClient do
     names.each do |n|
       _(n).must_equal n.downcase
     end
-    _(names).must_include ''
-    _(names).must_include ''
+    _(names).must_include 'x-api-key'
+    _(names).must_include 'x-internal-key'
   end
 
   it 'strips configured api-key headers on cross-origin redirect (Bucket 3.1)' do
@@ -594,7 +594,7 @@ describe PetstoreClient::DefaultApiClient do
     _(captured_followup_headers).wont_be_nil
     lc = captured_followup_headers.transform_keys(&:downcase)
     _(lc.key?('authorization')).must_equal false
-    _(lc.key?('')).must_equal false
-    _(lc.key?('')).must_equal false
+    _(lc.key?('x-api-key')).must_equal false
+    _(lc.key?('x-internal-key')).must_equal false
   end
 end

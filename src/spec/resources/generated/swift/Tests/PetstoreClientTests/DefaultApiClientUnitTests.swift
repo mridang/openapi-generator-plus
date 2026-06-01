@@ -367,10 +367,10 @@ import Testing
     @Test func testSensitiveRedirectHeadersIncludesSpecApiKeyHeaders() {
         let lowered = Set(DefaultApiClient.sensitiveRedirectHeaders.map { $0.lowercased() })
         #expect(
-            lowered.contains(""),
+            lowered.contains("x-api-key"),
             "spec apiKey header 'X-API-Key' must be on the strip-list")
         #expect(
-            lowered.contains(""),
+            lowered.contains("x-internal-key"),
             "spec apiKey header 'X-Internal-Key' must be on the strip-list")
     }
 

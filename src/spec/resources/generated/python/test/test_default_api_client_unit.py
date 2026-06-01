@@ -705,8 +705,8 @@ class TestApiKeyHeaderStrippedOnCrossOrigin:
     def test_spec_declared_api_key_header_names_are_sensitive(self) -> None:
         from petstore_client.default_api_client import DefaultApiClient
 
-        assert '' in DefaultApiClient._SENSITIVE_HEADERS
-        assert '' in DefaultApiClient._SENSITIVE_HEADERS
+        assert 'x-api-key' in DefaultApiClient._SENSITIVE_HEADERS
+        assert 'x-internal-key' in DefaultApiClient._SENSITIVE_HEADERS
 
     def test_api_key_header_stripped_on_cross_origin_redirect(self) -> None:
         # Use the first spec-declared API-key header for the assertion.

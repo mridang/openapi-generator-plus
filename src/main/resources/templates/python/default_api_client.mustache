@@ -368,7 +368,9 @@ class DefaultApiClient:
         'cookie',
         'proxy-authorization',
         {{#apiKeyHeaderNames}}
+        {{#nameLower}}
         '{{nameLower}}',
+        {{/nameLower}}
         {{/apiKeyHeaderNames}}
     ])
 

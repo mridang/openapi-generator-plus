@@ -52,8 +52,8 @@ class DefaultApiClient implements ApiClient
         'authorization',
         'cookie',
         'proxy-authorization',
-        '',
-        '',
+        'x-api-key',
+        'x-internal-key',
     ];
 
     /** @var HttpClientInterface The underlying Symfony HTTP client. */

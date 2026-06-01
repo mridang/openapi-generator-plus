@@ -539,7 +539,13 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         for (final String name : apiKeyHeaderNames) {
             final Map<String, Object> entry = new HashMap<>();
             entry.put("name", name);
-            entry.put("lowerName", name.toLowerCase(java.util.Locale.ROOT));
+            final String lowered = name.toLowerCase(java.util.Locale.ROOT);
+            // Both keys are populated because templates across the 12 langs
+            // settled on different spellings — Kotlin/Java use {{lowerName}},
+            // Python/Dart/Ruby/PHP/Rust/Elixir use {{nameLower}}. Keep both
+            // in sync so any template renders the right header literal.
+            entry.put("lowerName", lowered);
+            entry.put("nameLower", lowered);
             apiKeyHeaderNamesList.add(entry);
         }
         additionalProperties.put("apiKeyHeaderNames", apiKeyHeaderNamesList);

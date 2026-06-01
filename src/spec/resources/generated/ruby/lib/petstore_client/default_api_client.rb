@@ -52,8 +52,8 @@ module PetstoreClient
     # leak the API key to a different host. Entries are already lowercase
     # so the cross-origin filter can compare case-insensitively.
     EXTRA_SENSITIVE_HEADER_NAMES = [
-      '',
-      ''
+      'x-api-key',
+      'x-internal-key'
     ].freeze
 
     # Create a client with default transport settings.

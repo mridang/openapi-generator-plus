@@ -28,8 +28,13 @@ use crate::transport_options::TransportOptionsBuilder;
 /// `X-Api-Key` (or similarly named) header injected by the caller cannot leak
 /// to an attacker-controlled redirect target. Names are compared
 /// case-insensitively; entries here are already lowercased.
-pub const SENSITIVE_HEADER_NAMES: &[&str] =
-    &["authorization", "cookie", "proxy-authorization", "", ""];
+pub const SENSITIVE_HEADER_NAMES: &[&str] = &[
+    "authorization",
+    "cookie",
+    "proxy-authorization",
+    "x-api-key",
+    "x-internal-key",
+];
 
 /// DefaultApiClient is the default HTTP client implementation backed by reqwest.
 ///
