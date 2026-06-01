@@ -20,7 +20,7 @@ test('makes https request with verify ssl false', function (): void {
         ->build();
 
     $client = new DefaultApiClient($transport);
-    $response = $client->sendRequest('GET', $chasmUrl . '/tests/echo', [], null);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
 
     expect($response->statusCode)->toBe(200);
     /** @var array<string, mixed> $json */
@@ -43,7 +43,7 @@ test('makes https request with custom ca cert', function (): void {
         ->build();
 
     $client = new DefaultApiClient($transport);
-    $response = $client->sendRequest('GET', $chasmUrl . '/tests/echo', [], null);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
 
     expect($response->statusCode)->toBe(200);
     /** @var array<string, mixed> $json */
@@ -62,7 +62,7 @@ test('makes http request through proxy', function (): void {
         ->build();
 
     $client = new DefaultApiClient($transport);
-    $response = $client->sendRequest('GET', $chasmUrl . '/tests/echo', [], null);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
 
     expect($response->statusCode)->toBe(200);
     /** @var array<string, mixed> $json */
@@ -103,7 +103,7 @@ test('makes https request through proxy with verify ssl false', function (): voi
         ->build();
 
     $client = new DefaultApiClient($transport);
-    $response = $client->sendRequest('GET', $chasmUrl . '/tests/echo', [], null);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
 
     expect($response->statusCode)->toBe(200);
     /** @var array<string, mixed> $json */
@@ -122,7 +122,7 @@ test('times out on slow endpoint', function (): void {
 
     $client = new DefaultApiClient($transport);
 
-    expect(fn () => $client->sendRequest('GET', $chasmUrl . '/tests/slow', [], null))
+    expect(fn () => $client->sendRequest('GET', $chasmUrl . '/test/slow', [], null))
         ->toThrow(\Exception::class);
 });
 
@@ -136,7 +136,7 @@ test('injects custom user agent header', function (): void {
         ->build();
 
     $client = new DefaultApiClient($transport);
-    $response = $client->sendRequest('GET', $chasmUrl . '/tests/echo', [], null);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
 
     expect($response->statusCode)->toBe(200);
     /** @var array<string, mixed> $json */
@@ -154,7 +154,7 @@ test('integration injects request id header', function (): void {
         ->build();
 
     $client = new DefaultApiClient($transport);
-    $response = $client->sendRequest('GET', $chasmUrl . '/tests/echo', [], null);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
 
     expect($response->statusCode)->toBe(200);
     /** @var array<string, mixed> $json */
@@ -173,12 +173,12 @@ test('integration generates unique request ids', function (): void {
 
     $client = new DefaultApiClient($transport);
 
-    $response1 = $client->sendRequest('GET', $chasmUrl . '/tests/echo', [], null);
+    $response1 = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
     /** @var array<string, mixed> $json1 */
     $json1 = json_decode($response1->body, true);
     $requestId1 = $json1['headers']['x-request-id'];
 
-    $response2 = $client->sendRequest('GET', $chasmUrl . '/tests/echo', [], null);
+    $response2 = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
     /** @var array<string, mixed> $json2 */
     $json2 = json_decode($response2->body, true);
     $requestId2 = $json2['headers']['x-request-id'];
@@ -196,7 +196,7 @@ test('integration includes transport default headers', function (): void {
         ->build();
 
     $client = new DefaultApiClient($transport);
-    $response = $client->sendRequest('GET', $chasmUrl . '/tests/echo', [], null);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
 
     expect($response->statusCode)->toBe(200);
     /** @var array<string, mixed> $json */
@@ -214,7 +214,7 @@ test('caller headers override transport defaults', function (): void {
     $client = new DefaultApiClient($transport);
     $response = $client->sendRequest(
         'GET',
-        $chasmUrl . '/tests/echo',
+        $chasmUrl . '/test/echo',
         ['Accept' => 'application/json'],
         null
     );
@@ -235,7 +235,7 @@ test('follows redirects when enabled', function (): void {
         ->build();
 
     $client = new DefaultApiClient($transport);
-    $response = $client->sendRequest('GET', $chasmUrl . '/tests/redirect/302', [], null);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/redirect/302', [], null);
 
     expect($response->statusCode)->toBe(200);
 });
@@ -248,7 +248,7 @@ test('returns redirect when disabled', function (): void {
         ->build();
 
     $client = new DefaultApiClient($transport);
-    $response = $client->sendRequest('GET', $chasmUrl . '/tests/redirect/302', [], null);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/redirect/302', [], null);
 
     expect($response->statusCode)->toBe(302);
 });
@@ -264,7 +264,7 @@ test('redirect 303 switches to get and drops body', function (): void {
     $client = new DefaultApiClient($transport);
     $response = $client->sendRequest(
         'POST',
-        $chasmUrl . '/tests/redirect/303',
+        $chasmUrl . '/test/redirect/303',
         ['Content-Type' => 'application/json'],
         'hello-body'
     );
@@ -316,7 +316,7 @@ test('sends multipart form data', function (): void {
 
     $client = new DefaultApiClient();
     $formData = ['description' => 'A test file', 'file' => 'file content'];
-    $response = $client->sendRequest('POST', $chasmUrl . '/tests/echo', [], $formData);
+    $response = $client->sendRequest('POST', $chasmUrl . '/test/echo', [], $formData);
 
     expect($response)->toBeInstanceOf(\PetstoreClient\ApiResponse::class);
 });
@@ -332,7 +332,7 @@ test('multipart field name with crlf rejected on string value', function (): voi
     $client = new DefaultApiClient();
     $badFields = ["name\r\nInjected: yes" => 'string-value'];
 
-    expect(fn () => $client->sendRequest('POST', $chasmUrl . '/tests/echo', [], $badFields))
+    expect(fn () => $client->sendRequest('POST', $chasmUrl . '/test/echo', [], $badFields))
         ->toThrow(\Exception::class);
 });
 
@@ -397,7 +397,7 @@ test('post with null body sends content length zero', function (): void {
     $client = new DefaultApiClient();
     $response = $client->sendRequest(
         'POST',
-        $chasmUrl . '/tests/echo',
+        $chasmUrl . '/test/echo',
         [],
         null
     );

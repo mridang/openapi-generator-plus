@@ -127,7 +127,7 @@ test('throws correct exception', function (int $status, string $expectedClass): 
     try {
         makeBaseApiTestableApi()->call(
             'GET',
-            "/tests/status/$status",
+            "/test/status/$status",
             [],
             [],
             null,
@@ -176,7 +176,7 @@ test('parses json error body', function (): void {
     try {
         makeBaseApiTestableApi()->call(
             'GET',
-            '/tests/status/400',
+            '/test/status/400',
             [],
             [],
             null,
@@ -194,7 +194,7 @@ test('not found hierarchy', function (): void {
     try {
         makeBaseApiTestableApi()->call(
             'GET',
-            '/tests/status/404',
+            '/test/status/404',
             [],
             [],
             null,
@@ -213,7 +213,7 @@ test('internal server error hierarchy', function (): void {
     try {
         makeBaseApiTestableApi()->call(
             'GET',
-            '/tests/status/500',
+            '/test/status/500',
             [],
             [],
             null,
@@ -231,7 +231,7 @@ test('internal server error hierarchy', function (): void {
 test('deserializes json response', function (): void {
     $result = makeBaseApiTestableApi()->call(
         'GET',
-        '/tests/echo',
+        '/test/echo',
         [],
         [],
         null,
@@ -246,7 +246,7 @@ test('deserializes json response', function (): void {
 test('returns raw string for non json', function (): void {
     $result = makeBaseApiTestableApi()->call(
         'GET',
-        '/tests/text-plain',
+        '/test/text-plain',
         [],
         [],
         null,
@@ -261,7 +261,7 @@ test('returns raw string for non json', function (): void {
 test('returns null when return type is null', function (): void {
     $result = makeBaseApiTestableApi()->call(
         'GET',
-        '/tests/echo',
+        '/test/echo',
         [],
         [],
         null,
@@ -275,7 +275,7 @@ test('returns null when return type is null', function (): void {
 test('appends query params', function (): void {
     $result = makeBaseApiTestableApi()->call(
         'GET',
-        '/tests/echo',
+        '/test/echo',
         ['foo' => 'bar'],
         [],
         null,
@@ -290,7 +290,7 @@ test('forwards auth headers', function (): void {
     $auth = new TestAuthenticator(headers: ['X-Custom' => 'auth-value']);
     $result = makeBaseApiTestableApi()->call(
         'GET',
-        '/tests/echo',
+        '/test/echo',
         [],
         [],
         null,
@@ -307,7 +307,7 @@ test('sets cookie header', function (): void {
     $auth = new TestAuthenticator(cookies: ['session' => 'abc123']);
     makeBaseApiTestableApi()->call(
         'GET',
-        '/tests/echo',
+        '/test/echo',
         [],
         [],
         null,
@@ -322,7 +322,7 @@ test('sets cookie header', function (): void {
 test('serializes json body', function (): void {
     $result = makeBaseApiTestableApi()->call(
         'POST',
-        '/tests/echo',
+        '/test/echo',
         [],
         [],
         ['key' => 'value'],
@@ -339,7 +339,7 @@ test('serializes json body', function (): void {
 test('sends no body when null', function (): void {
     makeBaseApiTestableApi()->call(
         'GET',
-        '/tests/echo',
+        '/test/echo',
         [],
         [],
         null,
@@ -365,7 +365,7 @@ test('allow empty value param included with default options', function (): void 
 test('allow empty value includes param in query string', function (): void {
     $result = makeBaseApiTestableApi()->call(
         'GET',
-        '/tests/echo',
+        '/test/echo',
         ['filter' => ''],
         [],
         null,
@@ -382,7 +382,7 @@ test('expands array query params', function (): void {
     $testApi = new TestableApi($client, $config);
     $testApi->call(
         'GET',
-        '/tests/echo',
+        '/test/echo',
         ['tags' => ['a', 'b']],
         [],
         null,
@@ -399,7 +399,7 @@ test('serializes boolean query params', function (): void {
     $testApi = new TestableApi($client, $config);
     $testApi->call(
         'GET',
-        '/tests/echo',
+        '/test/echo',
         ['active' => true],
         [],
         null,
@@ -416,7 +416,7 @@ test('serializes number query params', function (): void {
     $testApi = new TestableApi($client, $config);
     $testApi->call(
         'GET',
-        '/tests/echo',
+        '/test/echo',
         ['limit' => 10],
         [],
         null,
@@ -434,7 +434,7 @@ test('handles empty query params', function (): void {
     $testApi = new TestableApi($client, $config);
     $testApi->call(
         'GET',
-        '/tests/echo',
+        '/test/echo',
         [],
         [],
         null,
@@ -491,7 +491,7 @@ test('skips deserialization for non json content type', function (): void {
     };
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $result = $testApi->call('GET', '/tests/echo', [], [], null,
+    $result = $testApi->call('GET', '/test/echo', [], [], null,
         ['text/plain'], 'application/json', 'string');
     expect($result)->toBe('hello');
 });
@@ -511,7 +511,7 @@ test('deserializes vendor json mime types', function (): void {
     };
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $result = $testApi->call('GET', '/tests/echo', [], [], null,
+    $result = $testApi->call('GET', '/test/echo', [], [], null,
         ['application/json'], 'application/json', 'array');
     expect($result)->toBeArray();
     expect($result['title'])->toBe('Not Found');
@@ -523,7 +523,7 @@ test('serializes text plain body', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $testApi->call('POST', '/tests/echo', [], [], 'hello world',
+    $testApi->call('POST', '/test/echo', [], [], 'hello world',
         ['application/json'], 'text/plain', null);
     expect($client->capturedBody)->not->toBeNull();
     expect($client->capturedBody)->toBeString();
@@ -534,7 +534,7 @@ test('serializes form urlencoded body', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $testApi->call('POST', '/tests/echo', [], [], ['name' => 'alice'],
+    $testApi->call('POST', '/test/echo', [], [], ['name' => 'alice'],
         ['application/json'], 'application/x-www-form-urlencoded', null);
     expect($client->capturedBody)->not->toBeNull();
     expect($client->capturedBody)->toBeString();
@@ -545,7 +545,7 @@ test('passes binary body as is', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $testApi->call('POST', '/tests/echo', [], [], "\x01\x02\x03",
+    $testApi->call('POST', '/test/echo', [], [], "\x01\x02\x03",
         ['application/json'], 'application/octet-stream', null);
     expect($client->capturedBody)->not->toBeNull();
 });
@@ -556,7 +556,7 @@ test('empty content type defaults to json', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $testApi->call('GET', '/tests/echo', [], [], null,
+    $testApi->call('GET', '/test/echo', [], [], null,
         ['application/json'], '', null);
     expect($client->capturedHeaders['Content-Type'] ?? '')->toBe('application/json');
 });
@@ -565,7 +565,7 @@ test('all headers from selector flow through', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $testApi->call('GET', '/tests/echo', [], [], null,
+    $testApi->call('GET', '/test/echo', [], [], null,
         ['application/json'], 'application/json', null);
     expect($client->capturedHeaders)->toHaveKey('Accept');
     expect($client->capturedHeaders)->toHaveKey('Content-Type');
@@ -591,7 +591,7 @@ test('octet stream response decoded as base 64 bytes', function (): void {
     $client->body = $encoded;
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $result = $testApi->call('GET', '/tests/echo', [], [], null,
+    $result = $testApi->call('GET', '/test/echo', [], [], null,
         ['application/octet-stream'], 'application/octet-stream', null);
     expect($result)->toBe($binaryData);
 });
@@ -678,7 +678,7 @@ test('json response parsed to object', function (): void {
     };
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $result = $testApi->call('GET', '/tests/echo', [], [], null,
+    $result = $testApi->call('GET', '/test/echo', [], [], null,
         ['application/json'], null, null);
     expect($result)->not->toBeNull();
 });
@@ -697,7 +697,7 @@ test('text plain response returns string', function (): void {
     };
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $result = $testApi->call('GET', '/tests/echo', [], [], null,
+    $result = $testApi->call('GET', '/test/echo', [], [], null,
         ['text/plain'], null, null);
     expect($result)->toBeString();
     expect($result)->toBe('hello world');
@@ -717,7 +717,7 @@ test('empty body yields null', function (): void {
     };
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $result = $testApi->call('GET', '/tests/echo', [], [], null,
+    $result = $testApi->call('GET', '/test/echo', [], [], null,
         ['application/octet-stream'], null, null);
     expect($result)->toBeNull();
 });
@@ -775,7 +775,7 @@ test('null body post does not send content type', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $testApi->call('POST', '/tests/echo', [], [], null,
+    $testApi->call('POST', '/test/echo', [], [], null,
         ['application/json'], 'application/json', null);
     expect($client->capturedHeaders)->not->toHaveKey('Content-Type');
 });
@@ -784,7 +784,7 @@ test('empty string body includes content type', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $testApi->call('POST', '/tests/echo', [], [], '',
+    $testApi->call('POST', '/test/echo', [], [], '',
         ['application/json'], 'application/json', null);
     expect($client->capturedHeaders)->toHaveKey('Content-Type');
 });
@@ -793,7 +793,7 @@ test('empty json object body includes content type', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
     $testApi = new TestableApi($client, $config);
-    $testApi->call('POST', '/tests/echo', [], [], '{}',
+    $testApi->call('POST', '/test/echo', [], [], '{}',
         ['application/json'], 'application/json', null);
     expect($client->capturedHeaders)->toHaveKey('Content-Type');
     expect($client->capturedHeaders['Content-Type'])->toBe('application/json');
