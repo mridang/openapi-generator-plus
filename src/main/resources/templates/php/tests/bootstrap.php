@@ -137,7 +137,25 @@ try {
 putenv('CA_CERT_PATH=' . getcwd() . '/tests/fixtures/certs/ca.pem');
 
 register_shutdown_function(function () use ($chasm, $squid, $networkName, $socketPath): void {
-    $squid->stop();
-    $chasm->stop();
-    dockerApiRequest($socketPath, "/networks/$networkName", 'DELETE');
+    // Each cleanup step is wrapped because paratest's worker processes
+    // run their own bootstrap and treat any non-zero exit during
+    // shutdown as a "Worker crashed" — failing the whole run. When the
+    // PHP runtime is already tearing down, container.stop() can hit a
+    // dead docker socket and throw; swallow each failure so the worker
+    // exits cleanly.
+    try {
+        $squid->stop();
+    } catch (\Throwable) {
+        // ignored
+    }
+    try {
+        $chasm->stop();
+    } catch (\Throwable) {
+        // ignored
+    }
+    try {
+        dockerApiRequest($socketPath, "/networks/$networkName", 'DELETE');
+    } catch (\Throwable) {
+        // ignored
+    }
 });
