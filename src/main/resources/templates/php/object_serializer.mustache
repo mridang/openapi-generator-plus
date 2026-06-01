@@ -54,6 +54,15 @@ class ObjectSerializer
                 new DsSetNormalizer(),
                 new DsVectorNormalizer(),
                 new ArrayDenormalizer(),
+                /* DsAwareObjectNormalizer replaces Symfony's stock
+                 * ObjectNormalizer here. It extends AbstractObjectNormalizer
+                 * directly (since ObjectNormalizer is final in Symfony 7)
+                 * and overrides denormalizeParameter to intercept any
+                 * constructor parameter whose declared type names
+                 * \Ds\Vector / \Ds\Set / \Ds\Map, denormalize each inner
+                 * element through this chain, and wrap the result in the
+                 * typed container — preserving the immutable Phase-2 PHP
+                 * type-surface end-to-end. */
                 new DsAwareObjectNormalizer(
                     propertyTypeExtractor: $propertyTypeExtractor,
                 ),

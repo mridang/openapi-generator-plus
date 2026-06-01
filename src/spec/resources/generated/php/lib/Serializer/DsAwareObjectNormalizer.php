@@ -13,35 +13,52 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Serializer;
 
-use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
+use Symfony\Component\PropertyAccess\PropertyAccess;
+use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
+use Symfony\Component\PropertyInfo\PropertyTypeExtractorInterface;
+use Symfony\Component\Serializer\Mapping\Factory\ClassMetadataFactoryInterface;
+use Symfony\Component\Serializer\NameConverter\NameConverterInterface;
+use Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer;
 
 /**
- * Phase-2 PHP type-surface bridge between Symfony's collection-aware
- * denormalization and the PHP-DS immutable containers used as model
- * field types.
+ * AbstractObjectNormalizer subclass that intercepts constructor
+ * parameters typed as {@see \Ds\Vector} / {@see \Ds\Set} / {@see \Ds\Map}
+ * before Symfony's collection-iteration path can convert them into
+ * plain PHP arrays and break the strict constructor type check.
  *
- * Background — why this subclass exists. The codegen emits model
- * properties typed as `?\Ds\Vector` / `?\Ds\Set` / `?\Ds\Map` with
- * PHPDoc `@param \Ds\Vector<\Foo\Bar> $items`. Symfony's
- * {@see \Symfony\Component\PropertyInfo\Extractor\PhpDocExtractor}
- * parses the generic and tells Symfony the parameter is a "collection
- * of \Foo\Bar". Symfony's
+ * Background — the codegen emits model constructor parameters with the
+ * strict container type (e.g. `?\Ds\Vector $tags = null`) plus a PHPDoc
+ * `@param \Ds\Vector<\Foo\Bar> $tags` generic that names the inner
+ * element type. Symfony's stock dispatch reads that PHPDoc via
+ * {@see \Symfony\Component\PropertyInfo\Extractor\PhpDocExtractor},
+ * marks the parameter as "collection of \Foo\Bar", and
  * {@see \Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer::validateAndDenormalize}
- * iterates the JSON array, denormalizes each element into a
- * \Foo\Bar instance, and returns a PHP array — never wrapping the
- * result into the declared \Ds\Vector container. PHP's strict type
- * check on the constructor parameter then rejects the array with
- * "Argument #N (\$name) must be of type ?Ds\Vector, array given".
+ * dispatches the inner array with class `'\Foo\Bar[]'`. The chain's
+ * {@see \Symfony\Component\Serializer\Normalizer\ArrayDenormalizer}
+ * matches that suffix, iterates, and returns a plain PHP array of
+ * \Foo\Bar instances. The plain array reaches the constructor and
+ * PHP's strict type check rejects it:
+ * `Argument #N (\$name) must be of type ?Ds\Vector, array given`.
  *
- * The fix is to intercept the per-parameter denormalization step
- * (the protected {@see ObjectNormalizer::denormalizeParameter} hook)
- * and, when the parameter's declared type is one of the three Ds
- * containers, wrap the parent's denormalized array result in the
- * matching container constructor. Inner items are already denormalized
- * to the correct model type by Symfony's collection iteration; this
- * subclass only reshapes the outer container.
+ * {@see denormalizeParameter} is the protected hook that
+ * AbstractObjectNormalizer's instantiateObject calls for each
+ * constructor argument. Overriding it here intercepts the dispatch:
+ * when the ReflectionParameter's declared type names one of the three
+ * Ds containers, the inner element type is read directly from the
+ * constructor's PHPDoc annotation, each JSON element is denormalized
+ * through the parent Serializer chain (so model classes, dates, enums,
+ * URIs all route to their dedicated normalizers), and the result is
+ * wrapped in the matching {@see \Ds\Vector} / {@see \Ds\Set} /
+ * {@see \Ds\Map} container.
+ *
+ * The three abstract methods inherited from AbstractObjectNormalizer
+ * are implemented against {@see \Symfony\Component\PropertyAccess},
+ * matching the stock {@see \Symfony\Component\Serializer\Normalizer\ObjectNormalizer}'s
+ * behaviour but without inheriting its `final` modifier — Symfony 7
+ * sealed ObjectNormalizer, so this subclass extends AbstractObjectNormalizer
+ * directly.
  */
-final class DsAwareObjectNormalizer extends ObjectNormalizer
+final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
 {
     /**
      * @var list<class-string>
@@ -52,21 +69,84 @@ final class DsAwareObjectNormalizer extends ObjectNormalizer
         \Ds\Map::class,
     ];
 
+    private PropertyAccessorInterface $propertyAccessor;
+
     /**
-     * Override the per-parameter denormalization step. After delegating
-     * to the parent (which performs Symfony's standard collection
-     * iteration → plain-array denormalization), inspect the
-     * ReflectionParameter's declared type: if it names one of the
-     * Ds container classes and the parent returned a plain array,
-     * wrap that array in the typed container constructor. The Ds
-     * constructors accept any iterable, so the already-denormalized
-     * inner items (model instances, scalars, etc.) flow through
-     * unchanged.
-     *
-     * Nullable Ds container parameters with a null incoming value
-     * fall through unchanged — the parent returns null, which is
-     * not an array, so no wrapping occurs and the strict type check
-     * accepts it.
+     * @param array<string, mixed> $defaultContext
+     */
+    public function __construct(
+        ?ClassMetadataFactoryInterface $classMetadataFactory = null,
+        ?NameConverterInterface $nameConverter = null,
+        ?PropertyTypeExtractorInterface $propertyTypeExtractor = null,
+        ?PropertyAccessorInterface $propertyAccessor = null,
+        array $defaultContext = [],
+    ) {
+        parent::__construct(
+            classMetadataFactory: $classMetadataFactory,
+            nameConverter: $nameConverter,
+            propertyTypeExtractor: $propertyTypeExtractor,
+            defaultContext: $defaultContext,
+        );
+        $this->propertyAccessor = $propertyAccessor ?? PropertyAccess::createPropertyAccessor();
+    }
+
+    /**
+     * @return array<string, bool|null>
+     */
+    public function getSupportedTypes(?string $format): array
+    {
+        return ['object' => true];
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     * @return list<string>
+     */
+    protected function extractAttributes(object $object, ?string $format = null, array $context = []): array
+    {
+        $reflection = new \ReflectionClass($object);
+        $attributes = [];
+        foreach ($reflection->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
+            if ($property->isStatic()) {
+                continue;
+            }
+            if (!$this->isAllowedAttribute($object, $property->getName(), $format, $context)) {
+                continue;
+            }
+            $attributes[] = $property->getName();
+        }
+        return $attributes;
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    protected function getAttributeValue(object $object, string $attribute, ?string $format = null, array $context = []): mixed
+    {
+        return $this->propertyAccessor->getValue($object, $attribute);
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    protected function setAttributeValue(object $object, string $attribute, mixed $value, ?string $format = null, array $context = []): void
+    {
+        try {
+            $this->propertyAccessor->setValue($object, $attribute, $value);
+        } catch (\Throwable) {
+            /* Read-only / non-existent property: silently ignore,
+             * matching the stock ObjectNormalizer's handling of
+             * NoSuchPropertyException. */
+        }
+    }
+
+    /**
+     * Pre-empt Symfony's validateAndDenormalize for parameters whose
+     * declared type is one of the three Ds containers. Read the inner
+     * element type from the constructor's PHPDoc generic, denormalize
+     * each JSON element through the chain so model classes / dates /
+     * enums / URIs reach their normalizers, and wrap the result in
+     * the declared container class.
      *
      * @param array<string, mixed> $context
      */
@@ -78,34 +158,70 @@ final class DsAwareObjectNormalizer extends ObjectNormalizer
         array $context,
         ?string $format = null,
     ): mixed {
-        /** @var mixed $result */
-        $result = parent::denormalizeParameter(
-            $class,
-            $parameter,
-            $parameterName,
-            $parameterData,
-            $context,
-            $format,
-        );
+        $parameterType = $parameter->getType();
+        if ($parameterType instanceof \ReflectionNamedType) {
+            $className = $parameterType->getName();
+            if (in_array($className, self::DS_CONTAINER_CLASSES, true)) {
+                if ($parameterData === null) {
+                    return null;
+                }
+                if (!is_array($parameterData)) {
+                    /** @var \Ds\Vector|\Ds\Set|\Ds\Map */
+                    return new $className([$parameterData]);
+                }
 
-        if (!is_array($result)) {
-            return $result;
+                $innerType = $this->readPhpDocInnerType($parameter);
+                $items = [];
+                foreach ($parameterData as $itemKey => $item) {
+                    if ($innerType !== null && is_array($item) && class_exists($innerType)) {
+                        $items[$itemKey] = $this->serializer->denormalize($item, $innerType, $format, $context);
+                    } else {
+                        $items[$itemKey] = $item;
+                    }
+                }
+
+                /** @var \Ds\Vector|\Ds\Set|\Ds\Map */
+                return new $className($items);
+            }
         }
 
-        $type = $parameter->getType();
-        if (!$type instanceof \ReflectionNamedType) {
-            return $result;
-        }
+        return parent::denormalizeParameter($class, $parameter, $parameterName, $parameterData, $context, $format);
+    }
 
-        $className = $type->getName();
-        if (!in_array($className, self::DS_CONTAINER_CLASSES, true)) {
-            return $result;
+    /**
+     * Parse the inner element type out of the constructor's PHPDoc
+     * `@param \Ds\Vector<Inner> \$name` annotation. For Map containers
+     * documented as `\Ds\Map<KeyType, ValueType>` the value type is
+     * returned — JSON object keys are always strings so the key type
+     * does not drive element denormalization. Null is returned when
+     * no matching annotation is present; callers then wrap the raw
+     * element values without inner denormalization.
+     */
+    private function readPhpDocInnerType(\ReflectionParameter $parameter): ?string
+    {
+        $constructor = $parameter->getDeclaringFunction();
+        if (!$constructor instanceof \ReflectionMethod) {
+            return null;
         }
-
-        /* The three Ds container constructors all accept an iterable;
-         * for \Ds\Map the incoming associative array's keys are
-         * preserved by the constructor's key=>value semantics. */
-        /** @var iterable<mixed> $result */
-        return new $className($result);
+        $doc = $constructor->getDocComment();
+        if ($doc === false) {
+            return null;
+        }
+        $escapedParam = preg_quote($parameter->getName(), '/');
+        if (
+            !preg_match(
+                '/@param\s+\S+<([^>]+)>(?:\|null)?\s+\$' . $escapedParam . '\b/',
+                $doc,
+                $matches,
+            )
+        ) {
+            return null;
+        }
+        $inner = trim($matches[1]);
+        if (str_contains($inner, ',')) {
+            $parts = explode(',', $inner, 2);
+            $inner = trim($parts[1]);
+        }
+        return ltrim($inner, '\\');
     }
 }
