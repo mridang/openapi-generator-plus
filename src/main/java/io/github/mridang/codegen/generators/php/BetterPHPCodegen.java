@@ -155,7 +155,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     /** {@inheritDoc} */
     @Override
     protected String getTestFixturesDir() {
-        return "test/fixtures";
+        return "tests/fixtures";
     }
 
     /** {@inheritDoc} */
@@ -298,92 +298,92 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                         "client.mustache", invokerFolder, clientClassName + ".php"));
 
         if (generateTests) {
-            supportingFiles.add(new SupportingFile("test/bootstrap.php", "test", "bootstrap.php"));
-            supportingFiles.add(new SupportingFile("test/phpunit.xml", "", "phpunit.xml"));
+            supportingFiles.add(new SupportingFile("tests/bootstrap.php", "tests", "bootstrap.php"));
+            supportingFiles.add(new SupportingFile("tests/phpunit.xml", "", "phpunit.xml"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/Api/PetMockApiClient.mustache",
-                            Path.of("test", "Api").toString(),
+                            "tests/Api/PetMockApiClient.mustache",
+                            Path.of("tests", "Api").toString(),
                             "PetMockApiClient.php"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/Api/StoreMockApiClient.mustache",
-                            Path.of("test", "Api").toString(),
+                            "tests/Api/StoreMockApiClient.mustache",
+                            Path.of("tests", "Api").toString(),
                             "StoreMockApiClient.php"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/Api/PetApiTest.mustache",
-                            Path.of("test", "Api").toString(),
+                            "tests/Api/PetApiTest.mustache",
+                            Path.of("tests", "Api").toString(),
                             "PetApiTest.php"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/Api/StoreApiTest.mustache",
-                            Path.of("test", "Api").toString(),
+                            "tests/Api/StoreApiTest.mustache",
+                            Path.of("tests", "Api").toString(),
                             "StoreApiTest.php"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/DefaultApiClientTest.mustache",
-                            "test",
+                            "tests/DefaultApiClientTest.mustache",
+                            "tests",
                             "DefaultApiClientTest.php"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/DefaultApiClientUnitTest.mustache",
-                            "test",
+                            "tests/DefaultApiClientUnitTest.mustache",
+                            "tests",
                             "DefaultApiClientUnitTest.php"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/TransportOptionsTest.mustache",
-                            "test",
+                            "tests/TransportOptionsTest.mustache",
+                            "tests",
                             "TransportOptionsTest.php"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/CancellationTokenTest.mustache",
-                            "test",
+                            "tests/CancellationTokenTest.mustache",
+                            "tests",
                             "CancellationTokenTest.php"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/HeaderSelectorTest.mustache",
-                            "test",
+                            "tests/HeaderSelectorTest.mustache",
+                            "tests",
                             "HeaderSelectorTest.php"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/ObjectSerializerTest.mustache",
-                            "test",
+                            "tests/ObjectSerializerTest.mustache",
+                            "tests",
                             "ObjectSerializerTest.php"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/ValueSerializerTest.mustache",
-                            "test",
+                            "tests/ValueSerializerTest.mustache",
+                            "tests",
                             "ValueSerializerTest.php"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/TraceContextUtilTest.mustache",
-                            "test",
+                            "tests/TraceContextUtilTest.mustache",
+                            "tests",
                             "TraceContextUtilTest.php"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/BaseApiTest.mustache",
-                            "test",
+                            "tests/BaseApiTest.mustache",
+                            "tests",
                             "BaseApiTest.php"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/MetadataTest.mustache",
-                            "test",
+                            "tests/MetadataTest.mustache",
+                            "tests",
                             "MetadataTest.php"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/ComposedSchemaTest.mustache",
-                            "test",
+                            "tests/ComposedSchemaTest.mustache",
+                            "tests",
                             "ComposedSchemaTest.php"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/ConfigurationTest.mustache",
-                            "test",
+                            "tests/ConfigurationTest.mustache",
+                            "tests",
                             "ConfigurationTest.php"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/ClientTest.mustache",
-                            "test",
+                            "tests/ClientTest.mustache",
+                            "tests",
                             "ClientTest.php"));
         }
     }
@@ -589,14 +589,14 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     @Override
     protected List<OAuthTestFileSpec> getOAuthTestFileSpecs() {
         return List.of(
-                new OAuthTestFileSpec("test/BasicAuthenticatorTest.mustache", "test", "BasicAuthenticatorTest.php", OAuthTestCondition.BASIC),
-                new OAuthTestFileSpec("test/MockTokenApiClient.mustache", "test", "MockTokenApiClient.php", OAuthTestCondition.ANY_OAUTH2_OR_OIDC),
-                new OAuthTestFileSpec("test/OAuth2TokenManagerTest.mustache", "test", "OAuth2TokenManagerTest.php", OAuthTestCondition.ANY_OAUTH2_OR_OIDC),
-                new OAuthTestFileSpec("test/OAuth2AuthCodeAuthenticatorTest.mustache", "test", "OAuth2AuthCodeAuthenticatorTest.php", OAuthTestCondition.AUTH_CODE),
-                new OAuthTestFileSpec("test/OAuth2ImplicitAuthenticatorTest.mustache", "test", "OAuth2ImplicitAuthenticatorTest.php", OAuthTestCondition.IMPLICIT),
-                new OAuthTestFileSpec("test/OAuth2ClientCredentialsAuthenticatorTest.mustache", "test", "OAuth2ClientCredentialsAuthenticatorTest.php", OAuthTestCondition.CLIENT_CREDENTIALS),
-                new OAuthTestFileSpec("test/OAuth2PasswordAuthenticatorTest.mustache", "test", "OAuth2PasswordAuthenticatorTest.php", OAuthTestCondition.PASSWORD),
-                new OAuthTestFileSpec("test/OpenIdConnectAuthenticatorTest.mustache", "test", "OpenIdConnectAuthenticatorTest.php", OAuthTestCondition.OIDC));
+                new OAuthTestFileSpec("tests/BasicAuthenticatorTest.mustache", "tests", "BasicAuthenticatorTest.php", OAuthTestCondition.BASIC),
+                new OAuthTestFileSpec("tests/MockTokenApiClient.mustache", "tests", "MockTokenApiClient.php", OAuthTestCondition.ANY_OAUTH2_OR_OIDC),
+                new OAuthTestFileSpec("tests/OAuth2TokenManagerTest.mustache", "tests", "OAuth2TokenManagerTest.php", OAuthTestCondition.ANY_OAUTH2_OR_OIDC),
+                new OAuthTestFileSpec("tests/OAuth2AuthCodeAuthenticatorTest.mustache", "tests", "OAuth2AuthCodeAuthenticatorTest.php", OAuthTestCondition.AUTH_CODE),
+                new OAuthTestFileSpec("tests/OAuth2ImplicitAuthenticatorTest.mustache", "tests", "OAuth2ImplicitAuthenticatorTest.php", OAuthTestCondition.IMPLICIT),
+                new OAuthTestFileSpec("tests/OAuth2ClientCredentialsAuthenticatorTest.mustache", "tests", "OAuth2ClientCredentialsAuthenticatorTest.php", OAuthTestCondition.CLIENT_CREDENTIALS),
+                new OAuthTestFileSpec("tests/OAuth2PasswordAuthenticatorTest.mustache", "tests", "OAuth2PasswordAuthenticatorTest.php", OAuthTestCondition.PASSWORD),
+                new OAuthTestFileSpec("tests/OpenIdConnectAuthenticatorTest.mustache", "tests", "OpenIdConnectAuthenticatorTest.php", OAuthTestCondition.OIDC));
     }
 
     /** {@inheritDoc} */

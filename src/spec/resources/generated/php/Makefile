@@ -6,7 +6,7 @@ install:
 build: install
 
 test: install
-	vendor/bin/pest test --testdox --parallel
+	vendor/bin/pest --testdox --parallel
 
 lint: install
 	vendor/bin/phpcs

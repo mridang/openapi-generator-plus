@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
-         bootstrap="test/bootstrap.php"
+         bootstrap="tests/bootstrap.php"
          colors="true"
          failOnWarning="true"
          failOnRisky="true"
@@ -18,7 +18,7 @@
             <file>test/DefaultApiClientTest.php</file>
         </testsuite>
         <testsuite name="API Tests">
-            <directory>test/Api</directory>
+            <directory>tests/Api</directory>
         </testsuite>
         <testsuite name="Spec Tests">
             <directory suffix="Spec.php">spec</directory>

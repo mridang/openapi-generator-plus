@@ -35,9 +35,9 @@ function safeGetMappedPort(StartedGenericContainer $container, int $port): int
 }
 
 $hostAppPath = getenv('HOST_APP_PATH') ?: getcwd();
-$specPath = $hostAppPath . '/test/fixtures/openapi.yaml';
-$chasmCertPath = $hostAppPath . '/test/fixtures/certs/server.pem';
-$chasmKeyPath = $hostAppPath . '/test/fixtures/certs/server-key.pem';
+$specPath = $hostAppPath . '/tests/fixtures/openapi.yaml';
+$chasmCertPath = $hostAppPath . '/tests/fixtures/certs/server.pem';
+$chasmKeyPath = $hostAppPath . '/tests/fixtures/certs/server-key.pem';
 
 $chasm = (new GenericContainer('mridang/chasm:1.3.0'))
     ->withExposedPorts(4010, 8443)
@@ -110,7 +110,7 @@ dockerApiRequest($socketPath, "/networks/$networkName/connect", 'POST', [
 ]);
 
 // Start Squid proxy
-$squidConfPath = $hostAppPath . '/test/fixtures/proxy/squid.conf';
+$squidConfPath = $hostAppPath . '/tests/fixtures/proxy/squid.conf';
 
 $squid = (new GenericContainer('ubuntu/squid:5.2-22.04_beta'))
     ->withExposedPorts(3128)
@@ -125,7 +125,7 @@ dockerApiRequest($socketPath, "/networks/$networkName/connect", 'POST', [
 sleep(3);
 
 putenv('PROXY_URL=http://' . $squid->getHost() . ':' . safeGetMappedPort($squid, 3128));
-putenv('CA_CERT_PATH=' . getcwd() . '/test/fixtures/certs/ca.pem');
+putenv('CA_CERT_PATH=' . getcwd() . '/tests/fixtures/certs/ca.pem');
 
 register_shutdown_function(function () use ($chasm, $squid, $networkName, $socketPath): void {
     $squid->stop();

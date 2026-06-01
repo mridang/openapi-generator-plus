@@ -35,16 +35,16 @@
          the top level (side effects). PSR1.Files.SideEffects flags that.
          The pattern is intentional for Pest — exclude the rule. -->
     <rule ref="PSR1.Files.SideEffects">
-        <exclude-pattern>test/</exclude-pattern>
+        <exclude-pattern>tests/</exclude-pattern>
     </rule>
     <!-- PSR12 wants the file-level docblock immediately after <?php, but
          Pest test files put it after the use statements (which is
-         idiomatic for Pest). Exclude on test/. -->
+         idiomatic for Pest). Exclude on tests/. -->
     <rule ref="PSR12.Files.FileHeader.SpacingAfterBlock">
-        <exclude-pattern>test/</exclude-pattern>
+        <exclude-pattern>tests/</exclude-pattern>
     </rule>
     <rule ref="PSR12.Files.FileHeader.IncorrectOrder">
-        <exclude-pattern>test/</exclude-pattern>
+        <exclude-pattern>tests/</exclude-pattern>
     </rule>
     <file>.</file>
     <exclude-pattern>vendor/</exclude-pattern>
