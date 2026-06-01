@@ -252,7 +252,7 @@ test('add pet per call auth override', function (): void {
         {
         }
 
-        public function sendRequest(string $method, string $url, array $headers, mixed $body): \PetstoreClient\ApiResponse
+        public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false): \PetstoreClient\ApiResponse
         {
             $this->captured->headers = $headers;
             return new \PetstoreClient\ApiResponse(

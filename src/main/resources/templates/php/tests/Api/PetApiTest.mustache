@@ -252,7 +252,7 @@ test('add pet per call auth override', function (): void {
         {
         }
 
-        public function sendRequest(string $method, string $url, array $headers, mixed $body): \{{invokerPackage}}\ApiResponse
+        public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false): \{{invokerPackage}}\ApiResponse
         {
             $this->captured->headers = $headers;
             return new \{{invokerPackage}}\ApiResponse(
