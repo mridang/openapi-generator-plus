@@ -209,6 +209,42 @@ class ObjectSerializer
 
         $class = ltrim($class, '\\');
 
+        /* Phase-2 PHP type-surface: when the api template hands us a
+         * typed container hint like `Ds\Vector<Pet>` /
+         * `Ds\Set<Pet>` / `Ds\Map<integer>` (compiled from the
+         * operation's returnType + returnBaseType pair), decode the
+         * JSON body, recursively deserialize each element against
+         * the inner type so model instances / DateTime / URI / enum
+         * fields route through their dedicated normalizers, then wrap
+         * the result in the matching Ds container. The inner type
+         * string is run through qualifySchemaName so short model
+         * names (e.g. "Pet") resolve to their FQN while primitives
+         * ("integer", "string") pass through unchanged. */
+        if (preg_match('/^Ds\\\\(Vector|Set|Map)<(.+)>$/', $class, $containerMatch)) {
+            $container = $containerMatch[1];
+            $inner = self::qualifySchemaName(trim($containerMatch[2]));
+            $data = is_string($data) ? json_decode($data, true) : $data;
+            if (!is_array($data)) {
+                throw new \InvalidArgumentException("Invalid container '$class'");
+            }
+            if ($container === 'Map') {
+                /** @var array<string, mixed> $mapItems */
+                $mapItems = [];
+                /** @var array<array-key, mixed> $data */
+                foreach ($data as $key => $value) {
+                    $mapItems[(string) $key] = self::deserialize($value, $inner);
+                }
+                return new \Ds\Map($mapItems);
+            }
+            /** @var array<int, mixed> $listItems */
+            $listItems = [];
+            /** @var array<array-key, mixed> $data */
+            foreach ($data as $value) {
+                $listItems[] = self::deserialize($value, $inner);
+            }
+            return $container === 'Set' ? new \Ds\Set($listItems) : new \Ds\Vector($listItems);
+        }
+
         if (str_ends_with($class, '[]')) {
             $data = is_string($data) ? json_decode($data, true) : $data;
 
