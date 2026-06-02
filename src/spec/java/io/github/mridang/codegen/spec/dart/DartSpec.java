@@ -27,7 +27,21 @@ interface DartSpec extends LanguageSpec, DockerImageSpec {
 
   @Override
   default List<String> getSetupCommands() {
-    return List.of("dart pub get");
+    /* `dart fix --apply` runs the analyzer's auto-fix bridge on the
+     * generated tree: rewrites relative imports inside lib/ to the
+     * `package:` form, sorts import directives, fills in the
+     * documentation-for-ignore comments, and applies every other lint
+     * rule that has a registered fix producer. This silences a large
+     * class of `dart analyze` info-level diagnostics that the codegen
+     * emits and that the formatter (cosmetic-only) won't touch. Runs
+     * AFTER `dart pub get` because the fix engine needs the resolved
+     * package map to know what `package:<name>/...` URI to substitute
+     * the relative imports with. The result is captured in the
+     * container's /work-snapshot, so DartLintingSpec / DartFormattingSpec
+     * / DartClientSpec all see the already-cleaned-up code. No other
+     * language ships an equally-capable autofix, so this is a
+     * Dart-only setup step — not parity with the other 11 specs. */
+    return List.of("dart pub get", "dart fix --apply");
   }
 
   @Override
