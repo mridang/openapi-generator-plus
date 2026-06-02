@@ -154,7 +154,20 @@
               <value>conf/log4j.properties</value>
             </property>
           </systemPropertyVariables>
-          <argLine>@{jacoco.agent} -Xms512m -Xmx1500m --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</argLine>
+          <!-- JDK 24+ noise from transitive deps:
+               enable-native-access=ALL-UNNAMED silences the
+                 "restricted method ... will be blocked in a future
+                 release unless native access is enabled" warnings
+                 from JNA 5.12.1 (transitive via openapi-generator,
+                 used by testcontainers) and Truffle 24.2.2
+                 (transitive via graalvm polyglot/js, used for
+                 Mustache JS engine).
+               sun-misc-unsafe-memory-access=allow silences the
+                 "sun.misc.Unsafe::objectFieldOffset has been called"
+                 warning from Caffeine 2.9.3 (transitive via
+                 openapi-generator). Caffeine 3.x dropped Unsafe but
+                 we can't bump it without bumping openapi-generator. -->
+          <argLine>@{jacoco.agent} -Xms512m -Xmx1500m --enable-native-access=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</argLine>
           <parallel>methods</parallel>
           <useUnlimitedThreads>true</useUnlimitedThreads>
           <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
@@ -328,7 +341,7 @@
             <include>**/*Spec.java</include>
           </includes>
           <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
-          <argLine>@{jacoco.agent} --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</argLine>
+          <argLine>@{jacoco.agent} --enable-native-access=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</argLine>
         </configuration>
       </plugin>
       <plugin>
