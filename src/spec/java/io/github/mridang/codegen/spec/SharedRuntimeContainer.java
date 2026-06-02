@@ -57,6 +57,25 @@ final class SharedRuntimeContainer {
         name -> {
           logger.info("Creating shared container for {}", name);
 
+          /* Host-side cache root. On GitHub Actions runners the workflow
+           * uses mridang/action-runner-common@v1 with generic-cache: true,
+           * which persists $HOME/.cache across CI runs. Placing the
+           * per-language cache trees under that path means cargo / gradle
+           * / mix / etc. start each new CI job with warm registries +
+           * build caches restored by the previous run. Local dev gets the
+           * same dir under the developer's HOME — also a one-time cold
+           * compile, hot thereafter. */
+          String hostCacheRoot =
+              System.getProperty("user.home")
+                  + "/.cache/openapi-gen/"
+                  + name.replace("-plus", "");
+          try {
+            java.nio.file.Files.createDirectories(java.nio.file.Path.of(hostCacheRoot));
+          } catch (java.io.IOException e) {
+            throw new RuntimeException(
+                "Failed to create host cache dir " + hostCacheRoot + " for " + name, e);
+          }
+
           GenericContainer<?> container =
               new GenericContainer<>(spec.getRuntimeImage())
                   .withNetwork(sharedNetwork)
@@ -64,6 +83,18 @@ final class SharedRuntimeContainer {
                       outputDir.toAbsolutePath().toString(), "/app", BindMode.READ_WRITE)
                   .withFileSystemBind(
                       "/var/run/docker.sock", "/var/run/docker.sock", BindMode.READ_WRITE)
+                  /* Persist the toolchain caches on the host so they
+                   * survive the inter-spec /work wipe AND (when running
+                   * under action-runner-common's generic-cache) the
+                   * inter-CI-job runner teardown. The container's
+                   * /root/.cache is the path the per-language Spec
+                   * interfaces hard-code in getCacheEnv(); mounting
+                   * the host's per-language dir there means CARGO_HOME=
+                   * /root/.cache/rust/cargo, GRADLE_USER_HOME=
+                   * /root/.cache/kotlin/gradle, etc. resolve to bytes
+                   * physically stored on the host's HOME/.cache. */
+                  .withFileSystemBind(hostCacheRoot, "/root/.cache/" + name.replace("-plus", ""),
+                      BindMode.READ_WRITE)
                   .withExtraHost("host.docker.internal", "host-gateway")
                   .withEnv("TESTCONTAINERS_HOST_OVERRIDE", "host.docker.internal")
                   .withEnv("TC_HOST", "host.docker.internal")
@@ -75,11 +106,10 @@ final class SharedRuntimeContainer {
                   .withCreateContainerCmdModifier(cmd -> cmd.withUser("root"))
                   .withLogConsumer(new Slf4jLogConsumer(logger).withPrefix(name));
 
-          /* Per-language cache redirection: route the toolchain's package
-           * cache (and where supported, its build artifacts) at a path
-           * under /root that survives the inter-spec /work wipe. The exact
-           * env vars are defined on each per-language Spec interface and
-           * were docker-verified against the runtime image. */
+          /* Per-language env vars hand the toolchain the cache paths
+           * inside the container. Combined with the host bind-mount
+           * above, each cargo/gradle/mix write actually lands on the
+           * host's HOME/.cache/openapi-gen/<lang>/... directory tree. */
           spec.getCacheEnv().forEach(container::withEnv);
 
           container.start();
