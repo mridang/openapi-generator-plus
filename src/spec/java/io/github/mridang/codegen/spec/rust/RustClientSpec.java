@@ -15,20 +15,27 @@ public class RustClientSpec extends AbstractClientSpec implements RustSpec {
     @Override
     protected String[] getBuildCommands() {
         /* `cargo nextest` runs the same tests as `cargo test` but writes
-         * a JUnit XML at `target/nextest/<profile>/junit.xml`. The `ci`
-         * profile is defined in `.config/nextest.toml` (written by
-         * RustSpec.getSetupCommands()). Copy the XML into the spec's
-         * `.out/reports/` so AbstractIntegrationSpec's post-step picks
-         * it up alongside the other languages' JUnit output.
+         * a JUnit XML at `<workspace>/target/nextest/<profile>/junit.xml`.
+         * The `ci` profile is defined in `.config/nextest.toml` (written
+         * by RustSpec.getSetupCommands()).
          *
-         * The path is relative to CARGO_TARGET_DIR (set in RustSpec to
-         * /root/.cache/rust/target), so the XML actually lands at
-         * /root/.cache/rust/target/nextest/ci/junit.xml — the shell
-         * resolves $CARGO_TARGET_DIR before nextest sees it. */
+         * Note the path: nextest puts test BINARIES under
+         * `$CARGO_TARGET_DIR/` (respecting the env var) but the JUnit
+         * XML lands relative to the WORKSPACE ROOT, regardless of
+         * CARGO_TARGET_DIR. Verified empirically in docker against the
+         * same image (rust:1.88) and the same CARGO_TARGET_DIR redirect
+         * that CI uses (/root/.cache/rust/target):
+         *
+         *   $CARGO_TARGET_DIR/nextest/ci/junit.xml  → MISSING
+         *   /work/target/nextest/ci/junit.xml       → FOUND
+         *
+         * So we cp from the workspace-local path. Copy into the spec's
+         * `.out/reports/` so AbstractIntegrationSpec's post-step picks
+         * it up alongside the other languages' JUnit output. */
         return new String[] {
             "mkdir -p .out/reports",
             "cargo nextest run --profile=ci",
-            "cp $CARGO_TARGET_DIR/nextest/ci/junit.xml .out/reports/junit.xml"
+            "cp target/nextest/ci/junit.xml .out/reports/junit.xml"
         };
     }
 
