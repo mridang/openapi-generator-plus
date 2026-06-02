@@ -590,13 +590,13 @@
     <dependency>
       <groupId>org.openapitools</groupId>
       <artifactId>openapi-generator</artifactId>
-      <version>7.14.0</version>
+      <version>7.22.0</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>org.openapitools</groupId>
       <artifactId>openapi-generator-core</artifactId>
-      <version>7.14.0</version>
+      <version>7.22.0</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
