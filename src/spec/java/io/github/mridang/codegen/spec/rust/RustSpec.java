@@ -32,7 +32,18 @@ interface RustSpec extends LanguageSpec, DockerImageSpec {
 
     @Override
     default List<String> getSetupCommands() {
-        return List.of("rustup component add rustfmt clippy");
+        /* `cargo nextest` is the runner that emits JUnit XML (cargo test
+         * itself has no XML reporter, only stdout). Used by RustClientSpec
+         * via `cargo nextest run --profile=ci`. Install via the upstream
+         * prebuilt binary (a few seconds) rather than `cargo install
+         * cargo-nextest` (a few minutes to compile). The .config dir +
+         * nextest.toml below tells nextest where to write the XML. */
+        return List.of(
+                "rustup component add rustfmt clippy",
+                "mkdir -p $CARGO_HOME/bin && curl -LsSf https://get.nexte.st/latest/linux"
+                        + " | tar zxf - -C $CARGO_HOME/bin",
+                "mkdir -p .config && printf '%s\\n%s\\n' '[profile.ci.junit]'"
+                        + " 'path = \"junit.xml\"' > .config/nextest.toml");
     }
 
     @Override
