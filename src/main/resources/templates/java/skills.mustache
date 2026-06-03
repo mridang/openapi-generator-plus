@@ -130,6 +130,10 @@ var client = new {{clientClassName}}(authenticator);
 {{#hasAnyOAuth2}}
 ### OAuth2 token lifecycle
 
+#### Async authentication
+
+OAuth2 (and OpenID Connect) authenticators resolve the access token by making an HTTP call to the token endpoint, so they implement `HttpAwareAuthenticator`. The shared `ApiClient` is injected into the authenticator by the `{{clientClassName}}` constructor via `setApiClient(...)`, so the token exchange reuses the same transport configuration (proxy, TLS, timeouts) as regular API calls. The call is made synchronously inside `getAuthHeaders()` before the request is sent; do not call `getAuthHeaders()` on an OAuth2/OIDC authenticator before the `ApiClient` has been injected.
+
 #### Refresh tokens
 
 When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.

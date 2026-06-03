@@ -417,6 +417,14 @@ public final class DefaultApiClient implements ApiClient {
                     originalUri = redirectUri;
                     redirectsRemaining--;
                 }
+                /* Redirect budget exhausted while the server is still
+                 * returning a 3xx: fail loudly rather than silently handing
+                 * the caller the final redirect response as if it were a
+                 * normal result. */
+                if (isRedirect(response.statusCode())) {
+                    throw new ApiException(
+                            "Too many redirects (exceeded maxRedirects) following " + url);
+                }
             }
 
             /* Gap BE+BF: response header keys are normalised to lowercase so
@@ -457,10 +465,10 @@ public final class DefaultApiClient implements ApiClient {
                     responseBody,
                     responseHeaders);
         } catch (IOException e) {
-            throw new ApiException(e.toString());
+            throw new ApiException(e.toString(), e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new ApiException(e.toString());
+            throw new ApiException(e.toString(), e);
         }
     }
 

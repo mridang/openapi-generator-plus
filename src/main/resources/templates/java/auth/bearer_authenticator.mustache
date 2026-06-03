@@ -33,20 +33,33 @@ public class BearerAuthenticator extends BaseAuthenticator {
          * different HTTP libs encode differently per language. Validation
          * is lazy (not in the constructor) to avoid SpotBugs
          * CT_CONSTRUCTOR_THROW on a non-final class. */
-        if (token != null) {
-            for (int i = 0; i < token.length(); i++) {
-                char c = token.charAt(i);
-                if (c != '\t' && (c < 0x20 || c >= 0x7F)) {
-                    throw new IllegalArgumentException(
-                            "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)");
-                }
+        /* Reject empty/whitespace tokens at use time: an empty token would
+         * otherwise emit the literal "Authorization: Bearer " header, sending
+         * the request effectively unauthenticated. This mirrors the api-key
+         * authenticator's own empty guard so all credential schemes fail
+         * loudly on a missing secret rather than silently. */
+        if (token == null || token.isEmpty()) {
+            throw new IllegalArgumentException("Bearer token must not be empty");
+        }
+        boolean allWhitespace = true;
+        for (int i = 0; i < token.length(); i++) {
+            char c = token.charAt(i);
+            if (c != '\t' && (c < 0x20 || c >= 0x7F)) {
+                throw new IllegalArgumentException(
+                        "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)");
             }
+            if (!Character.isWhitespace(c)) {
+                allWhitespace = false;
+            }
+        }
+        if (allWhitespace) {
+            throw new IllegalArgumentException("Bearer token must not be empty");
         }
         /* Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
          * from env files are commonly stored already-prefixed; emitting
          * "Bearer Bearer xyz" would otherwise silently break auth. */
         String value = token;
-        if (value != null && value.length() >= 7) {
+        if (value.length() >= 7) {
             String head = value.substring(0, 7);
             if ("bearer ".equalsIgnoreCase(head)) {
                 value = value.substring(7);

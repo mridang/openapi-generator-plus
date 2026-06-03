@@ -26,6 +26,25 @@ public class ApiException extends Exception {
         this.errorBody = null;
     }
 
+    /**
+     * Construct an exception that preserves the underlying transport cause.
+     *
+     * <p>Used when a send/read failure (connection reset, read timeout,
+     * DNS failure) is wrapped: the original exception is retained as the
+     * {@linkplain #getCause() cause} so callers can inspect the root error
+     * rather than only a stringified message.
+     *
+     * @param message the detail message
+     * @param cause   the underlying transport exception
+     */
+    public ApiException(String message, Throwable cause) {
+        super(message, cause);
+        this.statusCode = 0;
+        this.responseHeaders = null;
+        this.responseBody = null;
+        this.errorBody = null;
+    }
+
     public ApiException(
             int statusCode,
             String message,

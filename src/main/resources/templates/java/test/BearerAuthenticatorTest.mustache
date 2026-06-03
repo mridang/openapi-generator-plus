@@ -36,4 +36,22 @@ class BearerAuthenticatorTest {
         Map<String, String> headers = auth.getAuthHeaders();
         assertEquals("Bearer xyz", headers.get("Authorization"));
     }
+
+    @Test
+    void emptyTokenIsRejected() {
+        BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", "");
+        assertThrows(IllegalArgumentException.class, auth::getAuthHeaders);
+    }
+
+    @Test
+    void nullTokenIsRejected() {
+        BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", null);
+        assertThrows(IllegalArgumentException.class, auth::getAuthHeaders);
+    }
+
+    @Test
+    void whitespaceOnlyTokenIsRejected() {
+        BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", "   ");
+        assertThrows(IllegalArgumentException.class, auth::getAuthHeaders);
+    }
 }

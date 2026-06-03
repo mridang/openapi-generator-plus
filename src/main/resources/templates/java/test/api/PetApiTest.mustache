@@ -233,6 +233,17 @@ class PetApiTest {
     }
 
     @Test
+    void testEmptyBodyOnBodyReturningOperationThrows() throws Exception {
+        // A 200 with an empty body for a body-returning operation must surface
+        // as a typed ApiException from the plain convenience accessor, never a
+        // silent null return.
+        PetApi mockApi = newPetApiForMock(200, "application/json", "");
+
+        assertThatThrownBy(() -> mockApi.getPetById(1L))
+                .isInstanceOf({{invokerPackage}}.ApiException.class);
+    }
+
+    @Test
     void testDownloadBinaryMock() throws Exception {
         PetApi mockApi = newPetApiForMock(200, "application/octet-stream", "FAKE_BINARY_DATA");
 

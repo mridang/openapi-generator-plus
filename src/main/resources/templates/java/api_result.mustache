@@ -14,19 +14,19 @@ import javax.annotation.Nullable;
  * @param <T> the type of the deserialized response data
  * @param statusCode the HTTP status code
  * @param data the deserialized response body (null for void responses)
- * @param rawBody the raw response body string
+ * @param rawBody the raw response body string (never null; empty for no body)
  * @param headers the response headers (unmodifiable)
  */
 public record ApiResult<T>(
         int statusCode,
         @Nullable T data,
-        @Nullable String rawBody,
+        String rawBody,
         Map<String, String> headers) {
 
     /**
      * Creates an ApiResult with defensively copied headers.
      */
-    public ApiResult(int statusCode, @Nullable T data, @Nullable String rawBody, Map<String, String> headers) {
+    public ApiResult(int statusCode, @Nullable T data, String rawBody, Map<String, String> headers) {
         this.statusCode = statusCode;
         this.data = data;
         this.rawBody = rawBody;

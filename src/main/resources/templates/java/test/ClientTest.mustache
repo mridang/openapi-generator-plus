@@ -64,6 +64,22 @@ class ClientTest {
     }
 
     @Test
+    void pomDeclaresADescription() throws Exception {
+        // Publish metadata parity: the generated pom.xml must carry a
+        // non-empty <description> so the artifact has a description on
+        // Maven Central, matching the python/ruby/dart manifests.
+        java.nio.file.Path pom = java.nio.file.Paths.get("pom.xml");
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+                java.nio.file.Files.exists(pom), "pom.xml not present in working dir");
+        String contents = java.nio.file.Files.readString(pom);
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+                .compile("<description>(.*?)</description>", java.util.regex.Pattern.DOTALL)
+                .matcher(contents);
+        assertTrue(matcher.find(), "pom.xml must contain a <description> element");
+        assertFalse(matcher.group(1).isBlank(), "<description> must not be empty");
+    }
+
+    @Test
     void apiGroupsAreAccessible() {
         {{clientClassName}} client = new {{clientClassName}}(authenticator);
 
