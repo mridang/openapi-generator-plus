@@ -25,7 +25,10 @@ class StoreApi extends BaseApi {
     Configuration? config,
     Authenticator? authenticator,
   }) : super(
-            apiClient: apiClient, config: config, authenticator: authenticator);
+         apiClient: apiClient,
+         config: config,
+         authenticator: authenticator,
+       );
 
   /// Delete purchase order by ID
   /// [orderId] ID of the order to delete
@@ -35,8 +38,10 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the deleteOrder operation and returns the full API result.
-  Future<ApiResult<void>> deleteOrderWithHTTPInfo(int orderId,
-      {Authenticator? auth}) async {
+  Future<ApiResult<void>> deleteOrderWithHTTPInfo(
+    int orderId, {
+    Authenticator? auth,
+  }) async {
     var path = '/store/order/{orderId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -44,9 +49,17 @@ class StoreApi extends BaseApi {
      * space became %2520, `a/b` became a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. */
     path = path.replaceAll(
-        '{' + 'orderId' + '}',
-        serializeStyled('orderId', orderId, 'path', 'int', '', 'simple', false)
-            .toString());
+      '{' + 'orderId' + '}',
+      serializeStyled(
+        'orderId',
+        orderId,
+        'path',
+        'int',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
 
     final queryParams = <String, Object?>{};
 
@@ -90,8 +103,9 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the getInventory operation and returns the full API result.
-  Future<ApiResult<Map<String, int>>> getInventoryWithHTTPInfo(
-      {Authenticator? auth}) async {
+  Future<ApiResult<Map<String, int>>> getInventoryWithHTTPInfo({
+    Authenticator? auth,
+  }) async {
     var path = '/store/inventory';
 
     final queryParams = <String, Object?>{};
@@ -138,8 +152,10 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the getOrderById operation and returns the full API result.
-  Future<ApiResult<Order>> getOrderByIdWithHTTPInfo(int orderId,
-      {Authenticator? auth}) async {
+  Future<ApiResult<Order>> getOrderByIdWithHTTPInfo(
+    int orderId, {
+    Authenticator? auth,
+  }) async {
     var path = '/store/order/{orderId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -147,9 +163,17 @@ class StoreApi extends BaseApi {
      * space became %2520, `a/b` became a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. */
     path = path.replaceAll(
-        '{' + 'orderId' + '}',
-        serializeStyled('orderId', orderId, 'path', 'int', '', 'simple', false)
-            .toString());
+      '{' + 'orderId' + '}',
+      serializeStyled(
+        'orderId',
+        orderId,
+        'path',
+        'int',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
 
     final queryParams = <String, Object?>{};
 
@@ -194,8 +218,10 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the placeOrder operation and returns the full API result.
-  Future<ApiResult<Order>> placeOrderWithHTTPInfo(Order? order,
-      {Authenticator? auth}) async {
+  Future<ApiResult<Order>> placeOrderWithHTTPInfo(
+    Order? order, {
+    Authenticator? auth,
+  }) async {
     var path = '/store/order';
 
     final queryParams = <String, Object?>{};

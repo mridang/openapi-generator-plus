@@ -75,9 +75,12 @@ void main() {
           await api.getPetById(1, null);
           fail('Expected error for status $status');
         } on ApiError catch (e) {
-          expect(e.runtimeType, equals(errType),
-              reason:
-                  'Status $status should throw $errType, got ${e.runtimeType}');
+          expect(
+            e.runtimeType,
+            equals(errType),
+            reason:
+                'Status $status should throw $errType, got ${e.runtimeType}',
+          );
         }
       }
     });
@@ -116,8 +119,10 @@ void main() {
         throwsArgumentError,
       );
       // A valid token still constructs and emits the expected header.
-      final ok =
-          BearerAuthenticator(host: 'https://api.example.com', token: 't');
+      final ok = BearerAuthenticator(
+        host: 'https://api.example.com',
+        token: 't',
+      );
       expect(ok.authHeaders()['Authorization'], equals('Bearer t'));
     });
 
@@ -131,8 +136,11 @@ void main() {
         await api.getPetById(1, null);
         fail('Expected error for status 400');
       } on BadRequestError catch (e) {
-        expect(e.errorBody, isNotNull,
-            reason: 'errorBody should not be null for JSON responses');
+        expect(
+          e.errorBody,
+          isNotNull,
+          reason: 'errorBody should not be null for JSON responses',
+        );
       }
     });
 
@@ -162,13 +170,17 @@ void main() {
     });
 
     test('forwards auth headers', () async {
-      final auth =
-          _BaseApiAuth(headers: {'Authorization': 'Bearer test-token'});
+      final auth = _BaseApiAuth(
+        headers: {'Authorization': 'Bearer test-token'},
+      );
       final api = _chasmApi();
 
       // Exercise auth headers through the API layer
       try {
-        await api.addPet(Pet(name: 'Test', photoUrls: <String>{}), auth: auth);
+        await api.addPet(
+          Pet(name: 'Test', photoUrls: <String>{}),
+          auth: auth,
+        );
       } catch (_) {}
 
       // Verify via echo endpoint
@@ -190,7 +202,10 @@ void main() {
       final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
       try {
-        await api.addPet(Pet(name: 'Test', photoUrls: <String>{}), auth: auth);
+        await api.addPet(
+          Pet(name: 'Test', photoUrls: <String>{}),
+          auth: auth,
+        );
       } catch (_) {}
     });
 
@@ -212,7 +227,10 @@ void main() {
             .build();
         final auth = _BaseApiAuth(query: {'api_key': 'test123'});
         final api = PetApi(
-            apiClient: DefaultApiClient(), config: config, authenticator: auth);
+          apiClient: DefaultApiClient(),
+          config: config,
+          authenticator: auth,
+        );
 
         await api.getPetById(1, null);
         expect(receivedQuery, contains('api_key=test123'));
@@ -286,105 +304,117 @@ void main() {
     // Every operation method has a sibling `<op>WithHTTPInfo` that returns an
     // `ApiResult<T>` exposing status, data, raw body, and headers.
     test(
-        'WithHTTPInfo variant returns ApiResult exposing status/data/body/headers',
-        () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      server.listen((request) {
-        request.response
-          ..statusCode = 200
-          ..headers.set('Content-Type', 'application/json')
-          ..headers.add('X-Test-Header', 'present')
-          ..write('{"id":1,"name":"Fido","photoUrls":["http://x/y.jpg"]}')
-          ..close();
-      });
+      'WithHTTPInfo variant returns ApiResult exposing status/data/body/headers',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.set('Content-Type', 'application/json')
+            ..headers.add('X-Test-Header', 'present')
+            ..write('{"id":1,"name":"Fido","photoUrls":["http://x/y.jpg"]}')
+            ..close();
+        });
 
-      try {
-        final config = ConfigurationBuilder()
-            .baseUrl('http://localhost:${server.port}')
-            .build();
-        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        final result = await api.getPetByIdWithHTTPInfo(1, null);
-        expect(result, isA<ApiResult<dynamic>>());
-        expect(result.statusCode, equals(200));
-        expect(result.data, isNotNull);
-        expect(result.rawBody, contains('Fido'));
-        final hdr = result.headers.entries
-            .firstWhere((e) => e.key.toLowerCase() == 'x-test-header',
-                orElse: () => const MapEntry('', ''))
-            .value;
-        expect(hdr, equals('present'));
-      } finally {
-        await server.close();
-      }
-    });
+          final result = await api.getPetByIdWithHTTPInfo(1, null);
+          expect(result, isA<ApiResult<dynamic>>());
+          expect(result.statusCode, equals(200));
+          expect(result.data, isNotNull);
+          expect(result.rawBody, contains('Fido'));
+          final hdr = result.headers.entries
+              .firstWhere(
+                (e) => e.key.toLowerCase() == 'x-test-header',
+                orElse: () => const MapEntry('', ''),
+              )
+              .value;
+          expect(hdr, equals('present'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     // -- OptionalAuthParamTests --
 
-    test('op-level auth is optional named param and falls back to client-level',
-        () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      String? receivedAuth;
-      server.listen((request) {
-        receivedAuth = request.headers.value('authorization');
-        request.response
-          ..statusCode = 200
-          ..headers.contentType = ContentType.json
-          ..write('{"id":1,"name":"Fido","photoUrls":[]}')
-          ..close();
-      });
+    test(
+      'op-level auth is optional named param and falls back to client-level',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        String? receivedAuth;
+        server.listen((request) {
+          receivedAuth = request.headers.value('authorization');
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+            ..close();
+        });
 
-      try {
-        final config = ConfigurationBuilder()
-            .baseUrl('http://localhost:${server.port}')
-            .build();
-        final clientAuth =
-            _BaseApiAuth(headers: {'Authorization': 'Bearer client-level'});
-        final api = PetApi(
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final clientAuth = _BaseApiAuth(
+            headers: {'Authorization': 'Bearer client-level'},
+          );
+          final api = PetApi(
             apiClient: DefaultApiClient(),
             config: config,
-            authenticator: clientAuth);
+            authenticator: clientAuth,
+          );
 
-        // No `auth:` passed → falls back to client-level authenticator.
-        await api.getPetById(1, null);
-        expect(receivedAuth, equals('Bearer client-level'));
-      } finally {
-        await server.close();
-      }
-    });
+          // No `auth:` passed → falls back to client-level authenticator.
+          await api.getPetById(1, null);
+          expect(receivedAuth, equals('Bearer client-level'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
-    test('op-level auth overrides client-level auth when passed as named param',
-        () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      String? receivedAuth;
-      server.listen((request) {
-        receivedAuth = request.headers.value('authorization');
-        request.response
-          ..statusCode = 200
-          ..headers.contentType = ContentType.json
-          ..write('{"id":1,"name":"Fido","photoUrls":[]}')
-          ..close();
-      });
+    test(
+      'op-level auth overrides client-level auth when passed as named param',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        String? receivedAuth;
+        server.listen((request) {
+          receivedAuth = request.headers.value('authorization');
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+            ..close();
+        });
 
-      try {
-        final config = ConfigurationBuilder()
-            .baseUrl('http://localhost:${server.port}')
-            .build();
-        final clientAuth =
-            _BaseApiAuth(headers: {'Authorization': 'Bearer client-level'});
-        final opAuth =
-            _BaseApiAuth(headers: {'Authorization': 'Bearer op-level'});
-        final api = PetApi(
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final clientAuth = _BaseApiAuth(
+            headers: {'Authorization': 'Bearer client-level'},
+          );
+          final opAuth = _BaseApiAuth(
+            headers: {'Authorization': 'Bearer op-level'},
+          );
+          final api = PetApi(
             apiClient: DefaultApiClient(),
             config: config,
-            authenticator: clientAuth);
+            authenticator: clientAuth,
+          );
 
-        await api.getPetById(1, null, auth: opAuth);
-        expect(receivedAuth, equals('Bearer op-level'));
-      } finally {
-        await server.close();
-      }
-    });
+          await api.getPetById(1, null, auth: opAuth);
+          expect(receivedAuth, equals('Bearer op-level'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     test('returns null data for empty 200 response', () async {
       final client = DefaultApiClient();
@@ -430,14 +460,20 @@ void main() {
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
         await api.getPetById(1, null);
-        expect(receivedHeaders.containsKey('accept'), isTrue,
-            reason: 'Expected Accept header from selector');
+        expect(
+          receivedHeaders.containsKey('accept'),
+          isTrue,
+          reason: 'Expected Accept header from selector',
+        );
         /* GET requests carry no body, so the SDK strips the
          * Content-Type header before sending (DefaultApiClient drops
          * it whenever body == null). This matches RFC 7231 §3.1.1.5
          * and the behaviour of the Java / Kotlin / C# SDKs. */
-        expect(receivedHeaders.containsKey('content-type'), isFalse,
-            reason: 'GET without body must not carry Content-Type');
+        expect(
+          receivedHeaders.containsKey('content-type'),
+          isFalse,
+          reason: 'GET without body must not carry Content-Type',
+        );
       } finally {
         await server.close();
       }
@@ -468,33 +504,39 @@ void main() {
       }
     });
 
-    test('deserializes vendor JSON MIME types like application/problem+json',
-        () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      server.listen((request) {
-        request.response
-          ..statusCode = 200
-          ..headers.set('content-type', 'application/problem+json')
-          ..write(
-              '{"id":1,"name":"Fido","photoUrls":["http://example.com/fido.jpg"]}')
-          ..close();
-      });
+    test(
+      'deserializes vendor JSON MIME types like application/problem+json',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.set('content-type', 'application/problem+json')
+            ..write(
+              '{"id":1,"name":"Fido","photoUrls":["http://example.com/fido.jpg"]}',
+            )
+            ..close();
+        });
 
-      try {
-        final config = ConfigurationBuilder()
-            .baseUrl('http://localhost:${server.port}')
-            .build();
-        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        final result = await api.getPetByIdWithHTTPInfo(1, null);
-        expect(result.statusCode, equals(200));
-        expect(result.data, isNotNull,
+          final result = await api.getPetByIdWithHTTPInfo(1, null);
+          expect(result.statusCode, equals(200));
+          expect(
+            result.data,
+            isNotNull,
             reason:
-                'Data should not be null for vendor JSON MIME type application/problem+json');
-      } finally {
-        await server.close();
-      }
-    });
+                'Data should not be null for vendor JSON MIME type application/problem+json',
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     test('serializes boolean query params', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -514,8 +556,9 @@ void main() {
             .build();
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        await api
-            .findPetsByStatus(FindPetsByStatusOptions(status: 'available'));
+        await api.findPetsByStatus(
+          FindPetsByStatusOptions(status: 'available'),
+        );
         expect(capturedUrl, contains('status=available'));
       } finally {
         await server.close();
@@ -543,70 +586,79 @@ void main() {
         try {
           await api.findPetsByStatus(null);
         } catch (_) {}
-        expect(capturedUrl, isNot(contains('status=')),
-            reason:
-                'Expected no status param when options is null, got: $capturedUrl');
-      } finally {
-        await server.close();
-      }
-    });
-
-    test('allow_empty_value param included when value is null in options',
-        () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      String capturedUrl = '';
-      server.listen((request) {
-        capturedUrl = request.uri.toString();
-        request.response
-          ..statusCode = 200
-          ..headers.contentType = ContentType.json
-          ..write('[]')
-          ..close();
-      });
-
-      try {
-        final config = ConfigurationBuilder()
-            .baseUrl('http://localhost:${server.port}')
-            .build();
-        final api = PetApi(apiClient: DefaultApiClient(), config: config);
-
-        try {
-          await api.findPetsByStatus(FindPetsByStatusOptions());
-        } catch (_) {}
-        expect(capturedUrl, contains('status='),
-            reason:
-                'Expected status= in URL for allowEmptyValue param with null value, got: $capturedUrl');
+        expect(
+          capturedUrl,
+          isNot(contains('status=')),
+          reason:
+              'Expected no status param when options is null, got: $capturedUrl',
+        );
       } finally {
         await server.close();
       }
     });
 
     test(
-        'includes empty value param in query string when value is empty string',
-        () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      String capturedUrl = '';
-      server.listen((request) {
-        capturedUrl = request.uri.toString();
-        request.response
-          ..statusCode = 200
-          ..headers.contentType = ContentType.json
-          ..write('[]')
-          ..close();
-      });
+      'allow_empty_value param included when value is null in options',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        String capturedUrl = '';
+        server.listen((request) {
+          capturedUrl = request.uri.toString();
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('[]')
+            ..close();
+        });
 
-      try {
-        final config = ConfigurationBuilder()
-            .baseUrl('http://localhost:${server.port}')
-            .build();
-        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        await api.findPetsByStatus(FindPetsByStatusOptions(status: ''));
-        expect(capturedUrl, contains('status='));
-      } finally {
-        await server.close();
-      }
-    });
+          try {
+            await api.findPetsByStatus(FindPetsByStatusOptions());
+          } catch (_) {}
+          expect(
+            capturedUrl,
+            contains('status='),
+            reason:
+                'Expected status= in URL for allowEmptyValue param with null value, got: $capturedUrl',
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'includes empty value param in query string when value is empty string',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        String capturedUrl = '';
+        server.listen((request) {
+          capturedUrl = request.uri.toString();
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('[]')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.findPetsByStatus(FindPetsByStatusOptions(status: ''));
+          expect(capturedUrl, contains('status='));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     test('expands array query params', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -627,16 +679,26 @@ void main() {
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
         await api.getPetTag(
-            1, 'favorite', GetPetTagOptions(colors: ['red', 'blue']));
-        expect(capturedUrl, contains('colors='),
-            reason:
-                'expected URL to contain array query param colors=, got: $capturedUrl');
-        expect(capturedUrl, contains('red'),
-            reason:
-                'expected URL to contain array value red, got: $capturedUrl');
-        expect(capturedUrl, contains('blue'),
-            reason:
-                'expected URL to contain array value blue, got: $capturedUrl');
+          1,
+          'favorite',
+          GetPetTagOptions(colors: ['red', 'blue']),
+        );
+        expect(
+          capturedUrl,
+          contains('colors='),
+          reason:
+              'expected URL to contain array query param colors=, got: $capturedUrl',
+        );
+        expect(
+          capturedUrl,
+          contains('red'),
+          reason: 'expected URL to contain array value red, got: $capturedUrl',
+        );
+        expect(
+          capturedUrl,
+          contains('blue'),
+          reason: 'expected URL to contain array value blue, got: $capturedUrl',
+        );
       } finally {
         await server.close();
       }
@@ -686,8 +748,11 @@ void main() {
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
         await api.getPetById(10, null);
-        expect(capturedUrl, isNot(contains('10.0')),
-            reason: 'should not contain 10.0, got: $capturedUrl');
+        expect(
+          capturedUrl,
+          isNot(contains('10.0')),
+          reason: 'should not contain 10.0, got: $capturedUrl',
+        );
       } finally {
         await server.close();
       }
@@ -712,8 +777,10 @@ void main() {
         final auth = _BaseApiAuth();
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        await api.addPet(Pet(name: 'TestPet', photoUrls: <String>{}),
-            auth: auth);
+        await api.addPet(
+          Pet(name: 'TestPet', photoUrls: <String>{}),
+          auth: auth,
+        );
         expect(receivedBody, contains('TestPet'));
       } finally {
         await server.close();
@@ -879,42 +946,44 @@ void main() {
     });
 
     test(
-        'empty content-type defaults to application/json on requests with body',
-        () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      String? receivedContentType;
-      server.listen((request) {
-        receivedContentType = request.headers.contentType?.toString();
-        request.response
-          ..statusCode = 200
-          ..headers.contentType = ContentType.json
-          ..write('{"id":1,"name":"Fido","photoUrls":[]}')
-          ..close();
-      });
+      'empty content-type defaults to application/json on requests with body',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        String? receivedContentType;
+        server.listen((request) {
+          receivedContentType = request.headers.contentType?.toString();
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+            ..close();
+        });
 
-      try {
-        final config = ConfigurationBuilder()
-            .baseUrl('http://localhost:${server.port}')
-            .build();
-        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        /* addPet is a POST with a JSON body — the HeaderSelector
+          /* addPet is a POST with a JSON body — the HeaderSelector
          * defaults the empty contentType parameter to
          * application/json and DefaultApiClient retains it because
          * a body is present. GET endpoints can't exercise this
          * because the client strips Content-Type when body is null
          * (see RFC 7231 §3.1.1.5). */
-        await api.addPet(Pet(name: 'Fido', photoUrls: <String>{}));
-        expect(receivedContentType, isNotNull);
-        expect(receivedContentType, contains('application/json'));
-      } finally {
-        await server.close();
-      }
-    });
+          await api.addPet(Pet(name: 'Fido', photoUrls: <String>{}));
+          expect(receivedContentType, isNotNull);
+          expect(receivedContentType, contains('application/json'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     test('server variable overrides resolve in base URL', () {
-      final config = ConfigurationBuilder()
-          .server(server1, {'environment': 'staging'}).build();
+      final config = ConfigurationBuilder().server(server1, {
+        'environment': 'staging',
+      }).build();
       expect(config.baseUrl, equals('https://staging.example.com/api/v3'));
     });
 
@@ -924,15 +993,17 @@ void main() {
     });
 
     test('API request uses resolved server URL', () {
-      final config = ConfigurationBuilder()
-          .server(server1, {'environment': 'staging'}).build();
+      final config = ConfigurationBuilder().server(server1, {
+        'environment': 'staging',
+      }).build();
       expect(config.baseUrl, startsWith('https://staging.example.com'));
     });
 
     test('invalid enum value throws error', () {
       expect(
-        () => ConfigurationBuilder()
-            .server(server1, {'environment': 'invalid'}).build(),
+        () => ConfigurationBuilder().server(server1, {
+          'environment': 'invalid',
+        }).build(),
         throwsArgumentError,
       );
     });
@@ -940,8 +1011,16 @@ void main() {
     // -- BinaryResponseTests --
 
     test('octet-stream response decoded as base64 bytes', () async {
-      final binaryData =
-          Uint8List.fromList([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      final binaryData = Uint8List.fromList([
+        0x89,
+        0x50,
+        0x4e,
+        0x47,
+        0x0d,
+        0x0a,
+        0x1a,
+        0x0a,
+      ]);
       final encoded = base64.encode(binaryData);
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
@@ -982,7 +1061,7 @@ void main() {
         0x00,
         0x00,
         0x00,
-        0x0d
+        0x0d,
       ]);
       final encoded = base64.encode(binaryData);
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -1103,8 +1182,11 @@ void main() {
           {},
           null,
         );
-        expect(resp.body, equals('é'),
-            reason: 'byte 0xE9 under ISO-8859-1 should decode to é (U+00E9)');
+        expect(
+          resp.body,
+          equals('é'),
+          reason: 'byte 0xE9 under ISO-8859-1 should decode to é (U+00E9)',
+        );
       } finally {
         await server.close();
       }
@@ -1139,8 +1221,10 @@ void main() {
       server.listen((request) {
         request.response
           ..statusCode = 200
-          ..headers
-              .set('content-type', 'text/plain; charset=x-made-up-encoding')
+          ..headers.set(
+            'content-type',
+            'text/plain; charset=x-made-up-encoding',
+          )
           ..add(utf8.encode('hello'))
           ..close();
       });
@@ -1153,8 +1237,11 @@ void main() {
           {},
           null,
         );
-        expect(resp.body, equals('hello'),
-            reason: 'unknown charset must fall back to UTF-8, not throw');
+        expect(
+          resp.body,
+          equals('hello'),
+          reason: 'unknown charset must fall back to UTF-8, not throw',
+        );
       } finally {
         await server.close();
       }
@@ -1165,50 +1252,73 @@ void main() {
     test('same-origin redirect forwards Authorization header', () {
       final originalHeaders = {
         'Authorization': 'Bearer token123',
-        'Accept': 'application/json'
+        'Accept': 'application/json',
       };
       // Same-origin: all headers are forwarded without filtering
       final forwarded = Map<String, String>.from(originalHeaders);
-      expect(forwarded['Authorization'], equals('Bearer token123'),
-          reason: 'Authorization should be forwarded on same-origin redirect');
+      expect(
+        forwarded['Authorization'],
+        equals('Bearer token123'),
+        reason: 'Authorization should be forwarded on same-origin redirect',
+      );
     });
 
     test('cross-origin redirect drops Authorization header', () {
       const sensitiveHeaders = {
         'authorization',
         'cookie',
-        'proxy-authorization'
+        'proxy-authorization',
       };
       const isSameOrigin = false;
       final originalHeaders = {
         'Authorization': 'Bearer token123',
-        'Accept': 'application/json'
+        'Accept': 'application/json',
       };
-      final forwarded = Map.fromEntries(originalHeaders.entries.where((e) =>
-          isSameOrigin || !sensitiveHeaders.contains(e.key.toLowerCase())));
-      expect(forwarded.containsKey('Authorization'), isFalse,
-          reason: 'Authorization should be dropped on cross-origin redirect');
-      expect(forwarded.containsKey('Accept'), isTrue,
-          reason: 'Accept should be forwarded on cross-origin redirect');
+      final forwarded = Map.fromEntries(
+        originalHeaders.entries.where(
+          (e) =>
+              isSameOrigin || !sensitiveHeaders.contains(e.key.toLowerCase()),
+        ),
+      );
+      expect(
+        forwarded.containsKey('Authorization'),
+        isFalse,
+        reason: 'Authorization should be dropped on cross-origin redirect',
+      );
+      expect(
+        forwarded.containsKey('Accept'),
+        isTrue,
+        reason: 'Accept should be forwarded on cross-origin redirect',
+      );
     });
 
     test('cross-origin redirect drops Cookie header', () {
       const sensitiveHeaders = {
         'authorization',
         'cookie',
-        'proxy-authorization'
+        'proxy-authorization',
       };
       const isSameOrigin = false;
       final originalHeaders = {
         'Cookie': 'session=abc123',
-        'Accept': 'application/json'
+        'Accept': 'application/json',
       };
-      final forwarded = Map.fromEntries(originalHeaders.entries.where((e) =>
-          isSameOrigin || !sensitiveHeaders.contains(e.key.toLowerCase())));
-      expect(forwarded.containsKey('Cookie'), isFalse,
-          reason: 'Cookie should be dropped on cross-origin redirect');
-      expect(forwarded.containsKey('Accept'), isTrue,
-          reason: 'Accept should be forwarded on cross-origin redirect');
+      final forwarded = Map.fromEntries(
+        originalHeaders.entries.where(
+          (e) =>
+              isSameOrigin || !sensitiveHeaders.contains(e.key.toLowerCase()),
+        ),
+      );
+      expect(
+        forwarded.containsKey('Cookie'),
+        isFalse,
+        reason: 'Cookie should be dropped on cross-origin redirect',
+      );
+      expect(
+        forwarded.containsKey('Accept'),
+        isTrue,
+        reason: 'Accept should be forwarded on cross-origin redirect',
+      );
     });
 
     // -- NullBodyContentTypeTests --
@@ -1235,8 +1345,11 @@ void main() {
           {},
           null,
         );
-        expect(receivedHeaders.containsKey('content-type'), isFalse,
-            reason: 'Content-Type must NOT be sent when body is null');
+        expect(
+          receivedHeaders.containsKey('content-type'),
+          isFalse,
+          reason: 'Content-Type must NOT be sent when body is null',
+        );
       } finally {
         await server.close();
       }
@@ -1262,8 +1375,11 @@ void main() {
           {'Content-Type': 'application/json'},
           utf8.encode(''),
         );
-        expect(receivedContentType, isNotNull,
-            reason: 'Content-Type must be sent when body is an empty string');
+        expect(
+          receivedContentType,
+          isNotNull,
+          reason: 'Content-Type must be sent when body is an empty string',
+        );
       } finally {
         await server.close();
       }
@@ -1289,8 +1405,11 @@ void main() {
           {'Content-Type': 'application/json'},
           utf8.encode('{}'),
         );
-        expect(receivedContentType, isNotNull,
-            reason: 'Content-Type must be sent when body is {}');
+        expect(
+          receivedContentType,
+          isNotNull,
+          reason: 'Content-Type must be sent when body is {}',
+        );
         expect(receivedContentType, contains('application/json'));
       } finally {
         await server.close();

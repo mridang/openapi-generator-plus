@@ -14,12 +14,12 @@ class SsoAuthAuthenticator extends OpenIdConnectAuthenticator {
     required String clientSecret,
     required String redirectUri,
   }) : super(
-          host: host,
-          openIdConnectUrl:
-              'https://auth.example.com/.well-known/openid-configuration',
-          clientId: clientId,
-          clientSecret: clientSecret,
-          redirectUri: redirectUri,
-          scopes: [],
-        );
+         host: host,
+         openIdConnectUrl:
+             'https://auth.example.com/.well-known/openid-configuration',
+         clientId: clientId,
+         clientSecret: clientSecret,
+         redirectUri: redirectUri,
+         scopes: [],
+       );
 }

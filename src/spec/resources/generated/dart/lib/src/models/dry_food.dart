@@ -29,6 +29,7 @@ class DryFood {
   factory DryFood.fromJson(Map<String, dynamic> json) {
     return DryFood(
       foodType: json['foodType'] as String,
+
       weightKg: json['weightKg'] as double,
     );
   }

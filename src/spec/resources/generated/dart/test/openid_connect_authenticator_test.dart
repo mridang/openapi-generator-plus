@@ -18,8 +18,9 @@ class _FakeApiClient implements ApiClient {
   String? lastMethod;
 
   void enqueue(String body, {int statusCode = 200}) {
-    _responses
-        .add(HttpApiResponse(statusCode: statusCode, body: body, headers: {}));
+    _responses.add(
+      HttpApiResponse(statusCode: statusCode, body: body, headers: {}),
+    );
   }
 
   @override
@@ -56,8 +57,9 @@ void main() {
     test('builds authorization URL from discovery', () async {
       final client = _FakeApiClient();
       client.enqueue(
-          '{"authorization_endpoint":"https://auth.example.com/authorize",'
-          '"token_endpoint":"https://auth.example.com/token"}');
+        '{"authorization_endpoint":"https://auth.example.com/authorize",'
+        '"token_endpoint":"https://auth.example.com/token"}',
+      );
 
       final auth = _createAuthenticator();
       auth.setApiClient(client);
@@ -73,8 +75,9 @@ void main() {
     test('fetches discovery document', () async {
       final client = _FakeApiClient();
       client.enqueue(
-          '{"authorization_endpoint":"https://auth.example.com/authorize",'
-          '"token_endpoint":"https://auth.example.com/token"}');
+        '{"authorization_endpoint":"https://auth.example.com/authorize",'
+        '"token_endpoint":"https://auth.example.com/token"}',
+      );
 
       final auth = _createAuthenticator();
       auth.setApiClient(client);
@@ -91,8 +94,9 @@ void main() {
     test('obtains token after code exchange', () async {
       final client = _FakeApiClient();
       client.enqueue(
-          '{"authorization_endpoint":"https://auth.example.com/authorize",'
-          '"token_endpoint":"https://auth.example.com/token"}');
+        '{"authorization_endpoint":"https://auth.example.com/authorize",'
+        '"token_endpoint":"https://auth.example.com/token"}',
+      );
       client.enqueue('{"access_token":"oidc-tok","expires_in":3600}');
 
       final auth = _createAuthenticator();
@@ -107,8 +111,9 @@ void main() {
     test('getAuthHeaders returns Bearer after exchange', () async {
       final client = _FakeApiClient();
       client.enqueue(
-          '{"authorization_endpoint":"https://auth.example.com/authorize",'
-          '"token_endpoint":"https://auth.example.com/token"}');
+        '{"authorization_endpoint":"https://auth.example.com/authorize",'
+        '"token_endpoint":"https://auth.example.com/token"}',
+      );
       client.enqueue('{"access_token":"oidc-tok","expires_in":3600}');
       client.enqueue('{"access_token":"oidc-tok","expires_in":3600}');
 
@@ -140,7 +145,8 @@ void main() {
     test('throws when discovery is missing token_endpoint', () async {
       final client = _FakeApiClient();
       client.enqueue(
-          '{"authorization_endpoint":"https://auth.example.com/authorize"}');
+        '{"authorization_endpoint":"https://auth.example.com/authorize"}',
+      );
 
       final auth = _createAuthenticator();
       auth.setApiClient(client);

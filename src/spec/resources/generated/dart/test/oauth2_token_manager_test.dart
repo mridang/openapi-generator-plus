@@ -19,8 +19,9 @@ class _FakeApiClient implements ApiClient {
   int requestCount = 0;
 
   void enqueue(String body, {int statusCode = 200}) {
-    _responses
-        .add(HttpApiResponse(statusCode: statusCode, body: body, headers: {}));
+    _responses.add(
+      HttpApiResponse(statusCode: statusCode, body: body, headers: {}),
+    );
   }
 
   @override
@@ -83,7 +84,8 @@ void main() {
     test('stores refresh token', () async {
       final client = _FakeApiClient();
       client.enqueue(
-          '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}');
+        '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
+      );
 
       final manager = OAuth2TokenManager();
       manager.setApiClient(client);
@@ -176,38 +178,42 @@ void main() {
     });
 
     test(
-        'single-flight: 10 concurrent getAccessToken calls trigger one HTTP request',
-        () async {
-      final gate = Completer<void>();
-      final client = _GatedApiClient(
-        gate,
-        '{"access_token":"tok-shared","expires_in":3600}',
-      );
+      'single-flight: 10 concurrent getAccessToken calls trigger one HTTP request',
+      () async {
+        final gate = Completer<void>();
+        final client = _GatedApiClient(
+          gate,
+          '{"access_token":"tok-shared","expires_in":3600}',
+        );
 
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
 
-      final futures = List.generate(
-        10,
-        (_) => manager.getAccessToken(
-          'https://auth.example.com/token',
-          {'grant_type': 'client_credentials'},
-        ),
-      );
+        final futures = List.generate(
+          10,
+          (_) => manager.getAccessToken(
+            'https://auth.example.com/token',
+            {'grant_type': 'client_credentials'},
+          ),
+        );
 
-      // Allow microtasks to dispatch all 10 calls into the manager before
-      // releasing the gated response.
-      await Future<void>.delayed(Duration.zero);
-      gate.complete();
+        // Allow microtasks to dispatch all 10 calls into the manager before
+        // releasing the gated response.
+        await Future<void>.delayed(Duration.zero);
+        gate.complete();
 
-      final results = await Future.wait(futures);
+        final results = await Future.wait(futures);
 
-      expect(client.requestCount, equals(1),
-          reason: '10 concurrent callers should share a single refresh');
-      for (final token in results) {
-        expect(token, equals('tok-shared'));
-      }
-    });
+        expect(
+          client.requestCount,
+          equals(1),
+          reason: '10 concurrent callers should share a single refresh',
+        );
+        for (final token in results) {
+          expect(token, equals('tok-shared'));
+        }
+      },
+    );
 
     test('expires_in short-lived token does not storm', () async {
       // Gap CM: short-lived token (expires_in < buffer) must produce exactly
@@ -271,9 +277,11 @@ void main() {
       // MUST NOT clobber the cached refresh_token.
       final client = _FakeApiClient();
       client.enqueue(
-          '{"access_token":"old_access","refresh_token":"old_refresh","expires_in":1}');
+        '{"access_token":"old_access","refresh_token":"old_refresh","expires_in":1}',
+      );
       client.enqueue(
-          '{"access_token":"new_access","expires_in":3600,"refresh_token":""}');
+        '{"access_token":"new_access","expires_in":3600,"refresh_token":""}',
+      );
 
       final manager = OAuth2TokenManager();
       manager.setApiClient(client);
@@ -287,9 +295,12 @@ void main() {
       // Second call: access token near-expiry triggers refresh; the response
       // contains an empty refresh_token which must not overwrite the cache.
       await manager.getAccessToken(tokenUrl, params);
-      expect(manager.refreshToken, equals('old_refresh'),
-          reason:
-              'empty refresh_token in refresh response must not overwrite cached refresh_token');
+      expect(
+        manager.refreshToken,
+        equals('old_refresh'),
+        reason:
+            'empty refresh_token in refresh response must not overwrite cached refresh_token',
+      );
     });
 
     test('expires_in as JSON string is accepted', () async {

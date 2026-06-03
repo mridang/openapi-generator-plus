@@ -17,12 +17,12 @@ interface GoSpec extends LanguageSpec, DockerImageSpec {
 
     @Override
     default DockerImageName getRuntimeImage() {
-        return DockerImageName.parse("golang:1.25-alpine");
+        return DockerImageName.parse("golang:1.26-alpine");
     }
 
     @Override
     default String getDockerImage() {
-        return "golang:1.25-alpine";
+        return "golang:1.26-alpine";
     }
 
     @Override

@@ -13,20 +13,20 @@ gem 'oj', '~> 3.0'
 gem 'tod', '~> 3.1'
 
 group :development, :test do
-  gem 'base64'
-  gem 'better_coverage'
+  gem 'base64', '~> 0.3'
+  gem 'better_coverage', '~> 1.1'
   gem 'brotli', '~> 0.5'
   gem 'docker-api', '~> 2.4'
   gem 'minitest', '~> 5.0'
   gem 'minitest-hooks', '~> 1.5'
-  gem 'rake'
-  gem 'rubocop', require: false
-  gem 'rubocop-minitest', require: false
-  gem 'rubocop-rake', require: false
-  gem 'simplecov', require: false
-  gem 'simplecov-cobertura', require: false
-  gem 'steep', require: false
+  gem 'rake', '~> 13.4'
+  gem 'rubocop', '~> 1.87', require: false
+  gem 'rubocop-minitest', '~> 0.39', require: false
+  gem 'rubocop-rake', '~> 0.7', require: false
+  gem 'simplecov', '~> 0.22', require: false
+  gem 'simplecov-cobertura', '~> 3.1', require: false
+  gem 'steep', '~> 2.0', require: false
   gem 'testcontainers', '~> 0.2'
-  gem 'yard', require: false
+  gem 'yard', '~> 0.9', require: false
   gem 'zstd-ruby', '~> 1.5'
 end

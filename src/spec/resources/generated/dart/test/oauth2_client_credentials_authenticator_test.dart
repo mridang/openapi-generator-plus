@@ -18,8 +18,9 @@ class _FakeApiClient implements ApiClient {
   Map<String, String> lastHeaders = const {};
 
   void enqueue(String body, {int statusCode = 200}) {
-    _responses
-        .add(HttpApiResponse(statusCode: statusCode, body: body, headers: {}));
+    _responses.add(
+      HttpApiResponse(statusCode: statusCode, body: body, headers: {}),
+    );
   }
 
   @override

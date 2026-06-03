@@ -72,8 +72,10 @@ class ConfigurationBuilder {
 
   /// Sets the base URL from a server configuration with optional variable
   /// overrides.
-  ConfigurationBuilder server(ServerConfiguration server,
-      [Map<String, String>? variables]) {
+  ConfigurationBuilder server(
+    ServerConfiguration server, [
+    Map<String, String>? variables,
+  ]) {
     _baseUrl = server.url(variables);
     return this;
   }

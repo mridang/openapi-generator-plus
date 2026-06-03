@@ -108,7 +108,9 @@ class Pet {
   factory Pet.fromJson(Map<String, dynamic> json) {
     return Pet(
       id: json['id'] as int?,
+
       name: json['name'] as String,
+
       category: json['category'] != null
           ? Category.fromJson(json['category'] as Map<String, dynamic>)
           : null,
@@ -120,10 +122,15 @@ class Pet {
           ? PetStatusEnum.fromJson(json['status'] as String)
           : null,
       location: (json['location'] as List?)?.map((e) => e as Object).toList(),
+
       homepageUrl: json['homepageUrl'] as String?,
+
       thumbnailRef: json['thumbnailRef'] as String?,
+
       linkTemplate: json['linkTemplate'] as String?,
+
       ownerEmail: json['ownerEmail'] as String?,
+
       weightKg: json['weightKg'] as double?,
     );
   }
@@ -194,17 +201,17 @@ class Pet {
   /// represent the 0-var or 1-var cases without special-casing).
   @override
   int get hashCode => Object.hashAll([
-        id,
-        name,
-        category,
-        photoUrls,
-        tags,
-        status,
-        location,
-        homepageUrl,
-        thumbnailRef,
-        linkTemplate,
-        ownerEmail,
-        weightKg
-      ]);
+    id,
+    name,
+    category,
+    photoUrls,
+    tags,
+    status,
+    location,
+    homepageUrl,
+    thumbnailRef,
+    linkTemplate,
+    ownerEmail,
+    weightKg,
+  ]);
 }

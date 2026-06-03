@@ -29,6 +29,7 @@ class WetFood {
   factory WetFood.fromJson(Map<String, dynamic> json) {
     return WetFood(
       foodType: json['foodType'] as String,
+
       volumeMl: json['volumeMl'] as int,
     );
   }

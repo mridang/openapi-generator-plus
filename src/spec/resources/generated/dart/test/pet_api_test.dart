@@ -48,8 +48,9 @@ void main() {
       final auth = _TestAuth();
 
       final result = await api.addPet(
-          Pet(name: 'Fido', photoUrls: <String>{'http://example.com/fido.jpg'}),
-          auth: auth);
+        Pet(name: 'Fido', photoUrls: <String>{'http://example.com/fido.jpg'}),
+        auth: auth,
+      );
       expect(result, isNotNull);
     });
 
@@ -58,10 +59,9 @@ void main() {
       final auth = _TestAuth();
 
       final result = await api.addPetWithHTTPInfo(
-          Pet(
-              name: 'Buddy',
-              photoUrls: <String>{'http://example.com/buddy.jpg'}),
-          auth: auth);
+        Pet(name: 'Buddy', photoUrls: <String>{'http://example.com/buddy.jpg'}),
+        auth: auth,
+      );
       expect(result.statusCode, greaterThanOrEqualTo(200));
       expect(result.statusCode, lessThan(300));
       expect(result.data, isNotNull);
@@ -87,8 +87,9 @@ void main() {
     test('findPetsByStatus', () async {
       final api = _newPetApiForIntegration();
 
-      final result = await api
-          .findPetsByStatus(const FindPetsByStatusOptions(status: 'available'));
+      final result = await api.findPetsByStatus(
+        const FindPetsByStatusOptions(status: 'available'),
+      );
       expect(result, isNotNull);
     });
 
@@ -96,7 +97,8 @@ void main() {
       final api = _newPetApiForIntegration();
 
       final result = await api.findPetsByStatusWithHTTPInfo(
-          const FindPetsByStatusOptions(status: 'available'));
+        const FindPetsByStatusOptions(status: 'available'),
+      );
       expect(result.statusCode, equals(200));
     });
 
@@ -104,10 +106,12 @@ void main() {
       final api = _newPetApiForIntegration();
 
       final result = await api.updatePet(
-          1,
-          Pet(
-              name: 'UpdatedFido',
-              photoUrls: <String>{'http://example.com/fido-updated.jpg'}));
+        1,
+        Pet(
+          name: 'UpdatedFido',
+          photoUrls: <String>{'http://example.com/fido-updated.jpg'},
+        ),
+      );
       expect(result, isNotNull);
     });
 
@@ -115,10 +119,12 @@ void main() {
       final api = _newPetApiForIntegration();
 
       final result = await api.updatePetWithHTTPInfo(
-          1,
-          Pet(
-              name: 'UpdatedFido',
-              photoUrls: <String>{'http://example.com/fido-updated.jpg'}));
+        1,
+        Pet(
+          name: 'UpdatedFido',
+          photoUrls: <String>{'http://example.com/fido-updated.jpg'},
+        ),
+      );
       expect(result.statusCode, greaterThanOrEqualTo(200));
       expect(result.statusCode, lessThan(300));
     });
@@ -185,7 +191,8 @@ void main() {
       final result = await api.uploadPetCertificate(
         1,
         UploadPetCertificateOptions(
-            file: Uint8List.fromList([0x25, 0x50, 0x44, 0x46])),
+          file: Uint8List.fromList([0x25, 0x50, 0x44, 0x46]),
+        ),
       );
       expect(result, isNotNull);
     });
@@ -208,7 +215,7 @@ void main() {
       final api = _newPetApiForIntegration();
       final options = AddPetPhotosOptions(
         files: [
-          Uint8List.fromList([1, 2, 3])
+          Uint8List.fromList([1, 2, 3]),
         ],
         metadata: PhotoMetadata(caption: 'test'),
       );
@@ -231,16 +238,23 @@ void main() {
 
     test('getPetTag', () async {
       final api = _newPetApiForIntegration();
-      final result = await api.getPetTag(5, 'cute',
-          GetPetTagOptions(colors: ['blue', 'black'], sizes: ['S', 'M']));
+      final result = await api.getPetTag(
+        5,
+        'cute',
+        GetPetTagOptions(colors: ['blue', 'black'], sizes: ['S', 'M']),
+      );
       expect(result, isNotNull);
     });
 
-    test('getExternalPetInfo', () async {
-      final api = _newPetApiForIntegration();
-      final result = await api.getExternalPetInfo(1, null);
-      expect(result, isNotNull);
-    }, skip: 'Per-operation server URL points to external host');
+    test(
+      'getExternalPetInfo',
+      () async {
+        final api = _newPetApiForIntegration();
+        final result = await api.getExternalPetInfo(1, null);
+        expect(result, isNotNull);
+      },
+      skip: 'Per-operation server URL points to external host',
+    );
 
     test('downloadBinaryMock', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -281,8 +295,10 @@ void main() {
             .build();
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        final result = await api.uploadPetCertificate(1,
-            UploadPetCertificateOptions(file: Uint8List.fromList([1, 2, 3])));
+        final result = await api.uploadPetCertificate(
+          1,
+          UploadPetCertificateOptions(file: Uint8List.fromList([1, 2, 3])),
+        );
         expect(result, isNotNull);
       } finally {
         await server.close();

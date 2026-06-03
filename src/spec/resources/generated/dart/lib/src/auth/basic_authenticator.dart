@@ -20,9 +20,9 @@ class BasicAuthenticator extends BaseAuthenticator {
     required String host,
     required String username,
     required String password,
-  })  : _host = host,
-        _username = username,
-        _password = password;
+  }) : _host = host,
+       _username = username,
+       _password = password;
 
   @override
   String host() => _host;

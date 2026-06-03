@@ -29,6 +29,7 @@ class PhotoMetadataLocation {
   factory PhotoMetadataLocation.fromJson(Map<String, dynamic> json) {
     return PhotoMetadataLocation(
       lat: json['lat'] as double?,
+
       lng: json['lng'] as double?,
     );
   }

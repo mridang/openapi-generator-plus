@@ -13,8 +13,8 @@ class PetStoreBasicAuthenticator extends BasicAuthenticator {
     required String username,
     required String password,
   }) : super(
-          host: host,
-          username: username,
-          password: password,
-        );
+         host: host,
+         username: username,
+         password: password,
+       );
 }

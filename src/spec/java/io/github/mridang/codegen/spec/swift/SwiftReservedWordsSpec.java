@@ -7,7 +7,7 @@ class SwiftReservedWordsSpec extends AbstractReservedWordsSpec implements SwiftS
 
     @Override
     public String getDockerImage() {
-        return "swift:6.2";
+        return "swift:6.2@sha256:4e50a9e711e8682a8c42bacfeed204568adfd6985a63b3789a165f28d296a28a";
     }
 
     @Override

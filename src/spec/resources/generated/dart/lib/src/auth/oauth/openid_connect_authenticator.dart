@@ -35,8 +35,10 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
 
   /// RFC 8414 recommended default max-age for OIDC discovery documents.
   static const int _defaultDiscoveryMaxAgeSeconds = 86400;
-  static final RegExp _maxAgePattern =
-      RegExp(r'max-age=(\d+)', caseSensitive: false);
+  static final RegExp _maxAgePattern = RegExp(
+    r'max-age=(\d+)',
+    caseSensitive: false,
+  );
 
   /// Creates a new OpenID Connect authenticator.
   OpenIdConnectAuthenticator({
@@ -46,12 +48,12 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
     required String clientSecret,
     required String redirectUri,
     List<String> scopes = const [],
-  })  : _host = host,
-        _openIdConnectUrl = openIdConnectUrl,
-        _clientId = clientId,
-        _clientSecret = clientSecret,
-        _redirectUri = redirectUri,
-        _scopes = scopes;
+  }) : _host = host,
+       _openIdConnectUrl = openIdConnectUrl,
+       _clientId = clientId,
+       _clientSecret = clientSecret,
+       _redirectUri = redirectUri,
+       _scopes = scopes;
 
   @override
   String host() => _host;
@@ -146,8 +148,9 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
       scopes: _scopes,
     );
     _delegate!.setApiClient(client);
-    _discoveryExpiry =
-        DateTime.now().add(Duration(seconds: _parseMaxAge(response.headers)));
+    _discoveryExpiry = DateTime.now().add(
+      Duration(seconds: _parseMaxAge(response.headers)),
+    );
 
     return _delegate!;
   }

@@ -12,7 +12,7 @@ class ServiceTokenAuthenticator extends BearerAuthenticator {
     required String host,
     required String token,
   }) : super(
-          host: host,
-          token: token,
-        );
+         host: host,
+         token: token,
+       );
 }

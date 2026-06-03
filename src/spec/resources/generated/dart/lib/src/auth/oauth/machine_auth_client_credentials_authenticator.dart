@@ -14,10 +14,10 @@ class MachineAuthClientCredentialsAuthenticator
     required String clientId,
     required String clientSecret,
   }) : super(
-          host: host,
-          clientId: clientId,
-          clientSecret: clientSecret,
-          tokenUrl: 'https://auth.example.com/oauth/token',
-          scopes: ['pets:write', 'pets:read'],
-        );
+         host: host,
+         clientId: clientId,
+         clientSecret: clientSecret,
+         tokenUrl: 'https://auth.example.com/oauth/token',
+         scopes: ['pets:write', 'pets:read'],
+       );
 }

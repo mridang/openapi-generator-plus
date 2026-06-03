@@ -13,9 +13,9 @@ class SessionCookieAuthenticator extends ApiKeyAuthenticator {
     required String host,
     required String apiKey,
   }) : super(
-          host: host,
-          keyParamName: 'SESSION_ID',
-          apiKey: apiKey,
-          location: ApiKeyLocation.cookie,
-        );
+         host: host,
+         keyParamName: 'SESSION_ID',
+         apiKey: apiKey,
+         location: ApiKeyLocation.cookie,
+       );
 }

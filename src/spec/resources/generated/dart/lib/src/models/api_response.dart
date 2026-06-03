@@ -33,7 +33,9 @@ class ApiResponse {
   factory ApiResponse.fromJson(Map<String, dynamic> json) {
     return ApiResponse(
       code: json['code'] as int?,
+
       type_: json['type'] as String?,
+
       message: json['message'] as String?,
     );
   }

@@ -281,7 +281,7 @@
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
-            <version>3.26.3</version>
+            <version>3.27.7</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -300,12 +300,12 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <jackson-version>2.17.1</jackson-version>
-        <jackson-databind-version>2.17.1</jackson-databind-version>
+        <jackson-version>2.19.4</jackson-version>
+        <jackson-databind-version>2.19.4</jackson-databind-version>
         <jackson-databind-nullable-version>0.2.6</jackson-databind-nullable-version>
-        <opentelemetry-version>1.46.0</opentelemetry-version>
-        <jakarta-annotation-version>1.3.5</jakarta-annotation-version>
-        <junit-version>5.10.2</junit-version>
+        <opentelemetry-version>1.62.0</opentelemetry-version>
+        <jakarta-annotation-version>3.0.0</jakarta-annotation-version>
+        <junit-version>6.1.0</junit-version>
         <error-prone-version>2.41.0</error-prone-version>
         <nullaway-version>0.12.10</nullaway-version>
         <spotbugs-plugin-version>4.9.3.2</spotbugs-plugin-version>

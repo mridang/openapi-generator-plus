@@ -37,8 +37,11 @@ class Photo {
   factory Photo.fromJson(Map<String, dynamic> json) {
     return Photo(
       id: json['id'] as int?,
+
       caption: json['caption'] as String?,
+
       isPrimary: json['isPrimary'] as bool?,
+
       url: json['url'] as String?,
     );
   }

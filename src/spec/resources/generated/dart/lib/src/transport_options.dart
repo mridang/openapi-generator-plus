@@ -114,7 +114,8 @@ class TransportOptionsBuilder {
       }
       if (parsed.scheme != 'http' && parsed.scheme != 'https') {
         throw ArgumentError(
-            'Invalid proxy URL (must use http or https scheme): $val');
+          'Invalid proxy URL (must use http or https scheme): $val',
+        );
       }
       if (parsed.host.isEmpty) {
         throw ArgumentError('Invalid proxy URL (missing host): $val');

@@ -185,8 +185,11 @@ void main() {
       final result = stringify(dt);
       expect(result, contains('2024-01-01'));
       expect(result, contains('12:30:45'));
-      expect(result.contains('+00:00') || result.endsWith('Z'), isTrue,
-          reason: 'should contain UTC offset: $result');
+      expect(
+        result.contains('+00:00') || result.endsWith('Z'),
+        isTrue,
+        reason: 'should contain UTC offset: $result',
+      );
     });
 
     test('positive timezone offset is preserved', () {
@@ -197,8 +200,14 @@ void main() {
     });
 
     test('negative timezone offset does not lose the offset', () {
-      final utcDt =
-          DateTime.utc(2024, 1, 1, 20, 30, 45); // 12:30:45-08:00 = 20:30:45 UTC
+      final utcDt = DateTime.utc(
+        2024,
+        1,
+        1,
+        20,
+        30,
+        45,
+      ); // 12:30:45-08:00 = 20:30:45 UTC
       final result = stringify(utcDt);
       expect(result, isNotEmpty);
     });
@@ -219,19 +228,24 @@ void main() {
       final dt = DateTime.utc(2024, 1, 1, 12, 30, 45);
       final result = stringify(dt);
       expect(
-          result.endsWith('Z') || result.contains('+') || result.contains('-'),
-          isTrue,
-          reason: 'should end with offset: $result');
+        result.endsWith('Z') || result.contains('+') || result.contains('-'),
+        isTrue,
+        reason: 'should end with offset: $result',
+      );
     });
 
-    test('round-trip: serialize then deserialize yields equivalent instant',
-        () {
-      final dt = DateTime.utc(2024, 1, 1, 12, 30, 45);
-      final result = stringify(dt);
-      final parsed = DateTime.parse(result);
-      expect(parsed.toUtc().millisecondsSinceEpoch,
-          equals(dt.millisecondsSinceEpoch));
-    });
+    test(
+      'round-trip: serialize then deserialize yields equivalent instant',
+      () {
+        final dt = DateTime.utc(2024, 1, 1, 12, 30, 45);
+        final result = stringify(dt);
+        final parsed = DateTime.parse(result);
+        expect(
+          parsed.toUtc().millisecondsSinceEpoch,
+          equals(dt.millisecondsSinceEpoch),
+        );
+      },
+    );
 
     // NonAsciiSerializationTests
 
@@ -266,27 +280,35 @@ void main() {
       );
     });
 
-    test('thrown SerializationError has a cause referencing original error',
-        () {
-      try {
-        deserializeRaw('{');
-        fail('Expected SerializationError');
-      } catch (e) {
-        expect(e, isA<SerializationError>());
-        final serErr = e as SerializationError;
-        expect(serErr.cause, isNotNull);
-      }
-    });
+    test(
+      'thrown SerializationError has a cause referencing original error',
+      () {
+        try {
+          deserializeRaw('{');
+          fail('Expected SerializationError');
+        } catch (e) {
+          expect(e, isA<SerializationError>());
+          final serErr = e as SerializationError;
+          expect(serErr.cause, isNotNull);
+        }
+      },
+    );
 
     test('serialize includes fields set to default values', () {
       final category = Category(id: 0, name: '');
       final json = serialize(category);
       final parsed = jsonDecode(json) as Map<String, dynamic>;
-      expect(parsed.containsKey('id'), isTrue,
-          reason: 'serialized JSON should include id field');
+      expect(
+        parsed.containsKey('id'),
+        isTrue,
+        reason: 'serialized JSON should include id field',
+      );
       expect(parsed['id'], equals(0));
-      expect(parsed.containsKey('name'), isTrue,
-          reason: 'serialized JSON should include name field');
+      expect(
+        parsed.containsKey('name'),
+        isTrue,
+        reason: 'serialized JSON should include name field',
+      );
       expect(parsed['name'], equals(''));
     });
 
@@ -300,13 +322,15 @@ void main() {
       expect(parsed['weightKg'], equals(2.5));
     });
 
-    test('subtype round-trip via parent discriminator routes back to subtype',
-        () {
-      final dry = DryFood(weightKg: 1.25);
-      final json = serialize(dry);
-      final food = PetFood.fromJson(jsonDecode(json) as Map<String, dynamic>);
-      expect(food.value, isA<DryFood>());
-    });
+    test(
+      'subtype round-trip via parent discriminator routes back to subtype',
+      () {
+        final dry = DryFood(weightKg: 1.25);
+        final json = serialize(dry);
+        final food = PetFood.fromJson(jsonDecode(json) as Map<String, dynamic>);
+        expect(food.value, isA<DryFood>());
+      },
+    );
 
     // -- DiscardNullsOnSerializeTests --
     //
@@ -316,17 +340,31 @@ void main() {
     test('toJson omits optional fields left null', () {
       final pet = Pet(name: 'Fido', photoUrls: <String>{'http://x/y.jpg'});
       final json = pet.toJson();
-      expect(json.containsKey('name'), isTrue,
-          reason: 'required field name present');
-      expect(json.containsKey('photoUrls'), isTrue,
-          reason: 'required field photoUrls present');
-      expect(json.containsKey('id'), isFalse,
-          reason:
-              'optional id left unset must be omitted, not emitted as null');
-      expect(json.containsKey('category'), isFalse,
-          reason: 'optional category left unset must be omitted');
-      expect(json.containsKey('tags'), isFalse,
-          reason: 'optional tags left unset must be omitted');
+      expect(
+        json.containsKey('name'),
+        isTrue,
+        reason: 'required field name present',
+      );
+      expect(
+        json.containsKey('photoUrls'),
+        isTrue,
+        reason: 'required field photoUrls present',
+      );
+      expect(
+        json.containsKey('id'),
+        isFalse,
+        reason: 'optional id left unset must be omitted, not emitted as null',
+      );
+      expect(
+        json.containsKey('category'),
+        isFalse,
+        reason: 'optional category left unset must be omitted',
+      );
+      expect(
+        json.containsKey('tags'),
+        isFalse,
+        reason: 'optional tags left unset must be omitted',
+      );
     });
 
     test('toJson includes optional fields when explicitly set', () {
@@ -438,8 +476,10 @@ void main() {
     // `PnDTnHnMnS` on the wire and `Duration` in memory.
 
     test('parseIso8601Duration parses hours and minutes', () {
-      expect(parseIso8601Duration('PT1H30M'),
-          equals(const Duration(hours: 1, minutes: 30)));
+      expect(
+        parseIso8601Duration('PT1H30M'),
+        equals(const Duration(hours: 1, minutes: 30)),
+      );
     });
 
     test('parseIso8601Duration parses days, hours, minutes, seconds', () {
@@ -458,32 +498,42 @@ void main() {
       expect(parseIso8601Duration('P1M'), equals(const Duration(days: 30)));
     });
 
-    test('parseIso8601Duration handles fractional seconds at micro resolution',
-        () {
-      expect(
-        parseIso8601Duration('PT0.5S'),
-        equals(const Duration(milliseconds: 500)),
-      );
-      expect(
-        parseIso8601Duration('PT1.000001S'),
-        equals(const Duration(seconds: 1, microseconds: 1)),
-      );
-    });
+    test(
+      'parseIso8601Duration handles fractional seconds at micro resolution',
+      () {
+        expect(
+          parseIso8601Duration('PT0.5S'),
+          equals(const Duration(milliseconds: 500)),
+        );
+        expect(
+          parseIso8601Duration('PT1.000001S'),
+          equals(const Duration(seconds: 1, microseconds: 1)),
+        );
+      },
+    );
 
     test('parseIso8601Duration handles negative durations', () {
       expect(parseIso8601Duration('-PT1H'), equals(const Duration(hours: -1)));
     });
 
     test('parseIso8601Duration rejects malformed input', () {
-      expect(() => parseIso8601Duration('not-a-duration'),
-          throwsA(isA<Iso8601DurationFormatException>()));
-      expect(() => parseIso8601Duration(''),
-          throwsA(isA<Iso8601DurationFormatException>()));
+      expect(
+        () => parseIso8601Duration('not-a-duration'),
+        throwsA(isA<Iso8601DurationFormatException>()),
+      );
+      expect(
+        () => parseIso8601Duration(''),
+        throwsA(isA<Iso8601DurationFormatException>()),
+      );
       // Empty P / PT carries no components.
-      expect(() => parseIso8601Duration('P'),
-          throwsA(isA<Iso8601DurationFormatException>()));
-      expect(() => parseIso8601Duration('PT'),
-          throwsA(isA<Iso8601DurationFormatException>()));
+      expect(
+        () => parseIso8601Duration('P'),
+        throwsA(isA<Iso8601DurationFormatException>()),
+      );
+      expect(
+        () => parseIso8601Duration('PT'),
+        throwsA(isA<Iso8601DurationFormatException>()),
+      );
     });
 
     test('formatIso8601Duration emits canonical zero', () {
@@ -504,27 +554,30 @@ void main() {
     });
 
     test(
-        'formatIso8601Duration emits fractional seconds without trailing zeros',
-        () {
-      expect(
-        formatIso8601Duration(const Duration(milliseconds: 500)),
-        equals('PT0.5S'),
-      );
-      expect(
-        formatIso8601Duration(
-          const Duration(seconds: 1, microseconds: 1),
-        ),
-        equals('PT1.000001S'),
-      );
-    });
+      'formatIso8601Duration emits fractional seconds without trailing zeros',
+      () {
+        expect(
+          formatIso8601Duration(const Duration(milliseconds: 500)),
+          equals('PT0.5S'),
+        );
+        expect(
+          formatIso8601Duration(
+            const Duration(seconds: 1, microseconds: 1),
+          ),
+          equals('PT1.000001S'),
+        );
+      },
+    );
 
-    test('formatIso8601Duration emits negative durations with leading sign',
-        () {
-      expect(
-        formatIso8601Duration(const Duration(hours: -1)),
-        equals('-PT1H'),
-      );
-    });
+    test(
+      'formatIso8601Duration emits negative durations with leading sign',
+      () {
+        expect(
+          formatIso8601Duration(const Duration(hours: -1)),
+          equals('-PT1H'),
+        );
+      },
+    );
 
     test('Duration round-trips through format then parse', () {
       const original = Duration(days: 3, hours: 4, minutes: 5, seconds: 6);
@@ -572,9 +625,12 @@ void main() {
       };
       final pet = Pet.fromJson(input);
       final round = pet.toJson();
-      expect(round.containsKey('unknownLeak'), isFalse,
-          reason:
-              'unknown fields read by fromJson must NOT be re-emitted by toJson');
+      expect(
+        round.containsKey('unknownLeak'),
+        isFalse,
+        reason:
+            'unknown fields read by fromJson must NOT be re-emitted by toJson',
+      );
     });
 
     // Cross-cutting `oneof-nondiscriminator-no-match-silent`: resolveOneOf

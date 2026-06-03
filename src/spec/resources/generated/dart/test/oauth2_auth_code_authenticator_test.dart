@@ -17,8 +17,9 @@ class _FakeApiClient implements ApiClient {
   String? lastUrl;
 
   void enqueue(String body, {int statusCode = 200}) {
-    _responses
-        .add(HttpApiResponse(statusCode: statusCode, body: body, headers: {}));
+    _responses.add(
+      HttpApiResponse(statusCode: statusCode, body: body, headers: {}),
+    );
   }
 
   @override
@@ -74,7 +75,8 @@ void main() {
     test('exchanges code with correct grant type', () async {
       final client = _FakeApiClient();
       client.enqueue(
-          '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}');
+        '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
+      );
 
       final auth = _createAuthenticator();
       auth.setApiClient(client);
@@ -108,7 +110,8 @@ void main() {
     test('includes refresh token on refresh', () async {
       final client = _FakeApiClient();
       client.enqueue(
-          '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}');
+        '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+      );
       client.enqueue('{"access_token":"tok2","expires_in":3600}');
 
       final auth = _createAuthenticator();
@@ -150,8 +153,11 @@ void main() {
       } on StateError catch (e) {
         caught = e;
       }
-      expect(caught, isNotNull,
-          reason: 'expected authHeaders to throw before exchangeCode');
+      expect(
+        caught,
+        isNotNull,
+        reason: 'expected authHeaders to throw before exchangeCode',
+      );
       expect(caught, isA<StateError>());
 
       // Caller continues normally after catching -- no process crash.

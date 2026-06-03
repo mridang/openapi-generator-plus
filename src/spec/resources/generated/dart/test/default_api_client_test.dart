@@ -80,8 +80,10 @@ void main() {
     });
 
     test('makes HTTPS request through proxy with verifySsl=false', () async {
-      final transport =
-          TransportOptionsBuilder().proxy(proxyUrl).verifySSL(false).build();
+      final transport = TransportOptionsBuilder()
+          .proxy(proxyUrl)
+          .verifySSL(false)
+          .build();
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
         'GET',
@@ -109,8 +111,9 @@ void main() {
     });
 
     test('injects custom User-Agent header', () async {
-      final transport =
-          TransportOptionsBuilder().userAgent('MyApp/1.0').build();
+      final transport = TransportOptionsBuilder()
+          .userAgent('MyApp/1.0')
+          .build();
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
         'GET',
@@ -139,7 +142,8 @@ void main() {
       expect(requestId, isNotNull);
       expect(requestId, isNotEmpty);
       final uuidPattern = RegExp(
-          r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$');
+        r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+      );
       expect(uuidPattern.hasMatch(requestId!), isTrue);
     });
 
@@ -214,8 +218,9 @@ void main() {
     });
 
     test('returns redirect response when disabled', () async {
-      final transport =
-          TransportOptionsBuilder().followRedirects(false).build();
+      final transport = TransportOptionsBuilder()
+          .followRedirects(false)
+          .build();
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
         'GET',
@@ -254,7 +259,8 @@ void main() {
           .build();
       final client = DefaultApiClient(transportOptions: transport);
       const boundary = 'test-boundary';
-      final body = '--$boundary\r\n'
+      final body =
+          '--$boundary\r\n'
           'Content-Disposition: form-data; name="description"\r\n\r\n'
           'hello\r\n'
           '--$boundary\r\n'
@@ -274,9 +280,12 @@ void main() {
       expect(resp.statusCode, equals(200));
       final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
       expect(parsed['method'], equals('POST'));
-      expect(parsed['body'], isNotEmpty,
-          reason:
-              'multipart body must be replayed intact across the 307 redirect');
+      expect(
+        parsed['body'],
+        isNotEmpty,
+        reason:
+            'multipart body must be replayed intact across the 307 redirect',
+      );
     });
 
     test('respects maxRedirects limit', () async {
@@ -390,11 +399,13 @@ void main() {
         'a\rb.pdf',
         'a\nb.pdf',
         'a\r\nb.pdf',
-        'a\u0000b.pdf'
+        'a\u0000b.pdf',
       ]) {
         expect(
-            () => validateMultipartFilename(bad), throwsA(isA<ArgumentError>()),
-            reason: 'expected ArgumentError for $bad');
+          () => validateMultipartFilename(bad),
+          throwsA(isA<ArgumentError>()),
+          reason: 'expected ArgumentError for $bad',
+        );
       }
       validateMultipartFilename('pet.png');
     });
@@ -414,8 +425,11 @@ void main() {
       );
       expect(resp.statusCode, equals(200));
       final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
-      expect(parsed['contentLength'], equals(0),
-          reason: 'POST with null body must emit Content-Length: 0');
+      expect(
+        parsed['contentLength'],
+        equals(0),
+        reason: 'POST with null body must emit Content-Length: 0',
+      );
     });
   });
 }

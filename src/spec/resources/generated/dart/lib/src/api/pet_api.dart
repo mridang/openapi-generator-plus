@@ -79,7 +79,7 @@ class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoServer {
   final GetMultiServerPetInfoServerRegion _region;
 
   GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegion region)
-      : _region = region;
+    : _region = region;
 
   @override
   String getUrl() {
@@ -139,10 +139,10 @@ class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServer {
   final GetStagingPetInfoServerVersion _version;
 
   GetStagingPetInfoServerStagingServer(
-      GetStagingPetInfoServerEnvironment environment,
-      GetStagingPetInfoServerVersion version)
-      : _environment = environment,
-        _version = version;
+    GetStagingPetInfoServerEnvironment environment,
+    GetStagingPetInfoServerVersion version,
+  ) : _environment = environment,
+      _version = version;
 
   @override
   String getUrl() {
@@ -161,7 +161,10 @@ class PetApi extends BaseApi {
     Configuration? config,
     Authenticator? authenticator,
   }) : super(
-            apiClient: apiClient, config: config, authenticator: authenticator);
+         apiClient: apiClient,
+         config: config,
+         authenticator: authenticator,
+       );
 
   /// Add a new pet to the store
   /// [pet] Create a new pet in the store
@@ -186,8 +189,10 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the addPet operation and returns the full API result.
-  Future<ApiResult<Pet>> addPetWithHTTPInfo(Pet pet,
-      {Authenticator? auth}) async {
+  Future<ApiResult<Pet>> addPetWithHTTPInfo(
+    Pet pet, {
+    Authenticator? auth,
+  }) async {
     var path = '/pet';
 
     final queryParams = <String, Object?>{};
@@ -213,8 +218,11 @@ class PetApi extends BaseApi {
   /// Add photos to the pet's gallery
   /// Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
 
-  Future<List<Photo>> addPetPhotos(int petId, AddPetPhotosOptions options,
-      {Authenticator? auth}) async {
+  Future<List<Photo>> addPetPhotos(
+    int petId,
+    AddPetPhotosOptions options, {
+    Authenticator? auth,
+  }) async {
     final result = await addPetPhotosWithHTTPInfo(petId, options, auth: auth);
     final data = result.data;
     if (data == null) {
@@ -236,8 +244,10 @@ class PetApi extends BaseApi {
 
   /// Performs the addPetPhotos operation and returns the full API result.
   Future<ApiResult<List<Photo>>> addPetPhotosWithHTTPInfo(
-      int petId, AddPetPhotosOptions options,
-      {Authenticator? auth}) async {
+    int petId,
+    AddPetPhotosOptions options, {
+    Authenticator? auth,
+  }) async {
     var path = '/pet/{petId}/photos';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -245,9 +255,17 @@ class PetApi extends BaseApi {
      * space became %2520, `a/b` became a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. */
     path = path.replaceAll(
-        '{' + 'petId' + '}',
-        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-            .toString());
+      '{' + 'petId' + '}',
+      serializeStyled(
+        'petId',
+        petId,
+        'path',
+        'int',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
 
     final queryParams = <String, Object?>{};
 
@@ -275,10 +293,16 @@ class PetApi extends BaseApi {
 
   /// Record a treatment for a pet
 
-  Future<PetTreatment> addPetTreatment(int petId, PetTreatment petTreatment,
-      {Authenticator? auth}) async {
-    final result =
-        await addPetTreatmentWithHTTPInfo(petId, petTreatment, auth: auth);
+  Future<PetTreatment> addPetTreatment(
+    int petId,
+    PetTreatment petTreatment, {
+    Authenticator? auth,
+  }) async {
+    final result = await addPetTreatmentWithHTTPInfo(
+      petId,
+      petTreatment,
+      auth: auth,
+    );
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -299,8 +323,10 @@ class PetApi extends BaseApi {
 
   /// Performs the addPetTreatment operation and returns the full API result.
   Future<ApiResult<PetTreatment>> addPetTreatmentWithHTTPInfo(
-      int petId, PetTreatment petTreatment,
-      {Authenticator? auth}) async {
+    int petId,
+    PetTreatment petTreatment, {
+    Authenticator? auth,
+  }) async {
     var path = '/pet/{petId}/treatment';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -308,9 +334,17 @@ class PetApi extends BaseApi {
      * space became %2520, `a/b` became a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. */
     path = path.replaceAll(
-        '{' + 'petId' + '}',
-        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-            .toString());
+      '{' + 'petId' + '}',
+      serializeStyled(
+        'petId',
+        petId,
+        'path',
+        'int',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
 
     final queryParams = <String, Object?>{};
 
@@ -337,15 +371,20 @@ class PetApi extends BaseApi {
   /// [petId] Pet id to delete
   /// [apiKey] Session cookie used for authentication
 
-  Future<void> deletePet(int petId, DeletePetOptions? options,
-      {Authenticator? auth}) async {
+  Future<void> deletePet(
+    int petId,
+    DeletePetOptions? options, {
+    Authenticator? auth,
+  }) async {
     await deletePetWithHTTPInfo(petId, options, auth: auth);
   }
 
   /// Performs the deletePet operation and returns the full API result.
   Future<ApiResult<void>> deletePetWithHTTPInfo(
-      int petId, DeletePetOptions? options,
-      {Authenticator? auth}) async {
+    int petId,
+    DeletePetOptions? options, {
+    Authenticator? auth,
+  }) async {
     var path = '/pet/{petId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -353,9 +392,17 @@ class PetApi extends BaseApi {
      * space became %2520, `a/b` became a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. */
     path = path.replaceAll(
-        '{' + 'petId' + '}',
-        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-            .toString());
+      '{' + 'petId' + '}',
+      serializeStyled(
+        'petId',
+        petId,
+        'path',
+        'int',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
 
     final queryParams = <String, Object?>{};
 
@@ -363,7 +410,8 @@ class PetApi extends BaseApi {
     final cookieParts = <String>[];
     if (options != null && options.apiKey != null) {
       cookieParts.add(
-          'api_key=${serializeStyled('api_key', options.apiKey, 'cookie', 'String', '', 'form', true)}');
+        'api_key=${serializeStyled('api_key', options.apiKey, 'cookie', 'String', '', 'form', true)}',
+      );
     }
     if (cookieParts.isNotEmpty) {
       headerParams['Cookie'] = cookieParts.join('; ');
@@ -387,10 +435,16 @@ class PetApi extends BaseApi {
   /// Download a vet document
   /// Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
 
-  Future<Uint8List> downloadPetDocument(int petId, int documentId,
-      {Authenticator? auth}) async {
-    final result =
-        await downloadPetDocumentWithHTTPInfo(petId, documentId, auth: auth);
+  Future<Uint8List> downloadPetDocument(
+    int petId,
+    int documentId, {
+    Authenticator? auth,
+  }) async {
+    final result = await downloadPetDocumentWithHTTPInfo(
+      petId,
+      documentId,
+      auth: auth,
+    );
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -411,8 +465,10 @@ class PetApi extends BaseApi {
 
   /// Performs the downloadPetDocument operation and returns the full API result.
   Future<ApiResult<Uint8List>> downloadPetDocumentWithHTTPInfo(
-      int petId, int documentId,
-      {Authenticator? auth}) async {
+    int petId,
+    int documentId, {
+    Authenticator? auth,
+  }) async {
     var path = '/pet/{petId}/documents/{documentId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -420,19 +476,34 @@ class PetApi extends BaseApi {
      * space became %2520, `a/b` became a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. */
     path = path.replaceAll(
-        '{' + 'petId' + '}',
-        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-            .toString());
+      '{' + 'petId' + '}',
+      serializeStyled(
+        'petId',
+        petId,
+        'path',
+        'int',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
      * outer _encodePathSegment wrapper was encoding a second time (a
      * space became %2520, `a/b` became a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. */
     path = path.replaceAll(
-        '{' + 'documentId' + '}',
-        serializeStyled(
-                'documentId', documentId, 'path', 'int', '', 'simple', false)
-            .toString());
+      '{' + 'documentId' + '}',
+      serializeStyled(
+        'documentId',
+        documentId,
+        'path',
+        'int',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
 
     final queryParams = <String, Object?>{};
 
@@ -456,24 +527,22 @@ class PetApi extends BaseApi {
 
   /// Finds Pets by status
   @Deprecated('This operation is deprecated.')
-
   /// [status] Status values that need to be considered for filter
   /// [filter] Filter criteria as key-value pairs
-
   /// ### `status` — Available only
   /// Show only pets currently in stock
   /// ```json
   /// available
   /// ```
-
   /// ### `status` — Sold pets
   /// Show pets that have been sold
   /// ```json
   /// sold
   /// ```
-
-  Future<List<Pet>> findPetsByStatus(FindPetsByStatusOptions? options,
-      {Authenticator? auth}) async {
+  Future<List<Pet>> findPetsByStatus(
+    FindPetsByStatusOptions? options, {
+    Authenticator? auth,
+  }) async {
     final result = await findPetsByStatusWithHTTPInfo(options, auth: auth);
     final data = result.data;
     if (data == null) {
@@ -495,22 +564,32 @@ class PetApi extends BaseApi {
 
   /// Performs the findPetsByStatus operation and returns the full API result.
   Future<ApiResult<List<Pet>>> findPetsByStatusWithHTTPInfo(
-      FindPetsByStatusOptions? options,
-      {Authenticator? auth}) async {
+    FindPetsByStatusOptions? options, {
+    Authenticator? auth,
+  }) async {
     var path = '/pet/findByStatus';
 
     final queryParams = <String, Object?>{};
     if (options != null) {
       if (options.status != null) {
         queryParams['status'] = serializeStyled(
-            'status', options.status, 'query', 'String', '', 'form', true);
+          'status',
+          options.status,
+          'query',
+          'String',
+          '',
+          'form',
+          true,
+        );
       } else {
         queryParams['status'] = '';
       }
     }
     if (options != null && options.filter != null) {
-      serializeDeepObject('filter', options.filter as Map<String, Object?>?)
-          .forEach((k, v) {
+      serializeDeepObject(
+        'filter',
+        options.filter as Map<String, Object?>?,
+      ).forEach((k, v) {
         queryParams[k] = v;
       });
     }
@@ -535,10 +614,16 @@ class PetApi extends BaseApi {
 
   /// Get external pet info
 
-  Future<Pet> getExternalPetInfo(int petId, GetExternalPetInfoServer? server,
-      {Authenticator? auth}) async {
-    final result =
-        await getExternalPetInfoWithHTTPInfo(petId, server, auth: auth);
+  Future<Pet> getExternalPetInfo(
+    int petId,
+    GetExternalPetInfoServer? server, {
+    Authenticator? auth,
+  }) async {
+    final result = await getExternalPetInfoWithHTTPInfo(
+      petId,
+      server,
+      auth: auth,
+    );
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -559,8 +644,10 @@ class PetApi extends BaseApi {
 
   /// Performs the getExternalPetInfo operation and returns the full API result.
   Future<ApiResult<Pet>> getExternalPetInfoWithHTTPInfo(
-      int petId, GetExternalPetInfoServer? server,
-      {Authenticator? auth}) async {
+    int petId,
+    GetExternalPetInfoServer? server, {
+    Authenticator? auth,
+  }) async {
     var path = '/pet/{petId}/external';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -568,9 +655,17 @@ class PetApi extends BaseApi {
      * space became %2520, `a/b` became a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. */
     path = path.replaceAll(
-        '{' + 'petId' + '}',
-        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-            .toString());
+      '{' + 'petId' + '}',
+      serializeStyled(
+        'petId',
+        petId,
+        'path',
+        'int',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
     if (server != null) {
       final serverUrl = server.getUrl();
       if (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) {
@@ -601,10 +696,15 @@ class PetApi extends BaseApi {
   /// Get multi-server pet info
 
   Future<Pet> getMultiServerPetInfo(
-      int petId, GetMultiServerPetInfoServer? server,
-      {Authenticator? auth}) async {
-    final result =
-        await getMultiServerPetInfoWithHTTPInfo(petId, server, auth: auth);
+    int petId,
+    GetMultiServerPetInfoServer? server, {
+    Authenticator? auth,
+  }) async {
+    final result = await getMultiServerPetInfoWithHTTPInfo(
+      petId,
+      server,
+      auth: auth,
+    );
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -625,8 +725,10 @@ class PetApi extends BaseApi {
 
   /// Performs the getMultiServerPetInfo operation and returns the full API result.
   Future<ApiResult<Pet>> getMultiServerPetInfoWithHTTPInfo(
-      int petId, GetMultiServerPetInfoServer? server,
-      {Authenticator? auth}) async {
+    int petId,
+    GetMultiServerPetInfoServer? server, {
+    Authenticator? auth,
+  }) async {
     var path = '/pet/{petId}/multi';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -634,9 +736,17 @@ class PetApi extends BaseApi {
      * space became %2520, `a/b` became a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. */
     path = path.replaceAll(
-        '{' + 'petId' + '}',
-        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-            .toString());
+      '{' + 'petId' + '}',
+      serializeStyled(
+        'petId',
+        petId,
+        'path',
+        'int',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
     if (server != null) {
       final serverUrl = server.getUrl();
       if (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) {
@@ -688,8 +798,10 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getPetAvatar operation and returns the full API result.
-  Future<ApiResult<Uint8List>> getPetAvatarWithHTTPInfo(int petId,
-      {Authenticator? auth}) async {
+  Future<ApiResult<Uint8List>> getPetAvatarWithHTTPInfo(
+    int petId, {
+    Authenticator? auth,
+  }) async {
     var path = '/pet/{petId}/avatar';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -697,9 +809,17 @@ class PetApi extends BaseApi {
      * space became %2520, `a/b` became a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. */
     path = path.replaceAll(
-        '{' + 'petId' + '}',
-        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-            .toString());
+      '{' + 'petId' + '}',
+      serializeStyled(
+        'petId',
+        petId,
+        'path',
+        'int',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
 
     final queryParams = <String, Object?>{};
 
@@ -724,8 +844,10 @@ class PetApi extends BaseApi {
   /// Get the pet's avatar thumbnail as base64
   /// Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
 
-  Future<Uint8List> getPetAvatarThumbnail(int petId,
-      {Authenticator? auth}) async {
+  Future<Uint8List> getPetAvatarThumbnail(
+    int petId, {
+    Authenticator? auth,
+  }) async {
     final result = await getPetAvatarThumbnailWithHTTPInfo(petId, auth: auth);
     final data = result.data;
     if (data == null) {
@@ -746,8 +868,10 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getPetAvatarThumbnail operation and returns the full API result.
-  Future<ApiResult<Uint8List>> getPetAvatarThumbnailWithHTTPInfo(int petId,
-      {Authenticator? auth}) async {
+  Future<ApiResult<Uint8List>> getPetAvatarThumbnailWithHTTPInfo(
+    int petId, {
+    Authenticator? auth,
+  }) async {
     var path = '/pet/{petId}/avatar/thumbnail';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -755,9 +879,17 @@ class PetApi extends BaseApi {
      * space became %2520, `a/b` became a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. */
     path = path.replaceAll(
-        '{' + 'petId' + '}',
-        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-            .toString());
+      '{' + 'petId' + '}',
+      serializeStyled(
+        'petId',
+        petId,
+        'path',
+        'int',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
 
     final queryParams = <String, Object?>{};
 
@@ -782,23 +914,22 @@ class PetApi extends BaseApi {
   /// Find pet by ID
   /// Returns a single pet
   @Deprecated('This operation is deprecated.')
-
   /// [petId] ID of pet to return
-
   /// ### `petId` — Small breed ID
   /// A common small-breed pet identifier
   /// ```json
   /// 1
   /// ```
-
   /// ### `petId` — Large breed ID
   /// A common large-breed pet identifier
   /// ```json
   /// 42
   /// ```
-
-  Future<Pet> getPetById(int petId, GetPetByIdServer? server,
-      {Authenticator? auth}) async {
+  Future<Pet> getPetById(
+    int petId,
+    GetPetByIdServer? server, {
+    Authenticator? auth,
+  }) async {
     final result = await getPetByIdWithHTTPInfo(petId, server, auth: auth);
     final data = result.data;
     if (data == null) {
@@ -820,8 +951,10 @@ class PetApi extends BaseApi {
 
   /// Performs the getPetById operation and returns the full API result.
   Future<ApiResult<Pet>> getPetByIdWithHTTPInfo(
-      int petId, GetPetByIdServer? server,
-      {Authenticator? auth}) async {
+    int petId,
+    GetPetByIdServer? server, {
+    Authenticator? auth,
+  }) async {
     var path = '/pet/{petId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -829,9 +962,17 @@ class PetApi extends BaseApi {
      * space became %2520, `a/b` became a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. */
     path = path.replaceAll(
-        '{' + 'petId' + '}',
-        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-            .toString());
+      '{' + 'petId' + '}',
+      serializeStyled(
+        'petId',
+        petId,
+        'path',
+        'int',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
     if (server != null) {
       final serverUrl = server.getUrl();
       if (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) {
@@ -883,8 +1024,10 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getPetPassport operation and returns the full API result.
-  Future<ApiResult<PetPassport>> getPetPassportWithHTTPInfo(int petId,
-      {Authenticator? auth}) async {
+  Future<ApiResult<PetPassport>> getPetPassportWithHTTPInfo(
+    int petId, {
+    Authenticator? auth,
+  }) async {
     var path = '/pet/{petId}/passport';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -892,9 +1035,17 @@ class PetApi extends BaseApi {
      * space became %2520, `a/b` became a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. */
     path = path.replaceAll(
-        '{' + 'petId' + '}',
-        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-            .toString());
+      '{' + 'petId' + '}',
+      serializeStyled(
+        'petId',
+        petId,
+        'path',
+        'int',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
 
     final queryParams = <String, Object?>{};
 
@@ -920,8 +1071,11 @@ class PetApi extends BaseApi {
   /// Get a photo or its metadata
   /// Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
 
-  Future<Uint8List> getPetPhoto(int petId, int photoId,
-      {Authenticator? auth}) async {
+  Future<Uint8List> getPetPhoto(
+    int petId,
+    int photoId, {
+    Authenticator? auth,
+  }) async {
     final result = await getPetPhotoWithHTTPInfo(petId, photoId, auth: auth);
     final data = result.data;
     if (data == null) {
@@ -942,8 +1096,11 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getPetPhoto operation and returns the full API result.
-  Future<ApiResult<Uint8List>> getPetPhotoWithHTTPInfo(int petId, int photoId,
-      {Authenticator? auth}) async {
+  Future<ApiResult<Uint8List>> getPetPhotoWithHTTPInfo(
+    int petId,
+    int photoId, {
+    Authenticator? auth,
+  }) async {
     var path = '/pet/{petId}/photos/{photoId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -951,18 +1108,34 @@ class PetApi extends BaseApi {
      * space became %2520, `a/b` became a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. */
     path = path.replaceAll(
-        '{' + 'petId' + '}',
-        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-            .toString());
+      '{' + 'petId' + '}',
+      serializeStyled(
+        'petId',
+        petId,
+        'path',
+        'int',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
      * outer _encodePathSegment wrapper was encoding a second time (a
      * space became %2520, `a/b` became a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. */
     path = path.replaceAll(
-        '{' + 'photoId' + '}',
-        serializeStyled('photoId', photoId, 'path', 'int', '', 'simple', false)
-            .toString());
+      '{' + 'photoId' + '}',
+      serializeStyled(
+        'photoId',
+        photoId,
+        'path',
+        'int',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
 
     final queryParams = <String, Object?>{};
 
@@ -986,10 +1159,18 @@ class PetApi extends BaseApi {
 
   /// Get a tag for a pet
 
-  Future<Pet> getPetTag(int petId, String tagName, GetPetTagOptions? options,
-      {Authenticator? auth}) async {
-    final result =
-        await getPetTagWithHTTPInfo(petId, tagName, options, auth: auth);
+  Future<Pet> getPetTag(
+    int petId,
+    String tagName,
+    GetPetTagOptions? options, {
+    Authenticator? auth,
+  }) async {
+    final result = await getPetTagWithHTTPInfo(
+      petId,
+      tagName,
+      options,
+      auth: auth,
+    );
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1009,8 +1190,11 @@ class PetApi extends BaseApi {
 
   /// Performs the getPetTag operation and returns the full API result.
   Future<ApiResult<Pet>> getPetTagWithHTTPInfo(
-      int petId, String tagName, GetPetTagOptions? options,
-      {Authenticator? auth}) async {
+    int petId,
+    String tagName,
+    GetPetTagOptions? options, {
+    Authenticator? auth,
+  }) async {
     var path = '/pet/{petId}/tag/{tagName}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -1018,33 +1202,69 @@ class PetApi extends BaseApi {
      * space became %2520, `a/b` became a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. */
     path = path.replaceAll(
-        '{' + 'petId' + '}',
-        serializeStyled('petId', petId, 'path', 'int', '', 'matrix', false)
-            .toString());
+      '{' + 'petId' + '}',
+      serializeStyled(
+        'petId',
+        petId,
+        'path',
+        'int',
+        '',
+        'matrix',
+        false,
+      ).toString(),
+    );
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
      * outer _encodePathSegment wrapper was encoding a second time (a
      * space became %2520, `a/b` became a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. */
     path = path.replaceAll(
-        '{' + 'tagName' + '}',
-        serializeStyled(
-                'tagName', tagName, 'path', 'String', '', 'label', false)
-            .toString());
+      '{' + 'tagName' + '}',
+      serializeStyled(
+        'tagName',
+        tagName,
+        'path',
+        'String',
+        '',
+        'label',
+        false,
+      ).toString(),
+    );
 
     final queryParams = <String, Object?>{};
     if (options != null && options.colors != null) {
-      queryParams['colors'] = serializeStyled('colors', options.colors, 'query',
-          'List<String>', 'pipes', 'pipeDelimited', false);
+      queryParams['colors'] = serializeStyled(
+        'colors',
+        options.colors,
+        'query',
+        'List<String>',
+        'pipes',
+        'pipeDelimited',
+        false,
+      );
     }
     if (options != null && options.sizes != null) {
-      queryParams['sizes'] = serializeStyled('sizes', options.sizes, 'query',
-          'List<String>', 'ssv', 'spaceDelimited', false);
+      queryParams['sizes'] = serializeStyled(
+        'sizes',
+        options.sizes,
+        'query',
+        'List<String>',
+        'ssv',
+        'spaceDelimited',
+        false,
+      );
     }
     if (options != null) {
       if (options.filter != null) {
         queryParams['filter'] = serializeStyled(
-            'filter', options.filter, 'query', 'String', '', 'form', true);
+          'filter',
+          options.filter,
+          'query',
+          'String',
+          '',
+          'form',
+          true,
+        );
       } else {
         queryParams['filter'] = '';
       }
@@ -1070,10 +1290,16 @@ class PetApi extends BaseApi {
 
   /// Get staging pet info
 
-  Future<Pet> getStagingPetInfo(int petId, GetStagingPetInfoServer? server,
-      {Authenticator? auth}) async {
-    final result =
-        await getStagingPetInfoWithHTTPInfo(petId, server, auth: auth);
+  Future<Pet> getStagingPetInfo(
+    int petId,
+    GetStagingPetInfoServer? server, {
+    Authenticator? auth,
+  }) async {
+    final result = await getStagingPetInfoWithHTTPInfo(
+      petId,
+      server,
+      auth: auth,
+    );
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1094,8 +1320,10 @@ class PetApi extends BaseApi {
 
   /// Performs the getStagingPetInfo operation and returns the full API result.
   Future<ApiResult<Pet>> getStagingPetInfoWithHTTPInfo(
-      int petId, GetStagingPetInfoServer? server,
-      {Authenticator? auth}) async {
+    int petId,
+    GetStagingPetInfoServer? server, {
+    Authenticator? auth,
+  }) async {
     var path = '/pet/{petId}/staging';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -1103,9 +1331,17 @@ class PetApi extends BaseApi {
      * space became %2520, `a/b` became a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. */
     path = path.replaceAll(
-        '{' + 'petId' + '}',
-        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-            .toString());
+      '{' + 'petId' + '}',
+      serializeStyled(
+        'petId',
+        petId,
+        'path',
+        'int',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
     if (server != null) {
       final serverUrl = server.getUrl();
       if (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) {
@@ -1136,14 +1372,20 @@ class PetApi extends BaseApi {
   /// Set the pet's profile photo
   /// Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
 
-  Future<void> setPetAvatar(int petId, Uint8List body,
-      {Authenticator? auth}) async {
+  Future<void> setPetAvatar(
+    int petId,
+    Uint8List body, {
+    Authenticator? auth,
+  }) async {
     await setPetAvatarWithHTTPInfo(petId, body, auth: auth);
   }
 
   /// Performs the setPetAvatar operation and returns the full API result.
-  Future<ApiResult<void>> setPetAvatarWithHTTPInfo(int petId, Uint8List body,
-      {Authenticator? auth}) async {
+  Future<ApiResult<void>> setPetAvatarWithHTTPInfo(
+    int petId,
+    Uint8List body, {
+    Authenticator? auth,
+  }) async {
     var path = '/pet/{petId}/avatar';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -1151,9 +1393,17 @@ class PetApi extends BaseApi {
      * space became %2520, `a/b` became a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. */
     path = path.replaceAll(
-        '{' + 'petId' + '}',
-        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-            .toString());
+      '{' + 'petId' + '}',
+      serializeStyled(
+        'petId',
+        petId,
+        'path',
+        'int',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
 
     final queryParams = <String, Object?>{};
 
@@ -1178,16 +1428,23 @@ class PetApi extends BaseApi {
   /// Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
 
   Future<void> setPetAvatarThumbnail(
-      int petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
-      {Authenticator? auth}) async {
-    await setPetAvatarThumbnailWithHTTPInfo(petId, setPetAvatarThumbnailRequest,
-        auth: auth);
+    int petId,
+    SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest, {
+    Authenticator? auth,
+  }) async {
+    await setPetAvatarThumbnailWithHTTPInfo(
+      petId,
+      setPetAvatarThumbnailRequest,
+      auth: auth,
+    );
   }
 
   /// Performs the setPetAvatarThumbnail operation and returns the full API result.
   Future<ApiResult<void>> setPetAvatarThumbnailWithHTTPInfo(
-      int petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
-      {Authenticator? auth}) async {
+    int petId,
+    SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest, {
+    Authenticator? auth,
+  }) async {
     var path = '/pet/{petId}/avatar/thumbnail';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -1195,9 +1452,17 @@ class PetApi extends BaseApi {
      * space became %2520, `a/b` became a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. */
     path = path.replaceAll(
-        '{' + 'petId' + '}',
-        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-            .toString());
+      '{' + 'petId' + '}',
+      serializeStyled(
+        'petId',
+        petId,
+        'path',
+        'int',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
 
     final queryParams = <String, Object?>{};
 
@@ -1242,8 +1507,11 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the updatePet operation and returns the full API result.
-  Future<ApiResult<Pet>> updatePetWithHTTPInfo(int petId, Pet pet,
-      {Authenticator? auth}) async {
+  Future<ApiResult<Pet>> updatePetWithHTTPInfo(
+    int petId,
+    Pet pet, {
+    Authenticator? auth,
+  }) async {
     var path = '/pet/{petId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -1251,9 +1519,17 @@ class PetApi extends BaseApi {
      * space became %2520, `a/b` became a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. */
     path = path.replaceAll(
-        '{' + 'petId' + '}',
-        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-            .toString());
+      '{' + 'petId' + '}',
+      serializeStyled(
+        'petId',
+        petId,
+        'path',
+        'int',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
 
     final queryParams = <String, Object?>{};
 
@@ -1279,10 +1555,15 @@ class PetApi extends BaseApi {
   /// Attaches a single adoption certificate document. No metadata fields are required alongside the file.
 
   Future<ApiResponse> uploadPetCertificate(
-      int petId, UploadPetCertificateOptions options,
-      {Authenticator? auth}) async {
-    final result =
-        await uploadPetCertificateWithHTTPInfo(petId, options, auth: auth);
+    int petId,
+    UploadPetCertificateOptions options, {
+    Authenticator? auth,
+  }) async {
+    final result = await uploadPetCertificateWithHTTPInfo(
+      petId,
+      options,
+      auth: auth,
+    );
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1303,8 +1584,10 @@ class PetApi extends BaseApi {
 
   /// Performs the uploadPetCertificate operation and returns the full API result.
   Future<ApiResult<ApiResponse>> uploadPetCertificateWithHTTPInfo(
-      int petId, UploadPetCertificateOptions options,
-      {Authenticator? auth}) async {
+    int petId,
+    UploadPetCertificateOptions options, {
+    Authenticator? auth,
+  }) async {
     var path = '/pet/{petId}/certificate';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -1312,9 +1595,17 @@ class PetApi extends BaseApi {
      * space became %2520, `a/b` became a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. */
     path = path.replaceAll(
-        '{' + 'petId' + '}',
-        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-            .toString());
+      '{' + 'petId' + '}',
+      serializeStyled(
+        'petId',
+        petId,
+        'path',
+        'int',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
 
     final queryParams = <String, Object?>{};
 
@@ -1343,10 +1634,15 @@ class PetApi extends BaseApi {
   /// Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
 
   Future<ApiResponse> uploadPetDocument(
-      int petId, UploadPetDocumentOptions options,
-      {Authenticator? auth}) async {
-    final result =
-        await uploadPetDocumentWithHTTPInfo(petId, options, auth: auth);
+    int petId,
+    UploadPetDocumentOptions options, {
+    Authenticator? auth,
+  }) async {
+    final result = await uploadPetDocumentWithHTTPInfo(
+      petId,
+      options,
+      auth: auth,
+    );
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1367,8 +1663,10 @@ class PetApi extends BaseApi {
 
   /// Performs the uploadPetDocument operation and returns the full API result.
   Future<ApiResult<ApiResponse>> uploadPetDocumentWithHTTPInfo(
-      int petId, UploadPetDocumentOptions options,
-      {Authenticator? auth}) async {
+    int petId,
+    UploadPetDocumentOptions options, {
+    Authenticator? auth,
+  }) async {
     var path = '/pet/{petId}/documents';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -1376,9 +1674,17 @@ class PetApi extends BaseApi {
      * space became %2520, `a/b` became a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. */
     path = path.replaceAll(
-        '{' + 'petId' + '}',
-        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-            .toString());
+      '{' + 'petId' + '}',
+      serializeStyled(
+        'petId',
+        petId,
+        'path',
+        'int',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
 
     final queryParams = <String, Object?>{};
 

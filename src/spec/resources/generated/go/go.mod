@@ -4,9 +4,9 @@ module petstore
 go 1.25.0
 
 require (
-	github.com/andybalholm/brotli v1.1.1
+	github.com/andybalholm/brotli v1.2.1
 	github.com/google/uuid v1.6.0
-	github.com/klauspost/compress v1.17.4
+	github.com/klauspost/compress v1.18.6
 	github.com/testcontainers/testcontainers-go v0.37.0
 )
 

@@ -197,7 +197,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     @Override
     protected String[] getFormatterCommands() {
         return new String[] {
-            "go install golang.org/x/tools/cmd/goimports@v0.30.0",
+            "go install golang.org/x/tools/cmd/goimports@v0.45.0",
             "go mod tidy",
             "goimports -w ."
         };

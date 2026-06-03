@@ -68,19 +68,19 @@ int _jsonMaxDepth(String s) {
     if (inString) {
       if (escaped) {
         escaped = false;
-      } else if (c == 0x5C /* \ */) {
+      } else if (c == 0x5C /* \ */ ) {
         escaped = true;
-      } else if (c == 0x22 /* " */) {
+      } else if (c == 0x22 /* " */ ) {
         inString = false;
       }
       continue;
     }
     if (c == 0x22) {
       inString = true;
-    } else if (c == 0x7B /* { */ || c == 0x5B /* [ */) {
+    } else if (c == 0x7B /* { */ || c == 0x5B /* [ */ ) {
       depth++;
       if (depth > max) max = depth;
-    } else if (c == 0x7D /* } */ || c == 0x5D /* ] */) {
+    } else if (c == 0x7D /* } */ || c == 0x5D /* ] */ ) {
       if (depth > 0) depth--;
     }
   }
@@ -119,7 +119,8 @@ T? deserialize<T>(String data, T Function(Map<String, dynamic>) fromJson) {
       return fromJson(decoded);
     }
     throw SerializationError(
-        'Expected JSON object, got ${decoded.runtimeType}');
+      'Expected JSON object, got ${decoded.runtimeType}',
+    );
   } catch (e) {
     if (e is SerializationError) rethrow;
     throw SerializationError('Failed to deserialize JSON: $e', e);
@@ -129,7 +130,9 @@ T? deserialize<T>(String data, T Function(Map<String, dynamic>) fromJson) {
 /// Parses a JSON string into a list of values.
 /// Returns null if data is empty.
 List<T>? deserializeList<T>(
-    String data, T Function(Map<String, dynamic>) fromJson) {
+  String data,
+  T Function(Map<String, dynamic>) fromJson,
+) {
   data = _stripBom(data);
   if (data.isEmpty) {
     return null;
@@ -238,8 +241,10 @@ String toFormValue(Object? value) {
 /// null is a data-loss / type-confusion hazard — the wire shape did not match
 /// any declared variant and the caller must learn about it, matching the
 /// validate-each-variant-then-throw behaviour of the other SDKs.
-T resolveOneOf<T>(Map<String, dynamic> data,
-    List<T Function(Map<String, dynamic>)> fromJsonCandidates) {
+T resolveOneOf<T>(
+  Map<String, dynamic> data,
+  List<T Function(Map<String, dynamic>)> fromJsonCandidates,
+) {
   for (final fromJson in fromJsonCandidates) {
     try {
       return fromJson(data);
@@ -254,8 +259,10 @@ T resolveOneOf<T>(Map<String, dynamic> data,
 /// Each entry in [fromJsonCandidates] is a factory function that attempts to
 /// deserialize the given map. Returns the first successful result, or throws a
 /// [SerializationError] when no variant matches.
-T resolveAnyOf<T>(Map<String, dynamic> data,
-    List<T Function(Map<String, dynamic>)> fromJsonCandidates) {
+T resolveAnyOf<T>(
+  Map<String, dynamic> data,
+  List<T Function(Map<String, dynamic>)> fromJsonCandidates,
+) {
   return resolveOneOf(data, fromJsonCandidates);
 }
 

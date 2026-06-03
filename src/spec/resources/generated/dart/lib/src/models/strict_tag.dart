@@ -36,11 +36,13 @@ class StrictTag {
     for (final key in json.keys) {
       if (!_declaredKeys.contains(key)) {
         throw ArgumentError(
-            "Unknown property '$key' on StrictTag (unevaluatedProperties:false)");
+          "Unknown property '$key' on StrictTag (unevaluatedProperties:false)",
+        );
       }
     }
     return StrictTag(
       id: json['id'] as int?,
+
       name: json['name'] as String?,
     );
   }

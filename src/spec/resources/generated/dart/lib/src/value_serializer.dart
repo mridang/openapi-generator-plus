@@ -20,39 +20,54 @@ String encodePathSegment(String s) {
   final bytes = utf8.encode(s);
   final out = StringBuffer();
   for (final b in bytes) {
-    final isUnreserved = (b >= 0x41 && b <= 0x5A) // A-Z
+    final isUnreserved =
+        (b >= 0x41 && b <= 0x5A) // A-Z
         ||
         (b >= 0x61 && b <= 0x7A) // a-z
         ||
         (b >= 0x30 && b <= 0x39) // 0-9
         ||
-        b == 0x2D // -
-        ||
-        b == 0x2E // .
-        ||
-        b == 0x5F // _
-        ||
+        b ==
+            0x2D // -
+            ||
+        b ==
+            0x2E // .
+            ||
+        b ==
+            0x5F // _
+            ||
         b == 0x7E; // ~
-    final isSubDelim = b == 0x21 // !
-        ||
-        b == 0x24 // $
-        ||
-        b == 0x26 // &
-        ||
-        b == 0x27 // '
-        ||
-        b == 0x28 // (
-        ||
-        b == 0x29 // )
-        ||
-        b == 0x2A // *
-        ||
-        b == 0x2B // +
-        ||
-        b == 0x2C // ,
-        ||
-        b == 0x3B // ;
-        ||
+    final isSubDelim =
+        b ==
+            0x21 // !
+            ||
+        b ==
+            0x24 // $
+            ||
+        b ==
+            0x26 // &
+            ||
+        b ==
+            0x27 // '
+            ||
+        b ==
+            0x28 // (
+            ||
+        b ==
+            0x29 // )
+            ||
+        b ==
+            0x2A // *
+            ||
+        b ==
+            0x2B // +
+            ||
+        b ==
+            0x2C // ,
+            ||
+        b ==
+            0x3B // ;
+            ||
         b == 0x3D; // =
     final isPchar = b == 0x3A /* : */ || b == 0x40 /* @ */;
     if (isUnreserved || isSubDelim || isPchar) {
@@ -166,8 +181,8 @@ Object? serializeStyled(
   final scalarString = value == null
       ? ''
       : (location == 'path'
-          ? encodePathSegment(stringify(value))
-          : stringify(value));
+            ? encodePathSegment(stringify(value))
+            : stringify(value));
 
   switch (style) {
     case 'matrix':

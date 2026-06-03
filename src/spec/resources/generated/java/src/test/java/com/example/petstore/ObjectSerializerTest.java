@@ -528,10 +528,12 @@ class ObjectSerializerTest {
       com.example.petstore.models.Category category =
           assertDoesNotThrow(
               () ->
-                  serializer.deserialize(
-                      json,
-                      new com.fasterxml.jackson.core.type.TypeReference<
-                          com.example.petstore.models.Category>() {}));
+                  java.util.Objects.requireNonNull(
+                      serializer.deserialize(
+                          json,
+                          new com.fasterxml.jackson.core.type.TypeReference<
+                              com.example.petstore.models.Category>() {}),
+                      "deserialized category must not be null"));
       assertNotNull(category);
       assertEquals(42L, category.id);
       assertEquals("Dogs", category.name);

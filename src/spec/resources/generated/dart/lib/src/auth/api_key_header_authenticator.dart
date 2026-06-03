@@ -13,9 +13,9 @@ class ApiKeyHeaderAuthenticator extends ApiKeyAuthenticator {
     required String host,
     required String apiKey,
   }) : super(
-          host: host,
-          keyParamName: 'X-API-Key',
-          apiKey: apiKey,
-          location: ApiKeyLocation.header,
-        );
+         host: host,
+         keyParamName: 'X-API-Key',
+         apiKey: apiKey,
+         location: ApiKeyLocation.header,
+       );
 }

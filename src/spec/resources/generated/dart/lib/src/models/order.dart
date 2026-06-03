@@ -76,14 +76,19 @@ class Order {
   factory Order.fromJson(Map<String, dynamic> json) {
     return Order(
       id: json['id'] as int?,
+
       petId: json['petId'] as int?,
+
       quantity: json['quantity'] as int?,
+
       shipDate: json['shipDate'] != null
           ? DateTime.parse(json['shipDate'] as String)
           : null,
+
       status: json['status'] != null
           ? OrderStatusEnum.fromJson(json['status'] as String)
           : null,
+
       complete: json['complete'] as bool?,
     );
   }
@@ -101,10 +106,10 @@ class Order {
       json['quantity'] = quantity;
     }
     if (shipDate != null) {
-      json['shipDate'] = shipDate
-          ?.toUtc()
-          .toIso8601String()
-          .replaceFirst(RegExp(r'(\.\d+)?Z$'), '+00:00');
+      json['shipDate'] = shipDate?.toUtc().toIso8601String().replaceFirst(
+        RegExp(r'(\.\d+)?Z$'),
+        '+00:00',
+      );
     }
     if (status != null) {
       json['status'] = status?.toJson();

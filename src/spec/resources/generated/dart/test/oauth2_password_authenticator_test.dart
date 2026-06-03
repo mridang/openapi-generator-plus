@@ -18,8 +18,9 @@ class _FakeApiClient implements ApiClient {
   Map<String, String> lastHeaders = const {};
 
   void enqueue(String body, {int statusCode = 200}) {
-    _responses
-        .add(HttpApiResponse(statusCode: statusCode, body: body, headers: {}));
+    _responses.add(
+      HttpApiResponse(statusCode: statusCode, body: body, headers: {}),
+    );
   }
 
   @override
@@ -107,7 +108,8 @@ void main() {
     test('uses refresh token on subsequent calls', () async {
       final client = _FakeApiClient();
       client.enqueue(
-          '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}');
+        '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+      );
       client.enqueue('{"access_token":"tok2","expires_in":3600}');
 
       final auth = _createAuthenticator();

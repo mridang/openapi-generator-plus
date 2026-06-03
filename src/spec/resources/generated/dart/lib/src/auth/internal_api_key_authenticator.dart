@@ -13,9 +13,9 @@ class InternalApiKeyAuthenticator extends ApiKeyAuthenticator {
     required String host,
     required String apiKey,
   }) : super(
-          host: host,
-          keyParamName: 'X-Internal-Key',
-          apiKey: apiKey,
-          location: ApiKeyLocation.header,
-        );
+         host: host,
+         keyParamName: 'X-Internal-Key',
+         apiKey: apiKey,
+         location: ApiKeyLocation.header,
+       );
 }

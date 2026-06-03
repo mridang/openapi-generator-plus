@@ -147,8 +147,9 @@ void main() {
 
       final original = PetWithOwner.fromJson(json);
       final serialized = jsonEncode(original.toJson());
-      final restored =
-          PetWithOwner.fromJson(jsonDecode(serialized) as Map<String, dynamic>);
+      final restored = PetWithOwner.fromJson(
+        jsonDecode(serialized) as Map<String, dynamic>,
+      );
 
       expect(restored, isNotNull);
     });

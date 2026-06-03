@@ -103,8 +103,10 @@ void main() {
     test('builder methods return the same builder instance', () {
       final builder = TransportOptionsBuilder();
 
-      final result =
-          builder.verifySSL(true).userAgent('Test/1.0').timeout(10000);
+      final result = builder
+          .verifySSL(true)
+          .userAgent('Test/1.0')
+          .timeout(10000);
 
       expect(result, isNotNull);
 
@@ -128,9 +130,10 @@ void main() {
       final opts = TransportOptionsBuilder()
           .defaultHeader('X-First', 'one')
           .defaultHeaders({
-        'X-Second': 'two',
-        'X-Third': 'three',
-      }).build();
+            'X-Second': 'two',
+            'X-Third': 'three',
+          })
+          .build();
 
       expect(opts.defaultHeaders.length, equals(3));
       expect(opts.defaultHeaders['X-First'], equals('one'));
@@ -139,8 +142,9 @@ void main() {
     });
 
     test('modifying source map does not affect built options', () {
-      final opts =
-          TransportOptionsBuilder().defaultHeader('X-Test', 'value').build();
+      final opts = TransportOptionsBuilder()
+          .defaultHeader('X-Test', 'value')
+          .build();
 
       final headers = opts.defaultHeaders;
       headers['X-Mutated'] = 'should-not-affect-options';

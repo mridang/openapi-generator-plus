@@ -202,7 +202,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     /** {@inheritDoc} */
     @Override
     protected String getFormatterDockerImage() {
-        return "rust:1.86@sha256:300ec56abce8cc9448ddea2172747d048ed902a3090e6b57babb2bf19f754081";
+        return "rust:1.96@sha256:fb328f0f58becb23ba1719940a2c94ece8b0b48afa837d05b79ef64bc1e18f6e";
     }
 
     /** {@inheritDoc} */

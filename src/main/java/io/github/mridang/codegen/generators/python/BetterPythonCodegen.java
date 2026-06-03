@@ -195,7 +195,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     /** {@inheritDoc} */
     @Override
     protected String[] getFormatterCommands() {
-        return new String[] {"pip install --quiet ruff", "ruff format ."};
+        return new String[] {"pip install --quiet \"ruff>=0.15,<0.16\"", "ruff format ."};
     }
 
     /** {@inheritDoc} */

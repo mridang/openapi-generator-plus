@@ -34,10 +34,10 @@ class OAuth2ImplicitAuthenticator extends BaseAuthenticator
     required String clientId,
     required String authorizationUrl,
     List<String> scopes = const [],
-  })  : _host = host,
-        _clientId = clientId,
-        _authorizationUrl = authorizationUrl,
-        _scopes = scopes;
+  }) : _host = host,
+       _clientId = clientId,
+       _authorizationUrl = authorizationUrl,
+       _scopes = scopes;
 
   @override
   String host() => _host;
@@ -81,8 +81,10 @@ class OAuth2ImplicitAuthenticator extends BaseAuthenticator
       params['state'] = state;
     }
     final query = params.entries
-        .map((e) =>
-            '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+        .map(
+          (e) =>
+              '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}',
+        )
         .join('&');
     /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
      * a query component. Use '&' as the separator when one is already

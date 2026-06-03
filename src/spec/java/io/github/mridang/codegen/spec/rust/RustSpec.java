@@ -17,12 +17,12 @@ interface RustSpec extends LanguageSpec, DockerImageSpec {
 
     @Override
     default DockerImageName getRuntimeImage() {
-        return DockerImageName.parse("rust:1.88-slim");
+        return DockerImageName.parse("rust:1.96-slim");
     }
 
     @Override
     default String getDockerImage() {
-        return "rust:1.88-slim";
+        return "rust:1.96-slim";
     }
 
     @Override
@@ -46,7 +46,7 @@ interface RustSpec extends LanguageSpec, DockerImageSpec {
                         + " curl ca-certificates",
                 "rustup component add rustfmt clippy",
                 "mkdir -p $CARGO_HOME/bin && curl -LsSf"
-                        + " \"https://get.nexte.st/latest/$(case \"$(uname -m)\" in"
+                        + " \"https://get.nexte.st/0.9.137/$(case \"$(uname -m)\" in"
                         + " aarch64|arm64) echo linux-arm ;; *) echo linux ;; esac)\""
                         + " | tar zxf - -C $CARGO_HOME/bin",
                 "mkdir -p .config && printf '%s\\n%s\\n' '[profile.ci.junit]'"

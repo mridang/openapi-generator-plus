@@ -42,10 +42,10 @@ class BaseApi {
     ApiClient? apiClient,
     Configuration? config,
     Authenticator? authenticator,
-  })  : apiClient = apiClient ?? DefaultApiClient(),
-        config = config ?? Configuration.defaultConfiguration(),
-        _headerSelector = HeaderSelector(),
-        _authenticator = authenticator;
+  }) : apiClient = apiClient ?? DefaultApiClient(),
+       config = config ?? Configuration.defaultConfiguration(),
+       _headerSelector = HeaderSelector(),
+       _authenticator = authenticator;
 
   /// Dispatches an API request and returns the full result.
   Future<HttpApiResponse> invokeApi({
@@ -80,8 +80,11 @@ class BaseApi {
     }
 
     final isMultipart = contentType == 'multipart/form-data';
-    final headers =
-        _headerSelector.selectHeaders(accepts, contentType, isMultipart);
+    final headers = _headerSelector.selectHeaders(
+      accepts,
+      contentType,
+      isMultipart,
+    );
 
     headers.addAll(config.defaultHeaders);
 
@@ -99,16 +102,19 @@ class BaseApi {
            arrive as literal `%3D` and break JWT/session cookies.
            Validate and pass through raw instead. */
         final cookieNameRe = RegExp(r"^[A-Za-z0-9!#$%&'*+\-.^_`|~]+$");
-        final cookieValueRe =
-            RegExp(r'^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$');
+        final cookieValueRe = RegExp(
+          r'^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$',
+        );
         final cookieParts = cookies.entries.map((e) {
           if (!cookieNameRe.hasMatch(e.key)) {
             throw ArgumentError(
-                "Cookie name '${e.key}' contains characters forbidden by RFC 6265");
+              "Cookie name '${e.key}' contains characters forbidden by RFC 6265",
+            );
           }
           if (!cookieValueRe.hasMatch(e.value)) {
             throw ArgumentError(
-                "Cookie value for '${e.key}' contains characters forbidden by RFC 6265");
+              "Cookie value for '${e.key}' contains characters forbidden by RFC 6265",
+            );
           }
           return '${e.key}=${e.value}';
         }).toList();
@@ -177,7 +183,8 @@ class BaseApi {
 
     T? data;
     if (returnType.isNotEmpty && response.body.isNotEmpty) {
-      final responseContentType = response.headers.entries
+      final responseContentType =
+          response.headers.entries
               .where((e) => e.key.toLowerCase() == 'content-type')
               .map((e) => e.value)
               .firstOrNull ??
@@ -283,8 +290,10 @@ class BaseApi {
     if (contentType == 'application/x-www-form-urlencoded') {
       if (body is Map<String, String>) {
         final values = body.entries
-            .map((e) =>
-                '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+            .map(
+              (e) =>
+                  '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}',
+            )
             .join('&');
         return Uint8List.fromList(utf8.encode(values));
       }
@@ -299,7 +308,9 @@ class BaseApi {
   /// field), or any other value which is converted to its string
   /// representation.
   Uint8List _buildMultipartBody(
-      Map<String, Object?> formFields, String boundary) {
+    Map<String, Object?> formFields,
+    String boundary,
+  ) {
     final parts = <List<int>>[];
 
     for (final entry in formFields.entries) {
@@ -339,25 +350,33 @@ class BaseApi {
     final safeName = escapeMultipartFieldName(name);
     if (value is List<int>) {
       final mimeType = lookupMimeType(name) ?? 'application/octet-stream';
-      parts.add(utf8.encode(
-        '--$boundary\r\nContent-Disposition: form-data; name="$safeName"; filename="$safeName"\r\nContent-Type: $mimeType\r\n\r\n',
-      ));
+      parts.add(
+        utf8.encode(
+          '--$boundary\r\nContent-Disposition: form-data; name="$safeName"; filename="$safeName"\r\nContent-Type: $mimeType\r\n\r\n',
+        ),
+      );
       parts.add(value);
       parts.add(utf8.encode('\r\n'));
     } else if (value is String || value is num || value is bool) {
-      parts.add(utf8.encode(
-        '--$boundary\r\nContent-Disposition: form-data; name="$safeName"\r\n\r\n$value\r\n',
-      ));
+      parts.add(
+        utf8.encode(
+          '--$boundary\r\nContent-Disposition: form-data; name="$safeName"\r\n\r\n$value\r\n',
+        ),
+      );
     } else if (value is Map) {
       final json = jsonEncode(value);
-      parts.add(utf8.encode(
-        '--$boundary\r\nContent-Disposition: form-data; name="$safeName"\r\nContent-Type: application/json\r\n\r\n$json\r\n',
-      ));
+      parts.add(
+        utf8.encode(
+          '--$boundary\r\nContent-Disposition: form-data; name="$safeName"\r\nContent-Type: application/json\r\n\r\n$json\r\n',
+        ),
+      );
     } else if (value != null) {
       final serialized = serialize(value);
-      parts.add(utf8.encode(
-        '--$boundary\r\nContent-Disposition: form-data; name="$safeName"\r\nContent-Type: application/json\r\n\r\n$serialized\r\n',
-      ));
+      parts.add(
+        utf8.encode(
+          '--$boundary\r\nContent-Disposition: form-data; name="$safeName"\r\nContent-Type: application/json\r\n\r\n$serialized\r\n',
+        ),
+      );
     }
   }
 

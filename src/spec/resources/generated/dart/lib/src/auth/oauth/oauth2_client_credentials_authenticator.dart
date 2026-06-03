@@ -37,13 +37,13 @@ class OAuth2ClientCredentialsAuthenticator extends BaseAuthenticator
     required String tokenUrl,
     List<String> scopes = const [],
     ClientAuthMethod clientAuthMethod = ClientAuthMethod.body,
-  })  : _host = host,
-        _clientId = clientId,
-        _clientSecret = clientSecret,
-        _tokenUrl = tokenUrl,
-        _scopes = scopes,
-        _clientAuthMethod = clientAuthMethod,
-        _tokenManager = OAuth2TokenManager();
+  }) : _host = host,
+       _clientId = clientId,
+       _clientSecret = clientSecret,
+       _tokenUrl = tokenUrl,
+       _scopes = scopes,
+       _clientAuthMethod = clientAuthMethod,
+       _tokenManager = OAuth2TokenManager();
 
   @override
   String host() => _host;
@@ -73,8 +73,9 @@ class OAuth2ClientCredentialsAuthenticator extends BaseAuthenticator
        * separately before joining with ':' and base64-encoding. */
       final encodedId = Uri.encodeComponent(_clientId);
       final encodedSecret = Uri.encodeComponent(_clientSecret);
-      final credentials =
-          base64.encode(utf8.encode('$encodedId:$encodedSecret'));
+      final credentials = base64.encode(
+        utf8.encode('$encodedId:$encodedSecret'),
+      );
       extraHeaders['Authorization'] = 'Basic $credentials';
     } else {
       params['client_id'] = _clientId;
@@ -84,8 +85,11 @@ class OAuth2ClientCredentialsAuthenticator extends BaseAuthenticator
       params['scope'] = _scopes.join(' ');
     }
 
-    final token =
-        await _tokenManager.getAccessToken(_tokenUrl, params, extraHeaders);
+    final token = await _tokenManager.getAccessToken(
+      _tokenUrl,
+      params,
+      extraHeaders,
+    );
     return {'Authorization': 'Bearer $token'};
   }
 }

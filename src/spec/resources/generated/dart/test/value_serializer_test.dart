@@ -38,13 +38,27 @@ void main() {
     // (single-encoded) and never `%2520` (double-encoded), and `a/b` must
     // yield `a%2Fb` and never `a%252Fb`.
     test('serializeStyled simple path scalar is single-encoded', () {
-      final space =
-          serializeStyled('p', 'a b', 'path', 'string', '', 'simple', false);
+      final space = serializeStyled(
+        'p',
+        'a b',
+        'path',
+        'string',
+        '',
+        'simple',
+        false,
+      );
       expect(space, equals('a%20b'));
       expect(space, isNot(contains('%2520')));
 
-      final slash =
-          serializeStyled('p', 'a/b', 'path', 'string', '', 'simple', false);
+      final slash = serializeStyled(
+        'p',
+        'a/b',
+        'path',
+        'string',
+        '',
+        'simple',
+        false,
+      );
       expect(slash, equals('a%2Fb'));
       expect(slash, isNot(contains('%252F')));
     });
@@ -216,86 +230,177 @@ void main() {
     // SerializeStyled: matrix
 
     test('serializeStyled matrix scalar', () {
-      final result =
-          serializeStyled('id', '5', 'path', 'string', '', 'matrix', false);
+      final result = serializeStyled(
+        'id',
+        '5',
+        'path',
+        'string',
+        '',
+        'matrix',
+        false,
+      );
       expect(result, equals(';id=5'));
     });
 
     test('serializeStyled matrix array no explode', () {
-      final result = serializeStyled('color', ['red', 'green', 'blue'], 'path',
-          'array', '', 'matrix', false);
+      final result = serializeStyled(
+        'color',
+        ['red', 'green', 'blue'],
+        'path',
+        'array',
+        '',
+        'matrix',
+        false,
+      );
       expect(result, equals(';color=red,green,blue'));
     });
 
     test('serializeStyled matrix array explode', () {
-      final result = serializeStyled('color', ['red', 'green', 'blue'], 'path',
-          'array', '', 'matrix', true);
+      final result = serializeStyled(
+        'color',
+        ['red', 'green', 'blue'],
+        'path',
+        'array',
+        '',
+        'matrix',
+        true,
+      );
       expect(result, equals(';color=red;color=green;color=blue'));
     });
 
     test('serializeStyled matrix nil', () {
-      final result =
-          serializeStyled('id', null, 'path', 'string', '', 'matrix', false);
+      final result = serializeStyled(
+        'id',
+        null,
+        'path',
+        'string',
+        '',
+        'matrix',
+        false,
+      );
       expect(result, equals(''));
     });
 
     // SerializeStyled: label
 
     test('serializeStyled label scalar', () {
-      final result =
-          serializeStyled('id', '5', 'path', 'string', '', 'label', false);
+      final result = serializeStyled(
+        'id',
+        '5',
+        'path',
+        'string',
+        '',
+        'label',
+        false,
+      );
       expect(result, equals('.5'));
     });
 
     test('serializeStyled label array no explode', () {
       final result = serializeStyled(
-          'color', ['red', 'green'], 'path', 'array', '', 'label', false);
+        'color',
+        ['red', 'green'],
+        'path',
+        'array',
+        '',
+        'label',
+        false,
+      );
       expect(result, equals('.red,green'));
     });
 
     test('serializeStyled label array explode', () {
       final result = serializeStyled(
-          'color', ['red', 'green'], 'path', 'array', '', 'label', true);
+        'color',
+        ['red', 'green'],
+        'path',
+        'array',
+        '',
+        'label',
+        true,
+      );
       expect(result, equals('.red.green'));
     });
 
     test('serializeStyled label nil', () {
-      final result =
-          serializeStyled('color', null, 'path', 'string', '', 'label', true);
+      final result = serializeStyled(
+        'color',
+        null,
+        'path',
+        'string',
+        '',
+        'label',
+        true,
+      );
       expect(result, equals(''));
     });
 
     // SerializeStyled: simple
 
     test('serializeStyled simple scalar', () {
-      final result =
-          serializeStyled('id', '5', 'path', 'string', '', 'simple', false);
+      final result = serializeStyled(
+        'id',
+        '5',
+        'path',
+        'string',
+        '',
+        'simple',
+        false,
+      );
       expect(result, equals('5'));
     });
 
     test('serializeStyled simple array', () {
       final result = serializeStyled(
-          'color', ['red', 'green'], 'path', 'array', '', 'simple', false);
+        'color',
+        ['red', 'green'],
+        'path',
+        'array',
+        '',
+        'simple',
+        false,
+      );
       expect(result, equals('red,green'));
     });
 
     test('serializeStyled simple nil', () {
-      final result =
-          serializeStyled('id', null, 'path', 'string', '', 'simple', false);
+      final result = serializeStyled(
+        'id',
+        null,
+        'path',
+        'string',
+        '',
+        'simple',
+        false,
+      );
       expect(result, equals(''));
     });
 
     // SerializeStyled: form
 
     test('serializeStyled form scalar', () {
-      final result =
-          serializeStyled('color', 'blue', 'query', 'string', '', 'form', true);
+      final result = serializeStyled(
+        'color',
+        'blue',
+        'query',
+        'string',
+        '',
+        'form',
+        true,
+      );
       expect(result, equals('blue'));
     });
 
     test('serializeStyled form array explode', () {
       final result = serializeStyled(
-          'color', ['red', 'green'], 'query', 'array', '', 'form', true);
+        'color',
+        ['red', 'green'],
+        'query',
+        'array',
+        '',
+        'form',
+        true,
+      );
       expect(result, isA<List<String>>());
       final items = result as List<String>;
       expect(items, equals(['red', 'green']));
@@ -303,41 +408,83 @@ void main() {
 
     test('serializeStyled form array no explode', () {
       final result = serializeStyled(
-          'color', ['red', 'green'], 'query', 'array', '', 'form', false);
+        'color',
+        ['red', 'green'],
+        'query',
+        'array',
+        '',
+        'form',
+        false,
+      );
       expect(result, equals('red,green'));
     });
 
     test('serializeStyled form nil query', () {
-      final result =
-          serializeStyled('color', null, 'query', 'string', '', 'form', true);
+      final result = serializeStyled(
+        'color',
+        null,
+        'query',
+        'string',
+        '',
+        'form',
+        true,
+      );
       expect(result, isNull);
     });
 
     // SerializeStyled: spaceDelimited
 
     test('serializeStyled spaceDelimited array', () {
-      final result = serializeStyled('color', ['red', 'green', 'blue'], 'query',
-          'array', '', 'spaceDelimited', false);
+      final result = serializeStyled(
+        'color',
+        ['red', 'green', 'blue'],
+        'query',
+        'array',
+        '',
+        'spaceDelimited',
+        false,
+      );
       expect(result, equals('red green blue'));
     });
 
     test('serializeStyled spaceDelimited scalar', () {
       final result = serializeStyled(
-          'color', 'red', 'query', 'string', '', 'spaceDelimited', false);
+        'color',
+        'red',
+        'query',
+        'string',
+        '',
+        'spaceDelimited',
+        false,
+      );
       expect(result, equals('red'));
     });
 
     // SerializeStyled: pipeDelimited
 
     test('serializeStyled pipeDelimited array', () {
-      final result = serializeStyled('color', ['red', 'green', 'blue'], 'query',
-          'array', '', 'pipeDelimited', false);
+      final result = serializeStyled(
+        'color',
+        ['red', 'green', 'blue'],
+        'query',
+        'array',
+        '',
+        'pipeDelimited',
+        false,
+      );
       expect(result, equals('red|green|blue'));
     });
 
     test('serializeStyled pipeDelimited scalar', () {
       final result = serializeStyled(
-          'color', 'red', 'query', 'string', '', 'pipeDelimited', false);
+        'color',
+        'red',
+        'query',
+        'string',
+        '',
+        'pipeDelimited',
+        false,
+      );
       expect(result, equals('red'));
     });
 
@@ -362,21 +509,42 @@ void main() {
 
     test('serializeStyled unknown style fallback', () {
       final result = serializeStyled(
-          'id', '5', 'query', 'string', '', 'unknownStyle', false);
+        'id',
+        '5',
+        'query',
+        'string',
+        '',
+        'unknownStyle',
+        false,
+      );
       expect(result, equals('5'));
     });
 
     test('serializeStyled empty style', () {
-      final result =
-          serializeStyled('id', '5', 'query', 'string', '', '', false);
+      final result = serializeStyled(
+        'id',
+        '5',
+        'query',
+        'string',
+        '',
+        '',
+        false,
+      );
       expect(result, equals('5'));
     });
 
     // Regression tests
 
     test('serializeStyled form explode scalar returns single string', () {
-      final result =
-          serializeStyled('color', 'blue', 'query', 'string', '', 'form', true);
+      final result = serializeStyled(
+        'color',
+        'blue',
+        'query',
+        'string',
+        '',
+        'form',
+        true,
+      );
       expect(result, isA<String>());
       expect(result, equals('blue'));
     });
@@ -385,13 +553,27 @@ void main() {
       // Gap W1: simple-style path values must be percent-encoded so reserved
       // characters (space, '/', '?', '#') don't leak into the URL.
       final result = serializeStyled(
-          'name', 'hello world', 'path', 'string', '', 'simple', false);
+        'name',
+        'hello world',
+        'path',
+        'string',
+        '',
+        'simple',
+        false,
+      );
       expect(result, equals('hello%20world'));
     });
 
     test('serializeStyled form explode single-element array', () {
-      final result =
-          serializeStyled('color', ['red'], 'query', 'array', '', 'form', true);
+      final result = serializeStyled(
+        'color',
+        ['red'],
+        'query',
+        'array',
+        '',
+        'form',
+        true,
+      );
       expect(result, isA<List<String>>());
       final items = result as List<String>;
       expect(items, equals(['red']));
@@ -459,13 +641,27 @@ void main() {
 
       test('simple style encodes value', () {
         final result = serializeStyled(
-            'color', 'a b', 'path', 'string', '', 'simple', false);
+          'color',
+          'a b',
+          'path',
+          'string',
+          '',
+          'simple',
+          false,
+        );
         expect(result, equals('a%20b'));
       });
 
       test('simple style array encodes each item', () {
         final result = serializeStyled(
-            'color', ['a b', 'c?d'], 'path', 'array', '', 'simple', false);
+          'color',
+          ['a b', 'c?d'],
+          'path',
+          'array',
+          '',
+          'simple',
+          false,
+        );
         expect(result, equals('a%20b,c%3Fd'));
       });
 
@@ -475,33 +671,55 @@ void main() {
         // separator. Otherwise '/', '?', '#', space leak into the URL.
         final items = ['a/b', 'c'];
         expect(
-            serializeStyled(
-                'name', items, 'path', 'array', '', 'simple', false),
-            equals('a%2Fb,c'));
+          serializeStyled('name', items, 'path', 'array', '', 'simple', false),
+          equals('a%2Fb,c'),
+        );
         expect(
-            serializeStyled('name', items, 'path', 'array', '', 'label', true),
-            equals('.a%2Fb.c'));
+          serializeStyled('name', items, 'path', 'array', '', 'label', true),
+          equals('.a%2Fb.c'),
+        );
         expect(
-            serializeStyled(
-                'name', items, 'path', 'array', '', 'matrix', false),
-            equals(';name=a%2Fb,c'));
+          serializeStyled('name', items, 'path', 'array', '', 'matrix', false),
+          equals(';name=a%2Fb,c'),
+        );
       });
 
       test('matrix style encodes value', () {
         final result = serializeStyled(
-            'color', 'a b', 'path', 'string', '', 'matrix', false);
+          'color',
+          'a b',
+          'path',
+          'string',
+          '',
+          'matrix',
+          false,
+        );
         expect(result, equals(';color=a%20b'));
       });
 
       test('label style encodes value', () {
         final result = serializeStyled(
-            'color', 'a b', 'path', 'string', '', 'label', false);
+          'color',
+          'a b',
+          'path',
+          'string',
+          '',
+          'label',
+          false,
+        );
         expect(result, equals('.a%20b'));
       });
 
       test('query location is not path-encoded', () {
         final result = serializeStyled(
-            'color', 'a b', 'query', 'string', '', 'form', false);
+          'color',
+          'a b',
+          'query',
+          'string',
+          '',
+          'form',
+          false,
+        );
         expect(result, equals('a b'));
       });
     });
@@ -517,13 +735,23 @@ void main() {
     group('DateOnlyPathParam', () {
       test('serializeValue path date-only string preserves YYYY-MM-DD', () {
         final result = serializeValue('2024-01-15', 'path', 'string', '');
-        expect(result, equals('2024-01-15'),
-            reason: 'a format: date value must not gain a time/offset suffix');
+        expect(
+          result,
+          equals('2024-01-15'),
+          reason: 'a format: date value must not gain a time/offset suffix',
+        );
       });
 
       test('serializeStyled simple path date-only preserves YYYY-MM-DD', () {
         final result = serializeStyled(
-            'when', '2024-01-15', 'path', 'string', '', 'simple', false);
+          'when',
+          '2024-01-15',
+          'path',
+          'string',
+          '',
+          'simple',
+          false,
+        );
         expect(result, equals('2024-01-15'));
       });
 

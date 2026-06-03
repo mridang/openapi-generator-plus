@@ -11,8 +11,10 @@ import 'package:petstore_client/petstore_client.dart';
 void main() {
   group('Client', () {
     test('construct with authenticator only', () {
-      final authenticator =
-          BearerAuthenticator(host: '/api/v3', token: 'test-token');
+      final authenticator = BearerAuthenticator(
+        host: '/api/v3',
+        token: 'test-token',
+      );
 
       final client = Client(authenticator: authenticator);
 
@@ -20,77 +22,92 @@ void main() {
     });
 
     test('construct with authenticator and null transport options', () {
-      final authenticator =
-          BearerAuthenticator(host: '/api/v3', token: 'test-token');
+      final authenticator = BearerAuthenticator(
+        host: '/api/v3',
+        token: 'test-token',
+      );
 
-      final client =
-          Client(authenticator: authenticator, transportOptions: null);
+      final client = Client(
+        authenticator: authenticator,
+        transportOptions: null,
+      );
 
       expect(client, isNotNull);
     });
 
     test('construct with authenticator and transport options', () {
-      final authenticator =
-          BearerAuthenticator(host: '/api/v3', token: 'test-token');
+      final authenticator = BearerAuthenticator(
+        host: '/api/v3',
+        token: 'test-token',
+      );
       final transport = TransportOptionsBuilder().build();
 
-      final client =
-          Client(authenticator: authenticator, transportOptions: transport);
+      final client = Client(
+        authenticator: authenticator,
+        transportOptions: transport,
+      );
 
       expect(client, isNotNull);
     });
 
-    test('BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)',
-        () {
-      expect(
-        () =>
-            BearerAuthenticator(host: '/api/v3', token: 'tok\r\nInjected: yes'),
-        throwsArgumentError,
-      );
-      expect(
-        () => BearerAuthenticator(host: '/api/v3', token: 'ñoño'),
-        throwsArgumentError,
-      );
-    });
+    test(
+      'BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)',
+      () {
+        expect(
+          () => BearerAuthenticator(
+            host: '/api/v3',
+            token: 'tok\r\nInjected: yes',
+          ),
+          throwsArgumentError,
+        );
+        expect(
+          () => BearerAuthenticator(host: '/api/v3', token: 'ñoño'),
+          throwsArgumentError,
+        );
+      },
+    );
 
     test(
-        'ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)',
-        () {
-      // HEADER location must reject anything outside printable ASCII +
-      // TAB to prevent header injection (\r\n) and silent UTF-8
-      // mangling that varies per HTTP lib.
-      expect(
-        () => ApiKeyAuthenticator(
-          host: '/api/v3',
-          keyParamName: 'X-Api-Key',
-          apiKey: 'abc\r\nInjected: yes',
-          location: ApiKeyLocation.header,
-        ),
-        throwsArgumentError,
-      );
-      expect(
-        () => ApiKeyAuthenticator(
-          host: '/api/v3',
-          keyParamName: 'X-Api-Key',
-          apiKey: 'kéy',
-          location: ApiKeyLocation.header,
-        ),
-        throwsArgumentError,
-      );
+      'ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)',
+      () {
+        // HEADER location must reject anything outside printable ASCII +
+        // TAB to prevent header injection (\r\n) and silent UTF-8
+        // mangling that varies per HTTP lib.
+        expect(
+          () => ApiKeyAuthenticator(
+            host: '/api/v3',
+            keyParamName: 'X-Api-Key',
+            apiKey: 'abc\r\nInjected: yes',
+            location: ApiKeyLocation.header,
+          ),
+          throwsArgumentError,
+        );
+        expect(
+          () => ApiKeyAuthenticator(
+            host: '/api/v3',
+            keyParamName: 'X-Api-Key',
+            apiKey: 'kéy',
+            location: ApiKeyLocation.header,
+          ),
+          throwsArgumentError,
+        );
 
-      // Non-header locations accept arbitrary chars.
-      final queryAuth = ApiKeyAuthenticator(
-        host: '/api/v3',
-        keyParamName: 'api_key',
-        apiKey: 'kéy',
-        location: ApiKeyLocation.query,
-      );
-      expect(queryAuth.queryParams(), equals({'api_key': 'kéy'}));
-    });
+        // Non-header locations accept arbitrary chars.
+        final queryAuth = ApiKeyAuthenticator(
+          host: '/api/v3',
+          keyParamName: 'api_key',
+          apiKey: 'kéy',
+          location: ApiKeyLocation.query,
+        );
+        expect(queryAuth.queryParams(), equals({'api_key': 'kéy'}));
+      },
+    );
 
     test('API groups are accessible', () {
-      final authenticator =
-          BearerAuthenticator(host: '/api/v3', token: 'test-token');
+      final authenticator = BearerAuthenticator(
+        host: '/api/v3',
+        token: 'test-token',
+      );
 
       final client = Client(authenticator: authenticator);
 

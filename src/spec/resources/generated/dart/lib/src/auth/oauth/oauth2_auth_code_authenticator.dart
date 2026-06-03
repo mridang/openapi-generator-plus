@@ -47,15 +47,15 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
     required String redirectUri,
     List<String> scopes = const [],
     String refreshUrl = '',
-  })  : _host = host,
-        _clientId = clientId,
-        _clientSecret = clientSecret,
-        _authorizationUrl = authorizationUrl,
-        _tokenUrl = tokenUrl,
-        _refreshUrl = refreshUrl.isEmpty ? tokenUrl : refreshUrl,
-        _redirectUri = redirectUri,
-        _scopes = scopes,
-        _tokenManager = OAuth2TokenManager();
+  }) : _host = host,
+       _clientId = clientId,
+       _clientSecret = clientSecret,
+       _authorizationUrl = authorizationUrl,
+       _tokenUrl = tokenUrl,
+       _refreshUrl = refreshUrl.isEmpty ? tokenUrl : refreshUrl,
+       _redirectUri = redirectUri,
+       _scopes = scopes,
+       _tokenManager = OAuth2TokenManager();
 
   @override
   String host() => _host;
@@ -81,8 +81,10 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
       params['state'] = state;
     }
     final query = params.entries
-        .map((e) =>
-            '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+        .map(
+          (e) =>
+              '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}',
+        )
         .join('&');
     /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
      * a query component. Use '&' as the separator when one is already

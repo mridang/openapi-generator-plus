@@ -17,12 +17,13 @@ interface DartSpec extends LanguageSpec, DockerImageSpec {
 
   @Override
   default DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("dart:stable");
+    return DockerImageName.parse(
+        "dart:stable@sha256:6440c7d5fd8713b0706d0b6190eb2be7ad896101e225fc9d7657034b23ab0592");
   }
 
   @Override
   default String getDockerImage() {
-    return "dart:stable";
+    return "dart:stable@sha256:6440c7d5fd8713b0706d0b6190eb2be7ad896101e225fc9d7657034b23ab0592";
   }
 
   @Override

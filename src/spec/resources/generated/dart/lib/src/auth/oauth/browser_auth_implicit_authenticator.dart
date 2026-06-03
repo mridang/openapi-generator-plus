@@ -12,9 +12,9 @@ class BrowserAuthImplicitAuthenticator extends OAuth2ImplicitAuthenticator {
     required String host,
     required String clientId,
   }) : super(
-          host: host,
-          clientId: clientId,
-          authorizationUrl: 'https://auth.example.com/authorize',
-          scopes: ['read'],
-        );
+         host: host,
+         clientId: clientId,
+         authorizationUrl: 'https://auth.example.com/authorize',
+         scopes: ['read'],
+       );
 }

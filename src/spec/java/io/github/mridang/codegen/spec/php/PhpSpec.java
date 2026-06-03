@@ -17,12 +17,13 @@ interface PhpSpec extends LanguageSpec, DockerImageSpec {
 
   @Override
   default DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("composer:2");
+    return DockerImageName.parse(
+        "composer:2@sha256:1b73755de4f19775ba6087fd5313664493e06fab72b6fc27dc2044e87bb7c4c3");
   }
 
   @Override
   default String getDockerImage() {
-    return "php:8.5-cli";
+    return "php:8.5-cli@sha256:f7476cffd8d6c48daa07fd80a58b85f97da095ad5a03fcf3361fd872122e3d91";
   }
 
   @Override

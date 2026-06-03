@@ -30,10 +30,10 @@ class ApiKeyAuthenticator extends BaseAuthenticator {
     required String keyParamName,
     required String apiKey,
     required ApiKeyLocation location,
-  })  : _host = host,
-        _keyParamName = keyParamName,
-        _apiKey = apiKey,
-        _location = location {
+  }) : _host = host,
+       _keyParamName = keyParamName,
+       _apiKey = apiKey,
+       _location = location {
     /* Validation applies to ALL locations: empty/whitespace API keys
      * and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
      * printable-ASCII rule still applies to HEADER values. */

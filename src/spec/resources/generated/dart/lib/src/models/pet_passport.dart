@@ -57,6 +57,7 @@ class PetPassport {
       issuedAt: json['issuedAt'] != null
           ? DateTime.parse(json['issuedAt'] as String)
           : null,
+
       biometricChip: json['biometricChip'] as String?,
     );
   }
@@ -74,10 +75,10 @@ class PetPassport {
       json['scans'] = scans?.map((e) => base64Encode(e)).toList();
     }
     if (issuedAt != null) {
-      json['issuedAt'] = issuedAt
-          ?.toUtc()
-          .toIso8601String()
-          .replaceFirst(RegExp(r'(\.\d+)?Z$'), '+00:00');
+      json['issuedAt'] = issuedAt?.toUtc().toIso8601String().replaceFirst(
+        RegExp(r'(\.\d+)?Z$'),
+        '+00:00',
+      );
     }
     if (biometricChip != null) {
       json['biometricChip'] = biometricChip;

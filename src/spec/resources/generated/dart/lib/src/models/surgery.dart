@@ -29,6 +29,7 @@ class Surgery {
   factory Surgery.fromJson(Map<String, dynamic> json) {
     return Surgery(
       procedureName: json['procedureName'] as String,
+
       durationMinutes: json['durationMinutes'] as int?,
     );
   }

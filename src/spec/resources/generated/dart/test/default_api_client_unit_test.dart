@@ -25,8 +25,9 @@ void main() {
       });
 
       try {
-        final transport =
-            TransportOptionsBuilder().userAgent('TestAgent/1.0').build();
+        final transport = TransportOptionsBuilder()
+            .userAgent('TestAgent/1.0')
+            .build();
         final client = DefaultApiClient(transportOptions: transport);
 
         await client.sendRequest(
@@ -77,8 +78,9 @@ void main() {
       });
 
       try {
-        final transport =
-            TransportOptionsBuilder().injectRequestId(true).build();
+        final transport = TransportOptionsBuilder()
+            .injectRequestId(true)
+            .build();
         final client = DefaultApiClient(transportOptions: transport);
 
         await client.sendRequest(
@@ -105,8 +107,9 @@ void main() {
       });
 
       try {
-        final transport =
-            TransportOptionsBuilder().injectRequestId(false).build();
+        final transport = TransportOptionsBuilder()
+            .injectRequestId(false)
+            .build();
         final client = DefaultApiClient(transportOptions: transport);
 
         await client.sendRequest(
@@ -132,8 +135,9 @@ void main() {
       });
 
       try {
-        final transport =
-            TransportOptionsBuilder().injectRequestId(true).build();
+        final transport = TransportOptionsBuilder()
+            .injectRequestId(true)
+            .build();
         final client = DefaultApiClient(transportOptions: transport);
 
         await client.sendRequest(
@@ -215,8 +219,9 @@ void main() {
       });
 
       try {
-        final transport =
-            TransportOptionsBuilder().injectRequestId(true).build();
+        final transport = TransportOptionsBuilder()
+            .injectRequestId(true)
+            .build();
         final client = DefaultApiClient(transportOptions: transport);
 
         await client.sendRequest(
@@ -431,7 +436,8 @@ void main() {
         // shared Squid container is provisioned with basic auth.
         fail('unreachable: skipped');
       },
-      skip: 'requires Squid configured with basic-auth; bundled squid.conf '
+      skip:
+          'requires Squid configured with basic-auth; bundled squid.conf '
           'runs allow-all without htpasswd, so the userinfo in the proxy URL '
           'cannot be verified end-to-end.',
     );
@@ -515,46 +521,53 @@ void main() {
      * to the sensitive-header strip set, so a cross-origin redirect does
      * not leak `X-API-Key` (or any other spec-declared key) to the
      * redirect target. */
-    test('strips spec-declared API-key header on cross-origin redirect',
-        () async {
-      String? targetApiKey;
-      String? targetAuthorization;
-      final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      target.listen((request) {
-        targetApiKey = request.headers.value('x-api-key');
-        targetAuthorization = request.headers.value('authorization');
-        request.response
-          ..statusCode = 200
-          ..write('ok')
-          ..close();
-      });
+    test(
+      'strips spec-declared API-key header on cross-origin redirect',
+      () async {
+        String? targetApiKey;
+        String? targetAuthorization;
+        final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        target.listen((request) {
+          targetApiKey = request.headers.value('x-api-key');
+          targetAuthorization = request.headers.value('authorization');
+          request.response
+            ..statusCode = 200
+            ..write('ok')
+            ..close();
+        });
 
-      final source = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      source.listen((request) {
-        request.response
-          ..statusCode = 302
-          ..headers.set('Location', 'http://127.0.0.1:${target.port}/landed')
-          ..close();
-      });
+        final source = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        source.listen((request) {
+          request.response
+            ..statusCode = 302
+            ..headers.set('Location', 'http://127.0.0.1:${target.port}/landed')
+            ..close();
+        });
 
-      try {
-        final client = DefaultApiClient();
-        await client.sendRequest(
-          'GET',
-          'http://localhost:${source.port}/start',
-          {'X-API-Key': 'secret-key', 'Authorization': 'Bearer t'},
-          null,
-        );
-        expect(targetApiKey, isNull,
-            reason:
-                'spec-declared X-API-Key must not survive cross-origin hop');
-        expect(targetAuthorization, isNull,
-            reason: 'Authorization must not survive cross-origin hop');
-      } finally {
-        await source.close();
-        await target.close();
-      }
-    });
+        try {
+          final client = DefaultApiClient();
+          await client.sendRequest(
+            'GET',
+            'http://localhost:${source.port}/start',
+            {'X-API-Key': 'secret-key', 'Authorization': 'Bearer t'},
+            null,
+          );
+          expect(
+            targetApiKey,
+            isNull,
+            reason: 'spec-declared X-API-Key must not survive cross-origin hop',
+          );
+          expect(
+            targetAuthorization,
+            isNull,
+            reason: 'Authorization must not survive cross-origin hop',
+          );
+        } finally {
+          await source.close();
+          await target.close();
+        }
+      },
+    );
 
     /* Gap 3.2: when sendRequest is called with noRedirect:true the
      * client must surface the raw 3xx response instead of following the
@@ -587,8 +600,11 @@ void main() {
           noRedirect: true,
         );
         expect(resp.statusCode, equals(307));
-        expect(targetHits, equals(0),
-            reason: 'noRedirect must suppress the redirect follow');
+        expect(
+          targetHits,
+          equals(0),
+          reason: 'noRedirect must suppress the redirect follow',
+        );
       } finally {
         await source.close();
         await target.close();
@@ -647,9 +663,13 @@ void main() {
                 .having((e) => e.message, 'message', contains('downgrade')),
           ),
         );
-        expect(targetHits, equals(0),
-            reason: 'plain-HTTP target must not be contacted after '
-                'an HTTPS->HTTP downgrade with a body');
+        expect(
+          targetHits,
+          equals(0),
+          reason:
+              'plain-HTTP target must not be contacted after '
+              'an HTTPS->HTTP downgrade with a body',
+        );
         expect(targetBody, isEmpty);
       } finally {
         await source.close();
@@ -815,11 +835,13 @@ void main() {
         // Announce 100 bytes, send only a few, then kill the socket so
         // the body read fails mid-stream.
         final socket = await request.response.detachSocket();
-        socket.write('HTTP/1.1 200 OK\r\n'
-            'Content-Type: text/plain\r\n'
-            'Content-Length: 100\r\n'
-            '\r\n'
-            'short');
+        socket.write(
+          'HTTP/1.1 200 OK\r\n'
+          'Content-Type: text/plain\r\n'
+          'Content-Length: 100\r\n'
+          '\r\n'
+          'short',
+        );
         await socket.flush();
         await socket.close();
         socket.destroy();

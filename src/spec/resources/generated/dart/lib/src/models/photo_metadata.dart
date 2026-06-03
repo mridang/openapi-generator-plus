@@ -39,13 +39,17 @@ class PhotoMetadata {
   factory PhotoMetadata.fromJson(Map<String, dynamic> json) {
     return PhotoMetadata(
       caption: json['caption'] as String?,
+
       isPrimary: json['isPrimary'] as bool?,
+
       takenAt: json['takenAt'] != null
           ? DateTime.parse(json['takenAt'] as String)
           : null,
+
       location: json['location'] != null
           ? PhotoMetadataLocation.fromJson(
-              json['location'] as Map<String, dynamic>)
+              json['location'] as Map<String, dynamic>,
+            )
           : null,
     );
   }
@@ -60,10 +64,10 @@ class PhotoMetadata {
       json['isPrimary'] = isPrimary;
     }
     if (takenAt != null) {
-      json['takenAt'] = takenAt
-          ?.toUtc()
-          .toIso8601String()
-          .replaceFirst(RegExp(r'(\.\d+)?Z$'), '+00:00');
+      json['takenAt'] = takenAt?.toUtc().toIso8601String().replaceFirst(
+        RegExp(r'(\.\d+)?Z$'),
+        '+00:00',
+      );
     }
     if (location != null) {
       json['location'] = location?.toJson();

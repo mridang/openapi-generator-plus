@@ -37,7 +37,7 @@ class Iso8601DurationFormatException implements FormatException {
   final int? offset;
 
   const Iso8601DurationFormatException(this.message, [this.source])
-      : offset = null;
+    : offset = null;
 
   @override
   String toString() {
@@ -78,8 +78,10 @@ Duration parseIso8601Duration(String input) {
   if (match == null) {
     throw Iso8601DurationFormatException('not an ISO-8601 duration', input);
   }
-  final hasAnyComponent =
-      List<int>.generate(7, (i) => i + 2).any((g) => match.group(g) != null);
+  final hasAnyComponent = List<int>.generate(
+    7,
+    (i) => i + 2,
+  ).any((g) => match.group(g) != null);
   if (!hasAnyComponent) {
     throw Iso8601DurationFormatException(
       'duration has no components',
@@ -169,7 +171,10 @@ String formatIso8601Duration(Duration duration) {
     if (seconds != 0 || micros != 0) {
       buf.write(seconds);
       if (micros != 0) {
-        final frac = micros.toString().padLeft(6, '0').replaceFirst(
+        final frac = micros
+            .toString()
+            .padLeft(6, '0')
+            .replaceFirst(
               RegExp(r'0+$'),
               '',
             );

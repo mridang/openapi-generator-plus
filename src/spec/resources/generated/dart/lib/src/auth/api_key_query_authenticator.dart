@@ -13,9 +13,9 @@ class ApiKeyQueryAuthenticator extends ApiKeyAuthenticator {
     required String host,
     required String apiKey,
   }) : super(
-          host: host,
-          keyParamName: 'api_key',
-          apiKey: apiKey,
-          location: ApiKeyLocation.query,
-        );
+         host: host,
+         keyParamName: 'api_key',
+         apiKey: apiKey,
+         location: ApiKeyLocation.query,
+       );
 }

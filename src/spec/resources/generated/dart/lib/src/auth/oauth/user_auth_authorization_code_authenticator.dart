@@ -15,13 +15,13 @@ class UserAuthAuthorizationCodeAuthenticator
     required String clientSecret,
     required String redirectUri,
   }) : super(
-          host: host,
-          clientId: clientId,
-          clientSecret: clientSecret,
-          authorizationUrl: 'https://auth.example.com/authorize',
-          tokenUrl: 'https://auth.example.com/oauth/token',
-          redirectUri: redirectUri,
-          scopes: ['pets:write', 'pets:read'],
-          refreshUrl: 'https://auth.example.com/oauth/refresh',
-        );
+         host: host,
+         clientId: clientId,
+         clientSecret: clientSecret,
+         authorizationUrl: 'https://auth.example.com/authorize',
+         tokenUrl: 'https://auth.example.com/oauth/token',
+         redirectUri: redirectUri,
+         scopes: ['pets:write', 'pets:read'],
+         refreshUrl: 'https://auth.example.com/oauth/refresh',
+       );
 }

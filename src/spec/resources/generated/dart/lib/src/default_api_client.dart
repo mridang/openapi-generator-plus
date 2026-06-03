@@ -64,15 +64,19 @@ class DefaultApiClient implements ApiClient {
   /// from [TransportOptions] settings (TLS verification, CA certificates,
   /// proxy routing). Pass a custom [http.Client] to override this
   /// automatic configuration.
-  DefaultApiClient(
-      {TransportOptions? transportOptions, http.Client? httpClient})
-      : _transportOptions =
-            transportOptions ?? TransportOptionsBuilder().build(),
-        _httpClient = httpClient ??
-            _createHttpClient(
-                transportOptions ?? TransportOptionsBuilder().build()),
-        _proxyAuthHeader = _buildProxyAuthHeader(
-            (transportOptions ?? TransportOptionsBuilder().build()).proxy);
+  DefaultApiClient({
+    TransportOptions? transportOptions,
+    http.Client? httpClient,
+  }) : _transportOptions =
+           transportOptions ?? TransportOptionsBuilder().build(),
+       _httpClient =
+           httpClient ??
+           _createHttpClient(
+             transportOptions ?? TransportOptionsBuilder().build(),
+           ),
+       _proxyAuthHeader = _buildProxyAuthHeader(
+         (transportOptions ?? TransportOptionsBuilder().build()).proxy,
+       );
 
   /// Builds a `Basic <base64>` Proxy-Authorization value from the userinfo
   /// embedded in the proxy URL, or returns null when no credentials are
@@ -82,8 +86,9 @@ class DefaultApiClient implements ApiClient {
     if (proxy.userInfo.isEmpty) return null;
     final parts = proxy.userInfo.split(':');
     final user = Uri.decodeComponent(parts[0]);
-    final pass =
-        parts.length > 1 ? Uri.decodeComponent(parts.sublist(1).join(':')) : '';
+    final pass = parts.length > 1
+        ? Uri.decodeComponent(parts.sublist(1).join(':'))
+        : '';
     final encoded = base64Encode(utf8.encode('$user:$pass'));
     return 'Basic $encoded';
   }
@@ -243,11 +248,13 @@ class DefaultApiClient implements ApiClient {
     Uri currentUri = uri;
     Uint8List rawBytes;
     try {
-      final Future<http.StreamedResponse> pendingResponse =
-          _httpClient.send(request);
+      final Future<http.StreamedResponse> pendingResponse = _httpClient.send(
+        request,
+      );
       streamedResponse = _transportOptions.timeout != null
-          ? await pendingResponse
-              .timeout(Duration(milliseconds: _transportOptions.timeout!))
+          ? await pendingResponse.timeout(
+              Duration(milliseconds: _transportOptions.timeout!),
+            )
           : await pendingResponse;
       if (_transportOptions.followRedirects && !noRedirect) {
         final maxRedirects = _transportOptions.maxRedirects ?? 20;
@@ -293,12 +300,14 @@ class DefaultApiClient implements ApiClient {
            * credentials, PII, or signed payloads) over an unencrypted hop.
            * Raise a typed SDK error rather than silently returning the 3xx,
            * so the caller learns the request was not delivered (T-D2). */
-          final downgrade = uri.scheme.toLowerCase() == 'https' &&
+          final downgrade =
+              uri.scheme.toLowerCase() == 'https' &&
               nextUri.scheme.toLowerCase() == 'http';
           if (downgrade && currentBody != null) {
             throw ApiError(
               statusCode: 0,
-              message: 'Refusing to replay request body across HTTPS->HTTP '
+              message:
+                  'Refusing to replay request body across HTTPS->HTTP '
                   'downgrade redirect to: $nextUri',
             );
           }
@@ -355,8 +364,9 @@ class DefaultApiClient implements ApiClient {
           currentHeaders = redirectHeaders;
           final p = _httpClient.send(next);
           streamedResponse = _transportOptions.timeout != null
-              ? await p
-                  .timeout(Duration(milliseconds: _transportOptions.timeout!))
+              ? await p.timeout(
+                  Duration(milliseconds: _transportOptions.timeout!),
+                )
               : await p;
           hops++;
         }
@@ -454,23 +464,27 @@ class DefaultApiClient implements ApiClient {
       final contentType = parts.length == 2
           ? MediaType(parts[0], parts[1])
           : MediaType('application', 'octet-stream');
-      request.files.add(http.MultipartFile.fromBytes(
-        name,
-        value,
-        filename: name,
-        contentType: contentType,
-      ));
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          name,
+          value,
+          filename: name,
+          contentType: contentType,
+        ),
+      );
     } else if (value is String) {
       request.fields[name] = value;
     } else if (value is num || value is bool) {
       request.fields[name] = value.toString();
     } else {
       final json = jsonEncode(value);
-      request.files.add(http.MultipartFile.fromString(
-        name,
-        json,
-        contentType: MediaType('application', 'json'),
-      ));
+      request.files.add(
+        http.MultipartFile.fromString(
+          name,
+          json,
+          contentType: MediaType('application', 'json'),
+        ),
+      );
     }
   }
 
@@ -577,8 +591,10 @@ class DefaultApiClient implements ApiClient {
   /// or returns the empty string when absent.
   static String _charsetOf(String contentType) {
     if (contentType.isEmpty) return '';
-    final match = RegExp(r'charset=([^;]+)', caseSensitive: false)
-        .firstMatch(contentType);
+    final match = RegExp(
+      r'charset=([^;]+)',
+      caseSensitive: false,
+    ).firstMatch(contentType);
     return match?.group(1)?.trim().toLowerCase() ?? '';
   }
 
@@ -681,7 +697,8 @@ void validateMultipartFilename(String? filename) {
   for (final c in filename.codeUnits) {
     if (c == 0x0D || c == 0x0A || c == 0x00) {
       throw ArgumentError(
-          'multipart filename must not contain CR, LF, or NUL characters');
+        'multipart filename must not contain CR, LF, or NUL characters',
+      );
     }
   }
 }
@@ -697,7 +714,8 @@ void validateMultipartFieldName(String? name) {
   for (final c in name.codeUnits) {
     if (c == 0x0D || c == 0x0A || c == 0x00) {
       throw ArgumentError(
-          'multipart field name must not contain CR, LF, or NUL characters');
+        'multipart field name must not contain CR, LF, or NUL characters',
+      );
     }
   }
 }
@@ -728,8 +746,10 @@ String buildFilenameDirective(String filename) {
       fallbackBuf.writeCharCode(c);
     }
   }
-  final fallbackEscaped =
-      fallbackBuf.toString().replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+  final fallbackEscaped = fallbackBuf
+      .toString()
+      .replaceAll('\\', '\\\\')
+      .replaceAll('"', '\\"');
   final encoded = rfc5987EncodeValue(filename);
   return 'filename="$fallbackEscaped"; filename*=UTF-8\'\'$encoded';
 }
@@ -741,7 +761,8 @@ String rfc5987EncodeValue(String s) {
   final bytes = utf8.encode(s);
   final out = StringBuffer();
   for (final b in bytes) {
-    final isUnreserved = (b >= 0x41 && b <= 0x5A) ||
+    final isUnreserved =
+        (b >= 0x41 && b <= 0x5A) ||
         (b >= 0x61 && b <= 0x7A) ||
         (b >= 0x30 && b <= 0x39) ||
         b == 0x2D ||

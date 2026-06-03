@@ -44,9 +44,9 @@ class ApiError implements Exception {
 
   @override
   String toString() {
-    final buf = StringBuffer(message.isEmpty
-        ? 'Error message: the server returns an error'
-        : message);
+    final buf = StringBuffer(
+      message.isEmpty ? 'Error message: the server returns an error' : message,
+    );
     if (statusCode != 0) {
       buf.write('\nHTTP status code: $statusCode');
     }

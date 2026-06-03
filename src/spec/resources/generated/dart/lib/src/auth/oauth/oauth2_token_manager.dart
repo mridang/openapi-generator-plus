@@ -53,8 +53,9 @@ class OAuth2TokenManager {
   ]) async {
     if (_accessToken.isNotEmpty &&
         (_tokenExpiry == null ||
-            DateTime.now()
-                .isBefore(_tokenExpiry!.subtract(_expirySafetyMargin)))) {
+            DateTime.now().isBefore(
+              _tokenExpiry!.subtract(_expirySafetyMargin),
+            ))) {
       return _accessToken;
     }
 
@@ -134,8 +135,10 @@ class OAuth2TokenManager {
     }
 
     final body = params.entries
-        .map((e) =>
-            '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+        .map(
+          (e) =>
+              '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}',
+        )
         .join('&');
 
     final bodyBytes = Uint8List.fromList(utf8.encode(body));
@@ -200,8 +203,9 @@ class OAuth2TokenManager {
       final expiresIn = _parseExpiresIn(parsed['expires_in']);
       if (expiresIn > 0) {
         final bufferSecs = expiresIn < 30 ? expiresIn : 30;
-        _tokenExpiry =
-            DateTime.now().add(Duration(seconds: expiresIn - bufferSecs));
+        _tokenExpiry = DateTime.now().add(
+          Duration(seconds: expiresIn - bufferSecs),
+        );
       } else {
         _tokenExpiry = DateTime.now();
       }

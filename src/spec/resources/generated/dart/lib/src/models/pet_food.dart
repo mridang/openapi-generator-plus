@@ -50,7 +50,8 @@ class PetFood {
            callers can distinguish wire-shape failures from generic
            argument errors. */
         throw SerializationError(
-            'Unknown discriminator value for PetFood: $disc');
+          'Unknown discriminator value for PetFood: $disc',
+        );
     }
   }
 }

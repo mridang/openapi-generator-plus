@@ -48,6 +48,7 @@ class PetTreatment {
        matched the wire shape — surface a SerializationError rather than
        a silently-empty union. */
     throw SerializationError(
-        'Data does not match any anyOf schemas for PetTreatment');
+      'Data does not match any anyOf schemas for PetTreatment',
+    );
   }
 }
