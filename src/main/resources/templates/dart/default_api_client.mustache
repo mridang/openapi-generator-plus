@@ -45,6 +45,12 @@ class DefaultApiClient implements ApiClient {
    * on every outbound request below, matching the Java/C# SDKs. */
   final String? _proxyAuthHeader;
 
+  /* Cross-cutting `close-lifecycle-three-way`: track a closed flag so that
+   * a request issued after [close] surfaces a uniform SDK error (ApiError)
+   * instead of leaking the underlying `http` package's "Client is already
+   * closed" ClientException. */
+  bool _closed = false;
+
   /// Creates a client with the given transport settings.
   ///
   /// If [transportOptions] is null, default transport settings are used.
@@ -136,6 +142,12 @@ class DefaultApiClient implements ApiClient {
     Object? body, {
     bool noRedirect = false,
   }) async {
+    if (_closed) {
+      throw ApiError(
+        statusCode: 0,
+        message: 'Cannot send request: the API client has been closed',
+      );
+    }
     final merged = <String, String>{};
 
     merged.addAll(_transportOptions.defaultHeaders);
@@ -218,6 +230,7 @@ class DefaultApiClient implements ApiClient {
 
     http.StreamedResponse streamedResponse;
     Uri currentUri = uri;
+    Uint8List rawBytes;
     try {
       final Future<http.StreamedResponse> pendingResponse = _httpClient.send(request);
       streamedResponse = _transportOptions.timeout != null
@@ -251,16 +264,34 @@ class DefaultApiClient implements ApiClient {
           final location = streamedResponse.headers['location'];
           if (location == null || location.isEmpty) break;
           final nextUri = currentUri.resolve(location);
-          if (nextUri.scheme != 'http' && nextUri.scheme != 'https') break;
+          if (nextUri.scheme != 'http' && nextUri.scheme != 'https') {
+            /* Gap T-D3: a `Location:` pointing at a non-http(s) scheme
+             * (`file:`, `javascript:`, `data:`, ...) is a redirect-target
+             * smuggling vector. Refuse it loudly with a typed SDK error
+             * instead of silently returning the 3xx, matching the other
+             * SDKs that surface the offending URL. */
+            throw ApiError(
+              statusCode: 0,
+              message:
+                  'Refusing to follow redirect to non-http(s) URL: $nextUri',
+            );
+          }
           /* Gap 3.3: refuse to replay a request body across an HTTPS→HTTP
            * downgrade. A 307/308 from an HTTPS origin to plain HTTP would
            * otherwise re-emit the original request body (which may contain
            * credentials, PII, or signed payloads) over an unencrypted hop.
-           * Stop the redirect chain and surface the last response to the
-           * caller instead. */
+           * Raise a typed SDK error rather than silently returning the 3xx,
+           * so the caller learns the request was not delivered (T-D2). */
           final downgrade = uri.scheme.toLowerCase() == 'https'
               && nextUri.scheme.toLowerCase() == 'http';
-          if (downgrade && currentBody != null) break;
+          if (downgrade && currentBody != null) {
+            throw ApiError(
+              statusCode: 0,
+              message:
+                  'Refusing to replay request body across HTTPS->HTTP '
+                  'downgrade redirect to: $nextUri',
+            );
+          }
           final crossOrigin = !_sameOrigin(uri, nextUri);
 
           /* Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
@@ -318,7 +349,26 @@ class DefaultApiClient implements ApiClient {
               : await p;
           hops++;
         }
+        /* Gap T-D1: the redirect chain was followed up to `maxRedirects`
+         * hops but the final response is still a 3xx with a Location we
+         * could keep following. Surface this as a typed SDK error instead
+         * of silently returning the last 3xx as if it were the result. */
+        if (hops >= maxRedirects && _isRedirectStatus(streamedResponse.statusCode)) {
+          await streamedResponse.stream.drain<void>();
+          throw ApiError(
+            statusCode: 0,
+            message: 'Exceeded maximum number of redirects ($maxRedirects)',
+          );
+        }
       }
+      /* Cross-cutting `response-body-read-error-not-wrapped`: read the
+       * response body INSIDE the transport try/catch so a connection
+       * reset, read timeout, or truncated-chunked failure that occurs
+       * AFTER the response headers arrive is wrapped in the uniform
+       * ApiError (statusCode 0, underlying preserved) — the same error
+       * type a send-phase failure produces — instead of leaking the raw
+       * dart:io SocketException / TimeoutException to the caller. */
+      rawBytes = await streamedResponse.stream.toBytes();
     } on SocketException catch (e) {
       throw ApiError(statusCode: 0, message: e.message, underlyingError: e);
     } on HandshakeException catch (e) {
@@ -332,12 +382,11 @@ class DefaultApiClient implements ApiClient {
         underlyingError: e,
       );
     }
-    final rawBytes = await streamedResponse.stream.toBytes();
     final contentEncoding = (streamedResponse.headers['content-encoding'] ?? '').toLowerCase().trim();
     final responseBytes = _decompressBytes(rawBytes, contentEncoding);
     final contentType = streamedResponse.headers['content-type'] ?? '';
     final responseBody = _isTextContentType(contentType)
-        ? _encodingFor(contentType).decode(responseBytes)
+        ? _decodeText(responseBytes, contentType)
         : base64Encode(responseBytes);
 
     /* Gap BE+BF: response header keys are normalised to lowercase so callers
@@ -411,8 +460,11 @@ class DefaultApiClient implements ApiClient {
     }
   }
 
-  /// Closes the underlying HTTP client.
+  /// Closes the underlying HTTP client. After this call any further
+  /// [sendRequest] raises a typed [ApiError] rather than the underlying
+  /// `http` package's closed-client exception. Idempotent.
   void close() {
+    _closed = true;
     _httpClient.close();
   }
 
@@ -471,33 +523,98 @@ class DefaultApiClient implements ApiClient {
     return encodings.join(', ');
   }
 
-  /// Returns the [Encoding] indicated by a `charset=` parameter in
-  /// [contentType], defaulting to UTF-8 when absent or unrecognised.
+  /// Decodes response [bytes] into a string honouring the `charset=`
+  /// parameter in [contentType].
   ///
   /// Servers can declare non-UTF-8 response encodings (e.g.
-  /// `text/plain; charset=ISO-8859-1`); hard-coding UTF-8 would mangle
-  /// those bytes. Unknown charsets fall back to UTF-8 rather than
-  /// throwing, so an unfamiliar server header cannot break decoding.
-  static Encoding _encodingFor(String contentType) {
-    if (contentType.isEmpty) return utf8;
-    final match =
-        RegExp(r'charset=([^;]+)', caseSensitive: false).firstMatch(contentType);
-    final cs = match?.group(1)?.trim().toLowerCase();
-    if (cs == null || cs.isEmpty) return utf8;
+  /// `text/plain; charset=ISO-8859-1` or `charset=utf-16`); hard-coding
+  /// UTF-8 would mangle those bytes or, for UTF-16, throw a FormatException.
+  /// Dart's core library has no built-in UTF-16 codec, so UTF-16 is decoded
+  /// via a BOM-aware, surrogate-pair-aware routine ([_decodeUtf16]) to reach
+  /// parity with the other 11 SDKs. Unknown charsets and malformed UTF-8 fall
+  /// back to a lenient UTF-8 decode (`allowMalformed: true`) so an unfamiliar
+  /// or mismatched server header can never break decoding — matching the
+  /// documented 'fall back, never throw' contract.
+  static String _decodeText(Uint8List bytes, String contentType) {
+    final cs = _charsetOf(contentType);
     switch (cs) {
       case 'iso-8859-1':
       case 'latin1':
       case 'latin-1':
-        return latin1;
+        return latin1.decode(bytes, allowInvalid: true);
       case 'us-ascii':
       case 'ascii':
-        return ascii;
+        return ascii.decode(bytes, allowInvalid: true);
+      case 'utf-16':
+        return _decodeUtf16(bytes, null);
+      case 'utf-16le':
+        return _decodeUtf16(bytes, Endian.little);
+      case 'utf-16be':
+        return _decodeUtf16(bytes, Endian.big);
       case 'utf-8':
       case 'utf8':
-        return utf8;
+      case '':
       default:
-        return utf8;
+        return utf8.decode(bytes, allowMalformed: true);
     }
+  }
+
+  /// Extracts and lowercases the `charset=` parameter from a Content-Type,
+  /// or returns the empty string when absent.
+  static String _charsetOf(String contentType) {
+    if (contentType.isEmpty) return '';
+    final match =
+        RegExp(r'charset=([^;]+)', caseSensitive: false).firstMatch(contentType);
+    return match?.group(1)?.trim().toLowerCase() ?? '';
+  }
+
+  /// Decodes UTF-16 [bytes] into a Dart string, mirroring Go's
+  /// `decodeUtf16`. When [endian] is null a leading byte-order mark
+  /// (FE FF / FF FE) selects the endianness, defaulting to big-endian per
+  /// the Unicode standard when no BOM is present. Surrogate pairs are
+  /// combined; an unpaired surrogate is emitted as U+FFFD so the decode can
+  /// never throw.
+  static String _decodeUtf16(Uint8List bytes, Endian? endian) {
+    var data = bytes;
+    var order = endian;
+    if (order == null) {
+      if (data.length >= 2 && data[0] == 0xFE && data[1] == 0xFF) {
+        order = Endian.big;
+        data = Uint8List.sublistView(data, 2);
+      } else if (data.length >= 2 && data[0] == 0xFF && data[1] == 0xFE) {
+        order = Endian.little;
+        data = Uint8List.sublistView(data, 2);
+      } else {
+        order = Endian.big;
+      }
+    }
+    final units = <int>[];
+    final usableLength = data.length - (data.length % 2);
+    for (var i = 0; i < usableLength; i += 2) {
+      final unit = order == Endian.big
+          ? (data[i] << 8) | data[i + 1]
+          : data[i] | (data[i + 1] << 8);
+      units.add(unit);
+    }
+    final codePoints = <int>[];
+    for (var i = 0; i < units.length; i++) {
+      final unit = units[i];
+      if (unit >= 0xD800 && unit <= 0xDBFF && i + 1 < units.length) {
+        final low = units[i + 1];
+        if (low >= 0xDC00 && low <= 0xDFFF) {
+          codePoints.add(
+              0x10000 + ((unit - 0xD800) << 10) + (low - 0xDC00));
+          i++;
+          continue;
+        }
+        codePoints.add(0xFFFD);
+      } else if (unit >= 0xD800 && unit <= 0xDFFF) {
+        codePoints.add(0xFFFD);
+      } else {
+        codePoints.add(unit);
+      }
+    }
+    return String.fromCharCodes(codePoints);
   }
 
   /// Determines whether the given content type represents text content

@@ -8,6 +8,7 @@ import 'base_api.dart';
 import '../configuration.dart';
 import '../object_serializer.dart';
 import '../value_serializer.dart';
+import '../errors/api_error.dart';
 {{#imports}}
 import '../models/{{filename}}.dart';
 {{/imports}}
@@ -97,7 +98,21 @@ class {{classname}} extends BaseApi {
   Future<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}> {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}, {{/vendorExtensions.op.signatureArgs}}{Authenticator? auth}) async {
 {{#returnType}}
     final result = await {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}, {{/vendorExtensions.op.signatureArgs}}auth: auth);
-    return result.data as {{{returnType}}};
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as {{{returnType}}}` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: 'Expected a response body for {{operationId}} but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
 {{/returnType}}
 {{^returnType}}
     await {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}, {{/vendorExtensions.op.signatureArgs}}auth: auth);
@@ -113,7 +128,12 @@ class {{classname}} extends BaseApi {
     path = path.replaceAll('{' + '{{{baseName}}}' + '}', _encodePathSegment(_stringifyDate({{paramName}})));
 {{/isDate}}
 {{^isDate}}
-    path = path.replaceAll('{' + '{{{baseName}}}' + '}', _encodePathSegment(serializeStyled('{{baseName}}', {{paramName}}, 'path', '{{{dataType}}}', '', '{{style}}', {{isExplode}}).toString()));
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so the
+     * outer _encodePathSegment wrapper was encoding a second time (a
+     * space became %2520, `a/b` became a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. */
+    path = path.replaceAll('{' + '{{{baseName}}}' + '}', serializeStyled('{{baseName}}', {{paramName}}, 'path', '{{{dataType}}}', '', '{{style}}', {{isExplode}}).toString());
 {{/isDate}}
 {{/pathParams}}
 {{#servers}}

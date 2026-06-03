@@ -80,6 +80,18 @@ void main() {
       expect(treatment.value, isA<Surgery>());
     });
 
+    test('PetTreatment no matching variant throws SerializationError', () {
+      // Cross-cutting `oneof-nondiscriminator-no-match-silent`: a body
+      // that matches none of the anyOf variants must surface a
+      // SerializationError, not a silently-empty union (data loss).
+      final json = <String, dynamic>{'completelyUnrelated': 'value'};
+
+      expect(
+        () => PetTreatment.fromJson(json),
+        throwsA(isA<SerializationError>()),
+      );
+    });
+
     test('PetTreatment serialize round trip', () {
       final json = <String, dynamic>{
         'drugName': 'Amoxicillin',

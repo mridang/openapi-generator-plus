@@ -662,7 +662,11 @@ class {{classname}} {
       return {{classname}}._({{{.}}}.fromJson(json));
     } catch (_) {}
 {{/oneOf}}
-    throw ArgumentError('Data does not match any oneOf schemas for {{classname}}');
+    /* Cross-cutting `oneof-nondiscriminator-no-match-silent`: no variant
+       matched the wire shape. Throw a SerializationError (the same family
+       as the discriminator no-match above) so the caller sees a wire-shape
+       failure instead of a silently-empty union. */
+    throw SerializationError('Data does not match any oneOf schemas for {{classname}}');
 {{/discriminator}}
   }
 }
@@ -706,7 +710,10 @@ class {{classname}} {
       return {{classname}}._({{{.}}}.fromJson(json));
     } catch (_) {}
 {{/anyOf}}
-    throw ArgumentError('Data does not match any anyOf schemas for {{classname}}');
+    /* Cross-cutting `oneof-nondiscriminator-no-match-silent`: no variant
+       matched the wire shape — surface a SerializationError rather than
+       a silently-empty union. */
+    throw SerializationError('Data does not match any anyOf schemas for {{classname}}');
   }
 }
 {{/-first}}

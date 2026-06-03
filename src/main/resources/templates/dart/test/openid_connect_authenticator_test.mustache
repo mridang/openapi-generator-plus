@@ -116,6 +116,36 @@ void main() {
       expect(headers['Authorization'], equals('Bearer oidc-tok'));
     });
 
+    // Cross-cutting `oauth-oidc-missing-endpoint-guard`: a discovery
+    // document missing authorization_endpoint or token_endpoint must fail
+    // loudly rather than building a delegate with empty endpoint URLs.
+    test('throws when discovery is missing authorization_endpoint', () async {
+      final client = _FakeApiClient();
+      client.enqueue('{"token_endpoint":"https://auth.example.com/token"}');
+
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await expectLater(
+        auth.buildAuthorizationUrl(),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('throws when discovery is missing token_endpoint', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+          '{"authorization_endpoint":"https://auth.example.com/authorize"}');
+
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await expectLater(
+        auth.buildAuthorizationUrl(),
+        throwsA(isA<StateError>()),
+      );
+    });
+
     test('throws when no ApiClient injected', () {
       final auth = _createAuthenticator();
 

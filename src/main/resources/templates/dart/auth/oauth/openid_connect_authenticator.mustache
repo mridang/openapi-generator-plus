@@ -114,6 +114,22 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
         discovery['authorization_endpoint'] as String? ?? '';
     final tokenEndpoint = discovery['token_endpoint'] as String? ?? '';
 
+    /* Cross-cutting `oauth-oidc-missing-endpoint-guard`: a discovery
+     * document missing `authorization_endpoint` or `token_endpoint` must
+     * fail loudly. Building a delegate with empty endpoint URLs would
+     * otherwise silently produce malformed authorization/token requests
+     * far from the real cause. */
+    if (authorizationEndpoint.isEmpty) {
+      throw StateError(
+        'OIDC discovery document is missing authorization_endpoint',
+      );
+    }
+    if (tokenEndpoint.isEmpty) {
+      throw StateError(
+        'OIDC discovery document is missing token_endpoint',
+      );
+    }
+
     _delegate = OAuth2AuthorizationCodeAuthenticator(
       host: _host,
       clientId: _clientId,

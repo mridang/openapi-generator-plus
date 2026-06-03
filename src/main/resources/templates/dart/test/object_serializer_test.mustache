@@ -555,6 +555,43 @@ void main() {
       expect(round.containsKey('unknownLeak'), isFalse,
           reason: 'unknown fields read by fromJson must NOT be re-emitted by toJson');
     });
+
+    // Cross-cutting `oneof-nondiscriminator-no-match-silent`: resolveOneOf
+    // returns the first matching variant, and throws a SerializationError
+    // (never returns null) when no variant matches.
+    test('resolveOneOf returns first matching variant', () {
+      final result = resolveOneOf<String>(
+        <String, dynamic>{'k': 'v'},
+        [
+          (j) => throw const SerializationError('first miss'),
+          (j) => 'matched',
+        ],
+      );
+      expect(result, equals('matched'));
+    });
+
+    test('resolveOneOf throws SerializationError when no variant matches', () {
+      expect(
+        () => resolveOneOf<String>(
+          <String, dynamic>{'k': 'v'},
+          [
+            (j) => throw const SerializationError('miss 1'),
+            (j) => throw const SerializationError('miss 2'),
+          ],
+        ),
+        throwsA(isA<SerializationError>()),
+      );
+    });
+
+    test('resolveAnyOf throws SerializationError when no variant matches', () {
+      expect(
+        () => resolveAnyOf<String>(
+          <String, dynamic>{'k': 'v'},
+          [(j) => throw const SerializationError('miss')],
+        ),
+        throwsA(isA<SerializationError>()),
+      );
+    });
   });
 }
 {{/generateTests}}
