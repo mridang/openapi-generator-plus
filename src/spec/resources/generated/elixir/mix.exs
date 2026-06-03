@@ -5,17 +5,11 @@ defmodule PetstoreClient.MixProject do
     [
       app: :petstore_client,
       version: "1.0.0",
-      elixir: "~> 1.18",
+      elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       package: package(),
       test_coverage: [tool: ExCoveralls],
-      preferred_cli_env: [
-        coveralls: :test,
-        "coveralls.detail": :test,
-        "coveralls.post": :test,
-        "coveralls.html": :test
-      ],
       dialyzer: [
         plt_add_apps: [:mix, :ex_unit],
         plt_core_path: "_build/#{Mix.env()}",
@@ -27,6 +21,19 @@ defmodule PetstoreClient.MixProject do
           :unknown,
           :unmatched_returns
         ]
+      ]
+    ]
+  end
+
+  # Mix 1.19 moved `:preferred_cli_env` out of `def project` and into the
+  # `def cli` callback; declaring it in `def project` is now a hard error.
+  def cli do
+    [
+      preferred_envs: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.post": :test,
+        "coveralls.html": :test
       ]
     ]
   end
@@ -61,7 +68,7 @@ defmodule PetstoreClient.MixProject do
       # On boot Mix auto-starts every runtime dep; `fs`'s OTP app callback
       # spawns an `inotifywait` port driver and logs `backend port not
       # found: :inotifywait` when the binary isn't installed (the stock
-      # `elixir:1.18` Docker image doesn't ship `inotify-tools`).
+      # `elixir:1.19` Docker image doesn't ship `inotify-tools`).
       # `runtime: false` keeps the dep compiled (so `testcontainers`
       # links cleanly) but skips the OTP start — no inotifywait, no
       # warning, no apt-install. `override: true` is required because

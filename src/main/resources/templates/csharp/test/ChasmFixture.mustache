@@ -31,8 +31,7 @@ public class ChasmFixture : IAsyncLifetime
         _network = new NetworkBuilder().Build();
         await _network.CreateAsync();
 
-        _chasm = new ContainerBuilder()
-            .WithImage("mridang/chasm:1.3.0")
+        _chasm = new ContainerBuilder("mridang/chasm:1.3.0")
             .WithPortBinding(4010, true)
             .WithPortBinding(8443, true)
             .WithBindMount(specPath, "/tmp/openapi.yaml", AccessMode.ReadOnly)
@@ -45,8 +44,7 @@ public class ChasmFixture : IAsyncLifetime
             .Build();
         await _chasm.StartAsync();
 
-        _squid = new ContainerBuilder()
-            .WithImage("ubuntu/squid:5.2-22.04_beta")
+        _squid = new ContainerBuilder("ubuntu/squid:5.2-22.04_beta")
             .WithPortBinding(3128, true)
             .WithBindMount(squidConfPath, "/etc/squid/squid.conf", AccessMode.ReadOnly)
             .WithNetwork(_network)

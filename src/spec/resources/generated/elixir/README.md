@@ -4,7 +4,7 @@ Auto-generated Elixir SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
 ## Requirements
 
-- **Elixir** 1.18+
+- **Elixir** 1.19+
 - **Erlang/OTP** 27+
 - **mix** (ships with Elixir)
 

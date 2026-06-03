@@ -185,7 +185,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
     /** {@inheritDoc} */
     @Override
     protected String getFormatterDockerImage() {
-        return "elixir:1.17@sha256:76a0cfba28ad04cced9416e1171928c41831f5a15f607d4e9a82a4fded20aff3";
+        return "elixir:1.19@sha256:4c0f76111c8224e6cd2e3f2733a38dbac31c1609a79bce1d1242a1c4acffd4d9";
     }
 
     /** {@inheritDoc} */

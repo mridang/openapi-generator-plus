@@ -43,6 +43,10 @@ defmodule PetstoreClient.ComposedSchemaTest do
     # an Elixir exception module so generated discriminator code can
     # raise it.
     test "DeserializationError module is declared as an exception" do
+      # Elixir 1.19 loads modules lazily, so `function_exported?/3` reports
+      # `false` for a module that has not yet been loaded. Force the load
+      # before introspecting it.
+      Code.ensure_loaded(PetstoreClient.DeserializationError)
       assert function_exported?(PetstoreClient.DeserializationError, :exception, 1)
       err = PetstoreClient.DeserializationError.exception(message: "boom")
       assert err.message == "boom"

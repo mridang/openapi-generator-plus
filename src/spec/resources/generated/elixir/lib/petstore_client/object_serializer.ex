@@ -514,7 +514,7 @@ defmodule PetstoreClient.ObjectSerializer do
 
   # 4.8: format:duration — ISO-8601 PnYnMnDTnHnMnS decoded to stdlib
   # `Duration.t()` (Elixir 1.17+). Stdlib floor is enforced via mix.exs
-  # `elixir: "~> 1.18"`. Falls back to the raw payload on parse failure.
+  # `elixir: "~> 1.19"`. Falls back to the raw payload on parse failure.
   def convert_to_type(data, type) when type in ["Duration", "Duration.t()"] do
     case Duration.from_iso8601(to_string(data)) do
       {:ok, d} -> d
@@ -704,8 +704,20 @@ defmodule PetstoreClient.ObjectSerializer do
   end
 
   defp resolve_model_module(type_name) do
-    Module.concat([PetstoreClient, Models, type_name])
-  rescue
-    _ -> Module.concat([PetstoreClient, type_name])
+    module =
+      try do
+        Module.concat([PetstoreClient, Models, type_name])
+      rescue
+        _ -> Module.concat([PetstoreClient, type_name])
+      end
+
+    # Elixir 1.19 loads modules lazily: a freshly-referenced module atom is
+    # not in memory until something forces it, and `function_exported?/3`
+    # reports `false` for any not-yet-loaded module. The `convert_to_type/2`
+    # fallback introspects this module with `function_exported?/3` to pick the
+    # oneOf/anyOf/struct/enum branch, so it must be loaded first or every
+    # composed/struct type silently falls through to the raw-map branch.
+    Code.ensure_loaded(module)
+    module
   end
 end
