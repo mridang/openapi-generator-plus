@@ -25,7 +25,7 @@
         "slevomat/coding-standard": "^8.16",
         "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
         "rector/rector": "^2.4",
-        "testcontainers/testcontainers": "dev-main"
+        "testcontainers/testcontainers": "^1.0"
     },
     "config": {
         "allow-plugins": {

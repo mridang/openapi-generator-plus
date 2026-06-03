@@ -130,14 +130,13 @@ public class DefaultApiClientTest
 
         var client = new DefaultApiClient(transport);
 
-        await Assert.ThrowsAsync<ApiException>(
-            () =>
-                client.SendRequestAsync(
-                    "GET",
-                    new Uri(_fixture.BaseUrl + "/test/slow"),
-                    new Dictionary<string, string>(),
-                    null
-                )
+        await Assert.ThrowsAsync<ApiException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri(_fixture.BaseUrl + "/test/slow"),
+                new Dictionary<string, string>(),
+                null
+            )
         );
     }
 
@@ -389,14 +388,13 @@ public class DefaultApiClientTest
         {
             { "name\r\nInjected: yes", "string-value" },
         };
-        await Assert.ThrowsAnyAsync<Exception>(
-            async () =>
-                await client.SendRequestAsync(
-                    "POST",
-                    new Uri(_fixture.BaseUrl + "/test/echo"),
-                    new Dictionary<string, string>(),
-                    badFields
-                )
+        await Assert.ThrowsAnyAsync<Exception>(async () =>
+            await client.SendRequestAsync(
+                "POST",
+                new Uri(_fixture.BaseUrl + "/test/echo"),
+                new Dictionary<string, string>(),
+                badFields
+            )
         );
     }
 
@@ -456,7 +454,7 @@ public class DefaultApiClientTest
      * ByteArrayContent so HttpClient emits the header.
      */
     [Fact]
-    public async Task postWithNullBodySendsContentLengthZero()
+    public async Task post_with_null_body_sends_content_length_zero()
     {
         var client = new DefaultApiClient();
         var response = await client.SendRequestAsync(
@@ -481,7 +479,7 @@ public class DefaultApiClientTest
      * Set-Cookie response.
      */
     [Fact]
-    public async Task setCookieResponseNotReplayedOnNextRequest()
+    public async Task set_cookie_response_not_replayed_on_next_request()
     {
         var client = new DefaultApiClient();
 

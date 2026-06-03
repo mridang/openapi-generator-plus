@@ -7,6 +7,13 @@
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <OutputType>Exe</OutputType>
+    <!--
+      Relaxed for the test project only (the production SDK keeps every rule at
+      error): CA1707 because test methods use snake_case names deliberately for
+      readability, and CA1861 because the "hoist constant arrays to static
+      readonly" perf rule is noise in one-shot test setup code.
+    -->
+    <NoWarn>$(NoWarn);CA1707;CA1861</NoWarn>
     <CollectCoverage>false</CollectCoverage>
     <CoverletOutputFormat>cobertura</CoverletOutputFormat>
     <CoverletOutput>.out/</CoverletOutput>

@@ -22,14 +22,12 @@ namespace PetstoreClient.Models;
 public class Surgery(string procedureName) : IEquatable<Surgery>
 {
     /// <example>null</example>
-
     [JsonRequired]
     [JsonPropertyName("procedureName")]
     public string ProcedureName { get; set; } =
         procedureName ?? throw new ArgumentNullException(nameof(procedureName));
 
     /// <example>null</example>
-
     [JsonPropertyName("durationMinutes")]
     public int? DurationMinutes { get; set; }
 

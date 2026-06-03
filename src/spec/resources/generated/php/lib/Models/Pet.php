@@ -13,7 +13,10 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Models;
 
+use Ds\Set;
+use Ds\Vector;
 use Symfony\Component\Serializer\Attribute\SerializedName;
+use Uri\Rfc3986\Uri;
 
 /**
  * @see https://example.com/docs/pet Learn more about the Pet model
@@ -37,15 +40,15 @@ class Pet
 
     /** @example null */
     #[SerializedName('category')]
-    public ?\PetstoreClient\Models\Category $category = null;
+    public ?Category $category = null;
 
-    /** @var \Ds\Set<string> */
+    /** @var Set<string> */
     #[SerializedName('photoUrls')]
-    public \Ds\Set $photoUrls;
+    public Set $photoUrls;
 
-    /** @var \Ds\Vector<\PetstoreClient\Models\Tag>|null */
+    /** @var Vector<Tag>|null */
     #[SerializedName('tags')]
-    public ?\Ds\Vector $tags = null;
+    public ?Vector $tags = null;
 
     /**
      * pet status in the store
@@ -55,16 +58,16 @@ class Pet
     #[SerializedName('status')]
     public ?PetStatusEnum $status = null;
 
-    /** @var \Ds\Vector<mixed>|null */
+    /** @var Vector<mixed>|null */
     #[SerializedName('location')]
-    public ?\Ds\Vector $location = null;
+    public ?Vector $location = null;
 
     /**
      * Absolute URL to the pet's public profile page
      * @example https://example.com/pets/fido
      */
     #[SerializedName('homepageUrl')]
-    public ?\Uri\Rfc3986\Uri $homepageUrl = null;
+    public ?Uri $homepageUrl = null;
 
     /**
      * Optionally-relative thumbnail location
@@ -95,19 +98,19 @@ class Pet
     public ?float $weightKg = null;
 
     /**
-     * @param \Ds\Set<string> $photoUrls
-     * @param \Ds\Vector<\PetstoreClient\Models\Tag>|null $tags
-     * @param \Ds\Vector<mixed>|null $location
+     * @param Set<string> $photoUrls
+     * @param Vector<Tag>|null $tags
+     * @param Vector<mixed>|null $location
      */
     public function __construct(
         string $name,
-        \Ds\Set $photoUrls,
+        Set $photoUrls,
         ?int $id = null,
-        ?\PetstoreClient\Models\Category $category = null,
-        ?\Ds\Vector $tags = null,
+        ?Category $category = null,
+        ?Vector $tags = null,
         ?PetStatusEnum $status = null,
-        ?\Ds\Vector $location = null,
-        ?\Uri\Rfc3986\Uri $homepageUrl = null,
+        ?Vector $location = null,
+        ?Uri $homepageUrl = null,
         ?string $thumbnailRef = null,
         ?string $linkTemplate = null,
         ?string $ownerEmail = null,

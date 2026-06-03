@@ -175,7 +175,11 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
     /** {@inheritDoc} */
     @Override
     protected String getFormatterDockerImage() {
-        return "swift:6.0@sha256:cf429de05c3e84a230a75e68eaa7bf7d1367ef9dde0a1278fb2a3d53d1881040";
+        // swift:6.2 (matches the build/lint specs). 6.0's swift-format cannot
+        // parse the Swift 6.1+ trailing-comma syntax the templates emit, so it
+        // errored and — under the old `|| true` — silently left Swift sources
+        // unformatted. 6.2 parses and formats them deterministically.
+        return "swift:6.2@sha256:4e50a9e711e8682a8c42bacfeed204568adfd6985a63b3789a165f28d296a28a";
     }
 
     /**
@@ -190,7 +194,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         return new String[] {
             "apt-get update -qq && apt-get install -qq -y git > /dev/null 2>&1",
             "git init -q .",
-            "swift format --in-place --recursive Sources/ Tests/ || true",
+            "swift format --in-place --recursive Sources/ Tests/",
             "rm -rf .git"
         };
     }

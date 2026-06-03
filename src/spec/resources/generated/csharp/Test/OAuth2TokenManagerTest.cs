@@ -160,12 +160,11 @@ public class OAuth2TokenManagerTest
     {
         var manager = new OAuth2TokenManager();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () =>
-                manager.GetAccessTokenAsync(
-                    new Uri("https://auth.example.com/token"),
-                    new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
-                )
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            manager.GetAccessTokenAsync(
+                new Uri("https://auth.example.com/token"),
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+            )
         );
     }
 
@@ -391,12 +390,11 @@ public class OAuth2TokenManagerTest
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);
 
-        await Assert.ThrowsAsync<OAuth2ServerError>(
-            () =>
-                manager.GetAccessTokenAsync(
-                    new Uri("https://auth.example.com/token"),
-                    new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
-                )
+        await Assert.ThrowsAsync<OAuth2ServerError>(() =>
+            manager.GetAccessTokenAsync(
+                new Uri("https://auth.example.com/token"),
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+            )
         );
     }
 
@@ -430,12 +428,11 @@ public class OAuth2TokenManagerTest
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);
 
-        var ex = await Assert.ThrowsAsync<OAuth2ServerError>(
-            () =>
-                manager.GetAccessTokenAsync(
-                    new Uri("https://auth.example.com/token"),
-                    new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
-                )
+        var ex = await Assert.ThrowsAsync<OAuth2ServerError>(() =>
+            manager.GetAccessTokenAsync(
+                new Uri("https://auth.example.com/token"),
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+            )
         );
         Assert.Equal(307, ex.StatusCode);
         Assert.Equal("redirect_refused", ex.Code);
@@ -450,12 +447,11 @@ public class OAuth2TokenManagerTest
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);
 
-        var ex = await Assert.ThrowsAsync<OAuth2ServerError>(
-            () =>
-                manager.GetAccessTokenAsync(
-                    new Uri("https://auth.example.com/token"),
-                    new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
-                )
+        var ex = await Assert.ThrowsAsync<OAuth2ServerError>(() =>
+            manager.GetAccessTokenAsync(
+                new Uri("https://auth.example.com/token"),
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+            )
         );
         Assert.Equal(308, ex.StatusCode);
         Assert.Equal("redirect_refused", ex.Code);

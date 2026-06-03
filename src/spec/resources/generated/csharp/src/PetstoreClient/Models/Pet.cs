@@ -36,29 +36,24 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     }
 
     /// <example>10</example>
-
     [JsonPropertyName("id")]
     public long? Id { get; set; }
 
     /// <example>doggie</example>
-
     [JsonRequired]
     [JsonPropertyName("name")]
     public string Name { get; set; } = name ?? throw new ArgumentNullException(nameof(name));
 
     /// <example>null</example>
-
     [JsonPropertyName("category")]
     public Category? Category { get; set; }
 
     /// <example>null</example>
-
     [JsonRequired]
     [JsonPropertyName("photoUrls")]
     public HashSet<string> PhotoUrls { get; set; } = photoUrls;
 
     /// <example>null</example>
-
     [JsonPropertyName("tags")]
     public List<Tag>? Tags { get; set; }
 
@@ -72,7 +67,6 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     public StatusEnum? Status { get; set; }
 
     /// <example>null</example>
-
     [JsonPropertyName("location")]
     public List<Object>? Location { get; set; }
 
@@ -80,7 +74,6 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     /// Absolute URL to the pet's public profile page
     /// </summary>
     /// <example>https://example.com/pets/fido</example>
-
     [JsonPropertyName("homepageUrl")]
     public Uri? HomepageUrl { get; set; }
 
@@ -88,7 +81,6 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     /// Optionally-relative thumbnail location
     /// </summary>
     /// <example>/assets/thumb-fido.png</example>
-
     [JsonPropertyName("thumbnailRef")]
     public string? ThumbnailRef { get; set; }
 
@@ -96,7 +88,6 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     /// RFC 6570 template for related-resource links
     /// </summary>
     /// <example>https://example.com/pets/{id}/photos{?size}</example>
-
     [JsonPropertyName("linkTemplate")]
     public string? LinkTemplate { get; set; }
 
@@ -104,7 +95,6 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     /// Contact email for the pet's owner
     /// </summary>
     /// <example>owner@example.com</example>
-
     [JsonPropertyName("ownerEmail")]
     public string? OwnerEmail { get; set; }
 
@@ -112,7 +102,6 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     /// Pet weight in kilograms (decimal precision)
     /// </summary>
     /// <example>12.345</example>
-
     [JsonPropertyName("weightKg")]
     public decimal? WeightKg { get; set; }
 

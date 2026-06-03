@@ -482,15 +482,15 @@ public abstract class BaseApi
         {
             bool ok =
                 c
-                    is (char)0x21
-                        or >= (char)0x23
-                        and <= (char)0x2B
-                        or >= (char)0x2D
-                        and <= (char)0x3A
-                        or >= (char)0x3C
-                        and <= (char)0x5B
-                        or >= (char)0x5D
-                        and <= (char)0x7E;
+                is (char)0x21
+                    or >= (char)0x23
+                    and <= (char)0x2B
+                    or >= (char)0x2D
+                    and <= (char)0x3A
+                    or >= (char)0x3C
+                    and <= (char)0x5B
+                    or >= (char)0x5D
+                    and <= (char)0x7E;
             if (!ok)
             {
                 return false;

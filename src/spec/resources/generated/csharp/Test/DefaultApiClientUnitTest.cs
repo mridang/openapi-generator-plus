@@ -470,17 +470,17 @@ public class DefaultApiClientUnitTest
     [Fact]
     public void MultipartFilenameCRLFRejected()
     {
-        Assert.Throws<ArgumentException>(
-            () => DefaultApiClient.ValidateMultipartFilename("a\rb.pdf")
+        Assert.Throws<ArgumentException>(() =>
+            DefaultApiClient.ValidateMultipartFilename("a\rb.pdf")
         );
-        Assert.Throws<ArgumentException>(
-            () => DefaultApiClient.ValidateMultipartFilename("a\nb.pdf")
+        Assert.Throws<ArgumentException>(() =>
+            DefaultApiClient.ValidateMultipartFilename("a\nb.pdf")
         );
-        Assert.Throws<ArgumentException>(
-            () => DefaultApiClient.ValidateMultipartFilename("a\r\nb.pdf")
+        Assert.Throws<ArgumentException>(() =>
+            DefaultApiClient.ValidateMultipartFilename("a\r\nb.pdf")
         );
-        Assert.Throws<ArgumentException>(
-            () => DefaultApiClient.ValidateMultipartFilename("a\0b.pdf")
+        Assert.Throws<ArgumentException>(() =>
+            DefaultApiClient.ValidateMultipartFilename("a\0b.pdf")
         );
         // ASCII filenames are accepted
         DefaultApiClient.ValidateMultipartFilename("pet.png");
@@ -664,14 +664,13 @@ public class DefaultApiClientUnitTest
         // POST with a body over HTTPS, redirected (307) to plain HTTP.
         // T-D2: the downgraded body-replay is refused as a typed SDK error
         // (not a silent return of the 307) so the caller can observe it.
-        var ex = await Assert.ThrowsAsync<ApiException>(
-            () =>
-                client.SendRequestAsync(
-                    "POST",
-                    new Uri("https://secure.example.com/start"),
-                    new Dictionary<string, string>(),
-                    "secret-payload"
-                )
+        var ex = await Assert.ThrowsAsync<ApiException>(() =>
+            client.SendRequestAsync(
+                "POST",
+                new Uri("https://secure.example.com/start"),
+                new Dictionary<string, string>(),
+                "secret-payload"
+            )
         );
 
         // Only the original encrypted request must have been made; the
@@ -690,14 +689,13 @@ public class DefaultApiClientUnitTest
             location: new Uri("file:///etc/passwd")
         );
         var client = new DefaultApiClient(new HttpClient(handler));
-        var ex = await Assert.ThrowsAsync<ApiException>(
-            () =>
-                client.SendRequestAsync(
-                    "GET",
-                    new Uri("http://origin.example.com/start"),
-                    new Dictionary<string, string>(),
-                    null
-                )
+        var ex = await Assert.ThrowsAsync<ApiException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("http://origin.example.com/start"),
+                new Dictionary<string, string>(),
+                null
+            )
         );
 
         // The blocked redirect must surface as an error, not a silent 3xx.
@@ -715,14 +713,13 @@ public class DefaultApiClientUnitTest
         var handler = new AlwaysRedirectHandler(new Uri("http://origin.example.com/next"));
         var transport = TransportOptions.Builder().MaxRedirects(3).Build();
         var client = new DefaultApiClient(new HttpClient(handler), transport);
-        var ex = await Assert.ThrowsAsync<ApiException>(
-            () =>
-                client.SendRequestAsync(
-                    "GET",
-                    new Uri("http://origin.example.com/start"),
-                    new Dictionary<string, string>(),
-                    null
-                )
+        var ex = await Assert.ThrowsAsync<ApiException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("http://origin.example.com/start"),
+                new Dictionary<string, string>(),
+                null
+            )
         );
 
         Assert.Contains("redirect", ex.Message, StringComparison.OrdinalIgnoreCase);
@@ -780,14 +777,13 @@ public class DefaultApiClientUnitTest
         // HttpClient — matching the send-phase error treatment so callers have
         // one error type for the whole transport phase.
         var client = new DefaultApiClient(new HttpClient(new FailingBodyHandler()));
-        var ex = await Assert.ThrowsAsync<ApiException>(
-            () =>
-                client.SendRequestAsync(
-                    "GET",
-                    new Uri("http://example.com/truncated"),
-                    new Dictionary<string, string>(),
-                    null
-                )
+        var ex = await Assert.ThrowsAsync<ApiException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("http://example.com/truncated"),
+                new Dictionary<string, string>(),
+                null
+            )
         );
 
         // The original transport error is preserved as the cause (either the
@@ -816,14 +812,13 @@ public class DefaultApiClientUnitTest
 
         // A request on a disposed client must surface a typed SDK error, not
         // the raw ObjectDisposedException leaked by HttpClient.
-        await Assert.ThrowsAsync<ApiException>(
-            () =>
-                client.SendRequestAsync(
-                    "GET",
-                    new Uri("http://example.com/echo"),
-                    new Dictionary<string, string>(),
-                    null
-                )
+        await Assert.ThrowsAsync<ApiException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("http://example.com/echo"),
+                new Dictionary<string, string>(),
+                null
+            )
         );
     }
 

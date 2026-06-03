@@ -22,12 +22,10 @@ namespace PetstoreClient.Models;
 public class DryFood(double weightKg) : PetFood, IEquatable<DryFood>
 {
     /// <example>null</example>
-
     [JsonPropertyName("foodType")]
     public string FoodType { get; set; } = "dry";
 
     /// <example>null</example>
-
     [JsonRequired]
     [JsonPropertyName("weightKg")]
     public double WeightKg { get; set; } = weightKg;

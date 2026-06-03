@@ -52,8 +52,8 @@ public class ClientTest : IDisposable
         // auth-validation-timing: the token is validated eagerly at
         // construction (matching the 10-SDK majority), so a malformed token
         // throws when the authenticator is created, not at first use.
-        Assert.Throws<ArgumentException>(
-            () => new BearerAuthenticator("/api/v3", "tok\r\nInjected: yes")
+        Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("/api/v3", "tok\r\nInjected: yes")
         );
         Assert.Throws<ArgumentException>(() => new BearerAuthenticator("/api/v3", "ñoño"));
     }
@@ -76,17 +76,16 @@ public class ClientTest : IDisposable
         // outside printable ASCII + TAB to prevent header injection
         // (\r\n) and silent UTF-8 mangling that varies per HTTP lib.
         // auth-validation-timing: validation runs eagerly at construction.
-        Assert.Throws<ArgumentException>(
-            () =>
-                new ApiKeyAuthenticator(
-                    "/api/v3",
-                    "X-Api-Key",
-                    "abc\r\nInjected: yes",
-                    ApiKeyLocation.Header
-                )
+        Assert.Throws<ArgumentException>(() =>
+            new ApiKeyAuthenticator(
+                "/api/v3",
+                "X-Api-Key",
+                "abc\r\nInjected: yes",
+                ApiKeyLocation.Header
+            )
         );
-        Assert.Throws<ArgumentException>(
-            () => new ApiKeyAuthenticator("/api/v3", "X-Api-Key", "kéy", ApiKeyLocation.Header)
+        Assert.Throws<ArgumentException>(() =>
+            new ApiKeyAuthenticator("/api/v3", "X-Api-Key", "kéy", ApiKeyLocation.Header)
         );
         // Non-header locations accept arbitrary (non-control) chars.
         Assert.NotNull(

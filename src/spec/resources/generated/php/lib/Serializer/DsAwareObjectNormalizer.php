@@ -13,16 +13,20 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Serializer;
 
+use Ds\Map;
+use Ds\Set;
+use Ds\Vector;
 use Symfony\Component\PropertyAccess\PropertyAccess;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 use Symfony\Component\PropertyInfo\PropertyTypeExtractorInterface;
 use Symfony\Component\Serializer\Mapping\Factory\ClassMetadataFactoryInterface;
 use Symfony\Component\Serializer\NameConverter\NameConverterInterface;
 use Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer;
+use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 
 /**
  * AbstractObjectNormalizer subclass that intercepts constructor
- * parameters typed as {@see \Ds\Vector} / {@see \Ds\Set} / {@see \Ds\Map}
+ * parameters typed as {@see Vector} / {@see Set} / {@see Map}
  * before Symfony's collection-iteration path can convert them into
  * plain PHP arrays and break the strict constructor type check.
  *
@@ -30,11 +34,11 @@ use Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer;
  * strict container type (e.g. `?\Ds\Vector $tags = null`) plus a PHPDoc
  * `@param \Ds\Vector<\Foo\Bar> $tags` generic that names the inner
  * element type. Symfony's stock dispatch reads that PHPDoc via
- * {@see \Symfony\Component\PropertyInfo\Extractor\PhpDocExtractor},
+ * {@see PhpDocExtractor},
  * marks the parameter as "collection of \Foo\Bar", and
- * {@see \Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer::validateAndDenormalize}
+ * {@see AbstractObjectNormalizer::validateAndDenormalize}
  * dispatches the inner array with class `'\Foo\Bar[]'`. The chain's
- * {@see \Symfony\Component\Serializer\Normalizer\ArrayDenormalizer}
+ * {@see ArrayDenormalizer}
  * matches that suffix, iterates, and returns a plain PHP array of
  * \Foo\Bar instances. The plain array reaches the constructor and
  * PHP's strict type check rejects it:
@@ -48,12 +52,12 @@ use Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer;
  * constructor's PHPDoc annotation, each JSON element is denormalized
  * through the parent Serializer chain (so model classes, dates, enums,
  * URIs all route to their dedicated normalizers), and the result is
- * wrapped in the matching {@see \Ds\Vector} / {@see \Ds\Set} /
- * {@see \Ds\Map} container.
+ * wrapped in the matching {@see Vector} / {@see Set} /
+ * {@see Map} container.
  *
  * The three abstract methods inherited from AbstractObjectNormalizer
  * are implemented against {@see \Symfony\Component\PropertyAccess},
- * matching the stock {@see \Symfony\Component\Serializer\Normalizer\ObjectNormalizer}'s
+ * matching the stock {@see ObjectNormalizer}'s
  * behaviour but without inheriting its `final` modifier — Symfony 7
  * sealed ObjectNormalizer, so this subclass extends AbstractObjectNormalizer
  * directly.
@@ -64,9 +68,9 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
      * @var list<class-string>
      */
     private const DS_CONTAINER_CLASSES = [
-        \Ds\Vector::class,
-        \Ds\Set::class,
-        \Ds\Map::class,
+        Vector::class,
+        Set::class,
+        Map::class,
     ];
 
     private PropertyAccessorInterface $propertyAccessor;
@@ -166,7 +170,7 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
                     return null;
                 }
                 if (!is_array($parameterData)) {
-                    /** @var \Ds\Vector|\Ds\Set|\Ds\Map */
+                    /** @var Vector|Set|Map */
                     return new $className([$parameterData]);
                 }
 
@@ -184,7 +188,7 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
                          * upstream so the bug stays visible rather than turning
                          * into a NullPointerException at runtime. */
                         $serializer = $this->serializer;
-                        if (!$serializer instanceof \Symfony\Component\Serializer\Normalizer\DenormalizerInterface) {
+                        if (!$serializer instanceof DenormalizerInterface) {
                             throw new \LogicException(
                                 'DsAwareObjectNormalizer dispatched before the Symfony Serializer chain initialised it.',
                             );
@@ -195,7 +199,7 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
                     }
                 }
 
-                /** @var \Ds\Vector|\Ds\Set|\Ds\Map */
+                /** @var Vector|Set|Map */
                 return new $className($items);
             }
         }

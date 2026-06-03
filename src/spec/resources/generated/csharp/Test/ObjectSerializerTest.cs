@@ -390,24 +390,24 @@ public class ObjectSerializerTest
         [Fact]
         public void TruncatedJsonThrowsJsonException()
         {
-            Assert.Throws<System.Text.Json.JsonException>(
-                () => _serializer.Deserialize<Category>("{")
+            Assert.Throws<System.Text.Json.JsonException>(() =>
+                _serializer.Deserialize<Category>("{")
             );
         }
 
         [Fact]
         public void InvalidJsonStructureThrowsJsonException()
         {
-            Assert.Throws<System.Text.Json.JsonException>(
-                () => _serializer.Deserialize<Category>("\"hello\"")
+            Assert.Throws<System.Text.Json.JsonException>(() =>
+                _serializer.Deserialize<Category>("\"hello\"")
             );
         }
 
         [Fact]
         public void ThrownJsonExceptionHasMessage()
         {
-            var ex = Assert.Throws<System.Text.Json.JsonException>(
-                () => _serializer.Deserialize<Category>("{")
+            var ex = Assert.Throws<System.Text.Json.JsonException>(() =>
+                _serializer.Deserialize<Category>("{")
             );
             Assert.NotNull(ex.Message);
         }
@@ -633,7 +633,7 @@ public class ObjectSerializerTest
         }
 
         [Fact]
-        public void DurationConverterRoundTripHoursMinutes()
+        public void DurationConverterRoundTrip_HoursMinutes()
         {
             var original = new TimeSpan(2, 15, 30);
             string formatted = Iso8601DurationConverter.Format(original);
@@ -643,7 +643,7 @@ public class ObjectSerializerTest
         }
 
         [Fact]
-        public void DurationConverterRoundTripDaysAndTime()
+        public void DurationConverterRoundTrip_DaysAndTime()
         {
             var original = new TimeSpan(3, 4, 5, 6);
             string formatted = Iso8601DurationConverter.Format(original);
@@ -652,7 +652,7 @@ public class ObjectSerializerTest
         }
 
         [Fact]
-        public void DurationConverterRoundTripNegative()
+        public void DurationConverterRoundTrip_Negative()
         {
             var original = new TimeSpan(0, -45, 0);
             string formatted = Iso8601DurationConverter.Format(original);
@@ -678,22 +678,22 @@ public class ObjectSerializerTest
         [Fact]
         public void DurationConverterRejectsInvalid()
         {
-            Assert.Throws<System.Text.Json.JsonException>(
-                () => Iso8601DurationConverter.Parse("not-a-duration")
+            Assert.Throws<System.Text.Json.JsonException>(() =>
+                Iso8601DurationConverter.Parse("not-a-duration")
             );
-            Assert.Throws<System.Text.Json.JsonException>(
-                () => Iso8601DurationConverter.Parse("P")
+            Assert.Throws<System.Text.Json.JsonException>(() =>
+                Iso8601DurationConverter.Parse("P")
             );
         }
 
         [Fact]
         public void DurationConverterRejectsCalendarMonthsAndYears()
         {
-            Assert.Throws<System.Text.Json.JsonException>(
-                () => Iso8601DurationConverter.Parse("P1Y")
+            Assert.Throws<System.Text.Json.JsonException>(() =>
+                Iso8601DurationConverter.Parse("P1Y")
             );
-            Assert.Throws<System.Text.Json.JsonException>(
-                () => Iso8601DurationConverter.Parse("P1M")
+            Assert.Throws<System.Text.Json.JsonException>(() =>
+                Iso8601DurationConverter.Parse("P1M")
             );
         }
 

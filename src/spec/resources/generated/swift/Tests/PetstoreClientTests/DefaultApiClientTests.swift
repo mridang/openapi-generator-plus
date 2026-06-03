@@ -593,7 +593,7 @@ private final class RedirectStubURLProtocol: URLProtocol {
     override func startLoading() {
         let outcome = RedirectStubURLProtocol.responder?(request) ?? .ok(Data("{}".utf8))
         switch outcome {
-        case let .redirect(status, location):
+        case .redirect(let status, let location):
             let headers = ["Location": location]
             let response = HTTPURLResponse(
                 url: request.url!, statusCode: status,
@@ -609,7 +609,7 @@ private final class RedirectStubURLProtocol: URLProtocol {
             // Also finish so the task does not hang if the redirect is followed.
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
             client?.urlProtocolDidFinishLoading(self)
-        case let .ok(data):
+        case .ok(let data):
             let response = HTTPURLResponse(
                 url: request.url!, statusCode: 200,
                 httpVersion: "HTTP/1.1",

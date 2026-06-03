@@ -184,12 +184,16 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the addPetPhotos operation and returns the full API result.
-    public func addPetPhotosWithHTTPInfo(petId: Int64, options: AddPetPhotosOptions, ) async throws -> ApiResult<[Photo]> {
+    public func addPetPhotosWithHTTPInfo(
+        petId: Int64, options: AddPetPhotosOptions,
+    ) async throws -> ApiResult<[Photo]> {
 
         var path = "/pet/{petId}/photos"
         path = path.replacingOccurrences(
             of: "{" + "petId" + "}",
-            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
+            with:
+                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+        )
 
         let queryParams: [String: Any?] = [:]
 
@@ -219,7 +223,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     ///
     /// - Parameters:
 
-    public func addPetTreatment(petId: Int64, petTreatment: PetTreatment, auth: Authenticator? = nil) async throws -> PetTreatment {
+    public func addPetTreatment(
+        petId: Int64, petTreatment: PetTreatment, auth: Authenticator? = nil
+    ) async throws -> PetTreatment {
         let result = try await addPetTreatmentWithHTTPInfo(petId: petId, petTreatment: petTreatment, auth: auth)
         guard let data = result.data else {
             throw ApiError(
@@ -233,12 +239,16 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the addPetTreatment operation and returns the full API result.
-    public func addPetTreatmentWithHTTPInfo(petId: Int64, petTreatment: PetTreatment, auth: Authenticator? = nil) async throws -> ApiResult<PetTreatment> {
+    public func addPetTreatmentWithHTTPInfo(
+        petId: Int64, petTreatment: PetTreatment, auth: Authenticator? = nil
+    ) async throws -> ApiResult<PetTreatment> {
 
         var path = "/pet/{petId}/treatment"
         path = path.replacingOccurrences(
             of: "{" + "petId" + "}",
-            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
+            with:
+                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+        )
 
         let queryParams: [String: Any?] = [:]
 
@@ -273,19 +283,25 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the deletePet operation and returns the full API result.
-    public func deletePetWithHTTPInfo(petId: Int64, options: DeletePetOptions? = nil, auth: Authenticator? = nil) async throws -> ApiResult<Void> {
+    public func deletePetWithHTTPInfo(
+        petId: Int64, options: DeletePetOptions? = nil, auth: Authenticator? = nil
+    ) async throws -> ApiResult<Void> {
 
         var path = "/pet/{petId}"
         path = path.replacingOccurrences(
             of: "{" + "petId" + "}",
-            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
+            with:
+                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+        )
 
         let queryParams: [String: Any?] = [:]
 
         var headerParams: [String: String] = [:]
         var cookieParts: [String] = []
         if let options = options, let val = options.apiKey {
-            cookieParts.append("api_key=\(ValueSerializer.serializeStyled("api_key", value: val, location: "cookie", schemaType: "String", collectionFormat: "", style: "form", explode: true) ?? "")")
+            cookieParts.append(
+                "api_key=\(ValueSerializer.serializeStyled("api_key", value: val, location: "cookie", schemaType: "String", collectionFormat: "", style: "form", explode: true) ?? "")"
+            )
         }
         if !cookieParts.isEmpty {
             headerParams["Cookie"] = cookieParts.joined(separator: "; ")
@@ -332,10 +348,14 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         var path = "/pet/{petId}/documents/{documentId}"
         path = path.replacingOccurrences(
             of: "{" + "petId" + "}",
-            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
+            with:
+                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+        )
         path = path.replacingOccurrences(
             of: "{" + "documentId" + "}",
-            with: "\(ValueSerializer.serializeStyled("documentId", value: documentId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
+            with:
+                "\(ValueSerializer.serializeStyled("documentId", value: documentId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+        )
 
         let queryParams: [String: Any?] = [:]
 
@@ -392,14 +412,17 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the findPetsByStatus operation and returns the full API result.
-    public func findPetsByStatusWithHTTPInfo(options: FindPetsByStatusOptions? = nil, ) async throws -> ApiResult<[Pet]> {
+    public func findPetsByStatusWithHTTPInfo(options: FindPetsByStatusOptions? = nil, ) async throws -> ApiResult<[Pet]>
+    {
 
         let path = "/pet/findByStatus"
 
         var queryParams: [String: Any?] = [:]
         if let options = options {
             if let val = options.status {
-                queryParams["status"] = ValueSerializer.serializeStyled("status", value: val, location: "query", schemaType: "String", collectionFormat: "", style: "form", explode: true)
+                queryParams["status"] = ValueSerializer.serializeStyled(
+                    "status", value: val, location: "query", schemaType: "String", collectionFormat: "", style: "form",
+                    explode: true)
             } else {
                 queryParams["status"] = ""
             }
@@ -449,12 +472,16 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the getExternalPetInfo operation and returns the full API result.
-    public func getExternalPetInfoWithHTTPInfo(petId: Int64, server: (any GetExternalPetInfoServer)? = nil, ) async throws -> ApiResult<Pet> {
+    public func getExternalPetInfoWithHTTPInfo(
+        petId: Int64, server: (any GetExternalPetInfoServer)? = nil,
+    ) async throws -> ApiResult<Pet> {
 
         var path = "/pet/{petId}/external"
         path = path.replacingOccurrences(
             of: "{" + "petId" + "}",
-            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
+            with:
+                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+        )
         if let server = server {
             let serverUrl = server.getUrl()
             if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
@@ -487,7 +514,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     ///
     /// - Parameters:
 
-    public func getMultiServerPetInfo(petId: Int64, server: (any GetMultiServerPetInfoServer)? = nil, ) async throws -> Pet {
+    public func getMultiServerPetInfo(
+        petId: Int64, server: (any GetMultiServerPetInfoServer)? = nil,
+    ) async throws -> Pet {
         let result = try await getMultiServerPetInfoWithHTTPInfo(petId: petId, server: server, )
         guard let data = result.data else {
             throw ApiError(
@@ -501,12 +530,16 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the getMultiServerPetInfo operation and returns the full API result.
-    public func getMultiServerPetInfoWithHTTPInfo(petId: Int64, server: (any GetMultiServerPetInfoServer)? = nil, ) async throws -> ApiResult<Pet> {
+    public func getMultiServerPetInfoWithHTTPInfo(
+        petId: Int64, server: (any GetMultiServerPetInfoServer)? = nil,
+    ) async throws -> ApiResult<Pet> {
 
         var path = "/pet/{petId}/multi"
         path = path.replacingOccurrences(
             of: "{" + "petId" + "}",
-            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
+            with:
+                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+        )
         if let server = server {
             let serverUrl = server.getUrl()
             if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
@@ -559,7 +592,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         var path = "/pet/{petId}/avatar"
         path = path.replacingOccurrences(
             of: "{" + "petId" + "}",
-            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
+            with:
+                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+        )
 
         let queryParams: [String: Any?] = [:]
 
@@ -606,7 +641,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         var path = "/pet/{petId}/avatar/thumbnail"
         path = path.replacingOccurrences(
             of: "{" + "petId" + "}",
-            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
+            with:
+                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+        )
 
         let queryParams: [String: Any?] = [:]
 
@@ -662,12 +699,16 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the getPetById operation and returns the full API result.
-    public func getPetByIdWithHTTPInfo(petId: Int64, server: (any GetPetByIdServer)? = nil, ) async throws -> ApiResult<Pet> {
+    public func getPetByIdWithHTTPInfo(
+        petId: Int64, server: (any GetPetByIdServer)? = nil,
+    ) async throws -> ApiResult<Pet> {
 
         var path = "/pet/{petId}"
         path = path.replacingOccurrences(
             of: "{" + "petId" + "}",
-            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
+            with:
+                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+        )
         if let server = server {
             let serverUrl = server.getUrl()
             if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
@@ -720,7 +761,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         var path = "/pet/{petId}/passport"
         path = path.replacingOccurrences(
             of: "{" + "petId" + "}",
-            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
+            with:
+                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+        )
 
         let queryParams: [String: Any?] = [:]
 
@@ -767,10 +810,14 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         var path = "/pet/{petId}/photos/{photoId}"
         path = path.replacingOccurrences(
             of: "{" + "petId" + "}",
-            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
+            with:
+                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+        )
         path = path.replacingOccurrences(
             of: "{" + "photoId" + "}",
-            with: "\(ValueSerializer.serializeStyled("photoId", value: photoId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
+            with:
+                "\(ValueSerializer.serializeStyled("photoId", value: photoId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+        )
 
         let queryParams: [String: Any?] = [:]
 
@@ -811,29 +858,42 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the getPetTag operation and returns the full API result.
-    public func getPetTagWithHTTPInfo(petId: Int64, tagName: String, options: GetPetTagOptions? = nil, ) async throws -> ApiResult<Pet> {
+    public func getPetTagWithHTTPInfo(
+        petId: Int64, tagName: String, options: GetPetTagOptions? = nil,
+    ) async throws -> ApiResult<Pet> {
         guard !tagName.isEmpty else {
-            throw ApiError(statusCode: 0, message: "Missing required parameter '\(tagName)' when calling PetApi.getPetTag")
+            throw ApiError(
+                statusCode: 0, message: "Missing required parameter '\(tagName)' when calling PetApi.getPetTag")
         }
 
         var path = "/pet/{petId}/tag/{tagName}"
         path = path.replacingOccurrences(
             of: "{" + "petId" + "}",
-            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "matrix", explode: false) ?? "")")
+            with:
+                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "matrix", explode: false) ?? "")"
+        )
         path = path.replacingOccurrences(
             of: "{" + "tagName" + "}",
-            with: "\(ValueSerializer.serializeStyled("tagName", value: tagName, location: "path", schemaType: "String", collectionFormat: "", style: "label", explode: false) ?? "")")
+            with:
+                "\(ValueSerializer.serializeStyled("tagName", value: tagName, location: "path", schemaType: "String", collectionFormat: "", style: "label", explode: false) ?? "")"
+        )
 
         var queryParams: [String: Any?] = [:]
         if let options = options, let val = options.colors {
-            queryParams["colors"] = ValueSerializer.serializeStyled("colors", value: val, location: "query", schemaType: "[String]", collectionFormat: "pipes", style: "pipeDelimited", explode: false)
+            queryParams["colors"] = ValueSerializer.serializeStyled(
+                "colors", value: val, location: "query", schemaType: "[String]", collectionFormat: "pipes",
+                style: "pipeDelimited", explode: false)
         }
         if let options = options, let val = options.sizes {
-            queryParams["sizes"] = ValueSerializer.serializeStyled("sizes", value: val, location: "query", schemaType: "[String]", collectionFormat: "ssv", style: "spaceDelimited", explode: false)
+            queryParams["sizes"] = ValueSerializer.serializeStyled(
+                "sizes", value: val, location: "query", schemaType: "[String]", collectionFormat: "ssv",
+                style: "spaceDelimited", explode: false)
         }
         if let options = options {
             if let val = options.filter {
-                queryParams["filter"] = ValueSerializer.serializeStyled("filter", value: val, location: "query", schemaType: "String", collectionFormat: "", style: "form", explode: true)
+                queryParams["filter"] = ValueSerializer.serializeStyled(
+                    "filter", value: val, location: "query", schemaType: "String", collectionFormat: "", style: "form",
+                    explode: true)
             } else {
                 queryParams["filter"] = ""
             }
@@ -876,12 +936,16 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the getStagingPetInfo operation and returns the full API result.
-    public func getStagingPetInfoWithHTTPInfo(petId: Int64, server: (any GetStagingPetInfoServer)? = nil, ) async throws -> ApiResult<Pet> {
+    public func getStagingPetInfoWithHTTPInfo(
+        petId: Int64, server: (any GetStagingPetInfoServer)? = nil,
+    ) async throws -> ApiResult<Pet> {
 
         var path = "/pet/{petId}/staging"
         path = path.replacingOccurrences(
             of: "{" + "petId" + "}",
-            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
+            with:
+                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+        )
         if let server = server {
             let serverUrl = server.getUrl()
             if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
@@ -926,7 +990,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         var path = "/pet/{petId}/avatar"
         path = path.replacingOccurrences(
             of: "{" + "petId" + "}",
-            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
+            with:
+                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+        )
 
         let queryParams: [String: Any?] = [:]
 
@@ -954,18 +1020,25 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     ///
     /// - Parameters:
 
-    public func setPetAvatarThumbnail(petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest, ) async throws {
-        let result = try await setPetAvatarThumbnailWithHTTPInfo(petId: petId, setPetAvatarThumbnailRequest: setPetAvatarThumbnailRequest, )
+    public func setPetAvatarThumbnail(
+        petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest,
+    ) async throws {
+        let result = try await setPetAvatarThumbnailWithHTTPInfo(
+            petId: petId, setPetAvatarThumbnailRequest: setPetAvatarThumbnailRequest, )
         _ = result
     }
 
     /// Performs the setPetAvatarThumbnail operation and returns the full API result.
-    public func setPetAvatarThumbnailWithHTTPInfo(petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest, ) async throws -> ApiResult<Void> {
+    public func setPetAvatarThumbnailWithHTTPInfo(
+        petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest,
+    ) async throws -> ApiResult<Void> {
 
         var path = "/pet/{petId}/avatar/thumbnail"
         path = path.replacingOccurrences(
             of: "{" + "petId" + "}",
-            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
+            with:
+                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+        )
 
         let queryParams: [String: Any?] = [:]
 
@@ -1013,7 +1086,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         var path = "/pet/{petId}"
         path = path.replacingOccurrences(
             of: "{" + "petId" + "}",
-            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
+            with:
+                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+        )
 
         let queryParams: [String: Any?] = [:]
 
@@ -1055,12 +1130,16 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the uploadPetCertificate operation and returns the full API result.
-    public func uploadPetCertificateWithHTTPInfo(petId: Int64, options: UploadPetCertificateOptions, ) async throws -> ApiResult<ApiResponse> {
+    public func uploadPetCertificateWithHTTPInfo(
+        petId: Int64, options: UploadPetCertificateOptions,
+    ) async throws -> ApiResult<ApiResponse> {
 
         var path = "/pet/{petId}/certificate"
         path = path.replacingOccurrences(
             of: "{" + "petId" + "}",
-            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
+            with:
+                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+        )
 
         let queryParams: [String: Any?] = [:]
 
@@ -1104,12 +1183,16 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the uploadPetDocument operation and returns the full API result.
-    public func uploadPetDocumentWithHTTPInfo(petId: Int64, options: UploadPetDocumentOptions, ) async throws -> ApiResult<ApiResponse> {
+    public func uploadPetDocumentWithHTTPInfo(
+        petId: Int64, options: UploadPetDocumentOptions,
+    ) async throws -> ApiResult<ApiResponse> {
 
         var path = "/pet/{petId}/documents"
         path = path.replacingOccurrences(
             of: "{" + "petId" + "}",
-            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
+            with:
+                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+        )
 
         let queryParams: [String: Any?] = [:]
 

@@ -4637,34 +4637,15 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
-     * Serializes all {@link #runFormatterInDocker} invocations across the
-     * whole JVM. The per-language {@code Generate*ClientTest} regenerators run
-     * in parallel (Surefire {@code <parallel>methods</parallel>}), and each
-     * one launches its own Docker formatter container at the same time. Under
-     * that concurrent load some containers intermittently fail; because the
-     * failure is logged but not thrown (so generation still succeeds without
-     * Docker), the affected language is silently left unformatted. Which
-     * language loses the race varies run to run, so the committed output drifts
-     * non-deterministically. Holding this monitor while a formatter runs means
-     * only one container is ever active, which removes the contention and makes
-     * regeneration reproducible.
+     * Builds the {@code docker run} invocation for the language formatter
+     * (output directory bind-mounted at {@code /app}, commands joined with
+     * {@code &&} and run via {@code sh -c}) and delegates execution to
+     * {@link DockerFormatter#run}.
+     *
+     * <p>{@link DockerFormatter} serializes formatter containers across the
+     * whole JVM and fails loudly on any error, so a formatter failure can
+     * never be silently swallowed into unformatted, non-deterministic output.
      */
-    private static final Object FORMATTER_LOCK = new Object();
-
-    /**
-     * Runs formatter commands inside a Docker container with
-     * the output directory bind-mounted at {@code /app}.
-     * Commands are joined with {@code &&} and executed via
-     * {@code sh -c}. Logs output at DEBUG level and warns on
-     * failure without throwing, so code generation succeeds
-     * even if Docker is not available. Invocations are serialized
-     * on {@link #FORMATTER_LOCK} so concurrent regenerators do not
-     * contend on the Docker daemon (which caused non-deterministic
-     * partially-formatted output).
-     */
-    @SuppressFBWarnings(
-            value = {"COMMAND_INJECTION", "PATH_TRAVERSAL_IN"},
-            justification = "Commands and paths are hardcoded by subclasses, not user input")
     protected void runFormatterInDocker(String dockerImage, String... commands) {
         final String workDir = getOutputDir();
         final String script = String.join(" && ", commands);
@@ -4681,43 +4662,6 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                         "sh",
                         "-c",
                         script);
-        synchronized (FORMATTER_LOCK) {
-            runDockerFormatterProcess(dockerImage, workDir, dockerCmd);
-        }
-    }
-
-    @SuppressFBWarnings(
-            value = {"COMMAND_INJECTION", "PATH_TRAVERSAL_IN"},
-            justification = "Commands and paths are hardcoded by subclasses, not user input")
-    private void runDockerFormatterProcess(
-            String dockerImage, String workDir, List<String> dockerCmd) {
-        try {
-            LOGGER.debug("Running formatter in Docker: {}", dockerCmd);
-            final ProcessBuilder pb =
-                    new ProcessBuilder(dockerCmd)
-                            .directory(new File(workDir))
-                            .redirectErrorStream(true);
-            final Process process = pb.start();
-            try (BufferedReader reader =
-                    new BufferedReader(
-                            new InputStreamReader(
-                                    process.getInputStream(), StandardCharsets.UTF_8))) {
-                reader.lines().forEach(line -> LOGGER.debug("[formatter] {}", line));
-            }
-            final int exitCode = process.waitFor();
-            if (exitCode != 0) {
-                LOGGER.debug(
-                        "Docker formatter {} exited with code {} in {}",
-                        dockerImage,
-                        exitCode,
-                        workDir);
-            }
-        } catch (IOException e) {
-            LOGGER.warn(
-                    "Docker formatter {} failed in {}: {}", dockerImage, workDir, e.getMessage());
-        } catch (InterruptedException e) {
-            LOGGER.warn("Docker formatter {} interrupted in {}", dockerImage, workDir);
-            Thread.currentThread().interrupt();
-        }
+        DockerFormatter.run(dockerImage, workDir, dockerCmd);
     }
 }

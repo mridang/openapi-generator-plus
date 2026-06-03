@@ -192,9 +192,17 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     @Override
     protected String[] getFormatterCommands() {
         return new String[] {
+            // Start from a clean install dir so a leftover vendor/ or
+            // composer.lock (e.g. from an integration-test run sharing this
+            // directory, or a previous formatter attempt) cannot cause a
+            // partial install or bin-name conflict.
+            "rm -rf vendor composer.lock",
             "COMPOSER_PROCESS_TIMEOUT=600 composer install --no-interaction --prefer-dist",
-            "vendor/bin/php-cs-fixer fix --quiet || true",
-            "vendor/bin/phpcbf || true",
+            "vendor/bin/php-cs-fixer fix --quiet",
+            // phpcbf exits 1 when it successfully fixes violations and 2/3 on a
+            // real error; tolerate only the success-with-fixes case so genuine
+            // failures still fail loud (subshell isolates $? from the && chain).
+            "( vendor/bin/phpcbf || [ $? -eq 1 ] )",
             "rm -rf vendor"
         };
     }

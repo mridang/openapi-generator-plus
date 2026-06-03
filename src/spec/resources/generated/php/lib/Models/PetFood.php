@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Models;
 
+use PetstoreClient\ObjectSerializer;
+
 /**
  * Food for pets, discriminated by foodType
  */
@@ -23,7 +25,7 @@ class PetFood
     /** @var array<string, class-string> */
     private const array DISCRIMINATOR_MAPPING = [
         'dry' => DryFood::class,
-        'wet' => WetFood::class
+        'wet' => WetFood::class,
     ];
 
     private mixed $actualInstance;
@@ -64,6 +66,6 @@ class PetFood
                 "Unknown discriminator value '{$discValue}' for " . self::class
             );
         }
-        return new self(\PetstoreClient\ObjectSerializer::deserialize($data, $class));
+        return new self(ObjectSerializer::deserialize($data, $class));
     }
 }

@@ -114,8 +114,8 @@ public class ComposedSchemaTest
         // a raw value (Java/C#/Kotlin/Node previously kept it) or — as Dart did
         // — an empty object. Aligns C# with the throw-on-no-match canonical.
         var json = "{\"unexpected\":\"shape\"}";
-        Assert.Throws<System.Text.Json.JsonException>(
-            () => _serializer.Deserialize<SetPetAvatarThumbnailRequest>(json)
+        Assert.Throws<System.Text.Json.JsonException>(() =>
+            _serializer.Deserialize<SetPetAvatarThumbnailRequest>(json)
         );
     }
 

@@ -30,7 +30,7 @@ analyser, and Rector configuration. Run any of them via Composer's
 `vendor/bin`:
 
 ```bash
-# Formatter — PHP-CS-Fixer (PHP84Migration:risky ruleset)
+# Formatter — PHP-CS-Fixer (PHP84Migration + PHP82Migration:risky rulesets)
 vendor/bin/php-cs-fixer fix
 
 # Linter — PHP_CodeSniffer (PSR-12 + SlevomatCodingStandard)

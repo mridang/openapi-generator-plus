@@ -16,7 +16,9 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Api;
 
+use PetstoreClient\ApiException;
 use PetstoreClient\ApiResult;
+use PetstoreClient\Models\Order;
 use PetstoreClient\ValueSerializer;
 
 /**
@@ -30,7 +32,7 @@ class StoreApi extends BaseApi
      * Delete purchase order by ID
      * @param int $orderId ID of the order to delete
 
-     * @throws \PetstoreClient\ApiException
+     * @throws ApiException
      */
     public function deleteOrder(int $orderId): void
     {
@@ -41,7 +43,7 @@ class StoreApi extends BaseApi
      * @param int $orderId ID of the order to delete
 
      * @return ApiResult<null>
-     * @throws \PetstoreClient\ApiException
+     * @throws ApiException
      */
     public function deleteOrderWithHttpInfo(int $orderId): ApiResult
     {
@@ -78,8 +80,8 @@ class StoreApi extends BaseApi
     /**
      * Returns pet inventories by status
 
-     * @return \Ds\Map
-     * @throws \PetstoreClient\ApiException
+     * @return Map
+     * @throws ApiException
      */
     public function getInventory()
     {
@@ -90,22 +92,22 @@ class StoreApi extends BaseApi
              * as the SDK's typed ApiException (with the status, body and
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
-            throw new \PetstoreClient\ApiException(
+            throw new ApiException(
                 'Expected a response body for getInventory but received none',
                 $apiResult->statusCode,
                 $apiResult->headers,
                 $apiResult->rawBody
             );
         }
-        /** @var \Ds\Map $result */
+        /** @var Map $result */
         $result = $apiResult->data;
         return $result;
     }
 
     /**
 
-     * @return ApiResult<\Ds\Map>
-     * @throws \PetstoreClient\ApiException
+     * @return ApiResult<Map>
+     * @throws ApiException
      */
     public function getInventoryWithHttpInfo(): ApiResult
     {
@@ -114,7 +116,7 @@ class StoreApi extends BaseApi
         $headerParams = [];
         $requestBody = null;
 
-        /** @var ApiResult<\Ds\Map> $result */
+        /** @var ApiResult<Map> $result */
         $result = $this->invokeApiForResult(
             'GET',
             $path,
@@ -132,8 +134,8 @@ class StoreApi extends BaseApi
      * Find purchase order by ID
      * @param int $orderId ID of order to return
 
-     * @return \PetstoreClient\Models\Order
-     * @throws \PetstoreClient\ApiException
+     * @return Order
+     * @throws ApiException
      */
     public function getOrderById(int $orderId)
     {
@@ -144,14 +146,14 @@ class StoreApi extends BaseApi
              * as the SDK's typed ApiException (with the status, body and
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
-            throw new \PetstoreClient\ApiException(
+            throw new ApiException(
                 'Expected a response body for getOrderById but received none',
                 $apiResult->statusCode,
                 $apiResult->headers,
                 $apiResult->rawBody
             );
         }
-        /** @var \PetstoreClient\Models\Order $result */
+        /** @var Order $result */
         $result = $apiResult->data;
         return $result;
     }
@@ -159,8 +161,8 @@ class StoreApi extends BaseApi
     /**
      * @param int $orderId ID of order to return
 
-     * @return ApiResult<\PetstoreClient\Models\Order>
-     * @throws \PetstoreClient\ApiException
+     * @return ApiResult<Order>
+     * @throws ApiException
      */
     public function getOrderByIdWithHttpInfo(int $orderId): ApiResult
     {
@@ -180,7 +182,7 @@ class StoreApi extends BaseApi
         $headerParams = [];
         $requestBody = null;
 
-        /** @var ApiResult<\PetstoreClient\Models\Order> $result */
+        /** @var ApiResult<Order> $result */
         $result = $this->invokeApiForResult(
             'GET',
             $path,
@@ -197,10 +199,10 @@ class StoreApi extends BaseApi
     /**
      * Place an order for a pet
 
-     * @return \PetstoreClient\Models\Order
-     * @throws \PetstoreClient\ApiException
+     * @return Order
+     * @throws ApiException
      */
-    public function placeOrder(\PetstoreClient\Models\Order|null $order = null)
+    public function placeOrder(Order|null $order = null)
     {
         $apiResult = $this->placeOrderWithHttpInfo($order);
         if ($apiResult->data === null) {
@@ -209,31 +211,31 @@ class StoreApi extends BaseApi
              * as the SDK's typed ApiException (with the status, body and
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
-            throw new \PetstoreClient\ApiException(
+            throw new ApiException(
                 'Expected a response body for placeOrder but received none',
                 $apiResult->statusCode,
                 $apiResult->headers,
                 $apiResult->rawBody
             );
         }
-        /** @var \PetstoreClient\Models\Order $result */
+        /** @var Order $result */
         $result = $apiResult->data;
         return $result;
     }
 
     /**
 
-     * @return ApiResult<\PetstoreClient\Models\Order>
-     * @throws \PetstoreClient\ApiException
+     * @return ApiResult<Order>
+     * @throws ApiException
      */
-    public function placeOrderWithHttpInfo(\PetstoreClient\Models\Order|null $order = null): ApiResult
+    public function placeOrderWithHttpInfo(Order|null $order = null): ApiResult
     {
         $path = '/store/order';
         $queryParams = [];
         $headerParams = [];
         $requestBody = $order;
 
-        /** @var ApiResult<\PetstoreClient\Models\Order> $result */
+        /** @var ApiResult<Order> $result */
         $result = $this->invokeApiForResult(
             'POST',
             $path,

@@ -715,7 +715,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void pathArrayItemWithReservedCharIsPercentEncoded()
+    public void path_array_item_with_reserved_char_is_percent_encoded()
     {
         // Gap W1 regression: every per-item path value in a styled array
         // must be percent-encoded BEFORE being joined with the structural
@@ -736,7 +736,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void pathParamIsEncodedExactlyOnceNotDoubleEncoded()
+    public void path_param_is_encoded_exactly_once_not_double_encoded()
     {
         // path-double-encoding regression: the operation method substitutes
         // the *already* path-encoded output of SerializeStyled directly into
@@ -798,8 +798,8 @@ public class ValueSerializerTest
         // Gap W — empty-string path values silently produce malformed
         // URLs like `/pet//details`; reject at serialization time so
         // callers see the real error rather than a downstream 404.
-        Assert.Throws<ArgumentException>(
-            () => ValueSerializer.SerializeStyled("id", "", "path", "string", null, "simple", false)
+        Assert.Throws<ArgumentException>(() =>
+            ValueSerializer.SerializeStyled("id", "", "path", "string", null, "simple", false)
         );
     }
 

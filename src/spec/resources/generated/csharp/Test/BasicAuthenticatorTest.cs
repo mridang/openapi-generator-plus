@@ -26,24 +26,24 @@ public class BasicAuthenticatorTest
         // auth-validation-timing: credentials are validated eagerly at
         // construction (matching the 10-SDK majority), so a malformed username
         // throws when the authenticator is created, not at first use.
-        Assert.Throws<ArgumentException>(
-            () => new BasicAuthenticator("https://api.example.com", "alice\r\n", "s3cret")
+        Assert.Throws<ArgumentException>(() =>
+            new BasicAuthenticator("https://api.example.com", "alice\r\n", "s3cret")
         );
     }
 
     [Fact]
     public void RejectsPasswordWithNul()
     {
-        Assert.Throws<ArgumentException>(
-            () => new BasicAuthenticator("https://api.example.com", "alice", "s3c\0ret")
+        Assert.Throws<ArgumentException>(() =>
+            new BasicAuthenticator("https://api.example.com", "alice", "s3c\0ret")
         );
     }
 
     [Fact]
     public void RejectsUsernameWithColon()
     {
-        Assert.Throws<ArgumentException>(
-            () => new BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret")
+        Assert.Throws<ArgumentException>(() =>
+            new BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret")
         );
     }
 }

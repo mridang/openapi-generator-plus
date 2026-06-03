@@ -13,13 +13,14 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Serializer;
 
+use Ds\Set;
 use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareTrait;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 
 /**
- * Round-trips {@see \Ds\Set} ↔ a JSON array.
+ * Round-trips {@see Set} ↔ a JSON array.
  *
  * Construction of a \Ds\Set from an array dedupes, matching OAS
  * uniqueItems:true semantics implicitly. On encode we iterate so nested
@@ -35,7 +36,7 @@ final class DsSetNormalizer implements NormalizerInterface, DenormalizerInterfac
      */
     public function normalize(mixed $object, ?string $format = null, array $context = []): array
     {
-        \assert($object instanceof \Ds\Set);
+        \assert($object instanceof Set);
         $out = [];
         foreach ($object as $item) {
             $out[] = is_scalar($item) || $item === null
@@ -50,16 +51,16 @@ final class DsSetNormalizer implements NormalizerInterface, DenormalizerInterfac
      */
     public function supportsNormalization(mixed $data, ?string $format = null, array $context = []): bool
     {
-        return $data instanceof \Ds\Set;
+        return $data instanceof Set;
     }
 
     /**
      * @param array<string, mixed> $context
      */
-    public function denormalize(mixed $data, string $type, ?string $format = null, array $context = []): \Ds\Set
+    public function denormalize(mixed $data, string $type, ?string $format = null, array $context = []): Set
     {
         \assert(is_array($data));
-        return new \Ds\Set($data);
+        return new Set($data);
     }
 
     /**
@@ -68,7 +69,7 @@ final class DsSetNormalizer implements NormalizerInterface, DenormalizerInterfac
     public function supportsDenormalization(mixed $data, string $type, ?string $format = null, array $context = []): bool
     {
         return is_array($data) && (
-            $type === \Ds\Set::class
+            $type === Set::class
             || ltrim($type, '\\') === 'Ds\\Set'
         );
     }
@@ -78,6 +79,6 @@ final class DsSetNormalizer implements NormalizerInterface, DenormalizerInterfac
      */
     public function getSupportedTypes(?string $format): array
     {
-        return [\Ds\Set::class => true];
+        return [Set::class => true];
     }
 }

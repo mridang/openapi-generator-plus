@@ -168,18 +168,15 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     /** {@inheritDoc} */
     @Override
     protected String[] getFormatterCommands() {
-        // csharpier formats whitespace/layout. Then `dotnet format style` runs
-        // Roslyn auto-fixers for IDE0048 (add parens for clarity), IDE0078
-        // (use pattern matching), IDE0370 (remove unnecessary suppression)
-        // and other style rules — keeps strict rules ON for callers while
-        // ensuring generated code already complies out of the box.
-        return new String[] {
-            "dotnet tool restore",
-            "dotnet csharpier .",
-            "dotnet restore",
-            "dotnet format style --severity info --no-restore || true",
-            "dotnet format analyzers --severity info --no-restore || true"
-        };
+        // csharpier is the deterministic C# formatter (and the only one the
+        // formatting spec verifies). `dotnet format style/analyzers` was only
+        // applying info-level Roslyn suggestions, but it aborts with
+        // "NotSupportedException: Changing document properties is not supported"
+        // when an analyzer such as IDE1006 cannot Fix-All — a dotnet-format bug
+        // that was previously masked with `|| true`. Dropping it keeps
+        // formatting deterministic; `dotnet build --warnaserror`
+        // (CSharpStaticAnalysisSpec) still guards warning-level analysis.
+        return new String[] {"dotnet tool restore", "dotnet csharpier format ."};
     }
 
     /** {@inheritDoc} */

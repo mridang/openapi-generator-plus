@@ -7,7 +7,8 @@ $finder = (new PhpCsFixer\Finder())
 
 return (new PhpCsFixer\Config())
     ->setRules([
-        '@PHP84Migration:risky' => true,
+        '@PHP84Migration' => true,
+        '@PHP82Migration:risky' => true,
         'fully_qualified_strict_types' => ['import_symbols' => true],
         'no_unused_imports' => true,
         'ordered_imports' => ['sort_algorithm' => 'alpha'],

@@ -20,11 +20,11 @@ class FindPetsByStatusOptions
 {
     public ?string $status;
 
-    /** @var array<string, \Ds\Map>|null Filter criteria as key-value pairs */
+    /** @var array<string, Map>|null Filter criteria as key-value pairs */
     public ?array $filter;
 
     /**
-     * @param array<string, \Ds\Map>|null $filter
+     * @param array<string, Map>|null $filter
      */
     public function __construct(?string $status = null, ?array $filter = null)
     {

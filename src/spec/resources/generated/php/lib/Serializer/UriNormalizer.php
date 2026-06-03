@@ -13,11 +13,13 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Serializer;
 
+use Symfony\Component\Serializer\Exception\NotNormalizableValueException;
 use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
+use Uri\Rfc3986\Uri;
 
 /**
- * Round-trips PHP 8.5's native {@see \Uri\Rfc3986\Uri} type ↔ a wire string.
+ * Round-trips PHP 8.5's native {@see Uri} type ↔ a wire string.
  *
  * Symfony's ObjectNormalizer does not know about the PHP 8.5 native URI type,
  * so without this normalizer URI-typed properties either serialize as
@@ -38,7 +40,7 @@ final class UriNormalizer implements NormalizerInterface, DenormalizerInterface
      */
     public function normalize(mixed $object, ?string $format = null, array $context = []): string
     {
-        \assert($object instanceof \Uri\Rfc3986\Uri);
+        \assert($object instanceof Uri);
         return $object->toRawString();
     }
 
@@ -47,19 +49,19 @@ final class UriNormalizer implements NormalizerInterface, DenormalizerInterface
      */
     public function supportsNormalization(mixed $data, ?string $format = null, array $context = []): bool
     {
-        return $data instanceof \Uri\Rfc3986\Uri;
+        return $data instanceof Uri;
     }
 
     /**
      * @param array<string, mixed> $context
      */
-    public function denormalize(mixed $data, string $type, ?string $format = null, array $context = []): \Uri\Rfc3986\Uri
+    public function denormalize(mixed $data, string $type, ?string $format = null, array $context = []): Uri
     {
         \assert(is_string($data));
-        $parsed = \Uri\Rfc3986\Uri::parse($data);
+        $parsed = Uri::parse($data);
         if ($parsed === null) {
-            throw new \Symfony\Component\Serializer\Exception\NotNormalizableValueException(
-                sprintf('Cannot denormalize %s as %s: not a valid RFC 3986 URI', \json_encode($data), \Uri\Rfc3986\Uri::class)
+            throw new NotNormalizableValueException(
+                sprintf('Cannot denormalize %s as %s: not a valid RFC 3986 URI', \json_encode($data), Uri::class)
             );
         }
         return $parsed;
@@ -70,7 +72,7 @@ final class UriNormalizer implements NormalizerInterface, DenormalizerInterface
      */
     public function supportsDenormalization(mixed $data, string $type, ?string $format = null, array $context = []): bool
     {
-        return is_string($data) && ($type === \Uri\Rfc3986\Uri::class || ltrim($type, '\\') === 'Uri\\Rfc3986\\Uri');
+        return is_string($data) && ($type === Uri::class || ltrim($type, '\\') === 'Uri\\Rfc3986\\Uri');
     }
 
     /**
@@ -78,6 +80,6 @@ final class UriNormalizer implements NormalizerInterface, DenormalizerInterface
      */
     public function getSupportedTypes(?string $format): array
     {
-        return [\Uri\Rfc3986\Uri::class => true];
+        return [Uri::class => true];
     }
 }

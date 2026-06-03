@@ -31,7 +31,7 @@ class PhotoMetadata
 
     /** @example null */
     #[SerializedName('location')]
-    public ?\PetstoreClient\Models\PhotoMetadataLocation $location = null;
+    public ?PhotoMetadataLocation $location = null;
 
     /**
      */
@@ -39,7 +39,7 @@ class PhotoMetadata
         ?string $caption = null,
         ?bool $isPrimary = null,
         ?\DateTime $takenAt = null,
-        ?\PetstoreClient\Models\PhotoMetadataLocation $location = null,
+        ?PhotoMetadataLocation $location = null,
     ) {
         $this->caption = $caption;
         $this->isPrimary = $isPrimary;

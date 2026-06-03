@@ -147,8 +147,8 @@ public class OpenIdConnectAuthenticatorTest
     {
         var auth = CreateAuthenticator();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => auth.BuildAuthorizationUrlAsync()
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            auth.BuildAuthorizationUrlAsync()
         );
     }
 

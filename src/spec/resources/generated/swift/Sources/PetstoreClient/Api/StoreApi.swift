@@ -27,7 +27,9 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
         var path = "/store/order/{orderId}"
         path = path.replacingOccurrences(
             of: "{" + "orderId" + "}",
-            with: "\(ValueSerializer.serializeStyled("orderId", value: orderId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
+            with:
+                "\(ValueSerializer.serializeStyled("orderId", value: orderId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+        )
 
         let queryParams: [String: Any?] = [:]
 
@@ -115,7 +117,9 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
         var path = "/store/order/{orderId}"
         path = path.replacingOccurrences(
             of: "{" + "orderId" + "}",
-            with: "\(ValueSerializer.serializeStyled("orderId", value: orderId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
+            with:
+                "\(ValueSerializer.serializeStyled("orderId", value: orderId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+        )
 
         let queryParams: [String: Any?] = [:]
 

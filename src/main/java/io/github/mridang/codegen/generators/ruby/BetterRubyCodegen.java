@@ -212,9 +212,17 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
     @Override
     protected String[] getFormatterCommands() {
         return new String[] {
+            // Start from a clean install dir so a leftover vendor/ or
+            // Gemfile.lock (e.g. from an integration-test run sharing this
+            // directory, or a previous formatter attempt) cannot poison the
+            // bundle install.
+            "rm -rf vendor .bundle",
             "bundle config set --local path vendor/bundle",
             "bundle install --quiet",
-            "bundle exec rubocop -A --cache false --only Layout",
+            // rubocop -A exits 1 when it auto-corrects offenses and 2 on a real
+            // error; tolerate only the success-with-corrections case so genuine
+            // failures still fail loud (subshell isolates $? from the && chain).
+            "( bundle exec rubocop -A --cache false --only Layout || [ $? -eq 1 ] )",
             "rm -rf vendor .bundle"
         };
     }

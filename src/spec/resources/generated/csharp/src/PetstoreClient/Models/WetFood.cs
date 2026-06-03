@@ -22,12 +22,10 @@ namespace PetstoreClient.Models;
 public class WetFood(int volumeMl) : PetFood, IEquatable<WetFood>
 {
     /// <example>null</example>
-
     [JsonPropertyName("foodType")]
     public string FoodType { get; set; } = "wet";
 
     /// <example>null</example>
-
     [JsonRequired]
     [JsonPropertyName("volumeMl")]
     public int VolumeMl { get; set; } = volumeMl;

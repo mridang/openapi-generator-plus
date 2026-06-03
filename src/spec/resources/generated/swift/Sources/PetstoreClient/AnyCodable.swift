@@ -79,13 +79,13 @@ public struct AnyCodable: Codable, Equatable, Hashable, @unchecked Sendable, Cus
         switch (lhs.value, rhs.value) {
         case is (NSNull, NSNull):
             return true
-        case let (lhs as Bool, rhs as Bool):
+        case (let lhs as Bool, let rhs as Bool):
             return lhs == rhs
-        case let (lhs as Int, rhs as Int):
+        case (let lhs as Int, let rhs as Int):
             return lhs == rhs
-        case let (lhs as Double, rhs as Double):
+        case (let lhs as Double, let rhs as Double):
             return lhs == rhs
-        case let (lhs as String, rhs as String):
+        case (let lhs as String, let rhs as String):
             return lhs == rhs
         default:
             return false

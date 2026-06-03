@@ -352,8 +352,8 @@ public class PetApiTest
     {
         var mockApi = NewPetApiForMock(404, "application/json", "{\"message\":\"Pet not found\"}");
 
-        await Assert.ThrowsAsync<PetstoreClient.Errors.NotFoundException>(
-            async () => await mockApi.GetPetByIdAsync(99999L)
+        await Assert.ThrowsAsync<PetstoreClient.Errors.NotFoundException>(async () =>
+            await mockApi.GetPetByIdAsync(99999L)
         );
     }
 
@@ -365,8 +365,8 @@ public class PetApiTest
         // ApiException (not a silent null nor a non-SDK exception type).
         var mockApi = NewPetApiForMock(200, "application/json", "");
 
-        var ex = await Assert.ThrowsAsync<PetstoreClient.ApiException>(
-            () => mockApi.GetPetByIdAsync(1L)
+        var ex = await Assert.ThrowsAsync<PetstoreClient.ApiException>(() =>
+            mockApi.GetPetByIdAsync(1L)
         );
         Assert.Equal(200, ex.StatusCode);
     }
@@ -380,8 +380,8 @@ public class PetApiTest
             "{\"message\":\"Internal server error\"}"
         );
 
-        await Assert.ThrowsAsync<PetstoreClient.Errors.InternalServerErrorException>(
-            async () => await mockApi.GetPetByIdAsync(1L)
+        await Assert.ThrowsAsync<PetstoreClient.Errors.InternalServerErrorException>(async () =>
+            await mockApi.GetPetByIdAsync(1L)
         );
     }
 

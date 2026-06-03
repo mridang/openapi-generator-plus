@@ -39,29 +39,24 @@ public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerNa
     }
 
     /// <example>10</example>
-
     [JsonPropertyName("id")]
     public long? Id { get; set; }
 
     /// <example>doggie</example>
-
     [JsonRequired]
     [JsonPropertyName("name")]
     public string Name { get; set; } = name ?? throw new ArgumentNullException(nameof(name));
 
     /// <example>null</example>
-
     [JsonPropertyName("category")]
     public Category? Category { get; set; }
 
     /// <example>null</example>
-
     [JsonRequired]
     [JsonPropertyName("photoUrls")]
     public HashSet<string> PhotoUrls { get; set; } = photoUrls;
 
     /// <example>null</example>
-
     [JsonPropertyName("tags")]
     public List<Tag>? Tags { get; set; }
 
@@ -75,7 +70,6 @@ public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerNa
     public StatusEnum? Status { get; set; }
 
     /// <example>null</example>
-
     [JsonPropertyName("location")]
     public List<Object>? Location { get; set; }
 
@@ -83,7 +77,6 @@ public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerNa
     /// Absolute URL to the pet's public profile page
     /// </summary>
     /// <example>https://example.com/pets/fido</example>
-
     [JsonPropertyName("homepageUrl")]
     public Uri? HomepageUrl { get; set; }
 
@@ -91,7 +84,6 @@ public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerNa
     /// Optionally-relative thumbnail location
     /// </summary>
     /// <example>/assets/thumb-fido.png</example>
-
     [JsonPropertyName("thumbnailRef")]
     public string? ThumbnailRef { get; set; }
 
@@ -99,12 +91,10 @@ public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerNa
     /// RFC 6570 template for related-resource links
     /// </summary>
     /// <example>https://example.com/pets/{id}/photos{?size}</example>
-
     [JsonPropertyName("linkTemplate")]
     public string? LinkTemplate { get; set; }
 
     /// <example>null</example>
-
     [JsonPropertyName("ownerEmail")]
     public string? OwnerEmail { get; set; }
 
@@ -112,12 +102,10 @@ public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerNa
     /// Pet weight in kilograms (decimal precision)
     /// </summary>
     /// <example>12.345</example>
-
     [JsonPropertyName("weightKg")]
     public decimal? WeightKg { get; set; }
 
     /// <example>null</example>
-
     [JsonRequired]
     [JsonPropertyName("ownerName")]
     public string OwnerName { get; set; } =

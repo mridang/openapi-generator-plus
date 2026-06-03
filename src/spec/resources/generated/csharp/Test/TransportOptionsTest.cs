@@ -122,8 +122,8 @@ public class TransportOptionsTest
     [Fact]
     public void InvalidProxyUrlThrowsException()
     {
-        Assert.Throws<UriFormatException>(
-            () => TransportOptions.Builder().Proxy("not a valid url").Build()
+        Assert.Throws<UriFormatException>(() =>
+            TransportOptions.Builder().Proxy("not a valid url").Build()
         );
     }
 
@@ -239,8 +239,8 @@ public class TransportOptionsTest
     public void SettingProxyIsSupportedOnAllPlatforms()
     {
         // Proxy configuration must not throw on any .NET platform.
-        var exception = Record.Exception(
-            () => TransportOptions.Builder().Proxy("http://proxy.example.com:8080").Build()
+        var exception = Record.Exception(() =>
+            TransportOptions.Builder().Proxy("http://proxy.example.com:8080").Build()
         );
         Assert.Null(exception);
     }

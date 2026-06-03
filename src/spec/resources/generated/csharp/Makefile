@@ -7,11 +7,11 @@ test:
 	dotnet test --verbosity normal
 
 lint:
-	dotnet csharpier --check .
+	dotnet csharpier check .
 	dotnet format --verify-no-changes --severity warn
 
 format:
-	dotnet csharpier .
+	dotnet csharpier format .
 	dotnet format --severity warn
 
 format-dotnet:

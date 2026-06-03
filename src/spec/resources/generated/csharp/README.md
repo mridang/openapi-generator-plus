@@ -32,13 +32,13 @@ dotnet test
 # Apply formatting (CSharpier + dotnet format)
 make format
 # or directly:
-dotnet csharpier .
+dotnet csharpier format .
 dotnet format --severity warn
 
 # Verify formatting without writing changes
 make lint
 # or directly:
-dotnet csharpier --check .
+dotnet csharpier check .
 dotnet format --verify-no-changes --severity warn
 
 # Run Roslyn / StyleCop analyzers with warnings as errors

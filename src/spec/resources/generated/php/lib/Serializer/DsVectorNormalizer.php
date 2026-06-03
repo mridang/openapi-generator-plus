@@ -13,13 +13,14 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Serializer;
 
+use Ds\Vector;
 use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareTrait;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 
 /**
- * Round-trips {@see \Ds\Vector} ↔ a JSON array.
+ * Round-trips {@see Vector} ↔ a JSON array.
  *
  * On encode, items are walked through the parent serializer so that nested
  * objects (model instances, dates, URIs) get their own normalizer applied.
@@ -38,7 +39,7 @@ final class DsVectorNormalizer implements NormalizerInterface, DenormalizerInter
      */
     public function normalize(mixed $object, ?string $format = null, array $context = []): array
     {
-        \assert($object instanceof \Ds\Vector);
+        \assert($object instanceof Vector);
         $out = [];
         foreach ($object as $item) {
             $out[] = is_scalar($item) || $item === null
@@ -53,16 +54,16 @@ final class DsVectorNormalizer implements NormalizerInterface, DenormalizerInter
      */
     public function supportsNormalization(mixed $data, ?string $format = null, array $context = []): bool
     {
-        return $data instanceof \Ds\Vector;
+        return $data instanceof Vector;
     }
 
     /**
      * @param array<string, mixed> $context
      */
-    public function denormalize(mixed $data, string $type, ?string $format = null, array $context = []): \Ds\Vector
+    public function denormalize(mixed $data, string $type, ?string $format = null, array $context = []): Vector
     {
         \assert(is_array($data));
-        return new \Ds\Vector($data);
+        return new Vector($data);
     }
 
     /**
@@ -71,7 +72,7 @@ final class DsVectorNormalizer implements NormalizerInterface, DenormalizerInter
     public function supportsDenormalization(mixed $data, string $type, ?string $format = null, array $context = []): bool
     {
         return is_array($data) && (
-            $type === \Ds\Vector::class
+            $type === Vector::class
             || ltrim($type, '\\') === 'Ds\\Vector'
         );
     }
@@ -81,6 +82,6 @@ final class DsVectorNormalizer implements NormalizerInterface, DenormalizerInter
      */
     public function getSupportedTypes(?string $format): array
     {
-        return [\Ds\Vector::class => true];
+        return [Vector::class => true];
     }
 }

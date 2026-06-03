@@ -183,18 +183,17 @@ public class BaseApiTest
     [Fact]
     public async Task ParsesJsonErrorBody()
     {
-        var ex = await Assert.ThrowsAsync<BadRequestException>(
-            () =>
-                Api()
-                    .CallAsync<object>(
-                        "GET",
-                        "/test/status/400",
-                        new Dictionary<string, object?>(),
-                        new Dictionary<string, string>(),
-                        null,
-                        ["application/json"],
-                        "application/json"
-                    )
+        var ex = await Assert.ThrowsAsync<BadRequestException>(() =>
+            Api()
+                .CallAsync<object>(
+                    "GET",
+                    "/test/status/400",
+                    new Dictionary<string, object?>(),
+                    new Dictionary<string, string>(),
+                    null,
+                    ["application/json"],
+                    "application/json"
+                )
         );
         Assert.NotNull(ex.ErrorBody);
     }
@@ -202,18 +201,17 @@ public class BaseApiTest
     [Fact]
     public async Task NotFoundHierarchy()
     {
-        var ex = await Assert.ThrowsAsync<NotFoundException>(
-            () =>
-                Api()
-                    .CallAsync<object>(
-                        "GET",
-                        "/test/status/404",
-                        new Dictionary<string, object?>(),
-                        new Dictionary<string, string>(),
-                        null,
-                        ["application/json"],
-                        "application/json"
-                    )
+        var ex = await Assert.ThrowsAsync<NotFoundException>(() =>
+            Api()
+                .CallAsync<object>(
+                    "GET",
+                    "/test/status/404",
+                    new Dictionary<string, object?>(),
+                    new Dictionary<string, string>(),
+                    null,
+                    ["application/json"],
+                    "application/json"
+                )
         );
         Assert.IsType<ClientException>(ex, exactMatch: false);
         Assert.IsType<ApiException>(ex, exactMatch: false);
@@ -222,18 +220,17 @@ public class BaseApiTest
     [Fact]
     public async Task InternalServerErrorHierarchy()
     {
-        var ex = await Assert.ThrowsAsync<InternalServerErrorException>(
-            () =>
-                Api()
-                    .CallAsync<object>(
-                        "GET",
-                        "/test/status/500",
-                        new Dictionary<string, object?>(),
-                        new Dictionary<string, string>(),
-                        null,
-                        ["application/json"],
-                        "application/json"
-                    )
+        var ex = await Assert.ThrowsAsync<InternalServerErrorException>(() =>
+            Api()
+                .CallAsync<object>(
+                    "GET",
+                    "/test/status/500",
+                    new Dictionary<string, object?>(),
+                    new Dictionary<string, string>(),
+                    null,
+                    ["application/json"],
+                    "application/json"
+                )
         );
         Assert.IsType<ServerException>(ex, exactMatch: false);
         Assert.IsType<ApiException>(ex, exactMatch: false);
@@ -612,15 +609,14 @@ public class BaseApiTest
     [Fact]
     public void InvalidEnumValueThrowsError()
     {
-        Assert.Throws<ArgumentException>(
-            () =>
-                Configuration
-                    .Builder()
-                    .Server(
-                        Servers.Server1,
-                        new Dictionary<string, string> { { "environment", "invalid" } }
-                    )
-                    .Build()
+        Assert.Throws<ArgumentException>(() =>
+            Configuration
+                .Builder()
+                .Server(
+                    Servers.Server1,
+                    new Dictionary<string, string> { { "environment", "invalid" } }
+                )
+                .Build()
         );
     }
 

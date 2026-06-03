@@ -157,15 +157,15 @@ public class OAuth2AuthCodeAuthenticatorTest
     }
 
     [Fact]
-    public async Task authHeadersBeforeExchangeReturnsRecoverableError()
+    public async Task auth_headers_before_exchange_returns_recoverable_error()
     {
         var auth = CreateAuthenticator();
 
         // Calling GetAuthHeadersAsync before ExchangeCodeAsync is a
         // precondition violation. It must surface as a catchable exception
         // so callers can recover -- not as a process crash.
-        InvalidOperationException caught = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => auth.GetAuthHeadersAsync()
+        InvalidOperationException caught = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            auth.GetAuthHeadersAsync()
         );
         Assert.NotNull(caught);
 

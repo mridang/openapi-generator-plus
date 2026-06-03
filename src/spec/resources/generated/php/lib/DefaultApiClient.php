@@ -14,10 +14,14 @@ declare(strict_types=1);
 namespace PetstoreClient;
 
 use Symfony\Component\HttpClient\HttpClient;
+use Symfony\Component\Mime\Header\HeaderInterface;
+use Symfony\Component\Mime\Header\ParameterizedHeader;
+use Symfony\Component\Mime\MimeTypes;
 use Symfony\Component\Mime\Part\DataPart;
 use Symfony\Component\Mime\Part\Multipart\FormDataPart;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Symfony\Contracts\Service\ResetInterface;
 
 /**
  * Default implementation of {@see ApiClient} using Symfony HTTP client.
@@ -218,7 +222,7 @@ class DefaultApiClient implements ApiClient
                         );
                         if (!$isAscii) {
                             $cd = $dataPart->getHeaders()->get('content-disposition');
-                            if ($cd instanceof \Symfony\Component\Mime\Header\ParameterizedHeader) {
+                            if ($cd instanceof ParameterizedHeader) {
                                 $cd->setParameter(
                                     'filename*',
                                     "UTF-8''" . self::rfc5987EncodeValue($filename)
@@ -246,7 +250,7 @@ class DefaultApiClient implements ApiClient
             }
             $formData = new FormDataPart($formFields);
             $contentType = $formData->getPreparedHeaders()->get('Content-Type');
-            if ($contentType instanceof \Symfony\Component\Mime\Header\HeaderInterface) {
+            if ($contentType instanceof HeaderInterface) {
                 $mergedHeaders['Content-Type'] = $contentType->getBodyAsString();
             }
             $options = [
@@ -474,7 +478,7 @@ class DefaultApiClient implements ApiClient
      * extension, falling back to filesystem detection and finally to
      * application/octet-stream.
      *
-     * Uses Symfony Mime's {@see \Symfony\Component\Mime\MimeTypes} when
+     * Uses Symfony Mime's {@see MimeTypes} when
      * available, then a small hardcoded extension map, then PHP's built-in
      * {@see mime_content_type()} on the actual file path.
      *
@@ -520,11 +524,11 @@ class DefaultApiClient implements ApiClient
         }
 
         if (
-            class_exists(\Symfony\Component\Mime\MimeTypes::class)
+            class_exists(MimeTypes::class)
             && $extension !== null
             && $extension !== ''
         ) {
-            $guessed = \Symfony\Component\Mime\MimeTypes::getDefault()->getMimeTypes($extension);
+            $guessed = MimeTypes::getDefault()->getMimeTypes($extension);
             if ($guessed !== []) {
                 return $guessed[0];
             }
@@ -757,7 +761,7 @@ class DefaultApiClient implements ApiClient
      */
     public function close(): void
     {
-        if ($this->client instanceof \Symfony\Contracts\Service\ResetInterface) {
+        if ($this->client instanceof ResetInterface) {
             $this->client->reset();
         }
         /* Gap T-D4: flip the closed flag so a subsequent sendRequest()
