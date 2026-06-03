@@ -7,7 +7,6 @@
 
 import Foundation
 import Testing
-
 @testable import PetstoreClient
 
 @Suite final class ConfigurationTests {
@@ -44,7 +43,7 @@ import Testing
         let config = ConfigurationBuilder()
             .defaultHeaders([
                 "X-First": "one",
-                "X-Second": "two",
+                "X-Second": "two"
             ])
             .build()
 
@@ -74,7 +73,7 @@ import Testing
                 "version": ServerVariable(
                     defaultValue: "v3",
                     enumValues: ["v2", "v3"]
-                ),
+                )
             ]
         )
 
@@ -97,7 +96,7 @@ import Testing
                 "version": ServerVariable(
                     defaultValue: "v3",
                     enumValues: ["v2", "v3"]
-                ),
+                )
             ]
         )
 
@@ -125,8 +124,7 @@ import Testing
         var headers = config.defaultHeaders
         headers["X-Mutated"] = "should-not-affect-config"
 
-        #expect(
-            config.defaultHeaders["X-Mutated"] == nil,
+        #expect(config.defaultHeaders["X-Mutated"] == nil,
             "Modifying returned headers should not affect the configuration")
     }
 
@@ -173,8 +171,7 @@ import Testing
         let second = builder.build()
 
         #expect(first.baseURL == second.baseURL)
-        #expect(
-            !(first === second as AnyObject),
+        #expect(!(first === second as AnyObject),
             "Build() should produce independent instances")
     }
 }

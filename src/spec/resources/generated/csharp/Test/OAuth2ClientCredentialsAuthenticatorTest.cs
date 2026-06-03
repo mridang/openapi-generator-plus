@@ -27,12 +27,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
         public Dictionary<string, string> LastHeaders { get; private set; } = new();
 
         public Task<ApiResponse> SendRequestAsync(
-            string method,
-            Uri url,
-            Dictionary<string, string> headers,
-            object? body,
-            bool noRedirect = false
-        )
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
         {
             LastUrl = url;
             LastHeaders = headers;
@@ -42,7 +37,6 @@ public class OAuth2ClientCredentialsAuthenticatorTest
     }
 
     private static readonly string[] Scopes = new[] { "read", "write" };
-    private static readonly string[] scopes = new[] { "read" };
 
     private static OAuth2ClientCredentialsAuthenticator CreateAuthenticator()
     {
@@ -51,8 +45,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
             "my-client-id",
             "my-client-secret",
             new Uri("https://auth.example.com/token"),
-            Scopes
-        );
+            Scopes);
     }
 
     [Fact]
@@ -151,9 +144,8 @@ public class OAuth2ClientCredentialsAuthenticatorTest
             "id+with/special",
             "secret&with=stuff",
             new Uri("https://auth.example.com/token"),
-            scopes,
-            ClientAuthMethod.Basic
-        );
+            new[] { "read" },
+            ClientAuthMethod.Basic);
         auth.SetApiClient(client);
 
         await auth.GetAuthHeadersAsync();
@@ -162,8 +154,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
         Assert.NotNull(authHeader);
         Assert.StartsWith("Basic ", authHeader);
         string decoded = System.Text.Encoding.UTF8.GetString(
-            Convert.FromBase64String(authHeader!.Substring("Basic ".Length))
-        );
+            Convert.FromBase64String(authHeader!.Substring("Basic ".Length)));
         // Expected: form-urlencoded id ':' form-urlencoded secret
         Assert.Equal("id%2Bwith%2Fspecial:secret%26with%3Dstuff", decoded);
     }

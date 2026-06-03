@@ -91,10 +91,7 @@ public abstract class BaseApi
         ArgumentNullException.ThrowIfNull(headerParams);
         IAuthenticator? effectiveAuth = auth ?? Authenticator;
         string url;
-        if (
-            path.StartsWith("http://", StringComparison.Ordinal)
-            || path.StartsWith("https://", StringComparison.Ordinal)
-        )
+        if (path.StartsWith("http://", StringComparison.Ordinal) || path.StartsWith("https://", StringComparison.Ordinal))
         {
             url = path;
         }
@@ -151,25 +148,20 @@ public abstract class BaseApi
                    parsers don't URL-decode, so `=` (base64 padding) would
                    arrive as literal `%3D` and break JWT/session cookies.
                    Validate and pass through raw instead. */
-                string cookieStr = string.Join(
-                    "; ",
-                    cookies.Select(c =>
+                string cookieStr = string.Join("; ", cookies.Select(c =>
+                {
+                    if (!IsValidCookieName(c.Key))
                     {
-                        if (!IsValidCookieName(c.Key))
-                        {
-                            throw new ArgumentException(
-                                $"Cookie name '{c.Key}' contains characters forbidden by RFC 6265"
-                            );
-                        }
-                        if (!IsValidCookieValue(c.Value))
-                        {
-                            throw new ArgumentException(
-                                $"Cookie value for '{c.Key}' contains characters forbidden by RFC 6265"
-                            );
-                        }
-                        return c.Key + "=" + c.Value;
-                    })
-                );
+                        throw new ArgumentException(
+                            $"Cookie name '{c.Key}' contains characters forbidden by RFC 6265");
+                    }
+                    if (!IsValidCookieValue(c.Value))
+                    {
+                        throw new ArgumentException(
+                            $"Cookie value for '{c.Key}' contains characters forbidden by RFC 6265");
+                    }
+                    return c.Key + "=" + c.Value;
+                }));
                 headers["Cookie"] =
                     headers.TryGetValue("Cookie", out string? existing)
                     && !string.IsNullOrEmpty(existing)
@@ -433,7 +425,11 @@ public abstract class BaseApi
                     string value = entry.Value is bool b
                         ? (b ? "true" : "false")
                         : entry.Value.ToString()!;
-                    parts.Add(Uri.EscapeDataString(entry.Key) + "=" + Uri.EscapeDataString(value));
+                    parts.Add(
+                        Uri.EscapeDataString(entry.Key)
+                            + "="
+                            + Uri.EscapeDataString(value)
+                    );
                 }
             }
         }
@@ -449,8 +445,7 @@ public abstract class BaseApi
         }
         foreach (char c in name)
         {
-            bool ok =
-                c is >= 'A' and <= 'Z' or >= 'a' and <= 'z' or >= '0' and <= '9'
+            bool ok = c is >= 'A' and <= 'Z' or >= 'a' and <= 'z' or >= '0' and <= '9'
                 || "!#$%&'*+-.^_`|~".Contains(c, StringComparison.Ordinal);
             if (!ok)
             {
@@ -469,17 +464,11 @@ public abstract class BaseApi
         }
         foreach (char c in value)
         {
-            bool ok =
-                c
-                    is (char)0x21
-                        or >= (char)0x23
-                        and <= (char)0x2B
-                        or >= (char)0x2D
-                        and <= (char)0x3A
-                        or >= (char)0x3C
-                        and <= (char)0x5B
-                        or >= (char)0x5D
-                        and <= (char)0x7E;
+            bool ok = c is (char)0x21
+                or >= (char)0x23 and <= (char)0x2B
+                or >= (char)0x2D and <= (char)0x3A
+                or >= (char)0x3C and <= (char)0x5B
+                or >= (char)0x5D and <= (char)0x7E;
             if (!ok)
             {
                 return false;

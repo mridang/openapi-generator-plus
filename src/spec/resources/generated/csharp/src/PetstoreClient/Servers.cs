@@ -29,11 +29,7 @@ public static class Servers
     ///
     /// Relative URL (no variables)
     /// </summary>
-    public static readonly ServerConfiguration Server0 = new(
-        "/api/v3",
-        "Relative URL (no variables)",
-        []
-    );
+    public static readonly ServerConfiguration Server0 = new("/api/v3", "Relative URL (no variables)", []);
 
     /// <summary>
     /// Server 1: https://{environment}.example.com/api/{version}
@@ -48,9 +44,11 @@ public static class Servers
             ["environment"] = new ServerVariable(
                 "api",
                 "API environment",
-                ["api", "staging", "sandbox"]
-            ),
-            ["version"] = new ServerVariable("v3", "API version", ["v2", "v3"]),
+                ["api", "staging", "sandbox"]),
+            ["version"] = new ServerVariable(
+                "v3",
+                "API version",
+                ["v2", "v3"]),
         }
     );
 

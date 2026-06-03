@@ -24,7 +24,9 @@ public class DefaultApiClientTest
     [Fact]
     public async Task MakesHttpsRequestWithVerifySslFalse()
     {
-        var transport = TransportOptions.Builder().VerifySsl(false).Build();
+        var transport = TransportOptions.Builder()
+            .VerifySsl(false)
+            .Build();
 
         var client = new DefaultApiClient(transport);
         var response = await client.SendRequestAsync(
@@ -45,15 +47,12 @@ public class DefaultApiClientTest
         // Test runs inside the dotnet container where /work is the project mount;
         // read the cert from the container's local FS, not from HOST_APP_PATH
         // (which is the host-side bind-mount source used by ChasmFixture).
-        var caCertPath = Path.Combine(
-            Directory.GetCurrentDirectory(),
-            "Test",
-            "Resources",
-            "certs",
-            "ca.pem"
-        );
+        var caCertPath = Path.Combine(Directory.GetCurrentDirectory(), "Test", "Resources", "certs", "ca.pem");
 
-        var transport = TransportOptions.Builder().VerifySsl(true).CaCertPath(caCertPath).Build();
+        var transport = TransportOptions.Builder()
+            .VerifySsl(true)
+            .CaCertPath(caCertPath)
+            .Build();
 
         var client = new DefaultApiClient(transport);
         var response = await client.SendRequestAsync(
@@ -70,7 +69,9 @@ public class DefaultApiClientTest
     [Fact]
     public async Task MakesHttpRequestThroughProxy()
     {
-        var transport = TransportOptions.Builder().Proxy(_fixture.ProxyUrl).Build();
+        var transport = TransportOptions.Builder()
+            .Proxy(_fixture.ProxyUrl)
+            .Build();
 
         var client = new DefaultApiClient(transport);
         var response = await client.SendRequestAsync(
@@ -90,8 +91,7 @@ public class DefaultApiClientTest
     [Fact]
     public void ProxyWithCredentialsInjectsBasicAuthorization()
     {
-        var transport = TransportOptions
-            .Builder()
+        var transport = TransportOptions.Builder()
             .Proxy("http://alice:s3cret@127.0.0.1:3128")
             .Build();
 
@@ -103,8 +103,7 @@ public class DefaultApiClientTest
     [Fact]
     public async Task MakesHttpsRequestThroughProxyWithVerifySslFalse()
     {
-        var transport = TransportOptions
-            .Builder()
+        var transport = TransportOptions.Builder()
             .Proxy(_fixture.ProxyUrl)
             .VerifySsl(false)
             .Build();
@@ -126,18 +125,19 @@ public class DefaultApiClientTest
     [Fact]
     public async Task TimesOutOnSlowEndpoint()
     {
-        var transport = TransportOptions.Builder().Timeout(1).Build();
+        var transport = TransportOptions.Builder()
+            .Timeout(1)
+            .Build();
 
         var client = new DefaultApiClient(transport);
 
-        await Assert.ThrowsAsync<ApiException>(
-            () =>
-                client.SendRequestAsync(
-                    "GET",
-                    new Uri(_fixture.BaseUrl + "/test/slow"),
-                    new Dictionary<string, string>(),
-                    null
-                )
+        await Assert.ThrowsAsync<ApiException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri(_fixture.BaseUrl + "/test/slow"),
+                new Dictionary<string, string>(),
+                null
+            )
         );
     }
 
@@ -146,7 +146,9 @@ public class DefaultApiClientTest
     [Fact]
     public async Task InjectsCustomUserAgentHeader()
     {
-        var transport = TransportOptions.Builder().UserAgent("MyApp/1.0").Build();
+        var transport = TransportOptions.Builder()
+            .UserAgent("MyApp/1.0")
+            .Build();
 
         var client = new DefaultApiClient(transport);
         var response = await client.SendRequestAsync(
@@ -159,10 +161,7 @@ public class DefaultApiClientTest
         Assert.Equal(200, response.StatusCode);
         var json = JsonDocument.Parse(response.Body);
         // Chasm echoes headers under .headers with lowercased keys.
-        Assert.Equal(
-            "MyApp/1.0",
-            json.RootElement.GetProperty("headers").GetProperty("user-agent").GetString()
-        );
+        Assert.Equal("MyApp/1.0", json.RootElement.GetProperty("headers").GetProperty("user-agent").GetString());
     }
 
     // -- X-Request-ID injection --
@@ -170,7 +169,9 @@ public class DefaultApiClientTest
     [Fact]
     public async Task InjectsRequestIdHeader()
     {
-        var transport = TransportOptions.Builder().InjectRequestId(true).Build();
+        var transport = TransportOptions.Builder()
+            .InjectRequestId(true)
+            .Build();
 
         var client = new DefaultApiClient(transport);
         var response = await client.SendRequestAsync(
@@ -182,10 +183,7 @@ public class DefaultApiClientTest
 
         Assert.Equal(200, response.StatusCode);
         var json = JsonDocument.Parse(response.Body);
-        var requestId = json
-            .RootElement.GetProperty("headers")
-            .GetProperty("x-request-id")
-            .GetString();
+        var requestId = json.RootElement.GetProperty("headers").GetProperty("x-request-id").GetString();
         Assert.NotNull(requestId);
         Assert.Matches(
             @"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
@@ -196,7 +194,9 @@ public class DefaultApiClientTest
     [Fact]
     public async Task GeneratesUniqueRequestIds()
     {
-        var transport = TransportOptions.Builder().InjectRequestId(true).Build();
+        var transport = TransportOptions.Builder()
+            .InjectRequestId(true)
+            .Build();
 
         var client = new DefaultApiClient(transport);
 
@@ -207,10 +207,7 @@ public class DefaultApiClientTest
             null
         );
         var json1 = JsonDocument.Parse(response1.Body);
-        var requestId1 = json1
-            .RootElement.GetProperty("headers")
-            .GetProperty("x-request-id")
-            .GetString();
+        var requestId1 = json1.RootElement.GetProperty("headers").GetProperty("x-request-id").GetString();
 
         var response2 = await client.SendRequestAsync(
             "GET",
@@ -219,10 +216,7 @@ public class DefaultApiClientTest
             null
         );
         var json2 = JsonDocument.Parse(response2.Body);
-        var requestId2 = json2
-            .RootElement.GetProperty("headers")
-            .GetProperty("x-request-id")
-            .GetString();
+        var requestId2 = json2.RootElement.GetProperty("headers").GetProperty("x-request-id").GetString();
 
         Assert.NotEqual(requestId1, requestId2);
     }
@@ -232,8 +226,7 @@ public class DefaultApiClientTest
     [Fact]
     public async Task IncludesTransportDefaultHeaders()
     {
-        var transport = TransportOptions
-            .Builder()
+        var transport = TransportOptions.Builder()
             .DefaultHeader("X-Custom", "custom-value")
             .Build();
 
@@ -247,16 +240,15 @@ public class DefaultApiClientTest
 
         Assert.Equal(200, response.StatusCode);
         var json = JsonDocument.Parse(response.Body);
-        Assert.Equal(
-            "custom-value",
-            json.RootElement.GetProperty("headers").GetProperty("x-custom").GetString()
-        );
+        Assert.Equal("custom-value", json.RootElement.GetProperty("headers").GetProperty("x-custom").GetString());
     }
 
     [Fact]
     public async Task CallerHeadersOverrideTransportDefaults()
     {
-        var transport = TransportOptions.Builder().DefaultHeader("Accept", "text/plain").Build();
+        var transport = TransportOptions.Builder()
+            .DefaultHeader("Accept", "text/plain")
+            .Build();
 
         var client = new DefaultApiClient(transport);
         var response = await client.SendRequestAsync(
@@ -268,10 +260,7 @@ public class DefaultApiClientTest
 
         Assert.Equal(200, response.StatusCode);
         var json = JsonDocument.Parse(response.Body);
-        Assert.Equal(
-            "application/json",
-            json.RootElement.GetProperty("headers").GetProperty("accept").GetString()
-        );
+        Assert.Equal("application/json", json.RootElement.GetProperty("headers").GetProperty("accept").GetString());
     }
 
     // -- Redirect handling --
@@ -279,7 +268,9 @@ public class DefaultApiClientTest
     [Fact]
     public async Task FollowsRedirectsWhenEnabled()
     {
-        var transport = TransportOptions.Builder().FollowRedirects(true).Build();
+        var transport = TransportOptions.Builder()
+            .FollowRedirects(true)
+            .Build();
 
         var client = new DefaultApiClient(transport);
         var response = await client.SendRequestAsync(
@@ -297,7 +288,9 @@ public class DefaultApiClientTest
     [Fact]
     public async Task ReturnsRedirectWhenDisabled()
     {
-        var transport = TransportOptions.Builder().FollowRedirects(false).Build();
+        var transport = TransportOptions.Builder()
+            .FollowRedirects(false)
+            .Build();
 
         var client = new DefaultApiClient(transport);
         var response = await client.SendRequestAsync(
@@ -316,7 +309,10 @@ public class DefaultApiClientTest
     [Fact]
     public async Task Redirect303SwitchesToGetAndDropsBody()
     {
-        var transport = TransportOptions.Builder().FollowRedirects(true).MaxRedirects(5).Build();
+        var transport = TransportOptions.Builder()
+            .FollowRedirects(true)
+            .MaxRedirects(5)
+            .Build();
 
         var client = new DefaultApiClient(transport);
         var headers = new Dictionary<string, string> { { "Content-Type", "application/json" } };
@@ -347,7 +343,10 @@ public class DefaultApiClientTest
     [Fact]
     public void RespectsMaxRedirectsLimit()
     {
-        var transport = TransportOptions.Builder().FollowRedirects(true).MaxRedirects(5).Build();
+        var transport = TransportOptions.Builder()
+            .FollowRedirects(true)
+            .MaxRedirects(5)
+            .Build();
 
         var client = new DefaultApiClient(transport);
         Assert.NotNull(client);
@@ -363,7 +362,7 @@ public class DefaultApiClientTest
         var formData = new Dictionary<string, object>
         {
             { "description", "A test file" },
-            { "file", System.Text.Encoding.UTF8.GetBytes("file content") },
+            { "file", System.Text.Encoding.UTF8.GetBytes("file content") }
         };
         var response = await client.SendRequestAsync(
             "POST",
@@ -387,17 +386,14 @@ public class DefaultApiClientTest
         var client = new DefaultApiClient();
         var badFields = new Dictionary<string, object>
         {
-            { "name\r\nInjected: yes", "string-value" },
+            { "name\r\nInjected: yes", "string-value" }
         };
-        await Assert.ThrowsAnyAsync<Exception>(
-            async () =>
-                await client.SendRequestAsync(
-                    "POST",
-                    new Uri(_fixture.BaseUrl + "/test/echo"),
-                    new Dictionary<string, string>(),
-                    badFields
-                )
-        );
+        await Assert.ThrowsAnyAsync<Exception>(async () =>
+            await client.SendRequestAsync(
+                "POST",
+                new Uri(_fixture.BaseUrl + "/test/echo"),
+                new Dictionary<string, string>(),
+                badFields));
     }
 
     // -- HTTP compression --
@@ -456,7 +452,7 @@ public class DefaultApiClientTest
      * ByteArrayContent so HttpClient emits the header.
      */
     [Fact]
-    public async Task postWithNullBodySendsContentLengthZero()
+    public async Task post_with_null_body_sends_content_length_zero()
     {
         var client = new DefaultApiClient();
         var response = await client.SendRequestAsync(
@@ -481,7 +477,7 @@ public class DefaultApiClientTest
      * Set-Cookie response.
      */
     [Fact]
-    public async Task setCookieResponseNotReplayedOnNextRequest()
+    public async Task set_cookie_response_not_replayed_on_next_request()
     {
         var client = new DefaultApiClient();
 
@@ -504,9 +500,7 @@ public class DefaultApiClientTest
         // Chasm envelope: .cookies is a parsed name->value map. If the cookie jar
         // leaked, "session-id" would appear here.
         var cookies = doc.RootElement.GetProperty("cookies");
-        Assert.False(
-            cookies.TryGetProperty("session-id", out _),
-            "session-id cookie must not be replayed on a subsequent request"
-        );
+        Assert.False(cookies.TryGetProperty("session-id", out _),
+            "session-id cookie must not be replayed on a subsequent request");
     }
 }

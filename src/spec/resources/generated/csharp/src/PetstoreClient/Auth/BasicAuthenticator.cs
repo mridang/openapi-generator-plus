@@ -10,7 +10,8 @@ namespace PetstoreClient.Auth;
 /// <summary>
 /// Authenticator for HTTP Basic authentication.
 /// </summary>
-public class BasicAuthenticator(string host, string username, string password) : BaseAuthenticator
+public class BasicAuthenticator(string host, string username, string password)
+    : BaseAuthenticator
 {
     /// <inheritdoc/>
     public override string GetHost()
@@ -33,15 +34,13 @@ public class BasicAuthenticator(string host, string username, string password) :
                 {
                     throw new ArgumentException(
                         "Basic auth username must not contain CR, LF, or NUL characters",
-                        nameof(username)
-                    );
+                        nameof(username));
                 }
                 if (c == ':')
                 {
                     throw new ArgumentException(
                         "Basic auth username must not contain ':' (RFC 7617 §2)",
-                        nameof(username)
-                    );
+                        nameof(username));
                 }
             }
         }
@@ -53,8 +52,7 @@ public class BasicAuthenticator(string host, string username, string password) :
                 {
                     throw new ArgumentException(
                         "Basic auth password must not contain CR, LF, or NUL characters",
-                        nameof(password)
-                    );
+                        nameof(password));
                 }
             }
         }

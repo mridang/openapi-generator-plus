@@ -40,10 +40,8 @@ public class StrictTag : IEquatable<StrictTag>
             if (value is not null && value.Count > 0)
             {
                 throw new ArgumentException(
-                    "Unknown property '"
-                        + value.Keys.First()
-                        + "' on StrictTag (unevaluatedProperties:false)"
-                );
+                    "Unknown property '" + value.Keys.First()
+                        + "' on StrictTag (unevaluatedProperties:false)");
             }
             _unknownProperties = value;
         }
@@ -53,13 +51,9 @@ public class StrictTag : IEquatable<StrictTag>
     public bool Equals(StrictTag? other)
     {
         return other is not null
-            && (
-                ReferenceEquals(this, other)
-                || (
-                    EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
-                    && EqualityComparer<string?>.Default.Equals(this.Name, other.Name)
-                )
-            );
+            && (ReferenceEquals(this, other)
+                || (EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
+                    && EqualityComparer<string?>.Default.Equals(this.Name, other.Name)));
     }
 
     public override bool Equals(object? obj)

@@ -50,13 +50,13 @@ public enum Servers {
                 defaultValue: "v3",
                 description: "API version",
                 enumValues: ["v2", "v3"]
-            ),
+            )
         ]
     )
 
     /// All server configurations in declaration order.
     public static let all: [ServerConfiguration] = [
         server0,
-        server1,
+        server1
     ]
 }

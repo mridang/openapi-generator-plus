@@ -19,9 +19,7 @@ public enum ValueSerializer {
     ///   - schemaType: The schema type (e.g. "string", "array").
     ///   - collectionFormat: Legacy collection format (e.g. "csv", "ssv", "tsv", "pipes", "multi").
     /// - Returns: The serialized value.
-    public static func serializeValue(
-        _ value: Any?, location: String, schemaType: String, collectionFormat: String
-    ) -> Any? {
+    public static func serializeValue(_ value: Any?, location: String, schemaType: String, collectionFormat: String) -> Any? {
         guard let value = value else {
             return serializeNil(location: location)
         }

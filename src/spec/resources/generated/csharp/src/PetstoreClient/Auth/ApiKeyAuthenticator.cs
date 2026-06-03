@@ -33,25 +33,20 @@ public class ApiKeyAuthenticator(
         {
             throw new ArgumentException(
                 $"API key value for '{keyParamName}' must not be empty",
-                nameof(apiKey)
-            );
+                nameof(apiKey));
         }
         if (apiKey.Any(c => c == '\r' || c == '\n' || c == '\0'))
         {
             throw new ArgumentException(
                 $"API key value for '{keyParamName}' contains forbidden control characters (CR/LF/NUL)",
-                nameof(apiKey)
-            );
+                nameof(apiKey));
         }
-        if (
-            location == ApiKeyLocation.Header
-            && apiKey.Any(c => c != '\t' && c is < (char)0x20 or >= (char)0x7F)
-        )
+        if (location == ApiKeyLocation.Header &&
+            apiKey.Any(c => c != '\t' && c is < (char)0x20 or >= (char)0x7F))
         {
             throw new ArgumentException(
                 $"API key for header '{keyParamName}' must contain only printable ASCII characters (RFC 7230 §3.2.6)",
-                nameof(apiKey)
-            );
+                nameof(apiKey));
         }
     }
 

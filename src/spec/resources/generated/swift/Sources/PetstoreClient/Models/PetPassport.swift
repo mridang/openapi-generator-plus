@@ -32,10 +32,7 @@ public struct PetPassport: Codable, Sendable {
     }
 
     /// Creates a new PetPassport instance.
-    public init(
-        pet: Pet? = nil, thumbnail: Data? = nil, scans: [Data]? = nil, issuedAt: Date? = nil,
-        biometricChip: String? = nil
-    ) {
+    public init(pet: Pet? = nil, thumbnail: Data? = nil, scans: [Data]? = nil, issuedAt: Date? = nil, biometricChip: String? = nil) {
         self.pet = pet
         self.thumbnail = thumbnail
         self.scans = scans

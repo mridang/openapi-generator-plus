@@ -9,10 +9,6 @@ import Foundation
 
 public final class UserAuthAuthorizationCodeAuthenticator: OAuth2AuthorizationCodeAuthenticator, @unchecked Sendable {
     public init(host: String, clientId: String, clientSecret: String, redirectUri: String) {
-        super.init(
-            host: host, clientID: clientId, clientSecret: clientSecret,
-            authorizationURL: "https://auth.example.com/authorize", tokenURL: "https://auth.example.com/oauth/token",
-            redirectURI: redirectUri, scopes: ["pets:write", "pets:read"],
-            refreshURL: "https://auth.example.com/oauth/refresh")
+        super.init(host: host, clientID: clientId, clientSecret: clientSecret, authorizationURL: "https://auth.example.com/authorize", tokenURL: "https://auth.example.com/oauth/token", redirectURI: redirectUri, scopes: ["pets:write", "pets:read"], refreshURL: "https://auth.example.com/oauth/refresh")
     }
 }

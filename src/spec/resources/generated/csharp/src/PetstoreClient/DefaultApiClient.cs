@@ -49,16 +49,15 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     /// Names are compared case-insensitively (RFC 7230 §3.2 — HTTP header
     /// names are tokens, case-insensitive).
     /// </summary>
-    public static readonly IReadOnlySet<string> SensitiveHeaderNames = new HashSet<string>(
-        StringComparer.OrdinalIgnoreCase
-    )
-    {
-        "Authorization",
-        "Cookie",
-        "Proxy-Authorization",
-        "X-API-Key",
-        "X-Internal-Key",
-    };
+    public static readonly IReadOnlySet<string> SensitiveHeaderNames =
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Authorization",
+            "Cookie",
+            "Proxy-Authorization",
+            "X-API-Key",
+            "X-Internal-Key",
+        };
 
     private readonly HttpClient _httpClient;
     private readonly TransportOptions _transportOptions;
@@ -324,7 +323,9 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         HttpResponseMessage response;
         try
         {
-            response = await _httpClient.SendAsync(request).ConfigureAwait(false);
+            response = await _httpClient
+                .SendAsync(request)
+                .ConfigureAwait(false);
 
             /* Gap BH: manual redirect loop with cross-origin sensitive-header strip.
                Gap 3.2: when noRedirect is set the loop is skipped entirely so a
@@ -365,16 +366,8 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                        than silently downgrade. The original encrypted
                        response is surfaced to the caller. */
                     bool isDowngrade =
-                        string.Equals(
-                            currentUrl.Scheme,
-                            Uri.UriSchemeHttps,
-                            StringComparison.OrdinalIgnoreCase
-                        )
-                        && string.Equals(
-                            nextUrl.Scheme,
-                            Uri.UriSchemeHttp,
-                            StringComparison.OrdinalIgnoreCase
-                        );
+                        string.Equals(currentUrl.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(nextUrl.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase);
                     int redirectStatus = (int)response.StatusCode;
                     bool preservesBody = redirectStatus == 307 || redirectStatus == 308;
                     if (isDowngrade && preservesBody && currentBody != null)
@@ -415,24 +408,12 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     HttpRequestMessage next = new(new HttpMethod(nextMethod), nextUrl);
                     foreach (KeyValuePair<string, string> header in mergedHeaders)
                     {
-                        if (
-                            string.Equals(
-                                header.Key,
-                                "Content-Type",
-                                StringComparison.OrdinalIgnoreCase
-                            )
-                        )
+                        if (string.Equals(header.Key, "Content-Type", StringComparison.OrdinalIgnoreCase))
                         {
                             continue;
                         }
-                        if (
-                            nextBody == null
-                            && string.Equals(
-                                header.Key,
-                                "Content-Length",
-                                StringComparison.OrdinalIgnoreCase
-                            )
-                        )
+                        if (nextBody == null
+                            && string.Equals(header.Key, "Content-Length", StringComparison.OrdinalIgnoreCase))
                         {
                             continue;
                         }
@@ -448,11 +429,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     }
                     else if (nextBody is string text2)
                     {
-                        next.Content = new StringContent(
-                            text2,
-                            Encoding.UTF8,
-                            contentType ?? "application/json"
-                        );
+                        next.Content = new StringContent(text2, Encoding.UTF8, contentType ?? "application/json");
                     }
                     response.Dispose();
                     currentUrl = nextUrl;
@@ -580,17 +557,13 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             {
                 ValidateMultipartFilename(name);
                 ByteArrayContent content = new(bytes);
-                content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
-                    GetMimeType(name)
-                );
+                content.Headers.ContentType =
+                    new System.Net.Http.Headers.MediaTypeHeaderValue(GetMimeType(name));
                 _ = content.Headers.Remove("Content-Disposition");
                 _ = content.Headers.TryAddWithoutValidation(
                     "Content-Disposition",
-                    "form-data; name=\""
-                        + EscapeQuotedString(name)
-                        + "\"; "
-                        + BuildFilenameDirective(name)
-                );
+                    "form-data; name=\"" + EscapeQuotedString(name) + "\"; "
+                        + BuildFilenameDirective(name));
                 multipart.Add(content);
                 break;
             }
@@ -598,17 +571,13 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             {
                 ValidateMultipartFilename(name);
                 StreamContent content = new(stream);
-                content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
-                    GetMimeType(name)
-                );
+                content.Headers.ContentType =
+                    new System.Net.Http.Headers.MediaTypeHeaderValue(GetMimeType(name));
                 _ = content.Headers.Remove("Content-Disposition");
                 _ = content.Headers.TryAddWithoutValidation(
                     "Content-Disposition",
-                    "form-data; name=\""
-                        + EscapeQuotedString(name)
-                        + "\"; "
-                        + BuildFilenameDirective(name)
-                );
+                    "form-data; name=\"" + EscapeQuotedString(name) + "\"; "
+                        + BuildFilenameDirective(name));
                 multipart.Add(content);
                 break;
             }
@@ -648,8 +617,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             {
                 throw new ArgumentException(
                     "multipart filename must not contain CR, LF, or NUL characters",
-                    nameof(filename)
-                );
+                    nameof(filename));
             }
         }
     }
@@ -695,7 +663,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     private static string EscapeQuotedString(string s)
     {
         return s.Replace("\\", "\\\\", StringComparison.Ordinal)
-            .Replace("\"", "\\\"", StringComparison.Ordinal);
+                .Replace("\"", "\\\"", StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -711,13 +679,10 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         foreach (byte b in bytes)
         {
             bool isUnreserved =
-                (b >= (byte)'A' && b <= (byte)'Z')
-                || (b >= (byte)'a' && b <= (byte)'z')
-                || (b >= (byte)'0' && b <= (byte)'9')
-                || b == (byte)'-'
-                || b == (byte)'.'
-                || b == (byte)'_'
-                || b == (byte)'~';
+                (b >= (byte)'A' && b <= (byte)'Z') ||
+                (b >= (byte)'a' && b <= (byte)'z') ||
+                (b >= (byte)'0' && b <= (byte)'9') ||
+                b == (byte)'-' || b == (byte)'.' || b == (byte)'_' || b == (byte)'~';
             if (isUnreserved)
             {
                 _ = sb.Append((char)b);

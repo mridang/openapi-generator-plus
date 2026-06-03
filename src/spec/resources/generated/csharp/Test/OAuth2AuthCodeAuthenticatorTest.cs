@@ -26,12 +26,7 @@ public class OAuth2AuthCodeAuthenticatorTest
         public Uri? LastUrl { get; private set; }
 
         public Task<ApiResponse> SendRequestAsync(
-            string method,
-            Uri url,
-            Dictionary<string, string> headers,
-            object? body,
-            bool noRedirect = false
-        )
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
         {
             LastUrl = url;
             LastBody = body?.ToString();
@@ -51,8 +46,7 @@ public class OAuth2AuthCodeAuthenticatorTest
             new Uri("https://auth.example.com/token"),
             null,
             new Uri("https://app.example.com/callback"),
-            Scopes
-        );
+            Scopes);
     }
 
     [Fact]
@@ -68,9 +62,8 @@ public class OAuth2AuthCodeAuthenticatorTest
         Assert.Contains("redirect_uri=", urlStr);
         Assert.True(
             urlStr.Contains("scope=read%20write", StringComparison.Ordinal)
-                || urlStr.Contains("scope=read+write", StringComparison.Ordinal)
-                || urlStr.Contains("scope=read write", StringComparison.Ordinal)
-        );
+            || urlStr.Contains("scope=read+write", StringComparison.Ordinal)
+            || urlStr.Contains("scope=read write", StringComparison.Ordinal));
         Assert.StartsWith("https://auth.example.com/authorize?", urlStr);
     }
 
@@ -88,9 +81,7 @@ public class OAuth2AuthCodeAuthenticatorTest
     public async Task ExchangesCodeWithCorrectGrantType()
     {
         var client = new FakeApiClient();
-        client.Enqueue(
-            "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}"
-        );
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}");
 
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
@@ -141,7 +132,7 @@ public class OAuth2AuthCodeAuthenticatorTest
     }
 
     [Fact]
-    public async Task authHeadersBeforeExchangeReturnsRecoverableError()
+    public async Task auth_headers_before_exchange_returns_recoverable_error()
     {
         var auth = CreateAuthenticator();
 
@@ -149,8 +140,7 @@ public class OAuth2AuthCodeAuthenticatorTest
         // precondition violation. It must surface as a catchable exception
         // so callers can recover -- not as a process crash.
         InvalidOperationException caught = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => auth.GetAuthHeadersAsync()
-        );
+            () => auth.GetAuthHeadersAsync());
         Assert.NotNull(caught);
 
         // Caller continues normally after catching -- no process crash.

@@ -7,7 +7,6 @@
 
 import Foundation
 import Testing
-
 @testable import PetstoreClient
 
 @Suite final class BaseApiTests {
@@ -43,9 +42,7 @@ import Testing
         var responseBody: String = "{}"
         var responseHeaders: [String: String] = ["Content-Type": "application/json"]
 
-        func sendRequest(
-            method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
-        ) async throws -> HttpResponse {
+        func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool) async throws -> HttpResponse {
             lastMethod = method
             lastURL = url
             lastHeaders = headers
@@ -376,7 +373,7 @@ import Testing
 
     @Test func testSerializeBodyNil() {
         let result = try? BaseApi.serializeBody(nil, contentType: "application/json")
-        #expect(result == nil)  // nil body serializes to nil
+        #expect(result == nil) // nil body serializes to nil
     }
 
     @Test func testSerializeBodyFormUrlencoded() {
@@ -438,8 +435,7 @@ import Testing
 
         let options = FindPetsByStatusOptions(status: "available")
         _ = try? await api.findPetsByStatus(options: options)
-        #expect(
-            mockClient.lastURL.contains("status=available"),
+        #expect(mockClient.lastURL.contains("status=available"),
             "expected URL to contain status=available, got: \(mockClient.lastURL)")
     }
 
@@ -451,8 +447,7 @@ import Testing
         let api = PetApi(apiClient: mockClient, config: config)
 
         _ = try? await api.getPetById(petId: 1)
-        #expect(
-            !(mockClient.lastURL.contains("?")),
+        #expect(!(mockClient.lastURL.contains("?")),
             "expected URL without query string, got: \(mockClient.lastURL)")
     }
 
@@ -464,8 +459,7 @@ import Testing
         let api = PetApi(apiClient: mockClient, config: config)
 
         _ = try? await api.findPetsByStatus()
-        #expect(
-            !(mockClient.lastURL.contains("status=")),
+        #expect(!(mockClient.lastURL.contains("status=")),
             "expected URL without status param when options is nil, got: \(mockClient.lastURL)")
     }
 
@@ -478,8 +472,7 @@ import Testing
 
         let opts = FindPetsByStatusOptions()
         _ = try? await api.findPetsByStatus(options: opts)
-        #expect(
-            mockClient.lastURL.contains("status="),
+        #expect(mockClient.lastURL.contains("status="),
             "expected URL to contain status= for allowEmptyValue param with nil value, got: \(mockClient.lastURL)")
     }
 
@@ -492,8 +485,7 @@ import Testing
 
         let opts = FindPetsByStatusOptions(status: "")
         _ = try? await api.findPetsByStatus(options: opts)
-        #expect(
-            mockClient.lastURL.contains("status="),
+        #expect(mockClient.lastURL.contains("status="),
             "expected URL to contain status= for empty string allowEmptyValue param, got: \(mockClient.lastURL)")
     }
 
@@ -517,16 +509,14 @@ import Testing
         let config = try ConfigurationBuilder()
             .server(Servers.server1, variables: ["environment": "staging"])
             .build()
-        #expect(
-            config.baseURL.hasPrefix("https://staging.example.com"),
+        #expect(config.baseURL.hasPrefix("https://staging.example.com"),
             "expected base URL to start with https://staging.example.com, got: \(config.baseURL)")
     }
 
     @Test func testInvalidEnumValueThrows() {
-        #expect(throws: (any Error).self) {
-            try ConfigurationBuilder()
-                .server(Servers.server1, variables: ["environment": "invalid"])
-                .build()
+        #expect(throws: (any Error).self) { try ConfigurationBuilder()
+            .server(Servers.server1, variables: ["environment": "invalid"])
+            .build()
         }
     }
 
@@ -543,14 +533,11 @@ import Testing
         _ = try? await api.getPetTag(petId: 1, tagName: "tag1", options: opts)
         // The spec defines colors as pipeDelimited (explode: false), so both values appear
         // in a single param separated by pipe: colors=red%7Cblue
-        #expect(
-            mockClient.lastURL.contains("colors="),
+        #expect(mockClient.lastURL.contains("colors="),
             "expected URL to contain colors= param, got: \(mockClient.lastURL)")
-        #expect(
-            mockClient.lastURL.contains("red"),
+        #expect(mockClient.lastURL.contains("red"),
             "expected URL to contain red, got: \(mockClient.lastURL)")
-        #expect(
-            mockClient.lastURL.contains("blue"),
+        #expect(mockClient.lastURL.contains("blue"),
             "expected URL to contain blue, got: \(mockClient.lastURL)")
     }
 
@@ -563,8 +550,7 @@ import Testing
 
         let opts = FindPetsByStatusOptions(status: "true")
         _ = try? await api.findPetsByStatus(options: opts)
-        #expect(
-            mockClient.lastURL.contains("status=true"),
+        #expect(mockClient.lastURL.contains("status=true"),
             "expected URL to contain status=true, got: \(mockClient.lastURL)")
     }
 
@@ -576,8 +562,7 @@ import Testing
         let api = PetApi(apiClient: mockClient, config: config)
 
         _ = try? await api.getPetById(petId: 10)
-        #expect(
-            !(mockClient.lastURL.contains("10.0")),
+        #expect(!(mockClient.lastURL.contains("10.0")),
             "should not contain 10.0, got: \(mockClient.lastURL)")
     }
 
@@ -683,8 +668,7 @@ import Testing
         let forwarded = originalHeaders.filter { (k, _) in
             isSameOrigin || !sensitiveHeaders.contains(k.lowercased())
         }
-        #expect(
-            forwarded["Authorization"] == "Bearer token123",
+        #expect(forwarded["Authorization"] == "Bearer token123",
             "Authorization should be forwarded on same-origin redirect")
     }
 
@@ -695,11 +679,9 @@ import Testing
         let forwarded = originalHeaders.filter { (k, _) in
             isSameOrigin || !sensitiveHeaders.contains(k.lowercased())
         }
-        #expect(
-            forwarded["Authorization"] == nil,
+        #expect(forwarded["Authorization"] == nil,
             "Authorization should be dropped on cross-origin redirect")
-        #expect(
-            forwarded["Accept"] != nil,
+        #expect(forwarded["Accept"] != nil,
             "Accept should be forwarded on cross-origin redirect")
     }
 
@@ -710,11 +692,9 @@ import Testing
         let forwarded = originalHeaders.filter { (k, _) in
             isSameOrigin || !sensitiveHeaders.contains(k.lowercased())
         }
-        #expect(
-            forwarded["Cookie"] == nil,
+        #expect(forwarded["Cookie"] == nil,
             "Cookie should be dropped on cross-origin redirect")
-        #expect(
-            forwarded["Accept"] != nil,
+        #expect(forwarded["Accept"] != nil,
             "Accept should be forwarded on cross-origin redirect")
     }
 
@@ -728,8 +708,7 @@ import Testing
         let api = PetApi(apiClient: mockClient, config: config)
         // getPetById is a GET with no body
         _ = try await api.getPetById(petId: 1)
-        #expect(
-            mockClient.lastBody == nil,
+        #expect(mockClient.lastBody == nil,
             "body should be nil for GET request with no body")
     }
 
@@ -742,8 +721,7 @@ import Testing
         let pet = Pet(name: "TestPet", photoUrls: [])
         _ = try? await api.addPet(pet: pet, auth: MockAuth())
         // addPet sends a JSON body -- Content-Type should be present
-        #expect(
-            mockClient.lastHeaders["Content-Type"] != nil,
+        #expect(mockClient.lastHeaders["Content-Type"] != nil,
             "Content-Type must be sent when body is non-nil")
     }
 
@@ -757,8 +735,7 @@ import Testing
         let api = PetApi(apiClient: mockClient, config: config, authenticator: auth)
         let pet = Pet(name: "TestPet", photoUrls: [])
         _ = try? await api.addPet(pet: pet)
-        #expect(
-            mockClient.lastHeaders["Authorization"] == "Bearer client-level",
+        #expect(mockClient.lastHeaders["Authorization"] == "Bearer client-level",
             "Client-level authenticator should be applied when op-level auth is omitted")
     }
 
@@ -771,8 +748,7 @@ import Testing
         let api = PetApi(apiClient: mockClient, config: config, authenticator: clientAuth)
         let pet = Pet(name: "TestPet", photoUrls: [])
         _ = try? await api.addPet(pet: pet, auth: opAuth)
-        #expect(
-            mockClient.lastHeaders["Authorization"] == "Bearer op-level",
+        #expect(mockClient.lastHeaders["Authorization"] == "Bearer op-level",
             "Op-level auth must override the client-level authenticator")
     }
 
@@ -784,7 +760,7 @@ import Testing
         mockClient.responseBody = "{\"id\":42,\"name\":\"Rex\",\"photoUrls\":[]}"
         mockClient.responseHeaders = [
             "Content-Type": "application/json",
-            "X-Trace-Id": "trace-123",
+            "X-Trace-Id": "trace-123"
         ]
         let config = ConfigurationBuilder().baseURL("https://example.com").build()
         let api = PetApi(apiClient: mockClient, config: config)
@@ -872,8 +848,7 @@ import Testing
         let api = PetApi(apiClient: mockClient, config: config)
         let pet = Pet(name: "EmptyPet", photoUrls: [])
         _ = try? await api.addPet(pet: pet, auth: MockAuth())
-        #expect(
-            mockClient.lastHeaders["Content-Type"] == "application/json",
+        #expect(mockClient.lastHeaders["Content-Type"] == "application/json",
             "Content-Type must be application/json when body is a JSON object")
     }
 }

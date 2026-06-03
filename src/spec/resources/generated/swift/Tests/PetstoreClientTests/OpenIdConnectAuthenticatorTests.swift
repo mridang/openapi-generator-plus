@@ -7,7 +7,6 @@
 
 import Foundation
 import Testing
-
 @testable import PetstoreClient
 
 @Suite final class OpenIdConnectAuthenticatorTests {
@@ -21,9 +20,7 @@ import Testing
         var lastHeaders: [String: String] = [:]
         var lastBody: Data? = nil
 
-        func sendRequest(
-            method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
-        ) async throws -> HttpResponse {
+        func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool) async throws -> HttpResponse {
             lastMethod = method
             lastURL = url
             lastHeaders = headers

@@ -7,7 +7,6 @@
 
 import Foundation
 import Testing
-
 @testable import PetstoreClient
 
 @Suite(.serialized)
@@ -173,8 +172,7 @@ final class PetApiTests {
 
         let result = try await api.uploadPetDocument(
             petId: 1,
-            options: UploadPetDocumentOptions(
-                file: fakeDoc, documentType: "vaccination_record", notes: "Annual checkup")
+            options: UploadPetDocumentOptions(file: fakeDoc, documentType: "vaccination_record", notes: "Annual checkup")
         )
         #expect(result != nil)
     }
@@ -237,8 +235,7 @@ final class PetApiTests {
     @Test func testUploadMultipartMock() async throws {
         let mockApi = petApiForMock(statusCode: 200, body: "{\"code\":200,\"type\":\"\",\"message\":\"success\"}")
         let fakeCert = Data("fake-cert".utf8)
-        let result = try await mockApi.uploadPetCertificate(
-            petId: 1, options: UploadPetCertificateOptions(file: fakeCert))
+        let result = try await mockApi.uploadPetCertificate(petId: 1, options: UploadPetCertificateOptions(file: fakeCert))
         #expect(result != nil)
     }
 
@@ -280,9 +277,7 @@ private final class MockApiClient: ApiClient, @unchecked Sendable {
     var responseBody: String = "{}"
     var responseHeaders: [String: String] = ["Content-Type": "application/json"]
 
-    func sendRequest(
-        method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
-    )
+    func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool)
         async throws -> HttpResponse
     {
         lastMethod = method

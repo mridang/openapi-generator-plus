@@ -43,6 +43,7 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     /// <example>doggie</example>
 
     [JsonRequired]
+
     [JsonPropertyName("name")]
     public string Name { get; set; } = name ?? throw new ArgumentNullException(nameof(name));
 
@@ -54,6 +55,7 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     /// <example>null</example>
 
     [JsonRequired]
+
     [JsonPropertyName("photoUrls")]
     public HashSet<string> PhotoUrls { get; set; } = photoUrls;
 
@@ -68,6 +70,7 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     /// <example>null</example>
     /// <remarks>Deprecated.</remarks>
     [Obsolete("This property is deprecated.")]
+
     [JsonPropertyName("status")]
     public StatusEnum? Status { get; set; }
 
@@ -122,32 +125,19 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     public bool Equals(Pet? other)
     {
         return other is not null
-            && (
-                ReferenceEquals(this, other)
-                || (
-                    EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
+            && (ReferenceEquals(this, other)
+                || (EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
                     && EqualityComparer<string>.Default.Equals(this.Name, other.Name)
                     && EqualityComparer<Category?>.Default.Equals(this.Category, other.Category)
-                    && EqualityComparer<HashSet<string>>.Default.Equals(
-                        this.PhotoUrls,
-                        other.PhotoUrls
-                    )
+                    && EqualityComparer<HashSet<string>>.Default.Equals(this.PhotoUrls, other.PhotoUrls)
                     && EqualityComparer<List<Tag>?>.Default.Equals(this.Tags, other.Tags)
                     && EqualityComparer<StatusEnum?>.Default.Equals(this.Status, other.Status)
                     && EqualityComparer<List<Object>?>.Default.Equals(this.Location, other.Location)
                     && EqualityComparer<Uri?>.Default.Equals(this.HomepageUrl, other.HomepageUrl)
-                    && EqualityComparer<string?>.Default.Equals(
-                        this.ThumbnailRef,
-                        other.ThumbnailRef
-                    )
-                    && EqualityComparer<string?>.Default.Equals(
-                        this.LinkTemplate,
-                        other.LinkTemplate
-                    )
+                    && EqualityComparer<string?>.Default.Equals(this.ThumbnailRef, other.ThumbnailRef)
+                    && EqualityComparer<string?>.Default.Equals(this.LinkTemplate, other.LinkTemplate)
                     && EqualityComparer<string?>.Default.Equals(this.OwnerEmail, other.OwnerEmail)
-                    && EqualityComparer<decimal?>.Default.Equals(this.WeightKg, other.WeightKg)
-                )
-            );
+                    && EqualityComparer<decimal?>.Default.Equals(this.WeightKg, other.WeightKg)));
     }
 
     public override bool Equals(object? obj)

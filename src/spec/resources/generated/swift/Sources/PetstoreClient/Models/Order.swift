@@ -40,10 +40,7 @@ public struct Order: Codable, Sendable {
     }
 
     /// Creates a new Order instance.
-    public init(
-        id: Int64? = nil, petId: Int64? = nil, quantity: Int? = nil, shipDate: Date? = nil,
-        status: OrderStatusEnum? = nil, complete: Bool? = nil
-    ) {
+    public init(id: Int64? = nil, petId: Int64? = nil, quantity: Int? = nil, shipDate: Date? = nil, status: OrderStatusEnum? = nil, complete: Bool? = nil) {
         self.id = id
         self.petId = petId
         self.quantity = quantity

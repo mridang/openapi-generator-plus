@@ -77,8 +77,7 @@ public final class ConfigurationBuilder {
     ///
     /// - Throws: ``ServerConfigurationError`` if a variable override is not in the allowed enum values.
     @discardableResult
-    public func server(_ server: ServerConfiguration, variables: [String: String]? = nil) throws -> ConfigurationBuilder
-    {
+    public func server(_ server: ServerConfiguration, variables: [String: String]? = nil) throws -> ConfigurationBuilder {
         self.baseURL = try server.url(variables: variables)
         return self
     }

@@ -24,9 +24,9 @@ public class Surgery(string procedureName) : IEquatable<Surgery>
     /// <example>null</example>
 
     [JsonRequired]
+
     [JsonPropertyName("procedureName")]
-    public string ProcedureName { get; set; } =
-        procedureName ?? throw new ArgumentNullException(nameof(procedureName));
+    public string ProcedureName { get; set; } = procedureName ?? throw new ArgumentNullException(nameof(procedureName));
 
     /// <example>null</example>
 
@@ -39,16 +39,9 @@ public class Surgery(string procedureName) : IEquatable<Surgery>
     public bool Equals(Surgery? other)
     {
         return other is not null
-            && (
-                ReferenceEquals(this, other)
-                || (
-                    EqualityComparer<string>.Default.Equals(this.ProcedureName, other.ProcedureName)
-                    && EqualityComparer<int?>.Default.Equals(
-                        this.DurationMinutes,
-                        other.DurationMinutes
-                    )
-                )
-            );
+            && (ReferenceEquals(this, other)
+                || (EqualityComparer<string>.Default.Equals(this.ProcedureName, other.ProcedureName)
+                    && EqualityComparer<int?>.Default.Equals(this.DurationMinutes, other.DurationMinutes)));
     }
 
     public override bool Equals(object? obj)

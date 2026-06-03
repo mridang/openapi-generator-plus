@@ -42,11 +42,9 @@ public class ApiKeyAuthenticator: BaseAuthenticator, @unchecked Sendable {
                 "API key value for '\(keyParamName)' contains forbidden control characters (CR/LF/NUL)"
             )
         }
-        if location == .header
-            && apiKey.unicodeScalars.contains(where: { s in
-                s.value != 0x09 && (s.value < 0x20 || s.value >= 0x7F)
-            })
-        {
+        if location == .header && apiKey.unicodeScalars.contains(where: { s in
+            s.value != 0x09 && (s.value < 0x20 || s.value >= 0x7F)
+        }) {
             preconditionFailure(
                 "API key for header '\(keyParamName)' must contain only printable ASCII characters (RFC 7230 §3.2.6)"
             )

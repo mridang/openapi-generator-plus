@@ -7,7 +7,6 @@
 
 import Foundation
 import Testing
-
 @testable import PetstoreClient
 
 @Suite final class HeaderSelectorTests {
@@ -23,7 +22,7 @@ import Testing
             ("text/plain", false),
             ("", false),
             ("application/octet-stream", false),
-            ("application/hal+json", true),
+            ("application/hal+json", true)
         ]
 
         for (input, expected) in testCases {
@@ -33,8 +32,7 @@ import Testing
 
     @Test func testSelectHeadersWithSingleAccept() {
         let hs = HeaderSelector()
-        let headers = hs.selectHeaders(
-            accept: ["application/json"], contentType: "application/json", isMultipart: false)
+        let headers = hs.selectHeaders(accept: ["application/json"], contentType: "application/json", isMultipart: false)
 
         #expect(headers["Accept"] == "application/json")
         #expect(headers["Content-Type"] == "application/json")
@@ -42,8 +40,7 @@ import Testing
 
     @Test func testSelectHeadersWithMultipleAccepts() {
         let hs = HeaderSelector()
-        let headers = hs.selectHeaders(
-            accept: ["application/json", "application/xml"], contentType: "application/json", isMultipart: false)
+        let headers = hs.selectHeaders(accept: ["application/json", "application/xml"], contentType: "application/json", isMultipart: false)
 
         let accept = headers["Accept"] ?? ""
         #expect(accept.contains("application/json"))
@@ -58,8 +55,7 @@ import Testing
 
     @Test func testSelectHeadersMultipartOmitsContentType() {
         let hs = HeaderSelector()
-        let headers = hs.selectHeaders(
-            accept: ["application/json"], contentType: "multipart/form-data", isMultipart: true)
+        let headers = hs.selectHeaders(accept: ["application/json"], contentType: "multipart/form-data", isMultipart: true)
 
         #expect(headers["Content-Type"] == nil)
     }

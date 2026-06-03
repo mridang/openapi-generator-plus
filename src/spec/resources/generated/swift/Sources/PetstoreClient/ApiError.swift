@@ -64,8 +64,7 @@ public class ApiError: Error, LocalizedError, @unchecked Sendable {
     /// is no response body to parse.
     public func typedErrorBody<T: Decodable>(as type: T.Type) throws -> T? {
         guard let body = responseBody, !body.isEmpty,
-            let data = body.data(using: .utf8)
-        else {
+              let data = body.data(using: .utf8) else {
             return nil
         }
         /* F5: route through ObjectSerializer.deserialize so the depth-cap

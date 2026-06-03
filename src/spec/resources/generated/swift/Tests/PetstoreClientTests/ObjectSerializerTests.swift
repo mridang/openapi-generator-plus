@@ -7,7 +7,6 @@
 
 import Foundation
 import Testing
-
 @testable import PetstoreClient
 
 @Suite final class ObjectSerializerTests {
@@ -175,7 +174,7 @@ import Testing
     }
 
     @Test func testStringifyInt64() {
-        #expect(ObjectSerializer.stringify(Int64(9_999_999_999)) == "9999999999")
+        #expect(ObjectSerializer.stringify(Int64(9999999999)) == "9999999999")
     }
 
     @Test func testStringifyFloat64() {
@@ -189,7 +188,7 @@ import Testing
     }
 
     @Test func testStringifyDate() {
-        let date = Date(timeIntervalSince1970: 1_705_315_800)
+        let date = Date(timeIntervalSince1970: 1705315800)
         let result = ObjectSerializer.stringify(date)
         #expect(result == "2024-01-15T10:50:00+00:00")
     }
@@ -215,8 +214,9 @@ import Testing
         formatter.formatOptions = [.withInternetDateTime]
         let date = formatter.date(from: "2024-01-01T12:30:45+00:00")!
         let result = ObjectSerializer.stringify(date)
-        let hasOffset =
-            result.hasSuffix("Z") || result.contains("+") || (result.last?.isNumber == true && result.contains("-"))
+        let hasOffset = result.hasSuffix("Z") ||
+            result.contains("+") ||
+            (result.last?.isNumber == true && result.contains("-"))
         #expect(hasOffset, "should contain timezone offset: \(result)")
     }
 
@@ -241,15 +241,15 @@ import Testing
         formatter.formatOptions = [.withInternetDateTime]
         let date = formatter.date(from: "2024-01-01T12:30:45+00:00")!
         let result = ObjectSerializer.stringify(date)
-        let matchesPattern =
-            result.hasSuffix("Z") || result.range(of: #"[+-]\d{2}:\d{2}$"#, options: .regularExpression) != nil
+        let matchesPattern = result.hasSuffix("Z") ||
+            result.range(of: #"[+-]\d{2}:\d{2}$"#, options: .regularExpression) != nil
         #expect(matchesPattern, "should end with offset or Z: \(result)")
     }
 
     @Test func testDateTimePositiveOffsetPreservedIfFormatterUsesLocalZone() {
         // This test verifies the formatter uses the date's timezone, not always UTC
         // The exact offset depends on the test environment, but the result must be valid ISO 8601
-        let date = Date(timeIntervalSince1970: 1_704_100_245)  // 2024-01-01 some time
+        let date = Date(timeIntervalSince1970: 1704100245) // 2024-01-01 some time
         let result = ObjectSerializer.stringify(date)
         #expect(!result.isEmpty, "result should not be empty")
         #expect(result.contains("T"), "result should contain T separator: \(result)")
@@ -262,8 +262,7 @@ import Testing
         let serialized = ObjectSerializer.stringify(original)
         let parsed = formatter.date(from: serialized)
         #expect(parsed != nil, "should be able to parse back serialized datetime: \(serialized)")
-        #expect(
-            abs(original.timeIntervalSince1970 - (parsed?.timeIntervalSince1970 ?? 0)) < 1,
+        #expect(abs(original.timeIntervalSince1970 - (parsed?.timeIntervalSince1970 ?? 0)) < 1,
             "round-trip should preserve instant")
     }
 
@@ -323,8 +322,7 @@ import Testing
         let dry = DryFood(weightKg: 2.5)
 
         let json = try ObjectSerializer.serialize(dry)
-        #expect(
-            json.contains("\"foodType\":\"dry\""),
+        #expect(json.contains("\"foodType\":\"dry\""),
             "serialised JSON must contain auto-injected discriminator, got: \(json)")
     }
 
@@ -367,7 +365,7 @@ import Testing
     @Test func testMapOfModelRoundTrip() throws {
         let original: [String: Category] = [
             "k1": Category(id: 1, name: "A"),
-            "k2": Category(id: 2, name: "B"),
+            "k2": Category(id: 2, name: "B")
         ]
         let json = try ObjectSerializer.serialize(original)
         let decoded = try ObjectSerializer.deserialize(json, as: [String: Category].self)
@@ -388,8 +386,7 @@ import Testing
         }
         let original = Holder(id: UUID(uuidString: "E621E1F8-C36C-495A-93FC-0C247A3E6E5F")!)
         let json = try ObjectSerializer.serialize(original)
-        #expect(
-            json.contains("E621E1F8-C36C-495A-93FC-0C247A3E6E5F"),
+        #expect(json.contains("E621E1F8-C36C-495A-93FC-0C247A3E6E5F"),
             "UUID should encode as canonical uppercased string: \(json)")
         let decoded = try ObjectSerializer.deserialize(json, as: Holder.self)
         #expect(decoded == original)

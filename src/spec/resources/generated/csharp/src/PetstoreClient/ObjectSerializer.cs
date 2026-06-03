@@ -71,24 +71,11 @@ public class ObjectSerializer
         {
             null => "",
             bool b => b ? "true" : "false",
-            DateOnly d => d.ToString(
-                "yyyy-MM-dd",
-                System.Globalization.CultureInfo.InvariantCulture
-            ),
+            DateOnly d => d.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
             TimeOnly t => t.ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture),
             TimeSpan ts => Iso8601DurationConverter.Format(ts),
-            DateTimeOffset dto => dto.ToString(
-                "yyyy-MM-dd'T'HH:mm:sszzz",
-                System.Globalization.CultureInfo.InvariantCulture
-            ),
-            DateTime dt => new DateTimeOffset(
-                dt.Kind == DateTimeKind.Unspecified
-                    ? DateTime.SpecifyKind(dt, DateTimeKind.Utc)
-                    : dt
-            ).ToString(
-                "yyyy-MM-dd'T'HH:mm:sszzz",
-                System.Globalization.CultureInfo.InvariantCulture
-            ),
+            DateTimeOffset dto => dto.ToString("yyyy-MM-dd'T'HH:mm:sszzz", System.Globalization.CultureInfo.InvariantCulture),
+            DateTime dt => new DateTimeOffset(dt.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(dt, DateTimeKind.Utc) : dt).ToString("yyyy-MM-dd'T'HH:mm:sszzz", System.Globalization.CultureInfo.InvariantCulture),
             _ => value.ToString() ?? "",
         };
     }
@@ -177,10 +164,7 @@ public class ObjectSerializer
     /// and returns a deserialized value, or throws on failure.
     /// Returns the first successful deserialization result.
     /// </summary>
-    public static object? ResolveOneOf(
-        JsonElement json,
-        params Func<JsonElement, object?>[] candidates
-    )
+    public static object? ResolveOneOf(JsonElement json, params Func<JsonElement, object?>[] candidates)
     {
         ArgumentNullException.ThrowIfNull(candidates);
 
@@ -199,8 +183,12 @@ public class ObjectSerializer
                     return result;
                 }
             }
-            catch (JsonException) { }
-            catch (NotSupportedException) { }
+            catch (JsonException)
+            {
+            }
+            catch (NotSupportedException)
+            {
+            }
         }
 
         return null;
@@ -212,10 +200,7 @@ public class ObjectSerializer
     /// and returns a deserialized value, or throws on failure.
     /// Returns the first successful deserialization result.
     /// </summary>
-    public static object? ResolveAnyOf(
-        JsonElement json,
-        params Func<JsonElement, object?>[] candidates
-    )
+    public static object? ResolveAnyOf(JsonElement json, params Func<JsonElement, object?>[] candidates)
     {
         return ResolveOneOf(json, candidates);
     }
@@ -245,34 +230,21 @@ public class ObjectSerializer
     /// precision (no subseconds), matching the format used by all other
     /// language generators: yyyy-MM-dd'T'HH:mm:sszzz.
     /// </summary>
-    private sealed class DateTimeOffsetJsonConverter
-        : System.Text.Json.Serialization.JsonConverter<DateTimeOffset>
+    private sealed class DateTimeOffsetJsonConverter : System.Text.Json.Serialization.JsonConverter<DateTimeOffset>
     {
         private const string Format = "yyyy-MM-dd'T'HH:mm:sszzz";
 
-        public override DateTimeOffset Read(
-            ref Utf8JsonReader reader,
-            Type typeToConvert,
-            JsonSerializerOptions options
-        )
+        public override DateTimeOffset Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            return DateTimeOffset.Parse(
-                reader.GetString()!,
-                System.Globalization.CultureInfo.InvariantCulture
-            );
+            return DateTimeOffset.Parse(reader.GetString()!, System.Globalization.CultureInfo.InvariantCulture);
         }
 
-        public override void Write(
-            Utf8JsonWriter writer,
-            DateTimeOffset value,
-            JsonSerializerOptions options
-        )
+        public override void Write(Utf8JsonWriter writer, DateTimeOffset value, JsonSerializerOptions options)
         {
-            writer.WriteStringValue(
-                value.ToString(Format, System.Globalization.CultureInfo.InvariantCulture)
-            );
+            writer.WriteStringValue(value.ToString(Format, System.Globalization.CultureInfo.InvariantCulture));
         }
     }
+
 }
 
 /// <summary>
@@ -291,11 +263,7 @@ public class ObjectSerializer
 /// </summary>
 public sealed class Iso8601DurationConverter : JsonConverter<TimeSpan>
 {
-    public override TimeSpan Read(
-        ref Utf8JsonReader reader,
-        Type typeToConvert,
-        JsonSerializerOptions options
-    )
+    public override TimeSpan Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         string? s = reader.GetString();
         if (string.IsNullOrEmpty(s))
@@ -331,8 +299,7 @@ public sealed class Iso8601DurationConverter : JsonConverter<TimeSpan>
         int days = abs.Days;
         if (days > 0)
         {
-            _ = sb.Append(days.ToString(System.Globalization.CultureInfo.InvariantCulture))
-                .Append('D');
+            _ = sb.Append(days.ToString(System.Globalization.CultureInfo.InvariantCulture)).Append('D');
         }
         int hours = abs.Hours;
         int minutes = abs.Minutes;
@@ -344,31 +311,22 @@ public sealed class Iso8601DurationConverter : JsonConverter<TimeSpan>
             _ = sb.Append('T');
             if (hours > 0)
             {
-                _ = sb.Append(hours.ToString(System.Globalization.CultureInfo.InvariantCulture))
-                    .Append('H');
+                _ = sb.Append(hours.ToString(System.Globalization.CultureInfo.InvariantCulture)).Append('H');
             }
             if (minutes > 0)
             {
-                _ = sb.Append(minutes.ToString(System.Globalization.CultureInfo.InvariantCulture))
-                    .Append('M');
+                _ = sb.Append(minutes.ToString(System.Globalization.CultureInfo.InvariantCulture)).Append('M');
             }
             if (seconds > 0 || fractionalTicks > 0)
             {
                 if (fractionalTicks > 0)
                 {
                     decimal secs = seconds + ((decimal)fractionalTicks / TimeSpan.TicksPerSecond);
-                    _ = sb.Append(
-                        secs.ToString(
-                            "0.#######",
-                            System.Globalization.CultureInfo.InvariantCulture
-                        )
-                    );
+                    _ = sb.Append(secs.ToString("0.#######", System.Globalization.CultureInfo.InvariantCulture));
                 }
                 else
                 {
-                    _ = sb.Append(
-                        seconds.ToString(System.Globalization.CultureInfo.InvariantCulture)
-                    );
+                    _ = sb.Append(seconds.ToString(System.Globalization.CultureInfo.InvariantCulture));
                 }
                 _ = sb.Append('S');
             }
@@ -412,10 +370,7 @@ public sealed class Iso8601DurationConverter : JsonConverter<TimeSpan>
                 continue;
             }
             int numStart = idx;
-            while (
-                idx < text.Length
-                && (char.IsDigit(text[idx]) || text[idx] == '.' || text[idx] == ',')
-            )
+            while (idx < text.Length && (char.IsDigit(text[idx]) || text[idx] == '.' || text[idx] == ','))
             {
                 idx++;
             }
@@ -432,25 +387,18 @@ public sealed class Iso8601DurationConverter : JsonConverter<TimeSpan>
                 switch (designator)
                 {
                     case 'D':
-                        days = long.Parse(
-                            numText,
-                            System.Globalization.CultureInfo.InvariantCulture
-                        );
+                        days = long.Parse(numText, System.Globalization.CultureInfo.InvariantCulture);
                         break;
                     case 'W':
-                        days +=
-                            long.Parse(numText, System.Globalization.CultureInfo.InvariantCulture)
-                            * 7L;
+                        days += long.Parse(numText, System.Globalization.CultureInfo.InvariantCulture) * 7L;
                         break;
                     case 'Y':
                     case 'M':
                         throw new JsonException(
-                            $"ISO-8601 duration designators 'Y' and date-'M' are not supported by TimeSpan: {text}"
-                        );
+                            $"ISO-8601 duration designators 'Y' and date-'M' are not supported by TimeSpan: {text}");
                     default:
                         throw new JsonException(
-                            $"Invalid date designator '{designator}' in ISO-8601 duration: {text}"
-                        );
+                            $"Invalid date designator '{designator}' in ISO-8601 duration: {text}");
                 }
             }
             else
@@ -458,27 +406,17 @@ public sealed class Iso8601DurationConverter : JsonConverter<TimeSpan>
                 switch (designator)
                 {
                     case 'H':
-                        hours = long.Parse(
-                            numText,
-                            System.Globalization.CultureInfo.InvariantCulture
-                        );
+                        hours = long.Parse(numText, System.Globalization.CultureInfo.InvariantCulture);
                         break;
                     case 'M':
-                        minutes = long.Parse(
-                            numText,
-                            System.Globalization.CultureInfo.InvariantCulture
-                        );
+                        minutes = long.Parse(numText, System.Globalization.CultureInfo.InvariantCulture);
                         break;
                     case 'S':
-                        seconds = decimal.Parse(
-                            numText,
-                            System.Globalization.CultureInfo.InvariantCulture
-                        );
+                        seconds = decimal.Parse(numText, System.Globalization.CultureInfo.InvariantCulture);
                         break;
                     default:
                         throw new JsonException(
-                            $"Invalid time designator '{designator}' in ISO-8601 duration: {text}"
-                        );
+                            $"Invalid time designator '{designator}' in ISO-8601 duration: {text}");
                 }
             }
         }

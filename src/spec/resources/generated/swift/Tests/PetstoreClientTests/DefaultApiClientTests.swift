@@ -399,8 +399,7 @@ import Testing
     @Test func testHttpsToHttpIsCrossOrigin() {
         let httpsURL = URL(string: "https://example.com/token")!
         let httpURL = URL(string: "http://example.com/token")!
-        #expect(
-            !DefaultApiClient.sameOrigin(httpsURL, httpURL),
+        #expect(!DefaultApiClient.sameOrigin(httpsURL, httpURL),
             "https->http must be cross-origin (TLS downgrade) for body-replay refusal")
     }
 
@@ -434,8 +433,7 @@ import Testing
         /* Accept either no header or an explicit "0" -- both are
          * safe; the failure mode is the stale length from the POST. */
         if let cl = capturedContentLength, !cl.isEmpty {
-            #expect(
-                cl == "0",
+            #expect(cl == "0",
                 "303 follow-up must not carry stale Content-Length, got: \(cl)")
         }
     }
@@ -446,8 +444,7 @@ private final class HopCounter: @unchecked Sendable {
     private let lock = NSLock()
     private var value = 0
     func increment() -> Int {
-        lock.lock()
-        defer { lock.unlock() }
+        lock.lock(); defer { lock.unlock() }
         value += 1
         return value
     }

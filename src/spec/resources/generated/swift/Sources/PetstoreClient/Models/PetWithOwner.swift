@@ -66,12 +66,7 @@ public struct PetWithOwner: Codable, Sendable {
     }
 
     /// Creates a new PetWithOwner instance.
-    public init(
-        name: String, photoUrls: Set<String>, ownerName: String, id: Int64? = nil, category: Category? = nil,
-        tags: [Tag]? = nil, status: PetWithOwnerStatusEnum? = nil, location: [AnyCodable]? = nil,
-        homepageUrl: String? = nil, thumbnailRef: String? = nil, linkTemplate: String? = nil, ownerEmail: String? = nil,
-        weightKg: Double? = nil
-    ) {
+    public init(name: String, photoUrls: Set<String>, ownerName: String, id: Int64? = nil, category: Category? = nil, tags: [Tag]? = nil, status: PetWithOwnerStatusEnum? = nil, location: [AnyCodable]? = nil, homepageUrl: String? = nil, thumbnailRef: String? = nil, linkTemplate: String? = nil, ownerEmail: String? = nil, weightKg: Double? = nil) {
         self.name = name
         self.photoUrls = photoUrls
         self.ownerName = ownerName

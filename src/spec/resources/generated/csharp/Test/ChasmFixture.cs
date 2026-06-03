@@ -27,8 +27,7 @@ public class ChasmFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        var hostAppPath =
-            Environment.GetEnvironmentVariable("HOST_APP_PATH") ?? Directory.GetCurrentDirectory();
+        var hostAppPath = Environment.GetEnvironmentVariable("HOST_APP_PATH") ?? Directory.GetCurrentDirectory();
         var specPath = Path.Combine(hostAppPath, "Test", "Resources", "openapi.yaml");
         var certPath = Path.Combine(hostAppPath, "Test", "Resources", "certs", "server.pem");
         var keyPath = Path.Combine(hostAppPath, "Test", "Resources", "certs", "server-key.pem");
@@ -44,18 +43,7 @@ public class ChasmFixture : IAsyncLifetime
             .WithBindMount(specPath, "/tmp/openapi.yaml", AccessMode.ReadOnly)
             .WithBindMount(certPath, "/certs/cert.pem", AccessMode.ReadOnly)
             .WithBindMount(keyPath, "/certs/key.pem", AccessMode.ReadOnly)
-            .WithCommand(
-                "mock",
-                "/tmp/openapi.yaml",
-                "--host",
-                "0.0.0.0",
-                "--tls-cert",
-                "/certs/cert.pem",
-                "--tls-key",
-                "/certs/key.pem",
-                "--tls-port",
-                "8443"
-            )
+            .WithCommand("mock", "/tmp/openapi.yaml", "--host", "0.0.0.0", "--tls-cert", "/certs/cert.pem", "--tls-key", "/certs/key.pem", "--tls-port", "8443")
             .WithNetwork(_network)
             .WithNetworkAliases("chasm")
             .WithWaitStrategy(Wait.ForUnixContainer().UntilMessageIsLogged("Listening on"))
@@ -87,4 +75,6 @@ public class ChasmFixture : IAsyncLifetime
 }
 
 [CollectionDefinition("Chasm")]
-public class ChasmTestGroup : ICollectionFixture<ChasmFixture> { }
+public class ChasmTestGroup : ICollectionFixture<ChasmFixture>
+{
+}

@@ -105,7 +105,7 @@ public class OAuth2AuthorizationCodeAuthenticator: BaseAuthenticator, HttpAwareA
             "code": code,
             "client_id": clientID,
             "client_secret": clientSecret,
-            "redirect_uri": redirectURI,
+            "redirect_uri": redirectURI
         ]
         _ = try await tokenManager.getAccessToken(tokenURL: tokenURL, params: params)
         tokenExchanged = true

@@ -59,7 +59,6 @@ public final class Client: Sendable {
 
     /// Creates a client authenticated with a static Bearer token.
     public convenience init(host: String, accessToken: String, transportOptions: TransportOptions? = nil) {
-        self.init(
-            authenticator: BearerAuthenticator(host: host, token: accessToken), transportOptions: transportOptions)
+        self.init(authenticator: BearerAuthenticator(host: host, token: accessToken), transportOptions: transportOptions)
     }
 }

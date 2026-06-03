@@ -7,7 +7,6 @@
 
 import Foundation
 import Testing
-
 @testable import PetstoreClient
 
 @Suite final class OAuth2TokenManagerTests {
@@ -22,9 +21,7 @@ import Testing
         var lastBody: Data? = nil
         var lastNoRedirect: Bool = false
 
-        func sendRequest(
-            method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
-        ) async throws -> HttpResponse {
+        func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool) async throws -> HttpResponse {
             lastMethod = method
             lastURL = url
             lastHeaders = headers
@@ -52,9 +49,7 @@ import Testing
             self.delayNanos = delayNanos
         }
 
-        func sendRequest(
-            method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
-        ) async throws -> HttpResponse {
+        func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool) async throws -> HttpResponse {
             lock.withLock { _callCount += 1 }
             if delayNanos > 0 {
                 try? await Task.sleep(nanoseconds: delayNanos)
@@ -86,8 +81,7 @@ import Testing
 
     @Test func testStoresRefreshToken() async throws {
         let client = MockApiClient()
-        client.responses.append(
-            makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}"))
 
         let manager = OAuth2TokenManager()
         manager.setApiClient(client)
@@ -211,9 +205,7 @@ import Testing
 
         #expect(tokens.count == 10, "all 10 concurrent callers should receive a token")
         #expect(tokens.allSatisfy { $0 == "shared-tok" }, "all callers should get the same token")
-        #expect(
-            client.callCount == 1,
-            "expected exactly 1 token-endpoint call for 10 concurrent callers, got \(client.callCount)")
+        #expect(client.callCount == 1, "expected exactly 1 token-endpoint call for 10 concurrent callers, got \(client.callCount)")
     }
 
     @Test func testExpiresInShortLivedTokenDoesNotStorm() async throws {
@@ -280,10 +272,8 @@ import Testing
         // Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
         // MUST NOT clobber the cached refresh_token.
         let client = MockApiClient()
-        client.responses.append(
-            makeResponse(body: "{\"access_token\":\"old_access\",\"refresh_token\":\"old_refresh\",\"expires_in\":1}"))
-        client.responses.append(
-            makeResponse(body: "{\"access_token\":\"new_access\",\"expires_in\":3600,\"refresh_token\":\"\"}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"old_access\",\"refresh_token\":\"old_refresh\",\"expires_in\":1}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"new_access\",\"expires_in\":3600,\"refresh_token\":\"\"}"))
 
         let manager = OAuth2TokenManager()
         manager.setApiClient(client)
@@ -297,9 +287,8 @@ import Testing
         // Second call: access token near-expiry triggers refresh via "old_refresh".
         // Server replies with empty refresh_token which must not overwrite cache.
         _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
-        #expect(
-            manager.refreshToken == "old_refresh",
-            "empty refresh_token in refresh response must not overwrite cached refresh_token")
+        #expect(manager.refreshToken == "old_refresh",
+                "empty refresh_token in refresh response must not overwrite cached refresh_token")
     }
 
     @Test func testExpiresInAsJsonStringIsAccepted() async throws {
@@ -377,8 +366,7 @@ import Testing
             params: ["grant_type": "client_credentials"]
         )
 
-        #expect(
-            client.lastNoRedirect == true,
+        #expect(client.lastNoRedirect == true,
             "OAuth2TokenManager must request noRedirect=true on the token POST")
     }
 

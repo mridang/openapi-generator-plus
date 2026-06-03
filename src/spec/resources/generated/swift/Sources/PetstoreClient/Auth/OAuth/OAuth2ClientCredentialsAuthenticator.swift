@@ -22,10 +22,7 @@ public class OAuth2ClientCredentialsAuthenticator: BaseAuthenticator, HttpAwareA
     private let tokenManager: OAuth2TokenManager
 
     /// Creates a new client credentials authenticator.
-    public init(
-        host: String, clientID: String, clientSecret: String, tokenURL: String, scopes: [String] = [],
-        clientAuthMethod: ClientAuthMethod = .body
-    ) {
+    public init(host: String, clientID: String, clientSecret: String, tokenURL: String, scopes: [String] = [], clientAuthMethod: ClientAuthMethod = .body) {
         self._host = host
         self.clientID = clientID
         self.clientSecret = clientSecret
@@ -68,10 +65,7 @@ public class OAuth2ClientCredentialsAuthenticator: BaseAuthenticator, HttpAwareA
             params["scope"] = scopes.joined(separator: " ")
         }
 
-        guard
-            let accessToken = try? await tokenManager.getAccessToken(
-                tokenURL: tokenURL, params: params, extraHeaders: extraHeaders)
-        else {
+        guard let accessToken = try? await tokenManager.getAccessToken(tokenURL: tokenURL, params: params, extraHeaders: extraHeaders) else {
             return [:]
         }
         return ["Authorization": "Bearer \(accessToken)"]

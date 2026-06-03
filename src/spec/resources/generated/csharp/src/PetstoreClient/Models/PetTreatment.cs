@@ -31,23 +31,13 @@ public class PetTreatment(object value)
     private sealed class PetTreatmentConverter : JsonConverter<PetTreatment>
 #pragma warning restore CA1812
     {
-        public override PetTreatment? Read(
-            ref Utf8JsonReader reader,
-            Type typeToConvert,
-            JsonSerializerOptions options
-        )
+        public override PetTreatment? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
             using JsonDocument doc = JsonDocument.ParseValue(ref reader);
             string raw = doc.RootElement.GetRawText();
-            try
-            {
-                return new PetTreatment(JsonSerializer.Deserialize<Medication>(raw, options)!);
-            }
+            try { return new PetTreatment(JsonSerializer.Deserialize<Medication>(raw, options)!); }
             catch (JsonException) { }
-            try
-            {
-                return new PetTreatment(JsonSerializer.Deserialize<Surgery>(raw, options)!);
-            }
+            try { return new PetTreatment(JsonSerializer.Deserialize<Surgery>(raw, options)!); }
             catch (JsonException) { }
             /* No schema in the union matched — throw rather than silently
              * fall back to a raw JsonElement. Five SDKs throw on no-match
@@ -55,15 +45,10 @@ public class PetTreatment(object value)
              * (C# here, plus Java/Kotlin/PHP/Ruby/Node/Elixir) so data-
              * shape bugs surface loudly. */
             throw new JsonException(
-                $"JSON did not match any schema in the PetTreatment union: {raw}"
-            );
+                $"JSON did not match any schema in the PetTreatment union: {raw}");
         }
 
-        public override void Write(
-            Utf8JsonWriter writer,
-            PetTreatment value,
-            JsonSerializerOptions options
-        )
+        public override void Write(Utf8JsonWriter writer, PetTreatment value, JsonSerializerOptions options)
         {
             JsonSerializer.Serialize(writer, value.ActualInstance, options);
         }

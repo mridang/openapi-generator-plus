@@ -53,22 +53,12 @@ public class PetPassport : IEquatable<PetPassport>
     public bool Equals(PetPassport? other)
     {
         return other is not null
-            && (
-                ReferenceEquals(this, other)
-                || (
-                    EqualityComparer<Pet?>.Default.Equals(this.Pet, other.Pet)
+            && (ReferenceEquals(this, other)
+                || (EqualityComparer<Pet?>.Default.Equals(this.Pet, other.Pet)
                     && EqualityComparer<byte[]?>.Default.Equals(this.Thumbnail, other.Thumbnail)
                     && EqualityComparer<List<byte[]>?>.Default.Equals(this.Scans, other.Scans)
-                    && EqualityComparer<DateTimeOffset?>.Default.Equals(
-                        this.IssuedAt,
-                        other.IssuedAt
-                    )
-                    && EqualityComparer<string?>.Default.Equals(
-                        this.BiometricChip,
-                        other.BiometricChip
-                    )
-                )
-            );
+                    && EqualityComparer<DateTimeOffset?>.Default.Equals(this.IssuedAt, other.IssuedAt)
+                    && EqualityComparer<string?>.Default.Equals(this.BiometricChip, other.BiometricChip)));
     }
 
     public override bool Equals(object? obj)

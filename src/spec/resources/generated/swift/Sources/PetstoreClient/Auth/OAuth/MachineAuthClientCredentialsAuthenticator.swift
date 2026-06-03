@@ -7,11 +7,8 @@
 
 import Foundation
 
-public final class MachineAuthClientCredentialsAuthenticator: OAuth2ClientCredentialsAuthenticator, @unchecked Sendable
-{
+public final class MachineAuthClientCredentialsAuthenticator: OAuth2ClientCredentialsAuthenticator, @unchecked Sendable {
     public init(host: String, clientId: String, clientSecret: String) {
-        super.init(
-            host: host, clientID: clientId, clientSecret: clientSecret,
-            tokenURL: "https://auth.example.com/oauth/token", scopes: ["pets:write", "pets:read"])
+        super.init(host: host, clientID: clientId, clientSecret: clientSecret, tokenURL: "https://auth.example.com/oauth/token", scopes: ["pets:write", "pets:read"])
     }
 }

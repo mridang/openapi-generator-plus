@@ -95,8 +95,7 @@ public final class HeaderSelector: Sendable {
         let groups = [withApplicationJSON, withJSON, withoutJSON]
         for group in groups {
             if !group.isEmpty {
-                let adjusted = adjustWeight(
-                    group, currentWeight: &currentWeight, hasMoreThan28Headers: hasMoreThan28Headers)
+                let adjusted = adjustWeight(group, currentWeight: &currentWeight, hasMoreThan28Headers: hasMoreThan28Headers)
                 acceptHeaders.append(contentsOf: adjusted)
             }
         }
@@ -115,8 +114,7 @@ public final class HeaderSelector: Sendable {
         return HeaderData(header: header.trimmingCharacters(in: .whitespaces), weight: 1000)
     }
 
-    private func adjustWeight(_ headers: [HeaderData], currentWeight: inout Int, hasMoreThan28Headers: Bool) -> [String]
-    {
+    private func adjustWeight(_ headers: [HeaderData], currentWeight: inout Int, hasMoreThan28Headers: Bool) -> [String] {
         let sorted = headers.sorted { $0.weight > $1.weight }
 
         var acceptHeaders: [String] = []

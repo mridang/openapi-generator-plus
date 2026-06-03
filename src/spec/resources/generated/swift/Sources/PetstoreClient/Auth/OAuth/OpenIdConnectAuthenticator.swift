@@ -92,13 +92,11 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
 
         let client: ApiClient = try lock.withLock {
             guard let client = apiClient else {
-                throw NSError(
-                    domain: "OpenIdConnectAuthenticator", code: -1,
-                    userInfo: [
-                        NSLocalizedDescriptionKey: "ApiClient has not been injected. "
-                            + "Ensure the Client constructor calls setApiClient "
-                            + "on HttpAwareAuthenticator before making API requests"
-                    ])
+                throw NSError(domain: "OpenIdConnectAuthenticator", code: -1, userInfo: [
+                    NSLocalizedDescriptionKey: "ApiClient has not been injected. " +
+                        "Ensure the Client constructor calls setApiClient " +
+                        "on HttpAwareAuthenticator before making API requests"
+                ])
             }
             return client
         }
@@ -143,19 +141,16 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
     private static func parseMaxAge(_ headers: [String: String]) -> Int {
         let defaultMaxAge = 86400
         for (key, value) in headers where key.lowercased() == "cache-control" {
-            guard
-                let regex = try? NSRegularExpression(
-                    pattern: "max-age=(\\d+)", options: [.caseInsensitive]
-                )
-            else {
+            guard let regex = try? NSRegularExpression(
+                pattern: "max-age=(\\d+)", options: [.caseInsensitive]
+            ) else {
                 return defaultMaxAge
             }
             let range = NSRange(value.startIndex..., in: value)
             guard let match = regex.firstMatch(in: value, options: [], range: range),
-                match.numberOfRanges >= 2,
-                let group = Range(match.range(at: 1), in: value),
-                let seconds = Int(value[group])
-            else {
+                  match.numberOfRanges >= 2,
+                  let group = Range(match.range(at: 1), in: value),
+                  let seconds = Int(value[group]) else {
                 return defaultMaxAge
             }
             return seconds

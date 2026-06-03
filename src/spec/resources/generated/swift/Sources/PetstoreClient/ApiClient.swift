@@ -25,9 +25,7 @@ public protocol ApiClient: Sendable {
     ///     replayed to a redirect target. Defaults to false.
     /// - Returns: An ``HttpResponse`` with status code, body, and headers.
     /// - Throws: An error if the request fails at the transport level.
-    func sendRequest(
-        method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
-    ) async throws -> HttpResponse
+    func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool) async throws -> HttpResponse
 
     /// Gap T6: release the underlying transport (URLSession connection
     /// pool, delegate queue). Default implementation is a no-op; the
@@ -36,8 +34,8 @@ public protocol ApiClient: Sendable {
     func close()
 }
 
-extension ApiClient {
-    public func close() {
+public extension ApiClient {
+    func close() {
         /* No-op by default. Implementations override to release resources. */
     }
 
@@ -45,9 +43,7 @@ extension ApiClient {
     /// existing call sites that don't care about redirect refusal stay
     /// terse while OAuth2 token-endpoint POSTs opt in via the explicit
     /// parameter.
-    public func sendRequest(
-        method: String, url: String, headers: [String: String], body: Any?
-    ) async throws -> HttpResponse {
+    func sendRequest(method: String, url: String, headers: [String: String], body: Any?) async throws -> HttpResponse {
         try await sendRequest(method: method, url: url, headers: headers, body: body, noRedirect: false)
     }
 }

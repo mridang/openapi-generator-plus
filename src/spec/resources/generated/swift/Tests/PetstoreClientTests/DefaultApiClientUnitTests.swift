@@ -83,8 +83,7 @@ import Testing
             capturedId = req.value(forHTTPHeaderField: "X-Request-ID")
             return (self.body(), 200, [:])
         }
-        _ = try await client.sendRequest(
-            method: "GET", url: "http://localhost/test",
+        _ = try await client.sendRequest(method: "GET", url: "http://localhost/test",
             headers: ["X-Request-ID": "caller-id"], body: nil)
         #expect(capturedId == "caller-id")
     }
@@ -122,8 +121,7 @@ import Testing
             capturedAccept = req.value(forHTTPHeaderField: "Accept")
             return (self.body(), 200, [:])
         }
-        _ = try await client.sendRequest(
-            method: "GET", url: "http://localhost/test",
+        _ = try await client.sendRequest(method: "GET", url: "http://localhost/test",
             headers: ["Accept": "application/json"], body: nil)
         #expect(capturedAccept == "application/json")
     }
@@ -157,16 +155,14 @@ import Testing
 
     @Test func testReturnsNon2xxStatusCode() async throws {
         let client = makeClient { _ in (self.body("not found"), 404, [:]) }
-        let resp = try await client.sendRequest(
-            method: "GET", url: "http://localhost/not-found", headers: [:], body: nil)
+        let resp = try await client.sendRequest(method: "GET", url: "http://localhost/not-found", headers: [:], body: nil)
         #expect(resp.statusCode == 404)
         #expect(resp.body == "not found")
     }
 
     @Test func testSendsPutRequest() async throws {
         let client = makeClient { _ in (self.body(#"{"method":"PUT"}"#), 200, [:]) }
-        let resp = try await client.sendRequest(
-            method: "PUT", url: "http://localhost/echo", headers: [:], body: "update")
+        let resp = try await client.sendRequest(method: "PUT", url: "http://localhost/echo", headers: [:], body: "update")
         #expect(resp.statusCode == 200)
         #expect(resp.body.contains("PUT"))
     }
@@ -182,16 +178,14 @@ import Testing
         let client = makeClient { _ in
             (self.body(#"{"format":"vendor"}"#), 200, ["Content-Type": "application/vnd.api+json"])
         }
-        let resp = try await client.sendRequest(
-            method: "GET", url: "http://localhost/vendor-json", headers: [:], body: nil)
+        let resp = try await client.sendRequest(method: "GET", url: "http://localhost/vendor-json", headers: [:], body: nil)
         #expect(resp.statusCode == 200)
         #expect(resp.body.contains("vendor"))
     }
 
     @Test func testJoinsMultiValueResponseHeaders() async throws {
         let client = makeClient { _ in (self.body("ok"), 200, ["X-Custom-Value": "val1, val2"]) }
-        let resp = try await client.sendRequest(
-            method: "GET", url: "http://localhost/multi-header", headers: [:], body: nil)
+        let resp = try await client.sendRequest(method: "GET", url: "http://localhost/multi-header", headers: [:], body: nil)
         #expect(resp.statusCode == 200)
         let value = resp.headers.first(where: { $0.key.lowercased() == "x-custom-value" })?.value
         #expect(value?.contains("val1") ?? false)
@@ -226,8 +220,7 @@ import Testing
         let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
         let bodyStr = String(data: body, encoding: .utf8) ?? ""
         /* Both `name=` and `filename=` should carry the escaped form `a\"b.txt`. */
-        #expect(
-            bodyStr.contains("a\\\"b.txt"),
+        #expect(bodyStr.contains("a\\\"b.txt"),
             "expected backslash-escaped quote in body, got: \(bodyStr)")
     }
 
@@ -235,8 +228,7 @@ import Testing
         let formParts: [String: Any] = ["a\\b.txt": Data([0x01])]
         let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
         let bodyStr = String(data: body, encoding: .utf8) ?? ""
-        #expect(
-            bodyStr.contains("a\\\\b.txt"),
+        #expect(bodyStr.contains("a\\\\b.txt"),
             "expected backslash-escaped backslash in body, got: \(bodyStr)")
     }
 
@@ -244,11 +236,9 @@ import Testing
         let formParts: [String: Any] = ["日本.pdf": Data([0x01])]
         let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
         let bodyStr = String(data: body, encoding: .utf8) ?? ""
-        #expect(
-            bodyStr.contains("filename*=UTF-8''"),
+        #expect(bodyStr.contains("filename*=UTF-8''"),
             "expected RFC 5987 filename* parameter for non-ASCII filename")
-        #expect(
-            bodyStr.contains("%E6%97%A5%E6%9C%AC.pdf"),
+        #expect(bodyStr.contains("%E6%97%A5%E6%9C%AC.pdf"),
             "expected percent-encoded Japanese characters, got: \(bodyStr)")
     }
 
@@ -258,8 +248,7 @@ import Testing
         let formParts: [String: Any] = ["photo.png": Data([0x89, 0x50, 0x4e, 0x47])]
         let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
         let bodyStr = String(data: body, encoding: .utf8) ?? ""
-        #expect(
-            bodyStr.contains("Content-Type: image/png"),
+        #expect(bodyStr.contains("Content-Type: image/png"),
             "expected image/png Content-Type for .png filename, got: \(bodyStr)")
     }
 
@@ -267,8 +256,7 @@ import Testing
         let formParts: [String: Any] = ["doc.pdf": Data([0x25, 0x50, 0x44, 0x46])]
         let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
         let bodyStr = String(data: body, encoding: .utf8) ?? ""
-        #expect(
-            bodyStr.contains("Content-Type: application/pdf"),
+        #expect(bodyStr.contains("Content-Type: application/pdf"),
             "expected application/pdf for .pdf filename, got: \(bodyStr)")
     }
 
@@ -276,8 +264,7 @@ import Testing
         let formParts: [String: Any] = ["data.xyz123": Data([0x01])]
         let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
         let bodyStr = String(data: body, encoding: .utf8) ?? ""
-        #expect(
-            bodyStr.contains("Content-Type: application/octet-stream"),
+        #expect(bodyStr.contains("Content-Type: application/octet-stream"),
             "expected application/octet-stream fallback, got: \(bodyStr)")
     }
 
@@ -285,8 +272,7 @@ import Testing
         let formParts: [String: Any] = ["nodot": Data([0x01])]
         let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
         let bodyStr = String(data: body, encoding: .utf8) ?? ""
-        #expect(
-            bodyStr.contains("Content-Type: application/octet-stream"),
+        #expect(bodyStr.contains("Content-Type: application/octet-stream"),
             "expected application/octet-stream fallback when no extension, got: \(bodyStr)")
     }
 
@@ -305,8 +291,7 @@ import Testing
         let client = makeClient { _ in
             (Data(utf8Body.utf8), 200, ["Content-Type": "text/plain"])
         }
-        let resp = try await client.sendRequest(
-            method: "GET", url: "http://localhost/no-charset", headers: [:], body: nil)
+        let resp = try await client.sendRequest(method: "GET", url: "http://localhost/no-charset", headers: [:], body: nil)
         #expect(resp.body == utf8Body, "missing charset should default to UTF-8")
     }
 
@@ -315,8 +300,7 @@ import Testing
         let client = makeClient { _ in
             (Data(utf8Body.utf8), 200, ["Content-Type": "text/plain; charset=x-unknown-banana"])
         }
-        let resp = try await client.sendRequest(
-            method: "GET", url: "http://localhost/unknown-charset", headers: [:], body: nil)
+        let resp = try await client.sendRequest(method: "GET", url: "http://localhost/unknown-charset", headers: [:], body: nil)
         #expect(resp.body == utf8Body, "unknown charset should fall back to UTF-8 without throwing")
     }
 
@@ -350,14 +334,11 @@ import Testing
     /// scheme names at generation time, but the base set is fixed.
     @Test func testSensitiveRedirectHeadersIncludesAuthorization() {
         let lowered = DefaultApiClient.sensitiveRedirectHeaders.map { $0.lowercased() }
-        #expect(
-            lowered.contains("authorization"),
+        #expect(lowered.contains("authorization"),
             "Authorization must always be on the strip-list")
-        #expect(
-            lowered.contains("cookie"),
+        #expect(lowered.contains("cookie"),
             "Cookie must always be on the strip-list")
-        #expect(
-            lowered.contains("proxy-authorization"),
+        #expect(lowered.contains("proxy-authorization"),
             "Proxy-Authorization must always be on the strip-list")
     }
 
@@ -366,11 +347,9 @@ import Testing
     /// cannot exfiltrate them to an attacker-controlled host.
     @Test func testSensitiveRedirectHeadersIncludesSpecApiKeyHeaders() {
         let lowered = Set(DefaultApiClient.sensitiveRedirectHeaders.map { $0.lowercased() })
-        #expect(
-            lowered.contains("x-api-key"),
+        #expect(lowered.contains("x-api-key"),
             "spec apiKey header 'X-API-Key' must be on the strip-list")
-        #expect(
-            lowered.contains("x-internal-key"),
+        #expect(lowered.contains("x-internal-key"),
             "spec apiKey header 'X-Internal-Key' must be on the strip-list")
     }
 

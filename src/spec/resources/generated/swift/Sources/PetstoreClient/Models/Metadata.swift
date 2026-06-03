@@ -57,7 +57,7 @@ public struct Metadata: Codable, Sendable {
 extension Metadata.CodingKeys: CaseIterable {
     static var allCases: [Metadata.CodingKeys] {
         return [
-            .createdAt
+            .createdAt,
         ]
     }
 }

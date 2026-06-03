@@ -7,7 +7,6 @@
 
 import Foundation
 import Testing
-
 @testable import PetstoreClient
 
 @Suite final class MetadataTests {
@@ -41,8 +40,7 @@ import Testing
         // Metadata may contain additional properties beyond the defined schema fields.
         // This test verifies that unknown fields are handled gracefully during
         // deserialization (either ignored or captured depending on schema config).
-        let jsonData = Data(
-            "{\"createdAt\":\"2024-01-15T10:30:00+00:00\",\"customField\":\"customValue\",\"count\":42}".utf8)
+        let jsonData = Data("{\"createdAt\":\"2024-01-15T10:30:00+00:00\",\"customField\":\"customValue\",\"count\":42}".utf8)
 
         // Use ObjectSerializer which silently ignores unknown keys via AnyCodable
         let metadata = try ObjectSerializer.deserialize(jsonData, as: Metadata.self)

@@ -59,8 +59,7 @@ open class BaseApi: @unchecked Sendable {
 
         /* Select headers */
         let isMultipart = params.contentType == "multipart/form-data"
-        var headers = headerSelector.selectHeaders(
-            accept: params.accepts, contentType: params.contentType, isMultipart: isMultipart)
+        var headers = headerSelector.selectHeaders(accept: params.accepts, contentType: params.contentType, isMultipart: isMultipart)
 
         /* Merge config default headers */
         for (k, v) in config.defaultHeaders {
@@ -145,9 +144,7 @@ open class BaseApi: @unchecked Sendable {
     /// run through `ObjectSerializer.deserialize`.
     func invokeAPIForResult<T: Decodable>(_ params: InvokeAPIParams, as type: T.Type) async throws -> ApiResult<T> {
         let response = try await invokeAPI(params)
-        let responseContentType =
-            response.headers.first(where: { $0.key.caseInsensitiveCompare("content-type") == .orderedSame })?.value
-            ?? ""
+        let responseContentType = response.headers.first(where: { $0.key.caseInsensitiveCompare("content-type") == .orderedSame })?.value ?? ""
         var data: T? = nil
         if type == Data.self {
             data = (response.body.data(using: .utf8) ?? Data()) as? T
@@ -205,14 +202,12 @@ open class BaseApi: @unchecked Sendable {
 
             if let items = v as? [String] {
                 for item in items {
-                    let encodedValue =
-                        item.addingPercentEncoding(withAllowedCharacters: BaseApi.queryComponentAllowed) ?? item
+                    let encodedValue = item.addingPercentEncoding(withAllowedCharacters: BaseApi.queryComponentAllowed) ?? item
                     parts.append("\(encodedKey)=\(encodedValue)")
                 }
             } else {
                 let strVal = ObjectSerializer.stringify(v)
-                let encodedValue =
-                    strVal.addingPercentEncoding(withAllowedCharacters: BaseApi.queryComponentAllowed) ?? strVal
+                let encodedValue = strVal.addingPercentEncoding(withAllowedCharacters: BaseApi.queryComponentAllowed) ?? strVal
                 parts.append("\(encodedKey)=\(encodedValue)")
             }
         }
@@ -299,19 +294,13 @@ open class BaseApi: @unchecked Sendable {
             body.append(data)
             body.append("\r\n".data(using: .utf8)!)
         } else if value is String || value is Int || value is Double || value is Bool {
-            body.append(
-                "--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\n\r\n\(value)\r\n".data(
-                    using: .utf8)!)
+            body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\n\r\n\(value)\r\n".data(using: .utf8)!)
         } else {
             /* Model objects -- serialize to JSON */
             if let jsonString = try? ObjectSerializer.serialize(value) {
-                body.append(
-                    "--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\nContent-Type: application/json\r\n\r\n\(jsonString)\r\n"
-                        .data(using: .utf8)!)
+                body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\nContent-Type: application/json\r\n\r\n\(jsonString)\r\n".data(using: .utf8)!)
             } else {
-                body.append(
-                    "--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\n\r\n\(value)\r\n".data(
-                        using: .utf8)!)
+                body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\n\r\n\(value)\r\n".data(using: .utf8)!)
             }
         }
     }
@@ -360,8 +349,7 @@ open class BaseApi: @unchecked Sendable {
         var allowed = CharacterSet.alphanumerics
         allowed.insert(charactersIn: "!#$&+-.^_`|~")
         let encoded = filename.addingPercentEncoding(withAllowedCharacters: allowed) ?? asciiSafe
-        return
-            "Content-Disposition: form-data; name=\"\(name)\"; filename=\"\(asciiSafe)\"; filename*=UTF-8''\(encoded)"
+        return "Content-Disposition: form-data; name=\"\(name)\"; filename=\"\(asciiSafe)\"; filename*=UTF-8''\(encoded)"
     }
 
     /// Returns a MIME type for the file based on its extension, or
@@ -492,8 +480,7 @@ open class BaseApi: @unchecked Sendable {
     /// RFC 6265 cookie-name validation (RFC 7230 token).
     static func isValidCookieName(_ name: String) -> Bool {
         if name.isEmpty { return false }
-        let allowed = CharacterSet(
-            charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%&'*+-.^_`|~")
+        let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%&'*+-.^_`|~")
         return name.unicodeScalars.allSatisfy { allowed.contains($0) }
     }
 

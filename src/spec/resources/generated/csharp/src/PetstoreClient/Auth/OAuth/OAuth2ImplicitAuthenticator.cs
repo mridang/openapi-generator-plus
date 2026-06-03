@@ -39,12 +39,7 @@ public class OAuth2ImplicitAuthenticator : BaseAuthenticator, IHttpAwareAuthenti
     /// <param name="clientId">OAuth2 client identifier.</param>
     /// <param name="authorizationUrl">Authorization endpoint URL.</param>
     /// <param name="scopes">Requested scopes.</param>
-    public OAuth2ImplicitAuthenticator(
-        string host,
-        string clientId,
-        Uri authorizationUrl,
-        string[] scopes
-    )
+    public OAuth2ImplicitAuthenticator(string host, string clientId, Uri authorizationUrl, string[] scopes)
     {
         _host = host;
         _clientId = clientId;
@@ -106,8 +101,7 @@ public class OAuth2ImplicitAuthenticator : BaseAuthenticator, IHttpAwareAuthenti
                 {
                     throw new ArgumentException(
                         "Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
-                        nameof(token)
-                    );
+                        nameof(token));
                 }
             }
         }

@@ -27,12 +27,7 @@ public class OAuth2TokenManagerTest
         public bool LastNoRedirect { get; private set; }
 
         public Task<ApiResponse> SendRequestAsync(
-            string method,
-            Uri url,
-            Dictionary<string, string> headers,
-            object? body,
-            bool noRedirect = false
-        )
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
         {
             LastUrl = url;
             LastBody = body?.ToString();
@@ -52,8 +47,7 @@ public class OAuth2TokenManagerTest
 
         string token = await manager.GetAccessTokenAsync(
             new Uri("https://auth.example.com/token"),
-            new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
-        );
+            new Dictionary<string, string> { ["grant_type"] = "client_credentials" });
 
         Assert.Equal("tok123", token);
     }
@@ -62,17 +56,14 @@ public class OAuth2TokenManagerTest
     public async Task StoresRefreshToken()
     {
         var client = new FakeApiClient();
-        client.Enqueue(
-            "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}"
-        );
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}");
 
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);
 
         await manager.GetAccessTokenAsync(
             new Uri("https://auth.example.com/token"),
-            new Dictionary<string, string> { ["grant_type"] = "authorization_code" }
-        );
+            new Dictionary<string, string> { ["grant_type"] = "authorization_code" });
 
         Assert.Equal("ref1", manager.RefreshToken);
     }
@@ -128,8 +119,7 @@ public class OAuth2TokenManagerTest
         // No API client needed since token is set manually
         string token = await manager.GetAccessTokenAsync(
             new Uri("https://auth.example.com/token"),
-            new Dictionary<string, string>()
-        );
+            new Dictionary<string, string>());
 
         Assert.Equal("manual-token", token);
     }
@@ -161,12 +151,9 @@ public class OAuth2TokenManagerTest
         var manager = new OAuth2TokenManager();
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () =>
-                manager.GetAccessTokenAsync(
-                    new Uri("https://auth.example.com/token"),
-                    new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
-                )
-        );
+            () => manager.GetAccessTokenAsync(
+                new Uri("https://auth.example.com/token"),
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }));
     }
 
     [Fact]
@@ -175,8 +162,7 @@ public class OAuth2TokenManagerTest
         // Gap G: single-flight refresh. 10 concurrent callers immediately after
         // invalidation must result in exactly ONE HTTP call to the token endpoint.
         var client = new CountingDelayingApiClient(
-            "{\"access_token\":\"tok-concurrent\",\"expires_in\":3600}"
-        );
+            "{\"access_token\":\"tok-concurrent\",\"expires_in\":3600}");
 
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);
@@ -212,12 +198,7 @@ public class OAuth2TokenManagerTest
         public int CallCount => _callCount;
 
         public async Task<ApiResponse> SendRequestAsync(
-            string method,
-            Uri url,
-            Dictionary<string, string> headers,
-            object? body,
-            bool noRedirect = false
-        )
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
         {
             System.Threading.Interlocked.Increment(ref _callCount);
             // Hold the "in flight" request long enough that all concurrent
@@ -240,8 +221,7 @@ public class OAuth2TokenManagerTest
 
         string token = await manager.GetAccessTokenAsync(
             new Uri("https://auth.example.com/token"),
-            new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
-        );
+            new Dictionary<string, string> { ["grant_type"] = "client_credentials" });
 
         Assert.Equal("short", token);
     }
@@ -295,12 +275,8 @@ public class OAuth2TokenManagerTest
         // Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
         // MUST NOT clobber the cached refresh_token.
         var client = new FakeApiClient();
-        client.Enqueue(
-            "{\"access_token\":\"old_access\",\"refresh_token\":\"old_refresh\",\"expires_in\":1}"
-        );
-        client.Enqueue(
-            "{\"access_token\":\"new_access\",\"expires_in\":3600,\"refresh_token\":\"\"}"
-        );
+        client.Enqueue("{\"access_token\":\"old_access\",\"refresh_token\":\"old_refresh\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"new_access\",\"expires_in\":3600,\"refresh_token\":\"\"}");
 
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);
@@ -392,12 +368,9 @@ public class OAuth2TokenManagerTest
         manager.SetApiClient(client);
 
         await Assert.ThrowsAsync<OAuth2ServerError>(
-            () =>
-                manager.GetAccessTokenAsync(
-                    new Uri("https://auth.example.com/token"),
-                    new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
-                )
-        );
+            () => manager.GetAccessTokenAsync(
+                new Uri("https://auth.example.com/token"),
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }));
     }
 
     // ---- 3.2: token POSTs must refuse 307/308 redirects ----
@@ -415,8 +388,7 @@ public class OAuth2TokenManagerTest
 
         await manager.GetAccessTokenAsync(
             new Uri("https://auth.example.com/token"),
-            new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
-        );
+            new Dictionary<string, string> { ["grant_type"] = "client_credentials" });
 
         Assert.True(client.LastNoRedirect);
     }
@@ -431,12 +403,9 @@ public class OAuth2TokenManagerTest
         manager.SetApiClient(client);
 
         var ex = await Assert.ThrowsAsync<OAuth2ServerError>(
-            () =>
-                manager.GetAccessTokenAsync(
-                    new Uri("https://auth.example.com/token"),
-                    new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
-                )
-        );
+            () => manager.GetAccessTokenAsync(
+                new Uri("https://auth.example.com/token"),
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }));
         Assert.Equal(307, ex.StatusCode);
         Assert.Equal("redirect_refused", ex.Code);
     }
@@ -451,12 +420,9 @@ public class OAuth2TokenManagerTest
         manager.SetApiClient(client);
 
         var ex = await Assert.ThrowsAsync<OAuth2ServerError>(
-            () =>
-                manager.GetAccessTokenAsync(
-                    new Uri("https://auth.example.com/token"),
-                    new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
-                )
-        );
+            () => manager.GetAccessTokenAsync(
+                new Uri("https://auth.example.com/token"),
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }));
         Assert.Equal(308, ex.StatusCode);
         Assert.Equal("redirect_refused", ex.Code);
     }

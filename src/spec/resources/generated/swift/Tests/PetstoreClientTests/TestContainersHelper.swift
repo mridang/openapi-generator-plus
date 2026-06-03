@@ -87,7 +87,7 @@ private func _setUpContainers() async throws {
             "mock", "/tmp/openapi.yaml", "--host", "0.0.0.0",
             "--tls-cert", "/certs/cert.pem",
             "--tls-key", "/certs/key.pem",
-            "--tls-port", "8443",
+            "--tls-port", "8443"
         ])
         .withNetwork(network)
         .withNetworkAliases(["chasm"])

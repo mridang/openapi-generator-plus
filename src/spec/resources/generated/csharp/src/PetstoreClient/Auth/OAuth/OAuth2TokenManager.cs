@@ -60,7 +60,8 @@ public sealed class OAuth2TokenManager
             _accessToken is not null
             && (
                 _tokenExpiry is null
-                || DateTimeOffset.UtcNow < _tokenExpiry.Value.AddSeconds(-ExpirySafetyMarginSeconds)
+                || DateTimeOffset.UtcNow
+                    < _tokenExpiry.Value.AddSeconds(-ExpirySafetyMarginSeconds)
             )
         )
         {
@@ -229,8 +230,7 @@ public sealed class OAuth2TokenManager
                     + "endpoint; replaying client credentials to the redirect "
                     + "target would leak them.",
                 null,
-                response.Body
-            );
+                response.Body);
         }
 
         if (response.StatusCode is < 200 or >= 300)
@@ -298,11 +298,9 @@ public sealed class OAuth2TokenManager
         {
             using JsonDocument doc = JsonDocument.Parse(body);
             JsonElement root = doc.RootElement;
-            if (
-                root.ValueKind == JsonValueKind.Object
+            if (root.ValueKind == JsonValueKind.Object
                 && root.TryGetProperty("error", out JsonElement errorElement)
-                && errorElement.ValueKind == JsonValueKind.String
-            )
+                && errorElement.ValueKind == JsonValueKind.String)
             {
                 string? code = errorElement.GetString();
                 if (!string.IsNullOrEmpty(code))
@@ -406,8 +404,7 @@ public sealed class OAuth2TokenManager
 public sealed class OAuth2TokenError : Exception
 {
     /// <summary>Creates a new <see cref="OAuth2TokenError"/> with the given message.</summary>
-    public OAuth2TokenError(string message)
-        : base(message) { }
+    public OAuth2TokenError(string message) : base(message) { }
 }
 #pragma warning restore CA1710, CA1032, IDE0290
 
@@ -431,16 +428,12 @@ public sealed class OAuth2ServerError : Exception
 {
     /// <summary>HTTP status code returned by the token endpoint.</summary>
     public int StatusCode { get; }
-
     /// <summary>OAuth2 error code from the response body (RFC 6749 §5.2).</summary>
     public string? Code { get; }
-
     /// <summary>Optional human-readable error description.</summary>
     public string? Description { get; }
-
     /// <summary>Optional URL to a page describing the error.</summary>
     public string? Uri { get; }
-
     /// <summary>Raw response body for diagnostics.</summary>
     public string RawBody { get; }
 
@@ -461,12 +454,7 @@ public sealed class OAuth2ServerError : Exception
         RawBody = rawBody;
     }
 
-    private static string BuildMessage(
-        int statusCode,
-        string? code,
-        string? description,
-        string rawBody
-    )
+    private static string BuildMessage(int statusCode, string? code, string? description, string rawBody)
     {
         if (code is null)
         {

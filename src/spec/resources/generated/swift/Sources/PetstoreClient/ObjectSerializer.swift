@@ -139,8 +139,7 @@ public enum ObjectSerializer {
            but Windows-generated payloads often include one and Foundation's
            JSONDecoder rejects it. Strip silently for parity with Java
            Jackson / C# System.Text.Json which strip transparently. */
-        let stripped: Data =
-            (data.count >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF)
+        let stripped: Data = (data.count >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF)
             ? data.subdata(in: 3..<data.count)
             : data
         let depth = jsonMaxDepth(stripped)

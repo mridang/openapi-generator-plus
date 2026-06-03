@@ -7,7 +7,6 @@
 
 import Foundation
 import Testing
-
 @testable import PetstoreClient
 
 @Suite final class TraceContextUtilTests {
@@ -75,7 +74,7 @@ import Testing
         var headers: [String: String] = [
             "Authorization": "Bearer token",
             "Content-Type": "application/json",
-            "X-Request-ID": "abc-123",
+            "X-Request-ID": "abc-123"
         ]
 
         TraceContextUtil.injectTraceContext(headers: &headers)

@@ -57,9 +57,7 @@ public final class OAuth2TokenManager: @unchecked Sendable {
     /// Concurrent callers that arrive while a refresh is in flight all await the
     /// same ``Task``, so the token endpoint is hit exactly once per refresh
     /// regardless of caller concurrency.
-    public func getAccessToken(
-        tokenURL: String, params: [String: String], extraHeaders: [String: String] = [:]
-    ) async throws -> String {
+    public func getAccessToken(tokenURL: String, params: [String: String], extraHeaders: [String: String] = [:]) async throws -> String {
         /* Fast path under the lock: return the cached token if still fresh, or
          * piggy-back on an already-running refresh task. NSLock's lock()/unlock()
          * are unavailable in async contexts under Swift 6 strict concurrency, so
@@ -160,18 +158,14 @@ public final class OAuth2TokenManager: @unchecked Sendable {
         }
     }
 
-    private func fetchToken(
-        tokenURL: String, params: [String: String], extraHeaders: [String: String] = [:]
-    ) async throws {
+    private func fetchToken(tokenURL: String, params: [String: String], extraHeaders: [String: String] = [:]) async throws {
         let client: ApiClient = try lock.withLock {
             guard let client = apiClient else {
-                throw NSError(
-                    domain: "OAuth2TokenManager", code: -1,
-                    userInfo: [
-                        NSLocalizedDescriptionKey: "ApiClient has not been injected. "
-                            + "Ensure the Client constructor calls setApiClient "
-                            + "on HttpAwareAuthenticator before making API requests"
-                    ])
+                throw NSError(domain: "OAuth2TokenManager", code: -1, userInfo: [
+                    NSLocalizedDescriptionKey: "ApiClient has not been injected. " +
+                        "Ensure the Client constructor calls setApiClient " +
+                        "on HttpAwareAuthenticator before making API requests"
+                ])
             }
             return client
         }
@@ -277,10 +271,9 @@ public final class OAuth2TokenManager: @unchecked Sendable {
     /// body when the body is not a valid OAuth2 error object.
     private static func parseOAuth2ServerError(statusCode: Int, body: String) -> OAuth2ServerError {
         guard let data = body.data(using: .utf8),
-            let parsed = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-            let code = parsed["error"] as? String,
-            !code.isEmpty
-        else {
+              let parsed = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let code = parsed["error"] as? String,
+              !code.isEmpty else {
             return OAuth2ServerError(
                 statusCode: statusCode,
                 code: nil,

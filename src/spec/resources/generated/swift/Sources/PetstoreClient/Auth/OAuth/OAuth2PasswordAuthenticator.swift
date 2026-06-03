@@ -80,14 +80,14 @@ public class OAuth2PasswordAuthenticator: BaseAuthenticator, HttpAwareAuthentica
         if !refreshToken.isEmpty {
             params = [
                 "grant_type": "refresh_token",
-                "refresh_token": refreshToken,
+                "refresh_token": refreshToken
             ]
             url = refreshURL
         } else {
             params = [
                 "grant_type": "password",
                 "username": username,
-                "password": password,
+                "password": password
             ]
             if clientAuthMethod != .basic {
                 params["client_id"] = clientID
@@ -99,10 +99,7 @@ public class OAuth2PasswordAuthenticator: BaseAuthenticator, HttpAwareAuthentica
             url = tokenURL
         }
 
-        guard
-            let accessToken = try? await tokenManager.getAccessToken(
-                tokenURL: url, params: params, extraHeaders: extraHeaders)
-        else {
+        guard let accessToken = try? await tokenManager.getAccessToken(tokenURL: url, params: params, extraHeaders: extraHeaders) else {
             return [:]
         }
         return ["Authorization": "Bearer \(accessToken)"]

@@ -7,7 +7,6 @@
 
 import Foundation
 import Testing
-
 @testable import PetstoreClient
 
 @Suite final class ComposedSchemaTests {
@@ -50,8 +49,7 @@ import Testing
             _ = try JSONDecoder().decode(PetFood.self, from: jsonData)
             Issue.record("expected DecodingError for unknown discriminator")
         } catch let DecodingError.dataCorrupted(ctx) {
-            #expect(
-                ctx.debugDescription.contains("unknown"),
+            #expect(ctx.debugDescription.contains("unknown"),
                 "error must mention offending discriminator value: \(ctx.debugDescription)")
         } catch {
             Issue.record("expected DecodingError.dataCorrupted, got: \(error)")
@@ -79,8 +77,7 @@ import Testing
             _ = try JSONDecoder().decode(PetFood.self, from: jsonData)
             Issue.record("expected DecodingError for non-listed discriminator")
         } catch let DecodingError.dataCorrupted(ctx) {
-            #expect(
-                ctx.debugDescription.contains("frozen"),
+            #expect(ctx.debugDescription.contains("frozen"),
                 "error must surface offending value: \(ctx.debugDescription)")
         } catch {
             Issue.record("expected DecodingError.dataCorrupted, got: \(error)")
@@ -128,15 +125,14 @@ import Testing
     // MARK: - allOf: PetWithOwner extends Pet fields
 
     @Test func testPetWithOwnerDeserialize() throws {
-        let jsonData = Data(
-            """
-            {
-                "name": "Fido",
-                "photoUrls": ["http://example.com/fido.jpg"],
-                "ownerName": "John Doe",
-                "ownerEmail": "john@example.com"
-            }
-            """.utf8)
+        let jsonData = Data("""
+        {
+            "name": "Fido",
+            "photoUrls": ["http://example.com/fido.jpg"],
+            "ownerName": "John Doe",
+            "ownerEmail": "john@example.com"
+        }
+        """.utf8)
 
         let petWithOwner = try JSONDecoder().decode(PetWithOwner.self, from: jsonData)
         #expect(petWithOwner != nil)
@@ -154,14 +150,13 @@ import Testing
     }
 
     @Test func testPetWithOwnerRoundTrip() throws {
-        let jsonData = Data(
-            """
-            {
-                "name": "Buddy",
-                "photoUrls": ["http://example.com/buddy.jpg"],
-                "ownerName": "Jane Smith"
-            }
-            """.utf8)
+        let jsonData = Data("""
+        {
+            "name": "Buddy",
+            "photoUrls": ["http://example.com/buddy.jpg"],
+            "ownerName": "Jane Smith"
+        }
+        """.utf8)
 
         let pet = try JSONDecoder().decode(PetWithOwner.self, from: jsonData)
 

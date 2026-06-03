@@ -7,7 +7,6 @@
 
 import Foundation
 import Testing
-
 @testable import PetstoreClient
 
 @Suite final class TransportOptionsTests {
@@ -130,7 +129,7 @@ import Testing
             .defaultHeader(name: "X-First", value: "one")
             .defaultHeaders([
                 "X-Second": "two",
-                "X-Third": "three",
+                "X-Third": "three"
             ])
             .build()
 
@@ -148,8 +147,7 @@ import Testing
         var headers = opts.defaultHeaders
         headers["X-Mutated"] = "should-not-affect-options"
 
-        #expect(
-            opts.defaultHeaders["X-Mutated"] == nil,
+        #expect(opts.defaultHeaders["X-Mutated"] == nil,
             "Modifying returned headers should not affect the transport options")
     }
 
@@ -195,7 +193,7 @@ import Testing
         #expect(opts.proxy?.absoluteString == "http://proxy.example.com:8080")
     }
 
-    #if os(Linux)
+#if os(Linux)
     @Test func testSettingProxyRaisesOnLinux() throws {
         // On Linux, URLSession does not support proxy configuration.
         // DefaultApiClient.buildSession throws ApiError when a proxy is set on Linux.
@@ -208,7 +206,7 @@ import Testing
         // The proxy is recorded in TransportOptions; it is DefaultApiClient's init that rejects it.
         #expect(opts.proxy != nil)
     }
-    #else
+#else
     @Test func testSettingProxyIsSupportedOnNonLinux() throws {
         // Proxy configuration must not throw on Apple platforms.
         let opts = try TransportOptionsBuilder()
@@ -216,5 +214,5 @@ import Testing
             .build()
         #expect(opts.proxy != nil)
     }
-    #endif
+#endif
 }

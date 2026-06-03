@@ -29,8 +29,7 @@ public class BearerAuthenticator(string host, string token) : BaseAuthenticator
         {
             throw new ArgumentException(
                 "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
-                nameof(token)
-            );
+                nameof(token));
         }
         /* Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
          * from env files are commonly stored already-prefixed; emitting

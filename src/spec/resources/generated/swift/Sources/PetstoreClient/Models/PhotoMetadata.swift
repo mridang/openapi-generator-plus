@@ -26,9 +26,7 @@ public struct PhotoMetadata: Codable, Sendable {
     }
 
     /// Creates a new PhotoMetadata instance.
-    public init(
-        caption: String? = nil, isPrimary: Bool? = nil, takenAt: Date? = nil, location: PhotoMetadataLocation? = nil
-    ) {
+    public init(caption: String? = nil, isPrimary: Bool? = nil, takenAt: Date? = nil, location: PhotoMetadataLocation? = nil) {
         self.caption = caption
         self.isPrimary = isPrimary
         self.takenAt = takenAt

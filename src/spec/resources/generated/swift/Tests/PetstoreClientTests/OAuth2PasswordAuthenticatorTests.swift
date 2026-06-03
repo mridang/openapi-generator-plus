@@ -7,7 +7,6 @@
 
 import Foundation
 import Testing
-
 @testable import PetstoreClient
 
 @Suite final class OAuth2PasswordAuthenticatorTests {
@@ -21,9 +20,7 @@ import Testing
         var lastHeaders: [String: String] = [:]
         var lastBody: Data? = nil
 
-        func sendRequest(
-            method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
-        ) async throws -> HttpResponse {
+        func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool) async throws -> HttpResponse {
             lastMethod = method
             lastURL = url
             lastHeaders = headers
@@ -105,8 +102,7 @@ import Testing
 
     @Test func testUsesRefreshTokenOnSubsequentCalls() async {
         let client = MockApiClient()
-        client.responses.append(
-            makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
         client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
 
         let auth = createAuthenticator()

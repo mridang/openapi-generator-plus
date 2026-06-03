@@ -20,8 +20,7 @@ public class StoreApiTest
     public StoreApiTest(Test.ChasmFixture chasm)
     {
         var baseUrl = chasm.BaseUrl;
-        var config = Configuration
-            .Builder()
+        var config = Configuration.Builder()
             .BaseUrl(baseUrl)
             .DefaultHeader("Authorization", "Bearer test-token")
             .Build();
@@ -85,51 +84,35 @@ public class StoreApiTest
         }
 
         public Task<PetstoreClient.ApiResponse> SendRequestAsync(
-            string method,
-            Uri url,
-            Dictionary<string, string> headers,
-            object? body,
-            bool noRedirect = false
-        )
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
         {
-            return Task.FromResult(
-                new PetstoreClient.ApiResponse(
-                    _statusCode,
-                    _body,
-                    new Dictionary<string, string> { { "Content-Type", _contentType } }
-                )
-            );
+            return Task.FromResult(new PetstoreClient.ApiResponse(_statusCode, _body, new Dictionary<string, string>
+            {
+                { "Content-Type", _contentType }
+            }));
         }
     }
 
     private static StoreApi NewStoreApiForMock(int status, string contentType, string body)
     {
-        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var config = Configuration.Builder()
+            .BaseUrl("http://localhost")
+            .Build();
         return new StoreApi(new FakeApiClient(status, contentType, body), config);
     }
 
     [Fact]
     public async Task TestGetOrderNotFound()
     {
-        var mockApi = NewStoreApiForMock(
-            404,
-            "application/json",
-            "{\"message\":\"Order not found\"}"
-        );
+        var mockApi = NewStoreApiForMock(404, "application/json", "{\"message\":\"Order not found\"}");
 
-        await Assert.ThrowsAsync<PetstoreClient.Errors.NotFoundException>(
-            async () => await mockApi.GetOrderByIdAsync(99999L)
-        );
+        await Assert.ThrowsAsync<PetstoreClient.Errors.NotFoundException>(async () => await mockApi.GetOrderByIdAsync(99999L));
     }
 
     [Fact]
     public async Task TestPlaceOrderServerError()
     {
-        var mockApi = NewStoreApiForMock(
-            500,
-            "application/json",
-            "{\"message\":\"Internal server error\"}"
-        );
+        var mockApi = NewStoreApiForMock(500, "application/json", "{\"message\":\"Internal server error\"}");
 
         var order = new Order
         {
@@ -140,22 +123,14 @@ public class StoreApiTest
             Complete = false,
         };
 
-        await Assert.ThrowsAsync<PetstoreClient.Errors.InternalServerErrorException>(
-            async () => await mockApi.PlaceOrderAsync(order)
-        );
+        await Assert.ThrowsAsync<PetstoreClient.Errors.InternalServerErrorException>(async () => await mockApi.PlaceOrderAsync(order));
     }
 
     [Fact]
     public async Task TestDeleteOrderNotFound()
     {
-        var mockApi = NewStoreApiForMock(
-            404,
-            "application/json",
-            "{\"message\":\"Order not found\"}"
-        );
+        var mockApi = NewStoreApiForMock(404, "application/json", "{\"message\":\"Order not found\"}");
 
-        await Assert.ThrowsAsync<PetstoreClient.Errors.NotFoundException>(
-            async () => await mockApi.DeleteOrderAsync(99999L)
-        );
+        await Assert.ThrowsAsync<PetstoreClient.Errors.NotFoundException>(async () => await mockApi.DeleteOrderAsync(99999L));
     }
 }
