@@ -696,7 +696,13 @@ private final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTas
          * leaves a now-empty GET claiming a non-zero body length
          * and causes some servers (NGINX, AWS ALB) to either
          * 400/411 or hang waiting for bytes that will never come. */
-        if response.statusCode == 303 {
+        /* Strip the stale body headers whenever the follow-up request
+         * carries no body — a 303, or the historical 301/302 POST->GET
+         * demotion where URLSession drops the body. Keying on "body is now
+         * empty" (not statusCode == 303) matches the canonical predicate the
+         * other manual-redirect SDKs use, so Swift no longer leaves a
+         * bodyless GET claiming a non-zero Content-Length on 301/302. */
+        if redirectRequest.httpBody == nil && redirectRequest.httpBodyStream == nil {
             redirectRequest.setValue(nil, forHTTPHeaderField: "Content-Length")
             redirectRequest.setValue(nil, forHTTPHeaderField: "Content-Type")
         }

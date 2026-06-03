@@ -506,10 +506,11 @@ class DefaultApiClient implements ApiClient {
           );
         }
       default:
-        throw ApiError(
-          statusCode: 0,
-          message: 'Unsupported Content-Encoding: $contentEncoding',
-        );
+        /* Unknown/unsupported Content-Encoding (e.g. `identity`, `br`,
+         * `zstd`): pass the bytes through unchanged, matching the canonical
+         * Java/Go/Ruby/PHP decompressors. Throwing here made Dart the only
+         * SDK to reject a response the other 11 accept. */
+        return bytes;
     }
   }
 

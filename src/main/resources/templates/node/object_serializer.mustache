@@ -210,6 +210,16 @@ export class ObjectSerializer {
             `Discriminator value '${discValue}' on '${discProp}' is not listed in ` +
               `the schema mapping (allowed: ${Object.keys(discMapping).join(', ') || '<empty>'}).`
           );
+        } else if (discProp && discMapping) {
+          /**
+           * Discriminated union, but the payload omits the discriminator
+           * property entirely. The other 11 SDKs raise a deserialize error
+           * here; Node previously fell through to structural variant-matching
+           * and could silently mis-route to the wrong variant. Throw to match.
+           */
+          throw new DeserializationError(
+            `Missing discriminator property '${discProp}' in payload.`
+          );
         }
         for (const schemaName of schemas) {
           const schemaCls = (models as Record<string, unknown>)[schemaName] as ClassConstructor<unknown> | undefined;
