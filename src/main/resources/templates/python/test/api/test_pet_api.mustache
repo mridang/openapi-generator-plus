@@ -188,6 +188,15 @@ class TestPetApiErrorHandling:
         with pytest.raises(Exception):
             await api.get_pet_by_id(1)
 
+    async def test_empty_body_for_body_returning_op_raises(self) -> None:
+        # A body-returning operation that gets a 200 with an empty/undecodable
+        # body must raise the SDK's typed ApiException, not return None or
+        # crash under -O (the convenience method contract).
+        from {{packageName}}.errors import ApiException
+        api, server = _create_mock_server(200, 'application/json', '')
+        with pytest.raises(ApiException):
+            await api.get_pet_by_id(1)
+
     async def test_download_binary_mock(self) -> None:
         api, server = _create_mock_server(200, 'application/octet-stream', 'FAKE_BINARY_DATA')
         result = await api.get_pet_avatar(1)

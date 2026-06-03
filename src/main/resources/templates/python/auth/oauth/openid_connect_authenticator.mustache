@@ -8,6 +8,7 @@ from typing import Dict, Mapping, Optional, Sequence
 from ...api_client import ApiClient
 from ..http_aware_authenticator import HttpAwareAuthenticator
 from .oauth2_auth_code_authenticator import OAuth2AuthorizationCodeAuthenticator
+from .oauth2_token_manager import OAuth2TokenError
 
 # RFC 8414 recommended default max-age for OIDC discovery documents.
 _DEFAULT_DISCOVERY_MAX_AGE_SECONDS = 86400
@@ -109,9 +110,30 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
             )
         headers: Dict[str, str] = {'Accept': 'application/json'}
         response = self._api_client.send_request('GET', self._openid_connect_url, headers, None)
+        # Guard the HTTP status before parsing: a 500-HTML error page would
+        # otherwise surface as a confusing "invalid JSON" error instead of
+        # the real discovery failure.
+        if response.status_code < 200 or response.status_code >= 300:
+            raise OAuth2TokenError(
+                f'OpenID Connect discovery request to {self._openid_connect_url} '
+                f'failed with HTTP status {response.status_code}'
+            )
         discovery = json.loads(response.body)
-        authorization_endpoint = discovery['authorization_endpoint']
-        token_endpoint = discovery['token_endpoint']
+        # Validate the endpoints are present and non-empty before building the
+        # delegate. A missing/blank endpoint would otherwise raise a KeyError
+        # or silently produce a delegate with empty endpoint URLs.
+        authorization_endpoint = discovery.get('authorization_endpoint')
+        if not authorization_endpoint:
+            raise OAuth2TokenError(
+                'OpenID Connect discovery document is missing a non-empty '
+                "'authorization_endpoint'"
+            )
+        token_endpoint = discovery.get('token_endpoint')
+        if not token_endpoint:
+            raise OAuth2TokenError(
+                'OpenID Connect discovery document is missing a non-empty '
+                "'token_endpoint'"
+            )
         self._delegate = OAuth2AuthorizationCodeAuthenticator(
             self._host,
             self._client_id,

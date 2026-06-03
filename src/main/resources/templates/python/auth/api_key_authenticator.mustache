@@ -1,6 +1,6 @@
 {{>api_info}}
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict
 
 from .base_authenticator import BaseAuthenticator
@@ -13,7 +13,9 @@ class ApiKeyAuthenticator(BaseAuthenticator):
 
     host: str
     key_param_name: str
-    api_key: str
+    # repr=False so the API key is never leaked through the dataclass's
+    # auto-generated repr/str (e.g. logging, f-strings, %r).
+    api_key: str = field(repr=False)
     location: ApiKeyLocation
 
     def __post_init__(self) -> None:

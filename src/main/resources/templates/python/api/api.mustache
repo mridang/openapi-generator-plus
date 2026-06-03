@@ -3,7 +3,6 @@
 {{#operations}}{{#hasServerTypeDefs}}from abc import ABC, abstractmethod
 from enum import Enum
 {{/hasServerTypeDefs}}{{/operations}}from typing import Any, Dict, List, Optional  # noqa: F401
-from urllib.parse import quote  # noqa: F401
 from pydantic import StrictBool, StrictFloat, StrictInt, StrictStr  # noqa: F401
 
 {{#imports}}
@@ -16,6 +15,7 @@ from ..configuration import Configuration
 from .base_api import BaseApi
 from ..value_serializer import ValueSerializer
 from ..auth.authenticator import Authenticator
+from ..errors import ApiException
 {{#optionsImports}}
 from .options.{{optionsFileName}} import {{optionsClassName}}
 {{/optionsImports}}
@@ -90,7 +90,6 @@ class {{classname}}(BaseApi):
 {{#vendorExtensions.op.signatureArgs}}
         {{paramName}}: {{#isPath}}{{{dataType}}}{{/isPath}}{{#isBody}}{{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}}{{/isBody}}{{#isOptions}}Optional[{{{dataType}}}] = None{{/isOptions}}{{#isServer}}Optional['{{{dataType}}}'] = None{{/isServer}},
 {{/vendorExtensions.op.signatureArgs}}
-        base_url: Optional[str] = None,
 {{#hasAuthMethods}}
         auth: Optional[Authenticator] = None,
 {{/hasAuthMethods}}
@@ -176,10 +175,20 @@ class {{classname}}(BaseApi):
 
 {{/required}}
 {{/cookieParams}}
-        result = await self.{{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}{{#allParams.0}}, {{/allParams.0}}server=server{{/-first}}{{/servers}}{{#allParams.0}}, base_url=base_url{{/allParams.0}}{{^allParams.0}}{{#servers.0}}, base_url=base_url{{/servers.0}}{{^servers.0}}base_url=base_url{{/servers.0}}{{/allParams.0}}{{#hasAuthMethods}}, auth=auth{{/hasAuthMethods}})
+        result = await self.{{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}{{#allParams.0}}, {{/allParams.0}}server=server{{/-first}}{{/servers}}{{#hasAuthMethods}}{{#allParams.0}}, {{/allParams.0}}{{^allParams.0}}{{#servers.0}}, {{/servers.0}}{{/allParams.0}}auth=auth{{/hasAuthMethods}})
 
 {{#returnType}}
-        assert result.data is not None
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message='Expected a response body but the server returned none',
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
 {{/returnType}}
         return result.data
 
@@ -188,7 +197,6 @@ class {{classname}}(BaseApi):
 {{#vendorExtensions.op.signatureArgs}}
         {{paramName}}: {{#isPath}}{{{dataType}}}{{/isPath}}{{#isBody}}{{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}}{{/isBody}}{{#isOptions}}Optional[{{{dataType}}}] = None{{/isOptions}}{{#isServer}}Optional['{{{dataType}}}'] = None{{/isServer}},
 {{/vendorExtensions.op.signatureArgs}}
-        base_url: Optional[str] = None,
 {{#hasAuthMethods}}
         auth: Optional[Authenticator] = None,
 {{/hasAuthMethods}}
@@ -255,7 +263,7 @@ class {{classname}}(BaseApi):
 {{/required}}
 {{/cookieParams}}
         path = '{{{path}}}'{{#pathParams}}
-        path = path.replace('{' + '{{baseName}}' + '}', quote(str(ValueSerializer.serialize_styled('{{baseName}}', {{paramName}}, 'path', '{{dataType}}', None, '{{style}}', {{vendorExtensions.isExplodeStrCap}})), safe="/;,=.~:!$&'()*+@")){{/pathParams}}
+        path = path.replace('{' + '{{baseName}}' + '}', str(ValueSerializer.serialize_styled('{{baseName}}', {{paramName}}, 'path', '{{dataType}}', None, '{{style}}', {{vendorExtensions.isExplodeStrCap}}))){{/pathParams}}
 {{#servers}}
 {{#-first}}
         if server is not None:
@@ -264,9 +272,6 @@ class {{classname}}(BaseApi):
                 path = _server_url + path
 {{/-first}}
 {{/servers}}
-        if base_url is not None:
-            if base_url.startswith('http://') or base_url.startswith('https://'):
-                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
 {{#queryParams}}
 {{#vendorExtensions.param.queryDeepObject}}

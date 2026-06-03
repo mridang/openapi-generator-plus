@@ -1,7 +1,7 @@
 {{>api_info}}
 
 import base64
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict
 
 from .base_authenticator import BaseAuthenticator
@@ -13,7 +13,9 @@ class BasicAuthenticator(BaseAuthenticator):
 
     host: str
     username: str
-    password: str
+    # repr=False so the password is never leaked through the dataclass's
+    # auto-generated repr/str (e.g. logging, f-strings, %r).
+    password: str = field(repr=False)
 
     def get_host(self) -> str:
         return self.host

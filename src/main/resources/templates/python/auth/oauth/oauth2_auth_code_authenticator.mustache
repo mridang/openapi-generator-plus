@@ -95,7 +95,12 @@ class OAuth2AuthorizationCodeAuthenticator(HttpAwareAuthenticator):
 
         Args:
             code: The authorization code from the callback.
+
+        Raises:
+            ValueError: If ``code`` is empty or whitespace-only.
         """
+        if not code or not code.strip():
+            raise ValueError('Authorization code must not be empty')
         params = {
             'grant_type': 'authorization_code',
             'code': code,

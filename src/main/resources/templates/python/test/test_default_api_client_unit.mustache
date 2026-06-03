@@ -2,7 +2,7 @@ import json
 import pytest
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
-from typing import Any
+from typing import Any, ClassVar
 
 from {{packageName}}.default_api_client import (
     DefaultApiClient,
@@ -694,6 +694,101 @@ class TestContentLengthStrippedOnRedirect:
         assert pool.calls[1][0] == "GET"
         followup_headers = pool.calls[1][2]
         assert not any(k.lower() == "content-length" for k in followup_headers)
+
+
+class TestRedirectExhaustion:
+    """Exceeding ``max_redirects`` must raise a typed ApiException ("too many
+    redirects") rather than silently returning the final 3xx as a normal
+    response."""
+
+    def test_exhausting_redirect_budget_raises(self) -> None:
+        from {{packageName}}.errors import ApiException
+
+        class _Pool:
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                # Always answer with another redirect so the budget is exhausted.
+                return _FakeResp(302, {"location": "https://example.com/next"})
+
+        transport = (
+            TransportOptions.builder()
+            .follow_redirects(True)
+            .max_redirects(3)
+            .build()
+        )
+        client = DefaultApiClient(transport, pool_manager=_Pool())
+        with pytest.raises(ApiException) as excinfo:
+            client.send_request("GET", "https://example.com/start", {}, None)
+        assert "too many redirects" in str(excinfo.value.message or "").lower()
+
+    def test_terminal_redirect_without_location_does_not_raise(self) -> None:
+        # A 3xx with no Location header is a legitimate terminal response and
+        # must NOT be treated as redirect exhaustion.
+        class _Pool:
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                return _FakeResp(302, {})
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        client = DefaultApiClient(transport, pool_manager=_Pool())
+        response = client.send_request("GET", "https://example.com/start", {}, None)
+        assert response.status_code == 302
+
+
+class TestUseAfterClose:
+    """Calling ``send_request`` after ``close()`` must raise the SDK's own
+    ApiException rather than a foreign urllib3 error or silently succeeding."""
+
+    def test_send_after_close_raises_api_exception(self) -> None:
+        from {{packageName}}.errors import ApiException
+
+        class _Pool:
+            def __init__(self) -> None:
+                self.calls = 0
+            def clear(self) -> None:
+                return None
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls += 1
+                return _FakeResp(200, {})
+
+        pool = _Pool()
+        client = DefaultApiClient(pool_manager=pool)
+        client.close()
+        with pytest.raises(ApiException):
+            client.send_request("GET", "https://example.com/x", {}, None)
+        # The request must never have been issued against the closed client.
+        assert pool.calls == 0
+
+    def test_close_is_idempotent(self) -> None:
+        client = DefaultApiClient()
+        client.close()
+        client.close()
+
+
+class TestBodyReadErrorWrapped:
+    """A failure DURING the response body read (after headers are received)
+    must be wrapped in the SDK ApiException, not leak the raw urllib3 error."""
+
+    def test_body_read_error_is_wrapped_in_api_exception(self) -> None:
+        import urllib3
+        from {{packageName}}.errors import ApiException
+
+        class _ReadFailResp:
+            status = 200
+            headers: ClassVar[dict[str, Any]] = {}
+            def read(self) -> bytes:
+                raise urllib3.exceptions.ProtocolError("connection broken mid-body")
+            def release_conn(self) -> None:
+                return None
+
+        class _Pool:
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                return _ReadFailResp()
+
+        transport = TransportOptions.builder().follow_redirects(False).build()
+        client = DefaultApiClient(transport, pool_manager=_Pool())
+        with pytest.raises(ApiException) as excinfo:
+            client.send_request("GET", "https://example.com/x", {}, None)
+        # The underlying urllib3 error is preserved as the cause.
+        assert isinstance(excinfo.value.__cause__, urllib3.exceptions.HTTPError)
 
 
 class TestApiKeyHeaderStrippedOnCrossOrigin:

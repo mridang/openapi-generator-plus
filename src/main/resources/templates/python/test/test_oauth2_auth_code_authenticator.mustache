@@ -1,5 +1,6 @@
 {{>api_info}}
 import json
+import pytest
 from unittest.mock import MagicMock
 from urllib.parse import urlparse, parse_qs
 
@@ -35,6 +36,21 @@ class TestOAuth2AuthorizationCodeAuthenticator:
         assert params['redirect_uri'] == ['https://app.example.com/callback']
         assert params['scope'] == ['read write']
         assert params['response_type'] == ['code']
+
+    def test_exchange_code_rejects_empty_code(self) -> None:
+        auth = _create_authenticator()
+        auth.set_api_client(MagicMock())
+        with pytest.raises(ValueError):
+            auth.exchange_code('')
+
+    def test_exchange_code_rejects_whitespace_code(self) -> None:
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        auth.set_api_client(mock_client)
+        with pytest.raises(ValueError):
+            auth.exchange_code('   ')
+        # The token POST must never have been issued for an empty code.
+        mock_client.send_request.assert_not_called()
 
     def test_builds_authorization_url_with_state(self) -> None:
         auth = _create_authenticator()

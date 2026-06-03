@@ -200,6 +200,23 @@ class TestSimpleStyleBackwardCompatibility:
     def test_scalar_url_encodes_for_path(self) -> None:
         assert ValueSerializer.serialize_styled('id', 'hello world', 'path', 'string', None, 'simple', False) == 'hello%20world'
 
+    def test_path_serialization_is_final_and_must_not_be_double_encoded(self) -> None:
+        # The api template substitutes ``str(serialize_styled(...))`` directly
+        # into the path WITHOUT an additional ``quote()`` wrap. This guards
+        # against the double-encoding regression where a space became
+        # ``%2520`` and ``/`` became ``a%252Fb``. The serializer output here
+        # is the FINAL wire value -- re-encoding it would be wrong.
+        space = ValueSerializer.serialize_styled('id', 'a b', 'path', 'string', None, 'simple', False)
+        assert space == 'a%20b'
+        from urllib.parse import quote
+        # A second encode (the removed outer wrap) would corrupt it.
+        assert quote(str(space), safe="/;,=.~:!$&'()*+@") == 'a%2520b'
+        assert space != 'a%2520b'
+
+        slash = ValueSerializer.serialize_styled('id', 'a/b', 'path', 'string', None, 'simple', False)
+        assert slash == 'a%2Fb'
+        assert slash != 'a%252Fb'
+
 
 class TestNullStyleFallback:
     def test_path_with_null_style_behaves_like_simple(self) -> None:

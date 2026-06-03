@@ -1,6 +1,6 @@
 {{>api_info}}
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict
 
 from .base_authenticator import BaseAuthenticator
@@ -11,9 +11,17 @@ class BearerAuthenticator(BaseAuthenticator):
     """Authenticator for HTTP Bearer token authentication."""
 
     host: str
-    token: str
+    # repr=False so the bearer token is never leaked through the dataclass's
+    # auto-generated repr/str (e.g. logging, f-strings, %r). The default
+    # representation shows the host only.
+    token: str = field(repr=False)
 
     def __post_init__(self) -> None:
+        # Reject an empty / whitespace-only token so the SDK never emits a
+        # bare ``Authorization: Bearer `` header, matching the api-key
+        # authenticator's own empty guard.
+        if not self.token or not self.token.strip():
+            raise ValueError('Bearer token must not be empty')
         # RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
         # Reject anything outside printable ASCII + TAB so callers see a
         # clear error rather than HTTP header injection from CR/LF or
