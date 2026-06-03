@@ -141,8 +141,9 @@ class {{classname}} : BaseApi {
 {{/isDeprecated}}
 {{#hasAuthMethods}}
     {{#authMethods}}
-    suspend fun {{operationId}}(auth: {{vendorExtensions.authenticatorClassName}}{{#vendorExtensions.op.signatureArgs}}, {{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}}{{#returnType}}?{{/returnType}} {
-        {{#returnType}}return {{operationId}}WithHttpInfo(auth{{#vendorExtensions.op.signatureArgs}}, {{paramName}}{{/vendorExtensions.op.signatureArgs}}).data{{/returnType}}{{^returnType}}{{operationId}}WithHttpInfo(auth{{#vendorExtensions.op.signatureArgs}}, {{paramName}}{{/vendorExtensions.op.signatureArgs}}){{/returnType}}
+    suspend fun {{operationId}}(auth: {{vendorExtensions.authenticatorClassName}}{{#vendorExtensions.op.signatureArgs}}, {{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}} {
+        {{#returnType}}return {{operationId}}WithHttpInfo(auth{{#vendorExtensions.op.signatureArgs}}, {{paramName}}{{/vendorExtensions.op.signatureArgs}}).data
+            ?: throw ApiException("Expected a response body for {{operationId}} but the server returned an empty body"){{/returnType}}{{^returnType}}{{operationId}}WithHttpInfo(auth{{#vendorExtensions.op.signatureArgs}}, {{paramName}}{{/vendorExtensions.op.signatureArgs}}){{/returnType}}
     }
 
     suspend fun {{operationId}}WithHttpInfo(auth: {{vendorExtensions.authenticatorClassName}}{{#vendorExtensions.op.signatureArgs}}, {{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}> {
@@ -150,7 +151,7 @@ class {{classname}} : BaseApi {
     }
 
 {{#servers}}{{#-first}}
-    suspend fun {{operationId}}(auth: {{vendorExtensions.authenticatorClassName}}{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}}{{#returnType}}?{{/returnType}} {
+    suspend fun {{operationId}}(auth: {{vendorExtensions.authenticatorClassName}}{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}} {
         {{#returnType}}return {{operationId}}(auth{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, null){{/returnType}}{{^returnType}}{{operationId}}(auth{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, null){{/returnType}}
     }
 
@@ -163,7 +164,7 @@ class {{classname}} : BaseApi {
 {{/hasAuthMethods}}
 {{^hasAuthMethods}}
 {{#servers}}{{#-first}}
-    suspend fun {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}}{{#returnType}}?{{/returnType}} {
+    suspend fun {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}} {
         {{#returnType}}return {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, null){{/returnType}}{{^returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, null){{/returnType}}
     }
 
@@ -171,8 +172,9 @@ class {{classname}} : BaseApi {
         return {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, null)
     }
 {{/-first}}{{/servers}}
-    suspend fun {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}}{{#returnType}}?{{/returnType}} {
-        {{#returnType}}return {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}).data{{/returnType}}{{^returnType}}{{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}){{/returnType}}
+    suspend fun {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}} {
+        {{#returnType}}return {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}).data
+            ?: throw ApiException("Expected a response body for {{operationId}} but the server returned an empty body"){{/returnType}}{{^returnType}}{{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}){{/returnType}}
     }
 
     suspend fun {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}> {

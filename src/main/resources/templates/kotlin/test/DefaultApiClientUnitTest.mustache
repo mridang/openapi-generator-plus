@@ -636,5 +636,82 @@ class DefaultApiClientUnitTest {
             }
             assertEquals(200, response.statusCode)
         }
+
+        @Test
+        @DisplayName("redirect-exhaustion-silent: throws when maxRedirects is exhausted")
+        fun throwsWhenRedirectBudgetExhausted() {
+            // Server returns a 302 to itself on every hop. With maxRedirects=2
+            // the budget is exhausted while the response is still a 3xx; the
+            // client must throw rather than silently return the last redirect.
+            val engine = MockEngine { _ ->
+                respond(
+                    content = "",
+                    status = HttpStatusCode.Found,
+                    headers = headersOf("Location", "http://localhost/loop"),
+                )
+            }
+            val transport =
+                TransportOptions.builder().followRedirects(true).maxRedirects(2).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val ex = assertThrows(ApiException::class.java) {
+                runBlocking {
+                    apiClient.sendRequest("GET", "http://localhost/loop", emptyMap(), null)
+                }
+            }
+            assertTrue(
+                ex.message!!.contains("Too many redirects"),
+                "exception should report redirect exhaustion, got: ${ex.message}",
+            )
+        }
+    }
+
+    @Nested
+    @DisplayName("response body read error")
+    inner class ResponseBodyReadError {
+
+        @Test
+        @DisplayName("response-body-read-error-not-wrapped: body-read failure is wrapped in ApiException")
+        fun bodyReadFailureWrappedInApiException() {
+            // Headers are received (status 200) but the body channel is closed
+            // with a failure cause, simulating a connection reset / truncated
+            // body after the response started. Reading it must surface the
+            // SDK's ApiException, not leak the raw Ktor/IO exception.
+            val engine = MockEngine { _ ->
+                val channel = io.ktor.utils.io.ByteChannel(autoFlush = true)
+                channel.close(java.io.IOException("simulated body read failure"))
+                respond(
+                    content = channel,
+                    status = HttpStatusCode.OK,
+                    headers = headersOf("Content-Type", "text/plain"),
+                )
+            }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            assertThrows(ApiException::class.java) {
+                runBlocking {
+                    apiClient.sendRequest("GET", "http://localhost/body-fail", emptyMap(), null)
+                }
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("close lifecycle")
+    inner class CloseLifecycle {
+
+        @Test
+        @DisplayName("close-lifecycle-three-way: send after close throws ApiException")
+        fun sendAfterCloseThrowsApiException() {
+            val apiClient = DefaultApiClient(mockClient())
+            apiClient.close()
+            val ex = assertThrows(ApiException::class.java) {
+                runBlocking {
+                    apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+                }
+            }
+            assertTrue(
+                ex.message!!.contains("closed"),
+                "use-after-close must surface an SDK ApiException mentioning the closed state, got: ${ex.message}",
+            )
+        }
     }
 }

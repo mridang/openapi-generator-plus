@@ -8,6 +8,6 @@ package {{invokerPackage}}
 data class ApiResult<T>(
     val statusCode: Int,
     val data: T?,
-    val rawBody: String?,
+    val rawBody: String,
     val headers: Map<String, String>
 )

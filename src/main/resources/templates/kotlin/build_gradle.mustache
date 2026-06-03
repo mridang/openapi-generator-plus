@@ -16,6 +16,7 @@ publishing {
     publications {
         withType<MavenPublication> {
             pom {
+                description.set("{{#appDescription}}{{{appDescription}}}{{/appDescription}}{{^appDescription}}Generated API client for {{#appName}}{{{appName}}}{{/appName}}{{/appDescription}}")
                 licenses {
                     license {
                         name.set("MIT")

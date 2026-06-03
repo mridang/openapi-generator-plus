@@ -11,6 +11,12 @@ open class BearerAuthenticator(
 ) : BaseAuthenticator() {
 
     init {
+        // Reject an empty or whitespace-only token: it would otherwise emit a
+        // bare "Authorization: Bearer " header that carries no credential,
+        // failing open. Mirrors the api-key authenticator's own empty guard.
+        if (token.isBlank()) {
+            throw IllegalArgumentException("Bearer token must not be empty or blank")
+        }
         // RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
         // Reject anything outside printable ASCII + TAB so callers see a
         // clear error rather than (a) HTTP header injection from a CR/LF

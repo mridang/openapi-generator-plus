@@ -71,6 +71,10 @@ open class OAuth2AuthorizationCodeAuthenticator(
      * @param code the authorization code from the callback
      */
     suspend fun exchangeCode(code: String) {
+        // Reject an empty/blank authorization code before the token POST:
+        // the OAuth server would reject it anyway, so fail fast with a clear
+        // client-side error instead of a confusing downstream token failure.
+        require(code.isNotBlank()) { "Authorization code must not be empty or blank" }
         val params = mutableMapOf(
             "grant_type" to "authorization_code",
             "code" to code,

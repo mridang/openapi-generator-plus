@@ -556,4 +556,47 @@ class ObjectSerializerTest {
             }
         }
     }
+
+    @Nested
+    @DisplayName("oneOf/anyOf no-match")
+    inner class OneOfNoMatch {
+
+        @Test
+        @DisplayName("oneof-nondiscriminator-no-match-silent: resolveOneOf throws when no variant matches")
+        fun resolveOneOfThrowsOnNoMatch() {
+            // Every candidate fails to decode the payload. The resolver must
+            // throw rather than silently return null/store the raw value, so a
+            // response matching none of the declared oneOf members surfaces a
+            // loud deserialize error like the other validate-and-throw SDKs.
+            val candidates: List<(String) -> Any?> = listOf(
+                { _ -> throw IllegalStateException("variant A does not match") },
+                { _ -> throw IllegalStateException("variant B does not match") },
+            )
+            assertThrows(ObjectSerializer.SerializationException::class.java) {
+                serializer.resolveOneOf("{\"unexpected\":true}", candidates)
+            }
+        }
+
+        @Test
+        @DisplayName("resolveOneOf returns the first matching variant")
+        fun resolveOneOfReturnsFirstMatch() {
+            val candidates: List<(String) -> Any?> = listOf(
+                { _ -> null },
+                { s -> "matched:$s" },
+            )
+            val result = serializer.resolveOneOf("payload", candidates)
+            assertEquals("matched:payload", result)
+        }
+
+        @Test
+        @DisplayName("resolveAnyOf throws when no variant matches")
+        fun resolveAnyOfThrowsOnNoMatch() {
+            val candidates: List<(String) -> Any?> = listOf(
+                { _ -> null },
+            )
+            assertThrows(ObjectSerializer.SerializationException::class.java) {
+                serializer.resolveAnyOf("{}", candidates)
+            }
+        }
+    }
 }

@@ -141,9 +141,11 @@ class ObjectSerializer(
     /**
      * Resolve a oneOf schema by attempting deserialization against each candidate.
      * Each candidate is a function that takes a JSON string and returns a deserialized value.
-     * Returns the first successful result, or null if none match.
+     * Returns the first successful result, or throws [SerializationException] when no
+     * variant matches — a payload that satisfies none of the declared oneOf members is
+     * spec drift and must fail loud rather than be silently stored as a raw value.
      */
-    fun resolveOneOf(jsonString: String, candidates: List<(String) -> Any?>): Any? {
+    fun resolveOneOf(jsonString: String, candidates: List<(String) -> Any?>): Any {
         for (candidate in candidates) {
             try {
                 val result = candidate(jsonString)
@@ -152,14 +154,16 @@ class ObjectSerializer(
                 continue
             }
         }
-        return null
+        throw SerializationException(
+            "No oneOf/anyOf variant matched the response body"
+        )
     }
 
     /**
      * Resolve an anyOf schema by attempting deserialization against each candidate.
-     * Returns the first successful result, or null if none match.
+     * Returns the first successful result, or throws [SerializationException] when none match.
      */
-    fun resolveAnyOf(jsonString: String, candidates: List<(String) -> Any?>): Any? {
+    fun resolveAnyOf(jsonString: String, candidates: List<(String) -> Any?>): Any {
         return resolveOneOf(jsonString, candidates)
     }
 

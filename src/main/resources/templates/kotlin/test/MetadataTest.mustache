@@ -69,4 +69,22 @@ class MetadataTest {
         assertNotNull(deserialized)
         assertEquals(original.createdAt, deserialized.createdAt)
     }
+
+    @Test
+    @DisplayName("manifest-description-missing: build.gradle.kts publishes a non-empty POM description")
+    fun testBuildManifestHasDescription() {
+        // The Maven POM produced for the published artifact must carry a
+        // non-empty <description>, wired from the OpenAPI document's
+        // description (or a generated fallback). Gradle runs tests with the
+        // project root as the working directory.
+        val buildFile = java.io.File("build.gradle.kts")
+        assertTrue(buildFile.exists(), "build.gradle.kts must exist at the project root")
+        val contents = buildFile.readText()
+        val match = Regex("""description\.set\("([^"]*)"\)""").find(contents)
+        assertNotNull(match, "build.gradle.kts must set a POM description")
+        assertTrue(
+            match!!.groupValues[1].isNotBlank(),
+            "POM description must not be empty",
+        )
+    }
 }

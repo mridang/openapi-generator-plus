@@ -43,6 +43,22 @@ class ClientTest {
     }
 
     @Test
+    @DisplayName("bearer-no-empty-token-guard: Bearer rejects empty/blank token")
+    fun bearerRejectsEmptyOrBlankToken() {
+        // An empty or whitespace-only token would emit a credential-less
+        // "Authorization: Bearer " header (fail-open); reject it up front.
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("{{{basePath}}}", "")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("{{{basePath}}}", "   ")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("{{{basePath}}}", "\t")
+        }
+    }
+
+    @Test
     @DisplayName("ApiKey header rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)")
     fun apiKeyHeaderRejectsCrlfAndNonAscii() {
         // ApiKeyAuthenticator's HEADER location must reject any value

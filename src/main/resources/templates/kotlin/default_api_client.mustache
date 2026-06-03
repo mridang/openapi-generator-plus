@@ -53,6 +53,15 @@ class DefaultApiClient internal constructor(
     internal val proxyAuthHeader: String? = buildProxyAuthHeader(transportOptions.proxy)
 
     /**
+     * Tracks whether [close] has been called. Use-after-close must surface
+     * the SDK's own [ApiException] rather than a foreign Ktor exception (or
+     * silently succeeding), giving callers one uniform lifecycle error across
+     * all SDKs.
+     */
+    @Volatile
+    private var closed: Boolean = false
+
+    /**
      * Create a client with a pre-configured Ktor [HttpClient].
      *
      * Uses default [TransportOptions] for header injection settings.
@@ -89,6 +98,9 @@ class DefaultApiClient internal constructor(
         body: Any?,
         noRedirect: Boolean,
     ): ApiResponse {
+        if (closed) {
+            throw ApiException("ApiClient has been closed and can no longer send requests")
+        }
         val mergedHeaders = mutableMapOf<String, String>()
         mergedHeaders.putAll(transportOptions.defaultHeaders)
         mergedHeaders.putAll(headers)
@@ -244,6 +256,16 @@ class DefaultApiClient internal constructor(
                 }
                 redirectsRemaining--
             }
+
+            // Redirect budget exhausted but the server is still returning a
+            // 3xx: fail loud instead of silently handing the caller the last
+            // redirect response as if it were a normal result. Matches the
+            // "throw too many redirects" canonical adopted across the SDKs.
+            if (response.status.value in 300..399 && redirectsRemaining == 0) {
+                throw ApiException(
+                    "Too many redirects (exceeded maxRedirects=${transportOptions.maxRedirects ?: 20})"
+                )
+            }
         }
 
         // Gap BE+BF: response header keys are normalised to lowercase so
@@ -261,7 +283,15 @@ class DefaultApiClient internal constructor(
             responseHeaders[name.lowercase(java.util.Locale.ROOT)] = values.joinToString(", ")
         }
 
-        val rawBytes = response.bodyAsBytes()
+        // Read the response body inside a try/catch so a post-headers
+        // failure (connection reset, read timeout, truncated/decompression
+        // error) surfaces as the SDK's uniform ApiException rather than a
+        // raw Ktor exception, matching how send-phase failures are wrapped.
+        val rawBytes = try {
+            response.bodyAsBytes()
+        } catch (e: Exception) {
+            throw ApiException(e.toString(), e)
+        }
         val contentType = responseHeaders["content-type"] ?: ""
         val responseBody = if (isTextContentType(contentType)) {
             rawBytes.toString(charsetFor(contentType))
@@ -368,6 +398,7 @@ class DefaultApiClient internal constructor(
      * be reused.
      */
     override fun close() {
+        closed = true
         httpClient.close()
     }
 }
