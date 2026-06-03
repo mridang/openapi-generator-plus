@@ -39,7 +39,8 @@ open class BaseApi: @unchecked Sendable {
     func invokeAPI(_ params: InvokeAPIParams) async throws -> HttpResponse {
         var requestURL = params.path
         if !requestURL.hasPrefix("http://") && !requestURL.hasPrefix("https://") {
-            requestURL = config.baseURL + params.path
+            requestURL =
+                config.baseURL.replacingOccurrences(of: "/+$", with: "", options: .regularExpression) + params.path
         }
 
         /* Merge authentication query params */

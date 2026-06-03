@@ -118,7 +118,7 @@ abstract class BaseApi {
             if (path.startsWith("http://") || path.startsWith("https://")) {
                 path
             } else {
-                config.baseUrl + path
+                config.baseUrl.trimEnd('/') + path
             }
 
         val effectiveAuth = auth ?: this.authenticator

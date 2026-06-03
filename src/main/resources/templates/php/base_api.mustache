@@ -84,7 +84,7 @@ class BaseApi
         ?string $returnType,
         ?Authenticator $auth = null
     ): ApiResult {
-        $url = str_starts_with($path, 'http://') || str_starts_with($path, 'https://') ? $path : $this->config->baseUrl . $path;
+        $url = str_starts_with($path, 'http://') || str_starts_with($path, 'https://') ? $path : rtrim($this->config->baseUrl, '/') . $path;
 
         $effectiveAuth = $auth ?? $this->authenticator;
         if ($effectiveAuth instanceof Authenticator) {

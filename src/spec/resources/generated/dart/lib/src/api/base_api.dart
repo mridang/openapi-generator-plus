@@ -62,7 +62,7 @@ class BaseApi {
     var requestUrl = path;
     if (!requestUrl.startsWith('http://') &&
         !requestUrl.startsWith('https://')) {
-      requestUrl = config.baseUrl + path;
+      requestUrl = config.baseUrl.replaceAll(RegExp(r'/+$'), '') + path;
     }
 
     final allQueryParams = <String, Object?>{};
@@ -209,7 +209,8 @@ class BaseApi {
         } catch (_) {
           data = Uint8List.fromList(utf8.encode(response.body)) as T?;
         }
-      } else if (_headerSelector.isJsonMime(responseContentType) &&
+      } else if ((responseContentType.isEmpty ||
+              _headerSelector.isJsonMime(responseContentType)) &&
           deserialize != null) {
         data = deserialize(response.body);
       } else if (returnType == 'String') {
