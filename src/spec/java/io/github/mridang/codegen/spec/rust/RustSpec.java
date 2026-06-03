@@ -17,12 +17,12 @@ interface RustSpec extends LanguageSpec, DockerImageSpec {
 
     @Override
     default DockerImageName getRuntimeImage() {
-        return DockerImageName.parse("rust:1.88");
+        return DockerImageName.parse("rust:1.88-slim");
     }
 
     @Override
     default String getDockerImage() {
-        return "rust:1.88";
+        return "rust:1.88-slim";
     }
 
     @Override
@@ -39,6 +39,11 @@ interface RustSpec extends LanguageSpec, DockerImageSpec {
          * cargo-nextest` (a few minutes to compile). The .config dir +
          * nextest.toml below tells nextest where to write the XML. */
         return List.of(
+                /* rust:slim omits curl + ca-certificates that the full image
+                 * ships via buildpack-deps; the nextest download below needs
+                 * both (curl for the fetch, CA certs for its TLS verify). */
+                "apt-get update -qq && apt-get install -y -qq --no-install-recommends"
+                        + " curl ca-certificates",
                 "rustup component add rustfmt clippy",
                 "mkdir -p $CARGO_HOME/bin && curl -LsSf https://get.nexte.st/latest/linux"
                         + " | tar zxf - -C $CARGO_HOME/bin",
