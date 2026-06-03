@@ -7,7 +7,7 @@ class ElixirReservedWordsSpec extends AbstractReservedWordsSpec implements Elixi
 
     @Override
     public String getDockerImage() {
-        return "elixir:1.19";
+        return "elixir:1.18";
     }
 
     @Override
