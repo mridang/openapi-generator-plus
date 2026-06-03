@@ -20,3 +20,4 @@ Dimensions rotate across rounds: (1) HTTP transport, (2) model serde,
 | 1 | transport, model-serde, value-serde, base-model | D: dart-decompress-throw, swift-redirect-301/302, node-missing-discriminator, kotlin-lenient-json (deferred). value-serde + base-model clean | dart+swift+node (3) | next | pending |
 | 1.5 | recovery | reverted formatter/error-prone tool bumps that broke JavaBuildSpec+formatting on CI | java+kotlin tooling | dcffe595 | green(F/L) |
 | 2 | oauth2, non-oauth-auth, error-model | D: csharp-refresh-fallback-catch-too-narrow (OAuth2TokenError not caught). non-oauth-auth + error-model clean | csharp (1) | next | pending |
+| 3 | config/servers/operations (3 agents) | D: baseurl-trailing-slash-double-slash (7 SDKs joined naively → `//`); dart-empty-contenttype-skips-json-deser. multipart/content-type clean | 7 base_api trim + dart deser | 23dd4455 | pending |
