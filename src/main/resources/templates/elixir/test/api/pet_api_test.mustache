@@ -190,7 +190,11 @@ defmodule {{moduleName}}.Api.PetApiTest do
       )
 
     url = PathCapturingApiClient.captured_url(name)
-    assert String.contains?(url, "/tag/a%20b"),
+    # get_pet_tag declares tagName with `style: label`, so the segment is
+    # rendered as `.a%20b` (leading dot). This test verifies single-encoding
+    # of the space, so assert the encoded form appears (a%20b) and is never
+    # double-encoded (a%2520b) — style-agnostic.
+    assert String.contains?(url, "a%20b"),
       "Expected single-encoded space (%20) in path, got: #{url}"
     refute String.contains?(url, "%2520"),
       "Path must not be double-encoded (%2520), got: #{url}"

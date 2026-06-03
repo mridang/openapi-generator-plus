@@ -125,6 +125,12 @@ defmodule {{moduleName}}.ObjectSerializer do
   def deserialize(nil, _target_type), do: nil
   def deserialize("", _target_type), do: nil
 
+  # A "String" return type means "hand me the raw response body verbatim" —
+  # never JSON-parse it (a JSON envelope body would otherwise decode to a map
+  # and fail String coercion). Matches the raw-body return of the other SDKs
+  # and is not a deserialize failure (a binary is always a valid String).
+  def deserialize(body, "String") when is_binary(body), do: body
+
   def deserialize(json_string, target_type) when is_binary(json_string) do
     # RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text, but
     # Windows-generated payloads often include one and Jason rejects it.
