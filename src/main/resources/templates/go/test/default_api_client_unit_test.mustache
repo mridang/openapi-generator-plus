@@ -2,6 +2,7 @@
 package {{packageName}}_test
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"testing"
 
 	"{{packageName}}/pkg"
+	pkgerrors "{{packageName}}/pkg/errors"
 )
 
 func TestDefaultApiClient_InjectsCustomUserAgent(t *testing.T) {
@@ -605,5 +607,64 @@ func TestDefaultApiClient_StripsAuthorizationAcrossCrossOriginRedirect(t *testin
 	if receivedAuth != "" {
 		t.Errorf("expected Authorization to be stripped across cross-origin redirect, got %q",
 			receivedAuth)
+	}
+}
+
+// close-lifecycle-three-way: sending a request after Close() must fail with the
+// uniform SDK error type, not silently succeed or leak a foreign library error.
+func TestDefaultApiClient_UseAfterCloseReturnsApiError(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	client := {{packageName}}.NewDefaultApiClient(nil)
+	if err := client.Close(); err != nil {
+		t.Fatalf("Close returned error: %v", err)
+	}
+
+	_, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
+	if err == nil {
+		t.Fatal("expected an error when sending a request after Close()")
+	}
+	var apiErr *pkgerrors.ApiError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected use-after-close to return *ApiError, got %T: %v", err, err)
+	}
+	if !strings.Contains(strings.ToLower(apiErr.Msg), "closed") {
+		t.Errorf("expected error message to mention the client is closed, got %q", apiErr.Msg)
+	}
+}
+
+// response-body-read-error-not-wrapped: a body-read/decompression failure that
+// occurs AFTER headers are received must be wrapped in the uniform ApiError
+// (StatusCode 0, underlying error preserved on .Cause), matching send-phase
+// failures — not surfaced as a bare error.
+func TestDefaultApiClient_BodyReadErrorWrappedInApiError(t *testing.T) {
+	t.Parallel()
+	// Advertise gzip but send bytes that are not valid gzip, so the body-read
+	// (decompression) step fails after the 200 headers are received.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Encoding", "gzip")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("this is not gzip-compressed data"))
+	}))
+	defer server.Close()
+
+	client := {{packageName}}.NewDefaultApiClient(nil)
+	_, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
+	if err == nil {
+		t.Fatal("expected an error when the response body cannot be decompressed")
+	}
+	var apiErr *pkgerrors.ApiError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected body-read failure to be wrapped in *ApiError, got %T: %v", err, err)
+	}
+	if apiErr.StatusCode != 0 {
+		t.Errorf("expected StatusCode 0 for a body-read failure, got %d", apiErr.StatusCode)
+	}
+	if apiErr.Cause == nil {
+		t.Error("expected the underlying decompression error to be preserved on .Cause")
 	}
 }

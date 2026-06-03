@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/andybalholm/brotli"
@@ -49,6 +50,11 @@ type noRedirectContextKey struct{}
 type DefaultApiClient struct {
 	transportOptions *TransportOptions
 	httpClient       *http.Client
+	/* closed is set by Close(). close-lifecycle-three-way: once closed, any
+	 * further SendRequest must fail with a uniform SDK error rather than
+	 * silently succeeding (or leaking a foreign library error), matching the
+	 * use-after-close contract of the other SDKs. */
+	closed atomic.Bool
 }
 
 // NewDefaultApiClient creates a client with the given transport settings.
@@ -83,6 +89,12 @@ func (c *DefaultApiClient) SendRequest(method, url string, headers map[string]st
 // used by OAuth2TokenManager on token endpoint POSTs so 307/308 cannot
 // replay the form-encoded client_secret onto an attacker host.
 func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *RequestOptions) (*HttpResponse, error) {
+	if c.closed.Load() {
+		return nil, &errors_pkg.ApiError{
+			StatusCode: 0,
+			Msg:        "API client has been closed and can no longer send requests",
+		}
+	}
 	merged := make(map[string]string)
 	for k, v := range c.transportOptions.DefaultHeaders() {
 		merged[k] = v
@@ -159,7 +171,17 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 
 	respBody, err := decompressBody(resp)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
+		// response-body-read-error-not-wrapped: a failure reading or
+		// decompressing the body (connection reset / truncated chunked /
+		// decompression error AFTER headers were received) must be wrapped in
+		// the uniform ApiError (StatusCode 0, underlying preserved on .Cause)
+		// just like a send-phase failure, so callers get one error type for the
+		// entire transport phase.
+		return nil, &errors_pkg.ApiError{
+			StatusCode: 0,
+			Msg:        fmt.Sprintf("failed to read response body: %s", err.Error()),
+			Cause:      err,
+		}
 	}
 
 	// Gap BE+BF: response header keys are normalised to lowercase so callers
@@ -193,6 +215,7 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 // Close releases idle TCP/TLS connections held by the underlying
 // http.Transport. After Close the client should not be reused.
 func (c *DefaultApiClient) Close() error {
+	c.closed.Store(true)
 	if transport, ok := c.httpClient.Transport.(*http.Transport); ok {
 		transport.CloseIdleConnections()
 	}

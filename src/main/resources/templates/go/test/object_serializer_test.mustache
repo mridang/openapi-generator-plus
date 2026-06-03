@@ -732,3 +732,59 @@ func TestDeserialize_IgnoresUnknownFields(t *testing.T) {
 		t.Errorf("expected name 'Skip', got %q", pet.Name)
 	}
 }
+
+// ── model-equality-swift-go: Equal() value equality ──
+
+func TestModelEqual_Identical(t *testing.T) {
+	t.Parallel()
+	id := int64(7)
+	name := "Fido"
+	a := models.Category{Id: &id, Name: &name}
+	id2 := int64(7)
+	name2 := "Fido"
+	b := models.Category{Id: &id2, Name: &name2}
+	if !a.Equal(b) {
+		t.Errorf("expected equal Category values to compare equal")
+	}
+}
+
+func TestModelEqual_Different(t *testing.T) {
+	t.Parallel()
+	name := "Fido"
+	other := "Rex"
+	a := models.Category{Name: &name}
+	b := models.Category{Name: &other}
+	if a.Equal(b) {
+		t.Errorf("expected differing Category values to compare unequal")
+	}
+}
+
+// A Pet carries slice/Set fields (PhotoUrls, Tags). The built-in `==` operator
+// panics at runtime on such values; Equal() must compare them without panicking.
+func TestModelEqual_SliceBearingModel(t *testing.T) {
+	t.Parallel()
+	a := models.Pet{Name: "Rex", PhotoUrls: models.Set[string]{"a", "b"}}
+	b := models.Pet{Name: "Rex", PhotoUrls: models.Set[string]{"a", "b"}}
+	if !a.Equal(b) {
+		t.Errorf("expected slice-bearing Pet values to compare equal via Equal()")
+	}
+	c := models.Pet{Name: "Rex", PhotoUrls: models.Set[string]{"a", "c"}}
+	if a.Equal(c) {
+		t.Errorf("expected Pets with differing PhotoUrls to compare unequal")
+	}
+}
+
+// A Metadata carries a map field (AdditionalProperties). A value of this type is
+// not even comparable with `==` (it would fail to compile); Equal() must work.
+func TestModelEqual_MapBearingModel(t *testing.T) {
+	t.Parallel()
+	a := models.Metadata{AdditionalProperties: map[string]any{"k": "v"}}
+	b := models.Metadata{AdditionalProperties: map[string]any{"k": "v"}}
+	if !a.Equal(b) {
+		t.Errorf("expected map-bearing Metadata values to compare equal via Equal()")
+	}
+	c := models.Metadata{AdditionalProperties: map[string]any{"k": "w"}}
+	if a.Equal(c) {
+		t.Errorf("expected Metadata with differing AdditionalProperties to compare unequal")
+	}
+}

@@ -114,6 +114,13 @@ func (a *{{classname}}) {{operationId}}({{#hasAuthMethods}}auth Authenticator, {
 		return {{#returnType}}nil, {{/returnType}}err
 	}
 {{#returnType}}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("{{operationId}}", result.StatusCode, result.RawBody, result.Headers)
+	}
 	return result.Data, nil
 {{/returnType}}
 {{^returnType}}
@@ -138,12 +145,14 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 	path := "{{{path}}}"
 {{#pathParams}}
 {{#isDate}}
-	path = replacePathParam(path, "{{baseName}}", StringifyDate({{paramName}}))
+	path = replacePathParam(path, "{{baseName}}", EncodePathSegment(StringifyDate({{paramName}})))
 {{/isDate}}
 {{^isDate}}
-{{=<% %>=}}
-	path = replacePathParam(path, "<%baseName%>", fmt.Sprintf("%v", <%paramName%>))
-<%={{ }}=%>
+	/* Path params route through SerializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "{{baseName}}", fmt.Sprintf("%v", SerializeStyled("{{baseName}}", {{paramName}}, "path", "{{{dataType}}}", "", "{{style}}", {{isExplode}})))
 {{/isDate}}
 {{/pathParams}}
 {{#servers}}
@@ -248,6 +257,10 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 
 {{#returnType}}
 	var data {{{.}}}
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *{{{.}}}
 	if response.Body != "" {
 		respContentType := ""
 		// Headers are lowercase-normalised per Gap BE.
@@ -269,11 +282,12 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 			}
 			*bytesPtr = decoded
 		}
+		dataPtr = &data
 	}
 
 	return &ApiResult[{{{returnType}}}]{
 		StatusCode: response.StatusCode,
-		Data:       &data,
+		Data:       dataPtr,
 		RawBody:    response.Body,
 		Headers:    response.Headers,
 	}, nil

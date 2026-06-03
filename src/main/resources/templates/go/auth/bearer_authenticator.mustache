@@ -21,6 +21,13 @@ type BearerAuthenticator struct {
 // non-ASCII bytes. panic is appropriate because this is a programmer
 // error, not a recoverable runtime condition.
 func NewBearerAuthenticator(host, token string) *BearerAuthenticator {
+	// bearer-no-empty-token-guard: an empty or whitespace-only token would
+	// produce the literal `Authorization: Bearer ` header and silently send
+	// the request unauthenticated. Reject it as a programmer error, matching
+	// the api-key authenticator's own empty guard.
+	if token == "" || strings.TrimSpace(token) == "" {
+		panic("Bearer token must not be empty")
+	}
 	for _, c := range token {
 		if c != '\t' && (c < 0x20 || c >= 0x7F) {
 			panic(fmt.Sprintf(
@@ -37,6 +44,14 @@ func NewBearerAuthenticator(host, token string) *BearerAuthenticator {
 // Host returns the API base URL.
 func (a *BearerAuthenticator) Host() string {
 	return a.host
+}
+
+// String implements fmt.Stringer so the default string/format representation
+// never leaks the token. authenticator-secret-in-default-string-repr: without
+// this, fmt.Printf("%+v", auth) would reflect and print the unexported token
+// field into application logs.
+func (a *BearerAuthenticator) String() string {
+	return fmt.Sprintf("BearerAuthenticator{host: %q, token: ***}", a.host)
 }
 
 // AuthHeaders returns the Bearer authentication header.

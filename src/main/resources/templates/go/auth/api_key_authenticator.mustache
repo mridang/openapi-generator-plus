@@ -68,6 +68,12 @@ func (a *ApiKeyAuthenticator) Host() string {
 	return a.host
 }
 
+// String implements fmt.Stringer so the default string/format representation
+// never leaks the API key. authenticator-secret-in-default-string-repr.
+func (a *ApiKeyAuthenticator) String() string {
+	return fmt.Sprintf("ApiKeyAuthenticator{host: %q, keyParamName: %q, apiKey: ***}", a.host, a.keyParamName)
+}
+
 // AuthHeaders returns the API key as a header if the location is Header.
 func (a *ApiKeyAuthenticator) AuthHeaders() map[string]string {
 	result := map[string]string{}

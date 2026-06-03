@@ -2,6 +2,8 @@
 package {{packageName}}_test
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"{{packageName}}/pkg/auth"
@@ -47,4 +49,19 @@ func TestBasicAuthenticator_RejectsUsernameWithColon(t *testing.T) {
 	}()
 	a := auth.NewBasicAuthenticator("https://api.example.com", "ali:ce", "s3cret")
 	a.AuthHeaders()
+}
+
+// authenticator-secret-in-default-string-repr: the default string/format
+// representation must not leak the password.
+func TestBasicAuthenticator_StringRedactsPassword(t *testing.T) {
+	t.Parallel()
+	a := auth.NewBasicAuthenticator("https://api.example.com", "alice", "s3cret")
+	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a), fmt.Sprintf("%s", a)} {
+		if strings.Contains(s, "s3cret") {
+			t.Errorf("expected password to be redacted, got %q", s)
+		}
+		if !strings.Contains(s, "***") {
+			t.Errorf("expected redaction marker '***', got %q", s)
+		}
+	}
 }

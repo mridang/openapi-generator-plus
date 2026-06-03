@@ -14,6 +14,22 @@ import (
 	"{{packageName}}/pkg/options"
 )
 
+// response-wrapper-type-name-split: the public transport-response wrapper must
+// be named HttpResponse (matching the 10-SDK majority), not HttpResponse. This
+// test references the public type and its fields directly; it would not compile
+// if the type were still named HttpResponse.
+func TestApiResponse_PublicTypeNameAndFields(t *testing.T) {
+	t.Parallel()
+	resp := {{packageName}}.HttpResponse{
+		StatusCode: 200,
+		Body:       "{}",
+		Headers:    map[string]string{"content-type": "application/json"},
+	}
+	if resp.StatusCode != 200 || resp.Body != "{}" {
+		t.Errorf("unexpected HttpResponse contents: %+v", resp)
+	}
+}
+
 // baseApiAuth implements Authenticator for base API tests.
 type baseApiAuth struct {
 	headers map[string]string

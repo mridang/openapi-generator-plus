@@ -2,6 +2,8 @@
 package {{packageName}}_test
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"{{packageName}}/pkg"
@@ -45,6 +47,53 @@ func TestClient_BearerRejectsCrlfAndNonAscii(t *testing.T) {
 			}()
 			_ = auth.NewBearerAuthenticator("{{{basePath}}}", val)
 		}(bad)
+	}
+}
+
+// bearer-no-empty-token-guard: an empty or whitespace-only Bearer token would
+// emit the literal `Authorization: Bearer ` header and send the request
+// unauthenticated. The constructor must reject it, like the api-key guard.
+func TestClient_BearerRejectsEmptyToken(t *testing.T) {
+	t.Parallel()
+	for _, bad := range []string{"", "   ", "\t"} {
+		func(val string) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Fatalf("expected panic for empty/whitespace bearer token %q", val)
+				}
+			}()
+			_ = auth.NewBearerAuthenticator("{{{basePath}}}", val)
+		}(bad)
+	}
+}
+
+// authenticator-secret-in-default-string-repr: the bearer token must not leak
+// through the default string/format representation.
+func TestClient_BearerStringRedactsToken(t *testing.T) {
+	t.Parallel()
+	a := auth.NewBearerAuthenticator("{{{basePath}}}", "super-secret-token")
+	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a)} {
+		if strings.Contains(s, "super-secret-token") {
+			t.Errorf("expected token to be redacted, got %q", s)
+		}
+		if !strings.Contains(s, "***") {
+			t.Errorf("expected redaction marker '***', got %q", s)
+		}
+	}
+}
+
+// authenticator-secret-in-default-string-repr: the API key must not leak
+// through the default string/format representation.
+func TestClient_ApiKeyStringRedactsKey(t *testing.T) {
+	t.Parallel()
+	a := auth.NewApiKeyAuthenticator("{{{basePath}}}", "X-Api-Key", "super-secret-key", auth.ApiKeyLocationHeader)
+	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a)} {
+		if strings.Contains(s, "super-secret-key") {
+			t.Errorf("expected api key to be redacted, got %q", s)
+		}
+		if !strings.Contains(s, "***") {
+			t.Errorf("expected redaction marker '***', got %q", s)
+		}
 	}
 }
 
