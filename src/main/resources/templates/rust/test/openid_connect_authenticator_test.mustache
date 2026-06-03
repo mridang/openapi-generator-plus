@@ -132,6 +132,31 @@ async fn test_fetches_discovery_document() {
     );
 }
 
+/// oauth-oidc-discovery-no-status-check: a non-2xx discovery response (e.g. a
+/// 500 returning an HTML error page) must surface as a status error, NOT a
+/// misleading "invalid JSON" parse error.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_discovery_non_2xx_status_surfaces_status_error() {
+    let client = Arc::new(FakeApiClient::new());
+    // Server returns 500 with an HTML body that is not valid discovery JSON.
+    client.enqueue("<html><body>Internal Server Error</body></html>", 500);
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let result = auth.build_authorization_url("").await;
+    assert!(
+        result.is_err(),
+        "a 500 discovery response must produce an error"
+    );
+    let err = result.unwrap_err().to_string().to_lowercase();
+    assert!(
+        err.contains("500") || err.contains("status"),
+        "error must reference the HTTP status, not be a JSON parse error: {}",
+        err
+    );
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn test_obtains_token_after_code_exchange() {
     let client = Arc::new(FakeApiClient::new());

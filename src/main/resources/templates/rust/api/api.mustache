@@ -6,6 +6,8 @@ use std::sync::Arc;
 use crate::api::base_api::BaseApi;
 use crate::api::base_api::InvokeApiParams;
 use crate::api_client::ApiClient;
+#[allow(unused_imports)]
+use crate::api_error::ApiError;
 use crate::api_result::ApiResult;
 use crate::auth::Authenticator;
 use crate::configuration::Configuration;
@@ -137,7 +139,19 @@ impl {{classname}} {
 {{/vendorExtensions.op.signatureArgs}}
         ).await?;
 {{#returnType}}
-        Ok(result.data.ok_or("empty response body")?)
+        // convenience-empty-body-handling: a body-returning operation that
+        // receives no decodable body must surface the SDK's typed ApiError
+        // (not a silent null / zero value), matching the other SDKs.
+        match result.data {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                result.status_code,
+                "empty response body for an operation that declares a response type".to_string(),
+                Some(result.raw_body),
+                Some(result.headers),
+                None,
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
 {{/returnType}}
 {{^returnType}}
         let _ = result;

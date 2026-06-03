@@ -152,6 +152,18 @@ impl OpenIdConnectAuthenticator {
             .send_request("GET", &self.openid_connect_url, &headers, None)
             .await?;
 
+        // oauth-oidc-discovery-no-status-check: reject a non-2xx discovery
+        // response BEFORE attempting to JSON-parse it. Otherwise a 500-HTML or
+        // 404 error page surfaces to the caller as a misleading "invalid JSON"
+        // error instead of the real transport-level failure.
+        if response.status_code < 200 || response.status_code >= 300 {
+            return Err(format!(
+                "OIDC discovery request to {} failed with HTTP status {}",
+                self.openid_connect_url, response.status_code
+            )
+            .into());
+        }
+
         let parsed: serde_json::Value = serde_json::from_str(&response.body)?;
 
         let authorization_endpoint = parsed

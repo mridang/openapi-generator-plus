@@ -42,6 +42,20 @@ fn test_client_bearer_rejects_non_ascii() {
 }
 
 #[test]
+#[should_panic(expected = "must not be empty")]
+fn test_client_bearer_rejects_empty_token() {
+    // bearer-no-empty-token-guard: an empty token would emit a bare
+    // `Authorization: Bearer ` header. Must fail closed.
+    let _ = BearerAuthenticator::new("{{{basePath}}}", "");
+}
+
+#[test]
+#[should_panic(expected = "must not be empty")]
+fn test_client_bearer_rejects_whitespace_token() {
+    let _ = BearerAuthenticator::new("{{{basePath}}}", "   ");
+}
+
+#[test]
 #[should_panic(expected = "control characters")]
 fn test_client_api_key_header_rejects_crlf() {
     // RFC 7230 §3.2.6 — ApiKeyAuthenticator's Header location must

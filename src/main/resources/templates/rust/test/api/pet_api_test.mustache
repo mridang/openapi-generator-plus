@@ -310,6 +310,28 @@ async fn test_pet_api_error_handling_not_found() {
     assert!(result.is_err(), "expected error for non-existent pet");
 }
 
+/// convenience-empty-body-handling: when a body-returning operation
+/// (get_pet_by_id -> Pet) receives a 200 with an EMPTY body, the convenience
+/// method must return the SDK's typed ApiError, not a silent null/zero value
+/// and not a bare string error. The `with_http_info` variant still surfaces
+/// the empty result with `data == None`.
+#[tokio::test]
+async fn test_pet_api_get_pet_by_id_empty_body_throws_api_error() {
+    let (api, _) = new_pet_api_for_mock(200, "application/json", "");
+
+    let result = api.get_pet_by_id(1, None).await;
+    assert!(
+        result.is_err(),
+        "empty body for a body-returning op must be an error, not a silent value"
+    );
+    let err = result.unwrap_err();
+    assert!(
+        err.downcast_ref::<{{packageName}}::api_error::ApiError>().is_some(),
+        "empty-body error must be the typed ApiError, got: {}",
+        err
+    );
+}
+
 #[tokio::test]
 async fn test_pet_api_error_handling_server_error() {
     let (api, _) = new_pet_api_for_mock(

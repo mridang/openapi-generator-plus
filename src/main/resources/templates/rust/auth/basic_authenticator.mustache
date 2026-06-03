@@ -95,14 +95,20 @@ impl Authenticator for BasicAuthenticator {
 
     /// Returns the Basic Authorization header. RFC 7617 §2 violations
     /// (colon in user-id, CR/LF/NUL in either field) are header-injection /
-    /// smuggling vectors that are typically a programmer error, so the
-    /// resulting unauthenticated request will surface as a 401 from the
-    /// server. Use [`BasicAuthenticator::try_auth_headers`] when you need to
-    /// distinguish "credentials are malformed" from "endpoint rejected" and
-    /// recover programmatically.
+    /// smuggling vectors and a programmer error, so this method `panic!`s —
+    /// matching the fail-closed behaviour of the Bearer and API-key
+    /// authenticators. It must never silently drop the credentials and send
+    /// the request unauthenticated. Use
+    /// [`BasicAuthenticator::try_auth_headers`] when you need to distinguish
+    /// "credentials are malformed" from "endpoint rejected" and recover
+    /// programmatically without crashing the process.
     fn auth_headers<'a>(
         &'a self,
     ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
-        Box::pin(async move { self.try_auth_headers().unwrap_or_else(|_| HashMap::new()) })
+        Box::pin(async move {
+            self.try_auth_headers().unwrap_or_else(|e| {
+                panic!("invalid HTTP Basic credentials: {}", e)
+            })
+        })
     }
 }

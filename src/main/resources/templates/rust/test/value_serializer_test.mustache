@@ -575,6 +575,48 @@ fn test_path_array_item_with_reserved_char_is_percent_encoded() {
     assert_eq!(unwrap_single(matrix), ";name=a%2Fb,c");
 }
 
+// rust-styled-separator-collision regression: a path-array item that itself
+// contains the structural separator `,` must be percent-encoded (to %2C)
+// BEFORE the join, so `["a,b", "c"]` stays distinguishable from the
+// three-element `["a", "b", "c"]`. Otherwise the wire form `a,b,c` is
+// ambiguous and the server cannot reconstruct the original array.
+#[test]
+fn test_path_array_item_with_comma_is_encoded_to_avoid_collision() {
+    let two: Vec<String> = vec!["a,b".into(), "c".into()];
+    let three: Vec<String> = vec!["a".into(), "b".into(), "c".into()];
+
+    // simple
+    let simple_two = value_serializer::serialize_styled(
+        "name", None, Some(&two), "path", "array", "", "simple", false,
+    );
+    let simple_three = value_serializer::serialize_styled(
+        "name", None, Some(&three), "path", "array", "", "simple", false,
+    );
+    assert_eq!(unwrap_single(simple_two), "a%2Cb,c");
+    assert_eq!(unwrap_single(simple_three), "a,b,c");
+    assert_ne!(
+        unwrap_single(value_serializer::serialize_styled(
+            "name", None, Some(&two), "path", "array", "", "simple", false,
+        )),
+        unwrap_single(value_serializer::serialize_styled(
+            "name", None, Some(&three), "path", "array", "", "simple", false,
+        )),
+        "two-element and three-element arrays must not collide on the wire"
+    );
+
+    // label (non-explode)
+    let label_two = value_serializer::serialize_styled(
+        "name", None, Some(&two), "path", "array", "", "label", false,
+    );
+    assert_eq!(unwrap_single(label_two), ".a%2Cb,c");
+
+    // matrix (non-explode)
+    let matrix_two = value_serializer::serialize_styled(
+        "name", None, Some(&two), "path", "array", "", "matrix", false,
+    );
+    assert_eq!(unwrap_single(matrix_two), ";name=a%2Cb,c");
+}
+
 #[test]
 fn test_path_encoding_parity_matrix_style_encodes_value() {
     let result = value_serializer::serialize_styled(

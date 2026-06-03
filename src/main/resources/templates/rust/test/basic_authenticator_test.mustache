@@ -33,3 +33,13 @@ async fn test_rejects_username_with_colon() {
     let auth = BasicAuthenticator::new("https://api.example.com", "ali:ce", "s3cret");
     let _ = auth.auth_headers().await;
 }
+
+/// basic-auth-rust-silent-drop: malformed credentials must FAIL CLOSED
+/// (panic), never silently produce an empty header map that would send the
+/// request unauthenticated. This panics rather than returning `{}`.
+#[tokio::test(flavor = "multi_thread")]
+#[should_panic(expected = "invalid HTTP Basic credentials")]
+async fn test_malformed_credentials_panic_not_silent_drop() {
+    let auth = BasicAuthenticator::new("https://api.example.com", "al\nice", "s3cret");
+    let _ = auth.auth_headers().await;
+}

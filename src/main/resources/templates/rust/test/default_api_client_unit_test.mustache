@@ -642,3 +642,217 @@ async fn test_default_api_client_joins_multi_value_response_headers() {
         val
     );
 }
+
+/// Starts a server that always answers with a 302 pointing back at itself,
+/// so the client can never escape the redirect chain. Handles up to
+/// `max_conns` connections then stops.
+fn start_infinite_redirect_server(max_conns: usize) -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().unwrap();
+    let base_url = format!("http://{}", addr);
+    let loc = format!("{}/loop", base_url);
+
+    thread::spawn(move || {
+        for (i, stream) in listener.incoming().enumerate() {
+            if i >= max_conns {
+                break;
+            }
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+            let response = format!(
+                "HTTP/1.1 302 Found\r\nLocation: {}\r\nContent-Length: 0\r\n\r\n",
+                loc
+            );
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        }
+    });
+
+    thread::sleep(std::time::Duration::from_millis(50));
+    base_url
+}
+
+/// Starts a server that answers with a 302 redirect to a non-http(s) URL
+/// (here `file:///etc/passwd`). Handles one connection then stops.
+fn start_bad_scheme_redirect_server() -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().unwrap();
+    let base_url = format!("http://{}", addr);
+
+    thread::spawn(move || {
+        if let Some(stream) = listener.incoming().next() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+            let response =
+                "HTTP/1.1 302 Found\r\nLocation: file:///etc/passwd\r\nContent-Length: 0\r\n\r\n";
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        }
+    });
+
+    thread::sleep(std::time::Duration::from_millis(50));
+    base_url
+}
+
+/// Starts a server that sends 200 OK headers declaring a large Content-Length
+/// but then writes only a few body bytes and closes the connection, so the
+/// body read fails (truncated response) AFTER headers were received. Handles
+/// one connection then stops.
+fn start_truncated_body_server() -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().unwrap();
+    let base_url = format!("http://{}", addr);
+
+    thread::spawn(move || {
+        if let Some(stream) = listener.incoming().next() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+            // Declare 1000 bytes but send only 3, then drop the connection.
+            let response =
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 1000\r\n\r\nabc";
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+            // stream dropped here -> client sees a truncated body.
+        }
+    });
+
+    thread::sleep(std::time::Duration::from_millis(50));
+    base_url
+}
+
+/// Gap: a body-read failure that happens AFTER response headers are received
+/// (here a truncated Content-Length response) must be wrapped in the uniform
+/// SDK ApiError (statusCode 0), not surface as a raw reqwest::Error. Callers
+/// downcast the boxed error to `ApiError` to confirm the wrapping.
+#[tokio::test]
+async fn test_body_read_failure_wrapped_in_api_error() {
+    let base_url = start_truncated_body_server();
+    let client = DefaultApiClient::new(None);
+    let headers = HashMap::new();
+
+    let result = client
+        .send_request("GET", &format!("{}/truncated", base_url), &headers, None)
+        .await;
+
+    assert!(
+        result.is_err(),
+        "a truncated body read must surface as an error"
+    );
+    let err = result.unwrap_err();
+    assert!(
+        err.downcast_ref::<{{packageName}}::api_error::ApiError>().is_some(),
+        "body-read failure must be wrapped in the SDK ApiError type, got: {}",
+        err
+    );
+}
+
+/// Gap T-D1: exceeding the configured redirect cap must FAIL LOUDLY with a
+/// "too many redirects" error, not silently return the last 3xx response.
+#[tokio::test]
+async fn test_redirect_exhaustion_returns_error() {
+    let base_url = start_infinite_redirect_server(10);
+
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .max_redirects(Some(3))
+        .build();
+    let client = DefaultApiClient::new(Some(transport));
+    let headers = HashMap::new();
+
+    let result = client
+        .send_request("GET", &format!("{}/start", base_url), &headers, None)
+        .await;
+
+    assert!(
+        result.is_err(),
+        "exceeding max_redirects must return an error, not the last 3xx"
+    );
+    let err = result.unwrap_err().to_string().to_lowercase();
+    assert!(
+        err.contains("too many redirects"),
+        "error must mention 'too many redirects': {}",
+        err
+    );
+}
+
+/// Gap T-D3: a `Location:` to a non-http(s) scheme (file:, javascript:, ...)
+/// must be refused with an error, not silently returned as the 3xx response.
+#[tokio::test]
+async fn test_redirect_to_non_http_scheme_returns_error() {
+    let base_url = start_bad_scheme_redirect_server();
+
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build();
+    let client = DefaultApiClient::new(Some(transport));
+    let headers = HashMap::new();
+
+    let result = client
+        .send_request("GET", &format!("{}/start", base_url), &headers, None)
+        .await;
+
+    assert!(
+        result.is_err(),
+        "redirect to a non-http(s) scheme must return an error"
+    );
+    let err = result.unwrap_err().to_string().to_lowercase();
+    assert!(
+        err.contains("non-http") || err.contains("file:"),
+        "error must mention the refused non-http(s) target: {}",
+        err
+    );
+}
+
+/// apierror-drops-transport-cause: a transport-level failure (here a connect
+/// refusal) must be wrapped in an ApiError that PRESERVES the underlying
+/// reqwest error as its `source()`, rather than stringifying and discarding it.
+#[tokio::test]
+async fn test_transport_error_preserves_underlying_cause() {
+    let client = DefaultApiClient::new(None);
+    let headers = HashMap::new();
+    // Port 1 on loopback refuses connections.
+    let result = client
+        .send_request("GET", "http://127.0.0.1:1/unreachable", &headers, None)
+        .await;
+
+    let err = result.expect_err("connect to a refused port must fail");
+    let api_err = err
+        .downcast_ref::<{{packageName}}::api_error::ApiError>()
+        .expect("transport failure must be an ApiError");
+    assert!(
+        std::error::Error::source(api_err).is_some(),
+        "ApiError must retain the underlying transport error as source()"
+    );
+    assert!(
+        api_err.source.is_some(),
+        "ApiError.source field must hold the preserved cause"
+    );
+}
+
+/// Gap T6: a request issued AFTER `close()` must fail fast with the uniform
+/// SDK error type, not silently succeed and not leak a foreign reqwest error.
+#[tokio::test]
+async fn test_request_after_close_returns_sdk_error() {
+    let base_url = start_method_echo_server();
+    let client = DefaultApiClient::new(None);
+    assert!(!client.is_closed(), "client must start open");
+
+    client.close();
+    assert!(client.is_closed(), "close() must mark the client closed");
+
+    let headers = HashMap::new();
+    let result = client
+        .send_request("GET", &format!("{}/echo", base_url), &headers, None)
+        .await;
+
+    assert!(
+        result.is_err(),
+        "use-after-close must return an error, not succeed silently"
+    );
+    let err = result.unwrap_err().to_string().to_lowercase();
+    assert!(
+        err.contains("closed"),
+        "use-after-close error must mention 'closed': {}",
+        err
+    );
+}
