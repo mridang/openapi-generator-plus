@@ -113,20 +113,23 @@ class ComposedSchemaTest {
   class OneOfNoDiscriminatorTests {
 
     @Test
-    @DisplayName("deserializes a matching string variant")
-    void testDeserializeStringVariant() {
+    @DisplayName("deserializes the single base64 (byte[]) variant")
+    void testDeserializeByteVariant() {
       String json = "\"aGVsbG8=\"";
       SetPetAvatarThumbnailRequest result =
           Objects.requireNonNull(serializer.deserialize(json, ONE_OF_NO_DISCRIMINATOR_TYPE));
-      assertThat(result.getActualInstance()).isInstanceOf(String.class);
+      // The spec variant `type: string, format: byte` maps to byte[] in
+      // Java, so a lone base64 string decodes to the byte[] member of the
+      // union rather than to String.
+      assertThat(result.getActualInstance()).isInstanceOf(byte[].class);
     }
 
     @Test
     @DisplayName("throws when no oneOf variant matches (no silent raw accept)")
     void testNoMatchThrows() {
-      // A JSON object matches neither the string nor the array-of-string
-      // variant. The deserializer must reject it rather than silently
-      // store the raw tree as the actualInstance.
+      // A JSON object matches neither the single-byte[] nor the
+      // array-of-byte[] variant. The deserializer must reject it rather
+      // than silently store the raw tree as the actualInstance.
       String json = "{\"unexpected\":\"shape\"}";
       assertThatThrownBy(() -> serializer.deserialize(json, ONE_OF_NO_DISCRIMINATOR_TYPE))
           .isInstanceOf(Exception.class);
