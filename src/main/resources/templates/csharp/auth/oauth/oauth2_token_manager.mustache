@@ -131,10 +131,13 @@ public sealed class OAuth2TokenManager
                     return _accessToken;
                 }
             }
-            catch (Exception ex) when (ex is HttpRequestException or OAuth2ServerError)
+            catch (Exception ex)
+                when (ex is HttpRequestException or OAuth2ServerError or OAuth2TokenError)
             {
-                /* Refresh failed (e.g. refresh token revoked or expired).
-                 * Fall back to re-running the original grant below. */
+                /* Refresh failed (e.g. refresh token revoked or expired, or a
+                 * 2xx refresh response missing access_token -> OAuth2TokenError).
+                 * Fall back to re-running the original grant below — matching the
+                 * other 11 SDKs, which catch any refresh failure here. */
             }
         }
 
