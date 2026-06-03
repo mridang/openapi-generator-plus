@@ -597,6 +597,27 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         if (!model.oneOf.isEmpty() || !model.anyOf.isEmpty()) {
             model.imports.add("JsonValue");
             model.imports.add("JsonCreator");
+            /* oneOf/anyOf variant types (e.g. List<byte[]>) are referenced
+             * only in the ONE_OF_SCHEMAS TypeReference tokens, not as model
+             * fields, so the property-driven import collection misses them.
+             * A pure-union wrapper has no vars, so without this its
+             * collection variants compile with an unresolved `List`/`Map`/
+             * `Set`. Add the simple import name (resolved to its FQN by the
+             * import mapping, exactly like a normal field type). */
+            final java.util.Set<String> variants = new java.util.HashSet<>();
+            variants.addAll(model.oneOf);
+            variants.addAll(model.anyOf);
+            for (final String variant : variants) {
+                if (variant.contains("List<") || variant.equals("List")) {
+                    model.imports.add("List");
+                }
+                if (variant.contains("Map<") || variant.equals("Map")) {
+                    model.imports.add("Map");
+                }
+                if (variant.contains("Set<") || variant.equals("Set")) {
+                    model.imports.add("Set");
+                }
+            }
         }
         return model;
     }
