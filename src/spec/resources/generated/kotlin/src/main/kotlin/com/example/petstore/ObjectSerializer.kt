@@ -98,26 +98,11 @@ class ObjectSerializer(
     fun stringify(value: Any?): String {
         if (value == null) return ""
         return when (value) {
-            is Boolean -> {
-                if (value) "true" else "false"
-            }
-
-            is LocalDate -> {
-                DateTimeFormatter.ISO_LOCAL_DATE.format(value)
-            }
-
-            is TemporalAccessor -> {
-                DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssxxx").format(value)
-            }
-
-            is Uuid -> {
-                value.toString()
-            }
-
-            is Url -> {
-                value.toString()
-            }
-
+            is Boolean -> if (value) "true" else "false"
+            is LocalDate -> DateTimeFormatter.ISO_LOCAL_DATE.format(value)
+            is TemporalAccessor -> DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssxxx").format(value)
+            is Uuid -> value.toString()
+            is Url -> value.toString()
             is Enum<*> -> {
                 try {
                     val method = value::class.java.getMethod("getValue")
@@ -126,10 +111,7 @@ class ObjectSerializer(
                     value.name
                 }
             }
-
-            else -> {
-                value.toString()
-            }
+            else -> value.toString()
         }
     }
 
@@ -345,24 +327,14 @@ class ObjectSerializer(
 
         private fun fromJsonElement(element: JsonElement): Any =
             when (element) {
-                is JsonNull -> {
-                    "null"
-                }
-
-                is JsonPrimitive -> {
+                is JsonNull -> "null"
+                is JsonPrimitive ->
                     element.booleanOrNull
                         ?: element.longOrNull
                         ?: element.doubleOrNull
                         ?: element.content
-                }
-
-                is JsonObject -> {
-                    element.mapValues { fromJsonElement(it.value) }
-                }
-
-                is JsonArray -> {
-                    element.map { fromJsonElement(it) }
-                }
+                is JsonObject -> element.mapValues { fromJsonElement(it.value) }
+                is JsonArray -> element.map { fromJsonElement(it) }
             }
 
         fun createDefaultJson(): Json =

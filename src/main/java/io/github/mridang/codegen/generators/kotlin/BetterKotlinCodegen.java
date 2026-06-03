@@ -194,7 +194,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
     @Override
     protected String[] getFormatterCommands() {
         return new String[] {
-            "curl -sL -o /tmp/ktlint https://github.com/pinterest/ktlint/releases/download/1.8.0/ktlint",
+            "curl -sL -o /tmp/ktlint https://github.com/pinterest/ktlint/releases/download/1.5.0/ktlint",
             "chmod +x /tmp/ktlint",
             "/tmp/ktlint --format '**/*.kt'"
         };

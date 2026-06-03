@@ -15,11 +15,8 @@ import com.example.petstore.Base64ByteArraySerializer
 import com.example.petstore.models.Medication
 import com.example.petstore.models.Surgery
 import kotlinx.serialization.Contextual
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
-import kotlinx.serialization.json.JsonClassDiscriminator
 
 /** A treatment that can match a medication, a surgery, or both */
 @Serializable

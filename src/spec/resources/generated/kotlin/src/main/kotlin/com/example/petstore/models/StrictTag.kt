@@ -12,12 +12,9 @@
 package com.example.petstore.models
 
 import com.example.petstore.Base64ByteArraySerializer
-import kotlinx.serialization.Contextual
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
-import kotlinx.serialization.json.JsonClassDiscriminator
 
 @Serializable
 data class StrictTag(
@@ -42,7 +39,10 @@ data class StrictTag(
             try {
                 return strict.decodeFromString(serializer(), raw)
             } catch (e: kotlinx.serialization.SerializationException) {
-                throw IllegalArgumentException("Unknown property on StrictTag (unevaluatedProperties:false): " + e.message, e)
+                throw IllegalArgumentException(
+                    "Unknown property on StrictTag (unevaluatedProperties:false): " + e.message,
+                    e,
+                )
             }
         }
     }

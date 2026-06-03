@@ -93,7 +93,8 @@ class OAuth2ClientCredentialsAuthenticatorTest {
         runBlocking { auth.getAuthHeaders() }
 
         assertTrue(
-            client.lastBody!!.contains("scope=read+write") || client.lastBody!!.contains("scope=read%20write") ||
+            client.lastBody!!.contains("scope=read+write") ||
+                client.lastBody!!.contains("scope=read%20write") ||
                 client.lastBody!!.contains("scope=read write"),
         )
     }

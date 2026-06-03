@@ -192,17 +192,14 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     /** {@inheritDoc} */
     @Override
     protected String getFormatterDockerImage() {
-        return "eclipse-temurin:25-jdk@sha256:c2b7ea21649875fb9052237ac4e3cd4ef63968a2a389a0a1b1a72a5e53e5c93f";
+        return "eclipse-temurin:17-jdk@sha256:b04a8c5d46e210873ffd1af6ad5f4d62c69ed3a6736993556eae60bba1373a23";
     }
 
     /** {@inheritDoc} */
     @Override
     protected String[] getFormatterCommands() {
         return new String[] {
-            // eclipse-temurin:25-jdk (Ubuntu Noble) does not ship curl, unlike
-            // the older 17-jdk base — install it before downloading gjf.
-            "apt-get update -qq && apt-get install -y -qq curl > /dev/null 2>&1",
-            "curl -sL -o /tmp/gjf.jar https://github.com/google/google-java-format/releases/download/v1.35.0/google-java-format-1.35.0-all-deps.jar",
+            "curl -sL -o /tmp/gjf.jar https://github.com/google/google-java-format/releases/download/v1.25.2/google-java-format-1.25.2-all-deps.jar",
             "find . -name '*.java' -print0 | xargs -0 java"
                     + " --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED"
                     + " --add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED"

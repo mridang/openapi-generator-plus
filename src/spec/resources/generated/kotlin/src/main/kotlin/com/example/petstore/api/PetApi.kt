@@ -11,7 +11,6 @@ import com.example.petstore.ApiClient
 import com.example.petstore.ApiException
 import com.example.petstore.ApiResult
 import com.example.petstore.Configuration
-import com.example.petstore.ObjectSerializer
 import com.example.petstore.ValueSerializer
 import com.example.petstore.api.options.AddPetPhotosOptions
 import com.example.petstore.api.options.DeletePetOptions
@@ -30,7 +29,6 @@ import com.example.petstore.models.Pet
 import com.example.petstore.models.PetPassport
 import com.example.petstore.models.PetTreatment
 import com.example.petstore.models.Photo
-import com.example.petstore.models.PhotoMetadata
 import com.example.petstore.models.SetPetAvatarThumbnailRequest
 import kotlin.collections.List
 
