@@ -95,6 +95,18 @@ describe {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(auth.host).must_equal 'https://api.example.com'
   end
 
+  # oauth-exchangecode-no-empty-code-guard: an empty/blank authorization
+  # code must be rejected before issuing the token POST.
+  it 'rejects an empty authorization code' do
+    auth.api_client = FakeAuthCodeClient.new([{ status: 200, body: {} }])
+    _(-> { auth.exchange_code('') }).must_raise ArgumentError
+  end
+
+  it 'rejects a whitespace-only authorization code' do
+    auth.api_client = FakeAuthCodeClient.new([{ status: 200, body: {} }])
+    _(-> { auth.exchange_code('   ') }).must_raise ArgumentError
+  end
+
   it 'auth_headers_before_exchange_returns_recoverable_error' do
     # Calling auth_headers before exchange_code is a precondition violation.
     # It must surface as a catchable exception so callers can recover --

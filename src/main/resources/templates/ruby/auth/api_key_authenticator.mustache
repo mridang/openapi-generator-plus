@@ -21,6 +21,14 @@ module {{moduleName}}
         @location = location
       end
 
+      # Redact the API key from the default object representation so logging
+      # or inspecting an authenticator never leaks the credential.
+      def inspect
+        "#<#{self.class.name} host=#{@host.inspect} " \
+          "key_param_name=#{@key_param_name.inspect} api_key=\"***\" location=#{@location.inspect}>"
+      end
+      alias to_s inspect
+
       # @return [Hash{String => String}]
       def auth_headers
         result = {} # : Hash[String, String]

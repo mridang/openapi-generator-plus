@@ -20,6 +20,13 @@ module {{moduleName}}
         @password = password
       end
 
+      # Redact the password from the default object representation so logging
+      # or inspecting an authenticator never leaks the credential.
+      def inspect
+        "#<#{self.class.name} host=#{@host.inspect} username=#{@username.inspect} password=\"***\">"
+      end
+      alias to_s inspect
+
       # @return [Hash{String => String}]
       def auth_headers
         # RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field

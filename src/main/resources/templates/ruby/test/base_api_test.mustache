@@ -503,6 +503,21 @@ describe {{moduleName}}::Api::BaseApi do
     assert_nil result
   end
 
+  # ── apiresult-rawbody-nullability: raw_body is always a non-nil String ──
+
+  it 'ApiResult#raw_body is a non-nil String even for an empty body' do
+    client = CapturingApiClient.new
+    def client.send_request(_method, _url, _headers, _body)
+      {{moduleName}}::ApiResponse.new(status_code: 204, body: '', headers: { 'Content-Type' => 'application/json' })
+    end
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    result = test_api.call_for_result('GET', '/test/echo', {}, {}, nil,
+                                      ['application/json'], 'application/json', nil)
+    _(result.raw_body).must_be_kind_of String
+    _(result.raw_body).must_equal ''
+  end
+
   # ── CrossOriginRedirectTests ──
 
   it 'same-origin redirect forwards Authorization header' do

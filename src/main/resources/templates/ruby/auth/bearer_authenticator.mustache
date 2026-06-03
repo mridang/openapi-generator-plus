@@ -12,6 +12,13 @@ module {{moduleName}}
       # @param token [String] Bearer token
       def initialize(host, token)
         super()
+        # Reject an empty/blank token: it would otherwise produce a literal
+        # "Authorization: Bearer " header that silently fails auth, mirroring
+        # the api-key authenticator's own empty-value guard.
+        if token.nil? || token.to_s.strip.empty?
+          raise ArgumentError, 'Bearer token must not be empty'
+        end
+
         # RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
         # Reject anything outside printable ASCII + TAB so callers see a
         # clear error rather than HTTP header injection from CR/LF or
@@ -23,6 +30,13 @@ module {{moduleName}}
         @host = host
         @token = token
       end
+
+      # Redact the token from the default object representation so logging or
+      # inspecting an authenticator never leaks the credential.
+      def inspect
+        "#<#{self.class.name} host=#{@host.inspect} token=\"***\">"
+      end
+      alias to_s inspect
 
       # @return [Hash{String => String}]
       def auth_headers

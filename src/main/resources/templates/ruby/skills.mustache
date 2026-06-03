@@ -109,6 +109,10 @@ client = {{moduleName}}::{{clientClassName}}.new(authenticator)
 {{#hasAnyOAuth2}}
 ### OAuth2 token lifecycle
 
+#### Async authentication
+
+OAuth2 authenticators resolve the access token by making an HTTP call to the token endpoint the first time `auth_headers` is invoked (and again when the cached token expires). The generated API methods call `auth_headers` for you before sending each request, so you never interact with it directly. Because the token fetch shares the same {{moduleName}}::ApiClient as your regular calls, it inherits the same transport configuration (proxy, TLS, timeouts) and is serialized through the token manager so concurrent requests do not trigger duplicate token fetches.
+
 #### Refresh tokens
 
 When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.

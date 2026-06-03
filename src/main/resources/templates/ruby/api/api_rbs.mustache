@@ -29,10 +29,6 @@ module {{moduleName}}
       def {{operationId}}: ({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isPath}}{{#lambda.rbsApiType}}{{{dataType}}}{{/lambda.rbsApiType}} {{paramName}}{{/isPath}}{{#isBody}}{{#lambda.rbsApiType}}{{{dataType}}}{{/lambda.rbsApiType}}{{#nullable}}?{{/nullable}} {{paramName}}{{/isBody}}{{#isOptions}}Options::{{{dataType}}} options{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}, ?server: {{vendorExtensions.op.serverClassName}}?{{/-first}}{{/servers}}{{#hasAuthMethods}}, ?auth: ::{{moduleName}}::Auth::Authenticator?{{/hasAuthMethods}}) -> {{#returnType}}{{#lambda.rbsApiType}}{{{returnType}}}{{/lambda.rbsApiType}}{{/returnType}}{{^returnType}}void{{/returnType}}
       def {{operationId}}_with_http_info: ({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isPath}}{{#lambda.rbsApiType}}{{{dataType}}}{{/lambda.rbsApiType}} {{paramName}}{{/isPath}}{{#isBody}}{{#lambda.rbsApiType}}{{{dataType}}}{{/lambda.rbsApiType}}{{#nullable}}?{{/nullable}} {{paramName}}{{/isBody}}{{#isOptions}}Options::{{{dataType}}} options{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}, ?server: {{vendorExtensions.op.serverClassName}}?{{/-first}}{{/servers}}{{#hasAuthMethods}}, ?auth: ::{{moduleName}}::Auth::Authenticator?{{/hasAuthMethods}}) -> ::{{moduleName}}::ApiResult[{{#returnType}}{{#lambda.rbsApiType}}{{{returnType}}}{{/lambda.rbsApiType}}{{/returnType}}{{^returnType}}nil{{/returnType}}]
 {{/operation}}
-
-      private
-
-      def encode_path_segment: (String value) -> String
     end
 {{/operations}}
   end

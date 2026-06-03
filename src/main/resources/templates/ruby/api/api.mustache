@@ -9,8 +9,6 @@
 # rubocop:disable Style/DefWithParentheses
 # rubocop:disable Style/StringConcatenation
 
-require 'cgi'
-
 # :nodoc:
 module {{moduleName}}
   module Api
@@ -139,7 +137,26 @@ module {{moduleName}}
 
 {{/required}}
 {{/bodyParam}}
+{{#returnType}}
+        result = {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}, server: server{{/-first}}{{/servers}}{{#hasAuthMethods}}, auth: auth{{/hasAuthMethods}})
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise {{moduleName}}::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
+{{/returnType}}
+{{^returnType}}
         {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}, server: server{{/-first}}{{/servers}}{{#hasAuthMethods}}, auth: auth{{/hasAuthMethods}}).data
+{{/returnType}}
       end
 
       # @return [ApiResult]
@@ -166,7 +183,7 @@ module {{moduleName}}
         path = '{{{path}}}'
 {{#pathParams}}
 {{=<% %>=}}
-        path = path.gsub('{<%baseName%>}', encode_path_segment(<%moduleName%>::ValueSerializer.serialize_styled('<%baseName%>', <%paramName%>, :path, '<%& dataType%>', nil, '<%style%>', <%isExplode%>).to_s))
+        path = path.gsub('{<%baseName%>}', <%moduleName%>::ValueSerializer.serialize_styled('<%baseName%>', <%paramName%>, :path, '<%& dataType%>', nil, '<%style%>', <%isExplode%>).to_s)
 <%={{ }}=%>
 {{/pathParams}}
 {{#servers}}
@@ -247,20 +264,6 @@ module {{moduleName}}
         )
       end
     {{/operation}}
-
-      # Percent-encodes a value for use as a URL path segment.
-      #
-      # Encodes characters not allowed in a URI path segment, but preserves the
-      # sub-delimiters (including ';', '=', ',', '.') that OAS 3.0
-      # matrix/label/simple styles use as structural separators.
-      def encode_path_segment(value)
-        CGI.escape(value.to_s)
-           .gsub('+', '%20')
-           .gsub('%3B', ';').gsub('%3D', '=').gsub('%2C', ',').gsub('%3A', ':')
-           .gsub('%40', '@').gsub('%21', '!').gsub('%24', '$').gsub('%26', '&')
-           .gsub('%27', "'").gsub('%28', '(').gsub('%29', ')').gsub('%2A', '*')
-           .gsub('%2B', '+')
-      end
     end
 {{/operations}}
   end
