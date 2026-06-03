@@ -12,22 +12,18 @@
 package com.example.petstore.models
 
 import com.example.petstore.Base64ByteArraySerializer
-import kotlinx.serialization.Contextual
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
-import kotlinx.serialization.json.JsonClassDiscriminator
 
 @Serializable
 data class Category(
-  /** Example: `1` */
-  @SerialName("id")
-  val id: Long? = null,
-  /** Example: `Dogs` */
-  /* Example "Small breed" — Toy or small breed dogs; value: Chihuahua */
-  /* Example "Large breed" — Working or guard breed dogs; value: GreatDane */
-  @SerialName("name")
-  val name: String? = null
-) {
-}
+    /** Example: `1` */
+    @SerialName("id")
+    val id: Long? = null,
+    /** Example: `Dogs` */
+    // Example "Small breed" — Toy or small breed dogs; value: Chihuahua
+    // Example "Large breed" — Working or guard breed dogs; value: GreatDane
+    @SerialName("name")
+    val name: String? = null,
+)

@@ -13,9 +13,9 @@ use std::net::TcpListener;
 use std::sync::Arc;
 use std::thread;
 
-use petstore::*;
 use petstore::api::*;
 use petstore::models::*;
+use petstore::*;
 
 fn new_store_api_for_integration() -> StoreApi {
     let base_url = testcontainers_helper::chasm_url();
@@ -72,11 +72,7 @@ async fn test_store_api_get_inventory() {
 async fn test_store_api_get_order_by_id() {
     let api = new_store_api_for_integration();
     let result = api.get_order_by_id(1).await;
-    assert!(
-        result.is_ok(),
-        "GetOrderById failed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "GetOrderById failed: {:?}", result.err());
 }
 
 #[tokio::test]
@@ -96,11 +92,7 @@ async fn test_store_api_delete_order() {
 
 #[tokio::test]
 async fn test_store_api_get_order_not_found() {
-    let api = new_store_api_for_mock(
-        404,
-        "application/json",
-        r#"{"message":"Order not found"}"#,
-    );
+    let api = new_store_api_for_mock(404, "application/json", r#"{"message":"Order not found"}"#);
 
     let result = api.get_order_by_id(99999).await;
     assert!(result.is_err(), "expected error for non-existent order");
@@ -116,19 +108,12 @@ async fn test_store_api_place_order_server_error() {
 
     let order = Order::new();
     let result = api.place_order(Some(order)).await;
-    assert!(
-        result.is_err(),
-        "expected error for server error response"
-    );
+    assert!(result.is_err(), "expected error for server error response");
 }
 
 #[tokio::test]
 async fn test_store_api_delete_order_not_found() {
-    let api = new_store_api_for_mock(
-        404,
-        "application/json",
-        r#"{"message":"Order not found"}"#,
-    );
+    let api = new_store_api_for_mock(404, "application/json", r#"{"message":"Order not found"}"#);
 
     let result = api.delete_order(99999).await;
     assert!(

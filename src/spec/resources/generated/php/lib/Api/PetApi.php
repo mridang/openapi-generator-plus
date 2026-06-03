@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -15,19 +16,15 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Api;
 
-use PetstoreClient\ApiClient;
-use PetstoreClient\ApiException;
-use PetstoreClient\ApiResult;
-use PetstoreClient\Configuration;
-use PetstoreClient\DefaultApiClient;
-use PetstoreClient\ValueSerializer;
-use PetstoreClient\Auth\Authenticator;
 use PetstoreClient\Api\Options\AddPetPhotosOptions;
 use PetstoreClient\Api\Options\DeletePetOptions;
 use PetstoreClient\Api\Options\FindPetsByStatusOptions;
 use PetstoreClient\Api\Options\GetPetTagOptions;
 use PetstoreClient\Api\Options\UploadPetCertificateOptions;
 use PetstoreClient\Api\Options\UploadPetDocumentOptions;
+use PetstoreClient\ApiResult;
+use PetstoreClient\Auth\Authenticator;
+use PetstoreClient\ValueSerializer;
 
 /**
  * PetApi provides methods for the Pet API group.

@@ -15,9 +15,8 @@ import java.util.Base64
 open class BasicAuthenticator(
     private val host: String,
     private val username: String,
-    private val password: String
+    private val password: String,
 ) : BaseAuthenticator() {
-
     override fun getHost(): String = host
 
     override suspend fun getAuthHeaders(): Map<String, String> {
@@ -27,17 +26,17 @@ open class BasicAuthenticator(
         // are read from .env files or interactive prompts).
         if (username.any { c -> c == '\r' || c == '\n' || c == '\u0000' }) {
             throw IllegalArgumentException(
-                "Basic auth username must not contain CR, LF, or NUL characters"
+                "Basic auth username must not contain CR, LF, or NUL characters",
             )
         }
         if (username.contains(':')) {
             throw IllegalArgumentException(
-                "Basic auth username must not contain ':' (RFC 7617 §2)"
+                "Basic auth username must not contain ':' (RFC 7617 §2)",
             )
         }
         if (password.any { c -> c == '\r' || c == '\n' || c == '\u0000' }) {
             throw IllegalArgumentException(
-                "Basic auth password must not contain CR, LF, or NUL characters"
+                "Basic auth password must not contain CR, LF, or NUL characters",
             )
         }
         val credentials = Base64.getEncoder().encodeToString("$username:$password".toByteArray())

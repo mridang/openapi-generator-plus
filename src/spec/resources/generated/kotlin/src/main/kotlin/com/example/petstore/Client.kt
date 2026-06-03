@@ -36,9 +36,9 @@ import com.example.petstore.auth.HttpAwareAuthenticator
  * ```
  */
 class Client {
-
     /** API operations for the PetApi group. */
     val pet: PetApi
+
     /** API operations for the StoreApi group. */
     val store: StoreApi
 
@@ -66,9 +66,11 @@ class Client {
             authenticator.setApiClient(apiClient)
         }
 
-        val config = Configuration.builder()
-            .baseUrl(authenticator.getHost())
-            .build()
+        val config =
+            Configuration
+                .builder()
+                .baseUrl(authenticator.getHost())
+                .build()
 
         this.pet = PetApi(apiClient, config, authenticator)
         this.store = StoreApi(apiClient, config, authenticator)

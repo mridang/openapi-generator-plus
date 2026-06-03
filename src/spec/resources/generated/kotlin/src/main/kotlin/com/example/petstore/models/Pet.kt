@@ -11,19 +11,17 @@
 
 package com.example.petstore.models
 
+import com.example.petstore.Base64ByteArraySerializer
 import com.example.petstore.models.Category
 import com.example.petstore.models.Tag
 import io.ktor.http.Url
-import java.math.BigDecimal
-import kotlin.collections.List
-import kotlin.collections.Set
-import com.example.petstore.Base64ByteArraySerializer
 import kotlinx.serialization.Contextual
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
-import kotlinx.serialization.json.JsonClassDiscriminator
+import java.math.BigDecimal
+import kotlin.collections.List
+import kotlin.collections.Set
 
 /**
  * Pet.
@@ -32,86 +30,90 @@ import kotlinx.serialization.json.JsonClassDiscriminator
  */
 @Serializable
 data class Pet(
-  /** Example: `10` */
-  @SerialName("id")
-  val id: Long? = null,
-  /** Example: `doggie` */
-  @SerialName("name")
-  val name: String,
-  /** Example: `null` */
-  @SerialName("category")
-  val category: Category? = null,
-  /** Example: `null` */
-  @SerialName("photoUrls")
-  val photoUrls: Set<String> = mutableSetOf(),
-  /** Example: `null` */
-  @SerialName("tags")
-  val tags: List<Tag>? = mutableListOf(),
-  /**
-   * pet status in the store
-   *
-   * Example: `null`
-   *
-   * @deprecated This property is deprecated.
-   */
-  @Deprecated("This property is deprecated.")
-  @SerialName("status")
-  val status: StatusEnum? = null,
-  /** Example: `null` */
-  @SerialName("location")
-  val location: List<@Contextual Any>? = mutableListOf(),
-  /**
-   * Absolute URL to the pet's public profile page
-   *
-   * Example: `https://example.com/pets/fido`
-   */
-  @SerialName("homepageUrl")
-  @Contextual
-  val homepageUrl: Url? = null,
-  /**
-   * Optionally-relative thumbnail location
-   *
-   * Example: `/assets/thumb-fido.png`
-   */
-  @SerialName("thumbnailRef")
-  val thumbnailRef: String? = null,
-  /**
-   * RFC 6570 template for related-resource links
-   *
-   * Example: `https://example.com/pets/{id}/photos{?size}`
-   */
-  @SerialName("linkTemplate")
-  val linkTemplate: String? = null,
-  /**
-   * Contact email for the pet's owner
-   *
-   * Example: `owner@example.com`
-   */
-  @SerialName("ownerEmail")
-  val ownerEmail: String? = null,
-  /**
-   * Pet weight in kilograms (decimal precision)
-   *
-   * Example: `12.345`
-   */
-  @SerialName("weightKg")
-  @Contextual
-  val weightKg: BigDecimal? = null
+    /** Example: `10` */
+    @SerialName("id")
+    val id: Long? = null,
+    /** Example: `doggie` */
+    @SerialName("name")
+    val name: String,
+    /** Example: `null` */
+    @SerialName("category")
+    val category: Category? = null,
+    /** Example: `null` */
+    @SerialName("photoUrls")
+    val photoUrls: Set<String> = mutableSetOf(),
+    /** Example: `null` */
+    @SerialName("tags")
+    val tags: List<Tag>? = mutableListOf(),
+    /**
+     * pet status in the store
+     *
+     * Example: `null`
+     *
+     * @deprecated This property is deprecated.
+     */
+    @Deprecated("This property is deprecated.")
+    @SerialName("status")
+    val status: StatusEnum? = null,
+    /** Example: `null` */
+    @SerialName("location")
+    val location: List<@Contextual Any>? = mutableListOf(),
+    /**
+     * Absolute URL to the pet's public profile page
+     *
+     * Example: `https://example.com/pets/fido`
+     */
+    @SerialName("homepageUrl")
+    @Contextual
+    val homepageUrl: Url? = null,
+    /**
+     * Optionally-relative thumbnail location
+     *
+     * Example: `/assets/thumb-fido.png`
+     */
+    @SerialName("thumbnailRef")
+    val thumbnailRef: String? = null,
+    /**
+     * RFC 6570 template for related-resource links
+     *
+     * Example: `https://example.com/pets/{id}/photos{?size}`
+     */
+    @SerialName("linkTemplate")
+    val linkTemplate: String? = null,
+    /**
+     * Contact email for the pet's owner
+     *
+     * Example: `owner@example.com`
+     */
+    @SerialName("ownerEmail")
+    val ownerEmail: String? = null,
+    /**
+     * Pet weight in kilograms (decimal precision)
+     *
+     * Example: `12.345`
+     */
+    @SerialName("weightKg")
+    @Contextual
+    val weightKg: BigDecimal? = null,
 ) {
+    @Serializable
+    enum class StatusEnum(
+        val value: String,
+    ) {
+        @SerialName("available")
+        AVAILABLE("available"),
 
-  @Serializable
-  enum class StatusEnum(val value: String) {
-    @SerialName("available")
-    AVAILABLE("available"),
-    @SerialName("pending")
-    PENDING("pending"),
-    @SerialName("sold")
-    SOLD("sold");
+        @SerialName("pending")
+        PENDING("pending"),
 
-    companion object {
-      fun fromValue(value: String): StatusEnum =
-        entries.firstOrNull { it.value == value }
-          ?: throw IllegalArgumentException("Unexpected value '$value'")
+        @SerialName("sold")
+        SOLD("sold"),
+        ;
+
+        companion object {
+            fun fromValue(value: String): StatusEnum =
+                entries.firstOrNull { it.value == value }
+                    ?: throw IllegalArgumentException("Unexpected value '$value'")
+        }
     }
-  }
 }

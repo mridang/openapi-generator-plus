@@ -83,7 +83,13 @@ pub trait ApiClient: Send + Sync {
         url: &str,
         headers: &HashMap<String, String>,
         body: Option<&RequestBody>,
-    ) -> Pin<Box<dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>>;
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
+                + Send
+                + '_,
+        >,
+    >;
 
     /// Sends an HTTP request with per-request options that complement the
     /// transport-wide `TransportOptions`.
@@ -98,7 +104,13 @@ pub trait ApiClient: Send + Sync {
         headers: &HashMap<String, String>,
         body: Option<&RequestBody>,
         _options: &RequestOptions,
-    ) -> Pin<Box<dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
+                + Send
+                + '_,
+        >,
+    > {
         self.send_request(method, url, headers, body)
     }
 }

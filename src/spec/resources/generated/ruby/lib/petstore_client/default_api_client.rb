@@ -51,7 +51,7 @@ module PetstoreClient
     # `type` is `apiKey` and `in` is `header`, so a malicious 302 cannot
     # leak the API key to a different host. Entries are already lowercase
     # so the cross-origin filter can compare case-insensitively.
-    EXTRA_SENSITIVE_HEADER_NAMES = %w[ x-api-key x-internal-key].freeze
+    EXTRA_SENSITIVE_HEADER_NAMES = %w[x-api-key x-internal-key].freeze
 
     # Create a client with default transport settings.
     #
@@ -248,7 +248,7 @@ module PetstoreClient
       # normalise both shapes. The joined form is not directly parseable
       # for Set-Cookie; callers needing structured cookie access should
       # use HTTP::Cookie.parse or read the raw Faraday::Utils::Headers.
-      normalized_headers = {} #: Hash[String, String]
+      normalized_headers = {} # : Hash[String, String]
       response.headers.each do |name, value|
         joined = value.is_a?(Array) ? value.join(', ') : value.to_s
         normalized_headers[name.to_s.downcase] = joined
@@ -473,7 +473,7 @@ module PetstoreClient
       str = name.to_s
       if str.match?(/[\r\n\0]/)
         raise ArgumentError,
-              "multipart field name must not contain CR, LF, or NUL bytes: #{str.inspect}"
+          "multipart field name must not contain CR, LF, or NUL bytes: #{str.inspect}"
       end
       str.gsub(/([\\"])/) { |c| "\\#{c}" }
     end
@@ -493,7 +493,7 @@ module PetstoreClient
       fname = filename.to_s
       if fname.match?(/[\r\n\0]/)
         raise ArgumentError,
-              "multipart filename must not contain CR, LF, or NUL bytes: #{fname.inspect}"
+          "multipart filename must not contain CR, LF, or NUL bytes: #{fname.inspect}"
       end
 
       ascii_safe = fname.dup.force_encoding(Encoding::UTF_8)

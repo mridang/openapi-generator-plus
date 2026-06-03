@@ -23,9 +23,8 @@ open class OAuth2ClientCredentialsAuthenticator(
     private val clientSecret: String,
     private val tokenUrl: String,
     private val scopes: List<String>,
-    private val clientAuthMethod: ClientAuthMethod = ClientAuthMethod.BODY
+    private val clientAuthMethod: ClientAuthMethod = ClientAuthMethod.BODY,
 ) : HttpAwareAuthenticator {
-
     private val tokenManager = OAuth2TokenManager()
 
     override fun setApiClient(apiClient: ApiClient) {
@@ -35,17 +34,20 @@ open class OAuth2ClientCredentialsAuthenticator(
     override fun getHost(): String = host
 
     override suspend fun getAuthHeaders(): Map<String, String> {
-        val params = mutableMapOf<String, String>(
-            "grant_type" to "client_credentials"
-        )
+        val params =
+            mutableMapOf<String, String>(
+                "grant_type" to "client_credentials",
+            )
         val extraHeaders = mutableMapOf<String, String>()
         if (clientAuthMethod == ClientAuthMethod.BASIC) {
             // RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
             // separately before joining with ':' and base64-encoding.
             val encodedId = java.net.URLEncoder.encode(clientId, Charsets.UTF_8)
             val encodedSecret = java.net.URLEncoder.encode(clientSecret, Charsets.UTF_8)
-            val credentials = java.util.Base64.getEncoder()
-                .encodeToString("$encodedId:$encodedSecret".toByteArray(Charsets.UTF_8))
+            val credentials =
+                java.util.Base64
+                    .getEncoder()
+                    .encodeToString("$encodedId:$encodedSecret".toByteArray(Charsets.UTF_8))
             extraHeaders["Authorization"] = "Basic $credentials"
         } else {
             params["client_id"] = clientId

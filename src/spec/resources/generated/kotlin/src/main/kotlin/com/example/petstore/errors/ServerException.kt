@@ -17,5 +17,5 @@ open class ServerException(
     message: String,
     responseHeaders: Map<String, String>?,
     responseBody: String?,
-    errorBody: Any? = null
+    errorBody: Any? = null,
 ) : ApiException(statusCode, message, responseHeaders, responseBody, errorBody)

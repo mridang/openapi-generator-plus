@@ -11,18 +11,16 @@ import com.example.petstore.ApiClient
 import com.example.petstore.ApiException
 import com.example.petstore.ApiResult
 import com.example.petstore.Configuration
-import com.example.petstore.ObjectSerializer
 import com.example.petstore.ValueSerializer
 import com.example.petstore.auth.Authenticator
-import kotlin.collections.Map
 import com.example.petstore.models.Order
+import kotlin.collections.Map
 
 /**
  * StoreApi provides methods for the Store API group.
  * Access to Petstore orders
  */
 class StoreApi : BaseApi {
-
     constructor() : super()
 
     constructor(apiClient: ApiClient, config: Configuration) : super(apiClient, config)
@@ -36,7 +34,7 @@ class StoreApi : BaseApi {
      * @throws ApiException if fails to make API call
      */
 
-    suspend fun deleteOrder(orderId: Long): Unit {
+    suspend fun deleteOrder(orderId: Long) {
         deleteOrderWithHttpInfo(orderId)
     }
 
@@ -45,21 +43,23 @@ class StoreApi : BaseApi {
             "Missing the required parameter 'orderId' when calling deleteOrder"
         }
         var path =
-                "/store/order/{orderId}"
-                        .replace(
-                                "{" + "orderId" + "}",
-                                ValueSerializer.serializeStyled("orderId", orderId, "path", "Long", null, "simple", false) as String)
+            "/store/order/{orderId}"
+                .replace(
+                    "{" + "orderId" + "}",
+                    ValueSerializer.serializeStyled("orderId", orderId, "path", "Long", null, "simple", false) as String,
+                )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
         return invokeApiForResult<Unit>(
-                "DELETE",
-                path,
-                queryParams,
-                headerParams,
-                null,
-                arrayOf(),
-                "application/json",
-                null)
+            "DELETE",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf(),
+            "application/json",
+            null,
+        )
     }
 
     /**
@@ -69,24 +69,24 @@ class StoreApi : BaseApi {
      * @throws ApiException if fails to make API call
      */
 
-    suspend fun getInventory(): Map<String, Int> {
-        return getInventoryWithHttpInfo().data
+    suspend fun getInventory(): Map<String, Int> =
+        getInventoryWithHttpInfo().data
             ?: throw ApiException("Expected a response body for getInventory but the server returned an empty body")
-    }
 
     suspend fun getInventoryWithHttpInfo(): ApiResult<Map<String, Int>> {
         var path = "/store/inventory"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
         return invokeApiForResult<Map<String, Int>>(
-                "GET",
-                path,
-                queryParams,
-                headerParams,
-                null,
-                arrayOf("application/json"),
-                "application/json",
-                null)
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            null,
+        )
     }
 
     /**
@@ -97,31 +97,32 @@ class StoreApi : BaseApi {
      * @throws ApiException if fails to make API call
      */
 
-    suspend fun getOrderById(orderId: Long): Order {
-        return getOrderByIdWithHttpInfo(orderId).data
+    suspend fun getOrderById(orderId: Long): Order =
+        getOrderByIdWithHttpInfo(orderId).data
             ?: throw ApiException("Expected a response body for getOrderById but the server returned an empty body")
-    }
 
     suspend fun getOrderByIdWithHttpInfo(orderId: Long): ApiResult<Order> {
         requireNotNull(orderId) {
             "Missing the required parameter 'orderId' when calling getOrderById"
         }
         var path =
-                "/store/order/{orderId}"
-                        .replace(
-                                "{" + "orderId" + "}",
-                                ValueSerializer.serializeStyled("orderId", orderId, "path", "Long", null, "simple", false) as String)
+            "/store/order/{orderId}"
+                .replace(
+                    "{" + "orderId" + "}",
+                    ValueSerializer.serializeStyled("orderId", orderId, "path", "Long", null, "simple", false) as String,
+                )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
         return invokeApiForResult<Order>(
-                "GET",
-                path,
-                queryParams,
-                headerParams,
-                null,
-                arrayOf("application/json"),
-                "application/json",
-                null)
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            null,
+        )
     }
 
     /**
@@ -132,23 +133,23 @@ class StoreApi : BaseApi {
      * @throws ApiException if fails to make API call
      */
 
-    suspend fun placeOrder(order: Order? = null): Order {
-        return placeOrderWithHttpInfo(order).data
+    suspend fun placeOrder(order: Order? = null): Order =
+        placeOrderWithHttpInfo(order).data
             ?: throw ApiException("Expected a response body for placeOrder but the server returned an empty body")
-    }
 
     suspend fun placeOrderWithHttpInfo(order: Order? = null): ApiResult<Order> {
         var path = "/store/order"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
         return invokeApiForResult<Order>(
-                "POST",
-                path,
-                queryParams,
-                headerParams,
-                order,
-                arrayOf("application/json"),
-                "application/json",
-                null)
+            "POST",
+            path,
+            queryParams,
+            headerParams,
+            order,
+            arrayOf("application/json"),
+            "application/json",
+            null,
+        )
     }
 }

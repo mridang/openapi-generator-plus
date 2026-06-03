@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -15,13 +16,8 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Api;
 
-use PetstoreClient\ApiClient;
-use PetstoreClient\ApiException;
 use PetstoreClient\ApiResult;
-use PetstoreClient\Configuration;
-use PetstoreClient\DefaultApiClient;
 use PetstoreClient\ValueSerializer;
-use PetstoreClient\Auth\Authenticator;
 
 /**
  * StoreApi provides methods for the Store API group.

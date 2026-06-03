@@ -21,11 +21,11 @@
 
 pub mod api;
 pub mod api_client;
-pub mod client;
 pub mod api_error;
-pub mod auth;
 pub mod api_response;
 pub mod api_result;
+pub mod auth;
+pub mod client;
 pub mod configuration;
 pub mod default_api_client;
 pub mod errors;
@@ -41,11 +41,11 @@ pub mod utils;
 pub mod value_serializer;
 
 pub use api_client::ApiClient;
-pub use client::Client;
 pub use api_error::ApiError;
 pub use api_response::ApiResponse;
 pub use api_result::ApiResult;
 pub use auth::Authenticator;
+pub use client::Client;
 pub use configuration::{Configuration, ConfigurationBuilder};
 pub use default_api_client::DefaultApiClient;
 pub use errors::*;

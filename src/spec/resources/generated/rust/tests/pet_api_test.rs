@@ -16,17 +16,19 @@ use std::thread;
 use std::future::Future;
 use std::pin::Pin;
 
-use petstore::*;
-use petstore::api::*;
 use petstore::api::options::*;
+use petstore::api::*;
 use petstore::auth::Authenticator;
 use petstore::models::*;
+use petstore::*;
 
 /// Test authenticator that returns a static bearer token.
 struct TestBearerAuth;
 
 impl Authenticator for TestBearerAuth {
-    fn host(&self) -> &str { "" }
+    fn host(&self) -> &str {
+        ""
+    }
 
     fn auth_headers<'a>(
         &'a self,
@@ -43,7 +45,9 @@ impl Authenticator for TestBearerAuth {
 struct TestBasicAuth;
 
 impl Authenticator for TestBasicAuth {
-    fn host(&self) -> &str { "" }
+    fn host(&self) -> &str {
+        ""
+    }
 
     fn auth_headers<'a>(
         &'a self,
@@ -70,9 +74,13 @@ fn new_pet_api_for_integration() -> PetApi {
     PetApi::new(Arc::new(client), config, None)
 }
 
-fn bearer_auth() -> TestBearerAuth { TestBearerAuth }
+fn bearer_auth() -> TestBearerAuth {
+    TestBearerAuth
+}
 
-fn basic_auth() -> TestBasicAuth { TestBasicAuth }
+fn basic_auth() -> TestBasicAuth {
+    TestBasicAuth
+}
 
 /// Starts a minimal HTTP mock server and returns a PetApi configured against it.
 fn new_pet_api_for_mock(status: u16, content_type: &str, body: &str) -> (PetApi, String) {
@@ -112,7 +120,10 @@ fn new_pet_api_for_mock(status: u16, content_type: &str, body: &str) -> (PetApi,
 async fn test_pet_api_add_pet() {
     let api = new_pet_api_for_integration();
     let auth = bearer_auth();
-    let pet = Pet::new("Fido".to_string(), HashSet::from(["http://example.com/fido.jpg".to_string()]));
+    let pet = Pet::new(
+        "Fido".to_string(),
+        HashSet::from(["http://example.com/fido.jpg".to_string()]),
+    );
     let result = api.add_pet(Some(&auth), pet).await;
     assert!(result.is_ok(), "add_pet failed: {:?}", result.err());
 }
@@ -121,9 +132,16 @@ async fn test_pet_api_add_pet() {
 async fn test_pet_api_add_pet_with_http_info() {
     let api = new_pet_api_for_integration();
     let auth = bearer_auth();
-    let pet = Pet::new("Buddy".to_string(), HashSet::from(["http://example.com/buddy.jpg".to_string()]));
+    let pet = Pet::new(
+        "Buddy".to_string(),
+        HashSet::from(["http://example.com/buddy.jpg".to_string()]),
+    );
     let result = api.add_pet_with_http_info(Some(&auth), pet).await;
-    assert!(result.is_ok(), "add_pet_with_http_info failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "add_pet_with_http_info failed: {:?}",
+        result.err()
+    );
     let api_result = result.unwrap();
     assert!(api_result.status_code >= 200 && api_result.status_code < 300);
 }
@@ -139,7 +157,11 @@ async fn test_pet_api_get_pet_by_id() {
 async fn test_pet_api_get_pet_by_id_with_http_info() {
     let api = new_pet_api_for_integration();
     let result = api.get_pet_by_id_with_http_info(1, None).await;
-    assert!(result.is_ok(), "get_pet_by_id_with_http_info failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "get_pet_by_id_with_http_info failed: {:?}",
+        result.err()
+    );
     let api_result = result.unwrap();
     assert_eq!(api_result.status_code, 200);
 }
@@ -163,7 +185,11 @@ async fn test_pet_api_update_pet_with_http_info() {
         HashSet::from(["http://example.com/fido-updated.jpg".to_string()]),
     );
     let result = api.update_pet_with_http_info(1, pet).await;
-    assert!(result.is_ok(), "update_pet_with_http_info failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "update_pet_with_http_info failed: {:?}",
+        result.err()
+    );
 }
 
 #[tokio::test]
@@ -179,7 +205,11 @@ async fn test_pet_api_delete_pet_with_http_info() {
     let api = new_pet_api_for_integration();
     let auth = basic_auth();
     let result = api.delete_pet_with_http_info(Some(&auth), 1, None).await;
-    assert!(result.is_ok(), "delete_pet_with_http_info failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "delete_pet_with_http_info failed: {:?}",
+        result.err()
+    );
 }
 
 #[tokio::test]
@@ -199,25 +229,29 @@ async fn test_pet_api_find_pets_by_status_with_http_info() {
     let api = new_pet_api_for_integration();
     let opts = FindPetsByStatusOptions::new().status("available".to_string());
     let result = api.find_pets_by_status_with_http_info(Some(&opts)).await;
-    assert!(result.is_ok(), "find_pets_by_status_with_http_info failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "find_pets_by_status_with_http_info failed: {:?}",
+        result.err()
+    );
 }
 
 #[tokio::test]
 async fn test_pet_api_get_pet_passport() {
     let api = new_pet_api_for_integration();
     let result = api.get_pet_passport(1).await;
-    assert!(
-        result.is_ok(),
-        "GetPetPassport failed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "GetPetPassport failed: {:?}", result.err());
 }
 
 #[tokio::test]
 async fn test_pet_api_get_pet_passport_with_http_info() {
     let api = new_pet_api_for_integration();
     let result = api.get_pet_passport_with_http_info(1).await;
-    assert!(result.is_ok(), "get_pet_passport_with_http_info failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "get_pet_passport_with_http_info failed: {:?}",
+        result.err()
+    );
 }
 
 #[tokio::test]
@@ -239,7 +273,11 @@ async fn test_pet_api_get_pet_avatar() {
 async fn test_pet_api_get_pet_avatar_thumbnail() {
     let api = new_pet_api_for_integration();
     let result = api.get_pet_avatar_thumbnail(1).await;
-    assert!(result.is_ok(), "get_pet_avatar_thumbnail failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "get_pet_avatar_thumbnail failed: {:?}",
+        result.err()
+    );
 }
 
 #[tokio::test]
@@ -252,9 +290,15 @@ async fn test_pet_api_set_pet_avatar_thumbnail() {
 #[tokio::test]
 async fn test_pet_api_upload_pet_certificate() {
     let api = new_pet_api_for_integration();
-    let opts = UploadPetCertificateOptions { file: b"certificate-content".to_vec() };
+    let opts = UploadPetCertificateOptions {
+        file: b"certificate-content".to_vec(),
+    };
     let result = api.upload_pet_certificate(1, Some(&opts)).await;
-    assert!(result.is_ok(), "upload_pet_certificate failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "upload_pet_certificate failed: {:?}",
+        result.err()
+    );
 }
 
 #[tokio::test]
@@ -263,9 +307,16 @@ async fn test_pet_api_upload_pet_document() {
     let opts = UploadPetDocumentOptions::new()
         .document_type("vaccination_record".to_string())
         .notes("Annual checkup".to_string());
-    let opts = UploadPetDocumentOptions { file: b"document-content".to_vec(), ..opts };
+    let opts = UploadPetDocumentOptions {
+        file: b"document-content".to_vec(),
+        ..opts
+    };
     let result = api.upload_pet_document(1, Some(&opts)).await;
-    assert!(result.is_ok(), "upload_pet_document failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "upload_pet_document failed: {:?}",
+        result.err()
+    );
 }
 
 #[tokio::test]
@@ -278,7 +329,11 @@ async fn test_pet_api_add_pet_photos() {
 async fn test_pet_api_download_pet_document() {
     let api = new_pet_api_for_integration();
     let result = api.download_pet_document(1, 1).await;
-    assert!(result.is_ok(), "download_pet_document failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "download_pet_document failed: {:?}",
+        result.err()
+    );
 }
 
 #[tokio::test]
@@ -305,11 +360,7 @@ async fn test_pet_api_get_external_pet_info() {
 
 #[tokio::test]
 async fn test_pet_api_error_handling_not_found() {
-    let (api, _) = new_pet_api_for_mock(
-        404,
-        "application/json",
-        r#"{"message":"Pet not found"}"#,
-    );
+    let (api, _) = new_pet_api_for_mock(404, "application/json", r#"{"message":"Pet not found"}"#);
 
     let result = api.get_pet_by_id(99999, None).await;
     assert!(result.is_err(), "expected error for non-existent pet");
@@ -331,7 +382,8 @@ async fn test_pet_api_get_pet_by_id_empty_body_throws_api_error() {
     );
     let err = result.unwrap_err();
     assert!(
-        err.downcast_ref::<petstore::api_error::ApiError>().is_some(),
+        err.downcast_ref::<petstore::api_error::ApiError>()
+            .is_some(),
         "empty-body error must be the typed ApiError, got: {}",
         err
     );
@@ -351,11 +403,7 @@ async fn test_pet_api_error_handling_server_error() {
 
 #[tokio::test]
 async fn test_pet_api_download_binary_mock() {
-    let (api, _) = new_pet_api_for_mock(
-        200,
-        "application/octet-stream",
-        "FAKE_BINARY_DATA",
-    );
+    let (api, _) = new_pet_api_for_mock(200, "application/octet-stream", "FAKE_BINARY_DATA");
 
     let _ = api.get_pet_avatar(1).await;
 }

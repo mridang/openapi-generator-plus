@@ -12,9 +12,8 @@ package com.example.petstore.auth
  */
 open class BearerAuthenticator(
     private val host: String,
-    private val token: String
+    private val token: String,
 ) : BaseAuthenticator() {
-
     init {
         // Reject an empty or whitespace-only token: it would otherwise emit a
         // bare "Authorization: Bearer " header that carries no credential,
@@ -30,7 +29,7 @@ open class BearerAuthenticator(
         // different HTTP libs encode differently per language.
         if (token.any { c -> c != '\t' && (c.code < 0x20 || c.code >= 0x7F) }) {
             throw IllegalArgumentException(
-                "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+                "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
             )
         }
     }
@@ -41,13 +40,14 @@ open class BearerAuthenticator(
         // Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
         // from env files are commonly stored already-prefixed; emitting
         // "Bearer Bearer xyz" would otherwise silently break auth.
-        val stripped = if (token.length >= 7 &&
-            token.substring(0, 7).equals("bearer ", ignoreCase = true)
-        ) {
-            token.substring(7)
-        } else {
-            token
-        }
+        val stripped =
+            if (token.length >= 7 &&
+                token.substring(0, 7).equals("bearer ", ignoreCase = true)
+            ) {
+                token.substring(7)
+            } else {
+                token
+            }
         return mapOf("Authorization" to "Bearer $stripped")
     }
 }

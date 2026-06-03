@@ -11,46 +11,43 @@
 
 package com.example.petstore.models
 
-import com.example.petstore.models.Pet
-import java.time.OffsetDateTime
-import kotlin.collections.List
 import com.example.petstore.Base64ByteArraySerializer
+import com.example.petstore.models.Pet
 import kotlinx.serialization.Contextual
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
-import kotlinx.serialization.json.JsonClassDiscriminator
+import java.time.OffsetDateTime
+import kotlin.collections.List
 
 @Serializable
 data class PetPassport(
-  /** Example: `null` */
-  @SerialName("pet")
-  val pet: Pet? = null,
-  /**
-   * Base64-encoded primary thumbnail
-   *
-   * Example: `dGVzdC10aHVtYm5haWw=`
-   */
-  @SerialName("thumbnail")
-  val thumbnail: ByteArray? = null,
-  /**
-   * Base64-encoded scans of each passport page
-   *
-   * Example: `null`
-   */
-  @SerialName("scans")
-  val scans: List<ByteArray>? = mutableListOf(),
-  /** Example: `null` */
-  @SerialName("issuedAt")
-  @Contextual
-  val issuedAt: OffsetDateTime? = null,
-  /**
-   * Embedded chip data (OAS 3.1 contentEncoding form)
-   *
-   * Example: `null`
-   */
-  @SerialName("biometricChip")
-  val biometricChip: String? = null
-) {
-}
+    /** Example: `null` */
+    @SerialName("pet")
+    val pet: Pet? = null,
+    /**
+     * Base64-encoded primary thumbnail
+     *
+     * Example: `dGVzdC10aHVtYm5haWw=`
+     */
+    @SerialName("thumbnail")
+    val thumbnail: ByteArray? = null,
+    /**
+     * Base64-encoded scans of each passport page
+     *
+     * Example: `null`
+     */
+    @SerialName("scans")
+    val scans: List<ByteArray>? = mutableListOf(),
+    /** Example: `null` */
+    @SerialName("issuedAt")
+    @Contextual
+    val issuedAt: OffsetDateTime? = null,
+    /**
+     * Embedded chip data (OAS 3.1 contentEncoding form)
+     *
+     * Example: `null`
+     */
+    @SerialName("biometricChip")
+    val biometricChip: String? = null,
+)

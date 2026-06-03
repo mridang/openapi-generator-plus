@@ -12,8 +12,8 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use crate::api_client::ApiClient;
-use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
 use crate::auth::Authenticator;
+use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
 
 /// OAuth2ImplicitAuthenticator provides OAuth2 implicit flow authentication.
 ///
@@ -36,12 +36,7 @@ pub struct OAuth2ImplicitAuthenticator {
 
 impl OAuth2ImplicitAuthenticator {
     /// Creates a new implicit flow authenticator.
-    pub fn new(
-        host: &str,
-        client_id: &str,
-        authorization_url: &str,
-        scopes: Vec<String>,
-    ) -> Self {
+    pub fn new(host: &str, client_id: &str, authorization_url: &str, scopes: Vec<String>) -> Self {
         Self {
             host: host.to_string(),
             client_id: client_id.to_string(),
@@ -86,8 +81,17 @@ impl OAuth2ImplicitAuthenticator {
         /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
          * a query component. Use '&' as the separator when one is already
          * present so existing params are preserved, '?' otherwise. */
-        let separator = if self.authorization_url.contains('?') { '&' } else { '?' };
-        format!("{}{}{}", self.authorization_url, separator, params.join("&"))
+        let separator = if self.authorization_url.contains('?') {
+            '&'
+        } else {
+            '?'
+        };
+        format!(
+            "{}{}{}",
+            self.authorization_url,
+            separator,
+            params.join("&")
+        )
     }
 }
 

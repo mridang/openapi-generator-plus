@@ -10,14 +10,14 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
+use base64::Engine as _;
+use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use petstore::api_client::{ApiClient, RequestBody};
 use petstore::api_response::ApiResponse;
-use petstore::auth::oauth::client_auth_method::ClientAuthMethod;
-use petstore::auth::oauth::OAuth2PasswordAuthenticator;
 use petstore::auth::Authenticator;
 use petstore::auth::HttpAwareAuthenticator;
-use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use base64::Engine as _;
+use petstore::auth::oauth::OAuth2PasswordAuthenticator;
+use petstore::auth::oauth::client_auth_method::ClientAuthMethod;
 
 struct FakeApiClient {
     responses: Mutex<Vec<ApiResponse>>,
@@ -61,7 +61,13 @@ impl ApiClient for FakeApiClient {
         url: &str,
         headers: &HashMap<String, String>,
         body: Option<&RequestBody>,
-    ) -> Pin<Box<dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
+                + Send
+                + '_,
+        >,
+    > {
         {
             let mut last_url = self.last_url.lock().unwrap();
             *last_url = Some(url.to_string());
@@ -206,7 +212,9 @@ async fn test_basic_auth_url_encodes_client_id_and_secret() {
     auth.auth_headers().await;
 
     let headers = client.last_headers().expect("should have headers");
-    let auth_header = headers.get("Authorization").expect("should have Authorization header");
+    let auth_header = headers
+        .get("Authorization")
+        .expect("should have Authorization header");
     assert!(auth_header.starts_with("Basic "));
     let encoded = &auth_header["Basic ".len()..];
     let decoded_bytes = BASE64_STANDARD.decode(encoded).expect("base64 decode");

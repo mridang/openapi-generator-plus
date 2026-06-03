@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -12,9 +13,9 @@ declare(strict_types=1);
 
 namespace PetstoreClient;
 
+use PetstoreClient\Serializer\DsAwareObjectNormalizer;
 use PetstoreClient\Serializer\DsMapNormalizer;
 use PetstoreClient\Serializer\DsSetNormalizer;
-use PetstoreClient\Serializer\DsAwareObjectNormalizer;
 use PetstoreClient\Serializer\DsVectorNormalizer;
 use PetstoreClient\Serializer\UriNormalizer;
 use Symfony\Component\PropertyInfo\Extractor\PhpDocExtractor;

@@ -40,7 +40,7 @@ pub fn inject_trace_context(headers: &mut HashMap<String, String>) {
 
 #[cfg(feature = "opentelemetry")]
 fn inject_trace_context_impl(headers: &mut HashMap<String, String>) {
-    use opentelemetry::{global, Context};
+    use opentelemetry::{Context, global};
 
     struct HeaderInjector<'a>(&'a mut HashMap<String, String>);
 

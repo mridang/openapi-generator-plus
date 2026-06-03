@@ -11,9 +11,9 @@ use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use petstore::*;
 use petstore::api_client::{RequestBody, RequestOptions};
-use petstore::default_api_client::{is_https_to_http_body_replay, SENSITIVE_HEADER_NAMES};
+use petstore::default_api_client::{SENSITIVE_HEADER_NAMES, is_https_to_http_body_replay};
+use petstore::*;
 
 /// Starts a minimal HTTP server that captures request headers and responds
 /// with a 200. Returns the base URL.
@@ -58,7 +58,10 @@ fn start_request_id_capture_server(n_requests: usize) -> (String, Arc<Mutex<Vec<
             let text = String::from_utf8_lossy(&buf[..n_read]);
             for line in text.lines() {
                 if line.to_lowercase().starts_with("x-request-id:") {
-                    captured_clone.lock().unwrap().push(line[13..].trim().to_string());
+                    captured_clone
+                        .lock()
+                        .unwrap()
+                        .push(line[13..].trim().to_string());
                 }
             }
             let response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
@@ -235,7 +238,9 @@ fn start_method_echo_server() -> String {
             let n = stream.read(&mut buf).unwrap_or(0);
             let text = String::from_utf8_lossy(&buf[..n]);
 
-            let method = text.lines().next()
+            let method = text
+                .lines()
+                .next()
                 .and_then(|l| l.split_whitespace().next())
                 .unwrap_or("GET")
                 .to_string();
@@ -363,15 +368,18 @@ fn test_sensitive_header_allowlist_contains_fixed_credential_headers() {
     let names: Vec<&str> = SENSITIVE_HEADER_NAMES.to_vec();
     assert!(
         names.iter().any(|n| *n == "authorization"),
-        "expected 'authorization' in {:?}", names
+        "expected 'authorization' in {:?}",
+        names
     );
     assert!(
         names.iter().any(|n| *n == "cookie"),
-        "expected 'cookie' in {:?}", names
+        "expected 'cookie' in {:?}",
+        names
     );
     assert!(
         names.iter().any(|n| *n == "proxy-authorization"),
-        "expected 'proxy-authorization' in {:?}", names
+        "expected 'proxy-authorization' in {:?}",
+        names
     );
     for n in SENSITIVE_HEADER_NAMES {
         assert_eq!(*n, n.to_lowercase(), "all entries must be lowercase: {}", n);
@@ -384,8 +392,7 @@ fn test_sensitive_header_allowlist_contains_fixed_credential_headers() {
 /// target. The second connection must NOT happen.
 #[tokio::test]
 async fn test_no_redirect_refuses_to_follow_307() {
-    let (base_url, captured) =
-        start_307_redirect_server("http://127.0.0.1:1/never".to_string());
+    let (base_url, captured) = start_307_redirect_server("http://127.0.0.1:1/never".to_string());
 
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(true)
@@ -440,17 +447,47 @@ fn test_is_https_to_http_body_replay_predicate() {
     // 308 + body + https->http: must refuse.
     assert!(is_https_to_http_body_replay(308, Some(&https), &http, true));
     // 307 + NO body: nothing to leak, must NOT refuse.
-    assert!(!is_https_to_http_body_replay(307, Some(&https), &http, false));
+    assert!(!is_https_to_http_body_replay(
+        307,
+        Some(&https),
+        &http,
+        false
+    ));
     // 307 + body + http->http (no downgrade): must NOT refuse.
-    assert!(!is_https_to_http_body_replay(307, Some(&http), &http2, true));
+    assert!(!is_https_to_http_body_replay(
+        307,
+        Some(&http),
+        &http2,
+        true
+    ));
     // 307 + body + https->https (no downgrade): must NOT refuse.
-    assert!(!is_https_to_http_body_replay(307, Some(&https), &https2, true));
+    assert!(!is_https_to_http_body_replay(
+        307,
+        Some(&https),
+        &https2,
+        true
+    ));
     // 302 (drops body anyway): must NOT refuse.
-    assert!(!is_https_to_http_body_replay(302, Some(&https), &http, true));
+    assert!(!is_https_to_http_body_replay(
+        302,
+        Some(&https),
+        &http,
+        true
+    ));
     // 303 (drops body anyway): must NOT refuse.
-    assert!(!is_https_to_http_body_replay(303, Some(&https), &http, true));
+    assert!(!is_https_to_http_body_replay(
+        303,
+        Some(&https),
+        &http,
+        true
+    ));
     // 301 (drops body anyway): must NOT refuse.
-    assert!(!is_https_to_http_body_replay(301, Some(&https), &http, true));
+    assert!(!is_https_to_http_body_replay(
+        301,
+        Some(&https),
+        &http,
+        true
+    ));
     // Missing current_url: cannot prove downgrade, must NOT refuse.
     assert!(!is_https_to_http_body_replay(307, None, &http, true));
 }
@@ -538,7 +575,11 @@ async fn test_default_api_client_sends_get_request_and_returns_response() {
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code, 200);
-    assert!(resp.body.contains("GET"), "expected body to contain GET, got: {}", resp.body);
+    assert!(
+        resp.body.contains("GET"),
+        "expected body to contain GET, got: {}",
+        resp.body
+    );
 }
 
 #[tokio::test]
@@ -553,8 +594,16 @@ async fn test_default_api_client_sends_post_with_json_body() {
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code, 200);
-    assert!(resp.body.contains("POST"), "expected body to contain POST, got: {}", resp.body);
-    assert!(resp.body.contains("key"), "expected body to contain key, got: {}", resp.body);
+    assert!(
+        resp.body.contains("POST"),
+        "expected body to contain POST, got: {}",
+        resp.body
+    );
+    assert!(
+        resp.body.contains("key"),
+        "expected body to contain key, got: {}",
+        resp.body
+    );
 }
 
 #[tokio::test]
@@ -567,10 +616,15 @@ async fn test_default_api_client_returns_response_headers() {
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code, 200);
-    let found = resp.headers.iter().any(|(k, v)| {
-        k.to_lowercase() == "x-test-header" && v == "test-value"
-    });
-    assert!(found, "expected X-Test-Header: test-value in response headers, got: {:?}", resp.headers);
+    let found = resp
+        .headers
+        .iter()
+        .any(|(k, v)| k.to_lowercase() == "x-test-header" && v == "test-value");
+    assert!(
+        found,
+        "expected X-Test-Header: test-value in response headers, got: {:?}",
+        resp.headers
+    );
 }
 
 #[tokio::test]
@@ -597,7 +651,11 @@ async fn test_default_api_client_sends_put_request() {
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code, 200);
-    assert!(resp.body.contains("PUT"), "expected body to contain PUT, got: {}", resp.body);
+    assert!(
+        resp.body.contains("PUT"),
+        "expected body to contain PUT, got: {}",
+        resp.body
+    );
 }
 
 #[tokio::test]
@@ -610,7 +668,11 @@ async fn test_default_api_client_sends_delete_request() {
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code, 200);
-    assert!(resp.body.contains("DELETE"), "expected body to contain DELETE, got: {}", resp.body);
+    assert!(
+        resp.body.contains("DELETE"),
+        "expected body to contain DELETE, got: {}",
+        resp.body
+    );
 }
 
 #[tokio::test]
@@ -623,7 +685,11 @@ async fn test_default_api_client_returns_json_body_for_vendor_json_content_type(
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code, 200);
-    assert!(resp.body.contains("vendor"), "expected body to contain vendor, got: {}", resp.body);
+    assert!(
+        resp.body.contains("vendor"),
+        "expected body to contain vendor, got: {}",
+        resp.body
+    );
 }
 
 #[tokio::test]
@@ -636,10 +702,15 @@ async fn test_default_api_client_joins_multi_value_response_headers() {
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code, 200);
-    let value = resp.headers.iter()
+    let value = resp
+        .headers
+        .iter()
         .find(|(k, _)| k.to_lowercase() == "x-custom-value")
         .map(|(_, v)| v.as_str());
-    assert!(value.is_some(), "expected X-Custom-Value header to be present");
+    assert!(
+        value.is_some(),
+        "expected X-Custom-Value header to be present"
+    );
     let val = value.unwrap();
     assert!(
         val.contains("val1") || val.contains("val2"),
@@ -714,8 +785,7 @@ fn start_truncated_body_server() -> String {
             let mut buf = [0u8; 4096];
             let _ = stream.read(&mut buf);
             // Declare 1000 bytes but send only 3, then drop the connection.
-            let response =
-                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 1000\r\n\r\nabc";
+            let response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 1000\r\n\r\nabc";
             let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
             // stream dropped here -> client sees a truncated body.
         }
@@ -745,7 +815,8 @@ async fn test_body_read_failure_wrapped_in_api_error() {
     );
     let err = result.unwrap_err();
     assert!(
-        err.downcast_ref::<petstore::api_error::ApiError>().is_some(),
+        err.downcast_ref::<petstore::api_error::ApiError>()
+            .is_some(),
         "body-read failure must be wrapped in the SDK ApiError type, got: {}",
         err
     );

@@ -83,8 +83,7 @@ fn test_pet_food_missing_discriminator_field_errors() {
 #[test]
 fn test_pet_food_serialize_dry_food() {
     let json_data = r#"{"foodType":"dry","weightKg":2.5}"#;
-    let food: PetFood =
-        serde_json::from_str(json_data).expect("failed to set up test");
+    let food: PetFood = serde_json::from_str(json_data).expect("failed to set up test");
 
     let data = serde_json::to_string(&food).expect("failed to serialize PetFood");
 
@@ -117,8 +116,7 @@ fn test_pet_treatment_deserialize_surgery() {
 fn test_pet_treatment_serialize_round_trip() {
     let json_data = r#"{"drugName":"Amoxicillin","dosage":"500mg"}"#;
 
-    let treatment: PetTreatment =
-        serde_json::from_str(json_data).expect("failed to deserialize");
+    let treatment: PetTreatment = serde_json::from_str(json_data).expect("failed to deserialize");
 
     let data = serde_json::to_string(&treatment).expect("failed to serialize PetTreatment");
     assert!(!data.is_empty(), "expected non-empty serialized data");
@@ -165,8 +163,7 @@ fn test_pet_with_owner_round_trip() {
         "ownerName": "Jane Smith"
     }"#;
 
-    let pet: PetWithOwner =
-        serde_json::from_str(json_data).expect("failed to deserialize");
+    let pet: PetWithOwner = serde_json::from_str(json_data).expect("failed to deserialize");
 
     let data = serde_json::to_string(&pet).expect("failed to serialize");
 

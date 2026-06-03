@@ -178,7 +178,8 @@ describe PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator do
   end
 
   it 'raises ApiError when discovery omits token_endpoint' do
-    client = FakeOidcClient.new([{ status: 200, body: { 'authorization_endpoint' => 'https://auth.example.com/authorize' } }])
+    client = FakeOidcClient.new([{ status: 200,
+                                   body: { 'authorization_endpoint' => 'https://auth.example.com/authorize' } }])
     auth = PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
       'https://auth.example.com/.well-known/openid-configuration',

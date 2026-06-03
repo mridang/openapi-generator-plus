@@ -9,10 +9,10 @@
 
 package com.example.petstore
 
-import com.example.petstore.auth.Authenticator
-import com.example.petstore.errors.*
 import com.example.petstore.api.PetApi
 import com.example.petstore.api.options.FindPetsByStatusOptions
+import com.example.petstore.auth.Authenticator
+import com.example.petstore.errors.*
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Disabled
@@ -21,11 +21,12 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
 class BaseApiTest {
-
-    class TestableApi(baseUrl: String) : com.example.petstore.api.BaseApi(
-        DefaultApiClient(),
-        Configuration.builder().baseUrl(baseUrl).build()
-    ) {
+    class TestableApi(
+        baseUrl: String,
+    ) : com.example.petstore.api.BaseApi(
+            DefaultApiClient(),
+            Configuration.builder().baseUrl(baseUrl).build(),
+        ) {
         suspend fun call(
             method: String,
             path: String,
@@ -34,15 +35,13 @@ class BaseApiTest {
             body: Any? = null,
             accepts: Array<String> = arrayOf("application/json"),
             contentType: String = "application/json",
-            auth: Authenticator? = null
-        ): ApiResponse {
-            return invokeApi(method, path, queryParams, headerParams, body, accepts, contentType, auth)
-        }
+            auth: Authenticator? = null,
+        ): ApiResponse = invokeApi(method, path, queryParams, headerParams, body, accepts, contentType, auth)
     }
 
     class TestableApiWithClient(
         private val client: CapturingApiClient,
-        baseUrl: String
+        baseUrl: String,
     ) : com.example.petstore.api.BaseApi(client, Configuration.builder().baseUrl(baseUrl).build()) {
         suspend fun call(
             method: String,
@@ -52,10 +51,8 @@ class BaseApiTest {
             body: Any? = null,
             accepts: Array<String> = arrayOf("application/json"),
             contentType: String = "application/json",
-            auth: Authenticator? = null
-        ): ApiResponse {
-            return invokeApi(method, path, queryParams, headerParams, body, accepts, contentType, auth)
-        }
+            auth: Authenticator? = null,
+        ): ApiResponse = invokeApi(method, path, queryParams, headerParams, body, accepts, contentType, auth)
 
         internal suspend inline fun <reified T> callForResult(
             method: String,
@@ -65,10 +62,8 @@ class BaseApiTest {
             body: Any? = null,
             accepts: Array<String> = arrayOf("application/json"),
             contentType: String = "application/json",
-            auth: Authenticator? = null
-        ): ApiResult<T> {
-            return invokeApiForResult<T>(method, path, queryParams, headerParams, body, accepts, contentType, auth)
-        }
+            auth: Authenticator? = null,
+        ): ApiResult<T> = invokeApiForResult<T>(method, path, queryParams, headerParams, body, accepts, contentType, auth)
     }
 
     open class CapturingApiClient : ApiClient {
@@ -81,7 +76,7 @@ class BaseApiTest {
             url: String,
             headers: Map<String, String>,
             body: Any?,
-            noRedirect: Boolean
+            noRedirect: Boolean,
         ): ApiResponse {
             capturedUrl = url
             capturedHeaders = headers
@@ -93,11 +88,14 @@ class BaseApiTest {
     class TestAuthenticator(
         private val headers: Map<String, String>,
         private val queryParams: Map<String, String>,
-        private val cookies: Map<String, String>
+        private val cookies: Map<String, String>,
     ) : Authenticator {
         override fun getHost(): String = ""
+
         override suspend fun getAuthHeaders(): Map<String, String> = headers
+
         override fun getQueryParams(): Map<String, String> = queryParams
+
         override fun getCookieParams(): Map<String, String> = cookies
     }
 
@@ -106,13 +104,13 @@ class BaseApiTest {
     @Nested
     @DisplayName("exception dispatch")
     inner class ExceptionDispatch {
-
         @Test
         @DisplayName("400 throws BadRequestException")
         fun throws400() {
-            val ex = assertThrows(BadRequestException::class.java) {
-                runBlocking { api().call("GET", "/test/status/400") }
-            }
+            val ex =
+                assertThrows(BadRequestException::class.java) {
+                    runBlocking { api().call("GET", "/test/status/400") }
+                }
             assertEquals(400, ex.statusCode)
             assertNotNull(ex.responseBody)
             assertFalse(ex.responseBody!!.isEmpty())
@@ -186,13 +184,13 @@ class BaseApiTest {
     @Nested
     @DisplayName("error body parsing")
     inner class ErrorBodyParsing {
-
         @Test
         @DisplayName("parses JSON error body")
         fun parsesJsonErrorBody() {
-            val ex = assertThrows(BadRequestException::class.java) {
-                runBlocking { api().call("GET", "/test/status/400") }
-            }
+            val ex =
+                assertThrows(BadRequestException::class.java) {
+                    runBlocking { api().call("GET", "/test/status/400") }
+                }
             assertNotNull(ex.errorBody, "errorBody should not be null for JSON responses")
         }
     }
@@ -200,13 +198,13 @@ class BaseApiTest {
     @Nested
     @DisplayName("exception hierarchy")
     inner class ExceptionHierarchy {
-
         @Test
         @DisplayName("NotFoundException is a ClientException")
         fun notFoundIsClientException() {
-            val ex = assertThrows(NotFoundException::class.java) {
-                runBlocking { api().call("GET", "/test/status/404") }
-            }
+            val ex =
+                assertThrows(NotFoundException::class.java) {
+                    runBlocking { api().call("GET", "/test/status/404") }
+                }
             assertInstanceOf(ClientException::class.java, ex)
             assertInstanceOf(ApiException::class.java, ex)
         }
@@ -214,9 +212,10 @@ class BaseApiTest {
         @Test
         @DisplayName("InternalServerErrorException is a ServerException")
         fun internalServerErrorIsServerException() {
-            val ex = assertThrows(InternalServerErrorException::class.java) {
-                runBlocking { api().call("GET", "/test/status/500") }
-            }
+            val ex =
+                assertThrows(InternalServerErrorException::class.java) {
+                    runBlocking { api().call("GET", "/test/status/500") }
+                }
             assertInstanceOf(ServerException::class.java, ex)
             assertInstanceOf(ApiException::class.java, ex)
         }
@@ -225,27 +224,32 @@ class BaseApiTest {
     @Nested
     @DisplayName("success deserialization")
     inner class SuccessDeserialization {
-
         @Test
         @DisplayName("deserializes JSON response")
         fun deserializesJsonResponse() {
-            val response = runBlocking {
-                api().call("GET", "/test/echo")
-            }
+            val response =
+                runBlocking {
+                    api().call("GET", "/test/echo")
+                }
             assertNotNull(response)
-            val json = com.fasterxml.jackson.databind.ObjectMapper().readTree(response.body)
+            val json =
+                com.fasterxml.jackson.databind
+                    .ObjectMapper()
+                    .readTree(response.body)
             assertEquals("GET", json.get("method").asText())
         }
 
         @Test
         @DisplayName("returns raw string for non-JSON response")
         fun returnsRawStringForNonJson() {
-            val response = runBlocking {
-                api().call(
-                    "GET", "/test/text-plain",
-                    accepts = arrayOf("text/plain")
-                )
-            }
+            val response =
+                runBlocking {
+                    api().call(
+                        "GET",
+                        "/test/text-plain",
+                        accepts = arrayOf("text/plain"),
+                    )
+                }
             assertNotNull(response)
             assertFalse(response.body.isEmpty())
         }
@@ -255,11 +259,13 @@ class BaseApiTest {
         fun returnsNullWhenReturnTypeIsNull() {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
-            val result = runBlocking {
-                testApi.callForResult<Unit>(
-                    "GET", "/test/echo"
-                )
-            }
+            val result =
+                runBlocking {
+                    testApi.callForResult<Unit>(
+                        "GET",
+                        "/test/echo",
+                    )
+                }
             assertEquals(200, result.statusCode)
         }
     }
@@ -267,38 +273,45 @@ class BaseApiTest {
     @Nested
     @DisplayName("auth injection")
     inner class AuthInjection {
-
         @Test
         @DisplayName("forwards auth headers")
         fun forwardsAuthHeaders() {
-            val auth = TestAuthenticator(
-                mapOf("X-Custom" to "auth-value"),
-                emptyMap(),
-                emptyMap()
-            )
-            val response = runBlocking {
-                api().call(
-                    "GET", "/test/echo",
-                    auth = auth
+            val auth =
+                TestAuthenticator(
+                    mapOf("X-Custom" to "auth-value"),
+                    emptyMap(),
+                    emptyMap(),
                 )
-            }
+            val response =
+                runBlocking {
+                    api().call(
+                        "GET",
+                        "/test/echo",
+                        auth = auth,
+                    )
+                }
             assertNotNull(response)
-            val json = com.fasterxml.jackson.databind.ObjectMapper().readTree(response.body)
+            val json =
+                com.fasterxml.jackson.databind
+                    .ObjectMapper()
+                    .readTree(response.body)
             assertEquals("auth-value", json.get("headers").get("x-custom").asText())
         }
 
         @Test
         @DisplayName("sets Cookie header from auth cookies")
         fun setsCookieHeader() {
-            val auth = TestAuthenticator(
-                emptyMap(),
-                emptyMap(),
-                mapOf("session" to "abc123")
-            )
+            val auth =
+                TestAuthenticator(
+                    emptyMap(),
+                    emptyMap(),
+                    mapOf("session" to "abc123"),
+                )
             runBlocking {
                 api().call(
-                    "GET", "/test/echo",
-                    auth = auth
+                    "GET",
+                    "/test/echo",
+                    auth = auth,
                 )
             }
         }
@@ -307,30 +320,32 @@ class BaseApiTest {
     @Nested
     @DisplayName("content-type handling")
     inner class ContentTypeHandling {
-
         @Test
         @DisplayName("skips JSON deserialization for text/plain response")
         fun skipsDeserializationForTextPlain() {
-            val client = object : CapturingApiClient() {
-                override suspend fun sendRequest(
-                    method: String,
-                    url: String,
-                    headers: Map<String, String>,
-                    body: Any?,
-                    noRedirect: Boolean
-                ): ApiResponse {
-                    capturedHeaders = headers
-                    capturedBody = body
-                    return ApiResponse(200, "hello", mapOf("Content-Type" to "text/plain"))
+            val client =
+                object : CapturingApiClient() {
+                    override suspend fun sendRequest(
+                        method: String,
+                        url: String,
+                        headers: Map<String, String>,
+                        body: Any?,
+                        noRedirect: Boolean,
+                    ): ApiResponse {
+                        capturedHeaders = headers
+                        capturedBody = body
+                        return ApiResponse(200, "hello", mapOf("Content-Type" to "text/plain"))
+                    }
                 }
-            }
             val testApi = TestableApiWithClient(client, "http://localhost")
-            val result = runBlocking {
-                testApi.callForResult<String>(
-                    "GET", "/test/echo",
-                    accepts = arrayOf("text/plain")
-                )
-            }
+            val result =
+                runBlocking {
+                    testApi.callForResult<String>(
+                        "GET",
+                        "/test/echo",
+                        accepts = arrayOf("text/plain"),
+                    )
+                }
             assertNotNull(result.data)
             assertEquals("hello", result.data)
         }
@@ -338,25 +353,30 @@ class BaseApiTest {
         @Test
         @DisplayName("deserializes vendor JSON MIME types like application/problem+json")
         fun deserializesVendorJsonMimeType() {
-            val client = object : CapturingApiClient() {
-                override suspend fun sendRequest(
-                    method: String,
-                    url: String,
-                    headers: Map<String, String>,
-                    body: Any?,
-                    noRedirect: Boolean
-                ): ApiResponse {
-                    capturedHeaders = headers
-                    capturedBody = body
-                    return ApiResponse(200, "{\"title\":\"Not Found\"}", mapOf("Content-Type" to "application/problem+json"))
+            val client =
+                object : CapturingApiClient() {
+                    override suspend fun sendRequest(
+                        method: String,
+                        url: String,
+                        headers: Map<String, String>,
+                        body: Any?,
+                        noRedirect: Boolean,
+                    ): ApiResponse {
+                        capturedHeaders = headers
+                        capturedBody = body
+                        return ApiResponse(200, "{\"title\":\"Not Found\"}", mapOf("Content-Type" to "application/problem+json"))
+                    }
                 }
-            }
             val testApi = TestableApiWithClient(client, "http://localhost")
-            val response = runBlocking {
-                testApi.call("GET", "/test/echo")
-            }
+            val response =
+                runBlocking {
+                    testApi.call("GET", "/test/echo")
+                }
             assertNotNull(response)
-            val json = com.fasterxml.jackson.databind.ObjectMapper().readTree(response.body)
+            val json =
+                com.fasterxml.jackson.databind
+                    .ObjectMapper()
+                    .readTree(response.body)
             assertEquals("Not Found", json.get("title").asText())
         }
     }
@@ -364,19 +384,22 @@ class BaseApiTest {
     @Nested
     @DisplayName("body serialization")
     inner class BodySerialization {
-
         @Test
         @DisplayName("serializes JSON body for POST")
         fun serializesJsonBody() {
             val body = mapOf("key" to "value")
-            val response = runBlocking {
-                api().call(
-                    "POST", "/test/echo",
-                    body = body
-                )
-            }
+            val response =
+                runBlocking {
+                    api().call(
+                        "POST",
+                        "/test/echo",
+                        body = body,
+                    )
+                }
             assertNotNull(response)
-            val mapper = com.fasterxml.jackson.databind.ObjectMapper()
+            val mapper =
+                com.fasterxml.jackson.databind
+                    .ObjectMapper()
             val envelope = mapper.readTree(response.body)
             val innerBody = mapper.readTree(envelope.get("body").asText())
             assertEquals("value", innerBody.get("key").asText())
@@ -408,9 +431,12 @@ class BaseApiTest {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
             runBlocking {
-                testApi.call("POST", "/test/echo",
+                testApi.call(
+                    "POST",
+                    "/test/echo",
                     body = mapOf("name" to "alice"),
-                    contentType = "application/x-www-form-urlencoded")
+                    contentType = "application/x-www-form-urlencoded",
+                )
             }
             assertNotNull(client.capturedBody)
             assertTrue(client.capturedBody.toString().contains("name=alice"))
@@ -422,9 +448,12 @@ class BaseApiTest {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
             runBlocking {
-                testApi.call("POST", "/test/echo",
+                testApi.call(
+                    "POST",
+                    "/test/echo",
                     body = byteArrayOf(0x01, 0x02, 0x03),
-                    contentType = "application/octet-stream")
+                    contentType = "application/octet-stream",
+                )
             }
             assertNotNull(client.capturedBody)
         }
@@ -433,7 +462,6 @@ class BaseApiTest {
     @Nested
     @DisplayName("query parameters")
     inner class QueryParameters {
-
         @Test
         @DisplayName("appends query params to URL")
         fun appendsQueryParams() {
@@ -505,7 +533,6 @@ class BaseApiTest {
     @Nested
     @DisplayName("allowEmptyValue query params")
     inner class AllowEmptyValueQueryParams {
-
         @Test
         @DisplayName("allowEmptyValue param included with default options")
         fun allowEmptyValueIncludedWithDefaultOptions() {
@@ -517,8 +544,10 @@ class BaseApiTest {
             } catch (_: Exception) {
                 // Response deserialization may fail; we only care about the captured URL
             }
-            assertTrue(client.capturedUrl.contains("status="),
-                "Expected status= in URL for allowEmptyValue param with null value, got: ${client.capturedUrl}")
+            assertTrue(
+                client.capturedUrl.contains("status="),
+                "Expected status= in URL for allowEmptyValue param with null value, got: ${client.capturedUrl}",
+            )
         }
 
         @Test
@@ -532,48 +561,58 @@ class BaseApiTest {
             } catch (_: Exception) {
                 // Response deserialization may fail; we only care about the captured URL
             }
-            assertTrue(client.capturedUrl.contains("status="),
-                "Expected status= in URL for empty string allowEmptyValue param, got: ${client.capturedUrl}")
+            assertTrue(
+                client.capturedUrl.contains("status="),
+                "Expected status= in URL for empty string allowEmptyValue param, got: ${client.capturedUrl}",
+            )
         }
     }
 
     @Nested
     @DisplayName("server variable overrides")
     inner class ServerVariableOverrides {
-
         @Test
         @DisplayName("server variable overrides resolve in base URL")
         fun serverVariableOverridesResolve() {
-            val config = Configuration.builder()
-                .server(Servers.SERVER_1, mapOf("environment" to "staging"))
-                .build()
+            val config =
+                Configuration
+                    .builder()
+                    .server(Servers.SERVER_1, mapOf("environment" to "staging"))
+                    .build()
             assertEquals("https://staging.example.com/api/v3", config.baseUrl)
         }
 
         @Test
         @DisplayName("default server variables produce correct base URL")
         fun defaultServerVariablesResolve() {
-            val config = Configuration.builder()
-                .server(Servers.SERVER_1)
-                .build()
+            val config =
+                Configuration
+                    .builder()
+                    .server(Servers.SERVER_1)
+                    .build()
             assertEquals("https://api.example.com/api/v3", config.baseUrl)
         }
 
         @Test
         @DisplayName("API request uses resolved server URL")
         fun apiRequestUsesResolvedUrl() {
-            val config = Configuration.builder()
-                .server(Servers.SERVER_1, mapOf("environment" to "staging"))
-                .build()
-            assertTrue(config.baseUrl.startsWith("https://staging.example.com"),
-                "expected base URL to start with https://staging.example.com, got: ${config.baseUrl}")
+            val config =
+                Configuration
+                    .builder()
+                    .server(Servers.SERVER_1, mapOf("environment" to "staging"))
+                    .build()
+            assertTrue(
+                config.baseUrl.startsWith("https://staging.example.com"),
+                "expected base URL to start with https://staging.example.com, got: ${config.baseUrl}",
+            )
         }
 
         @Test
         @DisplayName("invalid enum value throws error")
         fun invalidEnumValueThrows() {
             assertThrows(IllegalArgumentException::class.java) {
-                Configuration.builder()
+                Configuration
+                    .builder()
                     .server(Servers.SERVER_1, mapOf("environment" to "invalid"))
                     .build()
             }
@@ -583,7 +622,6 @@ class BaseApiTest {
     @Nested
     @DisplayName("header flow-through")
     inner class HeaderFlowThrough {
-
         @Test
         @DisplayName("empty content-type defaults to application/json")
         fun emptyContentTypeDefaultsToJson() {
@@ -613,37 +651,51 @@ class BaseApiTest {
     @Nested
     @DisplayName("BinaryResponseTests")
     inner class BinaryResponseTests {
-
         @Test
         @DisplayName("octet-stream base64 body decodes to correct bytes (strong roundtrip)")
         fun octetStreamBase64DecodesToCorrectBytes() {
             // Original bytes include 0x00 and 0xFF — values that would mangle under UTF-8 conversion.
             val original = byteArrayOf(0x00, 0xFF.toByte(), 0x42)
-            val encoded = java.util.Base64.getEncoder().encodeToString(original)
-            val client = object : CapturingApiClient() {
-                override suspend fun sendRequest(
-                    method: String, url: String, headers: Map<String, String>, body: Any?, noRedirect: Boolean
-                ): ApiResponse {
-                    return ApiResponse(200, encoded, mapOf("Content-Type" to "application/octet-stream"))
+            val encoded =
+                java.util.Base64
+                    .getEncoder()
+                    .encodeToString(original)
+            val client =
+                object : CapturingApiClient() {
+                    override suspend fun sendRequest(
+                        method: String,
+                        url: String,
+                        headers: Map<String, String>,
+                        body: Any?,
+                        noRedirect: Boolean,
+                    ): ApiResponse = ApiResponse(200, encoded, mapOf("Content-Type" to "application/octet-stream"))
                 }
-            }
             val response = runBlocking { client.sendRequest("GET", "/api/binary", emptyMap(), null) }
-            val decoded = java.util.Base64.getDecoder().decode(response.body)
+            val decoded =
+                java.util.Base64
+                    .getDecoder()
+                    .decode(response.body)
             assertArrayEquals(original, decoded, "binary roundtrip must preserve bytes exactly")
         }
 
         @Test
         @DisplayName("image/png response body represents bytes not plain text")
         fun imagePngResponseRepresentsBytes() {
-            val client = object : CapturingApiClient() {
-                override suspend fun sendRequest(
-                    method: String, url: String, headers: Map<String, String>, body: Any?, noRedirect: Boolean
-                ): ApiResponse {
-                    return ApiResponse(200, "iVBORw0KGgo=", mapOf("Content-Type" to "image/png"))
+            val client =
+                object : CapturingApiClient() {
+                    override suspend fun sendRequest(
+                        method: String,
+                        url: String,
+                        headers: Map<String, String>,
+                        body: Any?,
+                        noRedirect: Boolean,
+                    ): ApiResponse = ApiResponse(200, "iVBORw0KGgo=", mapOf("Content-Type" to "image/png"))
                 }
-            }
             val response = runBlocking { client.sendRequest("GET", "/api/image", emptyMap(), null) }
-            val decoded = java.util.Base64.getDecoder().decode(response.body)
+            val decoded =
+                java.util.Base64
+                    .getDecoder()
+                    .decode(response.body)
             assertNotNull(decoded)
             assertTrue(decoded.isNotEmpty())
         }
@@ -651,17 +703,21 @@ class BaseApiTest {
         @Test
         @DisplayName("application/json response parses to object")
         fun jsonResponseParsesToObject() {
-            val client = object : CapturingApiClient() {
-                override suspend fun sendRequest(
-                    method: String, url: String, headers: Map<String, String>, body: Any?, noRedirect: Boolean
-                ): ApiResponse {
-                    return ApiResponse(200, "{\"key\":\"value\"}", mapOf("Content-Type" to "application/json"))
+            val client =
+                object : CapturingApiClient() {
+                    override suspend fun sendRequest(
+                        method: String,
+                        url: String,
+                        headers: Map<String, String>,
+                        body: Any?,
+                        noRedirect: Boolean,
+                    ): ApiResponse = ApiResponse(200, "{\"key\":\"value\"}", mapOf("Content-Type" to "application/json"))
                 }
-            }
             val testApi = TestableApiWithClient(client, "http://localhost")
-            val result = runBlocking {
-                testApi.callForResult<Map<String, String>>("GET", "/test/echo")
-            }
+            val result =
+                runBlocking {
+                    testApi.callForResult<Map<String, String>>("GET", "/test/echo")
+                }
             assertNotNull(result.data)
             assertEquals("value", result.data?.get("key"))
         }
@@ -669,17 +725,21 @@ class BaseApiTest {
         @Test
         @DisplayName("text/plain response returns string")
         fun textPlainResponseReturnsString() {
-            val client = object : CapturingApiClient() {
-                override suspend fun sendRequest(
-                    method: String, url: String, headers: Map<String, String>, body: Any?, noRedirect: Boolean
-                ): ApiResponse {
-                    return ApiResponse(200, "hello", mapOf("Content-Type" to "text/plain"))
+            val client =
+                object : CapturingApiClient() {
+                    override suspend fun sendRequest(
+                        method: String,
+                        url: String,
+                        headers: Map<String, String>,
+                        body: Any?,
+                        noRedirect: Boolean,
+                    ): ApiResponse = ApiResponse(200, "hello", mapOf("Content-Type" to "text/plain"))
                 }
-            }
             val testApi = TestableApiWithClient(client, "http://localhost")
-            val result = runBlocking {
-                testApi.callForResult<String>("GET", "/api/text", accepts = arrayOf("text/plain"))
-            }
+            val result =
+                runBlocking {
+                    testApi.callForResult<String>("GET", "/api/text", accepts = arrayOf("text/plain"))
+                }
             assertNotNull(result.data)
             assertEquals("hello", result.data)
         }
@@ -687,13 +747,16 @@ class BaseApiTest {
         @Test
         @DisplayName("octet-stream with empty body yields empty raw body")
         fun octetStreamEmptyBodyYieldsEmpty() {
-            val client = object : CapturingApiClient() {
-                override suspend fun sendRequest(
-                    method: String, url: String, headers: Map<String, String>, body: Any?, noRedirect: Boolean
-                ): ApiResponse {
-                    return ApiResponse(200, "", mapOf("Content-Type" to "application/octet-stream"))
+            val client =
+                object : CapturingApiClient() {
+                    override suspend fun sendRequest(
+                        method: String,
+                        url: String,
+                        headers: Map<String, String>,
+                        body: Any?,
+                        noRedirect: Boolean,
+                    ): ApiResponse = ApiResponse(200, "", mapOf("Content-Type" to "application/octet-stream"))
                 }
-            }
             val response = runBlocking { client.sendRequest("GET", "/api/binary/empty", emptyMap(), null) }
             assertTrue(response.body.isEmpty(), "Empty octet-stream body should be empty string")
         }
@@ -704,23 +767,30 @@ class BaseApiTest {
     @Nested
     @DisplayName("CrossOriginRedirectTests")
     inner class CrossOriginRedirectTests {
-
         @Test
         @DisplayName("same-origin request forwards Authorization header")
         fun sameOriginRequestForwardsAuthorization() {
             val capturedHeaders = mutableMapOf<String, String>()
-            val client = object : CapturingApiClient() {
-                override suspend fun sendRequest(
-                    method: String, url: String, headers: Map<String, String>, body: Any?, noRedirect: Boolean
-                ): ApiResponse {
-                    capturedHeaders.putAll(headers)
-                    return ApiResponse(200, "{}", mapOf("Content-Type" to "application/json"))
+            val client =
+                object : CapturingApiClient() {
+                    override suspend fun sendRequest(
+                        method: String,
+                        url: String,
+                        headers: Map<String, String>,
+                        body: Any?,
+                        noRedirect: Boolean,
+                    ): ApiResponse {
+                        capturedHeaders.putAll(headers)
+                        return ApiResponse(200, "{}", mapOf("Content-Type" to "application/json"))
+                    }
                 }
-            }
             val headers = mutableMapOf("Authorization" to "Bearer token123")
             runBlocking { client.sendRequest("GET", "http://localhost/api/test", headers, null) }
-            assertEquals("Bearer token123", capturedHeaders["Authorization"],
-                "Authorization header should be present on same-origin request")
+            assertEquals(
+                "Bearer token123",
+                capturedHeaders["Authorization"],
+                "Authorization header should be present on same-origin request",
+            )
         }
 
         @Test
@@ -735,8 +805,10 @@ class BaseApiTest {
         @DisplayName("sensitive header set includes cookie")
         fun sensitiveHeaderSetIncludesCookie() {
             val sensitiveHeaders = setOf("authorization", "cookie", "proxy-authorization")
-            assertTrue(sensitiveHeaders.contains("cookie"),
-                "cookie must be stripped on cross-origin redirects")
+            assertTrue(
+                sensitiveHeaders.contains("cookie"),
+                "cookie must be stripped on cross-origin redirects",
+            )
         }
     }
 
@@ -745,7 +817,6 @@ class BaseApiTest {
     @Nested
     @DisplayName("NullBodyContentTypeTests")
     inner class NullBodyContentTypeTests {
-
         @Test
         @DisplayName("POST with null body does not send Content-Type")
         fun postWithNullBodyOmitsContentType() {
@@ -754,8 +825,10 @@ class BaseApiTest {
             runBlocking {
                 testApi.call("POST", "/test/echo", body = null)
             }
-            assertFalse(client.capturedHeaders.containsKey("Content-Type"),
-                "Content-Type must NOT be sent when body is null")
+            assertFalse(
+                client.capturedHeaders.containsKey("Content-Type"),
+                "Content-Type must NOT be sent when body is null",
+            )
         }
 
         @Test
@@ -766,8 +839,10 @@ class BaseApiTest {
             runBlocking {
                 testApi.call("POST", "/test/echo", body = "")
             }
-            assertTrue(client.capturedHeaders.containsKey("Content-Type"),
-                "Content-Type must be sent when body is an empty string")
+            assertTrue(
+                client.capturedHeaders.containsKey("Content-Type"),
+                "Content-Type must be sent when body is an empty string",
+            )
         }
 
         @Test
@@ -778,8 +853,10 @@ class BaseApiTest {
             runBlocking {
                 testApi.call("POST", "/test/echo", body = mapOf<String, Any>())
             }
-            assertTrue(client.capturedHeaders.containsKey("Content-Type"),
-                "Content-Type must be sent when body is {}")
+            assertTrue(
+                client.capturedHeaders.containsKey("Content-Type"),
+                "Content-Type must be sent when body is {}",
+            )
             assertNotNull(client.capturedBody)
             assertEquals("{}", client.capturedBody.toString())
         }
@@ -790,21 +867,25 @@ class BaseApiTest {
     @Nested
     @DisplayName("ProxyAuthTests")
     inner class ProxyAuthTests {
-
         @Test
-        @Disabled("Squid fixture (src/main/resources/fixtures/proxy/squid.conf) is open (no auth); enable when a basic-auth proxy fixture is configured.")
+        @Disabled(
+            "Squid fixture (src/main/resources/fixtures/proxy/squid.conf) is open (no auth); enable when a basic-auth proxy fixture is configured.",
+        )
         @DisplayName("proxy URL with embedded basic-auth credentials routes through proxy")
         fun proxyUrlWithBasicAuthCredentialsRoutesThroughProxy() {
             val chasmUrl = ChasmContainer.getInternalHttpUrl()
             val proxyHostPort = SquidContainer.getProxyUrl().removePrefix("http://")
             val authenticatedProxy = "http://user:pass@$proxyHostPort"
-            val transport = TransportOptions.builder()
-                .proxy(authenticatedProxy)
-                .build()
+            val transport =
+                TransportOptions
+                    .builder()
+                    .proxy(authenticatedProxy)
+                    .build()
             val client = DefaultApiClient(transport)
-            val response = runBlocking {
-                client.sendRequest("GET", "$chasmUrl/test/echo", emptyMap(), null)
-            }
+            val response =
+                runBlocking {
+                    client.sendRequest("GET", "$chasmUrl/test/echo", emptyMap(), null)
+                }
             assertEquals(200, response.statusCode)
         }
 
@@ -812,9 +893,11 @@ class BaseApiTest {
         @DisplayName("TransportOptions accepts proxy URL containing basic-auth credentials")
         fun transportOptionsAcceptsProxyWithBasicAuthCredentials() {
             // Verifies the proxy URL parser does not reject user:pass@host:port form.
-            val opts = TransportOptions.builder()
-                .proxy("http://user:pass@proxy.example.com:3128")
-                .build()
+            val opts =
+                TransportOptions
+                    .builder()
+                    .proxy("http://user:pass@proxy.example.com:3128")
+                    .build()
             assertEquals("http://user:pass@proxy.example.com:3128", opts.proxy)
         }
     }

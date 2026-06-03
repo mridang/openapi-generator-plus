@@ -13,5 +13,5 @@ package com.example.petstore.auth
 enum class ApiKeyLocation {
     HEADER,
     QUERY,
-    COOKIE
+    COOKIE,
 }

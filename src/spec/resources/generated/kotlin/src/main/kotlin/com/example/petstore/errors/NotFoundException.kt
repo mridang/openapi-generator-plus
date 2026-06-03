@@ -14,5 +14,5 @@ class NotFoundException(
     message: String,
     responseHeaders: Map<String, String>?,
     responseBody: String?,
-    errorBody: Any? = null
+    errorBody: Any? = null,
 ) : ClientException(404, message, responseHeaders, responseBody, errorBody)

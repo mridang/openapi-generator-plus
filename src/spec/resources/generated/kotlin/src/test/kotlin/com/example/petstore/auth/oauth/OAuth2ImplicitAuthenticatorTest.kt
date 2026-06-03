@@ -13,15 +13,13 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
 class OAuth2ImplicitAuthenticatorTest {
-
-    private fun createAuthenticator(): OAuth2ImplicitAuthenticator {
-        return OAuth2ImplicitAuthenticator(
+    private fun createAuthenticator(): OAuth2ImplicitAuthenticator =
+        OAuth2ImplicitAuthenticator(
             host = "https://api.example.com",
             clientId = "my-client-id",
             authorizationUrl = "https://auth.example.com/authorize",
-            scopes = listOf("read", "write")
+            scopes = listOf("read", "write"),
         )
-    }
 
     @Test
     fun buildsAuthorizationUrlWithResponseTypeToken() {

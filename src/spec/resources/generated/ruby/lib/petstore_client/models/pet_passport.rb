@@ -60,11 +60,11 @@ module PetstoreClient
       # on the (de)serialize path.
       # @type var openapi_formats: Hash[Symbol, String]
       openapi_formats = {
-        
+
         thumbnail: 'byte',
-        
+
         scans: 'byte[]',
-        
+
       }
       OPENAPI_FORMATS = openapi_formats.freeze
 

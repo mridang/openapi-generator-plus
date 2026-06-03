@@ -9,10 +9,10 @@ package com.example.petstore.auth.oauth
 
 import com.example.petstore.ApiClient
 import com.example.petstore.auth.HttpAwareAuthenticator
-import java.time.Instant
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import java.time.Instant
 
 /**
  * Authenticator for OpenID Connect.
@@ -31,9 +31,8 @@ open class OpenIdConnectAuthenticator(
     private val clientId: String,
     private val clientSecret: String,
     private val redirectUri: String,
-    private val scopes: List<String>
+    private val scopes: List<String>,
 ) : HttpAwareAuthenticator {
-
     private val json = Json { ignoreUnknownKeys = true }
 
     @Volatile
@@ -65,36 +64,40 @@ open class OpenIdConnectAuthenticator(
             return cached
         }
 
-        val client = apiClient ?: throw IllegalStateException(
-            "ApiClient has not been injected. " +
-                "Ensure the Client constructor calls setApiClient() " +
-                "on HttpAwareAuthenticator before making API requests."
-        )
+        val client =
+            apiClient ?: throw IllegalStateException(
+                "ApiClient has not been injected. " +
+                    "Ensure the Client constructor calls setApiClient() " +
+                    "on HttpAwareAuthenticator before making API requests.",
+            )
 
         val headers = mapOf("Accept" to "application/json")
         val response = client.sendRequest("GET", discoveryUrl, headers, null)
 
         if (response.statusCode < 200 || response.statusCode >= 300) {
             throw RuntimeException(
-                "OIDC discovery request failed with status ${response.statusCode}: ${response.body}"
+                "OIDC discovery request failed with status ${response.statusCode}: ${response.body}",
             )
         }
 
         val discovery = json.parseToJsonElement(response.body).jsonObject
-        val authorizationEndpoint = discovery["authorization_endpoint"]?.jsonPrimitive?.content
-            ?: throw RuntimeException("OIDC discovery document missing authorization_endpoint")
-        val tokenEndpoint = discovery["token_endpoint"]?.jsonPrimitive?.content
-            ?: throw RuntimeException("OIDC discovery document missing token_endpoint")
+        val authorizationEndpoint =
+            discovery["authorization_endpoint"]?.jsonPrimitive?.content
+                ?: throw RuntimeException("OIDC discovery document missing authorization_endpoint")
+        val tokenEndpoint =
+            discovery["token_endpoint"]?.jsonPrimitive?.content
+                ?: throw RuntimeException("OIDC discovery document missing token_endpoint")
 
-        val resolved = OAuth2AuthorizationCodeAuthenticator(
-            host = host,
-            clientId = clientId,
-            clientSecret = clientSecret,
-            authorizationUrl = authorizationEndpoint,
-            tokenUrl = tokenEndpoint,
-            redirectUri = redirectUri,
-            scopes = scopes
-        )
+        val resolved =
+            OAuth2AuthorizationCodeAuthenticator(
+                host = host,
+                clientId = clientId,
+                clientSecret = clientSecret,
+                authorizationUrl = authorizationEndpoint,
+                tokenUrl = tokenEndpoint,
+                redirectUri = redirectUri,
+                scopes = scopes,
+            )
         resolved.setApiClient(client)
         this.delegate = resolved
         this.discoveryExpiry = Instant.now().plusSeconds(parseMaxAge(response.headers))
@@ -108,12 +111,14 @@ open class OpenIdConnectAuthenticator(
      *   the header is absent or does not contain a `max-age` directive
      */
     private fun parseMaxAge(headers: Map<String, String>): Long {
-        val cacheControl = headers.entries
-            .firstOrNull { it.key.equals("Cache-Control", ignoreCase = true) }
-            ?.value
-            ?: return 86400L
-        val match = Regex("max-age=(\\d+)", RegexOption.IGNORE_CASE).find(cacheControl)
-            ?: return 86400L
+        val cacheControl =
+            headers.entries
+                .firstOrNull { it.key.equals("Cache-Control", ignoreCase = true) }
+                ?.value
+                ?: return 86400L
+        val match =
+            Regex("max-age=(\\d+)", RegexOption.IGNORE_CASE).find(cacheControl)
+                ?: return 86400L
         return match.groupValues[1].toLongOrNull() ?: 86400L
     }
 
@@ -123,9 +128,7 @@ open class OpenIdConnectAuthenticator(
      * @param state CSRF state parameter
      * @return the authorization URL
      */
-    suspend fun buildAuthorizationUrl(state: String? = null): String {
-        return resolveDelegate().buildAuthorizationUrl(state)
-    }
+    suspend fun buildAuthorizationUrl(state: String? = null): String = resolveDelegate().buildAuthorizationUrl(state)
 
     /**
      * Exchange an authorization code for tokens using the discovered token endpoint.
@@ -138,7 +141,5 @@ open class OpenIdConnectAuthenticator(
 
     override fun getHost(): String = host
 
-    override suspend fun getAuthHeaders(): Map<String, String> {
-        return resolveDelegate().getAuthHeaders()
-    }
+    override suspend fun getAuthHeaders(): Map<String, String> = resolveDelegate().getAuthHeaders()
 }

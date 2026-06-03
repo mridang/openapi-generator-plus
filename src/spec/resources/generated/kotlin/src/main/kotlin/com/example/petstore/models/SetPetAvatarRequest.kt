@@ -12,24 +12,20 @@
 package com.example.petstore.models
 
 import com.example.petstore.Base64ByteArraySerializer
-import kotlinx.serialization.Contextual
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
-import kotlinx.serialization.json.JsonClassDiscriminator
 
 @Serializable
 data class SetPetAvatarRequest(
-  /**
-   * Base64-encoded image data
-   *
-   * Example: `null`
-   */
-  @SerialName("data")
-  val _data: ByteArray,
-  /** Example: `image/jpeg` */
-  @SerialName("mimeType")
-  val mimeType: String
-) {
-}
+    /**
+     * Base64-encoded image data
+     *
+     * Example: `null`
+     */
+    @SerialName("data")
+    val _data: ByteArray,
+    /** Example: `image/jpeg` */
+    @SerialName("mimeType")
+    val mimeType: String,
+)

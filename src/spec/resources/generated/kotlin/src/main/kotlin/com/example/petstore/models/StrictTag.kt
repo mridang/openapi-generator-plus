@@ -12,39 +12,38 @@
 package com.example.petstore.models
 
 import com.example.petstore.Base64ByteArraySerializer
-import kotlinx.serialization.Contextual
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
-import kotlinx.serialization.json.JsonClassDiscriminator
 
 @Serializable
 data class StrictTag(
-  /** Example: `null` */
-  @SerialName("id")
-  val id: Long? = null,
-  /** Example: `null` */
-  @SerialName("name")
-  val name: String? = null
+    /** Example: `null` */
+    @SerialName("id")
+    val id: Long? = null,
+    /** Example: `null` */
+    @SerialName("name")
+    val name: String? = null,
 ) {
-
-  /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false:
-   * deserializers must reject any JSON key not declared above. Callers should
-   * decode this class with [parseStrict] (or a Json configured with
-   * ignoreUnknownKeys = false) so unknown keys raise IllegalArgumentException. */
-  companion object {
-    fun parseStrict(raw: String): StrictTag {
-      val strict = kotlinx.serialization.json.Json {
-        ignoreUnknownKeys = false
-        isLenient = false
-      }
-      try {
-        return strict.decodeFromString(serializer(), raw)
-      } catch (e: kotlinx.serialization.SerializationException) {
-        throw IllegalArgumentException(
-          "Unknown property on StrictTag (unevaluatedProperties:false): " + e.message, e)
-      }
+    /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false:
+     * deserializers must reject any JSON key not declared above. Callers should
+     * decode this class with [parseStrict] (or a Json configured with
+     * ignoreUnknownKeys = false) so unknown keys raise IllegalArgumentException. */
+    companion object {
+        fun parseStrict(raw: String): StrictTag {
+            val strict =
+                kotlinx.serialization.json.Json {
+                    ignoreUnknownKeys = false
+                    isLenient = false
+                }
+            try {
+                return strict.decodeFromString(serializer(), raw)
+            } catch (e: kotlinx.serialization.SerializationException) {
+                throw IllegalArgumentException(
+                    "Unknown property on StrictTag (unevaluatedProperties:false): " + e.message,
+                    e,
+                )
+            }
+        }
     }
-  }
 }

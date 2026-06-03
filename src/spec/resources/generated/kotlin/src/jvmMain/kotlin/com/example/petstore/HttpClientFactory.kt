@@ -14,10 +14,10 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.compression.ContentEncoding
 import io.ktor.http.Url
 import java.io.FileInputStream
+import java.net.Socket
 import java.security.KeyStore
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
-import java.net.Socket
 import javax.net.ssl.SSLEngine
 import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509ExtendedTrustManager

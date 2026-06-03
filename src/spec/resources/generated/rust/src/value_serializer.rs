@@ -140,7 +140,11 @@ pub fn serialize_styled(
     match style {
         "matrix" => {
             if value.is_none() && !is_array {
-                return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
+                return if location == "query" {
+                    None
+                } else {
+                    Some(SerializedValue::Single(String::new()))
+                };
             }
             if let Some(arr) = items {
                 if explode {
@@ -164,13 +168,24 @@ pub fn serialize_styled(
                     } else {
                         arr.to_vec()
                     };
-                    Some(SerializedValue::Single(format!(";{}={}", param_name, enc.join(","))))
+                    Some(SerializedValue::Single(format!(
+                        ";{}={}",
+                        param_name,
+                        enc.join(",")
+                    )))
                 }
             } else {
                 match value {
                     Some(val) => {
-                        let encoded = if location == "path" { encode_path_segment(val) } else { val.to_string() };
-                        Some(SerializedValue::Single(format!(";{}={}", param_name, encoded)))
+                        let encoded = if location == "path" {
+                            encode_path_segment(val)
+                        } else {
+                            val.to_string()
+                        };
+                        Some(SerializedValue::Single(format!(
+                            ";{}={}",
+                            param_name, encoded
+                        )))
                     }
                     None => Some(SerializedValue::Single(format!(";{}", param_name))),
                 }
@@ -178,7 +193,11 @@ pub fn serialize_styled(
         }
         "label" => {
             if value.is_none() && !is_array {
-                return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
+                return if location == "query" {
+                    None
+                } else {
+                    Some(SerializedValue::Single(String::new()))
+                };
             }
             if let Some(arr) = items {
                 if explode {
@@ -202,7 +221,11 @@ pub fn serialize_styled(
             } else {
                 match value {
                     Some(val) => {
-                        let encoded = if location == "path" { encode_path_segment(val) } else { val.to_string() };
+                        let encoded = if location == "path" {
+                            encode_path_segment(val)
+                        } else {
+                            val.to_string()
+                        };
                         Some(SerializedValue::Single(format!(".{}", encoded)))
                     }
                     None => Some(SerializedValue::Single(".".to_string())),
@@ -211,7 +234,11 @@ pub fn serialize_styled(
         }
         "spaceDelimited" => {
             if value.is_none() && !is_array {
-                return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
+                return if location == "query" {
+                    None
+                } else {
+                    Some(SerializedValue::Single(String::new()))
+                };
             }
             if let Some(arr) = items {
                 Some(SerializedValue::Single(arr.join(" ")))
@@ -224,7 +251,11 @@ pub fn serialize_styled(
         }
         "pipeDelimited" => {
             if value.is_none() && !is_array {
-                return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
+                return if location == "query" {
+                    None
+                } else {
+                    Some(SerializedValue::Single(String::new()))
+                };
             }
             if let Some(arr) = items {
                 Some(SerializedValue::Single(arr.join("|")))
@@ -237,7 +268,11 @@ pub fn serialize_styled(
         }
         "form" => {
             if value.is_none() && !is_array {
-                return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
+                return if location == "query" {
+                    None
+                } else {
+                    Some(SerializedValue::Single(String::new()))
+                };
             }
             if let Some(arr) = items {
                 if explode {
@@ -254,7 +289,11 @@ pub fn serialize_styled(
         }
         "simple" => {
             if value.is_none() && !is_array {
-                return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
+                return if location == "query" {
+                    None
+                } else {
+                    Some(SerializedValue::Single(String::new()))
+                };
             }
             if let Some(arr) = items {
                 // `simple` always joins with `,`; encode each item's literal
@@ -268,7 +307,11 @@ pub fn serialize_styled(
             } else {
                 match value {
                     Some(val) => {
-                        let encoded = if location == "path" { encode_path_segment(val) } else { val.to_string() };
+                        let encoded = if location == "path" {
+                            encode_path_segment(val)
+                        } else {
+                            val.to_string()
+                        };
                         Some(SerializedValue::Single(encoded))
                     }
                     None => Some(SerializedValue::Single(String::new())),

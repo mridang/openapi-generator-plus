@@ -33,7 +33,7 @@ module PetstoreClient
       def delete_order(order_id)
         if order_id.nil?
           raise ArgumentError,
-                "Missing the required parameter 'order_id' when calling StoreApi.delete_order"
+            "Missing the required parameter 'order_id' when calling StoreApi.delete_order"
         end
 
         delete_order_with_http_info(order_id).data
@@ -44,7 +44,7 @@ module PetstoreClient
       def delete_order_with_http_info(order_id)
         if order_id.nil?
           raise ArgumentError,
-                "Missing the required parameter 'order_id' when calling StoreApi.delete_order"
+            "Missing the required parameter 'order_id' when calling StoreApi.delete_order"
         end
 
         path = '/store/order/{orderId}'
@@ -113,7 +113,7 @@ module PetstoreClient
       def get_order_by_id(order_id)
         if order_id.nil?
           raise ArgumentError,
-                "Missing the required parameter 'order_id' when calling StoreApi.get_order_by_id"
+            "Missing the required parameter 'order_id' when calling StoreApi.get_order_by_id"
         end
 
         result = get_order_by_id_with_http_info(order_id)
@@ -138,7 +138,7 @@ module PetstoreClient
       def get_order_by_id_with_http_info(order_id)
         if order_id.nil?
           raise ArgumentError,
-                "Missing the required parameter 'order_id' when calling StoreApi.get_order_by_id"
+            "Missing the required parameter 'order_id' when calling StoreApi.get_order_by_id"
         end
 
         path = '/store/order/{orderId}'

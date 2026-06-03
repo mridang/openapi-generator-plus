@@ -54,7 +54,12 @@ class TransportOptions private constructor(
                         )
                     }
                     val hostPart = proxy.substring(schemeEnd + 3)
-                    val host = hostPart.split("/").first().split(":").first()
+                    val host =
+                        hostPart
+                            .split("/")
+                            .first()
+                            .split(":")
+                            .first()
                     if (host.isEmpty()) {
                         throw IllegalArgumentException("Invalid proxy URL (missing host): $proxy")
                     }
@@ -64,8 +69,7 @@ class TransportOptions private constructor(
 
         fun timeout(timeout: Long?): Builder = apply { this.timeout = timeout }
 
-        fun followRedirects(followRedirects: Boolean): Builder =
-            apply { this.followRedirects = followRedirects }
+        fun followRedirects(followRedirects: Boolean): Builder = apply { this.followRedirects = followRedirects }
 
         fun maxRedirects(maxRedirects: Int?): Builder = apply { this.maxRedirects = maxRedirects }
 
@@ -76,11 +80,9 @@ class TransportOptions private constructor(
             value: String,
         ): Builder = apply { defaultHeaders[name] = value }
 
-        fun defaultHeaders(headers: Map<String, String>): Builder =
-            apply { defaultHeaders.putAll(headers) }
+        fun defaultHeaders(headers: Map<String, String>): Builder = apply { defaultHeaders.putAll(headers) }
 
-        fun injectRequestId(injectRequestId: Boolean): Builder =
-            apply { this.injectRequestId = injectRequestId }
+        fun injectRequestId(injectRequestId: Boolean): Builder = apply { this.injectRequestId = injectRequestId }
 
         fun build(): TransportOptions =
             TransportOptions(
