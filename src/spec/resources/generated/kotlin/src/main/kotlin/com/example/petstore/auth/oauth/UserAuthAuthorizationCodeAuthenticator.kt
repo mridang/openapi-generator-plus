@@ -1,5 +1,7 @@
 package com.example.petstore.auth.oauth
 
+import com.example.petstore.auth.Authenticator
+
 class UserAuthAuthorizationCodeAuthenticator : OAuth2AuthorizationCodeAuthenticator {
     constructor(
         host: String,

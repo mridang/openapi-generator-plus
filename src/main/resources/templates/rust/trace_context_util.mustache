@@ -17,8 +17,8 @@ use std::collections::HashMap;
 /// ```toml
 /// [dependencies]
 /// {{packageName}} = { version = "...", features = ["opentelemetry"] }
-/// opentelemetry = "0.22"
-/// opentelemetry_sdk = "0.22"
+/// opentelemetry = "0.32"
+/// opentelemetry_sdk = "0.32"
 /// ```
 ///
 /// Then configure a global propagator at application startup:
@@ -39,7 +39,7 @@ fn inject_trace_context_impl(headers: &mut HashMap<String, String>) {
 
     struct HeaderInjector<'a>(&'a mut HashMap<String, String>);
 
-    impl<'a> opentelemetry::propagation::Injector for HeaderInjector<'a> {
+    impl opentelemetry::propagation::Injector for HeaderInjector<'_> {
         fn set(&mut self, key: &str, value: String) {
             self.0.insert(key.to_string(), value);
         }

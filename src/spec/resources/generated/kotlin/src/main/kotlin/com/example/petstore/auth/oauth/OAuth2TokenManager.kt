@@ -12,7 +12,6 @@ import com.example.petstore.ApiResponse
 import io.ktor.http.encodeURLQueryComponent
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -21,6 +20,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.math.floor
+import kotlin.time.Clock
 
 /**
  * Manages OAuth2 token lifecycle including fetching, caching, and refreshing tokens.
@@ -29,6 +29,7 @@ import kotlin.math.floor
  * honour the same transport configuration (proxy, TLS, timeouts) as regular
  * API calls.
  */
+@OptIn(kotlin.time.ExperimentalTime::class)
 class OAuth2TokenManager {
     private companion object {
         /** Safety margin (in milliseconds) applied to token expiry checks

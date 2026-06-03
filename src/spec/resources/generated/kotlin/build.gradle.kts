@@ -3,9 +3,9 @@ plugins {
     kotlin("multiplatform") version "2.2.0"
     kotlin("plugin.serialization") version "2.2.0"
     id("org.jetbrains.kotlinx.kover") version "0.9.1"
-    id("org.jlleitschuh.gradle.ktlint") version "12.1.2"
+    id("org.jlleitschuh.gradle.ktlint") version "14.2.0"
     id("io.gitlab.arturbosch.detekt") version "1.23.7"
-    id("org.jetbrains.dokka") version "1.9.20"
+    id("org.jetbrains.dokka") version "2.2.0"
     `maven-publish`
 }
 
@@ -52,28 +52,28 @@ kotlin {
         val commonMain by getting {
             kotlin.srcDirs("src/main/kotlin")
             dependencies {
-                implementation("io.ktor:ktor-client-core:3.1.3")
-                implementation("io.ktor:ktor-client-encoding:3.1.3")
-                implementation("io.ktor:ktor-http:3.1.3")
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
-                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
+                implementation("io.ktor:ktor-client-core:3.5.0")
+                implementation("io.ktor:ktor-client-encoding:3.5.0")
+                implementation("io.ktor:ktor-http:3.5.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.0")
             }
         }
         val jvmMain by getting {
             kotlin.srcDirs("src/jvmMain/kotlin")
             dependencies {
-                implementation("io.ktor:ktor-client-cio:3.1.3")
-                implementation("io.opentelemetry:opentelemetry-api:1.43.0")
+                implementation("io.ktor:ktor-client-cio:3.5.0")
+                implementation("io.opentelemetry:opentelemetry-api:1.62.0")
             }
         }
         val jvmTest by getting {
             kotlin.srcDirs("src/test/kotlin")
             dependencies {
                 implementation(kotlin("test-junit5"))
-                implementation("io.ktor:ktor-client-mock:3.1.3")
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
-                implementation("com.fasterxml.jackson.core:jackson-databind:2.17.2")
+                implementation("io.ktor:ktor-client-mock:3.5.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
+                implementation("com.fasterxml.jackson.core:jackson-databind:2.22.0")
                 implementation("org.testcontainers:testcontainers:1.21.4")
             }
         }
@@ -109,7 +109,7 @@ tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
 }
 
 ktlint {
-    version.set("1.5.0")
+    version.set("1.8.0")
     android.set(false)
     ignoreFailures.set(false)
     filter {

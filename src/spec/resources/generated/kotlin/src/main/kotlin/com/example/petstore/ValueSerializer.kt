@@ -139,28 +139,45 @@ object ValueSerializer {
         }
 
         return when (style) {
-            "matrix" ->
+            "matrix" -> {
                 if (explode) {
                     items.joinToString("") { ";$paramName=$it" }
                 } else {
                     ";$paramName=${items.joinToString(",")}"
                 }
-            "label" ->
+            }
+
+            "label" -> {
                 if (explode) {
                     ".${items.joinToString(".")}"
                 } else {
                     ".${items.joinToString(",")}"
                 }
-            "simple" -> items.joinToString(",")
-            "form" ->
+            }
+
+            "simple" -> {
+                items.joinToString(",")
+            }
+
+            "form" -> {
                 if (explode && value is Collection<*>) {
                     ArrayList(items)
                 } else {
                     items.joinToString(",")
                 }
-            "spaceDelimited" -> items.joinToString(" ")
-            "pipeDelimited" -> items.joinToString("|")
-            else -> serialize(value, location, schemaType, collectionFormat)
+            }
+
+            "spaceDelimited" -> {
+                items.joinToString(" ")
+            }
+
+            "pipeDelimited" -> {
+                items.joinToString("|")
+            }
+
+            else -> {
+                serialize(value, location, schemaType, collectionFormat)
+            }
         }
     }
 

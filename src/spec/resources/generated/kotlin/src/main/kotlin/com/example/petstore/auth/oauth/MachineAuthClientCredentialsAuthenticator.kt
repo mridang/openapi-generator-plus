@@ -1,5 +1,7 @@
 package com.example.petstore.auth.oauth
 
+import com.example.petstore.auth.Authenticator
+
 class MachineAuthClientCredentialsAuthenticator : OAuth2ClientCredentialsAuthenticator {
     constructor(
         host: String,

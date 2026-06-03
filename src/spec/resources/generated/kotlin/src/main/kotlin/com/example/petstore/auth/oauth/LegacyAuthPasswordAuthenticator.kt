@@ -1,5 +1,7 @@
 package com.example.petstore.auth.oauth
 
+import com.example.petstore.auth.Authenticator
+
 class LegacyAuthPasswordAuthenticator : OAuth2PasswordAuthenticator {
     constructor(
         host: String,

@@ -170,7 +170,7 @@ impl HeaderSelector {
         has_more_than_28_headers: bool,
     ) -> Vec<String> {
         /* Sort by weight descending (stable sort) */
-        headers.sort_by(|a, b| b.weight.cmp(&a.weight));
+        headers.sort_by_key(|h| std::cmp::Reverse(h.weight));
 
         let mut accept_headers: Vec<String> = Vec::new();
         for i in 0..headers.len() {

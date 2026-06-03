@@ -217,10 +217,12 @@ class DefaultApiClient internal constructor(
                         nextMethod = currentMethod
                         nextBody = currentBody
                     }
+
                     303 -> {
                         nextMethod = "GET"
                         nextBody = null
                     }
+
                     else -> {
                         if (currentMethod.equals("GET", ignoreCase = true) ||
                             currentMethod.equals("HEAD", ignoreCase = true)
@@ -325,9 +327,12 @@ class DefaultApiClient internal constructor(
         mergedHeaders: Map<String, String>,
     ) {
         when {
-            body == null && method in listOf("POST", "PUT", "PATCH") ->
+            body == null && method in listOf("POST", "PUT", "PATCH") -> {
                 builder.setBody(ByteArray(0))
+            }
+
             body == null -> {}
+
             body is Map<*, *> -> {
                 @Suppress("UNCHECKED_CAST")
                 val formFields = body as Map<String, Any?>
@@ -336,21 +341,27 @@ class DefaultApiClient internal constructor(
                         formData {
                             for ((fieldName, value) in formFields) {
                                 when (value) {
-                                    is List<*> ->
+                                    is List<*> -> {
                                         value.forEach { item ->
                                             appendFormField(fieldName, item)
                                         }
-                                    else -> appendFormField(fieldName, value)
+                                    }
+
+                                    else -> {
+                                        appendFormField(fieldName, value)
+                                    }
                                 }
                             }
                         },
                     ),
                 )
             }
+
             body is ByteArray -> {
                 builder.header(HttpHeaders.ContentType, ContentType.Application.OctetStream)
                 builder.setBody(body)
             }
+
             else -> {
                 val contentType = mergedHeaders["Content-Type"] ?: "application/json"
                 builder.contentType(ContentType.parse(contentType))
@@ -383,8 +394,13 @@ class DefaultApiClient internal constructor(
                     },
                 )
             }
+
             null -> {}
-            is String, is Number, is Boolean -> append(fieldName, value.toString())
+
+            is String, is Number, is Boolean -> {
+                append(fieldName, value.toString())
+            }
+
             else -> {
                 val json =
                     try {
@@ -628,10 +644,7 @@ fun rfc5987EncodeValue(s: String): String {
             (u in 'A'.code..'Z'.code) ||
                 (u in 'a'.code..'z'.code) ||
                 (u in '0'.code..'9'.code) ||
-                u == '-'.code ||
-                u == '.'.code ||
-                u == '_'.code ||
-                u == '~'.code
+                u == '-'.code || u == '.'.code || u == '_'.code || u == '~'.code
         if (isUnreserved) {
             out.append(u.toChar())
         } else {

@@ -16,9 +16,11 @@ import com.example.petstore.models.Category
 import com.example.petstore.models.Tag
 import io.ktor.http.Url
 import kotlinx.serialization.Contextual
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
+import kotlinx.serialization.json.JsonClassDiscriminator
 import java.math.BigDecimal
 import kotlin.collections.List
 import kotlin.collections.Set

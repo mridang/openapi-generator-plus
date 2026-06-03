@@ -170,9 +170,18 @@ abstract class BaseApi {
                 when {
                     body is ByteArray ||
                         contentType.startsWith("image/") ||
-                        "application/octet-stream" == contentType -> body
-                    "multipart/form-data" == contentType && body is Map<*, *> -> body
-                    "text/plain" == contentType -> body.toString()
+                        "application/octet-stream" == contentType -> {
+                        body
+                    }
+
+                    "multipart/form-data" == contentType && body is Map<*, *> -> {
+                        body
+                    }
+
+                    "text/plain" == contentType -> {
+                        body.toString()
+                    }
+
                     "application/x-www-form-urlencoded" == contentType && body is Map<*, *> -> {
                         @Suppress("UNCHECKED_CAST")
                         val formParams = body as Map<String, Any?>
@@ -180,7 +189,10 @@ abstract class BaseApi {
                             "${encode(key)}=${encode(value.toString())}"
                         }
                     }
-                    else -> objectSerializer.serialize(body)
+
+                    else -> {
+                        objectSerializer.serialize(body)
+                    }
                 }
             } else {
                 null
@@ -294,7 +306,7 @@ abstract class BaseApi {
             }
 
         when {
-            code in 400..499 ->
+            code in 400..499 -> {
                 throw when (code) {
                     400 -> BadRequestException(message, headers, body, errorBody)
                     401 -> UnauthorizedException(message, headers, body, errorBody)
@@ -304,12 +316,18 @@ abstract class BaseApi {
                     422 -> UnprocessableEntityException(message, headers, body, errorBody)
                     else -> ClientException(code, message, headers, body, errorBody)
                 }
-            code >= 500 ->
+            }
+
+            code >= 500 -> {
                 throw when (code) {
                     500 -> InternalServerErrorException(message, headers, body, errorBody)
                     else -> ServerException(code, message, headers, body, errorBody)
                 }
-            else -> throw ApiException(code, message, headers, body, errorBody)
+            }
+
+            else -> {
+                throw ApiException(code, message, headers, body, errorBody)
+            }
         }
     }
 
@@ -387,10 +405,7 @@ abstract class BaseApi {
     private fun isValidCookieValue(value: String): Boolean =
         value.all { c ->
             val code = c.code
-            code == 0x21 ||
-                code in 0x23..0x2B ||
-                code in 0x2D..0x3A ||
-                code in 0x3C..0x5B ||
-                code in 0x5D..0x7E
+            code == 0x21 || code in 0x23..0x2B || code in 0x2D..0x3A ||
+                code in 0x3C..0x5B || code in 0x5D..0x7E
         }
 }
