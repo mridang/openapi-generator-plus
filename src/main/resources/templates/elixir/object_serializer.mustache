@@ -432,14 +432,30 @@ defmodule {{moduleName}}.ObjectSerializer do
     end
   end
 
-  defp atomize_enum(module, data) when is_atom(data), do: data
+  defp atomize_enum(_module, data) when is_atom(data), do: data
 
   defp atomize_enum(module, data) when is_binary(data) do
-    candidate = String.to_atom(String.downcase(data))
-    if Enum.member?(module.all_values(), candidate), do: candidate, else: data
+    # An out-of-spec enum wire value is spec drift; raise instead of
+    # silently retaining the raw string as an invalid typed value, so
+    # callers see a deserialize error (matching the throwing behaviour of
+    # the other 10 SDKs). The wire value is matched case-sensitively — the
+    # previous implementation down-cased before comparing, which silently
+    # accepted mis-cased values.
+    candidate = String.to_atom(data)
+
+    if Enum.member?(module.all_values(), candidate) do
+      candidate
+    else
+      raise {{moduleName}}.SerializationError,
+            "Unknown enum value #{inspect(data)} for #{inspect(module)}; " <>
+              "allowed values: #{inspect(module.all_values())}"
+    end
   end
 
-  defp atomize_enum(_module, data), do: data
+  defp atomize_enum(module, data) do
+    raise {{moduleName}}.SerializationError,
+          "Cannot coerce #{inspect(data)} to an enum value for #{inspect(module)}"
+  end
 
   # Returns true when at least one key in data matches a JSON key for the struct,
   # preventing a catch-all empty struct from winning over a better candidate.

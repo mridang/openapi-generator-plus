@@ -97,7 +97,7 @@ import Testing
         auth.setApiClient(client)
 
         try await auth.exchangeCode("oidc-code")
-        let headers = await auth.authHeaders()
+        let headers = try await auth.authHeaders()
 
         #expect(headers["Authorization"] == "Bearer oidc-tok")
     }
@@ -111,6 +111,32 @@ import Testing
         } catch {
             #expect(error != nil)
         }
+    }
+
+    // oauth-oidc-discovery-no-status-check: when the OIDC discovery endpoint
+    // returns a non-2xx status (e.g. a 500 HTML error page), the authenticator
+    // must throw a status-based error rather than attempt to JSON-decode the
+    // body and surface a misleading "invalid JSON" failure.
+    @Test func testDiscoveryNon2xxStatusThrowsBeforeJsonDecode() async {
+        let client = MockApiClient()
+        // A 500 with an HTML body that is NOT valid discovery JSON.
+        client.responses.append(makeResponse(
+            body: "<html><body>Internal Server Error</body></html>",
+            statusCode: 500))
+
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        var caught: ApiError? = nil
+        do {
+            _ = try await auth.buildAuthorizationURL()
+            Issue.record("expected discovery to throw on a 500 response")
+        } catch let error as ApiError {
+            caught = error
+        } catch {
+            Issue.record("expected ApiError on non-2xx discovery, got \(error)")
+        }
+        #expect(caught?.statusCode == 500)
     }
 
     @Test func testGetHostReturnsConfiguredHost() {

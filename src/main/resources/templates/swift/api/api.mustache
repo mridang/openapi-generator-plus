@@ -122,12 +122,14 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
         var path = "{{{path}}}"
 {{#pathParams}}
 {{#isDate}}
-        path = replacePathParam(path, name: "{{baseName}}", value: stringifyDate({{paramName}}))
+        path = path.replacingOccurrences(
+            of: "{" + "{{baseName}}" + "}",
+            with: "\(ValueSerializer.serializeStyled("{{baseName}}", value: stringifyDate({{paramName}}), location: "path", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}) ?? "")")
 {{/isDate}}
 {{^isDate}}
-{{=<% %>=}}
-        path = replacePathParam(path, name: "<%baseName%>", value: "\(<%paramName%>)")
-<%={{ }}=%>
+        path = path.replacingOccurrences(
+            of: "{" + "{{baseName}}" + "}",
+            with: "\(ValueSerializer.serializeStyled("{{baseName}}", value: {{paramName}}, location: "path", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}) ?? "")")
 {{/isDate}}
 {{/pathParams}}
 {{#servers.0}}

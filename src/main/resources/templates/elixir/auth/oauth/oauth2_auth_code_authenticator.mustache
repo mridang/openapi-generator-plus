@@ -32,6 +32,9 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
           token_exchanged: boolean()
         }
 
+  # Redact the client secret and the live token manager (which holds
+  # access/refresh tokens) from the default Inspect representation.
+  @derive {Inspect, except: [:client_secret, :token_manager]}
   defstruct [
     :host,
     :client_id,
@@ -114,6 +117,14 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
   """
   @spec exchange_code(t(), String.t()) :: t()
   def exchange_code(%__MODULE__{} = self, code) do
+    # Reject an empty/whitespace authorization code before POSTing to the
+    # token endpoint: an empty `code` would otherwise be sent verbatim and
+    # surface as a confusing server-side `invalid_grant` rather than a
+    # clear client-side error.
+    if not is_binary(code) or String.trim(code) == "" do
+      raise ArgumentError, "Authorization code must not be empty"
+    end
+
     params = %{
       "grant_type" => "authorization_code",
       "code" => code,

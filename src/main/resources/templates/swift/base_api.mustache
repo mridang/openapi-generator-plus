@@ -67,7 +67,7 @@ open class BaseApi: @unchecked Sendable {
 
         /* Merge auth headers */
         if let auth = effectiveAuth {
-            for (k, v) in await auth.authHeaders() {
+            for (k, v) in try await auth.authHeaders() {
                 headers[k] = v
             }
             /* Handle cookie params. RFC 6265 — don't URL-encode; most cookie
@@ -231,10 +231,21 @@ open class BaseApi: @unchecked Sendable {
 
         if contentType == "application/x-www-form-urlencoded" {
             if let params = body as? [String: Any] {
+                /* application/x-www-form-urlencoded is defined by the WHATWG
+                 * URL / HTML form-encoding standard, which encodes a space as
+                 * `+` (not `%20`). Percent-encode with the unreserved set —
+                 * which turns a literal `+` in the value into `%2B` — then map
+                 * the remaining `%20` (space) to `+` so the wire bytes match
+                 * the 9-SDK majority (Java/Go/Python/Ruby/Kotlin/Dart/Elixir/
+                 * Node/Rust). */
                 let formSafe = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+                func formEncode(_ s: String) -> String {
+                    let pct = s.addingPercentEncoding(withAllowedCharacters: formSafe) ?? s
+                    return pct.replacingOccurrences(of: "%20", with: "+")
+                }
                 let encoded = params.map {
-                    let key = "\($0.key)".addingPercentEncoding(withAllowedCharacters: formSafe) ?? "\($0.key)"
-                    let val = "\($0.value)".addingPercentEncoding(withAllowedCharacters: formSafe) ?? "\($0.value)"
+                    let key = formEncode("\($0.key)")
+                    let val = formEncode("\($0.value)")
                     return "\(key)=\(val)"
                 }.joined(separator: "&")
                 return encoded.data(using: .utf8)
@@ -489,17 +500,6 @@ open class BaseApi: @unchecked Sendable {
                 || (0x5D...0x7E).contains(v)
         }
     }
-}
-
-/// Replaces a path parameter placeholder with a percent-encoded value.
-/// Uses a custom character set derived from `.urlPathAllowed` with `/` removed
-/// so that path-param values like "foo/bar" are encoded as "foo%2Fbar" and do
-/// not corrupt the URL path structure.
-func replacePathParam(_ path: String, name: String, value: String) -> String {
-    var allowed = CharacterSet.urlPathAllowed
-    allowed.remove("/")
-    let encoded = value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
-    return path.replacingOccurrences(of: "{\(name)}", with: encoded)
 }
 
 /// Formats a `format: date` value as YYYY-MM-DD using a fixed-locale,

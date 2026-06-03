@@ -252,6 +252,41 @@ final class PetApiTests {
             #expect(error != nil)
         }
     }
+
+    // go-swift-path-styles-ignored: path params now route through
+    // ValueSerializer.serializeStyled (matching Java and the other 10 SDKs)
+    // instead of raw "\(value)" substitution. This regression-guards that the
+    // simple-style integer path param is still substituted + encoded
+    // correctly into the URL after the routing change.
+    @Test func testPathParamRoutedThroughSerializerStyling() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{\"id\":7,\"name\":\"Fido\",\"photoUrls\":[]}"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+        _ = try await api.getPetByIdWithHTTPInfo(petId: 7)
+        #expect(mockClient.lastURL == "https://example.com/pet/7")
+    }
+
+    // convenience-empty-body-handling: a body-returning operation that
+    // receives a 2xx with an empty/undecodable body must throw a typed
+    // ApiError from the plain (non-WithHTTPInfo) convenience method rather
+    // than returning a silent nil or crashing — Swift is the canonical
+    // throwing side and this pins that contract.
+    @Test func testEmptyBodyOnBodyReturningOpThrowsApiError() async {
+        let mockApi = petApiForMock(statusCode: 200, body: "")
+        var caught: ApiError? = nil
+        do {
+            _ = try await mockApi.getPetById(petId: 1)
+            Issue.record("expected ApiError for an empty body on a body-returning op")
+        } catch let error as ApiError {
+            caught = error
+        } catch {
+            Issue.record("expected ApiError, got \(error)")
+        }
+        #expect(caught?.statusCode == 200)
+    }
 }
 
 /// Test authenticator for integration tests.

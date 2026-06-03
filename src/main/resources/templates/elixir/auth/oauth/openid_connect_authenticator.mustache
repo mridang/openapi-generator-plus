@@ -28,6 +28,9 @@ defmodule {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator do
           discovery_expiry: integer() | nil
         }
 
+  # Redact the client secret and the delegate (which holds the live token
+  # manager) from the default Inspect representation.
+  @derive {Inspect, except: [:client_secret, :delegate]}
   defstruct [
     :host,
     :openid_connect_url,
@@ -136,15 +139,40 @@ defmodule {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator do
         mod when is_atom(mod) -> mod.send_request(:get, self.openid_connect_url, headers, nil)
       end
 
+    # Guard the HTTP status before parsing: a 500-HTML / 404 body would
+    # otherwise surface as a confusing "invalid JSON" error instead of a
+    # clear discovery-failure. Matches the other status-checking SDKs.
+    if response.status_code < 200 or response.status_code >= 300 do
+      raise "OIDC discovery request to #{self.openid_connect_url} failed " <>
+              "with HTTP status #{response.status_code}"
+    end
+
     discovery = Jason.decode!(response.body)
+
+    authorization_endpoint = discovery["authorization_endpoint"]
+    token_endpoint = discovery["token_endpoint"]
+
+    # Validate the discovered endpoints are present and non-empty before
+    # building the delegate; otherwise we would silently construct a
+    # delegate with empty/nil endpoint URLs and fail much later with an
+    # opaque error.
+    if not is_binary(authorization_endpoint) or String.trim(authorization_endpoint) == "" do
+      raise "OIDC discovery document from #{self.openid_connect_url} is missing " <>
+              "a valid 'authorization_endpoint'"
+    end
+
+    if not is_binary(token_endpoint) or String.trim(token_endpoint) == "" do
+      raise "OIDC discovery document from #{self.openid_connect_url} is missing " <>
+              "a valid 'token_endpoint'"
+    end
 
     delegate =
       {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.new(
         self.host,
         self.client_id,
         self.client_secret,
-        discovery["authorization_endpoint"],
-        discovery["token_endpoint"],
+        authorization_endpoint,
+        token_endpoint,
         self.redirect_uri,
         self.scopes
       )

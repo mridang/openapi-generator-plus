@@ -301,6 +301,22 @@ import Testing
         }
     }
 
+    // model-equality-swift-go (F-BM-01): generated model structs must conform
+    // to Equatable + Hashable so `==` compiles and instances can be used as
+    // Set members / dictionary keys, matching the other 10 SDKs.
+    @Test func testModelIsEquatableAndHashable() {
+        let a = Category(id: 7, name: "Birds")
+        let b = Category(id: 7, name: "Birds")
+        let c = Category(id: 8, name: "Cats")
+        // Equatable
+        #expect(a == b)
+        #expect(a != c)
+        // Hashable — usable as a Set element / dictionary key
+        let set: Set<Category> = [a, b, c]
+        #expect(set.count == 2)
+        #expect(set.contains(Category(id: 7, name: "Birds")))
+    }
+
     @Test func testSerializeIncludesFieldsSetToDefaultValues() throws {
         let category = Category(id: 0, name: "")
         let json = try ObjectSerializer.serialize(category)

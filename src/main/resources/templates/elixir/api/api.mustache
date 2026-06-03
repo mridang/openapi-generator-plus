@@ -140,7 +140,26 @@ defmodule {{moduleName}}.Api.{{classname}} do
           {:ok, {{{returnType}}}{{^returnType}}nil{{/returnType}}} | {:error, term()}
   def {{operationId}}(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
     case {{operationId}}_with_http_info(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts) do
+{{#returnType}}
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         {{moduleName}}.ApiError.exception(
+           message: "Expected a response body for {{operationId}} but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+{{/returnType}}
+{{^returnType}}
       {:ok, result} -> {:ok, result.data}
+{{/returnType}}
       {:error, _} = error -> error
     end
   end
@@ -190,7 +209,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
     path = "{{{path}}}"
 {{#pathParams}}
 {{=<% %>=}}
-    path = String.replace(path, "{<%baseName%>}", <%moduleName%>.ValueSerializer.serialize_styled("<%baseName%>", <%paramName%>, :path, "<%& dataType%>", nil, "<%style%>", <%isExplode%>) |> to_string() |> encode_path_segment())
+    path = String.replace(path, "{<%baseName%>}", <%moduleName%>.ValueSerializer.serialize_styled("<%baseName%>", <%paramName%>, :path, "<%& dataType%>", nil, "<%style%>", <%isExplode%>) |> to_string())
 <%={{ }}=%>
 {{/pathParams}}
     server = Keyword.get(opts, :server)
@@ -294,22 +313,5 @@ defmodule {{moduleName}}.Api.{{classname}} do
   end
 
 {{/operation}}
-
-  # Percent-encodes a value for use as a URL path segment.
-  #
-  # Encodes characters not allowed in a URI path segment, but preserves the
-  # sub-delimiters (including `;`, `=`, `,`, `.`) that OAS 3.0 matrix/label/
-  # simple styles use as structural separators in the styled value.
-  defp encode_path_segment(value) do
-    URI.encode(value, fn c ->
-      cond do
-        c in ?a..?z -> true
-        c in ?A..?Z -> true
-        c in ?0..?9 -> true
-        c in [?-, ?_, ?., ?~, ?!, ?$, ?&, ?', ?(, ?), ?*, ?+, ?,, ?;, ?=, ?:, ?@] -> true
-        true -> false
-      end
-    end)
-  end
 end
 {{/operations}}

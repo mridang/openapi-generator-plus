@@ -23,6 +23,11 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     private let transportOptions: TransportOptions
     private let session: URLSession
     private let sessionDelegate: SessionDelegate?
+    /* Gap T-D4: a closed-flag so that using the client after ``close()``
+       surfaces a uniform SDK ``ApiError`` instead of a foreign URLSession
+       "session invalidated" exception, matching the close-lifecycle
+       behaviour of the other SDKs. */
+    private let closedFlag = LockedFlag()
     /* Gap AK: URLSession's connectionProxyDictionary has no key for
      * proxy basic-auth credentials, so userinfo embedded in the proxy
      * URL (`http://user:pass@host:port`) is silently dropped by the
@@ -52,6 +57,34 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         self.sessionDelegate = nil
     }
 
+    /// Creates a client whose internal URLSession uses the real
+    /// ``SessionDelegate`` (so redirect handling — including redirect
+    /// exhaustion, non-HTTP(S) scheme refusal, and HTTPS->HTTP body-replay
+    /// refusal — runs) while routing requests through the supplied stub
+    /// `URLProtocol` classes. Used by tests that need to exercise the
+    /// redirect-refusal path, which a plain stub session (with no delegate)
+    /// bypasses.
+    internal init(transportOptions: TransportOptions? = nil, protocolClasses: [AnyClass]) {
+        let opts = transportOptions ?? TransportOptionsBuilder().build()
+        self.transportOptions = opts
+        self.proxyAuthHeader = DefaultApiClient.buildProxyAuthHeader(opts.proxy)
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = protocolClasses
+        if let timeout = opts.timeout {
+            let seconds = TimeInterval(timeout) / 1000.0
+            config.timeoutIntervalForRequest = seconds
+            config.timeoutIntervalForResource = seconds
+        }
+        let delegate = SessionDelegate(
+            verifySSL: opts.verifySSL,
+            caCertPath: opts.caCertPath,
+            followRedirects: opts.followRedirects,
+            maxRedirects: opts.maxRedirects
+        )
+        self.session = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
+        self.sessionDelegate = delegate
+    }
+
     /// Builds a `Basic <base64>` Proxy-Authorization value from the userinfo
     /// embedded in the proxy URL, or returns nil when no credentials are
     /// present. Percent-encoded userinfo is decoded before encoding.
@@ -70,6 +103,11 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     /// Merges headers according to the priority order documented on the class,
     /// then dispatches via URLSession.
     public func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool = false) async throws -> HttpResponse {
+        /* Gap T-D4: using the client after close() must surface a uniform
+           SDK error, not a foreign URLSession invalidation exception. */
+        if closedFlag.isSet {
+            throw ApiError(statusCode: 0, message: "ApiClient has been closed and can no longer send requests")
+        }
         guard let requestURL = URL(string: url) else {
             throw URLError(.badURL)
         }
@@ -150,6 +188,15 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw ApiError(statusCode: 0, message: "Unexpected non-HTTP response from server")
+        }
+
+        /* The redirect delegate cannot throw, so a redirect refusal (too
+           many redirects, non-HTTP(S) Location scheme, or HTTPS->HTTP
+           body-replay downgrade) is recorded on the delegate and re-raised
+           here as a typed ApiError rather than silently returning the last
+           3xx response. */
+        if let refusal = sessionDelegate?.takeRedirectError() {
+            throw refusal
         }
 
         if noRedirect && (httpResponse.statusCode == 307 || httpResponse.statusCode == 308) {
@@ -463,8 +510,12 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     /// Gap T6: release the underlying URLSession's connection pool /
     /// delegate queue. Calls `finishTasksAndInvalidate()` so in-flight
     /// requests can complete and the session is permanently invalidated.
-    /// Idempotent — safe to call multiple times.
+    /// Idempotent — safe to call multiple times. After close(), any further
+    /// ``sendRequest(method:url:headers:body:noRedirect:)`` throws a uniform
+    /// ``ApiError`` (Gap T-D4) rather than a foreign URLSession invalidation
+    /// exception.
     public func close() {
+        closedFlag.set()
         session.finishTasksAndInvalidate()
     }
 }
@@ -484,6 +535,14 @@ private final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTas
     private let followRedirects: Bool
     private let maxRedirects: Int?
     private let redirectCount = LockedCounter()
+    /* Records a redirect-refusal reason (too many redirects, non-HTTP(S)
+       Location scheme, HTTPS->HTTP body-replay downgrade) so that
+       `sendRequest` can surface it as a typed ``ApiError`` instead of
+       silently returning the last 3xx response. The URLSession redirect
+       delegate can only stop a redirect by passing `nil` to its completion
+       handler — it cannot throw — so the error is stashed here and re-raised
+       on the call side once the task completes. */
+    private let redirectError = LockedError()
 
     init(verifySSL: Bool, caCertPath: String?, followRedirects: Bool, maxRedirects: Int?) {
         self.verifySSL = verifySSL
@@ -491,6 +550,11 @@ private final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTas
         self.followRedirects = followRedirects
         self.maxRedirects = maxRedirects
         super.init()
+    }
+
+    /// Returns and clears any recorded redirect-refusal error.
+    func takeRedirectError() -> ApiError? {
+        return redirectError.take()
     }
 
 #if canImport(Security)
@@ -554,6 +618,12 @@ private final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTas
         let limit = maxRedirects ?? 20
         let count = redirectCount.increment()
         if count > limit {
+            /* Surface redirect exhaustion as a typed error rather than
+               silently returning the last 3xx response. */
+            redirectError.set(ApiError(
+                statusCode: response.statusCode,
+                message: "Exceeded maximum number of redirects (\(limit))"
+            ))
             completionHandler(nil)
             return
         }
@@ -561,10 +631,16 @@ private final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTas
          * etc.). URLSession will hand the proposed request to this delegate
          * with whatever scheme the server returned in Location; a malicious
          * or misconfigured server could otherwise steer the client at a
-         * local-file or scripting URL. */
+         * local-file or scripting URL. The refusal is surfaced as a typed
+         * error instead of silently returning the 3xx. */
         guard let scheme = request.url?.scheme?.lowercased(),
             scheme == "http" || scheme == "https"
         else {
+            redirectError.set(ApiError(
+                statusCode: response.statusCode,
+                message: "Refusing to follow redirect to non-HTTP(S) Location: "
+                    + (request.url?.absoluteString ?? "<unknown>")
+            ))
             completionHandler(nil)
             return
         }
@@ -601,6 +677,14 @@ private final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTas
         let hasBody = (redirectRequest.httpBody != nil)
             || (redirectRequest.httpBodyStream != nil)
         if hasBody, originalScheme == "https", nextScheme == "http" {
+            /* Surface the downgrade refusal as a typed error rather than
+               silently returning the 3xx response. */
+            redirectError.set(ApiError(
+                statusCode: response.statusCode,
+                message: "Refusing to replay request body across an HTTPS -> HTTP "
+                    + "redirect (TLS downgrade) to "
+                    + (request.url?.absoluteString ?? "<unknown>")
+            ))
             completionHandler(nil)
             return
         }
@@ -650,6 +734,21 @@ extension DefaultApiClient {
     }
 }
 
+/// Thread-safe boolean flag used by ``DefaultApiClient`` to record that
+/// ``DefaultApiClient/close()`` has been called (Gap T-D4).
+private final class LockedFlag: @unchecked Sendable {
+    private var value: Bool = false
+    private let lock = NSLock()
+
+    var isSet: Bool {
+        lock.withLock { value }
+    }
+
+    func set() {
+        lock.withLock { value = true }
+    }
+}
+
 /// Thread-safe counter used by ``SessionDelegate`` to track redirect hops.
 private final class LockedCounter: @unchecked Sendable {
     private var value: Int = 0
@@ -659,6 +758,27 @@ private final class LockedCounter: @unchecked Sendable {
         lock.withLock {
             value += 1
             return value
+        }
+    }
+}
+
+/// Thread-safe single-slot store for a redirect-refusal ``ApiError`` recorded
+/// inside the (non-throwing) URLSession redirect delegate and re-raised on the
+/// call side by ``DefaultApiClient/sendRequest(method:url:headers:body:noRedirect:)``.
+private final class LockedError: @unchecked Sendable {
+    private var value: ApiError?
+    private let lock = NSLock()
+
+    func set(_ error: ApiError) {
+        lock.withLock { value = error }
+    }
+
+    /// Returns the stored error and clears the slot.
+    func take() -> ApiError? {
+        lock.withLock {
+            let v = value
+            value = nil
+            return v
         }
     }
 }

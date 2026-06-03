@@ -41,7 +41,7 @@ public enum {{classname}}{{enumName}}: String, Codable, Sendable, CaseIterable {
 
 {{/isEnum}}
 {{/vars}}
-public struct {{classname}}: Codable, Sendable {
+public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{#vars}}
 {{#description}}
     /// {{{.}}}
