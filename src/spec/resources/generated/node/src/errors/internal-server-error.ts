@@ -13,7 +13,7 @@ import { ServerError } from './server-error.js';
 export class InternalServerError<T = unknown> extends ServerError<T> {
   constructor(
     message: string,
-    responseHeaders: Record<string, string> = {},
+    responseHeaders: Record<string, string> | null = {},
     responseBody: string | null = null,
     errorBody: T | null = null
   ) {

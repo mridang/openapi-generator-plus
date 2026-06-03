@@ -328,6 +328,25 @@ import Testing
         client.close()
     }
 
+    // close-lifecycle-three-way (Gap T-D4): sending a request after close()
+    // must surface a uniform SDK ApiError (statusCode 0) rather than a foreign
+    // URLSession "session invalidated" exception or a silent success.
+    @Test func testSendAfterCloseThrowsApiError() async throws {
+        let client = makeClient { _ in (self.jsonBody(), 200, [:]) }
+        client.close()
+        var caught: ApiError? = nil
+        do {
+            _ = try await client.sendRequest(
+                method: "GET", url: "https://example.com", headers: [:], body: nil)
+            Issue.record("expected ApiError after close()")
+        } catch let error as ApiError {
+            caught = error
+        } catch {
+            Issue.record("expected ApiError after close(), got \(error)")
+        }
+        #expect(caught?.statusCode == 0)
+    }
+
     @Test func testDecompressesGzipResponse() async throws {
         let client = makeClient { _ in
             return (self.jsonBody(), 200, ["Content-Type": "application/json"])
@@ -413,6 +432,70 @@ import Testing
     /// will never come. `testRedirect303SwitchesToGetAndDropsBody`
     /// covers method + body; this asserts the header itself is
     /// either absent or zero on the follow-up.
+    // MARK: - Redirect refusals surface a typed ApiError (Gap T-D1/T-D2/T-D3)
+
+    // redirect-exhaustion-silent: exceeding maxRedirects must throw a typed
+    // ApiError ("too many redirects") rather than silently returning the last
+    // 3xx response.
+    @Test func testRedirectExhaustionThrowsApiError() async throws {
+        let transport = TransportOptionsBuilder()
+            .followRedirects(true)
+            .maxRedirects(2)
+            .build()
+        RedirectStubURLProtocol.configure { req in
+            // Always redirect to a new location -> exhausts the cap.
+            let next =
+                req.url!.absoluteString.hasSuffix("/end")
+                ? "https://example.com/loop"
+                : "https://example.com/loop"
+            return .redirect(status: 302, location: next)
+        }
+        let client = DefaultApiClient(
+            transportOptions: transport,
+            protocolClasses: [RedirectStubURLProtocol.self])
+        await #expect(throws: ApiError.self) {
+            _ = try await client.sendRequest(
+                method: "GET", url: "https://example.com/start", headers: [:], body: nil)
+        }
+    }
+
+    // redirect-scheme-refusal-silent: a Location pointing at a non-HTTP(S)
+    // scheme (file:, javascript:, data:) must throw a typed ApiError rather
+    // than silently returning the 3xx.
+    @Test func testNonHttpRedirectSchemeThrowsApiError() async throws {
+        let transport = TransportOptionsBuilder().followRedirects(true).build()
+        RedirectStubURLProtocol.configure { _ in
+            return .redirect(status: 302, location: "file:///etc/passwd")
+        }
+        let client = DefaultApiClient(
+            transportOptions: transport,
+            protocolClasses: [RedirectStubURLProtocol.self])
+        await #expect(throws: ApiError.self) {
+            _ = try await client.sendRequest(
+                method: "GET", url: "https://example.com/start", headers: [:], body: nil)
+        }
+    }
+
+    // downgrade-body-replay-silent: an HTTPS->HTTP redirect with a body in
+    // flight must throw a typed ApiError (TLS downgrade refusal) rather than
+    // silently returning the 3xx.
+    @Test func testHttpsToHttpBodyReplayThrowsApiError() async throws {
+        let transport = TransportOptionsBuilder().followRedirects(true).build()
+        RedirectStubURLProtocol.configure { _ in
+            // 307 preserves method + body, so the POST body would be replayed.
+            return .redirect(status: 307, location: "http://example.com/downgrade")
+        }
+        let client = DefaultApiClient(
+            transportOptions: transport,
+            protocolClasses: [RedirectStubURLProtocol.self])
+        await #expect(throws: ApiError.self) {
+            _ = try await client.sendRequest(
+                method: "POST", url: "https://example.com/start",
+                headers: ["Content-Type": "application/json"],
+                body: Data("payload".utf8))
+        }
+    }
+
     @Test func testRedirect303DropsContentLengthOnFollowUp() async throws {
         let transport = TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
         let hopCount = HopCounter()
@@ -482,6 +565,59 @@ private final class StubURLProtocol: URLProtocol {
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: data)
         client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
+
+/// Stub URLProtocol that can emit HTTP redirects (via
+/// `urlProtocol(_:wasRedirectedTo:redirectResponse:)`) so that the real
+/// `SessionDelegate.willPerformHTTPRedirection` runs — the plain
+/// `StubURLProtocol` above has no delegate attached and so bypasses the
+/// redirect-refusal path entirely.
+private final class RedirectStubURLProtocol: URLProtocol {
+    enum Outcome {
+        case redirect(status: Int, location: String)
+        case ok(Data)
+    }
+
+    nonisolated(unsafe) static var responder: ((URLRequest) -> Outcome)?
+
+    static func configure(_ responder: @escaping (URLRequest) -> Outcome) {
+        self.responder = responder
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { return true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { return request }
+
+    override func startLoading() {
+        let outcome = RedirectStubURLProtocol.responder?(request) ?? .ok(Data("{}".utf8))
+        switch outcome {
+        case let .redirect(status, location):
+            let headers = ["Location": location]
+            let response = HTTPURLResponse(
+                url: request.url!, statusCode: status,
+                httpVersion: "HTTP/1.1", headerFields: headers)!
+            var newRequest = URLRequest(url: URL(string: location)!)
+            newRequest.httpMethod =
+                (status == 301 || status == 302 || status == 303)
+                ? "GET" : request.httpMethod
+            if status == 307 || status == 308 {
+                newRequest.httpBody = request.httpBody
+            }
+            client?.urlProtocol(self, wasRedirectedTo: newRequest, redirectResponse: response)
+            // Also finish so the task does not hang if the redirect is followed.
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocolDidFinishLoading(self)
+        case let .ok(data):
+            let response = HTTPURLResponse(
+                url: request.url!, statusCode: 200,
+                httpVersion: "HTTP/1.1",
+                headerFields: ["Content-Type": "application/json"])!
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: data)
+            client?.urlProtocolDidFinishLoading(self)
+        }
     }
 
     override func stopLoading() {}

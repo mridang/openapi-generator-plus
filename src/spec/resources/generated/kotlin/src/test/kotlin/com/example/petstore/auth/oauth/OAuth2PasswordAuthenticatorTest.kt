@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test
 import java.util.LinkedList
 
 class OAuth2PasswordAuthenticatorTest {
+
     private class FakeApiClient : ApiClient {
         private val responses = LinkedList<ApiResponse>()
         var lastBody: String? = null
@@ -24,10 +25,7 @@ class OAuth2PasswordAuthenticatorTest {
         var lastHeaders: Map<String, String> = emptyMap()
             private set
 
-        fun enqueue(
-            body: String,
-            statusCode: Int = 200,
-        ) {
+        fun enqueue(body: String, statusCode: Int = 200) {
             responses.add(ApiResponse(statusCode, body, emptyMap()))
         }
 
@@ -36,7 +34,7 @@ class OAuth2PasswordAuthenticatorTest {
             url: String,
             headers: Map<String, String>,
             body: Any?,
-            noRedirect: Boolean,
+            noRedirect: Boolean
         ): ApiResponse {
             lastUrl = url
             lastHeaders = headers
@@ -45,8 +43,8 @@ class OAuth2PasswordAuthenticatorTest {
         }
     }
 
-    private fun createAuthenticator(): OAuth2PasswordAuthenticator =
-        OAuth2PasswordAuthenticator(
+    private fun createAuthenticator(): OAuth2PasswordAuthenticator {
+        return OAuth2PasswordAuthenticator(
             host = "https://api.example.com",
             clientId = "my-client-id",
             clientSecret = "my-client-secret",
@@ -54,8 +52,9 @@ class OAuth2PasswordAuthenticatorTest {
             refreshUrl = null,
             username = "testuser",
             password = "testpass",
-            scopes = listOf("read", "write"),
+            scopes = listOf("read", "write")
         )
+    }
 
     @Test
     fun sendsPasswordGrantType() {
@@ -147,18 +146,17 @@ class OAuth2PasswordAuthenticatorTest {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"at","expires_in":3600}""")
 
-        val auth =
-            OAuth2PasswordAuthenticator(
-                host = "https://api.example.com",
-                clientId = "id+with/special",
-                clientSecret = "secret&with=stuff",
-                tokenUrl = "https://auth.example.com/token",
-                refreshUrl = null,
-                username = "testuser",
-                password = "testpass",
-                scopes = listOf("read"),
-                clientAuthMethod = ClientAuthMethod.BASIC,
-            )
+        val auth = OAuth2PasswordAuthenticator(
+            host = "https://api.example.com",
+            clientId = "id+with/special",
+            clientSecret = "secret&with=stuff",
+            tokenUrl = "https://auth.example.com/token",
+            refreshUrl = null,
+            username = "testuser",
+            password = "testpass",
+            scopes = listOf("read"),
+            clientAuthMethod = ClientAuthMethod.BASIC
+        )
         auth.setApiClient(client)
 
         runBlocking { auth.getAuthHeaders() }
@@ -166,13 +164,10 @@ class OAuth2PasswordAuthenticatorTest {
         val authHeader = client.lastHeaders["Authorization"]
         assertNotNull(authHeader)
         assertTrue(authHeader!!.startsWith("Basic "))
-        val decoded =
-            String(
-                java.util.Base64
-                    .getDecoder()
-                    .decode(authHeader.substring("Basic ".length)),
-                Charsets.UTF_8,
-            )
+        val decoded = String(
+            java.util.Base64.getDecoder().decode(authHeader.substring("Basic ".length)),
+            Charsets.UTF_8
+        )
         // Expected: form-urlencoded id ':' form-urlencoded secret
         assertEquals("id%2Bwith%2Fspecial:secret%26with%3Dstuff", decoded)
     }

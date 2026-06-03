@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -143,6 +142,15 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator implements 
      */
     public function exchangeCode(string $code): void
     {
+        /* Reject an empty / whitespace-only authorization code before the
+         * token POST. An empty code is a caller bug that would otherwise be
+         * sent to the token endpoint and surface as a confusing server-side
+         * invalid_grant error. */
+        if ($code === '' || trim($code) === '') {
+            throw new \InvalidArgumentException(
+                'Authorization code must not be empty'
+            );
+        }
         $params = [
             'grant_type' => 'authorization_code',
             'code' => $code,

@@ -392,6 +392,24 @@ import Testing
         }
     }
 
+    // form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
+    // bodies must encode a space as '+' (WHATWG/HTML form-encoding), not
+    // '%20', matching the 9-SDK majority. A literal '+' in the value must be
+    // percent-encoded to %2B so the two are unambiguous on the wire.
+    @Test func testFormUrlencodedEncodesSpaceAsPlus() {
+        let params: [String: Any] = ["q": "a b c"]
+        let result = try? BaseApi.serializeBody(params, contentType: "application/x-www-form-urlencoded")
+        let str = result.flatMap { String(data: $0, encoding: .utf8) }
+        #expect(str == "q=a+b+c")
+    }
+
+    @Test func testFormUrlencodedEncodesLiteralPlusAsPercent2B() {
+        let params: [String: Any] = ["q": "a+b"]
+        let result = try? BaseApi.serializeBody(params, contentType: "application/x-www-form-urlencoded")
+        let str = result.flatMap { String(data: $0, encoding: .utf8) }
+        #expect(str == "q=a%2Bb")
+    }
+
     // MARK: - 418 Teapot (unrecognized status)
 
     @Test func testErrorDispatch418() async throws {

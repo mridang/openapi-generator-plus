@@ -14,8 +14,6 @@
 # rubocop:disable Style/DefWithParentheses
 # rubocop:disable Style/StringConcatenation
 
-require 'cgi'
-
 # :nodoc:
 module PetstoreClient
   module Api
@@ -137,10 +135,24 @@ module PetstoreClient
       def add_pet(pet, auth: nil)
         if pet.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet' when calling PetApi.add_pet"
+                "Missing the required parameter 'pet' when calling PetApi.add_pet"
         end
 
-        add_pet_with_http_info(pet, auth: auth).data
+        result = add_pet_with_http_info(pet, auth: auth)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
       end
 
       # @return [ApiResult]
@@ -148,7 +160,7 @@ module PetstoreClient
       def add_pet_with_http_info(pet, auth: nil)
         if pet.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet' when calling PetApi.add_pet"
+                "Missing the required parameter 'pet' when calling PetApi.add_pet"
         end
 
         path = '/pet'
@@ -178,10 +190,24 @@ module PetstoreClient
       def add_pet_photos(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.add_pet_photos"
+                "Missing the required parameter 'pet_id' when calling PetApi.add_pet_photos"
         end
 
-        add_pet_photos_with_http_info(pet_id, options).data
+        result = add_pet_photos_with_http_info(pet_id, options)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
       end
 
       # @return [ApiResult]
@@ -189,11 +215,11 @@ module PetstoreClient
       def add_pet_photos_with_http_info(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.add_pet_photos"
+                "Missing the required parameter 'pet_id' when calling PetApi.add_pet_photos"
         end
 
         path = '/pet/{petId}/photos'
-        path = path.gsub('{petId}', encode_path_segment(PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s))
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -222,15 +248,29 @@ module PetstoreClient
       def add_pet_treatment(pet_id, pet_treatment, auth: nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.add_pet_treatment"
+                "Missing the required parameter 'pet_id' when calling PetApi.add_pet_treatment"
         end
 
         if pet_treatment.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_treatment' when calling PetApi.add_pet_treatment"
+                "Missing the required parameter 'pet_treatment' when calling PetApi.add_pet_treatment"
         end
 
-        add_pet_treatment_with_http_info(pet_id, pet_treatment, auth: auth).data
+        result = add_pet_treatment_with_http_info(pet_id, pet_treatment, auth: auth)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
       end
 
       # @return [ApiResult]
@@ -238,16 +278,16 @@ module PetstoreClient
       def add_pet_treatment_with_http_info(pet_id, pet_treatment, auth: nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.add_pet_treatment"
+                "Missing the required parameter 'pet_id' when calling PetApi.add_pet_treatment"
         end
 
         if pet_treatment.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_treatment' when calling PetApi.add_pet_treatment"
+                "Missing the required parameter 'pet_treatment' when calling PetApi.add_pet_treatment"
         end
 
         path = '/pet/{petId}/treatment'
-        path = path.gsub('{petId}', encode_path_segment(PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s))
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -274,7 +314,7 @@ module PetstoreClient
       def delete_pet(pet_id, options = nil, auth: nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.delete_pet"
+                "Missing the required parameter 'pet_id' when calling PetApi.delete_pet"
         end
 
         delete_pet_with_http_info(pet_id, options, auth: auth).data
@@ -285,11 +325,11 @@ module PetstoreClient
       def delete_pet_with_http_info(pet_id, options = nil, auth: nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.delete_pet"
+                "Missing the required parameter 'pet_id' when calling PetApi.delete_pet"
         end
 
         path = '/pet/{petId}'
-        path = path.gsub('{petId}', encode_path_segment(PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s))
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -318,15 +358,29 @@ module PetstoreClient
       def download_pet_document(pet_id, document_id)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.download_pet_document"
+                "Missing the required parameter 'pet_id' when calling PetApi.download_pet_document"
         end
 
         if document_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'document_id' when calling PetApi.download_pet_document"
+                "Missing the required parameter 'document_id' when calling PetApi.download_pet_document"
         end
 
-        download_pet_document_with_http_info(pet_id, document_id).data
+        result = download_pet_document_with_http_info(pet_id, document_id)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
       end
 
       # @return [ApiResult]
@@ -334,17 +388,17 @@ module PetstoreClient
       def download_pet_document_with_http_info(pet_id, document_id)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.download_pet_document"
+                "Missing the required parameter 'pet_id' when calling PetApi.download_pet_document"
         end
 
         if document_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'document_id' when calling PetApi.download_pet_document"
+                "Missing the required parameter 'document_id' when calling PetApi.download_pet_document"
         end
 
         path = '/pet/{petId}/documents/{documentId}'
-        path = path.gsub('{petId}', encode_path_segment(PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s))
-        path = path.gsub('{documentId}', encode_path_segment(PetstoreClient::ValueSerializer.serialize_styled('documentId', document_id, :path, 'Integer', nil, 'simple', false).to_s))
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        path = path.gsub('{documentId}', PetstoreClient::ValueSerializer.serialize_styled('documentId', document_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -369,7 +423,21 @@ module PetstoreClient
       # @deprecated This operation is deprecated.
       # @see https://example.com/docs/filtering Find out more about filtering
       def find_pets_by_status(options = nil)
-        find_pets_by_status_with_http_info(options).data
+        result = find_pets_by_status_with_http_info(options)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
       end
 
       # @return [ApiResult]
@@ -408,10 +476,24 @@ module PetstoreClient
       def get_external_pet_info(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_external_pet_info"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_external_pet_info"
         end
 
-        get_external_pet_info_with_http_info(pet_id, server: server).data
+        result = get_external_pet_info_with_http_info(pet_id, server: server)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
       end
 
       # @return [ApiResult]
@@ -419,11 +501,11 @@ module PetstoreClient
       def get_external_pet_info_with_http_info(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_external_pet_info"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_external_pet_info"
         end
 
         path = '/pet/{petId}/external'
-        path = path.gsub('{petId}', encode_path_segment(PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s))
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         if server
           server_url = server.url
           path = server_url + path if server_url.start_with?('http://', 'https://')
@@ -451,10 +533,24 @@ module PetstoreClient
       def get_multi_server_pet_info(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_multi_server_pet_info"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_multi_server_pet_info"
         end
 
-        get_multi_server_pet_info_with_http_info(pet_id, server: server).data
+        result = get_multi_server_pet_info_with_http_info(pet_id, server: server)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
       end
 
       # @return [ApiResult]
@@ -462,11 +558,11 @@ module PetstoreClient
       def get_multi_server_pet_info_with_http_info(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_multi_server_pet_info"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_multi_server_pet_info"
         end
 
         path = '/pet/{petId}/multi'
-        path = path.gsub('{petId}', encode_path_segment(PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s))
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         if server
           server_url = server.url
           path = server_url + path if server_url.start_with?('http://', 'https://')
@@ -495,10 +591,24 @@ module PetstoreClient
       def get_pet_avatar(pet_id)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar"
         end
 
-        get_pet_avatar_with_http_info(pet_id).data
+        result = get_pet_avatar_with_http_info(pet_id)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
       end
 
       # @return [ApiResult]
@@ -506,11 +616,11 @@ module PetstoreClient
       def get_pet_avatar_with_http_info(pet_id)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar"
         end
 
         path = '/pet/{petId}/avatar'
-        path = path.gsub('{petId}', encode_path_segment(PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s))
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -535,10 +645,24 @@ module PetstoreClient
       def get_pet_avatar_thumbnail(pet_id)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar_thumbnail"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar_thumbnail"
         end
 
-        get_pet_avatar_thumbnail_with_http_info(pet_id).data
+        result = get_pet_avatar_thumbnail_with_http_info(pet_id)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
       end
 
       # @return [ApiResult]
@@ -546,11 +670,11 @@ module PetstoreClient
       def get_pet_avatar_thumbnail_with_http_info(pet_id)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar_thumbnail"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar_thumbnail"
         end
 
         path = '/pet/{petId}/avatar/thumbnail'
-        path = path.gsub('{petId}', encode_path_segment(PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s))
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -582,10 +706,24 @@ module PetstoreClient
       def get_pet_by_id(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_by_id"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_by_id"
         end
 
-        get_pet_by_id_with_http_info(pet_id, server: server).data
+        result = get_pet_by_id_with_http_info(pet_id, server: server)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
       end
 
       # @return [ApiResult]
@@ -593,11 +731,11 @@ module PetstoreClient
       def get_pet_by_id_with_http_info(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_by_id"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_by_id"
         end
 
         path = '/pet/{petId}'
-        path = path.gsub('{petId}', encode_path_segment(PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s))
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         if server
           server_url = server.url
           path = server_url + path if server_url.start_with?('http://', 'https://')
@@ -626,10 +764,24 @@ module PetstoreClient
       def get_pet_passport(pet_id)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_passport"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_passport"
         end
 
-        get_pet_passport_with_http_info(pet_id).data
+        result = get_pet_passport_with_http_info(pet_id)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
       end
 
       # @return [ApiResult]
@@ -637,11 +789,11 @@ module PetstoreClient
       def get_pet_passport_with_http_info(pet_id)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_passport"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_passport"
         end
 
         path = '/pet/{petId}/passport'
-        path = path.gsub('{petId}', encode_path_segment(PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s))
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -667,15 +819,29 @@ module PetstoreClient
       def get_pet_photo(pet_id, photo_id)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_photo"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_photo"
         end
 
         if photo_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'photo_id' when calling PetApi.get_pet_photo"
+                "Missing the required parameter 'photo_id' when calling PetApi.get_pet_photo"
         end
 
-        get_pet_photo_with_http_info(pet_id, photo_id).data
+        result = get_pet_photo_with_http_info(pet_id, photo_id)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
       end
 
       # @return [ApiResult]
@@ -683,17 +849,17 @@ module PetstoreClient
       def get_pet_photo_with_http_info(pet_id, photo_id)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_photo"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_photo"
         end
 
         if photo_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'photo_id' when calling PetApi.get_pet_photo"
+                "Missing the required parameter 'photo_id' when calling PetApi.get_pet_photo"
         end
 
         path = '/pet/{petId}/photos/{photoId}'
-        path = path.gsub('{petId}', encode_path_segment(PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s))
-        path = path.gsub('{photoId}', encode_path_segment(PetstoreClient::ValueSerializer.serialize_styled('photoId', photo_id, :path, 'Integer', nil, 'simple', false).to_s))
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        path = path.gsub('{photoId}', PetstoreClient::ValueSerializer.serialize_styled('photoId', photo_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -720,15 +886,29 @@ module PetstoreClient
       def get_pet_tag(pet_id, tag_name, options = nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_tag"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_tag"
         end
 
         if tag_name.nil?
           raise ArgumentError,
-            "Missing the required parameter 'tag_name' when calling PetApi.get_pet_tag"
+                "Missing the required parameter 'tag_name' when calling PetApi.get_pet_tag"
         end
 
-        get_pet_tag_with_http_info(pet_id, tag_name, options).data
+        result = get_pet_tag_with_http_info(pet_id, tag_name, options)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
       end
 
       # @return [ApiResult]
@@ -736,17 +916,17 @@ module PetstoreClient
       def get_pet_tag_with_http_info(pet_id, tag_name, options = nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_tag"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_tag"
         end
 
         if tag_name.nil?
           raise ArgumentError,
-            "Missing the required parameter 'tag_name' when calling PetApi.get_pet_tag"
+                "Missing the required parameter 'tag_name' when calling PetApi.get_pet_tag"
         end
 
         path = '/pet/{petId}/tag/{tagName}'
-        path = path.gsub('{petId}', encode_path_segment(PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'matrix', false).to_s))
-        path = path.gsub('{tagName}', encode_path_segment(PetstoreClient::ValueSerializer.serialize_styled('tagName', tag_name, :path, 'String', nil, 'label', false).to_s))
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'matrix', false).to_s)
+        path = path.gsub('{tagName}', PetstoreClient::ValueSerializer.serialize_styled('tagName', tag_name, :path, 'String', nil, 'label', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         unless options.nil? || options.colors.nil?
@@ -786,10 +966,24 @@ module PetstoreClient
       def get_staging_pet_info(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_staging_pet_info"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_staging_pet_info"
         end
 
-        get_staging_pet_info_with_http_info(pet_id, server: server).data
+        result = get_staging_pet_info_with_http_info(pet_id, server: server)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
       end
 
       # @return [ApiResult]
@@ -797,11 +991,11 @@ module PetstoreClient
       def get_staging_pet_info_with_http_info(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_staging_pet_info"
+                "Missing the required parameter 'pet_id' when calling PetApi.get_staging_pet_info"
         end
 
         path = '/pet/{petId}/staging'
-        path = path.gsub('{petId}', encode_path_segment(PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s))
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         if server
           server_url = server.url
           path = server_url + path if server_url.start_with?('http://', 'https://')
@@ -831,12 +1025,12 @@ module PetstoreClient
       def set_pet_avatar(pet_id, body)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar"
+                "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar"
         end
 
         if body.nil?
           raise ArgumentError,
-            "Missing the required parameter 'body' when calling PetApi.set_pet_avatar"
+                "Missing the required parameter 'body' when calling PetApi.set_pet_avatar"
         end
 
         set_pet_avatar_with_http_info(pet_id, body).data
@@ -847,16 +1041,16 @@ module PetstoreClient
       def set_pet_avatar_with_http_info(pet_id, body)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar"
+                "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar"
         end
 
         if body.nil?
           raise ArgumentError,
-            "Missing the required parameter 'body' when calling PetApi.set_pet_avatar"
+                "Missing the required parameter 'body' when calling PetApi.set_pet_avatar"
         end
 
         path = '/pet/{petId}/avatar'
-        path = path.gsub('{petId}', encode_path_segment(PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s))
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -882,12 +1076,12 @@ module PetstoreClient
       def set_pet_avatar_thumbnail(pet_id, set_pet_avatar_thumbnail_request)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar_thumbnail"
+                "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar_thumbnail"
         end
 
         if set_pet_avatar_thumbnail_request.nil?
           raise ArgumentError,
-            "Missing the required parameter 'set_pet_avatar_thumbnail_request' when calling PetApi.set_pet_avatar_thumbnail"
+                "Missing the required parameter 'set_pet_avatar_thumbnail_request' when calling PetApi.set_pet_avatar_thumbnail"
         end
 
         set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request).data
@@ -898,16 +1092,16 @@ module PetstoreClient
       def set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar_thumbnail"
+                "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar_thumbnail"
         end
 
         if set_pet_avatar_thumbnail_request.nil?
           raise ArgumentError,
-            "Missing the required parameter 'set_pet_avatar_thumbnail_request' when calling PetApi.set_pet_avatar_thumbnail"
+                "Missing the required parameter 'set_pet_avatar_thumbnail_request' when calling PetApi.set_pet_avatar_thumbnail"
         end
 
         path = '/pet/{petId}/avatar/thumbnail'
-        path = path.gsub('{petId}', encode_path_segment(PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s))
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -932,15 +1126,29 @@ module PetstoreClient
       def update_pet(pet_id, pet)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.update_pet"
+                "Missing the required parameter 'pet_id' when calling PetApi.update_pet"
         end
 
         if pet.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet' when calling PetApi.update_pet"
+                "Missing the required parameter 'pet' when calling PetApi.update_pet"
         end
 
-        update_pet_with_http_info(pet_id, pet).data
+        result = update_pet_with_http_info(pet_id, pet)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
       end
 
       # @return [ApiResult]
@@ -948,16 +1156,16 @@ module PetstoreClient
       def update_pet_with_http_info(pet_id, pet)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.update_pet"
+                "Missing the required parameter 'pet_id' when calling PetApi.update_pet"
         end
 
         if pet.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet' when calling PetApi.update_pet"
+                "Missing the required parameter 'pet' when calling PetApi.update_pet"
         end
 
         path = '/pet/{petId}'
-        path = path.gsub('{petId}', encode_path_segment(PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s))
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -984,10 +1192,24 @@ module PetstoreClient
       def upload_pet_certificate(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_certificate"
+                "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_certificate"
         end
 
-        upload_pet_certificate_with_http_info(pet_id, options).data
+        result = upload_pet_certificate_with_http_info(pet_id, options)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
       end
 
       # @return [ApiResult]
@@ -995,11 +1217,11 @@ module PetstoreClient
       def upload_pet_certificate_with_http_info(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_certificate"
+                "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_certificate"
         end
 
         path = '/pet/{petId}/certificate'
-        path = path.gsub('{petId}', encode_path_segment(PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s))
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -1028,10 +1250,24 @@ module PetstoreClient
       def upload_pet_document(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"
+                "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"
         end
 
-        upload_pet_document_with_http_info(pet_id, options).data
+        result = upload_pet_document_with_http_info(pet_id, options)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
       end
 
       # @return [ApiResult]
@@ -1039,11 +1275,11 @@ module PetstoreClient
       def upload_pet_document_with_http_info(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"
+                "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"
         end
 
         path = '/pet/{petId}/documents'
-        path = path.gsub('{petId}', encode_path_segment(PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s))
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -1061,20 +1297,6 @@ module PetstoreClient
           'ApiResponse',
           nil
         )
-      end
-
-      # Percent-encodes a value for use as a URL path segment.
-      #
-      # Encodes characters not allowed in a URI path segment, but preserves the
-      # sub-delimiters (including ';', '=', ',', '.') that OAS 3.0
-      # matrix/label/simple styles use as structural separators.
-      def encode_path_segment(value)
-        CGI.escape(value.to_s)
-          .gsub('+', '%20')
-          .gsub('%3B', ';').gsub('%3D', '=').gsub('%2C', ',').gsub('%3A', ':')
-          .gsub('%40', '@').gsub('%21', '!').gsub('%24', '$').gsub('%26', '&')
-          .gsub('%27', "'").gsub('%28', '(').gsub('%29', ')').gsub('%2A', '*')
-          .gsub('%2B', '+')
       end
     end
   end

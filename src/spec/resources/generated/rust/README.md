@@ -59,6 +59,22 @@ cargo fix --edition
 - Edition: `2024`
 - MSRV: `1.85`
 
+### Decimal / `format: number` precision
+
+`serde_json` parses JSON numbers into `f64` by default, and this SDK
+maps `format: number` / `format: decimal` schema fields to `f64`.
+Decimal values are therefore stored as IEEE-754 binary floating point,
+so monetary amounts lose exact decimal representation: `0.1 + 0.2` in
+Rust is `0.30000000000000004`.
+
+Do not do arithmetic on prices, balances, or other money-typed fields.
+If you need exact decimal arithmetic, deserialize the raw response body
+yourself (e.g. with `serde_json::value::RawValue`) and use a decimal
+crate such as `rust_decimal` or `bigdecimal`.
+
+`format: int64` is unaffected — Rust's `i64` natively represents the
+full 64-bit range without precision loss.
+
 ## Not supported
 
 ### Webhooks and callbacks

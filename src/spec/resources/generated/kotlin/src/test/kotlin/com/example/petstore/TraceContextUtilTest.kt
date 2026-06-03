@@ -12,6 +12,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 class TraceContextUtilTest {
+
     @Test
     @DisplayName("injectTraceContext is a no-op when no tracer is configured")
     fun noOpWithoutTracer() {
@@ -70,12 +71,11 @@ class TraceContextUtilTest {
     @Test
     @DisplayName("preserves all existing headers together")
     fun preservesAllExistingHeaders() {
-        val headers =
-            mutableMapOf(
-                "Authorization" to "Bearer token",
-                "Content-Type" to "application/json",
-                "X-Request-ID" to "abc-123",
-            )
+        val headers = mutableMapOf(
+            "Authorization" to "Bearer token",
+            "Content-Type" to "application/json",
+            "X-Request-ID" to "abc-123"
+        )
         TraceContextUtil.injectTraceContext(headers)
         assertEquals(3, headers.size)
         assertEquals("Bearer token", headers["Authorization"])

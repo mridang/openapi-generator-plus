@@ -18,6 +18,9 @@ defmodule PetstoreClient.Auth.BasicAuthenticator do
           password: String.t()
         }
 
+  # Redact the password from the default Inspect representation so it is
+  # never leaked into logs via `inspect/1` / `IO.inspect` / Logger.
+  @derive {Inspect, except: [:password]}
   defstruct [:host, :username, :password]
 
   @doc """

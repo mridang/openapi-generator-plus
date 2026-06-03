@@ -216,9 +216,7 @@ public abstract class BaseApi
                 foreach (KeyValuePair<string, object> kv in formParams)
                 {
                     parts.Add(
-                        Uri.EscapeDataString(kv.Key)
-                            + "="
-                            + Uri.EscapeDataString(kv.Value?.ToString() ?? "")
+                        FormUrlEncode(kv.Key) + "=" + FormUrlEncode(kv.Value?.ToString() ?? "")
                     );
                 }
 
@@ -408,6 +406,19 @@ public abstract class BaseApi
             }
         }
         return System.Text.Encoding.UTF8.GetBytes(body);
+    }
+
+    /// <summary>
+    /// Encodes a value for an <c>application/x-www-form-urlencoded</c> request
+    /// body. Per the WHATWG URL / HTML form-encoding standard (which defines
+    /// the media type) a space is encoded as <c>+</c>, not <c>%20</c>. Every
+    /// other reserved character is percent-encoded. This matches the 9-SDK
+    /// majority (Java/Go/Python/Ruby/Kotlin/Dart/Elixir/Node/Rust) so the wire
+    /// bytes of a form body are identical across languages.
+    /// </summary>
+    private static string FormUrlEncode(string value)
+    {
+        return Uri.EscapeDataString(value).Replace("%20", "+", StringComparison.Ordinal);
     }
 
     private static string BuildQueryString(Dictionary<string, object?> queryParams)

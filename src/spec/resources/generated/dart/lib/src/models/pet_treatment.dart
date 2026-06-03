@@ -44,7 +44,10 @@ class PetTreatment {
     try {
       return PetTreatment._(Surgery.fromJson(json));
     } catch (_) {}
-    throw ArgumentError(
+    /* Cross-cutting `oneof-nondiscriminator-no-match-silent`: no variant
+       matched the wire shape — surface a SerializationError rather than
+       a silently-empty union. */
+    throw SerializationError(
         'Data does not match any anyOf schemas for PetTreatment');
   }
 }

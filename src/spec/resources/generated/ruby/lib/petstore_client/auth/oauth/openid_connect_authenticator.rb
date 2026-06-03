@@ -101,11 +101,34 @@ module PetstoreClient
 
           headers = { 'Accept' => 'application/json' }
           response = client.send_request(:get, @openid_connect_url, headers, nil)
+          # Guard the discovery HTTP status before parsing: a 500 returning
+          # an HTML error page would otherwise surface as a confusing
+          # "invalid JSON" error. Surface the real failure instead.
+          status = response.status_code.to_i
+          if status < 200 || status >= 300
+            raise PetstoreClient::ApiError.new(
+              message: "OIDC discovery request to #{@openid_connect_url} failed",
+              status_code: response.status_code,
+              response_headers: response.headers,
+              response_body: response.body
+            )
+          end
           discovery = JSON.parse(response.body)
+          authorization_endpoint = discovery['authorization_endpoint']
+          token_endpoint = discovery['token_endpoint']
+          # Guard against a discovery document that omits the required
+          # endpoints: building a delegate with nil/empty endpoint URLs would
+          # otherwise NPE far away at the first authorize/token call.
+          if authorization_endpoint.nil? || authorization_endpoint.to_s.strip.empty?
+            raise PetstoreClient::ApiError, "OIDC discovery document is missing 'authorization_endpoint'"
+          end
+          if token_endpoint.nil? || token_endpoint.to_s.strip.empty?
+            raise PetstoreClient::ApiError, "OIDC discovery document is missing 'token_endpoint'"
+          end
           @delegate = OAuth2AuthorizationCodeAuthenticator.new(
             @host, @client_id, @client_secret,
-            discovery['authorization_endpoint'],
-            discovery['token_endpoint'],
+            authorization_endpoint,
+            token_endpoint,
             @redirect_uri, @scopes
           )
           @delegate.api_client = client

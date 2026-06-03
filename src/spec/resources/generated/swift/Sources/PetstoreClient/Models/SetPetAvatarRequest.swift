@@ -8,7 +8,7 @@
 import Foundation
 
 /// SetPetAvatarRequest is a model class generated from the OpenAPI schema.
-public struct SetPetAvatarRequest: Codable, Sendable {
+public struct SetPetAvatarRequest: Codable, Sendable, Equatable, Hashable {
     /// Base64-encoded image data
     /// Example: `null`
     public var data: Data

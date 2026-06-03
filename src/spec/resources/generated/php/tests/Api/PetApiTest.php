@@ -10,14 +10,15 @@ use PetstoreClient\Api\Options\GetPetTagOptions;
 use PetstoreClient\Api\Options\UploadPetCertificateOptions;
 use PetstoreClient\Api\Options\UploadPetDocumentOptions;
 use PetstoreClient\Api\PetApi;
+use PetstoreClient\ApiException;
 use PetstoreClient\Auth\BearerAuthenticator;
 use PetstoreClient\Configuration;
 use PetstoreClient\Errors\NotFoundException;
 use PetstoreClient\Errors\ServerException;
 use PetstoreClient\Models\ApiResponse as ApiResponseModel;
 use PetstoreClient\Models\Pet;
-use PetstoreClient\Models\PetPassport;
 use PetstoreClient\Models\PetStatusEnum;
+use PetstoreClient\Models\PetPassport;
 use PetstoreClient\Models\Photo;
 use PetstoreClient\Models\PhotoMetadata;
 use PetstoreClient\Models\SetPetAvatarThumbnailRequest;
@@ -218,6 +219,15 @@ test('error handling server error', function (): void {
     expect(fn () => $api->getPetById(1))->toThrow(ServerException::class);
 });
 
+test('empty body for body returning op throws api exception', function (): void {
+    /* getPetById declares a non-void return type. A 2xx with an empty body
+     * is a contract violation, so the convenience method must throw the
+     * SDK's typed ApiException instead of returning a silent null. */
+    $api = newPetApiForMock(200, 'application/json', '');
+
+    expect(fn (): mixed => $api->getPetById(1))->toThrow(ApiException::class);
+});
+
 // -- Mock-based binary download test --
 
 test('download binary mock', function (): void {
@@ -254,7 +264,7 @@ test('add pet per call auth override', function (): void {
     $hdrs = [];
     $captured->headers = $hdrs;
 
-    $client = new class ($captured) implements \PetstoreClient\ApiClient {
+    $client = new class($captured) implements \PetstoreClient\ApiClient {
         public function __construct(private readonly \stdClass $captured)
         {
         }

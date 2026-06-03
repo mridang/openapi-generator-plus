@@ -289,6 +289,34 @@ void main() {
       }
     });
 
+    /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+     * operation that receives a 200 with an empty body must throw the
+     * typed ApiError from the plain convenience method (parity with
+     * C#/Swift), not a Dart runtime TypeError from `null as Pet`. */
+    test('emptyBodyMock throws ApiError from convenience method', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await expectLater(
+          api.getPetById(1, null),
+          throwsA(isA<ApiError>()),
+        );
+      } finally {
+        await server.close();
+      }
+    });
+
     test('errorHandling_notFound', () async {
       final config = ConfigurationBuilder()
           .baseUrl('$chasmHttpUrl/test/status/404')

@@ -49,6 +49,9 @@ class StubApi(BaseApi):
     async def call(self, method: str, path: str, query_params: dict[str, Any], header_params: dict[str, str], body: Any, accepts: list[str], content_type: str, return_type: Optional[str], auth: Optional[Authenticator] = None) -> Any:
         return await self._invoke_api(method, path, query_params, header_params, body, accepts, content_type, return_type, auth)
 
+    async def call_result(self, method: str, path: str, query_params: dict[str, Any], header_params: dict[str, str], body: Any, accepts: list[str], content_type: str, return_type: Optional[str], auth: Optional[Authenticator] = None) -> Any:
+        return await self._invoke_api_for_result(method, path, query_params, header_params, body, accepts, content_type, return_type, auth)
+
 
 class StubAuthenticator(Authenticator):
     """Test authenticator that returns known headers, query params, cookies."""
@@ -136,6 +139,12 @@ class TestSuccessDeserialization:
     async def test_returns_none_when_return_type_is_none(self, api: Any) -> None:
         result = await api.call('GET', '/test/echo', {}, {}, None, ['application/json'], 'application/json', None)
         assert result is None
+
+    async def test_raw_body_is_non_null_string(self, api: Any) -> None:
+        # ApiResult.raw_body is typed non-null (str); the transport always
+        # produces a body string (empty when the server sent none).
+        result = await api.call_result('GET', '/test/echo', {}, {}, None, ['application/json'], 'application/json', 'object')
+        assert isinstance(result.raw_body, str)
 
 
 class TestQueryParameters:
@@ -429,24 +438,20 @@ class TestBinaryResponse:
         assert result is None or result == b''
 
 
-class TestPerOperationServerOverride:
-    """Verify that operations accept a per-call base_url override that takes
-    precedence over the client configuration."""
+class TestNoPerCallBaseUrlParam:
+    """The non-standard per-call ``base_url`` override parameter must NOT exist
+    on operation methods -- the other 11 SDKs have no such parameter. Operations
+    use the client configuration's base URL only."""
 
-    async def test_per_operation_base_url_overrides_client_config(self) -> None:
-        client = CapturingApiClient()
-        config = Configuration(base_url='http://client-default')
-        api = PetApi(api_client=client, config=config)
-        try:
-            await api.find_pets_by_status(
-                FindPetsByStatusOptions(),
-                base_url='http://override.example.com',
-            )
-        except Exception:
-            pass  # response deserialization may fail; we only care about the captured URL
-        assert client.captured_url.startswith('http://override.example.com'), f'Expected request URL to use override base_url, got: {client.captured_url}'
+    def test_operation_has_no_base_url_parameter(self) -> None:
+        import inspect
 
-    async def test_omitting_base_url_uses_client_config(self) -> None:
+        sig = inspect.signature(PetApi.find_pets_by_status)
+        assert 'base_url' not in sig.parameters, 'Operations must not expose a per-call base_url override'
+        sig_http = inspect.signature(PetApi.find_pets_by_status_with_http_info)
+        assert 'base_url' not in sig_http.parameters, '_with_http_info must not expose a per-call base_url override'
+
+    async def test_operation_uses_client_config_base_url(self) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url='http://client-default.example.com')
         api = PetApi(api_client=client, config=config)

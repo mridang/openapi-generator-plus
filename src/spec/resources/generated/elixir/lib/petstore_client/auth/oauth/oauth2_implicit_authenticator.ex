@@ -32,6 +32,9 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator do
           access_token: String.t() | nil
         }
 
+  # Redact the access token from the default Inspect representation so it
+  # is never leaked into logs via `inspect/1` / `IO.inspect` / Logger.
+  @derive {Inspect, except: [:access_token]}
   defstruct [:host, :client_id, :authorization_url, :scopes, :access_token]
 
   @doc """

@@ -21,8 +21,17 @@ describe('ApiError', () => {
       expect(err.statusCode).toBe(404);
       expect(err.message).toBe('not found');
       expect(err.responseBody).toBe('{"id":7,"name":"missing"}');
-      expect(err.responseHeaders['content-type']).toBe('application/json');
+      expect(err.responseHeaders?.['content-type']).toBe('application/json');
       expect(err.errorBody).toBeNull();
+    });
+
+    test('responseHeaders and responseBody are nullable to mark transport-no-response', () => {
+      // apierror-responsebody-headers-nullable-split: null is distinct from
+      // an empty header map / empty body. The public surface must accept null
+      // so a pre-response transport failure can be encoded.
+      const err = new ApiError(0, 'connection reset', null, null);
+      expect(err.responseHeaders).toBeNull();
+      expect(err.responseBody).toBeNull();
     });
 
     test('name is ApiError', () => {

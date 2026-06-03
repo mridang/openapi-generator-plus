@@ -33,6 +33,7 @@ defmodule PetstoreClient.MixProject do
 
   defp package do
     [
+      description: "A simplified Pet Store API for integration testing.",
       licenses: ["MIT"]
     ]
   end

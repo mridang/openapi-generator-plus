@@ -632,14 +632,21 @@ void main() {
       try {
         final transport = TransportOptionsBuilder().verifySSL(false).build();
         final client = DefaultApiClient(transportOptions: transport);
-        final resp = await client.sendRequest(
-          'POST',
-          'https://127.0.0.1:${source.port}/secret',
-          {'Content-Type': 'application/x-www-form-urlencoded'},
-          Uint8List.fromList(utf8.encode('client_secret=hunter2')),
+        // T-D2: the downgrade-replay refusal must surface as a typed
+        // ApiError (statusCode 0), not a silently-returned 3xx.
+        await expectLater(
+          client.sendRequest(
+            'POST',
+            'https://127.0.0.1:${source.port}/secret',
+            {'Content-Type': 'application/x-www-form-urlencoded'},
+            Uint8List.fromList(utf8.encode('client_secret=hunter2')),
+          ),
+          throwsA(
+            isA<ApiError>()
+                .having((e) => e.statusCode, 'statusCode', 0)
+                .having((e) => e.message, 'message', contains('downgrade')),
+          ),
         );
-        expect(resp.statusCode, equals(307),
-            reason: 'loop must terminate at the downgrade hop');
         expect(targetHits, equals(0),
             reason: 'plain-HTTP target must not be contacted after '
                 'an HTTPS->HTTP downgrade with a body');
@@ -647,6 +654,190 @@ void main() {
       } finally {
         await source.close();
         await target.close();
+      }
+    });
+
+    /* T-D1: exceeding maxRedirects must raise a typed ApiError, not
+     * silently return the last 3xx as a normal response. */
+    test('throws ApiError when maxRedirects is exceeded', () async {
+      late HttpServer server;
+      server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        // Always redirect back to ourselves -> an infinite chain that
+        // the maxRedirects cap must terminate with an error.
+        request.response
+          ..statusCode = 302
+          ..headers.set('Location', 'http://127.0.0.1:${server.port}/loop')
+          ..close();
+      });
+
+      try {
+        final transport = TransportOptionsBuilder().maxRedirects(3).build();
+        final client = DefaultApiClient(transportOptions: transport);
+        await expectLater(
+          client.sendRequest(
+            'GET',
+            'http://127.0.0.1:${server.port}/loop',
+            {},
+            null,
+          ),
+          throwsA(
+            isA<ApiError>()
+                .having((e) => e.statusCode, 'statusCode', 0)
+                .having((e) => e.message, 'message', contains('redirect')),
+          ),
+        );
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* T-D3: a Location header pointing at a non-http(s) scheme must be
+     * refused with a typed ApiError, not silently returned as a 3xx. */
+    test('throws ApiError on redirect to non-http(s) scheme', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 302
+          ..headers.set('Location', 'file:///etc/passwd')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        await expectLater(
+          client.sendRequest(
+            'GET',
+            'http://127.0.0.1:${server.port}/evil',
+            {},
+            null,
+          ),
+          throwsA(
+            isA<ApiError>()
+                .having((e) => e.statusCode, 'statusCode', 0)
+                .having((e) => e.message, 'message', contains('non-http(s)')),
+          ),
+        );
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* close-lifecycle-three-way: a request issued after close() must
+     * surface the uniform ApiError, never the http package's own
+     * closed-client exception. */
+    test('throws ApiError when used after close()', () async {
+      final client = DefaultApiClient();
+      client.close();
+      await expectLater(
+        client.sendRequest('GET', 'http://127.0.0.1:1/after-close', {}, null),
+        throwsA(
+          isA<ApiError>()
+              .having((e) => e.statusCode, 'statusCode', 0)
+              .having((e) => e.message, 'message', contains('closed')),
+        ),
+      );
+    });
+
+    /* dart-charset-utf16-mojibake: a response declared charset=utf-16
+     * must be decoded correctly (parity with the other 11 SDKs), not
+     * thrown as a FormatException nor mangled into mojibake. */
+    test('decodes a charset=utf-16 response body correctly', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      // UTF-16BE with BOM for the string "héllo"
+      final payload = <int>[
+        0xFE, 0xFF, // BOM (big-endian)
+        0x00, 0x68, // h
+        0x00, 0xE9, // é
+        0x00, 0x6C, // l
+        0x00, 0x6C, // l
+        0x00, 0x6F, // o
+      ];
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.set('Content-Type', 'text/plain; charset=utf-16')
+          ..add(payload)
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'GET',
+          'http://127.0.0.1:${server.port}/utf16',
+          {},
+          null,
+        );
+        expect(resp.statusCode, equals(200));
+        expect(resp.body, equals('héllo'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* dart-charset-utf16-mojibake (lenient fallback): an unrecognised
+     * charset with non-UTF-8 bytes must fall back to a lossy UTF-8
+     * decode rather than throwing a FormatException. */
+    test('falls back leniently for an unknown charset, never throws', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.set('Content-Type', 'text/plain; charset=shift_jis')
+          ..add(<int>[0x82, 0xA0]) // invalid UTF-8 bytes
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'GET',
+          'http://127.0.0.1:${server.port}/sjis',
+          {},
+          null,
+        );
+        // Must not throw; lenient decode yields replacement chars.
+        expect(resp.statusCode, equals(200));
+        expect(resp.body, isNotNull);
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* response-body-read-error-not-wrapped: a connection that drops
+     * AFTER the response headers (here: a declared Content-Length that
+     * is never fully delivered before the socket is destroyed) must
+     * surface as the uniform ApiError, not a raw dart:io exception. */
+    test('wraps a body-read failure in ApiError', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        // Announce 100 bytes, send only a few, then kill the socket so
+        // the body read fails mid-stream.
+        final socket = await request.response.detachSocket();
+        socket.write('HTTP/1.1 200 OK\r\n'
+            'Content-Type: text/plain\r\n'
+            'Content-Length: 100\r\n'
+            '\r\n'
+            'short');
+        await socket.flush();
+        await socket.close();
+        socket.destroy();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        await expectLater(
+          client.sendRequest(
+            'GET',
+            'http://127.0.0.1:${server.port}/truncated',
+            {},
+            null,
+          ),
+          throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 0)),
+        );
+      } finally {
+        await server.close();
       }
     });
 

@@ -10,10 +10,6 @@ module PetstoreClient
       def get_order_by_id_with_http_info: (Integer order_id) -> ::PetstoreClient::ApiResult[Models::Order]
       def place_order: (Models::Order? order) -> Models::Order
       def place_order_with_http_info: (Models::Order? order) -> ::PetstoreClient::ApiResult[Models::Order]
-
-      private
-
-      def encode_path_segment: (String value) -> String
     end
   end
 end

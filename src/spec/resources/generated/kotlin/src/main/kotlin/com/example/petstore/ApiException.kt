@@ -35,7 +35,7 @@ open class ApiException : Exception {
         message: String,
         responseHeaders: Map<String, String>?,
         responseBody: String?,
-        errorBody: Any? = null,
+        errorBody: Any? = null
     ) : super(message) {
         this.statusCode = statusCode
         this.responseHeaders = responseHeaders
@@ -44,12 +44,12 @@ open class ApiException : Exception {
     }
 
     @Suppress("UNCHECKED_CAST")
-    fun <T> getTypedErrorBody(clazz: Class<T>): T? = if (clazz.isInstance(errorBody)) errorBody as T else null
+    fun <T> getTypedErrorBody(clazz: Class<T>): T? =
+        if (clazz.isInstance(errorBody)) errorBody as T else null
 
     override val message: String
-        get() =
-            "ApiException{statusCode=$statusCode, " +
-                "message='${super.message}', " +
-                "responseHeaders=$responseHeaders, " +
-                "responseBody='$responseBody'}"
+        get() = "ApiException{statusCode=$statusCode, " +
+            "message='${super.message}', " +
+            "responseHeaders=$responseHeaders, " +
+            "responseBody='$responseBody'}"
 }

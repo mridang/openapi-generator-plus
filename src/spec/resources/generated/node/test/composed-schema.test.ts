@@ -105,6 +105,16 @@ describe('Composed Schema', () => {
     expect(result!.getActualInstance()).toBeInstanceOf(Surgery);
   });
 
+  test('anyOf: PetTreatment with no matching variant throws DeserializationError', () => {
+    // oneof-nondiscriminator-no-match-silent: a payload matching neither
+    // Medication nor Surgery used to fall through to a generic
+    // plainToInstance that stored the raw bag-of-keys (type confusion).
+    // It must now surface as a DeserializationError so callers see the
+    // payload matches no declared variant.
+    const data = { unrelatedKey: 'value', anotherUnknown: 123 };
+    expect(() => ObjectSerializer.deserialize(data, PetTreatment)).toThrow(DeserializationError);
+  });
+
   test('anyOf: PetTreatment serialize round-trip', () => {
     const data = { drugName: 'Amoxicillin', dosage: '500mg' };
     const result = ObjectSerializer.deserialize(data, PetTreatment);

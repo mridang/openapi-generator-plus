@@ -14,8 +14,6 @@
 # rubocop:disable Style/DefWithParentheses
 # rubocop:disable Style/StringConcatenation
 
-require 'cgi'
-
 # :nodoc:
 module PetstoreClient
   module Api
@@ -35,7 +33,7 @@ module PetstoreClient
       def delete_order(order_id)
         if order_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'order_id' when calling StoreApi.delete_order"
+                "Missing the required parameter 'order_id' when calling StoreApi.delete_order"
         end
 
         delete_order_with_http_info(order_id).data
@@ -46,11 +44,11 @@ module PetstoreClient
       def delete_order_with_http_info(order_id)
         if order_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'order_id' when calling StoreApi.delete_order"
+                "Missing the required parameter 'order_id' when calling StoreApi.delete_order"
         end
 
         path = '/store/order/{orderId}'
-        path = path.gsub('{orderId}', encode_path_segment(PetstoreClient::ValueSerializer.serialize_styled('orderId', order_id, :path, 'Integer', nil, 'simple', false).to_s))
+        path = path.gsub('{orderId}', PetstoreClient::ValueSerializer.serialize_styled('orderId', order_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -71,7 +69,21 @@ module PetstoreClient
       # @return [Hash<String, Integer>]
       # @raise [ApiError] if fails to make API call
       def get_inventory()
-        get_inventory_with_http_info().data
+        result = get_inventory_with_http_info()
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
       end
 
       # @return [ApiResult]
@@ -101,10 +113,24 @@ module PetstoreClient
       def get_order_by_id(order_id)
         if order_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'order_id' when calling StoreApi.get_order_by_id"
+                "Missing the required parameter 'order_id' when calling StoreApi.get_order_by_id"
         end
 
-        get_order_by_id_with_http_info(order_id).data
+        result = get_order_by_id_with_http_info(order_id)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
       end
 
       # @return [ApiResult]
@@ -112,11 +138,11 @@ module PetstoreClient
       def get_order_by_id_with_http_info(order_id)
         if order_id.nil?
           raise ArgumentError,
-            "Missing the required parameter 'order_id' when calling StoreApi.get_order_by_id"
+                "Missing the required parameter 'order_id' when calling StoreApi.get_order_by_id"
         end
 
         path = '/store/order/{orderId}'
-        path = path.gsub('{orderId}', encode_path_segment(PetstoreClient::ValueSerializer.serialize_styled('orderId', order_id, :path, 'Integer', nil, 'simple', false).to_s))
+        path = path.gsub('{orderId}', PetstoreClient::ValueSerializer.serialize_styled('orderId', order_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -138,7 +164,21 @@ module PetstoreClient
       # @return [Order]
       # @raise [ApiError] if fails to make API call
       def place_order(order = nil)
-        place_order_with_http_info(order).data
+        result = place_order_with_http_info(order)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
       end
 
       # @return [ApiResult]
@@ -158,20 +198,6 @@ module PetstoreClient
           'Order',
           nil
         )
-      end
-
-      # Percent-encodes a value for use as a URL path segment.
-      #
-      # Encodes characters not allowed in a URI path segment, but preserves the
-      # sub-delimiters (including ';', '=', ',', '.') that OAS 3.0
-      # matrix/label/simple styles use as structural separators.
-      def encode_path_segment(value)
-        CGI.escape(value.to_s)
-          .gsub('+', '%20')
-          .gsub('%3B', ';').gsub('%3D', '=').gsub('%2C', ',').gsub('%3A', ':')
-          .gsub('%40', '@').gsub('%21', '!').gsub('%24', '$').gsub('%26', '&')
-          .gsub('%27', "'").gsub('%28', '(').gsub('%29', ')').gsub('%2A', '*')
-          .gsub('%2B', '+')
       end
     end
   end

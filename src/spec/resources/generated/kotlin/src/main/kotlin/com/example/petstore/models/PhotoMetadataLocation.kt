@@ -12,16 +12,20 @@
 package com.example.petstore.models
 
 import com.example.petstore.Base64ByteArraySerializer
+import kotlinx.serialization.Contextual
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
+import kotlinx.serialization.json.JsonClassDiscriminator
 
 @Serializable
 data class PhotoMetadataLocation(
-    /** Example: `null` */
-    @SerialName("lat")
-    val lat: Double? = null,
-    /** Example: `null` */
-    @SerialName("lng")
-    val lng: Double? = null,
-)
+  /** Example: `null` */
+  @SerialName("lat")
+  val lat: Double? = null,
+  /** Example: `null` */
+  @SerialName("lng")
+  val lng: Double? = null
+) {
+}

@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -16,15 +15,19 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Api;
 
+use PetstoreClient\ApiClient;
+use PetstoreClient\ApiException;
+use PetstoreClient\ApiResult;
+use PetstoreClient\Configuration;
+use PetstoreClient\DefaultApiClient;
+use PetstoreClient\ValueSerializer;
+use PetstoreClient\Auth\Authenticator;
 use PetstoreClient\Api\Options\AddPetPhotosOptions;
 use PetstoreClient\Api\Options\DeletePetOptions;
 use PetstoreClient\Api\Options\FindPetsByStatusOptions;
 use PetstoreClient\Api\Options\GetPetTagOptions;
 use PetstoreClient\Api\Options\UploadPetCertificateOptions;
 use PetstoreClient\Api\Options\UploadPetDocumentOptions;
-use PetstoreClient\ApiResult;
-use PetstoreClient\Auth\Authenticator;
-use PetstoreClient\ValueSerializer;
 
 /**
  * PetApi provides methods for the Pet API group.
@@ -166,8 +169,22 @@ class PetApi extends BaseApi
      */
     public function addPet(\PetstoreClient\Models\Pet $pet, ?Authenticator $auth = null)
     {
+        $apiResult = $this->addPetWithHttpInfo($pet, $auth);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for addPet but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
         /** @var \PetstoreClient\Models\Pet $result */
-        $result = $this->addPetWithHttpInfo($pet, $auth)->data;
+        $result = $apiResult->data;
         return $result;
     }
 
@@ -210,8 +227,22 @@ class PetApi extends BaseApi
      */
     public function addPetPhotos(int $petId, AddPetPhotosOptions $options)
     {
+        $apiResult = $this->addPetPhotosWithHttpInfo($petId, $options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for addPetPhotos but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
         /** @var \Ds\Vector $result */
-        $result = $this->addPetPhotosWithHttpInfo($petId, $options)->data;
+        $result = $apiResult->data;
         return $result;
     }
 
@@ -265,8 +296,22 @@ class PetApi extends BaseApi
      */
     public function addPetTreatment(int $petId, \PetstoreClient\Models\PetTreatment $petTreatment, ?Authenticator $auth = null)
     {
+        $apiResult = $this->addPetTreatmentWithHttpInfo($petId, $petTreatment, $auth);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for addPetTreatment but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
         /** @var \PetstoreClient\Models\PetTreatment $result */
-        $result = $this->addPetTreatmentWithHttpInfo($petId, $petTreatment, $auth)->data;
+        $result = $apiResult->data;
         return $result;
     }
 
@@ -381,8 +426,22 @@ class PetApi extends BaseApi
      */
     public function downloadPetDocument(int $petId, int $documentId)
     {
+        $apiResult = $this->downloadPetDocumentWithHttpInfo($petId, $documentId);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for downloadPetDocument but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
         /** @var \SplFileObject $result */
-        $result = $this->downloadPetDocumentWithHttpInfo($petId, $documentId)->data;
+        $result = $apiResult->data;
         return $result;
     }
 
@@ -446,8 +505,22 @@ class PetApi extends BaseApi
      */
     public function findPetsByStatus(FindPetsByStatusOptions $options)
     {
+        $apiResult = $this->findPetsByStatusWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for findPetsByStatus but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
         /** @var \Ds\Vector $result */
-        $result = $this->findPetsByStatusWithHttpInfo($options)->data;
+        $result = $apiResult->data;
         return $result;
     }
 
@@ -495,8 +568,22 @@ class PetApi extends BaseApi
      */
     public function getExternalPetInfo(int $petId, ?GetExternalPetInfoServer $server = null)
     {
+        $apiResult = $this->getExternalPetInfoWithHttpInfo($petId, $server);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for getExternalPetInfo but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
         /** @var \PetstoreClient\Models\Pet $result */
-        $result = $this->getExternalPetInfoWithHttpInfo($petId, $server)->data;
+        $result = $apiResult->data;
         return $result;
     }
 
@@ -551,8 +638,22 @@ class PetApi extends BaseApi
      */
     public function getMultiServerPetInfo(int $petId, ?GetMultiServerPetInfoServer $server = null)
     {
+        $apiResult = $this->getMultiServerPetInfoWithHttpInfo($petId, $server);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for getMultiServerPetInfo but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
         /** @var \PetstoreClient\Models\Pet $result */
-        $result = $this->getMultiServerPetInfoWithHttpInfo($petId, $server)->data;
+        $result = $apiResult->data;
         return $result;
     }
 
@@ -608,8 +709,22 @@ class PetApi extends BaseApi
      */
     public function getPetAvatar(int $petId)
     {
+        $apiResult = $this->getPetAvatarWithHttpInfo($petId);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for getPetAvatar but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
         /** @var \SplFileObject $result */
-        $result = $this->getPetAvatarWithHttpInfo($petId)->data;
+        $result = $apiResult->data;
         return $result;
     }
 
@@ -659,8 +774,22 @@ class PetApi extends BaseApi
      */
     public function getPetAvatarThumbnail(int $petId)
     {
+        $apiResult = $this->getPetAvatarThumbnailWithHttpInfo($petId);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for getPetAvatarThumbnail but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
         /** @var string $result */
-        $result = $this->getPetAvatarThumbnailWithHttpInfo($petId)->data;
+        $result = $apiResult->data;
         return $result;
     }
 
@@ -714,8 +843,22 @@ class PetApi extends BaseApi
      */
     public function getPetById(int $petId, ?GetPetByIdServer $server = null)
     {
+        $apiResult = $this->getPetByIdWithHttpInfo($petId, $server);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for getPetById but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
         /** @var \PetstoreClient\Models\Pet $result */
-        $result = $this->getPetByIdWithHttpInfo($petId, $server)->data;
+        $result = $apiResult->data;
         return $result;
     }
 
@@ -772,8 +915,22 @@ class PetApi extends BaseApi
      */
     public function getPetPassport(int $petId)
     {
+        $apiResult = $this->getPetPassportWithHttpInfo($petId);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for getPetPassport but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
         /** @var \PetstoreClient\Models\PetPassport $result */
-        $result = $this->getPetPassportWithHttpInfo($petId)->data;
+        $result = $apiResult->data;
         return $result;
     }
 
@@ -823,8 +980,22 @@ class PetApi extends BaseApi
      */
     public function getPetPhoto(int $petId, int $photoId)
     {
+        $apiResult = $this->getPetPhotoWithHttpInfo($petId, $photoId);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for getPetPhoto but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
         /** @var \SplFileObject $result */
-        $result = $this->getPetPhotoWithHttpInfo($petId, $photoId)->data;
+        $result = $apiResult->data;
         return $result;
     }
 
@@ -886,8 +1057,22 @@ class PetApi extends BaseApi
      */
     public function getPetTag(int $petId, string $tagName, GetPetTagOptions $options)
     {
+        $apiResult = $this->getPetTagWithHttpInfo($petId, $tagName, $options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for getPetTag but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
         /** @var \PetstoreClient\Models\Pet $result */
-        $result = $this->getPetTagWithHttpInfo($petId, $tagName, $options)->data;
+        $result = $apiResult->data;
         return $result;
     }
 
@@ -960,8 +1145,22 @@ class PetApi extends BaseApi
      */
     public function getStagingPetInfo(int $petId, ?GetStagingPetInfoServer $server = null)
     {
+        $apiResult = $this->getStagingPetInfoWithHttpInfo($petId, $server);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for getStagingPetInfo but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
         /** @var \PetstoreClient\Models\Pet $result */
-        $result = $this->getStagingPetInfoWithHttpInfo($petId, $server)->data;
+        $result = $apiResult->data;
         return $result;
     }
 
@@ -1114,8 +1313,22 @@ class PetApi extends BaseApi
      */
     public function updatePet(int $petId, \PetstoreClient\Models\Pet $pet)
     {
+        $apiResult = $this->updatePetWithHttpInfo($petId, $pet);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for updatePet but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
         /** @var \PetstoreClient\Models\Pet $result */
-        $result = $this->updatePetWithHttpInfo($petId, $pet)->data;
+        $result = $apiResult->data;
         return $result;
     }
 
@@ -1169,8 +1382,22 @@ class PetApi extends BaseApi
      */
     public function uploadPetCertificate(int $petId, UploadPetCertificateOptions $options)
     {
+        $apiResult = $this->uploadPetCertificateWithHttpInfo($petId, $options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for uploadPetCertificate but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
         /** @var \PetstoreClient\Models\ApiResponse $result */
-        $result = $this->uploadPetCertificateWithHttpInfo($petId, $options)->data;
+        $result = $apiResult->data;
         return $result;
     }
 
@@ -1225,8 +1452,22 @@ class PetApi extends BaseApi
      */
     public function uploadPetDocument(int $petId, UploadPetDocumentOptions $options)
     {
+        $apiResult = $this->uploadPetDocumentWithHttpInfo($petId, $options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for uploadPetDocument but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
         /** @var \PetstoreClient\Models\ApiResponse $result */
-        $result = $this->uploadPetDocumentWithHttpInfo($petId, $options)->data;
+        $result = $apiResult->data;
         return $result;
     }
 

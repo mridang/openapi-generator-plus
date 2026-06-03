@@ -51,7 +51,7 @@ module PetstoreClient
     # `type` is `apiKey` and `in` is `header`, so a malicious 302 cannot
     # leak the API key to a different host. Entries are already lowercase
     # so the cross-origin filter can compare case-insensitively.
-    EXTRA_SENSITIVE_HEADER_NAMES = %w[x-api-key x-internal-key].freeze
+    EXTRA_SENSITIVE_HEADER_NAMES = %w[ x-api-key x-internal-key].freeze
 
     # Create a client with default transport settings.
     #
@@ -65,6 +65,7 @@ module PetstoreClient
     def initialize(transport_options = nil)
       super()
       @transport_options = transport_options || TransportOptions.builder.build
+      @closed = false
     end
 
     # Send an HTTP request with transport-level settings applied.
@@ -82,6 +83,12 @@ module PetstoreClient
     #   redirect target (Bucket 3.2).
     # @return [ApiResponse] the HTTP response
     def send_request(method, url, headers, body, no_redirect: false) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
+      # Bucket 3: using the client after #close has released its connection
+      # pool is a caller error. Surface it loudly as an ApiError instead of
+      # lazily rebuilding a connection (which would make close a silent
+      # no-op), matching the uniform closed-flag contract across SDKs.
+      raise ApiError, 'ApiClient has been closed and can no longer send requests' if @closed
+
       merged = @transport_options.default_headers.dup.merge(headers)
       merged['User-Agent'] ||= @transport_options.user_agent if @transport_options.user_agent
       merged['X-Request-ID'] ||= SecureRandom.uuid if @transport_options.inject_request_id
@@ -145,7 +152,13 @@ module PetstoreClient
             break if next_url.nil?
 
             next_uri = safe_parse_uri(next_url)
-            break unless next_uri && %w[http https].include?(next_uri.scheme)
+            # Bucket 3: a Location header pointing at a non-http(s) scheme
+            # (file:, javascript:, data:, ...) is an SSRF / local-file
+            # exfiltration vector. Refuse loudly with an ApiError instead of
+            # silently returning the 3xx response, matching the other SDKs.
+            if next_uri.nil? || !%w[http https].include?(next_uri.scheme)
+              raise ApiError, "Refusing to follow redirect to non-http(s) URL: #{next_url}"
+            end
 
             cross_origin = !same_origin?(original_url, next_url)
 
@@ -204,6 +217,14 @@ module PetstoreClient
             response = connection.run_request(next_method.to_s.downcase.to_sym, next_url, next_body, redirect_headers)
             hops += 1
           end
+          # Bucket 3: if we exhausted the redirect budget while the server is
+          # still returning a 3xx, the request never reached a final
+          # resource. Surface this loudly as an ApiError instead of silently
+          # returning the last redirect response as if it were the answer,
+          # matching the other SDKs.
+          if redirect_status?(response.status)
+            raise ApiError, "Exceeded maximum number of redirects (#{max_redirects})"
+          end
         end
       rescue Faraday::ConnectionFailed, Faraday::TimeoutError, Faraday::SSLError => e
         raise ApiError, e.message
@@ -227,7 +248,7 @@ module PetstoreClient
       # normalise both shapes. The joined form is not directly parseable
       # for Set-Cookie; callers needing structured cookie access should
       # use HTTP::Cookie.parse or read the raw Faraday::Utils::Headers.
-      normalized_headers = {} # : Hash[String, String]
+      normalized_headers = {} #: Hash[String, String]
       response.headers.each do |name, value|
         joined = value.is_a?(Array) ? value.join(', ') : value.to_s
         normalized_headers[name.to_s.downcase] = joined
@@ -240,13 +261,14 @@ module PetstoreClient
       )
     end
 
-    # Releases the Faraday connection and its underlying socket pool.
-    # Subsequent calls to {#send_request} will lazily build a fresh
-    # connection. After calling this method the client may still be reused;
-    # it's safe to call repeatedly.
+    # Releases the Faraday connection and its underlying socket pool and
+    # marks the client closed. Subsequent calls to {#send_request} raise an
+    # {ApiError} rather than silently rebuilding a connection. It is safe to
+    # call this method repeatedly (idempotent).
     def close
       conn = @connection
       @connection = nil
+      @closed = true
       conn&.close if conn.respond_to?(:close)
     end
 
@@ -451,7 +473,7 @@ module PetstoreClient
       str = name.to_s
       if str.match?(/[\r\n\0]/)
         raise ArgumentError,
-          "multipart field name must not contain CR, LF, or NUL bytes: #{str.inspect}"
+              "multipart field name must not contain CR, LF, or NUL bytes: #{str.inspect}"
       end
       str.gsub(/([\\"])/) { |c| "\\#{c}" }
     end
@@ -471,7 +493,7 @@ module PetstoreClient
       fname = filename.to_s
       if fname.match?(/[\r\n\0]/)
         raise ArgumentError,
-          "multipart filename must not contain CR, LF, or NUL bytes: #{fname.inspect}"
+              "multipart filename must not contain CR, LF, or NUL bytes: #{fname.inspect}"
       end
 
       ascii_safe = fname.dup.force_encoding(Encoding::UTF_8)

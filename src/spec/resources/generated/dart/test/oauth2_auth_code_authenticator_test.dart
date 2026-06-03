@@ -88,6 +88,23 @@ void main() {
       expect(client.lastBody!, contains('client_secret=my-client-secret'));
     });
 
+    // Cross-cutting `oauth-exchangecode-no-empty-code-guard`: an empty or
+    // whitespace-only authorization code must be rejected before the token
+    // POST is issued.
+    test('exchangeCode rejects empty code', () async {
+      final auth = _createAuthenticator();
+      auth.setApiClient(_FakeApiClient());
+
+      await expectLater(
+        auth.exchangeCode(''),
+        throwsA(isA<ArgumentError>()),
+      );
+      await expectLater(
+        auth.exchangeCode('   '),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
     test('includes refresh token on refresh', () async {
       final client = _FakeApiClient();
       client.enqueue(

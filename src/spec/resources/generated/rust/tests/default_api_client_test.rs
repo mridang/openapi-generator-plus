@@ -14,7 +14,9 @@ use petstore::*;
 #[tokio::test]
 async fn test_default_api_client_makes_https_request_with_verify_ssl_false() {
     let chasm_url = testcontainers_helper::chasm_https_url();
-    let transport = TransportOptionsBuilder::new().verify_ssl(false).build();
+    let transport = TransportOptionsBuilder::new()
+        .verify_ssl(false)
+        .build();
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
@@ -52,7 +54,9 @@ async fn test_default_api_client_makes_https_request_with_custom_ca_cert() {
 async fn test_default_api_client_makes_http_request_through_proxy() {
     let chasm_url = testcontainers_helper::chasm_internal_http_url();
     let proxy = testcontainers_helper::proxy_url();
-    let transport = TransportOptionsBuilder::new().proxy(proxy).build();
+    let transport = TransportOptionsBuilder::new()
+        .proxy(proxy)
+        .build();
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
@@ -71,7 +75,7 @@ async fn test_default_api_client_makes_http_request_through_proxy() {
 // the userinfo end-to-end.
 #[tokio::test]
 async fn test_default_api_client_proxy_with_credentials_injects_basic_authorization() {
-    use base64::{Engine as _, engine::general_purpose::STANDARD};
+    use base64::{engine::general_purpose::STANDARD, Engine as _};
     use reqwest::Url;
 
     let transport = TransportOptionsBuilder::new()
@@ -109,7 +113,9 @@ async fn test_default_api_client_makes_https_request_through_proxy_with_verify_s
 #[tokio::test]
 async fn test_default_api_client_times_out_on_slow_endpoint() {
     let chasm_url = testcontainers_helper::chasm_http_url();
-    let transport = TransportOptionsBuilder::new().timeout(1000).build();
+    let transport = TransportOptionsBuilder::new()
+        .timeout(1000)
+        .build();
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let result = client
@@ -136,10 +142,8 @@ async fn test_default_api_client_injects_custom_user_agent_header() {
     /* chasm's echo envelope lowercases all header keys in the `headers` map. */
     let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
     let h = &json["headers"];
-    let ua = h
-        .get("user-agent")
-        .and_then(|v| v.as_str())
-        .expect("missing User-Agent");
+    let ua = h.get("user-agent")
+        .and_then(|v| v.as_str()).expect("missing User-Agent");
     assert_eq!(ua, "MyApp/1.0");
 }
 
@@ -158,8 +162,7 @@ async fn test_default_api_client_injects_request_id_header() {
 
     let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
     let h = &json["headers"];
-    let request_id = h
-        .get("x-request-id")
+    let request_id = h.get("x-request-id")
         .and_then(|v| v.as_str())
         .expect("missing X-Request-ID");
     assert!(!request_id.is_empty());
@@ -190,7 +193,8 @@ async fn test_default_api_client_generates_unique_request_ids() {
 
     fn rid(v: &serde_json::Value) -> Option<&str> {
         let h = &v["headers"];
-        h.get("x-request-id").and_then(|x| x.as_str())
+        h.get("x-request-id")
+            .and_then(|x| x.as_str())
     }
     assert_ne!(rid(&json1), rid(&json2));
 }
@@ -210,10 +214,8 @@ async fn test_default_api_client_includes_transport_default_headers() {
 
     let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
     let h = &json["headers"];
-    let v = h
-        .get("x-custom")
-        .and_then(|v| v.as_str())
-        .expect("missing X-Custom");
+    let v = h.get("x-custom")
+        .and_then(|v| v.as_str()).expect("missing X-Custom");
     assert_eq!(v, "custom-value");
 }
 
@@ -233,10 +235,8 @@ async fn test_default_api_client_caller_headers_override_transport_defaults() {
 
     let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
     let h = &json["headers"];
-    let v = h
-        .get("accept")
-        .and_then(|v| v.as_str())
-        .expect("missing Accept");
+    let v = h.get("accept")
+        .and_then(|v| v.as_str()).expect("missing Accept");
     assert_eq!(v, "application/json");
 }
 
@@ -249,12 +249,7 @@ async fn test_default_api_client_follows_redirects_when_enabled() {
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
-        .send_request(
-            "GET",
-            &format!("{}/test/redirect/302", chasm_url),
-            &headers,
-            None,
-        )
+        .send_request("GET", &format!("{}/test/redirect/302", chasm_url), &headers, None)
         .await
         .expect("unexpected error");
 
@@ -273,12 +268,7 @@ async fn test_default_api_client_returns_redirect_when_disabled() {
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
-        .send_request(
-            "GET",
-            &format!("{}/test/redirect/302", chasm_url),
-            &headers,
-            None,
-        )
+        .send_request("GET", &format!("{}/test/redirect/302", chasm_url), &headers, None)
         .await
         .expect("unexpected error");
 
@@ -354,16 +344,9 @@ async fn test_default_api_client_multipart_body_replayed_on_307_redirect() {
 
     assert_eq!(resp.status_code, 200);
     let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
-    assert_eq!(
-        json["method"], "POST",
-        "follow-up request method must remain POST"
-    );
+    assert_eq!(json["method"], "POST", "follow-up request method must remain POST");
     let echoed_body = json["body"].as_str().unwrap_or("");
-    assert!(
-        !echoed_body.is_empty(),
-        "redirect target must echo a non-empty replayed body, got: {:?}",
-        json
-    );
+    assert!(!echoed_body.is_empty(), "redirect target must echo a non-empty replayed body, got: {:?}", json);
 }
 
 #[tokio::test]
@@ -373,13 +356,7 @@ async fn test_default_api_client_respects_max_redirects_limit() {
         .max_redirects(Some(5))
         .build();
     let client = DefaultApiClient::new(Some(transport));
-    assert!(
-        client
-            .send_request("GET", "http://127.0.0.1:1/unused", &HashMap::new(), None)
-            .await
-            .is_err()
-            || true
-    );
+    assert!(client.send_request("GET", "http://127.0.0.1:1/unused", &HashMap::new(), None).await.is_err() || true);
 }
 
 /// Gap T6: explicit close() and Drop on DefaultApiClient must not panic.
@@ -399,21 +376,12 @@ async fn test_default_api_client_close_releases_underlying_client() {
 #[test]
 fn test_multipart_filename_non_ascii_emits_rfc5987() {
     let directive = petstore::default_api_client::build_filename_directive("日本.pdf");
-    assert!(
-        directive.contains("filename*=UTF-8''"),
-        "expected RFC 5987 filename*=UTF-8'' directive, got: {}",
-        directive
-    );
-    assert!(
-        directive.contains("%E6%97%A5%E6%9C%AC"),
-        "expected percent-encoded UTF-8 bytes for 日本, got: {}",
-        directive
-    );
-    assert!(
-        directive.starts_with("filename=\""),
-        "expected ASCII fallback filename=\"...\" prefix, got: {}",
-        directive
-    );
+    assert!(directive.contains("filename*=UTF-8''"),
+        "expected RFC 5987 filename*=UTF-8'' directive, got: {}", directive);
+    assert!(directive.contains("%E6%97%A5%E6%9C%AC"),
+        "expected percent-encoded UTF-8 bytes for 日本, got: {}", directive);
+    assert!(directive.starts_with("filename=\""),
+        "expected ASCII fallback filename=\"...\" prefix, got: {}", directive);
 }
 
 /// Gap BI: ASCII-only filenames must NOT emit a filename*= parameter.
@@ -421,11 +389,8 @@ fn test_multipart_filename_non_ascii_emits_rfc5987() {
 fn test_multipart_filename_ascii_only_omits_filename_star() {
     let directive = petstore::default_api_client::build_filename_directive("pet.png");
     assert_eq!(directive, "filename=\"pet.png\"");
-    assert!(
-        !directive.contains("filename*="),
-        "ASCII-only filename must not emit filename*=, got: {}",
-        directive
-    );
+    assert!(!directive.contains("filename*="),
+        "ASCII-only filename must not emit filename*=, got: {}", directive);
 }
 
 /// Gap F: filenames containing CR/LF/NUL must be rejected to prevent
@@ -433,11 +398,8 @@ fn test_multipart_filename_ascii_only_omits_filename_star() {
 #[test]
 fn test_multipart_filename_crlf_rejected() {
     for bad in &["a\rb.pdf", "a\nb.pdf", "a\r\nb.pdf", "a\0b.pdf"] {
-        assert!(
-            petstore::default_api_client::validate_multipart_filename(bad).is_err(),
-            "expected error for {:?}",
-            bad
-        );
+        assert!(petstore::default_api_client::validate_multipart_filename(bad).is_err(),
+            "expected error for {:?}", bad);
     }
     assert!(petstore::default_api_client::validate_multipart_filename("pet.png").is_ok());
 }
@@ -449,17 +411,9 @@ fn test_multipart_filename_crlf_rejected() {
 /// scenario.
 #[test]
 fn test_multipart_field_name_with_crlf_rejected_on_string_value() {
-    for bad in &[
-        "name\rInjected: yes",
-        "name\nInjected: yes",
-        "name\r\nInjected: yes",
-        "name\0Injected",
-    ] {
-        assert!(
-            petstore::default_api_client::validate_multipart_field_name(bad).is_err(),
-            "expected validate_multipart_field_name to reject {:?}",
-            bad
-        );
+    for bad in &["name\rInjected: yes", "name\nInjected: yes", "name\r\nInjected: yes", "name\0Injected"] {
+        assert!(petstore::default_api_client::validate_multipart_field_name(bad).is_err(),
+            "expected validate_multipart_field_name to reject {:?}", bad);
     }
     assert!(petstore::default_api_client::validate_multipart_field_name("description").is_ok());
 
@@ -474,11 +428,8 @@ fn test_multipart_field_name_with_crlf_rejected_on_string_value() {
     );
     let body = petstore::default_api_client::serialize_multipart_body(&fields, "boundary");
     let body_str = String::from_utf8_lossy(&body);
-    assert!(
-        !body_str.contains("Injected: yes"),
-        "serialize_multipart_body must not emit the injected header: {}",
-        body_str
-    );
+    assert!(!body_str.contains("Injected: yes"),
+        "serialize_multipart_body must not emit the injected header: {}", body_str);
 }
 
 #[tokio::test]
@@ -493,12 +444,7 @@ async fn test_default_api_client_sends_multipart_form_data() {
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let _resp = client
-        .send_request(
-            "POST",
-            &format!("{}/test/echo", chasm_url),
-            &headers,
-            Some(&request_body),
-        )
+        .send_request("POST", &format!("{}/test/echo", chasm_url), &headers, Some(&request_body))
         .await;
 }
 
@@ -515,20 +461,11 @@ async fn test_default_api_client_decompresses_gzip_response() {
     let mut headers = HashMap::new();
     headers.insert("Accept-Encoding".to_string(), "gzip".to_string());
     let resp = client
-        .send_request(
-            "GET",
-            &format!("{}/test/compressed/gzip", chasm_url),
-            &headers,
-            None,
-        )
+        .send_request("GET", &format!("{}/test/compressed/gzip", chasm_url), &headers, None)
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code, 200);
-    assert!(
-        resp.body.contains("userId"),
-        "expected decompressed body, got: {}",
-        resp.body
-    );
+    assert!(resp.body.contains("userId"), "expected decompressed body, got: {}", resp.body);
 }
 
 #[tokio::test]
@@ -538,20 +475,11 @@ async fn test_default_api_client_decompresses_brotli_response() {
     let mut headers = HashMap::new();
     headers.insert("Accept-Encoding".to_string(), "br".to_string());
     let resp = client
-        .send_request(
-            "GET",
-            &format!("{}/test/compressed/br", chasm_url),
-            &headers,
-            None,
-        )
+        .send_request("GET", &format!("{}/test/compressed/br", chasm_url), &headers, None)
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code, 200);
-    assert!(
-        resp.body.contains("userId"),
-        "expected decompressed body, got: {}",
-        resp.body
-    );
+    assert!(resp.body.contains("userId"), "expected decompressed body, got: {}", resp.body);
 }
 
 #[tokio::test]
@@ -561,20 +489,11 @@ async fn test_default_api_client_decompresses_zstd_response() {
     let mut headers = HashMap::new();
     headers.insert("Accept-Encoding".to_string(), "zstd".to_string());
     let resp = client
-        .send_request(
-            "GET",
-            &format!("{}/test/compressed/zstd", chasm_url),
-            &headers,
-            None,
-        )
+        .send_request("GET", &format!("{}/test/compressed/zstd", chasm_url), &headers, None)
         .await
         .expect("unexpected error");
     assert_eq!(resp.status_code, 200);
-    assert!(
-        resp.body.contains("userId"),
-        "expected decompressed body, got: {}",
-        resp.body
-    );
+    assert!(resp.body.contains("userId"), "expected decompressed body, got: {}", resp.body);
 }
 
 // Regression: POST/PUT/PATCH with body == None must emit an explicit
@@ -593,7 +512,8 @@ async fn test_default_api_client_post_with_null_body_sends_content_length_zero()
     assert_eq!(resp.status_code, 200);
     /* chasm's echo envelope reports contentLength as a camelCase integer (not the
      * stringified header value chasm returned). */
-    let parsed: serde_json::Value = serde_json::from_str(&resp.body).expect("failed to parse json");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&resp.body).expect("failed to parse json");
     assert_eq!(parsed["method"], "POST");
     assert_eq!(
         parsed.get("contentLength").and_then(|v| v.as_i64()),

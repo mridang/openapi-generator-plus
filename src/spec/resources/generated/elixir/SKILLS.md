@@ -96,6 +96,10 @@ client = PetstoreClient.Client.new(authenticator)
 
 ### OAuth2 token lifecycle
 
+#### Async authentication
+
+OAuth2 authenticators resolve the access token by making an HTTP call to the token endpoint the first time `auth_headers/1` is invoked (and again whenever the cached token has expired). That token fetch runs synchronously inside `auth_headers/1`, and the generated API functions always resolve the auth headers before sending the request. Because the fetch can perform network I/O and raise, call OAuth-backed operations from a process that can tolerate the blocking call (or wrap them in a `Task`) rather than from a latency-sensitive hot path.
+
 #### Refresh tokens
 
 When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.

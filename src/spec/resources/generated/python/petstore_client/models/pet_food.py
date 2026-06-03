@@ -47,8 +47,6 @@ class PetFood(BaseModel):
     discriminator_value_class_map: ClassVar[Dict[str, str]] = {
         'dry': 'DryFood',
         'wet': 'WetFood',
-        'DryFood': 'DryFood',
-        'WetFood': 'WetFood',
     }
 
     _discriminator_property_name: ClassVar[str] = 'foodType'

@@ -8,7 +8,6 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any, Dict, List, Optional  # noqa: F401
-from urllib.parse import quote  # noqa: F401
 from pydantic import StrictBool, StrictFloat, StrictInt, StrictStr  # noqa: F401
 
 from petstore_client.models.api_response import ApiResponse  # noqa: F401
@@ -25,6 +24,7 @@ from ..configuration import Configuration
 from .base_api import BaseApi
 from ..value_serializer import ValueSerializer
 from ..auth.authenticator import Authenticator
+from ..errors import ApiException
 from .options.add_pet_photos_options import AddPetPhotosOptions
 from .options.delete_pet_options import DeletePetOptions
 from .options.find_pets_by_status_options import FindPetsByStatusOptions
@@ -161,7 +161,6 @@ class PetApi(BaseApi):
     async def add_pet(
         self,
         pet: Pet,
-        base_url: Optional[str] = None,
         auth: Optional[Authenticator] = None,
     ) -> Pet:
         """Add a new pet to the store
@@ -174,15 +173,24 @@ class PetApi(BaseApi):
         if pet is None:
             raise ValueError("Missing the required parameter 'pet'")
 
-        result = await self.add_pet_with_http_info(pet, base_url=base_url, auth=auth)
+        result = await self.add_pet_with_http_info(pet, auth=auth)
 
-        assert result.data is not None
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message='Expected a response body but the server returned none',
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
         return result.data
 
     async def add_pet_with_http_info(
         self,
         pet: Pet,
-        base_url: Optional[str] = None,
         auth: Optional[Authenticator] = None,
     ) -> 'ApiResult[Pet]':
         """Add a new pet to the store (with HTTP info)
@@ -196,9 +204,6 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet'")
 
         path = '/pet'
-        if base_url is not None:
-            if base_url.startswith('http://') or base_url.startswith('https://'):
-                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = pet
@@ -219,7 +224,6 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         options: Optional[AddPetPhotosOptions] = None,
-        base_url: Optional[str] = None,
     ) -> List[Photo]:
         """Add photos to the pet&#39;s gallery
         Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
@@ -239,16 +243,25 @@ class PetApi(BaseApi):
         if options is None or options.metadata is None:
             raise ValueError("Missing the required parameter 'metadata'")
 
-        result = await self.add_pet_photos_with_http_info(pet_id, options, base_url=base_url)
+        result = await self.add_pet_photos_with_http_info(pet_id, options)
 
-        assert result.data is not None
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message='Expected a response body but the server returned none',
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
         return result.data
 
     async def add_pet_photos_with_http_info(
         self,
         pet_id: StrictInt,
         options: Optional[AddPetPhotosOptions] = None,
-        base_url: Optional[str] = None,
     ) -> 'ApiResult[List[Photo]]':
         """Add photos to the pet&#39;s gallery (with HTTP info)
         Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
@@ -269,10 +282,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'metadata'")
 
         path = '/pet/{petId}/photos'
-        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
-        if base_url is not None:
-            if base_url.startswith('http://') or base_url.startswith('https://'):
-                path = base_url.rstrip('/') + path
+        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)))
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body: Dict[str, Any] = {}
@@ -297,7 +307,6 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         pet_treatment: PetTreatment,
-        base_url: Optional[str] = None,
         auth: Optional[Authenticator] = None,
     ) -> PetTreatment:
         """Record a treatment for a pet
@@ -314,16 +323,25 @@ class PetApi(BaseApi):
         if pet_treatment is None:
             raise ValueError("Missing the required parameter 'pet_treatment'")
 
-        result = await self.add_pet_treatment_with_http_info(pet_id, pet_treatment, base_url=base_url, auth=auth)
+        result = await self.add_pet_treatment_with_http_info(pet_id, pet_treatment, auth=auth)
 
-        assert result.data is not None
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message='Expected a response body but the server returned none',
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
         return result.data
 
     async def add_pet_treatment_with_http_info(
         self,
         pet_id: StrictInt,
         pet_treatment: PetTreatment,
-        base_url: Optional[str] = None,
         auth: Optional[Authenticator] = None,
     ) -> 'ApiResult[PetTreatment]':
         """Record a treatment for a pet (with HTTP info)
@@ -341,10 +359,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_treatment'")
 
         path = '/pet/{petId}/treatment'
-        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
-        if base_url is not None:
-            if base_url.startswith('http://') or base_url.startswith('https://'):
-                path = base_url.rstrip('/') + path
+        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)))
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = pet_treatment
@@ -365,7 +380,6 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         options: Optional[DeletePetOptions] = None,
-        base_url: Optional[str] = None,
         auth: Optional[Authenticator] = None,
     ) -> None:
         """Deletes a pet
@@ -379,7 +393,7 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        result = await self.delete_pet_with_http_info(pet_id, options, base_url=base_url, auth=auth)
+        result = await self.delete_pet_with_http_info(pet_id, options, auth=auth)
 
         return result.data
 
@@ -387,7 +401,6 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         options: Optional[DeletePetOptions] = None,
-        base_url: Optional[str] = None,
         auth: Optional[Authenticator] = None,
     ) -> 'ApiResult[None]':
         """Deletes a pet (with HTTP info)
@@ -403,10 +416,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         path = '/pet/{petId}'
-        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
-        if base_url is not None:
-            if base_url.startswith('http://') or base_url.startswith('https://'):
-                path = base_url.rstrip('/') + path
+        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)))
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         cookie_parts = []
@@ -432,7 +442,6 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         document_id: StrictInt,
-        base_url: Optional[str] = None,
     ) -> bytes:
         """Download a vet document
         Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
@@ -448,16 +457,25 @@ class PetApi(BaseApi):
         if document_id is None:
             raise ValueError("Missing the required parameter 'document_id'")
 
-        result = await self.download_pet_document_with_http_info(pet_id, document_id, base_url=base_url)
+        result = await self.download_pet_document_with_http_info(pet_id, document_id)
 
-        assert result.data is not None
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message='Expected a response body but the server returned none',
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
         return result.data
 
     async def download_pet_document_with_http_info(
         self,
         pet_id: StrictInt,
         document_id: StrictInt,
-        base_url: Optional[str] = None,
     ) -> 'ApiResult[bytes]':
         """Download a vet document (with HTTP info)
         Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
@@ -474,11 +492,8 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'document_id'")
 
         path = '/pet/{petId}/documents/{documentId}'
-        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
-        path = path.replace('{' + 'documentId' + '}', quote(str(ValueSerializer.serialize_styled('documentId', document_id, 'path', 'StrictInt', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
-        if base_url is not None:
-            if base_url.startswith('http://') or base_url.startswith('https://'):
-                path = base_url.rstrip('/') + path
+        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)))
+        path = path.replace('{' + 'documentId' + '}', str(ValueSerializer.serialize_styled('documentId', document_id, 'path', 'StrictInt', None, 'simple', False)))
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -498,7 +513,6 @@ class PetApi(BaseApi):
     async def find_pets_by_status(
         self,
         options: Optional[FindPetsByStatusOptions] = None,
-        base_url: Optional[str] = None,
     ) -> List[Pet]:
         """Finds Pets by status
 
@@ -511,15 +525,24 @@ class PetApi(BaseApi):
         .. seealso::
             `Find out more about filtering <https://example.com/docs/filtering>`_
         """
-        result = await self.find_pets_by_status_with_http_info(options, base_url=base_url)
+        result = await self.find_pets_by_status_with_http_info(options)
 
-        assert result.data is not None
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message='Expected a response body but the server returned none',
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
         return result.data
 
     async def find_pets_by_status_with_http_info(
         self,
         options: Optional[FindPetsByStatusOptions] = None,
-        base_url: Optional[str] = None,
     ) -> 'ApiResult[List[Pet]]':
         """Finds Pets by status (with HTTP info)
 
@@ -529,9 +552,6 @@ class PetApi(BaseApi):
         :raises ApiException: if fails to make API call
         """
         path = '/pet/findByStatus'
-        if base_url is not None:
-            if base_url.startswith('http://') or base_url.startswith('https://'):
-                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         if options is not None:
             if options.status is not None:
@@ -559,7 +579,6 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         server: Optional['GetExternalPetInfoServer'] = None,
-        base_url: Optional[str] = None,
     ) -> Pet:
         """Get external pet info
         :param pet_id:  (required)
@@ -570,16 +589,25 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        result = await self.get_external_pet_info_with_http_info(pet_id, server=server, base_url=base_url)
+        result = await self.get_external_pet_info_with_http_info(pet_id, server=server)
 
-        assert result.data is not None
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message='Expected a response body but the server returned none',
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
         return result.data
 
     async def get_external_pet_info_with_http_info(
         self,
         pet_id: StrictInt,
         server: Optional['GetExternalPetInfoServer'] = None,
-        base_url: Optional[str] = None,
     ) -> 'ApiResult[Pet]':
         """Get external pet info (with HTTP info)
         :param pet_id:  (required)
@@ -591,14 +619,11 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         path = '/pet/{petId}/external'
-        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
+        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)))
         if server is not None:
             _server_url = server.get_url()
             if _server_url.startswith('http://') or _server_url.startswith('https://'):
                 path = _server_url + path
-        if base_url is not None:
-            if base_url.startswith('http://') or base_url.startswith('https://'):
-                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -619,7 +644,6 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         server: Optional['GetMultiServerPetInfoServer'] = None,
-        base_url: Optional[str] = None,
     ) -> Pet:
         """Get multi-server pet info
         :param pet_id:  (required)
@@ -630,16 +654,25 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        result = await self.get_multi_server_pet_info_with_http_info(pet_id, server=server, base_url=base_url)
+        result = await self.get_multi_server_pet_info_with_http_info(pet_id, server=server)
 
-        assert result.data is not None
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message='Expected a response body but the server returned none',
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
         return result.data
 
     async def get_multi_server_pet_info_with_http_info(
         self,
         pet_id: StrictInt,
         server: Optional['GetMultiServerPetInfoServer'] = None,
-        base_url: Optional[str] = None,
     ) -> 'ApiResult[Pet]':
         """Get multi-server pet info (with HTTP info)
         :param pet_id:  (required)
@@ -651,14 +684,11 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         path = '/pet/{petId}/multi'
-        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
+        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)))
         if server is not None:
             _server_url = server.get_url()
             if _server_url.startswith('http://') or _server_url.startswith('https://'):
                 path = _server_url + path
-        if base_url is not None:
-            if base_url.startswith('http://') or base_url.startswith('https://'):
-                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -678,7 +708,6 @@ class PetApi(BaseApi):
     async def get_pet_avatar(
         self,
         pet_id: StrictInt,
-        base_url: Optional[str] = None,
     ) -> bytes:
         """Get the pet&#39;s profile photo
         Returns the raw image bytes of the pet&#39;s current avatar.
@@ -690,15 +719,24 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        result = await self.get_pet_avatar_with_http_info(pet_id, base_url=base_url)
+        result = await self.get_pet_avatar_with_http_info(pet_id)
 
-        assert result.data is not None
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message='Expected a response body but the server returned none',
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
         return result.data
 
     async def get_pet_avatar_with_http_info(
         self,
         pet_id: StrictInt,
-        base_url: Optional[str] = None,
     ) -> 'ApiResult[bytes]':
         """Get the pet&#39;s profile photo (with HTTP info)
         Returns the raw image bytes of the pet&#39;s current avatar.
@@ -711,10 +749,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         path = '/pet/{petId}/avatar'
-        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
-        if base_url is not None:
-            if base_url.startswith('http://') or base_url.startswith('https://'):
-                path = base_url.rstrip('/') + path
+        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)))
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -734,7 +769,6 @@ class PetApi(BaseApi):
     async def get_pet_avatar_thumbnail(
         self,
         pet_id: StrictInt,
-        base_url: Optional[str] = None,
     ) -> bytes:
         """Get the pet&#39;s avatar thumbnail as base64
         Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
@@ -746,15 +780,24 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        result = await self.get_pet_avatar_thumbnail_with_http_info(pet_id, base_url=base_url)
+        result = await self.get_pet_avatar_thumbnail_with_http_info(pet_id)
 
-        assert result.data is not None
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message='Expected a response body but the server returned none',
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
         return result.data
 
     async def get_pet_avatar_thumbnail_with_http_info(
         self,
         pet_id: StrictInt,
-        base_url: Optional[str] = None,
     ) -> 'ApiResult[bytes]':
         """Get the pet&#39;s avatar thumbnail as base64 (with HTTP info)
         Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
@@ -767,10 +810,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         path = '/pet/{petId}/avatar/thumbnail'
-        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
-        if base_url is not None:
-            if base_url.startswith('http://') or base_url.startswith('https://'):
-                path = base_url.rstrip('/') + path
+        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)))
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -791,7 +831,6 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         server: Optional['GetPetByIdServer'] = None,
-        base_url: Optional[str] = None,
     ) -> Pet:
         """Find pet by ID
         Returns a single pet
@@ -811,16 +850,25 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        result = await self.get_pet_by_id_with_http_info(pet_id, server=server, base_url=base_url)
+        result = await self.get_pet_by_id_with_http_info(pet_id, server=server)
 
-        assert result.data is not None
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message='Expected a response body but the server returned none',
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
         return result.data
 
     async def get_pet_by_id_with_http_info(
         self,
         pet_id: StrictInt,
         server: Optional['GetPetByIdServer'] = None,
-        base_url: Optional[str] = None,
     ) -> 'ApiResult[Pet]':
         """Find pet by ID (with HTTP info)
         Returns a single pet
@@ -833,14 +881,11 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         path = '/pet/{petId}'
-        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
+        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)))
         if server is not None:
             _server_url = server.get_url()
             if _server_url.startswith('http://') or _server_url.startswith('https://'):
                 path = _server_url + path
-        if base_url is not None:
-            if base_url.startswith('http://') or base_url.startswith('https://'):
-                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -860,7 +905,6 @@ class PetApi(BaseApi):
     async def get_pet_passport(
         self,
         pet_id: StrictInt,
-        base_url: Optional[str] = None,
     ) -> PetPassport:
         """Get the pet&#39;s passport
         Returns a single JSON document combining the pet&#39;s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
@@ -872,15 +916,24 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        result = await self.get_pet_passport_with_http_info(pet_id, base_url=base_url)
+        result = await self.get_pet_passport_with_http_info(pet_id)
 
-        assert result.data is not None
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message='Expected a response body but the server returned none',
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
         return result.data
 
     async def get_pet_passport_with_http_info(
         self,
         pet_id: StrictInt,
-        base_url: Optional[str] = None,
     ) -> 'ApiResult[PetPassport]':
         """Get the pet&#39;s passport (with HTTP info)
         Returns a single JSON document combining the pet&#39;s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
@@ -893,10 +946,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         path = '/pet/{petId}/passport'
-        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
-        if base_url is not None:
-            if base_url.startswith('http://') or base_url.startswith('https://'):
-                path = base_url.rstrip('/') + path
+        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)))
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -917,7 +967,6 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         photo_id: StrictInt,
-        base_url: Optional[str] = None,
     ) -> bytes:
         """Get a photo or its metadata
         Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
@@ -933,16 +982,25 @@ class PetApi(BaseApi):
         if photo_id is None:
             raise ValueError("Missing the required parameter 'photo_id'")
 
-        result = await self.get_pet_photo_with_http_info(pet_id, photo_id, base_url=base_url)
+        result = await self.get_pet_photo_with_http_info(pet_id, photo_id)
 
-        assert result.data is not None
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message='Expected a response body but the server returned none',
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
         return result.data
 
     async def get_pet_photo_with_http_info(
         self,
         pet_id: StrictInt,
         photo_id: StrictInt,
-        base_url: Optional[str] = None,
     ) -> 'ApiResult[bytes]':
         """Get a photo or its metadata (with HTTP info)
         Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
@@ -959,11 +1017,8 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'photo_id'")
 
         path = '/pet/{petId}/photos/{photoId}'
-        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
-        path = path.replace('{' + 'photoId' + '}', quote(str(ValueSerializer.serialize_styled('photoId', photo_id, 'path', 'StrictInt', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
-        if base_url is not None:
-            if base_url.startswith('http://') or base_url.startswith('https://'):
-                path = base_url.rstrip('/') + path
+        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)))
+        path = path.replace('{' + 'photoId' + '}', str(ValueSerializer.serialize_styled('photoId', photo_id, 'path', 'StrictInt', None, 'simple', False)))
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -985,7 +1040,6 @@ class PetApi(BaseApi):
         pet_id: StrictInt,
         tag_name: StrictStr,
         options: Optional[GetPetTagOptions] = None,
-        base_url: Optional[str] = None,
     ) -> Pet:
         """Get a tag for a pet
         :param pet_id:  (required)
@@ -1002,9 +1056,19 @@ class PetApi(BaseApi):
         if tag_name is None:
             raise ValueError("Missing the required parameter 'tag_name'")
 
-        result = await self.get_pet_tag_with_http_info(pet_id, tag_name, options, base_url=base_url)
+        result = await self.get_pet_tag_with_http_info(pet_id, tag_name, options)
 
-        assert result.data is not None
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message='Expected a response body but the server returned none',
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
         return result.data
 
     async def get_pet_tag_with_http_info(
@@ -1012,7 +1076,6 @@ class PetApi(BaseApi):
         pet_id: StrictInt,
         tag_name: StrictStr,
         options: Optional[GetPetTagOptions] = None,
-        base_url: Optional[str] = None,
     ) -> 'ApiResult[Pet]':
         """Get a tag for a pet (with HTTP info)
         :param pet_id:  (required)
@@ -1030,11 +1093,8 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'tag_name'")
 
         path = '/pet/{petId}/tag/{tagName}'
-        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'matrix', False)), safe="/;,=.~:!$&'()*+@"))
-        path = path.replace('{' + 'tagName' + '}', quote(str(ValueSerializer.serialize_styled('tagName', tag_name, 'path', 'StrictStr', None, 'label', False)), safe="/;,=.~:!$&'()*+@"))
-        if base_url is not None:
-            if base_url.startswith('http://') or base_url.startswith('https://'):
-                path = base_url.rstrip('/') + path
+        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'matrix', False)))
+        path = path.replace('{' + 'tagName' + '}', str(ValueSerializer.serialize_styled('tagName', tag_name, 'path', 'StrictStr', None, 'label', False)))
         query_params: Dict[str, Any] = {}
         if options is not None and options.colors is not None:
             query_params['colors'] = ValueSerializer.serialize_styled('colors', options.colors, 'query', 'List[StrictStr]', 'pipes', 'pipeDelimited', False)
@@ -1064,7 +1124,6 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         server: Optional['GetStagingPetInfoServer'] = None,
-        base_url: Optional[str] = None,
     ) -> Pet:
         """Get staging pet info
         :param pet_id:  (required)
@@ -1075,16 +1134,25 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        result = await self.get_staging_pet_info_with_http_info(pet_id, server=server, base_url=base_url)
+        result = await self.get_staging_pet_info_with_http_info(pet_id, server=server)
 
-        assert result.data is not None
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message='Expected a response body but the server returned none',
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
         return result.data
 
     async def get_staging_pet_info_with_http_info(
         self,
         pet_id: StrictInt,
         server: Optional['GetStagingPetInfoServer'] = None,
-        base_url: Optional[str] = None,
     ) -> 'ApiResult[Pet]':
         """Get staging pet info (with HTTP info)
         :param pet_id:  (required)
@@ -1096,14 +1164,11 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         path = '/pet/{petId}/staging'
-        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
+        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)))
         if server is not None:
             _server_url = server.get_url()
             if _server_url.startswith('http://') or _server_url.startswith('https://'):
                 path = _server_url + path
-        if base_url is not None:
-            if base_url.startswith('http://') or base_url.startswith('https://'):
-                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -1124,7 +1189,6 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         body: bytes,
-        base_url: Optional[str] = None,
     ) -> None:
         """Set the pet&#39;s profile photo
         Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
@@ -1139,7 +1203,7 @@ class PetApi(BaseApi):
         if body is None:
             raise ValueError("Missing the required parameter 'body'")
 
-        result = await self.set_pet_avatar_with_http_info(pet_id, body, base_url=base_url)
+        result = await self.set_pet_avatar_with_http_info(pet_id, body)
 
         return result.data
 
@@ -1147,7 +1211,6 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         body: bytes,
-        base_url: Optional[str] = None,
     ) -> 'ApiResult[None]':
         """Set the pet&#39;s profile photo (with HTTP info)
         Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
@@ -1164,10 +1227,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'body'")
 
         path = '/pet/{petId}/avatar'
-        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
-        if base_url is not None:
-            if base_url.startswith('http://') or base_url.startswith('https://'):
-                path = base_url.rstrip('/') + path
+        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)))
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = body
@@ -1188,7 +1248,6 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
-        base_url: Optional[str] = None,
     ) -> None:
         """Set the pet&#39;s avatar thumbnail as base64
         Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
@@ -1203,7 +1262,7 @@ class PetApi(BaseApi):
         if set_pet_avatar_thumbnail_request is None:
             raise ValueError("Missing the required parameter 'set_pet_avatar_thumbnail_request'")
 
-        result = await self.set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request, base_url=base_url)
+        result = await self.set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request)
 
         return result.data
 
@@ -1211,7 +1270,6 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
-        base_url: Optional[str] = None,
     ) -> 'ApiResult[None]':
         """Set the pet&#39;s avatar thumbnail as base64 (with HTTP info)
         Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
@@ -1228,10 +1286,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'set_pet_avatar_thumbnail_request'")
 
         path = '/pet/{petId}/avatar/thumbnail'
-        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
-        if base_url is not None:
-            if base_url.startswith('http://') or base_url.startswith('https://'):
-                path = base_url.rstrip('/') + path
+        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)))
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = set_pet_avatar_thumbnail_request
@@ -1252,7 +1307,6 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         pet: Pet,
-        base_url: Optional[str] = None,
     ) -> Pet:
         """Update an existing pet
         :param pet_id: ID of pet to update (required)
@@ -1267,16 +1321,25 @@ class PetApi(BaseApi):
         if pet is None:
             raise ValueError("Missing the required parameter 'pet'")
 
-        result = await self.update_pet_with_http_info(pet_id, pet, base_url=base_url)
+        result = await self.update_pet_with_http_info(pet_id, pet)
 
-        assert result.data is not None
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message='Expected a response body but the server returned none',
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
         return result.data
 
     async def update_pet_with_http_info(
         self,
         pet_id: StrictInt,
         pet: Pet,
-        base_url: Optional[str] = None,
     ) -> 'ApiResult[Pet]':
         """Update an existing pet (with HTTP info)
         :param pet_id: ID of pet to update (required)
@@ -1292,10 +1355,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet'")
 
         path = '/pet/{petId}'
-        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
-        if base_url is not None:
-            if base_url.startswith('http://') or base_url.startswith('https://'):
-                path = base_url.rstrip('/') + path
+        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)))
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = pet
@@ -1316,7 +1376,6 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         options: Optional[UploadPetCertificateOptions] = None,
-        base_url: Optional[str] = None,
     ) -> ApiResponse:
         """Upload the pet&#39;s adoption certificate
         Attaches a single adoption certificate document. No metadata fields are required alongside the file.
@@ -1333,16 +1392,25 @@ class PetApi(BaseApi):
         if options is None or options.file is None:
             raise ValueError("Missing the required parameter 'file'")
 
-        result = await self.upload_pet_certificate_with_http_info(pet_id, options, base_url=base_url)
+        result = await self.upload_pet_certificate_with_http_info(pet_id, options)
 
-        assert result.data is not None
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message='Expected a response body but the server returned none',
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
         return result.data
 
     async def upload_pet_certificate_with_http_info(
         self,
         pet_id: StrictInt,
         options: Optional[UploadPetCertificateOptions] = None,
-        base_url: Optional[str] = None,
     ) -> 'ApiResult[ApiResponse]':
         """Upload the pet&#39;s adoption certificate (with HTTP info)
         Attaches a single adoption certificate document. No metadata fields are required alongside the file.
@@ -1360,10 +1428,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'file'")
 
         path = '/pet/{petId}/certificate'
-        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
-        if base_url is not None:
-            if base_url.startswith('http://') or base_url.startswith('https://'):
-                path = base_url.rstrip('/') + path
+        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)))
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body: Dict[str, Any] = {}
@@ -1386,7 +1451,6 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         options: Optional[UploadPetDocumentOptions] = None,
-        base_url: Optional[str] = None,
     ) -> ApiResponse:
         """Attach a vet document or health record
         Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
@@ -1403,16 +1467,25 @@ class PetApi(BaseApi):
         if options is None or options.file is None:
             raise ValueError("Missing the required parameter 'file'")
 
-        result = await self.upload_pet_document_with_http_info(pet_id, options, base_url=base_url)
+        result = await self.upload_pet_document_with_http_info(pet_id, options)
 
-        assert result.data is not None
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message='Expected a response body but the server returned none',
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
         return result.data
 
     async def upload_pet_document_with_http_info(
         self,
         pet_id: StrictInt,
         options: Optional[UploadPetDocumentOptions] = None,
-        base_url: Optional[str] = None,
     ) -> 'ApiResult[ApiResponse]':
         """Attach a vet document or health record (with HTTP info)
         Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
@@ -1430,10 +1503,7 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'file'")
 
         path = '/pet/{petId}/documents'
-        path = path.replace('{' + 'petId' + '}', quote(str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)), safe="/;,=.~:!$&'()*+@"))
-        if base_url is not None:
-            if base_url.startswith('http://') or base_url.startswith('https://'):
-                path = base_url.rstrip('/') + path
+        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)))
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body: Dict[str, Any] = {}

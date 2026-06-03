@@ -124,6 +124,20 @@ class OAuth2AuthCodeAuthenticatorTest {
   }
 
   @Test
+  void exchangeCodeRejectsEmptyCode() {
+    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+    auth.setApiClient(
+        (method, url, headers, body) ->
+            new ApiResponse(200, "{\"access_token\":\"at\"}", Map.of()));
+
+    // No exchangeCode(null) case: the code parameter is @NonNull, so
+    // NullAway rejects a literal null at compile time. Empty + whitespace
+    // exercise the runtime guard.
+    assertThrows(IllegalArgumentException.class, () -> auth.exchangeCode(""));
+    assertThrows(IllegalArgumentException.class, () -> auth.exchangeCode("   "));
+  }
+
+  @Test
   void auth_headers_before_exchange_returns_recoverable_error() {
     OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
 

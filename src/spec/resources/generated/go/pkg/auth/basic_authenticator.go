@@ -10,6 +10,7 @@ package auth
 import (
 	"encoding/base64"
 	"errors"
+	"fmt"
 )
 
 // ErrBasicAuthUsernameControlChar is returned by AuthHeadersOrError when the
@@ -44,6 +45,12 @@ func NewBasicAuthenticator(host, username, password string) *BasicAuthenticator 
 // Host returns the API base URL.
 func (a *BasicAuthenticator) Host() string {
 	return a.host
+}
+
+// String implements fmt.Stringer so the default string/format representation
+// never leaks the password. authenticator-secret-in-default-string-repr.
+func (a *BasicAuthenticator) String() string {
+	return fmt.Sprintf("BasicAuthenticator{host: %q, username: %q, password: ***}", a.host, a.username)
 }
 
 // AuthHeadersOrError returns the Basic Authorization header, or a typed

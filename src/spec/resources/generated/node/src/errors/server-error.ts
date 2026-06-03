@@ -14,7 +14,7 @@ export class ServerError<T = unknown> extends ApiError<T> {
   constructor(
     statusCode: number,
     message: string,
-    responseHeaders: Record<string, string> = {},
+    responseHeaders: Record<string, string> | null = {},
     responseBody: string | null = null,
     errorBody: T | null = null
   ) {

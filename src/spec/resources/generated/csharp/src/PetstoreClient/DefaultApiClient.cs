@@ -64,6 +64,16 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     private readonly TransportOptions _transportOptions;
 
     /// <summary>
+    /// Set once <see cref="Dispose"/> has been called. Guards against
+    /// use-after-close: a request issued on a disposed client surfaces a
+    /// typed SDK <see cref="ApiException"/> rather than the raw
+    /// <see cref="ObjectDisposedException"/> leaked by the underlying
+    /// HttpClient — harmonising the close lifecycle across SDKs (closed-flag
+    /// plus SDK error on use-after-close).
+    /// </summary>
+    private bool _closed;
+
+    /// <summary>
     /// The <c>Basic [base64]</c> Proxy-Authorization value extracted from
     /// userinfo embedded in the proxy URL, or <c>null</c> when no proxy
     /// credentials are configured. Exposed for tests and HTTP-aware
@@ -237,6 +247,11 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         ArgumentNullException.ThrowIfNull(url);
         ArgumentNullException.ThrowIfNull(headers);
 
+        if (_closed)
+        {
+            throw new ApiException("ApiClient has been closed");
+        }
+
         Dictionary<string, string> mergedHeaders = new(_transportOptions.DefaultHeaders);
         foreach (KeyValuePair<string, string> header in headers)
         {
@@ -352,7 +367,16 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                         : new Uri(currentUrl, response.Headers.Location);
                     if (nextUrl.Scheme != Uri.UriSchemeHttp && nextUrl.Scheme != Uri.UriSchemeHttps)
                     {
-                        break;
+                        /* T-D3: a Location pointing at a non-http(s) scheme
+                           (file:, javascript:, data:, …) is refused. Surface
+                           it as a typed SDK error instead of silently
+                           returning the 3xx so the caller can detect the
+                           blocked redirect — matching java/kotlin/python and
+                           the harmonised cross-SDK canonical. */
+                        response.Dispose();
+                        throw new ApiException(
+                            $"Refusing to follow redirect to non-http(s) URL: {nextUrl}"
+                        );
                     }
                     bool crossOrigin = !SameOrigin(originalUrl, nextUrl);
 
@@ -379,7 +403,17 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     bool preservesBody = redirectStatus == 307 || redirectStatus == 308;
                     if (isDowngrade && preservesBody && currentBody != null)
                     {
-                        break;
+                        /* T-D2: refuse to replay a body that was sent over TLS
+                           in cleartext to a downgraded HTTP target. Raise a
+                           typed SDK error instead of silently returning the
+                           3xx so the caller observes the refused hop —
+                           matching the 8 SDKs that already throw. The body is
+                           never leaked in either case; only the error surface
+                           is harmonised. */
+                        response.Dispose();
+                        throw new ApiException(
+                            $"Refusing to replay request body across HTTPS->HTTP downgrade redirect to: {nextUrl}"
+                        );
                     }
 
                     /* Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
@@ -462,6 +496,19 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     next.Dispose();
                     hops++;
                 }
+
+                /* T-D1: the redirect chain was longer than the configured cap.
+                   Surface a typed SDK error instead of silently returning the
+                   final 3xx as if it were a normal response — matching the
+                   harmonised cross-SDK canonical (throw "too many redirects"
+                   everywhere). */
+                if (hops >= maxRedirects && IsRedirectStatus((int)response.StatusCode))
+                {
+                    response.Dispose();
+                    throw new ApiException(
+                        $"Exceeded maximum number of redirects ({maxRedirects})"
+                    );
+                }
             }
         }
         catch (HttpRequestException ex)
@@ -473,7 +520,32 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             throw new ApiException("Request timed out", ex);
         }
 
-        byte[] responseBytes = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+        /* A post-headers body-read failure (connection reset, read timeout,
+           truncated chunked transfer, decompression error) must surface as the
+           same uniform ApiException as a send-phase failure — not as the raw
+           HttpRequestException / IOException / TaskCanceledException leaked by
+           HttpClient. Wrap the lazy body read in the transport try/catch so
+           callers get one error type for the entire transport phase. */
+        byte[] responseBytes;
+        try
+        {
+            responseBytes = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+        }
+        catch (HttpRequestException ex)
+        {
+            response.Dispose();
+            throw new ApiException(ex.Message, ex);
+        }
+        catch (IOException ex)
+        {
+            response.Dispose();
+            throw new ApiException(ex.Message, ex);
+        }
+        catch (TaskCanceledException ex)
+        {
+            response.Dispose();
+            throw new ApiException("Request timed out", ex);
+        }
         string? contentTypeHeader = response.Content.Headers.ContentType?.ToString();
         string responseBody = IsTextContentType(response.Content.Headers.ContentType?.MediaType)
             ? GetEncodingFromContentType(contentTypeHeader).GetString(responseBytes)
@@ -613,12 +685,12 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                 break;
             }
             case string s:
-                multipart.Add(new StringContent(s), name);
+                multipart.Add(BuildTextPart(s), name);
                 break;
             default:
                 if (value is int or long or float or double or bool or decimal)
                 {
-                    multipart.Add(new StringContent(value.ToString() ?? ""), name);
+                    multipart.Add(BuildTextPart(value.ToString() ?? ""), name);
                 }
                 else
                 {
@@ -628,6 +700,21 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                 }
                 break;
         }
+    }
+
+    /// <summary>
+    /// Builds a scalar/text multipart part with NO per-part Content-Type
+    /// header. .NET's <see cref="StringContent"/> otherwise defaults the part
+    /// Content-Type to <c>text/plain; charset=utf-8</c>; the other 11 SDKs
+    /// emit text fields with no Content-Type (RFC 7578 does not require one on
+    /// text fields), so we strip it here to keep the multipart wire bytes
+    /// identical across languages.
+    /// </summary>
+    private static StringContent BuildTextPart(string value)
+    {
+        StringContent content = new(value);
+        content.Headers.ContentType = null;
+        return content;
     }
 
     /// <summary>
@@ -840,6 +927,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     /// <inheritdoc/>
     public void Dispose()
     {
+        _closed = true;
         _httpClient.Dispose();
     }
 }

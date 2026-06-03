@@ -17,59 +17,54 @@ import java.nio.file.Path
  * Singleton Chasm mock server container shared across all test classes.
  */
 object ChasmContainer {
+
     /** Shared Docker network so Squid can reach Chasm via container alias. */
     val PROXY_NETWORK: Network = Network.newNetwork()
 
     private val INSTANCE: GenericContainer<*>
 
     init {
-        INSTANCE =
-            GenericContainer("mridang/chasm:1.3.0")
-                .withExposedPorts(4010, 8443)
-                .withCopyFileToContainer(
-                    MountableFile.forHostPath(Path.of("/app/src/test/resources/openapi.yaml")),
-                    "/tmp/openapi.yaml",
-                ).withCopyFileToContainer(
-                    MountableFile.forHostPath(Path.of("/app/src/test/resources/certs/server.pem")),
-                    "/certs/cert.pem",
-                ).withCopyFileToContainer(
-                    MountableFile.forHostPath(Path.of("/app/src/test/resources/certs/server-key.pem")),
-                    "/certs/key.pem",
-                ).withCommand(
-                    "mock",
-                    "/tmp/openapi.yaml",
-                    "--host",
-                    "0.0.0.0",
-                    "--tls-cert",
-                    "/certs/cert.pem",
-                    "--tls-key",
-                    "/certs/key.pem",
-                    "--tls-port",
-                    "8443",
-                ).withNetwork(PROXY_NETWORK)
-                .withNetworkAliases("chasm")
-                // Same as the Java/Python/PHP setup — Wait.forListeningPort can return
-                // before Chasm is actually serving requests, leading to the first burst
-                // of tests racing the server boot.
-                .waitingFor(Wait.forLogMessage(".*Listening on.*", 1))
-                .withStartupTimeout(java.time.Duration.ofMinutes(2))
-                .withLabel("com.mridang.openapi.testcontainer", "true")
+        INSTANCE = GenericContainer("mridang/chasm:1.3.0")
+            .withExposedPorts(4010, 8443)
+            .withCopyFileToContainer(
+                MountableFile.forHostPath(Path.of("/app/src/test/resources/openapi.yaml")),
+                "/tmp/openapi.yaml"
+            )
+            .withCopyFileToContainer(
+                MountableFile.forHostPath(Path.of("/app/src/test/resources/certs/server.pem")),
+                "/certs/cert.pem"
+            )
+            .withCopyFileToContainer(
+                MountableFile.forHostPath(Path.of("/app/src/test/resources/certs/server-key.pem")),
+                "/certs/key.pem"
+            )
+            .withCommand(
+                "mock", "/tmp/openapi.yaml",
+                "--host", "0.0.0.0",
+                "--tls-cert", "/certs/cert.pem",
+                "--tls-key", "/certs/key.pem",
+                "--tls-port", "8443"
+            )
+            .withNetwork(PROXY_NETWORK)
+            .withNetworkAliases("chasm")
+            // Same as the Java/Python/PHP setup — Wait.forListeningPort can return
+            // before Chasm is actually serving requests, leading to the first burst
+            // of tests racing the server boot.
+            .waitingFor(Wait.forLogMessage(".*Listening on.*", 1))
+            .withStartupTimeout(java.time.Duration.ofMinutes(2))
+            .withLabel("com.mridang.openapi.testcontainer", "true")
         INSTANCE.start()
-        Runtime.getRuntime().addShutdownHook(
-            Thread {
-                if (INSTANCE.isRunning) INSTANCE.stop()
-                try {
-                    PROXY_NETWORK.close()
-                } catch (e: Exception) {
-                    e.printStackTrace(System.err)
-                }
-            },
-        )
+        Runtime.getRuntime().addShutdownHook(Thread {
+            if (INSTANCE.isRunning) INSTANCE.stop()
+            try { PROXY_NETWORK.close() } catch (e: Exception) { e.printStackTrace(System.err) }
+        })
     }
 
-    fun getBaseUrl(): String = "http://${INSTANCE.host}:${INSTANCE.getMappedPort(4010)}"
+    fun getBaseUrl(): String =
+        "http://${INSTANCE.host}:${INSTANCE.getMappedPort(4010)}"
 
-    fun getHttpsBaseUrl(): String = "https://${INSTANCE.host}:${INSTANCE.getMappedPort(8443)}"
+    fun getHttpsBaseUrl(): String =
+        "https://${INSTANCE.host}:${INSTANCE.getMappedPort(8443)}"
 
     fun getHttpsPort(): Int = INSTANCE.getMappedPort(8443)
 

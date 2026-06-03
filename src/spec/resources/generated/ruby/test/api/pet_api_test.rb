@@ -258,6 +258,68 @@ describe PetstoreClient::Api::PetApi do
         thread.join(2)
       end
     end
+
+    # convenience-empty-body-handling: a body-returning operation that
+    # receives an empty 200 body must raise a typed ApiError from the
+    # unwrapped convenience method, never return a silent nil.
+    it 'raises ApiError when a body-returning op gets an empty body' do
+      api, server, thread = new_pet_api_for_mock(200, 'application/json', '')
+      begin
+        err = assert_raises(PetstoreClient::ApiError) do
+          api.get_pet_by_id(1)
+        end
+        _(err.status_code).must_equal 200
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  # path-double-encoding: a styled path-param value containing reserved
+  # characters must be percent-encoded EXACTLY ONCE. Before the fix the api
+  # template wrapped the already-encoded serializer output in a second
+  # encode_path_segment pass, turning a space into %2520 instead of %20.
+  describe 'path encoding' do
+    def capture_request_line(status, content_type, body) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
+      server = TCPServer.new('127.0.0.1', 0)
+      port = server.addr[1]
+      captured = Queue.new
+      thread = Thread.new do
+        client = server.accept rescue next # rubocop:disable Style/RescueModifier
+        captured << client.gets.to_s
+        while (line = client.gets)
+          break if line.strip.empty?
+        end
+        response = "HTTP/1.1 #{status} OK\r\nContent-Type: #{content_type}\r\n" \
+                   "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
+        client.print(response)
+        client.close
+      end
+      config = PetstoreClient::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+      api = PetstoreClient::Api::PetApi.new(nil, config)
+      [api, server, thread, captured]
+    end
+
+    it 'percent-encodes a path param value exactly once' do
+      body = '{"id":1,"name":"x","photoUrls":[],"status":"available"}'
+      api, server, thread, captured = capture_request_line(200, 'application/json', body)
+      begin
+        # 'a b' (label style) serialises to '.a%20b'. The wrong (double)
+        # encoding would emit '.a%2520b'.
+        api.get_pet_tag(
+          5,
+          'a b',
+          PetstoreClient::Api::Options::GetPetTagOptions.new
+        )
+        request_line = captured.pop
+        _(request_line).must_include '%20'
+        _(request_line).wont_include '%2520'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
   end
 
   describe 'with_http_info methods' do

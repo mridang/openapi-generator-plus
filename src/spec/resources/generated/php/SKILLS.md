@@ -104,6 +104,10 @@ $client = new Client($authenticator);
 
 ### OAuth2 token lifecycle
 
+#### Async authentication
+
+OAuth2 authenticators resolve the access token through `getAuthHeaders()` because obtaining a token requires a blocking HTTP call to the token endpoint. The generated client invokes this for you before sending each request; you do not need to interact with it directly. PHP's HTTP client is synchronous, so the token fetch happens inline on the calling thread rather than via a future/promise.
+
 #### Refresh tokens
 
 When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.

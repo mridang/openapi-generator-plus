@@ -411,6 +411,30 @@ class DefaultApiClientTest {
       assertNotNull(client);
       assertEquals(5, transport.getMaxRedirects());
     }
+
+    @Test
+    @DisplayName("throws when redirect budget is exhausted")
+    void throwsWhenRedirectBudgetExhausted() {
+      String chasmUrl = ChasmContainer.getBaseUrl();
+
+      // followRedirects=true but maxRedirects=0: the server still
+      // returns a 3xx, but no hop is permitted. The client must throw
+      // a 'too many redirects' ApiException rather than silently return
+      // the final 302 response as if it were a normal result.
+      TransportOptions transport =
+          TransportOptions.builder().followRedirects(true).maxRedirects(0).build();
+
+      DefaultApiClient client = new DefaultApiClient(transport);
+      ApiException ex =
+          assertThrows(
+              ApiException.class,
+              () ->
+                  client.sendRequest(
+                      "GET", chasmUrl + "/test/redirect/302", new HashMap<>(), null));
+      assertTrue(
+          ex.getMessage().toLowerCase(java.util.Locale.ROOT).contains("redirect"),
+          "expected a redirect-exhaustion message: " + ex.getMessage());
+    }
   }
 
   @Nested

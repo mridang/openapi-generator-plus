@@ -147,6 +147,13 @@ func (a *PetApi) AddPet(auth Authenticator, pet Pet) (*Pet, error) {
 	if err != nil {
 		return nil, err
 	}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("AddPet", result.StatusCode, result.RawBody, result.Headers)
+	}
 	return result.Data, nil
 }
 
@@ -177,6 +184,10 @@ func (a *PetApi) AddPetWithHTTPInfo(auth Authenticator, pet Pet) (*ApiResult[Pet
 	}
 
 	var data Pet
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *Pet
 	if response.Body != "" {
 		respContentType := ""
 		// Headers are lowercase-normalised per Gap BE.
@@ -198,11 +209,12 @@ func (a *PetApi) AddPetWithHTTPInfo(auth Authenticator, pet Pet) (*ApiResult[Pet
 			}
 			*bytesPtr = decoded
 		}
+		dataPtr = &data
 	}
 
 	return &ApiResult[Pet]{
 		StatusCode: response.StatusCode,
-		Data:       &data,
+		Data:       dataPtr,
 		RawBody:    response.Body,
 		Headers:    response.Headers,
 	}, nil
@@ -216,6 +228,13 @@ func (a *PetApi) AddPetPhotos(petId int64, options *AddPetPhotosOptions) (*[]Pho
 	if err != nil {
 		return nil, err
 	}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("AddPetPhotos", result.StatusCode, result.RawBody, result.Headers)
+	}
 	return result.Data, nil
 }
 
@@ -223,7 +242,11 @@ func (a *PetApi) AddPetPhotos(petId int64, options *AddPetPhotosOptions) (*[]Pho
 func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *AddPetPhotosOptions) (*ApiResult[[]Photo], error) {
 
 	path := "/pet/{petId}/photos"
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
+	/* Path params route through SerializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -252,6 +275,10 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *AddPetPhotosOpti
 	}
 
 	var data []Photo
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *[]Photo
 	if response.Body != "" {
 		respContentType := ""
 		// Headers are lowercase-normalised per Gap BE.
@@ -273,11 +300,12 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *AddPetPhotosOpti
 			}
 			*bytesPtr = decoded
 		}
+		dataPtr = &data
 	}
 
 	return &ApiResult[[]Photo]{
 		StatusCode: response.StatusCode,
-		Data:       &data,
+		Data:       dataPtr,
 		RawBody:    response.Body,
 		Headers:    response.Headers,
 	}, nil
@@ -290,6 +318,13 @@ func (a *PetApi) AddPetTreatment(auth Authenticator, petId int64, petTreatment P
 	if err != nil {
 		return nil, err
 	}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("AddPetTreatment", result.StatusCode, result.RawBody, result.Headers)
+	}
 	return result.Data, nil
 }
 
@@ -297,7 +332,11 @@ func (a *PetApi) AddPetTreatment(auth Authenticator, petId int64, petTreatment P
 func (a *PetApi) AddPetTreatmentWithHTTPInfo(auth Authenticator, petId int64, petTreatment PetTreatment) (*ApiResult[PetTreatment], error) {
 
 	path := "/pet/{petId}/treatment"
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
+	/* Path params route through SerializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -321,6 +360,10 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(auth Authenticator, petId int64, pe
 	}
 
 	var data PetTreatment
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *PetTreatment
 	if response.Body != "" {
 		respContentType := ""
 		// Headers are lowercase-normalised per Gap BE.
@@ -342,11 +385,12 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(auth Authenticator, petId int64, pe
 			}
 			*bytesPtr = decoded
 		}
+		dataPtr = &data
 	}
 
 	return &ApiResult[PetTreatment]{
 		StatusCode: response.StatusCode,
-		Data:       &data,
+		Data:       dataPtr,
 		RawBody:    response.Body,
 		Headers:    response.Headers,
 	}, nil
@@ -369,7 +413,11 @@ func (a *PetApi) DeletePet(auth Authenticator, petId int64, options *DeletePetOp
 func (a *PetApi) DeletePetWithHTTPInfo(auth Authenticator, petId int64, options *DeletePetOptions) (*ApiResult[any], error) {
 
 	path := "/pet/{petId}"
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
+	/* Path params route through SerializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -415,6 +463,13 @@ func (a *PetApi) DownloadPetDocument(petId int64, documentId int64) (**os.File, 
 	if err != nil {
 		return nil, err
 	}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("DownloadPetDocument", result.StatusCode, result.RawBody, result.Headers)
+	}
 	return result.Data, nil
 }
 
@@ -422,8 +477,16 @@ func (a *PetApi) DownloadPetDocument(petId int64, documentId int64) (**os.File, 
 func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) (*ApiResult[*os.File], error) {
 
 	path := "/pet/{petId}/documents/{documentId}"
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
-	path = replacePathParam(path, "documentId", fmt.Sprintf("%v", documentId))
+	/* Path params route through SerializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	/* Path params route through SerializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "documentId", fmt.Sprintf("%v", SerializeStyled("documentId", documentId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -447,6 +510,10 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) 
 	}
 
 	var data *os.File
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr **os.File
 	if response.Body != "" {
 		respContentType := ""
 		// Headers are lowercase-normalised per Gap BE.
@@ -468,11 +535,12 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) 
 			}
 			*bytesPtr = decoded
 		}
+		dataPtr = &data
 	}
 
 	return &ApiResult[*os.File]{
 		StatusCode: response.StatusCode,
-		Data:       &data,
+		Data:       dataPtr,
 		RawBody:    response.Body,
 		Headers:    response.Headers,
 	}, nil
@@ -492,6 +560,13 @@ func (a *PetApi) FindPetsByStatus(options *FindPetsByStatusOptions) (*[]Pet, err
 	result, err := a.FindPetsByStatusWithHTTPInfo(options)
 	if err != nil {
 		return nil, err
+	}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("FindPetsByStatus", result.StatusCode, result.RawBody, result.Headers)
 	}
 	return result.Data, nil
 }
@@ -535,6 +610,10 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *FindPetsByStatusOptions) 
 	}
 
 	var data []Pet
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *[]Pet
 	if response.Body != "" {
 		respContentType := ""
 		// Headers are lowercase-normalised per Gap BE.
@@ -556,11 +635,12 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *FindPetsByStatusOptions) 
 			}
 			*bytesPtr = decoded
 		}
+		dataPtr = &data
 	}
 
 	return &ApiResult[[]Pet]{
 		StatusCode: response.StatusCode,
-		Data:       &data,
+		Data:       dataPtr,
 		RawBody:    response.Body,
 		Headers:    response.Headers,
 	}, nil
@@ -573,6 +653,13 @@ func (a *PetApi) GetExternalPetInfo(petId int64, server GetExternalPetInfoServer
 	if err != nil {
 		return nil, err
 	}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("GetExternalPetInfo", result.StatusCode, result.RawBody, result.Headers)
+	}
 	return result.Data, nil
 }
 
@@ -580,7 +667,11 @@ func (a *PetApi) GetExternalPetInfo(petId int64, server GetExternalPetInfoServer
 func (a *PetApi) GetExternalPetInfoWithHTTPInfo(petId int64, server GetExternalPetInfoServer) (*ApiResult[Pet], error) {
 
 	path := "/pet/{petId}/external"
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
+	/* Path params route through SerializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 	if server != nil {
 		serverUrl := server.GetUrl()
 		if strings.HasPrefix(serverUrl, "http://") || strings.HasPrefix(serverUrl, "https://") {
@@ -610,6 +701,10 @@ func (a *PetApi) GetExternalPetInfoWithHTTPInfo(petId int64, server GetExternalP
 	}
 
 	var data Pet
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *Pet
 	if response.Body != "" {
 		respContentType := ""
 		// Headers are lowercase-normalised per Gap BE.
@@ -631,11 +726,12 @@ func (a *PetApi) GetExternalPetInfoWithHTTPInfo(petId int64, server GetExternalP
 			}
 			*bytesPtr = decoded
 		}
+		dataPtr = &data
 	}
 
 	return &ApiResult[Pet]{
 		StatusCode: response.StatusCode,
-		Data:       &data,
+		Data:       dataPtr,
 		RawBody:    response.Body,
 		Headers:    response.Headers,
 	}, nil
@@ -648,6 +744,13 @@ func (a *PetApi) GetMultiServerPetInfo(petId int64, server GetMultiServerPetInfo
 	if err != nil {
 		return nil, err
 	}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("GetMultiServerPetInfo", result.StatusCode, result.RawBody, result.Headers)
+	}
 	return result.Data, nil
 }
 
@@ -655,7 +758,11 @@ func (a *PetApi) GetMultiServerPetInfo(petId int64, server GetMultiServerPetInfo
 func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(petId int64, server GetMultiServerPetInfoServer) (*ApiResult[Pet], error) {
 
 	path := "/pet/{petId}/multi"
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
+	/* Path params route through SerializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 	if server != nil {
 		serverUrl := server.GetUrl()
 		if strings.HasPrefix(serverUrl, "http://") || strings.HasPrefix(serverUrl, "https://") {
@@ -685,6 +792,10 @@ func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(petId int64, server GetMultiS
 	}
 
 	var data Pet
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *Pet
 	if response.Body != "" {
 		respContentType := ""
 		// Headers are lowercase-normalised per Gap BE.
@@ -706,11 +817,12 @@ func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(petId int64, server GetMultiS
 			}
 			*bytesPtr = decoded
 		}
+		dataPtr = &data
 	}
 
 	return &ApiResult[Pet]{
 		StatusCode: response.StatusCode,
-		Data:       &data,
+		Data:       dataPtr,
 		RawBody:    response.Body,
 		Headers:    response.Headers,
 	}, nil
@@ -724,6 +836,13 @@ func (a *PetApi) GetPetAvatar(petId int64) (**os.File, error) {
 	if err != nil {
 		return nil, err
 	}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("GetPetAvatar", result.StatusCode, result.RawBody, result.Headers)
+	}
 	return result.Data, nil
 }
 
@@ -731,7 +850,11 @@ func (a *PetApi) GetPetAvatar(petId int64) (**os.File, error) {
 func (a *PetApi) GetPetAvatarWithHTTPInfo(petId int64) (*ApiResult[*os.File], error) {
 
 	path := "/pet/{petId}/avatar"
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
+	/* Path params route through SerializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -755,6 +878,10 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(petId int64) (*ApiResult[*os.File], er
 	}
 
 	var data *os.File
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr **os.File
 	if response.Body != "" {
 		respContentType := ""
 		// Headers are lowercase-normalised per Gap BE.
@@ -776,11 +903,12 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(petId int64) (*ApiResult[*os.File], er
 			}
 			*bytesPtr = decoded
 		}
+		dataPtr = &data
 	}
 
 	return &ApiResult[*os.File]{
 		StatusCode: response.StatusCode,
-		Data:       &data,
+		Data:       dataPtr,
 		RawBody:    response.Body,
 		Headers:    response.Headers,
 	}, nil
@@ -794,6 +922,13 @@ func (a *PetApi) GetPetAvatarThumbnail(petId int64) (*[]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("GetPetAvatarThumbnail", result.StatusCode, result.RawBody, result.Headers)
+	}
 	return result.Data, nil
 }
 
@@ -801,7 +936,11 @@ func (a *PetApi) GetPetAvatarThumbnail(petId int64) (*[]byte, error) {
 func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(petId int64) (*ApiResult[[]byte], error) {
 
 	path := "/pet/{petId}/avatar/thumbnail"
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
+	/* Path params route through SerializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -825,6 +964,10 @@ func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(petId int64) (*ApiResult[[]by
 	}
 
 	var data []byte
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *[]byte
 	if response.Body != "" {
 		respContentType := ""
 		// Headers are lowercase-normalised per Gap BE.
@@ -846,11 +989,12 @@ func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(petId int64) (*ApiResult[[]by
 			}
 			*bytesPtr = decoded
 		}
+		dataPtr = &data
 	}
 
 	return &ApiResult[[]byte]{
 		StatusCode: response.StatusCode,
-		Data:       &data,
+		Data:       dataPtr,
 		RawBody:    response.Body,
 		Headers:    response.Headers,
 	}, nil
@@ -870,6 +1014,13 @@ func (a *PetApi) GetPetById(petId int64, server GetPetByIdServer) (*Pet, error) 
 	if err != nil {
 		return nil, err
 	}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("GetPetById", result.StatusCode, result.RawBody, result.Headers)
+	}
 	return result.Data, nil
 }
 
@@ -877,7 +1028,11 @@ func (a *PetApi) GetPetById(petId int64, server GetPetByIdServer) (*Pet, error) 
 func (a *PetApi) GetPetByIdWithHTTPInfo(petId int64, server GetPetByIdServer) (*ApiResult[Pet], error) {
 
 	path := "/pet/{petId}"
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
+	/* Path params route through SerializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 	if server != nil {
 		serverUrl := server.GetUrl()
 		if strings.HasPrefix(serverUrl, "http://") || strings.HasPrefix(serverUrl, "https://") {
@@ -907,6 +1062,10 @@ func (a *PetApi) GetPetByIdWithHTTPInfo(petId int64, server GetPetByIdServer) (*
 	}
 
 	var data Pet
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *Pet
 	if response.Body != "" {
 		respContentType := ""
 		// Headers are lowercase-normalised per Gap BE.
@@ -928,11 +1087,12 @@ func (a *PetApi) GetPetByIdWithHTTPInfo(petId int64, server GetPetByIdServer) (*
 			}
 			*bytesPtr = decoded
 		}
+		dataPtr = &data
 	}
 
 	return &ApiResult[Pet]{
 		StatusCode: response.StatusCode,
-		Data:       &data,
+		Data:       dataPtr,
 		RawBody:    response.Body,
 		Headers:    response.Headers,
 	}, nil
@@ -946,6 +1106,13 @@ func (a *PetApi) GetPetPassport(petId int64) (*PetPassport, error) {
 	if err != nil {
 		return nil, err
 	}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("GetPetPassport", result.StatusCode, result.RawBody, result.Headers)
+	}
 	return result.Data, nil
 }
 
@@ -953,7 +1120,11 @@ func (a *PetApi) GetPetPassport(petId int64) (*PetPassport, error) {
 func (a *PetApi) GetPetPassportWithHTTPInfo(petId int64) (*ApiResult[PetPassport], error) {
 
 	path := "/pet/{petId}/passport"
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
+	/* Path params route through SerializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -977,6 +1148,10 @@ func (a *PetApi) GetPetPassportWithHTTPInfo(petId int64) (*ApiResult[PetPassport
 	}
 
 	var data PetPassport
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *PetPassport
 	if response.Body != "" {
 		respContentType := ""
 		// Headers are lowercase-normalised per Gap BE.
@@ -998,11 +1173,12 @@ func (a *PetApi) GetPetPassportWithHTTPInfo(petId int64) (*ApiResult[PetPassport
 			}
 			*bytesPtr = decoded
 		}
+		dataPtr = &data
 	}
 
 	return &ApiResult[PetPassport]{
 		StatusCode: response.StatusCode,
-		Data:       &data,
+		Data:       dataPtr,
 		RawBody:    response.Body,
 		Headers:    response.Headers,
 	}, nil
@@ -1016,6 +1192,13 @@ func (a *PetApi) GetPetPhoto(petId int64, photoId int64) (**os.File, error) {
 	if err != nil {
 		return nil, err
 	}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("GetPetPhoto", result.StatusCode, result.RawBody, result.Headers)
+	}
 	return result.Data, nil
 }
 
@@ -1023,8 +1206,16 @@ func (a *PetApi) GetPetPhoto(petId int64, photoId int64) (**os.File, error) {
 func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult[*os.File], error) {
 
 	path := "/pet/{petId}/photos/{photoId}"
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
-	path = replacePathParam(path, "photoId", fmt.Sprintf("%v", photoId))
+	/* Path params route through SerializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	/* Path params route through SerializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "photoId", fmt.Sprintf("%v", SerializeStyled("photoId", photoId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -1048,6 +1239,10 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult
 	}
 
 	var data *os.File
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr **os.File
 	if response.Body != "" {
 		respContentType := ""
 		// Headers are lowercase-normalised per Gap BE.
@@ -1069,11 +1264,12 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult
 			}
 			*bytesPtr = decoded
 		}
+		dataPtr = &data
 	}
 
 	return &ApiResult[*os.File]{
 		StatusCode: response.StatusCode,
-		Data:       &data,
+		Data:       dataPtr,
 		RawBody:    response.Body,
 		Headers:    response.Headers,
 	}, nil
@@ -1086,6 +1282,13 @@ func (a *PetApi) GetPetTag(petId int64, tagName string, options *GetPetTagOption
 	if err != nil {
 		return nil, err
 	}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("GetPetTag", result.StatusCode, result.RawBody, result.Headers)
+	}
 	return result.Data, nil
 }
 
@@ -1096,8 +1299,16 @@ func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *Get
 	}
 
 	path := "/pet/{petId}/tag/{tagName}"
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
-	path = replacePathParam(path, "tagName", fmt.Sprintf("%v", tagName))
+	/* Path params route through SerializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "matrix", false)))
+	/* Path params route through SerializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "tagName", fmt.Sprintf("%v", SerializeStyled("tagName", tagName, "path", "string", "", "label", false)))
 
 	queryParams := make(map[string]any)
 	if options != nil && options.Colors != nil {
@@ -1134,6 +1345,10 @@ func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *Get
 	}
 
 	var data Pet
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *Pet
 	if response.Body != "" {
 		respContentType := ""
 		// Headers are lowercase-normalised per Gap BE.
@@ -1155,11 +1370,12 @@ func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *Get
 			}
 			*bytesPtr = decoded
 		}
+		dataPtr = &data
 	}
 
 	return &ApiResult[Pet]{
 		StatusCode: response.StatusCode,
-		Data:       &data,
+		Data:       dataPtr,
 		RawBody:    response.Body,
 		Headers:    response.Headers,
 	}, nil
@@ -1172,6 +1388,13 @@ func (a *PetApi) GetStagingPetInfo(petId int64, server GetStagingPetInfoServer) 
 	if err != nil {
 		return nil, err
 	}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("GetStagingPetInfo", result.StatusCode, result.RawBody, result.Headers)
+	}
 	return result.Data, nil
 }
 
@@ -1179,7 +1402,11 @@ func (a *PetApi) GetStagingPetInfo(petId int64, server GetStagingPetInfoServer) 
 func (a *PetApi) GetStagingPetInfoWithHTTPInfo(petId int64, server GetStagingPetInfoServer) (*ApiResult[Pet], error) {
 
 	path := "/pet/{petId}/staging"
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
+	/* Path params route through SerializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 	if server != nil {
 		serverUrl := server.GetUrl()
 		if strings.HasPrefix(serverUrl, "http://") || strings.HasPrefix(serverUrl, "https://") {
@@ -1209,6 +1436,10 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(petId int64, server GetStagingPet
 	}
 
 	var data Pet
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *Pet
 	if response.Body != "" {
 		respContentType := ""
 		// Headers are lowercase-normalised per Gap BE.
@@ -1230,11 +1461,12 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(petId int64, server GetStagingPet
 			}
 			*bytesPtr = decoded
 		}
+		dataPtr = &data
 	}
 
 	return &ApiResult[Pet]{
 		StatusCode: response.StatusCode,
-		Data:       &data,
+		Data:       dataPtr,
 		RawBody:    response.Body,
 		Headers:    response.Headers,
 	}, nil
@@ -1256,7 +1488,11 @@ func (a *PetApi) SetPetAvatar(petId int64, body *os.File) error {
 func (a *PetApi) SetPetAvatarWithHTTPInfo(petId int64, body *os.File) (*ApiResult[any], error) {
 
 	path := "/pet/{petId}/avatar"
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
+	/* Path params route through SerializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -1303,7 +1539,11 @@ func (a *PetApi) SetPetAvatarThumbnail(petId int64, setPetAvatarThumbnailRequest
 func (a *PetApi) SetPetAvatarThumbnailWithHTTPInfo(petId int64, setPetAvatarThumbnailRequest SetPetAvatarThumbnailRequest) (*ApiResult[any], error) {
 
 	path := "/pet/{petId}/avatar/thumbnail"
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
+	/* Path params route through SerializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -1343,6 +1583,13 @@ func (a *PetApi) UpdatePet(petId int64, pet Pet) (*Pet, error) {
 	if err != nil {
 		return nil, err
 	}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("UpdatePet", result.StatusCode, result.RawBody, result.Headers)
+	}
 	return result.Data, nil
 }
 
@@ -1350,7 +1597,11 @@ func (a *PetApi) UpdatePet(petId int64, pet Pet) (*Pet, error) {
 func (a *PetApi) UpdatePetWithHTTPInfo(petId int64, pet Pet) (*ApiResult[Pet], error) {
 
 	path := "/pet/{petId}"
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
+	/* Path params route through SerializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -1374,6 +1625,10 @@ func (a *PetApi) UpdatePetWithHTTPInfo(petId int64, pet Pet) (*ApiResult[Pet], e
 	}
 
 	var data Pet
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *Pet
 	if response.Body != "" {
 		respContentType := ""
 		// Headers are lowercase-normalised per Gap BE.
@@ -1395,11 +1650,12 @@ func (a *PetApi) UpdatePetWithHTTPInfo(petId int64, pet Pet) (*ApiResult[Pet], e
 			}
 			*bytesPtr = decoded
 		}
+		dataPtr = &data
 	}
 
 	return &ApiResult[Pet]{
 		StatusCode: response.StatusCode,
-		Data:       &data,
+		Data:       dataPtr,
 		RawBody:    response.Body,
 		Headers:    response.Headers,
 	}, nil
@@ -1413,6 +1669,13 @@ func (a *PetApi) UploadPetCertificate(petId int64, options *UploadPetCertificate
 	if err != nil {
 		return nil, err
 	}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("UploadPetCertificate", result.StatusCode, result.RawBody, result.Headers)
+	}
 	return result.Data, nil
 }
 
@@ -1420,7 +1683,11 @@ func (a *PetApi) UploadPetCertificate(petId int64, options *UploadPetCertificate
 func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *UploadPetCertificateOptions) (*ApiResult[ApiResponse], error) {
 
 	path := "/pet/{petId}/certificate"
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
+	/* Path params route through SerializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -1448,6 +1715,10 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *UploadPe
 	}
 
 	var data ApiResponse
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *ApiResponse
 	if response.Body != "" {
 		respContentType := ""
 		// Headers are lowercase-normalised per Gap BE.
@@ -1469,11 +1740,12 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *UploadPe
 			}
 			*bytesPtr = decoded
 		}
+		dataPtr = &data
 	}
 
 	return &ApiResult[ApiResponse]{
 		StatusCode: response.StatusCode,
-		Data:       &data,
+		Data:       dataPtr,
 		RawBody:    response.Body,
 		Headers:    response.Headers,
 	}, nil
@@ -1487,6 +1759,13 @@ func (a *PetApi) UploadPetDocument(petId int64, options *UploadPetDocumentOption
 	if err != nil {
 		return nil, err
 	}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("UploadPetDocument", result.StatusCode, result.RawBody, result.Headers)
+	}
 	return result.Data, nil
 }
 
@@ -1494,7 +1773,11 @@ func (a *PetApi) UploadPetDocument(petId int64, options *UploadPetDocumentOption
 func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *UploadPetDocumentOptions) (*ApiResult[ApiResponse], error) {
 
 	path := "/pet/{petId}/documents"
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
+	/* Path params route through SerializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -1528,6 +1811,10 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *UploadPetDo
 	}
 
 	var data ApiResponse
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *ApiResponse
 	if response.Body != "" {
 		respContentType := ""
 		// Headers are lowercase-normalised per Gap BE.
@@ -1549,11 +1836,12 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *UploadPetDo
 			}
 			*bytesPtr = decoded
 		}
+		dataPtr = &data
 	}
 
 	return &ApiResult[ApiResponse]{
 		StatusCode: response.StatusCode,
-		Data:       &data,
+		Data:       dataPtr,
 		RawBody:    response.Body,
 		Headers:    response.Headers,
 	}, nil

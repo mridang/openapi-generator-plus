@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test
 import java.util.LinkedList
 
 class OAuth2AuthCodeAuthenticatorTest {
+
     private class FakeApiClient : ApiClient {
         private val responses = LinkedList<ApiResponse>()
         var lastBody: String? = null
@@ -21,10 +22,7 @@ class OAuth2AuthCodeAuthenticatorTest {
         var lastUrl: String? = null
             private set
 
-        fun enqueue(
-            body: String,
-            statusCode: Int = 200,
-        ) {
+        fun enqueue(body: String, statusCode: Int = 200) {
             responses.add(ApiResponse(statusCode, body, emptyMap()))
         }
 
@@ -33,7 +31,7 @@ class OAuth2AuthCodeAuthenticatorTest {
             url: String,
             headers: Map<String, String>,
             body: Any?,
-            noRedirect: Boolean,
+            noRedirect: Boolean
         ): ApiResponse {
             lastUrl = url
             lastBody = body?.toString()
@@ -41,16 +39,17 @@ class OAuth2AuthCodeAuthenticatorTest {
         }
     }
 
-    private fun createAuthenticator(): OAuth2AuthorizationCodeAuthenticator =
-        OAuth2AuthorizationCodeAuthenticator(
+    private fun createAuthenticator(): OAuth2AuthorizationCodeAuthenticator {
+        return OAuth2AuthorizationCodeAuthenticator(
             host = "https://api.example.com",
             clientId = "my-client-id",
             clientSecret = "my-client-secret",
             authorizationUrl = "https://auth.example.com/authorize",
             tokenUrl = "https://auth.example.com/token",
             redirectUri = "https://app.example.com/callback",
-            scopes = listOf("read", "write"),
+            scopes = listOf("read", "write")
         )
+    }
 
     @Test
     fun buildsAuthorizationUrlWithRequiredParams() {
@@ -89,6 +88,24 @@ class OAuth2AuthCodeAuthenticatorTest {
         assertTrue(client.lastBody!!.contains("code=auth-code-xyz"))
         assertTrue(client.lastBody!!.contains("client_id=my-client-id"))
         assertTrue(client.lastBody!!.contains("client_secret=my-client-secret"))
+    }
+
+    @Test
+    fun `exchange_code_rejects_empty_or_blank_code`() {
+        // oauth-exchangecode-no-empty-code-guard: an empty/blank code must be
+        // rejected before the token POST, with no request sent.
+        val client = FakeApiClient()
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { auth.exchangeCode("") }
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { auth.exchangeCode("   ") }
+        }
+        // No token request should have been dispatched.
+        assertNull(client.lastBody, "no token request should be sent for an empty code")
     }
 
     @Test
@@ -141,7 +158,7 @@ class OAuth2AuthCodeAuthenticatorTest {
         assertNotNull(caught, "expected getAuthHeaders to throw before exchangeCode")
         assertTrue(
             caught is IllegalStateException,
-            "expected IllegalStateException, got " + caught!!::class.java.name,
+            "expected IllegalStateException, got " + caught!!::class.java.name
         )
 
         // Caller continues normally after catching -- no process crash.
@@ -154,16 +171,15 @@ class OAuth2AuthCodeAuthenticatorTest {
         // a query component (e.g. tenant-scoped Auth0 URLs). The builder
         // must preserve existing query items alongside the OAuth2 ones
         // using '&' as the separator, not '?'.
-        val auth =
-            OAuth2AuthorizationCodeAuthenticator(
-                host = "https://api.example.com",
-                clientId = "my-client-id",
-                clientSecret = "my-client-secret",
-                authorizationUrl = "https://x.auth0.com/authorize?audience=api",
-                tokenUrl = "https://x.auth0.com/oauth/token",
-                redirectUri = "https://app.example.com/callback",
-                scopes = listOf("read"),
-            )
+        val auth = OAuth2AuthorizationCodeAuthenticator(
+            host = "https://api.example.com",
+            clientId = "my-client-id",
+            clientSecret = "my-client-secret",
+            authorizationUrl = "https://x.auth0.com/authorize?audience=api",
+            tokenUrl = "https://x.auth0.com/oauth/token",
+            redirectUri = "https://app.example.com/callback",
+            scopes = listOf("read")
+        )
 
         val url = auth.buildAuthorizationUrl()
 

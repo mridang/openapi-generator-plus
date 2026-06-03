@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -16,8 +15,13 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Api;
 
+use PetstoreClient\ApiClient;
+use PetstoreClient\ApiException;
 use PetstoreClient\ApiResult;
+use PetstoreClient\Configuration;
+use PetstoreClient\DefaultApiClient;
 use PetstoreClient\ValueSerializer;
+use PetstoreClient\Auth\Authenticator;
 
 /**
  * StoreApi provides methods for the Store API group.
@@ -83,8 +87,22 @@ class StoreApi extends BaseApi
      */
     public function getInventory()
     {
+        $apiResult = $this->getInventoryWithHttpInfo();
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for getInventory but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
         /** @var \Ds\Map $result */
-        $result = $this->getInventoryWithHttpInfo()->data;
+        $result = $apiResult->data;
         return $result;
     }
 
@@ -123,8 +141,22 @@ class StoreApi extends BaseApi
      */
     public function getOrderById(int $orderId)
     {
+        $apiResult = $this->getOrderByIdWithHttpInfo($orderId);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for getOrderById but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
         /** @var \PetstoreClient\Models\Order $result */
-        $result = $this->getOrderByIdWithHttpInfo($orderId)->data;
+        $result = $apiResult->data;
         return $result;
     }
 
@@ -174,8 +206,22 @@ class StoreApi extends BaseApi
      */
     public function placeOrder(\PetstoreClient\Models\Order|null $order = null)
     {
+        $apiResult = $this->placeOrderWithHttpInfo($order);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\ApiException(
+                'Expected a response body for placeOrder but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
         /** @var \PetstoreClient\Models\Order $result */
-        $result = $this->placeOrderWithHttpInfo($order)->data;
+        $result = $apiResult->data;
         return $result;
     }
 

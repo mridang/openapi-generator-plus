@@ -19,6 +19,9 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticator do
           location: atom()
         }
 
+  # Redact the API key from the default Inspect representation so it is
+  # never leaked into logs via `inspect/1` / `IO.inspect` / Logger.
+  @derive {Inspect, except: [:api_key]}
   defstruct [:host, :key_param_name, :api_key, :location]
 
   @doc """

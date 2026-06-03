@@ -232,7 +232,13 @@ String toFormValue(Object? value) {
 /// Resolve a oneOf schema by attempting deserialization against each candidate.
 /// Each entry in [fromJsonCandidates] is a factory function that attempts to
 /// deserialize the given map. Returns the first successful result.
-T? resolveOneOf<T>(Map<String, dynamic> data,
+///
+/// Cross-cutting `oneof-nondiscriminator-no-match-silent`: when no candidate
+/// matches, throw a [SerializationError] rather than returning null. A silent
+/// null is a data-loss / type-confusion hazard — the wire shape did not match
+/// any declared variant and the caller must learn about it, matching the
+/// validate-each-variant-then-throw behaviour of the other SDKs.
+T resolveOneOf<T>(Map<String, dynamic> data,
     List<T Function(Map<String, dynamic>)> fromJsonCandidates) {
   for (final fromJson in fromJsonCandidates) {
     try {
@@ -241,13 +247,14 @@ T? resolveOneOf<T>(Map<String, dynamic> data,
       continue;
     }
   }
-  return null;
+  throw SerializationError('Data does not match any oneOf schema variant');
 }
 
 /// Resolve an anyOf schema by attempting deserialization against each candidate.
 /// Each entry in [fromJsonCandidates] is a factory function that attempts to
-/// deserialize the given map. Returns the first successful result.
-T? resolveAnyOf<T>(Map<String, dynamic> data,
+/// deserialize the given map. Returns the first successful result, or throws a
+/// [SerializationError] when no variant matches.
+T resolveAnyOf<T>(Map<String, dynamic> data,
     List<T Function(Map<String, dynamic>)> fromJsonCandidates) {
   return resolveOneOf(data, fromJsonCandidates);
 }

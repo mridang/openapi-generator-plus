@@ -19,5 +19,8 @@ class ApiResult(Generic[T]):
 
     status_code: int
     data: Optional[T]
-    raw_body: Optional[str]
+    # The raw response body is always populated by the transport (an empty
+    # string when the server sent no body), so it is non-null -- matching the
+    # 4-SDK majority and the always-non-null source value.
+    raw_body: str
     headers: Dict[str, str]

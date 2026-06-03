@@ -102,8 +102,18 @@ func (a *OAuth2AuthorizationCodeAuthenticator) BuildAuthorizationURL(state strin
 	return a.authorizationURL + separator + params.Encode()
 }
 
+// ErrAuthCodeEmpty is returned by ExchangeCode when the supplied authorization
+// code is empty or whitespace-only. Callers can compare with errors.Is.
+var ErrAuthCodeEmpty = errors.New("oauth2 authorization code: code must not be empty")
+
 // ExchangeCode exchanges an authorization code for an access token.
 func (a *OAuth2AuthorizationCodeAuthenticator) ExchangeCode(code string) error {
+	// oauth-exchangecode-no-empty-code-guard: reject an empty/whitespace code
+	// before the token POST so the caller sees the precondition failure
+	// directly instead of a confusing token-endpoint error.
+	if strings.TrimSpace(code) == "" {
+		return ErrAuthCodeEmpty
+	}
 	params := map[string]string{
 		"grant_type":    "authorization_code",
 		"code":          code,

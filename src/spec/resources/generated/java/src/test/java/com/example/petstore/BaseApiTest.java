@@ -56,6 +56,21 @@ class BaseApiTest {
       return invokeApi(
           method, path, queryParams, headerParams, body, accepts, contentType, returnType, auth);
     }
+
+    <T> com.example.petstore.ApiResult<T> callForResult(
+        String method,
+        String path,
+        Map<String, Object> queryParams,
+        Map<String, String> headerParams,
+        @Nullable Object body,
+        String[] accepts,
+        String contentType,
+        @Nullable TypeReference<T> returnType,
+        @Nullable Authenticator auth)
+        throws ApiException {
+      return invokeApiForResult(
+          method, path, queryParams, headerParams, body, accepts, contentType, returnType, auth);
+    }
   }
 
   static class CapturingApiClient implements ApiClient {
@@ -268,6 +283,27 @@ class BaseApiTest {
                   null);
       assertNotNull(result);
       assertFalse(result.isEmpty());
+    }
+
+    @Test
+    @DisplayName("ApiResult.rawBody is never null")
+    void apiResultRawBodyIsNonNull() throws ApiException {
+      com.example.petstore.ApiResult<JsonNode> result =
+          api()
+              .callForResult(
+                  "GET",
+                  "/test/echo",
+                  new HashMap<>(),
+                  new HashMap<>(),
+                  null,
+                  new String[] {"application/json"},
+                  "application/json",
+                  JSON_NODE_TYPE,
+                  null);
+      // rawBody is part of the public ApiResult contract and is sourced
+      // from the always-present ApiResponse.body() — it must never be
+      // null (empty string for a no-body response).
+      assertNotNull(result.rawBody());
     }
 
     @Test

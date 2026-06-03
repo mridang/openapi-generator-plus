@@ -82,6 +82,45 @@ void main() {
       }
     });
 
+    /* Cross-cutting `apierror-responsebody-headers-nullable-split`:
+     * ApiError.responseBody and responseHeaders are nullable so a
+     * transport-phase failure (no body/headers ever produced) is
+     * distinguishable from an empty body / no headers. A transport
+     * ApiError carries null for both. The `== null` assertions below
+     * only compile when the fields are typed as nullable. */
+    test('ApiError responseBody and responseHeaders are nullable', () async {
+      final client = DefaultApiClient();
+      client.close();
+      try {
+        await client.sendRequest('GET', 'http://127.0.0.1:1/closed', {}, null);
+        fail('Expected ApiError after close()');
+      } on ApiError catch (e) {
+        expect(e.statusCode, equals(0));
+        // Nullable contract: a transport-phase error has no body/headers.
+        expect(e.responseBody, isNull);
+        expect(e.responseHeaders, isNull);
+      }
+    });
+
+    // Cross-cutting `bearer-no-empty-token-guard`: BearerAuthenticator must
+    // reject an empty / whitespace-only token at construction so it can
+    // never emit a bare `Authorization: Bearer ` header.
+    test('BearerAuthenticator rejects empty or whitespace token', () {
+      expect(
+        () => BearerAuthenticator(host: 'https://api.example.com', token: ''),
+        throwsArgumentError,
+      );
+      expect(
+        () =>
+            BearerAuthenticator(host: 'https://api.example.com', token: '   '),
+        throwsArgumentError,
+      );
+      // A valid token still constructs and emits the expected header.
+      final ok =
+          BearerAuthenticator(host: 'https://api.example.com', token: 't');
+      expect(ok.authHeaders()['Authorization'], equals('Bearer t'));
+    });
+
     test('parses JSON error body', () async {
       final config = ConfigurationBuilder()
           .baseUrl('$chasmHttpUrl/test/status/400')

@@ -96,7 +96,6 @@ defmodule PetstoreClient.Api.StoreApi do
         "{orderId}",
         PetstoreClient.ValueSerializer.serialize_styled("orderId", order_id, :path, "integer()", nil, "simple", false)
         |> to_string()
-        |> encode_path_segment()
       )
 
     server = Keyword.get(opts, :server)
@@ -149,8 +148,24 @@ defmodule PetstoreClient.Api.StoreApi do
           {:ok, %{String.t() => integer()}} | {:error, term()}
   def get_inventory(%__MODULE__{} = api, opts \\ []) do
     case get_inventory_with_http_info(api, opts) do
-      {:ok, result} -> {:ok, result.data}
-      {:error, _} = error -> error
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for get_inventory but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -225,8 +240,24 @@ defmodule PetstoreClient.Api.StoreApi do
           {:ok, Order} | {:error, term()}
   def get_order_by_id(%__MODULE__{} = api, order_id, opts \\ []) do
     case get_order_by_id_with_http_info(api, order_id, opts) do
-      {:ok, result} -> {:ok, result.data}
-      {:error, _} = error -> error
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for get_order_by_id but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -263,7 +294,6 @@ defmodule PetstoreClient.Api.StoreApi do
         "{orderId}",
         PetstoreClient.ValueSerializer.serialize_styled("orderId", order_id, :path, "integer()", nil, "simple", false)
         |> to_string()
-        |> encode_path_segment()
       )
 
     server = Keyword.get(opts, :server)
@@ -317,8 +347,24 @@ defmodule PetstoreClient.Api.StoreApi do
           {:ok, Order} | {:error, term()}
   def place_order(%__MODULE__{} = api, order \\ nil, opts \\ []) do
     case place_order_with_http_info(api, order, opts) do
-      {:ok, result} -> {:ok, result.data}
-      {:error, _} = error -> error
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for place_order but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -373,22 +419,5 @@ defmodule PetstoreClient.Api.StoreApi do
       "Order",
       auth
     )
-  end
-
-  # Percent-encodes a value for use as a URL path segment.
-  #
-  # Encodes characters not allowed in a URI path segment, but preserves the
-  # sub-delimiters (including `;`, `=`, `,`, `.`) that OAS 3.0 matrix/label/
-  # simple styles use as structural separators in the styled value.
-  defp encode_path_segment(value) do
-    URI.encode(value, fn c ->
-      cond do
-        c in ?a..?z -> true
-        c in ?A..?Z -> true
-        c in ?0..?9 -> true
-        c in [?-, ?_, ?., ?~, ?!, ?$, ?&, ?', ?(, ?), ?*, ?+, ?,, ?;, ?=, ?:, ?@] -> true
-        true -> false
-      end
-    end)
   end
 end

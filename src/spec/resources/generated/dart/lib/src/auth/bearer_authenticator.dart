@@ -18,6 +18,14 @@ class BearerAuthenticator extends BaseAuthenticator {
     required String token,
   })  : _host = host,
         _token = token {
+    /* Cross-cutting `bearer-no-empty-token-guard`: reject an empty or
+     * whitespace-only token up front. Otherwise the authenticator would
+     * emit a bare `Authorization: Bearer ` header — an unauthenticated
+     * request masquerading as an authenticated one. Mirrors the api-key
+     * authenticator's own empty guard. */
+    if (token.trim().isEmpty) {
+      throw ArgumentError('Bearer token must not be empty or whitespace');
+    }
     /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
      * Reject anything outside printable ASCII + TAB so callers see a
      * clear error rather than HTTP header injection from CR/LF or

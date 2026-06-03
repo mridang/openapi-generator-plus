@@ -25,6 +25,13 @@ module PetstoreClient
         @password = password
       end
 
+      # Redact the password from the default object representation so logging
+      # or inspecting an authenticator never leaks the credential.
+      def inspect
+        "#<#{self.class.name} host=#{@host.inspect} username=#{@username.inspect} password=\"***\">"
+      end
+      alias to_s inspect
+
       # @return [Hash{String => String}]
       def auth_headers
         # RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field
@@ -33,15 +40,15 @@ module PetstoreClient
         # are read from .env files or interactive prompts).
         if @username.match?(/[\r\n\x00]/)
           raise ArgumentError,
-            'Basic auth username must not contain CR, LF, or NUL characters'
+                'Basic auth username must not contain CR, LF, or NUL characters'
         end
         if @username.include?(':')
           raise ArgumentError,
-            "Basic auth username must not contain ':' (RFC 7617 §2)"
+                "Basic auth username must not contain ':' (RFC 7617 §2)"
         end
         if @password.match?(/[\r\n\x00]/)
           raise ArgumentError,
-            'Basic auth password must not contain CR, LF, or NUL characters'
+                'Basic auth password must not contain CR, LF, or NUL characters'
         end
         auth_header = "Basic #{Base64.strict_encode64("#{@username}:#{@password}")}"
         { 'Authorization' => auth_header }

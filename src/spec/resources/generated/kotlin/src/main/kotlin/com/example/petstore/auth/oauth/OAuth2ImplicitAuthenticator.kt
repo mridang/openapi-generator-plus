@@ -29,8 +29,9 @@ open class OAuth2ImplicitAuthenticator(
     private val host: String,
     private val clientId: String,
     private val authorizationUrl: String,
-    private val scopes: List<String>,
+    private val scopes: List<String>
 ) : HttpAwareAuthenticator {
+
     @Volatile
     private var accessToken: String? = null
 
@@ -75,7 +76,7 @@ open class OAuth2ImplicitAuthenticator(
         for (c in token) {
             if (c != '\t' && (c.code < 0x20 || c.code >= 0x7F)) {
                 throw IllegalArgumentException(
-                    "Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+                    "Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
                 )
             }
         }
@@ -85,11 +86,11 @@ open class OAuth2ImplicitAuthenticator(
     override fun getHost(): String = host
 
     override suspend fun getAuthHeaders(): Map<String, String> {
-        val token =
-            accessToken
-                ?: throw IllegalStateException("Must call setAccessToken() before making API requests")
+        val token = accessToken
+            ?: throw IllegalStateException("Must call setAccessToken() before making API requests")
         return mapOf("Authorization" to "Bearer $token")
     }
 
-    private fun encode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8)
+    private fun encode(value: String): String =
+        URLEncoder.encode(value, StandardCharsets.UTF_8)
 }

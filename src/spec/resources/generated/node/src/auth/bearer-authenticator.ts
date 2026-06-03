@@ -16,6 +16,13 @@ export class BearerAuthenticator extends BaseAuthenticator {
 
   constructor(host: string, token: string) {
     super();
+    /* An empty or whitespace-only token is always a programmer error:
+     * it would emit a bare "Authorization: Bearer " header that no server
+     * accepts, silently failing auth. Reject it up front to match the
+     * api-key authenticator's own empty guard and the other SDKs. */
+    if (token.trim().length === 0) {
+      throw new Error('Bearer token must not be empty or whitespace');
+    }
     /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
      * Reject anything outside printable ASCII + TAB so callers see a
      * clear error rather than HTTP header injection from CR/LF or
@@ -40,5 +47,16 @@ export class BearerAuthenticator extends BaseAuthenticator {
       value = value.slice(7);
     }
     return { Authorization: `Bearer ${value}` };
+  }
+
+  /* Redact the token from the default string/inspect representation so
+   * `console.log(auth)` / `util.inspect(auth)` / JSON.stringify never
+   * exfiltrate the live bearer token into application logs. */
+  [Symbol.for('nodejs.util.inspect.custom')](): string {
+    return `BearerAuthenticator(host=${this.host}, token=***)`;
+  }
+
+  toJSON(): Record<string, string> {
+    return { host: this.host, token: '***' };
   }
 }

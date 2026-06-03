@@ -41,4 +41,21 @@ class BearerAuthenticatorTest {
     Map<String, String> headers = auth.getAuthHeaders();
     assertEquals("Bearer xyz", headers.get("Authorization"));
   }
+
+  @Test
+  void emptyTokenIsRejected() {
+    BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", "");
+    assertThrows(IllegalArgumentException.class, auth::getAuthHeaders);
+  }
+
+  // No null-token test: the token parameter is @NonNull, so NullAway
+  // rejects passing a literal null at compile time — null can't reach the
+  // constructor in well-typed code. The empty + whitespace cases above
+  // exercise the runtime guard.
+
+  @Test
+  void whitespaceOnlyTokenIsRejected() {
+    BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", "   ");
+    assertThrows(IllegalArgumentException.class, auth::getAuthHeaders);
+  }
 }

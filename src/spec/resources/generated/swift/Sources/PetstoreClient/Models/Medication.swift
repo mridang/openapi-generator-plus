@@ -8,7 +8,7 @@
 import Foundation
 
 /// Medication is a model class generated from the OpenAPI schema.
-public struct Medication: Codable, Sendable {
+public struct Medication: Codable, Sendable, Equatable, Hashable {
     /// Example: `null`
     public var drugName: String
     /// Example: `null`

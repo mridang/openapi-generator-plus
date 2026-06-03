@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
+use PetstoreClient\ApiException;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\TransportOptions;
 use PetstoreClient\TransportOptionsBuilder;
@@ -605,9 +606,10 @@ test('no redirect false still follows redirects', function (): void {
 // -- 3.3: HTTPS -> HTTP body replay guard --
 
 test('https to http downgrade refuses body replay on 307', function (): void {
-    /* A 307 from an HTTPS origin pointing at an HTTP URL must NOT cause
-     * the original request body to be replayed in plaintext. The
-     * redirect loop breaks and the 307 surfaces to the caller. */
+    /* Gap 3.3 / T-D2: a 307 from an HTTPS origin pointing at an HTTP URL
+     * must NOT replay the body in plaintext. The downgrade is refused by
+     * raising an SDK-typed ApiException (not by silently returning the
+     * 307), matching the throwing SDKs. */
     $downgrade = new MockResponse('', [
         'http_code' => 307,
         'response_headers' => ['Location' => 'http://insecure.example.com/sink'],
@@ -615,9 +617,8 @@ test('https to http downgrade refuses body replay on 307', function (): void {
     $transport = TransportOptions::builder()->followRedirects(true)->build();
     $client = new DefaultApiClient($transport, new MockHttpClient([$downgrade]));
 
-    $response = $client->sendRequest('POST', 'https://api.example.com/secret', [], 'sensitive=payload');
-
-    expect($response->statusCode)->toBe(307);
+    expect(fn (): mixed => $client->sendRequest('POST', 'https://api.example.com/secret', [], 'sensitive=payload'))
+        ->toThrow(ApiException::class);
 });
 
 test('https to http downgrade refuses body replay on 308', function (): void {
@@ -628,9 +629,8 @@ test('https to http downgrade refuses body replay on 308', function (): void {
     $transport = TransportOptions::builder()->followRedirects(true)->build();
     $client = new DefaultApiClient($transport, new MockHttpClient([$downgrade]));
 
-    $response = $client->sendRequest('PUT', 'https://api.example.com/secret', [], 'k=v');
-
-    expect($response->statusCode)->toBe(308);
+    expect(fn (): mixed => $client->sendRequest('PUT', 'https://api.example.com/secret', [], 'k=v'))
+        ->toThrow(ApiException::class);
 });
 
 test('https to http downgrade on get without body still follows', function (): void {
@@ -664,4 +664,63 @@ test('https to https with body still follows on 307', function (): void {
     $response = $client->sendRequest('POST', 'https://api.example.com/start', [], 'k=v');
 
     expect($response->statusCode)->toBe(200);
+});
+
+// -- T-D1: redirect-exhaustion throws "too many redirects" --
+
+test('exceeding max redirects throws too many redirects', function (): void {
+    /* When the response is still a 3xx after the redirect budget is
+     * exhausted, the client must raise an SDK-typed ApiException rather
+     * than silently returning the last 3xx as a normal response. */
+    $loop = [];
+    for ($i = 0; $i < 30; $i++) {
+        $loop[] = new MockResponse('', [
+            'http_code' => 302,
+            'response_headers' => ['Location' => 'https://api.example.com/next/' . $i],
+        ]);
+    }
+    $transport = TransportOptions::builder()->followRedirects(true)->maxRedirects(3)->build();
+    $client = new DefaultApiClient($transport, new MockHttpClient($loop));
+
+    expect(fn (): mixed => $client->sendRequest('GET', 'https://api.example.com/start', [], null))
+        ->toThrow(ApiException::class);
+});
+
+// -- T-D3: redirect to a non-http(s) scheme throws --
+
+test('redirect to non http scheme throws', function (): void {
+    /* A Location pointing at file:/javascript:/data: must be refused
+     * loudly with an SDK-typed ApiException, not silently returned. */
+    $redirect = new MockResponse('', [
+        'http_code' => 302,
+        'response_headers' => ['Location' => 'file:///etc/passwd'],
+    ]);
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new DefaultApiClient($transport, new MockHttpClient([$redirect]));
+
+    expect(fn (): mixed => $client->sendRequest('GET', 'https://api.example.com/start', [], null))
+        ->toThrow(ApiException::class);
+});
+
+// -- T-D4: use-after-close raises an SDK-typed error --
+
+test('send after close throws api exception', function (): void {
+    /* Once close() is called the client must refuse further requests with
+     * an SDK-typed ApiException, giving a uniform use-after-close contract
+     * instead of silently reusing the reset client. */
+    $mockResponse = new MockResponse('ok', ['http_code' => 200]);
+    $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
+    $client->close();
+
+    expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/after-close', [], null))
+        ->toThrow(ApiException::class);
+});
+
+test('close is idempotent', function (): void {
+    $client = new DefaultApiClient(null, new MockHttpClient(new MockResponse('ok', ['http_code' => 200])));
+    $client->close();
+    $client->close();
+
+    expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/x', [], null))
+        ->toThrow(ApiException::class);
 });

@@ -10,14 +10,14 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
-use base64::Engine as _;
-use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use petstore::api_client::{ApiClient, RequestBody};
 use petstore::api_response::ApiResponse;
+use petstore::auth::oauth::client_auth_method::ClientAuthMethod;
+use petstore::auth::oauth::OAuth2ClientCredentialsAuthenticator;
 use petstore::auth::Authenticator;
 use petstore::auth::HttpAwareAuthenticator;
-use petstore::auth::oauth::OAuth2ClientCredentialsAuthenticator;
-use petstore::auth::oauth::client_auth_method::ClientAuthMethod;
+use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use base64::Engine as _;
 
 struct FakeApiClient {
     responses: Mutex<Vec<ApiResponse>>,
@@ -65,13 +65,7 @@ impl ApiClient for FakeApiClient {
         url: &str,
         headers: &HashMap<String, String>,
         body: Option<&RequestBody>,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
-                + Send
-                + '_,
-        >,
-    > {
+    ) -> Pin<Box<dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         {
             let mut last_url = self.last_url.lock().unwrap();
             *last_url = Some(url.to_string());
@@ -178,6 +172,43 @@ fn test_get_host_returns_configured_host() {
     assert_eq!("https://api.example.com", auth.host());
 }
 
+/// oauth-cc-authheaders-error-swallow: a token-endpoint failure must be
+/// PROPAGATED via `try_auth_headers`, not swallowed into an empty header map
+/// that sends the request unauthenticated.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_try_auth_headers_propagates_token_fetch_error() {
+    let client = Arc::new(FakeApiClient::new());
+    // Token endpoint rejects the request (e.g. invalid_client).
+    client.enqueue(r#"{"error":"invalid_client"}"#, 401);
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let result = auth.try_auth_headers().await;
+    assert!(
+        result.is_err(),
+        "a non-2xx token response must surface as an error, not an empty header map"
+    );
+}
+
+/// The infallible trait method still collapses the same failure to an empty
+/// map (interface conformance), confirming both the error path and the
+/// collapse path exist.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_auth_headers_collapses_error_to_empty_map() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"error":"invalid_client"}"#, 401);
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let headers = auth.auth_headers().await;
+    assert!(
+        headers.get("Authorization").is_none(),
+        "collapsed error path must not produce an Authorization header"
+    );
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn test_basic_auth_url_encodes_client_id_and_secret() {
     // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
@@ -201,9 +232,7 @@ async fn test_basic_auth_url_encodes_client_id_and_secret() {
     auth.auth_headers().await;
 
     let headers = client.last_headers().expect("should have headers");
-    let auth_header = headers
-        .get("Authorization")
-        .expect("should have Authorization header");
+    let auth_header = headers.get("Authorization").expect("should have Authorization header");
     assert!(auth_header.starts_with("Basic "));
     let encoded = &auth_header["Basic ".len()..];
     let decoded_bytes = BASE64_STANDARD.decode(encoded).expect("base64 decode");

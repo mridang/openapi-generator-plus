@@ -160,6 +160,60 @@ defmodule PetstoreClient.Api.PetApiTest do
     # Per-operation server URL cannot be verified against mock server
   end
 
+  # path-double-encoding: a string path param carrying an encodable char
+  # must be percent-encoded exactly ONCE. The ValueSerializer already
+  # encodes path segments per-item; the api template must NOT re-wrap the
+  # whole string. A space must surface as %20, never %2520.
+  defmodule PathCapturingApiClient do
+    @behaviour PetstoreClient.ApiClient
+    use Agent
+
+    def start do
+      name = :"#{__MODULE__}-#{System.unique_integer([:positive])}"
+      {:ok, _pid} = Agent.start_link(fn -> "" end, name: name)
+      Process.put(__MODULE__, name)
+      {:ok, name}
+    end
+
+    def captured_url(name) do
+      Agent.get(name, & &1)
+    end
+
+    @impl true
+    def send_request(_method, url, _headers, _body) do
+      name = Process.get(__MODULE__)
+      Agent.update(name, fn _ -> url end)
+      %PetstoreClient.ApiResponse{status_code: 200, body: "{}", headers: %{"Content-Type" => "application/json"}}
+    end
+  end
+
+  test "string path param is percent-encoded exactly once (no double-encoding)" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
+
+    _result =
+      PetstoreClient.Api.PetApi.get_pet_tag(
+        api,
+        5,
+        "a b",
+        %PetstoreClient.Api.Options.GetPetTagOptions{}
+      )
+
+    url = PathCapturingApiClient.captured_url(name)
+    # get_pet_tag declares tagName with `style: label`, so the segment is
+    # rendered as `.a%20b` (leading dot). This test verifies single-encoding
+    # of the space, so assert the encoded form appears (a%20b) and is never
+    # double-encoded (a%2520b) — style-agnostic.
+    assert String.contains?(url, "a%20b"),
+           "Expected single-encoded space (%20) in path, got: #{url}"
+
+    refute String.contains?(url, "%2520"),
+           "Path must not be double-encoded (%2520), got: #{url}"
+
+    Agent.stop(name)
+  end
+
   defp new_pet_api_for_mock(status, content_type, body) do
     {:ok, socket} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
     {:ok, port} = :inet.port(socket)
@@ -210,6 +264,26 @@ defmodule PetstoreClient.Api.PetApiTest do
 
     assert {:ok, result} = PetstoreClient.Api.PetApi.upload_pet_certificate(api, :rand.uniform(1_000_000_000), options)
     assert result != nil
+  end
+
+  # convenience-empty-body-handling: a body-returning operation that comes
+  # back with an empty body must surface a typed ApiError from the plain
+  # (non-_with_http_info) convenience method, not a silent nil.
+  test "body-returning op with empty 200 body returns a typed ApiError" do
+    api = new_pet_api_for_mock(200, "application/json", "")
+
+    assert {:error, %PetstoreClient.ApiError{} = error} =
+             PetstoreClient.Api.PetApi.get_pet_by_id(api, 1)
+
+    assert error.status_code == 200
+  end
+
+  test "bang variant raises typed ApiError on empty 200 body" do
+    api = new_pet_api_for_mock(200, "application/json", "")
+
+    assert_raise PetstoreClient.ApiError, fn ->
+      PetstoreClient.Api.PetApi.get_pet_by_id!(api, 1)
+    end
   end
 
   test "get_pet_by_id_with_http_info returns http metadata", %{api: api} do

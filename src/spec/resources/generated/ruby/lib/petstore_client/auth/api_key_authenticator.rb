@@ -26,6 +26,14 @@ module PetstoreClient
         @location = location
       end
 
+      # Redact the API key from the default object representation so logging
+      # or inspecting an authenticator never leaks the credential.
+      def inspect
+        "#<#{self.class.name} host=#{@host.inspect} " \
+          "key_param_name=#{@key_param_name.inspect} api_key=\"***\" location=#{@location.inspect}>"
+      end
+      alias to_s inspect
+
       # @return [Hash{String => String}]
       def auth_headers
         result = {} # : Hash[String, String]
@@ -55,16 +63,16 @@ module PetstoreClient
       def validate_api_key!(key_param_name, api_key, location)
         if api_key.nil? || api_key.empty? || api_key.strip.empty?
           raise ArgumentError,
-            "API key value for '#{key_param_name}' must not be empty"
+                "API key value for '#{key_param_name}' must not be empty"
         end
         if api_key.match?(/[\r\n\x00]/)
           raise ArgumentError,
-            "API key value for '#{key_param_name}' contains forbidden control characters (CR/LF/NUL)"
+                "API key value for '#{key_param_name}' contains forbidden control characters (CR/LF/NUL)"
         end
         return unless location == ApiKeyLocation::HEADER && api_key.match?(/[^\t\x20-\x7E]/)
 
         raise ArgumentError,
-          "API key for header '#{key_param_name}' must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+              "API key for header '#{key_param_name}' must contain only printable ASCII characters (RFC 7230 §3.2.6)"
       end
     end
   end

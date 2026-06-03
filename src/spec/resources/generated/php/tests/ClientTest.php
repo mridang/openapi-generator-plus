@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
+use PetstoreClient\Client;
 use PetstoreClient\Auth\ApiKeyAuthenticator;
 use PetstoreClient\Auth\ApiKeyLocation;
 use PetstoreClient\Auth\BearerAuthenticator;
-use PetstoreClient\Client;
 use PetstoreClient\TransportOptions;
 
 beforeEach(function (): void {
@@ -33,6 +33,15 @@ test('bearer rejects crlf', function (): void {
 
 test('bearer rejects non ascii', function (): void {
     expect(fn () => new BearerAuthenticator('/api/v3', 'ñoño'))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bearer rejects empty token', function (): void {
+    // An empty / whitespace-only token would emit "Authorization: Bearer "
+    // (no credential), so it must be rejected at construction.
+    expect(fn () => new BearerAuthenticator('/api/v3', ''))
+        ->toThrow(\InvalidArgumentException::class);
+    expect(fn () => new BearerAuthenticator('/api/v3', '   '))
         ->toThrow(\InvalidArgumentException::class);
 });
 

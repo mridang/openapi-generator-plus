@@ -80,9 +80,9 @@ module PetstoreClient
   class ApiResult[T]
     attr_reader status_code: Integer
     attr_reader data: T
-    attr_reader raw_body: String?
+    attr_reader raw_body: String
     attr_reader headers: Hash[String, String]
-    def initialize: (status_code: Integer, data: T, raw_body: String?, headers: Hash[String, String]) -> void
+    def initialize: (status_code: Integer, data: T, raw_body: String, headers: Hash[String, String]) -> void
   end
 
   class ApiError < StandardError
@@ -254,14 +254,20 @@ module PetstoreClient
 
     class BasicAuthenticator < BaseAuthenticator
       def initialize: (String, String, String) -> void
+      def inspect: () -> String
+      def to_s: () -> String
     end
 
     class BearerAuthenticator < BaseAuthenticator
       def initialize: (String, String) -> void
+      def inspect: () -> String
+      def to_s: () -> String
     end
 
     class ApiKeyAuthenticator < BaseAuthenticator
       def initialize: (String, String, String, Symbol) -> void
+      def inspect: () -> String
+      def to_s: () -> String
       private
       def validate_api_key!: (String, String, Symbol) -> void
     end

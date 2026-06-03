@@ -43,6 +43,21 @@ mix dialyzer
 - Name: `petstore_client`
 - Version: `1.0.0`
 
+## Caveats
+
+### Decimal / `format: number` precision
+
+`format: decimal` / `format: number` values are decoded into Elixir
+`float` (IEEE-754 double), so they lose exact decimal representation.
+`0.1 + 0.2` in Elixir is `0.30000000000000004`.
+
+Do not do arithmetic on prices, balances, or other money-typed fields.
+If you need exact decimal arithmetic, parse the raw response body
+yourself (e.g. with `Jason.decode/2`) and use the `Decimal` library.
+
+`format: int64` is unaffected — Elixir integers are arbitrary-precision
+and represent the full 64-bit range without loss.
+
 ## Not supported
 
 ### Webhooks and callbacks

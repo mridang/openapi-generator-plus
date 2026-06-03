@@ -19,7 +19,7 @@ open class BaseAuthenticator: Authenticator, @unchecked Sendable {
     }
 
     /// Returns authentication headers. Concrete authenticators must override.
-    open func authHeaders() async -> [String: String] {
+    open func authHeaders() async throws -> [String: String] {
         fatalError("Subclasses must override authHeaders()")
     }
 

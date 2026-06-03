@@ -102,6 +102,11 @@ func (a *OpenIdConnectAuthenticator) BuildAuthorizationURL(state string) (string
 // ExchangeCode exchanges an authorization code for tokens using the
 // discovered token endpoint.
 func (a *OpenIdConnectAuthenticator) ExchangeCode(code string) error {
+	// oauth-exchangecode-no-empty-code-guard: reject an empty/whitespace code
+	// before fetching the discovery document or hitting the token endpoint.
+	if strings.TrimSpace(code) == "" {
+		return ErrAuthCodeEmpty
+	}
 	delegate, err := a.resolveDelegate()
 	if err != nil {
 		return err
@@ -146,12 +151,30 @@ func (a *OpenIdConnectAuthenticator) resolveDelegate() (*OAuth2AuthorizationCode
 		return nil, fmt.Errorf("failed to fetch OIDC discovery document: %w", err)
 	}
 
+	/* oauth-oidc-discovery-no-status-check: a non-2xx discovery response
+	 * (e.g. a 500 HTML error page) must surface as a clear status error
+	 * rather than a misleading "invalid JSON" parse failure downstream. */
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("OIDC discovery request failed with status %d", resp.StatusCode)
+	}
+
 	var discovery struct {
 		AuthorizationEndpoint string `json:"authorization_endpoint"`
 		TokenEndpoint         string `json:"token_endpoint"`
 	}
 	if err := json.Unmarshal([]byte(resp.Body), &discovery); err != nil {
 		return nil, fmt.Errorf("failed to parse OIDC discovery document: %w", err)
+	}
+
+	/* oauth-oidc-missing-endpoint-guard: a discovery document missing
+	 * authorization_endpoint or token_endpoint must fail loud. Building the
+	 * delegate with empty endpoint URLs would silently produce malformed
+	 * authorization/token requests against the wrong (empty) URL. */
+	if strings.TrimSpace(discovery.AuthorizationEndpoint) == "" {
+		return nil, fmt.Errorf("OIDC discovery document is missing 'authorization_endpoint'")
+	}
+	if strings.TrimSpace(discovery.TokenEndpoint) == "" {
+		return nil, fmt.Errorf("OIDC discovery document is missing 'token_endpoint'")
 	}
 
 	a.delegate = NewOAuth2AuthorizationCodeAuthenticator(

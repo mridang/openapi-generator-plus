@@ -98,6 +98,22 @@ func TestOAuth2AuthCode_BuildsAuthorizationUrlWithState(t *testing.T) {
 	}
 }
 
+// oauth-exchangecode-no-empty-code-guard: ExchangeCode must reject an empty or
+// whitespace-only code before issuing the token POST.
+func TestOAuth2AuthCode_ExchangeCodeRejectsEmptyCode(t *testing.T) {
+	t.Parallel()
+	for _, bad := range []string{"", "   ", "\t"} {
+		authObj := createAuthCodeAuthenticator()
+		err := authObj.ExchangeCode(bad)
+		if err == nil {
+			t.Fatalf("expected error for empty/whitespace code %q", bad)
+		}
+		if !errors.Is(err, oauth.ErrAuthCodeEmpty) {
+			t.Errorf("expected ErrAuthCodeEmpty for code %q, got %v", bad, err)
+		}
+	}
+}
+
 func TestOAuth2AuthCode_ExchangesCodeWithCorrectGrantType(t *testing.T) {
 	t.Parallel()
 	client := &fakeAuthCodeClient{

@@ -25,7 +25,9 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     public func deleteOrderWithHTTPInfo(orderId: Int64, ) async throws -> ApiResult<Void> {
 
         var path = "/store/order/{orderId}"
-        path = replacePathParam(path, name: "orderId", value: "\(orderId)")
+        path = path.replacingOccurrences(
+            of: "{" + "orderId" + "}",
+            with: "\(ValueSerializer.serializeStyled("orderId", value: orderId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
 
         let queryParams: [String: Any?] = [:]
 
@@ -111,7 +113,9 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     public func getOrderByIdWithHTTPInfo(orderId: Int64, ) async throws -> ApiResult<Order> {
 
         var path = "/store/order/{orderId}"
-        path = replacePathParam(path, name: "orderId", value: "\(orderId)")
+        path = path.replacingOccurrences(
+            of: "{" + "orderId" + "}",
+            with: "\(ValueSerializer.serializeStyled("orderId", value: orderId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
 
         let queryParams: [String: Any?] = [:]
 

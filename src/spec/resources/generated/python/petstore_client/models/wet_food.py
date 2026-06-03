@@ -19,7 +19,7 @@ class WetFood(BaseModel):
     WetFood
     """
 
-    food_type: StrictStr = Field(alias='foodType', default='WetFood')
+    food_type: StrictStr = Field(alias='foodType', default='wet')
     volume_ml: StrictInt = Field(alias='volumeMl')
     additional_properties: Dict[str, Any] = Field(default_factory=dict)
 

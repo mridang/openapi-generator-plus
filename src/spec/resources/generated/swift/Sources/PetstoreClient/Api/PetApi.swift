@@ -187,7 +187,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     public func addPetPhotosWithHTTPInfo(petId: Int64, options: AddPetPhotosOptions, ) async throws -> ApiResult<[Photo]> {
 
         var path = "/pet/{petId}/photos"
-        path = replacePathParam(path, name: "petId", value: "\(petId)")
+        path = path.replacingOccurrences(
+            of: "{" + "petId" + "}",
+            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
 
         let queryParams: [String: Any?] = [:]
 
@@ -234,7 +236,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     public func addPetTreatmentWithHTTPInfo(petId: Int64, petTreatment: PetTreatment, auth: Authenticator? = nil) async throws -> ApiResult<PetTreatment> {
 
         var path = "/pet/{petId}/treatment"
-        path = replacePathParam(path, name: "petId", value: "\(petId)")
+        path = path.replacingOccurrences(
+            of: "{" + "petId" + "}",
+            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
 
         let queryParams: [String: Any?] = [:]
 
@@ -272,7 +276,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     public func deletePetWithHTTPInfo(petId: Int64, options: DeletePetOptions? = nil, auth: Authenticator? = nil) async throws -> ApiResult<Void> {
 
         var path = "/pet/{petId}"
-        path = replacePathParam(path, name: "petId", value: "\(petId)")
+        path = path.replacingOccurrences(
+            of: "{" + "petId" + "}",
+            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
 
         let queryParams: [String: Any?] = [:]
 
@@ -324,8 +330,12 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     public func downloadPetDocumentWithHTTPInfo(petId: Int64, documentId: Int64, ) async throws -> ApiResult<Data> {
 
         var path = "/pet/{petId}/documents/{documentId}"
-        path = replacePathParam(path, name: "petId", value: "\(petId)")
-        path = replacePathParam(path, name: "documentId", value: "\(documentId)")
+        path = path.replacingOccurrences(
+            of: "{" + "petId" + "}",
+            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
+        path = path.replacingOccurrences(
+            of: "{" + "documentId" + "}",
+            with: "\(ValueSerializer.serializeStyled("documentId", value: documentId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
 
         let queryParams: [String: Any?] = [:]
 
@@ -442,7 +452,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     public func getExternalPetInfoWithHTTPInfo(petId: Int64, server: (any GetExternalPetInfoServer)? = nil, ) async throws -> ApiResult<Pet> {
 
         var path = "/pet/{petId}/external"
-        path = replacePathParam(path, name: "petId", value: "\(petId)")
+        path = path.replacingOccurrences(
+            of: "{" + "petId" + "}",
+            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
         if let server = server {
             let serverUrl = server.getUrl()
             if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
@@ -492,7 +504,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     public func getMultiServerPetInfoWithHTTPInfo(petId: Int64, server: (any GetMultiServerPetInfoServer)? = nil, ) async throws -> ApiResult<Pet> {
 
         var path = "/pet/{petId}/multi"
-        path = replacePathParam(path, name: "petId", value: "\(petId)")
+        path = path.replacingOccurrences(
+            of: "{" + "petId" + "}",
+            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
         if let server = server {
             let serverUrl = server.getUrl()
             if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
@@ -543,7 +557,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     public func getPetAvatarWithHTTPInfo(petId: Int64, ) async throws -> ApiResult<Data> {
 
         var path = "/pet/{petId}/avatar"
-        path = replacePathParam(path, name: "petId", value: "\(petId)")
+        path = path.replacingOccurrences(
+            of: "{" + "petId" + "}",
+            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
 
         let queryParams: [String: Any?] = [:]
 
@@ -588,7 +604,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     public func getPetAvatarThumbnailWithHTTPInfo(petId: Int64, ) async throws -> ApiResult<Data> {
 
         var path = "/pet/{petId}/avatar/thumbnail"
-        path = replacePathParam(path, name: "petId", value: "\(petId)")
+        path = path.replacingOccurrences(
+            of: "{" + "petId" + "}",
+            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
 
         let queryParams: [String: Any?] = [:]
 
@@ -647,7 +665,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     public func getPetByIdWithHTTPInfo(petId: Int64, server: (any GetPetByIdServer)? = nil, ) async throws -> ApiResult<Pet> {
 
         var path = "/pet/{petId}"
-        path = replacePathParam(path, name: "petId", value: "\(petId)")
+        path = path.replacingOccurrences(
+            of: "{" + "petId" + "}",
+            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
         if let server = server {
             let serverUrl = server.getUrl()
             if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
@@ -698,7 +718,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     public func getPetPassportWithHTTPInfo(petId: Int64, ) async throws -> ApiResult<PetPassport> {
 
         var path = "/pet/{petId}/passport"
-        path = replacePathParam(path, name: "petId", value: "\(petId)")
+        path = path.replacingOccurrences(
+            of: "{" + "petId" + "}",
+            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
 
         let queryParams: [String: Any?] = [:]
 
@@ -743,8 +765,12 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     public func getPetPhotoWithHTTPInfo(petId: Int64, photoId: Int64, ) async throws -> ApiResult<Data> {
 
         var path = "/pet/{petId}/photos/{photoId}"
-        path = replacePathParam(path, name: "petId", value: "\(petId)")
-        path = replacePathParam(path, name: "photoId", value: "\(photoId)")
+        path = path.replacingOccurrences(
+            of: "{" + "petId" + "}",
+            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
+        path = path.replacingOccurrences(
+            of: "{" + "photoId" + "}",
+            with: "\(ValueSerializer.serializeStyled("photoId", value: photoId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
 
         let queryParams: [String: Any?] = [:]
 
@@ -791,8 +817,12 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         }
 
         var path = "/pet/{petId}/tag/{tagName}"
-        path = replacePathParam(path, name: "petId", value: "\(petId)")
-        path = replacePathParam(path, name: "tagName", value: "\(tagName)")
+        path = path.replacingOccurrences(
+            of: "{" + "petId" + "}",
+            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "matrix", explode: false) ?? "")")
+        path = path.replacingOccurrences(
+            of: "{" + "tagName" + "}",
+            with: "\(ValueSerializer.serializeStyled("tagName", value: tagName, location: "path", schemaType: "String", collectionFormat: "", style: "label", explode: false) ?? "")")
 
         var queryParams: [String: Any?] = [:]
         if let options = options, let val = options.colors {
@@ -849,7 +879,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     public func getStagingPetInfoWithHTTPInfo(petId: Int64, server: (any GetStagingPetInfoServer)? = nil, ) async throws -> ApiResult<Pet> {
 
         var path = "/pet/{petId}/staging"
-        path = replacePathParam(path, name: "petId", value: "\(petId)")
+        path = path.replacingOccurrences(
+            of: "{" + "petId" + "}",
+            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
         if let server = server {
             let serverUrl = server.getUrl()
             if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
@@ -892,7 +924,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     public func setPetAvatarWithHTTPInfo(petId: Int64, body: Data, ) async throws -> ApiResult<Void> {
 
         var path = "/pet/{petId}/avatar"
-        path = replacePathParam(path, name: "petId", value: "\(petId)")
+        path = path.replacingOccurrences(
+            of: "{" + "petId" + "}",
+            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
 
         let queryParams: [String: Any?] = [:]
 
@@ -929,7 +963,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     public func setPetAvatarThumbnailWithHTTPInfo(petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest, ) async throws -> ApiResult<Void> {
 
         var path = "/pet/{petId}/avatar/thumbnail"
-        path = replacePathParam(path, name: "petId", value: "\(petId)")
+        path = path.replacingOccurrences(
+            of: "{" + "petId" + "}",
+            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
 
         let queryParams: [String: Any?] = [:]
 
@@ -975,7 +1011,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     public func updatePetWithHTTPInfo(petId: Int64, pet: Pet, ) async throws -> ApiResult<Pet> {
 
         var path = "/pet/{petId}"
-        path = replacePathParam(path, name: "petId", value: "\(petId)")
+        path = path.replacingOccurrences(
+            of: "{" + "petId" + "}",
+            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
 
         let queryParams: [String: Any?] = [:]
 
@@ -1020,7 +1058,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     public func uploadPetCertificateWithHTTPInfo(petId: Int64, options: UploadPetCertificateOptions, ) async throws -> ApiResult<ApiResponse> {
 
         var path = "/pet/{petId}/certificate"
-        path = replacePathParam(path, name: "petId", value: "\(petId)")
+        path = path.replacingOccurrences(
+            of: "{" + "petId" + "}",
+            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
 
         let queryParams: [String: Any?] = [:]
 
@@ -1067,7 +1107,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     public func uploadPetDocumentWithHTTPInfo(petId: Int64, options: UploadPetDocumentOptions, ) async throws -> ApiResult<ApiResponse> {
 
         var path = "/pet/{petId}/documents"
-        path = replacePathParam(path, name: "petId", value: "\(petId)")
+        path = path.replacingOccurrences(
+            of: "{" + "petId" + "}",
+            with: "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")")
 
         let queryParams: [String: Any?] = [:]
 

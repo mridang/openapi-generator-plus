@@ -248,8 +248,18 @@ public class PetApi : BaseApi
     {
         Task<ApiResult<Pet>> task = AddPetWithHttpInfoAsync(auth, pet);
         ApiResult<Pet> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
         return result.Data
-            ?? throw new InvalidOperationException("Expected non-null response body");
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                result.Headers,
+                result.RawBody
+            );
     }
 
     /// <summary>
@@ -291,8 +301,18 @@ public class PetApi : BaseApi
     {
         Task<ApiResult<List<Photo>>> task = AddPetPhotosWithHttpInfoAsync(petId, options);
         ApiResult<List<Photo>> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
         return result.Data
-            ?? throw new InvalidOperationException("Expected non-null response body");
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                result.Headers,
+                result.RawBody
+            );
     }
 
     /// <summary>
@@ -312,18 +332,16 @@ public class PetApi : BaseApi
         string path = "/pet/{petId}/photos";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            ValueSerializer.EncodePathSegment(
-                (string)
-                    ValueSerializer.SerializeStyled(
-                        nameof(petId),
-                        petId,
-                        "path",
-                        "long",
-                        null,
-                        "simple",
-                        false
-                    )!
-            ),
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -366,8 +384,18 @@ public class PetApi : BaseApi
             petTreatment
         );
         ApiResult<PetTreatment> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
         return result.Data
-            ?? throw new InvalidOperationException("Expected non-null response body");
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                result.Headers,
+                result.RawBody
+            );
     }
 
     /// <summary>
@@ -387,18 +415,16 @@ public class PetApi : BaseApi
         string path = "/pet/{petId}/treatment";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            ValueSerializer.EncodePathSegment(
-                (string)
-                    ValueSerializer.SerializeStyled(
-                        nameof(petId),
-                        petId,
-                        "path",
-                        "long",
-                        null,
-                        "simple",
-                        false
-                    )!
-            ),
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -452,18 +478,16 @@ public class PetApi : BaseApi
         string path = "/pet/{petId}";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            ValueSerializer.EncodePathSegment(
-                (string)
-                    ValueSerializer.SerializeStyled(
-                        nameof(petId),
-                        petId,
-                        "path",
-                        "long",
-                        null,
-                        "simple",
-                        false
-                    )!
-            ),
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -518,8 +542,18 @@ public class PetApi : BaseApi
             documentId
         );
         ApiResult<System.IO.Stream> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
         return result.Data
-            ?? throw new InvalidOperationException("Expected non-null response body");
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                result.Headers,
+                result.RawBody
+            );
     }
 
     /// <summary>
@@ -538,34 +572,30 @@ public class PetApi : BaseApi
         string path = "/pet/{petId}/documents/{documentId}";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            ValueSerializer.EncodePathSegment(
-                (string)
-                    ValueSerializer.SerializeStyled(
-                        nameof(petId),
-                        petId,
-                        "path",
-                        "long",
-                        null,
-                        "simple",
-                        false
-                    )!
-            ),
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
         path = path.Replace(
             "{" + nameof(documentId) + "}",
-            ValueSerializer.EncodePathSegment(
-                (string)
-                    ValueSerializer.SerializeStyled(
-                        nameof(documentId),
-                        documentId,
-                        "path",
-                        "long",
-                        null,
-                        "simple",
-                        false
-                    )!
-            ),
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(documentId),
+                    documentId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -597,8 +627,18 @@ public class PetApi : BaseApi
     {
         Task<ApiResult<List<Pet>>> task = FindPetsByStatusWithHttpInfoAsync(options);
         ApiResult<List<Pet>> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
         return result.Data
-            ?? throw new InvalidOperationException("Expected non-null response body");
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                result.Headers,
+                result.RawBody
+            );
     }
 
     /// <summary>
@@ -667,8 +707,18 @@ public class PetApi : BaseApi
     {
         Task<ApiResult<Pet>> task = GetExternalPetInfoWithHttpInfoAsync(petId, server);
         ApiResult<Pet> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
         return result.Data
-            ?? throw new InvalidOperationException("Expected non-null response body");
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                result.Headers,
+                result.RawBody
+            );
     }
 
     /// <summary>
@@ -686,18 +736,16 @@ public class PetApi : BaseApi
         string path = "/pet/{petId}/external";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            ValueSerializer.EncodePathSegment(
-                (string)
-                    ValueSerializer.SerializeStyled(
-                        nameof(petId),
-                        petId,
-                        "path",
-                        "long",
-                        null,
-                        "simple",
-                        false
-                    )!
-            ),
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
         if (server != null)
@@ -742,8 +790,18 @@ public class PetApi : BaseApi
     {
         Task<ApiResult<Pet>> task = GetMultiServerPetInfoWithHttpInfoAsync(petId, server);
         ApiResult<Pet> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
         return result.Data
-            ?? throw new InvalidOperationException("Expected non-null response body");
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                result.Headers,
+                result.RawBody
+            );
     }
 
     /// <summary>
@@ -761,18 +819,16 @@ public class PetApi : BaseApi
         string path = "/pet/{petId}/multi";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            ValueSerializer.EncodePathSegment(
-                (string)
-                    ValueSerializer.SerializeStyled(
-                        nameof(petId),
-                        petId,
-                        "path",
-                        "long",
-                        null,
-                        "simple",
-                        false
-                    )!
-            ),
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
         if (server != null)
@@ -814,8 +870,18 @@ public class PetApi : BaseApi
     {
         Task<ApiResult<System.IO.Stream>> task = GetPetAvatarWithHttpInfoAsync(petId);
         ApiResult<System.IO.Stream> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
         return result.Data
-            ?? throw new InvalidOperationException("Expected non-null response body");
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                result.Headers,
+                result.RawBody
+            );
     }
 
     /// <summary>
@@ -830,18 +896,16 @@ public class PetApi : BaseApi
         string path = "/pet/{petId}/avatar";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            ValueSerializer.EncodePathSegment(
-                (string)
-                    ValueSerializer.SerializeStyled(
-                        nameof(petId),
-                        petId,
-                        "path",
-                        "long",
-                        null,
-                        "simple",
-                        false
-                    )!
-            ),
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -872,8 +936,18 @@ public class PetApi : BaseApi
     {
         Task<ApiResult<byte[]>> task = GetPetAvatarThumbnailWithHttpInfoAsync(petId);
         ApiResult<byte[]> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
         return result.Data
-            ?? throw new InvalidOperationException("Expected non-null response body");
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                result.Headers,
+                result.RawBody
+            );
     }
 
     /// <summary>
@@ -888,18 +962,16 @@ public class PetApi : BaseApi
         string path = "/pet/{petId}/avatar/thumbnail";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            ValueSerializer.EncodePathSegment(
-                (string)
-                    ValueSerializer.SerializeStyled(
-                        nameof(petId),
-                        petId,
-                        "path",
-                        "long",
-                        null,
-                        "simple",
-                        false
-                    )!
-            ),
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -934,8 +1006,18 @@ public class PetApi : BaseApi
     {
         Task<ApiResult<Pet>> task = GetPetByIdWithHttpInfoAsync(petId, server);
         ApiResult<Pet> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
         return result.Data
-            ?? throw new InvalidOperationException("Expected non-null response body");
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                result.Headers,
+                result.RawBody
+            );
     }
 
     /// <summary>
@@ -954,18 +1036,16 @@ public class PetApi : BaseApi
         string path = "/pet/{petId}";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            ValueSerializer.EncodePathSegment(
-                (string)
-                    ValueSerializer.SerializeStyled(
-                        nameof(petId),
-                        petId,
-                        "path",
-                        "long",
-                        null,
-                        "simple",
-                        false
-                    )!
-            ),
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
         if (server != null)
@@ -1007,8 +1087,18 @@ public class PetApi : BaseApi
     {
         Task<ApiResult<PetPassport>> task = GetPetPassportWithHttpInfoAsync(petId);
         ApiResult<PetPassport> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
         return result.Data
-            ?? throw new InvalidOperationException("Expected non-null response body");
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                result.Headers,
+                result.RawBody
+            );
     }
 
     /// <summary>
@@ -1023,18 +1113,16 @@ public class PetApi : BaseApi
         string path = "/pet/{petId}/passport";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            ValueSerializer.EncodePathSegment(
-                (string)
-                    ValueSerializer.SerializeStyled(
-                        nameof(petId),
-                        petId,
-                        "path",
-                        "long",
-                        null,
-                        "simple",
-                        false
-                    )!
-            ),
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -1066,8 +1154,18 @@ public class PetApi : BaseApi
     {
         Task<ApiResult<System.IO.Stream>> task = GetPetPhotoWithHttpInfoAsync(petId, photoId);
         ApiResult<System.IO.Stream> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
         return result.Data
-            ?? throw new InvalidOperationException("Expected non-null response body");
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                result.Headers,
+                result.RawBody
+            );
     }
 
     /// <summary>
@@ -1086,34 +1184,30 @@ public class PetApi : BaseApi
         string path = "/pet/{petId}/photos/{photoId}";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            ValueSerializer.EncodePathSegment(
-                (string)
-                    ValueSerializer.SerializeStyled(
-                        nameof(petId),
-                        petId,
-                        "path",
-                        "long",
-                        null,
-                        "simple",
-                        false
-                    )!
-            ),
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
         path = path.Replace(
             "{" + nameof(photoId) + "}",
-            ValueSerializer.EncodePathSegment(
-                (string)
-                    ValueSerializer.SerializeStyled(
-                        nameof(photoId),
-                        photoId,
-                        "path",
-                        "long",
-                        null,
-                        "simple",
-                        false
-                    )!
-            ),
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(photoId),
+                    photoId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -1145,8 +1239,18 @@ public class PetApi : BaseApi
     {
         Task<ApiResult<Pet>> task = GetPetTagWithHttpInfoAsync(petId, tagName, options);
         ApiResult<Pet> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
         return result.Data
-            ?? throw new InvalidOperationException("Expected non-null response body");
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                result.Headers,
+                result.RawBody
+            );
     }
 
     /// <summary>
@@ -1167,34 +1271,30 @@ public class PetApi : BaseApi
         string path = "/pet/{petId}/tag/{tagName}";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            ValueSerializer.EncodePathSegment(
-                (string)
-                    ValueSerializer.SerializeStyled(
-                        nameof(petId),
-                        petId,
-                        "path",
-                        "long",
-                        null,
-                        "matrix",
-                        false
-                    )!
-            ),
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "matrix",
+                    false
+                )!,
             StringComparison.Ordinal
         );
         path = path.Replace(
             "{" + nameof(tagName) + "}",
-            ValueSerializer.EncodePathSegment(
-                (string)
-                    ValueSerializer.SerializeStyled(
-                        nameof(tagName),
-                        tagName,
-                        "path",
-                        "string",
-                        null,
-                        "label",
-                        false
-                    )!
-            ),
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(tagName),
+                    tagName,
+                    "path",
+                    "string",
+                    null,
+                    "label",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -1264,8 +1364,18 @@ public class PetApi : BaseApi
     {
         Task<ApiResult<Pet>> task = GetStagingPetInfoWithHttpInfoAsync(petId, server);
         ApiResult<Pet> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
         return result.Data
-            ?? throw new InvalidOperationException("Expected non-null response body");
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                result.Headers,
+                result.RawBody
+            );
     }
 
     /// <summary>
@@ -1283,18 +1393,16 @@ public class PetApi : BaseApi
         string path = "/pet/{petId}/staging";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            ValueSerializer.EncodePathSegment(
-                (string)
-                    ValueSerializer.SerializeStyled(
-                        nameof(petId),
-                        petId,
-                        "path",
-                        "long",
-                        null,
-                        "simple",
-                        false
-                    )!
-            ),
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
         if (server != null)
@@ -1354,18 +1462,16 @@ public class PetApi : BaseApi
         string path = "/pet/{petId}/avatar";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            ValueSerializer.EncodePathSegment(
-                (string)
-                    ValueSerializer.SerializeStyled(
-                        nameof(petId),
-                        petId,
-                        "path",
-                        "long",
-                        null,
-                        "simple",
-                        false
-                    )!
-            ),
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -1420,18 +1526,16 @@ public class PetApi : BaseApi
         string path = "/pet/{petId}/avatar/thumbnail";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            ValueSerializer.EncodePathSegment(
-                (string)
-                    ValueSerializer.SerializeStyled(
-                        nameof(petId),
-                        petId,
-                        "path",
-                        "long",
-                        null,
-                        "simple",
-                        false
-                    )!
-            ),
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -1462,8 +1566,18 @@ public class PetApi : BaseApi
     {
         Task<ApiResult<Pet>> task = UpdatePetWithHttpInfoAsync(petId, pet);
         ApiResult<Pet> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
         return result.Data
-            ?? throw new InvalidOperationException("Expected non-null response body");
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                result.Headers,
+                result.RawBody
+            );
     }
 
     /// <summary>
@@ -1478,18 +1592,16 @@ public class PetApi : BaseApi
         string path = "/pet/{petId}";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            ValueSerializer.EncodePathSegment(
-                (string)
-                    ValueSerializer.SerializeStyled(
-                        nameof(petId),
-                        petId,
-                        "path",
-                        "long",
-                        null,
-                        "simple",
-                        false
-                    )!
-            ),
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -1524,8 +1636,18 @@ public class PetApi : BaseApi
     {
         Task<ApiResult<ApiResponse>> task = UploadPetCertificateWithHttpInfoAsync(petId, options);
         ApiResult<ApiResponse> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
         return result.Data
-            ?? throw new InvalidOperationException("Expected non-null response body");
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                result.Headers,
+                result.RawBody
+            );
     }
 
     /// <summary>
@@ -1545,18 +1667,16 @@ public class PetApi : BaseApi
         string path = "/pet/{petId}/certificate";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            ValueSerializer.EncodePathSegment(
-                (string)
-                    ValueSerializer.SerializeStyled(
-                        nameof(petId),
-                        petId,
-                        "path",
-                        "long",
-                        null,
-                        "simple",
-                        false
-                    )!
-            ),
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -1593,8 +1713,18 @@ public class PetApi : BaseApi
     {
         Task<ApiResult<ApiResponse>> task = UploadPetDocumentWithHttpInfoAsync(petId, options);
         ApiResult<ApiResponse> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
         return result.Data
-            ?? throw new InvalidOperationException("Expected non-null response body");
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                result.Headers,
+                result.RawBody
+            );
     }
 
     /// <summary>
@@ -1614,18 +1744,16 @@ public class PetApi : BaseApi
         string path = "/pet/{petId}/documents";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            ValueSerializer.EncodePathSegment(
-                (string)
-                    ValueSerializer.SerializeStyled(
-                        nameof(petId),
-                        petId,
-                        "path",
-                        "long",
-                        null,
-                        "simple",
-                        false
-                    )!
-            ),
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 

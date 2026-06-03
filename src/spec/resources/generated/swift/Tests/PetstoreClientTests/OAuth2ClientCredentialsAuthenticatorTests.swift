@@ -48,67 +48,67 @@ import Testing
 
     // MARK: - Tests
 
-    @Test func testSendsClientCredentialsGrantType() async {
+    @Test func testSendsClientCredentialsGrantType() async throws {
         let client = MockApiClient()
         client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
 
         let auth = createAuthenticator()
         auth.setApiClient(client)
 
-        _ = await auth.authHeaders()
+        _ = try await auth.authHeaders()
 
         let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
         #expect(bodyString.contains("grant_type=client_credentials"))
     }
 
-    @Test func testSendsClientIdAndSecret() async {
+    @Test func testSendsClientIdAndSecret() async throws {
         let client = MockApiClient()
         client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
 
         let auth = createAuthenticator()
         auth.setApiClient(client)
 
-        _ = await auth.authHeaders()
+        _ = try await auth.authHeaders()
 
         let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
         #expect(bodyString.contains("client_id=my-client-id"))
         #expect(bodyString.contains("client_secret=my-client-secret"))
     }
 
-    @Test func testSendsScopes() async {
+    @Test func testSendsScopes() async throws {
         let client = MockApiClient()
         client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
 
         let auth = createAuthenticator()
         auth.setApiClient(client)
 
-        _ = await auth.authHeaders()
+        _ = try await auth.authHeaders()
 
         let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
         #expect(bodyString.contains("scope=read"))
         #expect(bodyString.contains("write"))
     }
 
-    @Test func testReturnsAuthorizationBearerHeader() async {
+    @Test func testReturnsAuthorizationBearerHeader() async throws {
         let client = MockApiClient()
         client.responses.append(makeResponse(body: "{\"access_token\":\"tok-abc\",\"expires_in\":3600}"))
 
         let auth = createAuthenticator()
         auth.setApiClient(client)
 
-        let headers = await auth.authHeaders()
+        let headers = try await auth.authHeaders()
 
         #expect(headers["Authorization"] == "Bearer tok-abc")
     }
 
-    @Test func testSendsRequestToTokenURL() async {
+    @Test func testSendsRequestToTokenURL() async throws {
         let client = MockApiClient()
         client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
 
         let auth = createAuthenticator()
         auth.setApiClient(client)
 
-        _ = await auth.authHeaders()
+        _ = try await auth.authHeaders()
 
         #expect(client.lastURL == "https://auth.example.com/token")
     }
@@ -119,7 +119,24 @@ import Testing
         #expect(auth.host() == "https://api.example.com")
     }
 
-    @Test func testBasicAuthUrlEncodesClientIdAndSecret() async {
+    // oauth-cc-authheaders-error-swallow: a failed client-credentials token
+    // exchange must surface to the caller as a thrown error — NOT be swallowed
+    // into an empty header map that would send the API request
+    // unauthenticated and produce a confusing downstream 401.
+    @Test func testTokenFetchErrorIsSurfacedNotSwallowed() async {
+        let client = MockApiClient()
+        // Token endpoint returns a 500 — getAccessToken throws.
+        client.responses.append(makeResponse(body: "internal error", statusCode: 500))
+
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        await #expect(throws: (any Error).self) {
+            _ = try await auth.authHeaders()
+        }
+    }
+
+    @Test func testBasicAuthUrlEncodesClientIdAndSecret() async throws {
         // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
         // client_id and client_secret MUST be application/x-www-form-
         // urlencoded BEFORE being joined with ':' and base64-encoded.
@@ -136,7 +153,7 @@ import Testing
         )
         auth.setApiClient(client)
 
-        _ = await auth.authHeaders()
+        _ = try await auth.authHeaders()
 
         let authHeader = client.lastHeaders["Authorization"] ?? ""
         #expect(authHeader.hasPrefix("Basic "))

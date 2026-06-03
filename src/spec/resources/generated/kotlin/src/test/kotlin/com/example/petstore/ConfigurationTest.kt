@@ -8,12 +8,13 @@
 package com.example.petstore
 
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Assertions.*
 
 class ConfigurationTest {
+
     @AfterEach
     fun resetDefault() {
         Configuration.setDefault(Configuration.builder().build())
@@ -22,6 +23,7 @@ class ConfigurationTest {
     @Nested
     @DisplayName("defaults")
     inner class Defaults {
+
         @Test
         @DisplayName("default builder uses spec base URL")
         fun defaultBuilderUsesSpecBaseUrl() {
@@ -40,14 +42,13 @@ class ConfigurationTest {
     @Nested
     @DisplayName("baseUrl")
     inner class BaseUrl {
+
         @Test
         @DisplayName("builder sets custom base URL")
         fun builderSetsCustomBaseUrl() {
-            val config =
-                Configuration
-                    .builder()
-                    .baseUrl("https://custom.example.com")
-                    .build()
+            val config = Configuration.builder()
+                .baseUrl("https://custom.example.com")
+                .build()
             assertEquals("https://custom.example.com", config.baseUrl)
         }
     }
@@ -55,29 +56,26 @@ class ConfigurationTest {
     @Nested
     @DisplayName("defaultHeader")
     inner class DefaultHeader {
+
         @Test
         @DisplayName("builder sets single default header")
         fun builderSetsSingleDefaultHeader() {
-            val config =
-                Configuration
-                    .builder()
-                    .defaultHeader("Authorization", "Bearer token123")
-                    .build()
+            val config = Configuration.builder()
+                .defaultHeader("Authorization", "Bearer token123")
+                .build()
             assertEquals(
                 mapOf("Authorization" to "Bearer token123"),
-                config.defaultHeaders,
+                config.defaultHeaders
             )
         }
 
         @Test
         @DisplayName("builder accumulates multiple headers")
         fun builderAccumulatesMultipleHeaders() {
-            val config =
-                Configuration
-                    .builder()
-                    .defaultHeader("X-First", "one")
-                    .defaultHeader("X-Second", "two")
-                    .build()
+            val config = Configuration.builder()
+                .defaultHeader("X-First", "one")
+                .defaultHeader("X-Second", "two")
+                .build()
             assertEquals(2, config.defaultHeaders.size)
             assertEquals("one", config.defaultHeaders["X-First"])
             assertEquals("two", config.defaultHeaders["X-Second"])
@@ -87,18 +85,18 @@ class ConfigurationTest {
     @Nested
     @DisplayName("defaultHeaders")
     inner class DefaultHeaders {
+
         @Test
         @DisplayName("builder sets multiple headers from map")
         fun builderSetsMultipleHeadersFromMap() {
-            val config =
-                Configuration
-                    .builder()
-                    .defaultHeaders(
-                        mapOf(
-                            "Authorization" to "Bearer token123",
-                            "X-Custom" to "value",
-                        ),
-                    ).build()
+            val config = Configuration.builder()
+                .defaultHeaders(
+                    mapOf(
+                        "Authorization" to "Bearer token123",
+                        "X-Custom" to "value"
+                    )
+                )
+                .build()
             assertEquals("Bearer token123", config.defaultHeaders["Authorization"])
             assertEquals("value", config.defaultHeaders["X-Custom"])
         }
@@ -106,13 +104,11 @@ class ConfigurationTest {
         @Test
         @DisplayName("builder merges single and bulk headers")
         fun builderMergesSingleAndBulkHeaders() {
-            val config =
-                Configuration
-                    .builder()
-                    .defaultHeader("X-First", "one")
-                    .defaultHeaders(mapOf("X-Second" to "two"))
-                    .defaultHeader("X-Third", "three")
-                    .build()
+            val config = Configuration.builder()
+                .defaultHeader("X-First", "one")
+                .defaultHeaders(mapOf("X-Second" to "two"))
+                .defaultHeader("X-Third", "three")
+                .build()
             assertEquals(3, config.defaultHeaders.size)
             assertEquals("one", config.defaultHeaders["X-First"])
             assertEquals("two", config.defaultHeaders["X-Second"])
@@ -123,58 +119,51 @@ class ConfigurationTest {
     @Nested
     @DisplayName("server URL resolution")
     inner class ServerUrlResolution {
+
         @Test
         @DisplayName("server configuration resolves URL with defaults")
         fun serverConfigResolvesWithDefaults() {
-            val server =
-                ServerConfiguration(
-                    "https://{env}.example.com/api/{version}",
-                    "Test server",
-                    mapOf(
-                        "env" to ServerVariable("api", null, listOf("api", "staging")),
-                        "version" to ServerVariable("v3", null, listOf("v2", "v3")),
-                    ),
+            val server = ServerConfiguration(
+                "https://{env}.example.com/api/{version}",
+                "Test server",
+                mapOf(
+                    "env" to ServerVariable("api", null, listOf("api", "staging")),
+                    "version" to ServerVariable("v3", null, listOf("v2", "v3"))
                 )
-            val config =
-                Configuration
-                    .builder()
-                    .server(server)
-                    .build()
+            )
+            val config = Configuration.builder()
+                .server(server)
+                .build()
             assertEquals("https://api.example.com/api/v3", config.baseUrl)
         }
 
         @Test
         @DisplayName("server configuration resolves URL with overrides")
         fun serverConfigResolvesWithOverrides() {
-            val server =
-                ServerConfiguration(
-                    "https://{env}.example.com/api/{version}",
-                    null,
-                    mapOf(
-                        "env" to ServerVariable("api", null, listOf("api", "staging")),
-                        "version" to ServerVariable("v3", null, listOf("v2", "v3")),
-                    ),
+            val server = ServerConfiguration(
+                "https://{env}.example.com/api/{version}",
+                null,
+                mapOf(
+                    "env" to ServerVariable("api", null, listOf("api", "staging")),
+                    "version" to ServerVariable("v3", null, listOf("v2", "v3"))
                 )
-            val config =
-                Configuration
-                    .builder()
-                    .server(server, mapOf("env" to "staging", "version" to "v2"))
-                    .build()
+            )
+            val config = Configuration.builder()
+                .server(server, mapOf("env" to "staging", "version" to "v2"))
+                .build()
             assertEquals("https://staging.example.com/api/v2", config.baseUrl)
         }
 
         @Test
         @DisplayName("invalid enum value throws IllegalArgumentException")
         fun invalidEnumValueThrows() {
-            val server =
-                ServerConfiguration(
-                    "https://{env}.example.com",
-                    null,
-                    mapOf("env" to ServerVariable("api", null, listOf("api", "staging"))),
-                )
+            val server = ServerConfiguration(
+                "https://{env}.example.com",
+                null,
+                mapOf("env" to ServerVariable("api", null, listOf("api", "staging")))
+            )
             assertThrows(IllegalArgumentException::class.java) {
-                Configuration
-                    .builder()
+                Configuration.builder()
                     .server(server, mapOf("env" to "invalid"))
                     .build()
             }
@@ -183,18 +172,15 @@ class ConfigurationTest {
         @Test
         @DisplayName("baseUrl overrides server URL")
         fun baseUrlOverridesServerUrl() {
-            val server =
-                ServerConfiguration(
-                    "https://api.example.com",
-                    null,
-                    emptyMap(),
-                )
-            val config =
-                Configuration
-                    .builder()
-                    .server(server)
-                    .baseUrl("https://override.example.com")
-                    .build()
+            val server = ServerConfiguration(
+                "https://api.example.com",
+                null,
+                emptyMap()
+            )
+            val config = Configuration.builder()
+                .server(server)
+                .baseUrl("https://override.example.com")
+                .build()
             assertEquals("https://override.example.com", config.baseUrl)
         }
     }
@@ -202,6 +188,7 @@ class ConfigurationTest {
     @Nested
     @DisplayName("getDefault / setDefault")
     inner class DefaultSingleton {
+
         @Test
         @DisplayName("getDefault returns an instance")
         fun getDefaultReturnsInstance() {
@@ -221,11 +208,9 @@ class ConfigurationTest {
         @Test
         @DisplayName("setDefault changes the default instance")
         fun setDefaultChangesDefault() {
-            val custom =
-                Configuration
-                    .builder()
-                    .baseUrl("https://custom.example.com")
-                    .build()
+            val custom = Configuration.builder()
+                .baseUrl("https://custom.example.com")
+                .build()
             Configuration.setDefault(custom)
             assertSame(custom, Configuration.getDefault())
             assertEquals("https://custom.example.com", Configuration.getDefault().baseUrl)
@@ -235,6 +220,7 @@ class ConfigurationTest {
     @Nested
     @DisplayName("copy isolation")
     inner class CopyIsolation {
+
         @Test
         @DisplayName("builder returns a new Configuration each time")
         fun builderReturnsNewConfiguration() {
@@ -249,6 +235,7 @@ class ConfigurationTest {
     @Nested
     @DisplayName("builder chaining")
     inner class BuilderChaining {
+
         @Test
         @DisplayName("builder methods are fluent")
         fun builderMethodsAreFluent() {

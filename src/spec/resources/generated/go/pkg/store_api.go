@@ -42,7 +42,11 @@ func (a *StoreApi) DeleteOrder(orderId int64) error {
 func (a *StoreApi) DeleteOrderWithHTTPInfo(orderId int64) (*ApiResult[any], error) {
 
 	path := "/store/order/{orderId}"
-	path = replacePathParam(path, "orderId", fmt.Sprintf("%v", orderId))
+	/* Path params route through SerializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "orderId", fmt.Sprintf("%v", SerializeStyled("orderId", orderId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -80,6 +84,13 @@ func (a *StoreApi) GetInventory() (*map[string]int32, error) {
 	if err != nil {
 		return nil, err
 	}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("GetInventory", result.StatusCode, result.RawBody, result.Headers)
+	}
 	return result.Data, nil
 }
 
@@ -110,6 +121,10 @@ func (a *StoreApi) GetInventoryWithHTTPInfo() (*ApiResult[map[string]int32], err
 	}
 
 	var data map[string]int32
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *map[string]int32
 	if response.Body != "" {
 		respContentType := ""
 		// Headers are lowercase-normalised per Gap BE.
@@ -131,11 +146,12 @@ func (a *StoreApi) GetInventoryWithHTTPInfo() (*ApiResult[map[string]int32], err
 			}
 			*bytesPtr = decoded
 		}
+		dataPtr = &data
 	}
 
 	return &ApiResult[map[string]int32]{
 		StatusCode: response.StatusCode,
-		Data:       &data,
+		Data:       dataPtr,
 		RawBody:    response.Body,
 		Headers:    response.Headers,
 	}, nil
@@ -149,6 +165,13 @@ func (a *StoreApi) GetOrderById(orderId int64) (*Order, error) {
 	if err != nil {
 		return nil, err
 	}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("GetOrderById", result.StatusCode, result.RawBody, result.Headers)
+	}
 	return result.Data, nil
 }
 
@@ -156,7 +179,11 @@ func (a *StoreApi) GetOrderById(orderId int64) (*Order, error) {
 func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], error) {
 
 	path := "/store/order/{orderId}"
-	path = replacePathParam(path, "orderId", fmt.Sprintf("%v", orderId))
+	/* Path params route through SerializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "orderId", fmt.Sprintf("%v", SerializeStyled("orderId", orderId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -180,6 +207,10 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], e
 	}
 
 	var data Order
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *Order
 	if response.Body != "" {
 		respContentType := ""
 		// Headers are lowercase-normalised per Gap BE.
@@ -201,11 +232,12 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], e
 			}
 			*bytesPtr = decoded
 		}
+		dataPtr = &data
 	}
 
 	return &ApiResult[Order]{
 		StatusCode: response.StatusCode,
-		Data:       &data,
+		Data:       dataPtr,
 		RawBody:    response.Body,
 		Headers:    response.Headers,
 	}, nil
@@ -217,6 +249,13 @@ func (a *StoreApi) PlaceOrder(order *Order) (*Order, error) {
 	result, err := a.PlaceOrderWithHTTPInfo(order)
 	if err != nil {
 		return nil, err
+	}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("PlaceOrder", result.StatusCode, result.RawBody, result.Headers)
 	}
 	return result.Data, nil
 }
@@ -248,6 +287,10 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(order *Order) (*ApiResult[Order], erro
 	}
 
 	var data Order
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *Order
 	if response.Body != "" {
 		respContentType := ""
 		// Headers are lowercase-normalised per Gap BE.
@@ -269,11 +312,12 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(order *Order) (*ApiResult[Order], erro
 			}
 			*bytesPtr = decoded
 		}
+		dataPtr = &data
 	}
 
 	return &ApiResult[Order]{
 		StatusCode: response.StatusCode,
-		Data:       &data,
+		Data:       dataPtr,
 		RawBody:    response.Body,
 		Headers:    response.Headers,
 	}, nil

@@ -112,6 +112,10 @@ authenticator := oauth.NewOAuth2ClientCredentialsAuthenticator(
     WithClientAuthMethod(oauth.ClientAuthMethodBasic)
 ```
 
+#### Async authentication
+
+OAuth2 authenticators resolve the access token by making an HTTP call to the token endpoint when the SDK assembles the `Authorization` header for a request. The generated API methods perform this call synchronously before sending the request; you do not need to interact with it directly. Because resolving the header can fail (token endpoint unreachable, invalid client credentials), OAuth2 authenticators additionally expose an `AuthHeadersOrError()` method, which the client prefers so the real token error surfaces from the API call instead of an unauthenticated request that fails later as a confusing 401.
+
 ## Servers
 
 If the OpenAPI spec defines multiple servers, the generated package exposes each as a `*ServerConfiguration` variable (e.g., `Server0`, `Server1`, ...) plus an `AllServers` slice. Pass the desired server's URL to the client constructor:

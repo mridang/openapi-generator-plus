@@ -8,6 +8,7 @@
 package com.example.petstore.models;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.example.petstore.ObjectSerializer;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -21,6 +22,8 @@ class ComposedSchemaTest {
   private static final TypeReference<PetWithOwner> PET_WITH_OWNER_TYPE = new TypeReference<>() {};
   private static final TypeReference<PetFood> PET_FOOD_TYPE = new TypeReference<>() {};
   private static final TypeReference<PetTreatment> PET_TREATMENT_TYPE = new TypeReference<>() {};
+  private static final TypeReference<SetPetAvatarThumbnailRequest> ONE_OF_NO_DISCRIMINATOR_TYPE =
+      new TypeReference<>() {};
   private final ObjectSerializer serializer = new ObjectSerializer();
 
   @Nested
@@ -102,6 +105,31 @@ class ComposedSchemaTest {
 
       String serialized = serializer.serialize(result);
       assertThat(serialized).isNotEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("oneOf without discriminator: SetPetAvatarThumbnailRequest")
+  class OneOfNoDiscriminatorTests {
+
+    @Test
+    @DisplayName("deserializes a matching string variant")
+    void testDeserializeStringVariant() {
+      String json = "\"aGVsbG8=\"";
+      SetPetAvatarThumbnailRequest result =
+          Objects.requireNonNull(serializer.deserialize(json, ONE_OF_NO_DISCRIMINATOR_TYPE));
+      assertThat(result.getActualInstance()).isInstanceOf(String.class);
+    }
+
+    @Test
+    @DisplayName("throws when no oneOf variant matches (no silent raw accept)")
+    void testNoMatchThrows() {
+      // A JSON object matches neither the string nor the array-of-string
+      // variant. The deserializer must reject it rather than silently
+      // store the raw tree as the actualInstance.
+      String json = "{\"unexpected\":\"shape\"}";
+      assertThatThrownBy(() -> serializer.deserialize(json, ONE_OF_NO_DISCRIMINATOR_TYPE))
+          .isInstanceOf(Exception.class);
     }
   }
 

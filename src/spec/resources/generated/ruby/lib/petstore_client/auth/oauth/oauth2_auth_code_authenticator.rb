@@ -88,6 +88,11 @@ module PetstoreClient
         # @param code [String] the authorization code from the callback
         # @return [void]
         def exchange_code(code)
+          # Reject an empty/blank authorization code before issuing the token
+          # POST: an empty code can only ever produce a server-side error, so
+          # fail fast with a clear ArgumentError instead.
+          raise ArgumentError, 'authorization code must not be empty' if code.nil? || code.to_s.strip.empty?
+
           params = {
             'grant_type' => 'authorization_code',
             'code' => code,

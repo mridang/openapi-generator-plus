@@ -18,6 +18,22 @@ type Medication struct {
 	Dosage   *string `json:"dosage,omitempty"`
 }
 
+// Equal reports whether this Medication is value-equal to other.
+//
+// model-equality-swift-go: models may carry map / slice fields (e.g.
+// additionalProperties), so the built-in `==` operator panics at runtime on
+// such values. Comparing the canonical JSON encodings gives a value-equality
+// contract that works for every field shape, matching the equality semantics
+// of the other SDKs.
+func (o Medication) Equal(other Medication) bool {
+	a, errA := json.Marshal(o)
+	b, errB := json.Marshal(other)
+	if errA != nil || errB != nil {
+		return false
+	}
+	return string(a) == string(b)
+}
+
 // NewMedication creates a new Medication instance.
 func NewMedication(drugName string) *Medication {
 	return &Medication{

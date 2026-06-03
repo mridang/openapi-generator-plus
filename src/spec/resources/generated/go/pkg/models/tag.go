@@ -18,6 +18,22 @@ type Tag struct {
 	Name *string `json:"name,omitempty"`
 }
 
+// Equal reports whether this Tag is value-equal to other.
+//
+// model-equality-swift-go: models may carry map / slice fields (e.g.
+// additionalProperties), so the built-in `==` operator panics at runtime on
+// such values. Comparing the canonical JSON encodings gives a value-equality
+// contract that works for every field shape, matching the equality semantics
+// of the other SDKs.
+func (o Tag) Equal(other Tag) bool {
+	a, errA := json.Marshal(o)
+	b, errB := json.Marshal(other)
+	if errA != nil || errB != nil {
+		return false
+	}
+	return string(a) == string(b)
+}
+
 // NewTag creates a new Tag instance.
 func NewTag() *Tag {
 	return &Tag{}

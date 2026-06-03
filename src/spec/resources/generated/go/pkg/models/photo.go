@@ -19,6 +19,22 @@ type Photo struct {
 	Url       *string `json:"url,omitempty"`
 }
 
+// Equal reports whether this Photo is value-equal to other.
+//
+// model-equality-swift-go: models may carry map / slice fields (e.g.
+// additionalProperties), so the built-in `==` operator panics at runtime on
+// such values. Comparing the canonical JSON encodings gives a value-equality
+// contract that works for every field shape, matching the equality semantics
+// of the other SDKs.
+func (o Photo) Equal(other Photo) bool {
+	a, errA := json.Marshal(o)
+	b, errB := json.Marshal(other)
+	if errA != nil || errB != nil {
+		return false
+	}
+	return string(a) == string(b)
+}
+
 // NewPhoto creates a new Photo instance.
 func NewPhoto() *Photo {
 	return &Photo{}

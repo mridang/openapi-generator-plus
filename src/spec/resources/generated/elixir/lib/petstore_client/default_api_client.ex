@@ -28,10 +28,16 @@ defmodule PetstoreClient.DefaultApiClient do
   @type t :: %__MODULE__{
           transport_options: PetstoreClient.TransportOptions.t(),
           base_req: Req.Request.t(),
-          proxy_auth_header: String.t() | nil
+          proxy_auth_header: String.t() | nil,
+          closed: :atomics.atomics_ref()
         }
 
-  defstruct [:transport_options, :base_req, :proxy_auth_header]
+  # `closed` carries an `:atomics` reference — a process-less piece of
+  # mutable shared state. `close/1` flips it to 1; `send_request` checks
+  # it and raises an SDK error on use-after-close. This gives the uniform
+  # closed-flag + SDK-error contract without a per-client process, despite
+  # the struct itself being immutable.
+  defstruct [:transport_options, :base_req, :proxy_auth_header, :closed]
 
   @doc """
   Creates a new DefaultApiClient with the given transport options.
@@ -48,7 +54,8 @@ defmodule PetstoreClient.DefaultApiClient do
     %__MODULE__{
       transport_options: opts,
       base_req: Req.new(build_static_req_options(opts)),
-      proxy_auth_header: build_proxy_auth_header(opts.proxy)
+      proxy_auth_header: build_proxy_auth_header(opts.proxy),
+      closed: :atomics.new(1, signed: false)
     }
   end
 
@@ -129,6 +136,15 @@ defmodule PetstoreClient.DefaultApiClient do
         ) :: PetstoreClient.ApiResponse.t()
   def send_request(%__MODULE__{} = client, method, url, headers, body, request_opts)
       when is_list(request_opts) do
+    # Gap T6 / close-lifecycle: reject use-after-close with a typed SDK
+    # error rather than letting the call proceed against a logically
+    # closed client.
+    if client.closed != nil and :atomics.get(client.closed, 1) == 1 do
+      raise PetstoreClient.ApiError,
+        message: "ApiClient has been closed and can no longer be used",
+        status_code: 0
+    end
+
     opts = client.transport_options
     merged = Map.merge(opts.default_headers, headers)
 
@@ -365,15 +381,20 @@ defmodule PetstoreClient.DefaultApiClient do
   end
 
   @doc """
-  Gap T6: release resources held by the client.
+  Gap T6: release resources held by the client and mark it closed.
 
-  Req/Finch owns a globally supervised connection pool, so per-client
-  teardown is a no-op. Implemented for parity with the `ApiClient`
-  behaviour and to give callers a forwards-compatible hook.
+  Req/Finch owns a globally supervised connection pool, so there is no
+  socket to tear down here, but `close/1` flips the client's closed flag
+  so any subsequent `send_request/5,6` raises a typed SDK error instead
+  of silently proceeding (uniform use-after-close contract). Idempotent.
   """
   @impl PetstoreClient.ApiClient
   @spec close(t()) :: :ok
-  def close(%__MODULE__{}) do
+  def close(%__MODULE__{closed: closed}) do
+    if closed != nil do
+      :atomics.put(closed, 1, 1)
+    end
+
     :ok
   end
 
@@ -544,65 +565,78 @@ defmodule PetstoreClient.DefaultApiClient do
         location ->
           next_url = resolve_url(url, location)
 
-          if next_url == nil or not http_scheme?(next_url) do
-            response
-          else
-            cross_origin = not same_origin?(orig_url, next_url)
+          cond do
+            next_url == nil ->
+              response
 
-            # Gap 3.3: refuse to replay a request body across a transport
-            # downgrade (HTTPS -> HTTP). A 307/308 normally preserves the
-            # method and body, but doing so would leak any sensitive payload
-            # the caller sent under TLS onto a plaintext wire. Abort the
-            # redirect chain instead of silently replaying.
-            if downgrade?(orig_url, next_url) and body != nil and
-                 response.status in [307, 308] do
+            not http_scheme?(next_url) ->
+              # Refuse to follow a redirect to a non-http(s) scheme
+              # (e.g. file:, javascript:, data:). Silently returning the
+              # 3xx would hide a potential SSRF / local-file-read vector;
+              # surface it as a typed SDK error instead.
               raise PetstoreClient.ApiError,
                 message:
-                  "refusing to replay request body across HTTPS->HTTP downgrade " <>
+                  "refusing to follow redirect to non-http(s) Location " <>
                     "(#{response.status} redirect from #{orig_url} to #{next_url})",
                 status_code: 0
-            end
 
-            # Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
-            #   307 + 308: preserve original method and body.
-            #   303:       force GET, drop the body (and Content-Type/Length).
-            #   301 + 302: historical browser behaviour — switch to GET for
-            #              non-GET/HEAD requests, drop the body.
-            method_str = method |> to_string() |> String.upcase()
+            true ->
+              cross_origin = not same_origin?(orig_url, next_url)
 
-            {next_method, next_body} =
-              cond do
-                response.status in [307, 308] -> {method, body}
-                response.status == 303 -> {:get, nil}
-                method_str in ["GET", "HEAD"] -> {method, body}
-                true -> {:get, nil}
+              # Gap 3.3: refuse to replay a request body across a transport
+              # downgrade (HTTPS -> HTTP). A 307/308 normally preserves the
+              # method and body, but doing so would leak any sensitive payload
+              # the caller sent under TLS onto a plaintext wire. Abort the
+              # redirect chain instead of silently replaying.
+              if downgrade?(orig_url, next_url) and body != nil and
+                   response.status in [307, 308] do
+                raise PetstoreClient.ApiError,
+                  message:
+                    "refusing to replay request body across HTTPS->HTTP downgrade " <>
+                      "(#{response.status} redirect from #{orig_url} to #{next_url})",
+                  status_code: 0
               end
 
-            stripped_headers =
-              if cross_origin do
-                strip_sensitive_headers(headers)
-              else
-                headers
-              end
+              # Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
+              #   307 + 308: preserve original method and body.
+              #   303:       force GET, drop the body (and Content-Type/Length).
+              #   301 + 302: historical browser behaviour — switch to GET for
+              #              non-GET/HEAD requests, drop the body.
+              method_str = method |> to_string() |> String.upcase()
 
-            next_headers =
-              if next_body == nil do
-                strip_body_headers(stripped_headers)
-              else
-                stripped_headers
-              end
+              {next_method, next_body} =
+                cond do
+                  response.status in [307, 308] -> {method, body}
+                  response.status == 303 -> {:get, nil}
+                  method_str in ["GET", "HEAD"] -> {method, body}
+                  true -> {:get, nil}
+                end
 
-            do_request_with_redirects(
-              client,
-              next_method,
-              next_url,
-              orig_url,
-              next_headers,
-              next_body,
-              max,
-              hops + 1,
-              no_redirect
-            )
+              stripped_headers =
+                if cross_origin do
+                  strip_sensitive_headers(headers)
+                else
+                  headers
+                end
+
+              next_headers =
+                if next_body == nil do
+                  strip_body_headers(stripped_headers)
+                else
+                  stripped_headers
+                end
+
+              do_request_with_redirects(
+                client,
+                next_method,
+                next_url,
+                orig_url,
+                next_headers,
+                next_body,
+                max,
+                hops + 1,
+                no_redirect
+              )
           end
       end
     else

@@ -383,6 +383,24 @@ test('path array item with reserved char is percent encoded', function (): void 
     expect(ValueSerializer::serializeStyled('name', $items, 'path', 'array', null, 'matrix', false))->toBe(';name=a%2Fb,c');
 });
 
+test('encode path segment preserves oas sub delimiters', function (): void {
+    // php-rawurlencode-overencodes: bare rawurlencode escapes the OAS
+    // sub-delimiters (; = , : @ ! $ & ' ( ) * +) that the other 11 SDKs
+    // keep literal in path segments. encodePathSegment must preserve them
+    // while still encoding genuinely-reserved chars (space, /, ?, #).
+    expect(ValueSerializer::encodePathSegment(';=,:@!$&\'()*+'))->toBe(';=,:@!$&\'()*+');
+    expect(ValueSerializer::encodePathSegment('a b'))->toBe('a%20b');
+    expect(ValueSerializer::encodePathSegment('a/b'))->toBe('a%2Fb');
+    expect(ValueSerializer::encodePathSegment('a#b'))->toBe('a%23b');
+});
+
+test('styled path scalar preserves sub delimiters not over encoded', function (): void {
+    // php-rawurlencode-overencodes regression on the styled per-item path.
+    expect(ValueSerializer::serializeStyled('id', 'a,b', 'path', 'string', null, 'simple', false))->toBe('a,b');
+    expect(ValueSerializer::serializeStyled('id', 'a:b', 'path', 'string', null, 'simple', false))->toBe('a:b');
+    expect(ValueSerializer::serializeStyled('id', 'a@b', 'path', 'string', null, 'simple', false))->toBe('a@b');
+});
+
 test('path encoding parity matrix style encodes value', function (): void {
     expect(ValueSerializer::serializeStyled('color', 'a b', 'path', 'string', null, 'matrix', false))->toBe(';color=a%20b');
 });

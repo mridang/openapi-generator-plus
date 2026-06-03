@@ -34,6 +34,7 @@ import io.ktor.http.encodeURLQueryComponent
  * dispatch, and response error handling.
  */
 abstract class BaseApi {
+
     /** The HTTP transport client used for sending requests. */
     protected val apiClient: ApiClient
 
@@ -233,7 +234,6 @@ abstract class BaseApi {
             response.headers.entries
                 .firstOrNull { it.key.equals("content-type", ignoreCase = true) }
                 ?.value ?: ""
-
         @Suppress("UNCHECKED_CAST")
         val data: T? =
             if (response.body.isNotEmpty()) {
@@ -250,9 +250,7 @@ abstract class BaseApi {
                     if (isTextResponseContentType(responseContentType)) {
                         response.body.toByteArray(Charsets.UTF_8) as T
                     } else {
-                        java.util.Base64
-                            .getDecoder()
-                            .decode(response.body) as T
+                        java.util.Base64.getDecoder().decode(response.body) as T
                     }
                 } else if (responseContentType.isNotEmpty() &&
                     !headerSelector.isJsonMime(responseContentType)
@@ -384,13 +382,11 @@ abstract class BaseApi {
     /**
      * RFC 6265 cookie-value validation (cookie-octet*).
      */
-    private fun isValidCookieValue(value: String): Boolean =
-        value.all { c ->
+    private fun isValidCookieValue(value: String): Boolean {
+        return value.all { c ->
             val code = c.code
-            code == 0x21 ||
-                code in 0x23..0x2B ||
-                code in 0x2D..0x3A ||
-                code in 0x3C..0x5B ||
-                code in 0x5D..0x7E
+            code == 0x21 || code in 0x23..0x2B || code in 0x2D..0x3A
+                    || code in 0x3C..0x5B || code in 0x5D..0x7E
         }
+    }
 }

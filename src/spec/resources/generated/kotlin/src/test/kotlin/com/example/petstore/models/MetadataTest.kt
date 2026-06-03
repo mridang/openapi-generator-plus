@@ -8,20 +8,20 @@
 package com.example.petstore.models
 
 import com.example.petstore.models.Metadata
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 class MetadataTest {
-    private val json =
-        Json {
-            ignoreUnknownKeys = true
-            encodeDefaults = false
-            isLenient = true
-            coerceInputValues = true
-        }
+
+    private val json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = false
+        isLenient = true
+        coerceInputValues = true
+    }
 
     @Test
     @DisplayName("serialize Metadata without contextual fields")
@@ -73,5 +73,23 @@ class MetadataTest {
 
         assertNotNull(deserialized)
         assertEquals(original.createdAt, deserialized.createdAt)
+    }
+
+    @Test
+    @DisplayName("manifest-description-missing: build.gradle.kts publishes a non-empty POM description")
+    fun testBuildManifestHasDescription() {
+        // The Maven POM produced for the published artifact must carry a
+        // non-empty <description>, wired from the OpenAPI document's
+        // description (or a generated fallback). Gradle runs tests with the
+        // project root as the working directory.
+        val buildFile = java.io.File("build.gradle.kts")
+        assertTrue(buildFile.exists(), "build.gradle.kts must exist at the project root")
+        val contents = buildFile.readText()
+        val match = Regex("""description\.set\("([^"]*)"\)""").find(contents)
+        assertNotNull(match, "build.gradle.kts must set a POM description")
+        assertTrue(
+            match!!.groupValues[1].isNotBlank(),
+            "POM description must not be empty",
+        )
     }
 }

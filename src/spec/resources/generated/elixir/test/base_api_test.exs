@@ -1456,6 +1456,54 @@ defmodule PetstoreClient.Api.BaseApiTest do
     Agent.stop(name)
   end
 
+  # Success-path deserialize failures must propagate, not be swallowed
+  # (elixir-success-deserialize-swallow). A 2xx body that does not match
+  # the declared schema must surface the decode error instead of silently
+  # substituting the raw body string, matching the other 11 SDKs.
+
+  defmodule MalformedSuccessApiClient do
+    @behaviour PetstoreClient.ApiClient
+
+    @impl true
+    def send_request(_method, _url, _headers, _body) do
+      # 200 OK with a declared JSON content type but a body that cannot be
+      # parsed against the declared return type.
+      %PetstoreClient.ApiResponse{
+        status_code: 200,
+        body: "{",
+        headers: %{"Content-Type" => "application/json"}
+      }
+    end
+  end
+
+  test "2xx body that fails to deserialize propagates the error instead of returning the raw string" do
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: MalformedSuccessApiClient}
+
+    assert_raise PetstoreClient.SerializationError, fn ->
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :get,
+        "/test/echo",
+        %{},
+        %{},
+        nil,
+        ["application/json"],
+        "application/json",
+        "Category"
+      )
+    end
+  end
+
+  # apiresponse-body-nullable-elixir: ApiResponse.body is non-null (a
+  # guaranteed string, defaulting to ""), matching the other 11 SDKs —
+  # callers never need to nil-check it.
+  test "ApiResponse.body defaults to an empty string, not nil" do
+    resp = %PetstoreClient.ApiResponse{status_code: 204, headers: %{}}
+    assert resp.body == ""
+    assert is_binary(resp.body)
+  end
+
   # Proxy authentication (item #29)
 
   @tag :skip

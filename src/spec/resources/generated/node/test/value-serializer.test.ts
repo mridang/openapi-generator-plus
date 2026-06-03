@@ -264,6 +264,18 @@ describe('ValueSerializer', () => {
         'hello%20world'
       );
     });
+
+    test('path value is encoded exactly once (no double-encoding)', () => {
+      // path-double-encoding: serializeStyled already percent-encodes the
+      // path segment, so the API template must NOT wrap it again. A space
+      // must become %20 (never %2520) and a slash %2F (never %252F).
+      const space = ValueSerializer.serializeStyled('id', 'a b', 'path', 'string', null, 'simple', false);
+      expect(space).toBe('a%20b');
+      expect(space).not.toContain('%2520');
+      const slash = ValueSerializer.serializeStyled('id', 'a/b', 'path', 'string', null, 'simple', false);
+      expect(slash).toBe('a%2Fb');
+      expect(slash).not.toContain('%252F');
+    });
   });
 
   describe('serializeStyled - null style falls back to location default', () => {

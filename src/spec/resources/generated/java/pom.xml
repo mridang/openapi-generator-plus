@@ -5,6 +5,7 @@
     <artifactId>openapi-java-client</artifactId>
     <packaging>jar</packaging>
     <name>openapi-java-client</name>
+    <description>A simplified Pet Store API for integration testing.</description>
     <version>1.0.0</version>
 
     <licenses>

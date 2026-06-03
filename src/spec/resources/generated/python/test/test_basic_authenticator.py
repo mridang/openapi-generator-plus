@@ -8,6 +8,9 @@
 import pytest
 
 from petstore_client.auth.basic_authenticator import BasicAuthenticator
+from petstore_client.auth.bearer_authenticator import BearerAuthenticator
+from petstore_client.auth.api_key_authenticator import ApiKeyAuthenticator
+from petstore_client.auth.api_key_location import ApiKeyLocation
 
 
 class TestBasicAuthenticator:
@@ -30,3 +33,41 @@ class TestBasicAuthenticator:
         auth = BasicAuthenticator(host='https://api.example.com', username='ali:ce', password='s3cret')
         with pytest.raises(ValueError):
             auth.get_auth_headers()
+
+    def test_password_is_not_leaked_in_repr(self) -> None:
+        # The default repr/str must never expose the secret.
+        auth = BasicAuthenticator(host='https://api.example.com', username='alice', password='s3cret')
+        assert 's3cret' not in repr(auth)
+        assert 's3cret' not in str(auth)
+        assert 'https://api.example.com' in repr(auth)
+
+
+class TestBearerAuthenticator:
+    def test_valid_token_produces_bearer_header(self) -> None:
+        auth = BearerAuthenticator(host='https://api.example.com', token='abc123')
+        assert auth.get_auth_headers()['Authorization'] == 'Bearer abc123'
+
+    def test_rejects_empty_token(self) -> None:
+        with pytest.raises(ValueError):
+            BearerAuthenticator(host='https://api.example.com', token='')
+
+    def test_rejects_whitespace_only_token(self) -> None:
+        with pytest.raises(ValueError):
+            BearerAuthenticator(host='https://api.example.com', token='   ')
+
+    def test_token_is_not_leaked_in_repr(self) -> None:
+        auth = BearerAuthenticator(host='https://api.example.com', token='supersecret')
+        assert 'supersecret' not in repr(auth)
+        assert 'supersecret' not in str(auth)
+
+
+class TestApiKeyAuthenticatorRedaction:
+    def test_api_key_is_not_leaked_in_repr(self) -> None:
+        auth = ApiKeyAuthenticator(
+            host='https://api.example.com',
+            key_param_name='X-API-Key',
+            api_key='topsecretkey',
+            location=ApiKeyLocation.HEADER,
+        )
+        assert 'topsecretkey' not in repr(auth)
+        assert 'topsecretkey' not in str(auth)

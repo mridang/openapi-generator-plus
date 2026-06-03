@@ -25,7 +25,11 @@ fn test_header_selector_is_json_mime() {
 fn test_header_selector_select_headers_with_single_accept() {
     let hs = HeaderSelector::new();
 
-    let headers = hs.select_headers(&["application/json"], "application/json", false);
+    let headers = hs.select_headers(
+        &["application/json"],
+        "application/json",
+        false,
+    );
 
     assert_eq!(headers.get("Accept").unwrap(), "application/json");
     assert_eq!(headers.get("Content-Type").unwrap(), "application/json");
@@ -36,7 +40,10 @@ fn test_header_selector_select_headers_with_multiple_accepts() {
     let hs = HeaderSelector::new();
 
     let headers = hs.select_headers(
-        &["application/json", "application/xml"],
+        &[
+            "application/json",
+            "application/xml",
+        ],
         "application/json",
         false,
     );
@@ -58,7 +65,11 @@ fn test_header_selector_select_headers_with_empty_accepts() {
 fn test_header_selector_multipart_omits_content_type() {
     let hs = HeaderSelector::new();
 
-    let headers = hs.select_headers(&["application/json"], "multipart/form-data", true);
+    let headers = hs.select_headers(
+        &["application/json"],
+        "multipart/form-data",
+        true,
+    );
 
     assert!(
         !headers.contains_key("Content-Type"),
@@ -80,7 +91,11 @@ fn test_header_selector_quality_weighting() {
     let hs = HeaderSelector::new();
 
     let headers = hs.select_headers(
-        &["application/json", "application/xml", "text/plain"],
+        &[
+            "application/json",
+            "application/xml",
+            "text/plain",
+        ],
         "application/json",
         false,
     );
@@ -91,14 +106,8 @@ fn test_header_selector_quality_weighting() {
     // application/json should appear first (highest priority)
     let json_idx = accept.find("application/json");
     let xml_idx = accept.find("application/xml");
-    assert!(
-        json_idx.is_some(),
-        "expected application/json in Accept header"
-    );
-    assert!(
-        xml_idx.is_some(),
-        "expected application/xml in Accept header"
-    );
+    assert!(json_idx.is_some(), "expected application/json in Accept header");
+    assert!(xml_idx.is_some(), "expected application/xml in Accept header");
     assert!(
         json_idx.unwrap() < xml_idx.unwrap(),
         "expected application/json to appear before application/xml"
@@ -110,7 +119,10 @@ fn test_header_selector_with_vendor_json() {
     let hs = HeaderSelector::new();
 
     let headers = hs.select_headers(
-        &["application/vnd.api+json", "application/xml"],
+        &[
+            "application/vnd.api+json",
+            "application/xml",
+        ],
         "application/json",
         false,
     );

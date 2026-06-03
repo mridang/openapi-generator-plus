@@ -14,6 +14,8 @@ import Foundation
 public enum OAuth2AuthorizationCodeError: Error, Equatable {
     /// `authHeadersOrThrow()` was called before `exchangeCode(_:)`.
     case codeNotExchanged
+    /// `exchangeCode(_:)` was called with an empty or whitespace-only code.
+    case emptyCode
 }
 
 /// OAuth2AuthorizationCodeAuthenticator provides OAuth2 authorization code flow authentication.
@@ -100,6 +102,13 @@ public class OAuth2AuthorizationCodeAuthenticator: BaseAuthenticator, HttpAwareA
 
     /// Exchanges an authorization code for an access token.
     public func exchangeCode(_ code: String) async throws {
+        /* Reject an empty or whitespace-only authorization code before
+         * posting to the token endpoint: an empty `code` is a caller
+         * mistake that would otherwise surface as a confusing server-side
+         * `invalid_grant` error. */
+        guard !code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw OAuth2AuthorizationCodeError.emptyCode
+        }
         let params: [String: String] = [
             "grant_type": "authorization_code",
             "code": code,

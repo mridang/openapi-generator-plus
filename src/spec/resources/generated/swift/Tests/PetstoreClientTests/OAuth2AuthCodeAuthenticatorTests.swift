@@ -138,6 +138,39 @@ import Testing
         #expect(auth.host() == "https://api.example.com")
     }
 
+    // oauth-exchangecode-no-empty-code-guard: exchangeCode must reject an
+    // empty or whitespace-only authorization code before posting to the token
+    // endpoint, surfacing a typed OAuth2AuthorizationCodeError.emptyCode
+    // rather than a confusing server-side invalid_grant.
+    @Test func testExchangeCodeRejectsEmptyCode() async {
+        let client = MockApiClient()
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        var caught: OAuth2AuthorizationCodeError? = nil
+        do {
+            try await auth.exchangeCode("")
+            Issue.record("expected exchangeCode(\"\") to throw")
+        } catch let error as OAuth2AuthorizationCodeError {
+            caught = error
+        } catch {
+            Issue.record("expected OAuth2AuthorizationCodeError, got \(error)")
+        }
+        #expect(caught == .emptyCode)
+        // No token request should have been made for an empty code.
+        #expect(client.lastURL.isEmpty)
+    }
+
+    @Test func testExchangeCodeRejectsWhitespaceOnlyCode() async {
+        let client = MockApiClient()
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        await #expect(throws: OAuth2AuthorizationCodeError.emptyCode) {
+            try await auth.exchangeCode("   ")
+        }
+    }
+
     @Test func testGetHostReturnsConfiguredHost() {
         let auth = createAuthenticator()
 

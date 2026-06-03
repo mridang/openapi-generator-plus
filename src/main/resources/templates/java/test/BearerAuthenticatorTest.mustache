@@ -43,11 +43,10 @@ class BearerAuthenticatorTest {
         assertThrows(IllegalArgumentException.class, auth::getAuthHeaders);
     }
 
-    @Test
-    void nullTokenIsRejected() {
-        BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", null);
-        assertThrows(IllegalArgumentException.class, auth::getAuthHeaders);
-    }
+    // No null-token test: the token parameter is @NonNull, so NullAway
+    // rejects passing a literal null at compile time — null can't reach the
+    // constructor in well-typed code. The empty + whitespace cases above
+    // exercise the runtime guard.
 
     @Test
     void whitespaceOnlyTokenIsRejected() {

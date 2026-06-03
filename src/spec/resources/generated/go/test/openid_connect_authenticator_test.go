@@ -182,6 +182,68 @@ func TestOpenIdConnect_ThrowsWhenNoApiClientInjected(t *testing.T) {
 	}
 }
 
+// oauth-oidc-missing-endpoint-guard: a discovery document missing
+// authorization_endpoint or token_endpoint must produce an error rather than a
+// delegate built with empty endpoint URLs.
+func TestOpenIdConnect_MissingAuthorizationEndpointErrors(t *testing.T) {
+	t.Parallel()
+	client := &fakeOIDCClient{
+		responses: []fakeOIDCResponse{
+			{body: `{"token_endpoint":"https://auth.example.com/token"}`, statusCode: 200},
+		},
+	}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	_, err := authObj.BuildAuthorizationURL("")
+	if err == nil {
+		t.Fatal("expected error when authorization_endpoint is missing")
+	}
+	if !strings.Contains(err.Error(), "authorization_endpoint") {
+		t.Errorf("expected error to mention authorization_endpoint, got %v", err)
+	}
+}
+
+func TestOpenIdConnect_MissingTokenEndpointErrors(t *testing.T) {
+	t.Parallel()
+	client := &fakeOIDCClient{
+		responses: []fakeOIDCResponse{
+			{body: `{"authorization_endpoint":"https://auth.example.com/authorize"}`, statusCode: 200},
+		},
+	}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	_, err := authObj.BuildAuthorizationURL("")
+	if err == nil {
+		t.Fatal("expected error when token_endpoint is missing")
+	}
+	if !strings.Contains(err.Error(), "token_endpoint") {
+		t.Errorf("expected error to mention token_endpoint, got %v", err)
+	}
+}
+
+// oauth-oidc-discovery-no-status-check: a non-2xx discovery response must
+// surface as a status error, not a misleading JSON-parse failure.
+func TestOpenIdConnect_DiscoveryNon2xxErrors(t *testing.T) {
+	t.Parallel()
+	client := &fakeOIDCClient{
+		responses: []fakeOIDCResponse{
+			{body: `<html>500 Internal Server Error</html>`, statusCode: 500},
+		},
+	}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	_, err := authObj.BuildAuthorizationURL("")
+	if err == nil {
+		t.Fatal("expected error when discovery returns a non-2xx status")
+	}
+	if !strings.Contains(err.Error(), "status 500") {
+		t.Errorf("expected error to mention status 500, got %v", err)
+	}
+}
+
 func TestOpenIdConnect_GetHostReturnsConfiguredHost(t *testing.T) {
 	t.Parallel()
 	authObj := createOpenIdConnectAuthenticator()

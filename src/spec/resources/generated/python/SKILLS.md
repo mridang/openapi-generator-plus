@@ -102,6 +102,10 @@ client = Client(authenticator)
 
 ### OAuth2 token lifecycle
 
+#### Async authentication
+
+OAuth2 authenticators are `HttpAwareAuthenticator`s: resolving the access token requires an HTTP call to the token endpoint, which they make through the same shared `ApiClient` (and therefore the same proxy, TLS, and timeout configuration) as regular API calls. The generated client wires this up and fetches/refreshes the token as needed before each request; you do not need to interact with the token manager directly.
+
 #### Refresh tokens
 
 When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.

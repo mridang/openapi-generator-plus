@@ -148,4 +148,44 @@ describe PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator do
     )
     _(auth.host).must_equal 'https://api.example.com'
   end
+
+  # oauth-oidc-discovery-no-status-check: a non-2xx discovery response must
+  # surface as a typed ApiError, not as a downstream "invalid JSON" error.
+  it 'raises ApiError when discovery returns a non-2xx status' do
+    client = FakeOidcClient.new([{ status: 500, body: '<html>error</html>' }])
+    auth = PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id', 'my_client_secret',
+      'https://app.example.com/callback', %w[openid]
+    )
+    auth.api_client = client
+    assert_raises(PetstoreClient::ApiError) { auth.build_authorization_url }
+  end
+
+  # oauth-oidc-missing-endpoint-guard: a discovery document missing the
+  # required endpoints must raise a typed ApiError up front, not NPE later.
+  it 'raises ApiError when discovery omits authorization_endpoint' do
+    client = FakeOidcClient.new([{ status: 200, body: { 'token_endpoint' => 'https://auth.example.com/token' } }])
+    auth = PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id', 'my_client_secret',
+      'https://app.example.com/callback', %w[openid]
+    )
+    auth.api_client = client
+    assert_raises(PetstoreClient::ApiError) { auth.build_authorization_url }
+  end
+
+  it 'raises ApiError when discovery omits token_endpoint' do
+    client = FakeOidcClient.new([{ status: 200, body: { 'authorization_endpoint' => 'https://auth.example.com/authorize' } }])
+    auth = PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id', 'my_client_secret',
+      'https://app.example.com/callback', %w[openid]
+    )
+    auth.api_client = client
+    assert_raises(PetstoreClient::ApiError) { auth.build_authorization_url }
+  end
 end

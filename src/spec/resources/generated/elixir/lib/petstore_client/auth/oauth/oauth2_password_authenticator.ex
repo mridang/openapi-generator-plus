@@ -30,6 +30,9 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator do
           token_manager: pid() | nil
         }
 
+  # Redact the client secret, password, and the live token manager (which
+  # holds access/refresh tokens) from the default Inspect representation.
+  @derive {Inspect, except: [:client_secret, :password, :token_manager]}
   defstruct [
     :host,
     :client_id,

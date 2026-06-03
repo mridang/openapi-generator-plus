@@ -106,6 +106,22 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert headers["Authorization"] == "Bearer tok2"
     end
 
+    test "rejects empty authorization code" do
+      auth = create_authenticator()
+
+      assert_raise ArgumentError, fn ->
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(auth, "")
+      end
+    end
+
+    test "rejects whitespace-only authorization code" do
+      auth = create_authenticator()
+
+      assert_raise ArgumentError, fn ->
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(auth, "   ")
+      end
+    end
+
     test "throws before exchange code called" do
       auth = create_authenticator()
 

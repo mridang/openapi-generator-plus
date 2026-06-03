@@ -70,9 +70,6 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
     /// request unauthenticated.
     override public func authHeaders() async throws -> [String: String] {
         let delegate = try await resolveDelegate()
-        // resolveDelegate() is the throwing call (discovery fetch/validation);
-        // the Authenticator protocol's authHeaders() is async but not throwing,
-        // so it must not be marked `try`.
         return await delegate.authHeaders()
     }
 

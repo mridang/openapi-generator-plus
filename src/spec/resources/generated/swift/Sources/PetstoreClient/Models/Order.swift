@@ -15,7 +15,7 @@ public enum OrderStatusEnum: String, Codable, Sendable, CaseIterable {
     case delivered = "delivered"
 }
 
-public struct Order: Codable, Sendable {
+public struct Order: Codable, Sendable, Equatable, Hashable {
     /// Example: `10`
     public var id: Int64?
     /// Example: `198772`

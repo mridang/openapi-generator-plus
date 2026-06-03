@@ -72,7 +72,9 @@ pub mod vec_option {
         }
     }
 
-    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Option<Vec<Vec<u8>>>, D::Error> {
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        d: D,
+    ) -> Result<Option<Vec<Vec<u8>>>, D::Error> {
         let opt: Option<Vec<String>> = Option::deserialize(d)?;
         match opt {
             Some(strings) => strings

@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"github.com/google/uuid"
@@ -108,7 +109,21 @@ func (b *BaseApi) invokeApiForResult(params invokeApiParams) (*HttpResponse, err
 
 	/* Merge auth headers */
 	if effectiveAuth != nil {
-		for k, v := range effectiveAuth.AuthHeaders() {
+		/* oauth-cc-authheaders-error-swallow: prefer AuthHeadersOrError when the
+		 * authenticator exposes it, so a token-fetch failure surfaces as the real
+		 * OAuth error instead of being swallowed into an empty header map (which
+		 * would send the request unauthenticated and produce a confusing 401). */
+		authHeaders := effectiveAuth.AuthHeaders()
+		if p, ok := effectiveAuth.(interface {
+			AuthHeadersOrError() (map[string]string, error)
+		}); ok {
+			h, aerr := p.AuthHeadersOrError()
+			if aerr != nil {
+				return nil, aerr
+			}
+			authHeaders = h
+		}
+		for k, v := range authHeaders {
 			headers[k] = v
 		}
 		/* Handle cookie params. RFC 6265 — don't URL-encode cookie name/value;
@@ -316,19 +331,64 @@ func writeMultipartField(writer *multipart.Writer, name string, value any) error
 		_, err = part.Write(v)
 		return err
 	case map[string]any:
-		jsonBytes, err := json.Marshal(v)
-		if err != nil {
-			return fmt.Errorf("failed to marshal multipart field %q as JSON: %w", name, err)
-		}
-		part, err := writer.CreateFormField(name)
-		if err != nil {
-			return fmt.Errorf("failed to create multipart field %q: %w", name, err)
-		}
-		_, err = part.Write(jsonBytes)
-		return err
+		return writeJSONMultipartPart(writer, name, v)
 	default:
+		/* multipart-object-part-contenttype-go: object/model/map form values are
+		 * serialised as JSON, so the part must advertise
+		 * Content-Type: application/json (matching the other 11 SDKs). Scalars
+		 * keep the plain text-field encoding. */
+		if isJSONObjectValue(v) {
+			return writeJSONMultipartPart(writer, name, v)
+		}
 		return writer.WriteField(name, fmt.Sprintf("%v", v))
 	}
+}
+
+/* isJSONObjectValue reports whether a multipart form value should be emitted as
+ * a JSON part (with Content-Type: application/json) rather than a plain text
+ * field — i.e. it is a struct, map, or pointer to one (an object/model), as
+ * opposed to a scalar. */
+func isJSONObjectValue(value any) bool {
+	if value == nil {
+		return false
+	}
+	rv := reflect.ValueOf(value)
+	for rv.Kind() == reflect.Ptr {
+		if rv.IsNil() {
+			return false
+		}
+		rv = rv.Elem()
+	}
+	switch rv.Kind() {
+	case reflect.Struct, reflect.Map:
+		return true
+	default:
+		return false
+	}
+}
+
+/* writeJSONMultipartPart writes value as a JSON multipart part carrying an
+ * explicit Content-Type: application/json header. multipart.Writer's
+ * CreateFormField sets only Content-Disposition, which would leave the JSON
+ * part to be treated as text/plain by content-type-dispatching servers, so the
+ * part header is built manually here. */
+func writeJSONMultipartPart(writer *multipart.Writer, name string, value any) error {
+	jsonBytes, err := json.Marshal(value)
+	if err != nil {
+		return fmt.Errorf("failed to marshal multipart field %q as JSON: %w", name, err)
+	}
+	if err := ValidateMultipartFieldName(name); err != nil {
+		return err
+	}
+	header := make(textproto.MIMEHeader)
+	header.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"`, escapeQuotes(name)))
+	header.Set("Content-Type", "application/json")
+	part, err := writer.CreatePart(header)
+	if err != nil {
+		return fmt.Errorf("failed to create multipart field %q: %w", name, err)
+	}
+	_, err = part.Write(jsonBytes)
+	return err
 }
 
 /* decodeBinaryResponse decodes the transport's base64-encoded response body
@@ -470,6 +530,19 @@ func rfc5987EncodeValue(s string) string {
 		}
 	}
 	return string(out)
+}
+
+/* newEmptyBodyError builds the typed ApiError returned by a convenience
+ * (non-WithHTTPInfo) method when a body-returning operation receives no
+ * decodable body. convenience-empty-body-handling: the empty-body condition
+ * must surface as a catchable, typed error instead of a silent nil/zero-value. */
+func newEmptyBodyError(operationID string, statusCode int, rawBody string, headers map[string]string) error {
+	return &ApiError{
+		StatusCode:      statusCode,
+		Msg:             fmt.Sprintf("expected a response body for %s but received none", operationID),
+		ResponseBody:    rawBody,
+		ResponseHeaders: headers,
+	}
 }
 
 func throwAPIError(response *HttpResponse) error {

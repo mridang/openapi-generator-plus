@@ -12,13 +12,13 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use crate::api_client::ApiClient;
-use crate::auth::Authenticator;
 use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
 use crate::auth::oauth::client_auth_method::ClientAuthMethod;
 use crate::auth::oauth::oauth2_token_manager::OAuth2TokenManager;
+use crate::auth::Authenticator;
 use crate::utils::form_url_encode;
-use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use base64::Engine as _;
 
 /// OAuth2ClientCredentialsAuthenticator provides OAuth2 client credentials
 /// flow authentication.
@@ -62,6 +62,54 @@ impl OAuth2ClientCredentialsAuthenticator {
         self.client_auth_method = method;
         self
     }
+
+    /// Returns the Bearer authentication header with a freshly fetched (or
+    /// cached) access token, or propagates the token-fetch error.
+    ///
+    /// Use this method when you need to distinguish "token endpoint is
+    /// unreachable / returned an error" from "endpoint rejected the request".
+    /// The [`Authenticator::auth_headers`] trait method collapses the error to
+    /// an empty map for infallible interface conformance, but doing so means a
+    /// token-fetch failure is sent as an unauthenticated request and surfaces
+    /// only as a confusing downstream 401 — so prefer this method when you can.
+    pub async fn try_auth_headers(
+        &self,
+    ) -> Result<HashMap<String, String>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut params = HashMap::new();
+        params.insert("grant_type".to_string(), "client_credentials".to_string());
+        let mut extra_headers = HashMap::new();
+        if self.client_auth_method == ClientAuthMethod::Basic {
+            // RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
+            // separately before joining with ':' and base64-encoding.
+            let encoded_id = form_url_encode(&self.client_id);
+            let encoded_secret = form_url_encode(&self.client_secret);
+            let credentials = BASE64_STANDARD.encode(
+                format!("{}:{}", encoded_id, encoded_secret).as_bytes(),
+            );
+            extra_headers.insert(
+                "Authorization".to_string(),
+                format!("Basic {}", credentials),
+            );
+        } else {
+            params.insert("client_id".to_string(), self.client_id.clone());
+            params.insert("client_secret".to_string(), self.client_secret.clone());
+        }
+        if !self.scopes.is_empty() {
+            params.insert("scope".to_string(), self.scopes.join(" "));
+        }
+
+        let token = self
+            .token_manager
+            .get_access_token_with_headers(&self.token_url, &params, &extra_headers)
+            .await?;
+
+        let mut headers = HashMap::new();
+        headers.insert(
+            "Authorization".to_string(),
+            format!("Bearer {}", token),
+        );
+        Ok(headers)
+    }
 }
 
 impl Authenticator for OAuth2ClientCredentialsAuthenticator {
@@ -69,44 +117,16 @@ impl Authenticator for OAuth2ClientCredentialsAuthenticator {
         &self.host
     }
 
+    /// Returns the Bearer authentication header. On a token-fetch failure this
+    /// collapses to an empty map for infallible trait conformance — the
+    /// resulting unauthenticated request then surfaces as a 401 from the
+    /// server. Use [`try_auth_headers`](Self::try_auth_headers) when you need
+    /// to observe the real OAuth error instead of a downstream 401.
     fn auth_headers<'a>(
         &'a self,
     ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
         Box::pin(async move {
-            let mut params = HashMap::new();
-            params.insert("grant_type".to_string(), "client_credentials".to_string());
-            let mut extra_headers = HashMap::new();
-            if self.client_auth_method == ClientAuthMethod::Basic {
-                // RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
-                // separately before joining with ':' and base64-encoding.
-                let encoded_id = form_url_encode(&self.client_id);
-                let encoded_secret = form_url_encode(&self.client_secret);
-                let credentials =
-                    BASE64_STANDARD.encode(format!("{}:{}", encoded_id, encoded_secret).as_bytes());
-                extra_headers.insert(
-                    "Authorization".to_string(),
-                    format!("Basic {}", credentials),
-                );
-            } else {
-                params.insert("client_id".to_string(), self.client_id.clone());
-                params.insert("client_secret".to_string(), self.client_secret.clone());
-            }
-            if !self.scopes.is_empty() {
-                params.insert("scope".to_string(), self.scopes.join(" "));
-            }
-
-            match self
-                .token_manager
-                .get_access_token_with_headers(&self.token_url, &params, &extra_headers)
-                .await
-            {
-                Ok(token) => {
-                    let mut headers = HashMap::new();
-                    headers.insert("Authorization".to_string(), format!("Bearer {}", token));
-                    headers
-                }
-                Err(_) => HashMap::new(),
-            }
+            self.try_auth_headers().await.unwrap_or_else(|_| HashMap::new())
         })
     }
 

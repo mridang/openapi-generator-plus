@@ -190,8 +190,24 @@ defmodule PetstoreClient.Api.PetApi do
           {:ok, Pet} | {:error, term()}
   def add_pet(%__MODULE__{} = api, pet, opts \\ []) do
     case add_pet_with_http_info(api, pet, opts) do
-      {:ok, result} -> {:ok, result.data}
-      {:error, _} = error -> error
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for add_pet but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -274,8 +290,24 @@ defmodule PetstoreClient.Api.PetApi do
           {:ok, [Photo]} | {:error, term()}
   def add_pet_photos(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     case add_pet_photos_with_http_info(api, pet_id, options, opts) do
-      {:ok, result} -> {:ok, result.data}
-      {:error, _} = error -> error
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for add_pet_photos but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -312,7 +344,6 @@ defmodule PetstoreClient.Api.PetApi do
         "{petId}",
         PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
         |> to_string()
-        |> encode_path_segment()
       )
 
     server = Keyword.get(opts, :server)
@@ -369,8 +400,24 @@ defmodule PetstoreClient.Api.PetApi do
           {:ok, PetTreatment} | {:error, term()}
   def add_pet_treatment(%__MODULE__{} = api, pet_id, pet_treatment, opts \\ []) do
     case add_pet_treatment_with_http_info(api, pet_id, pet_treatment, opts) do
-      {:ok, result} -> {:ok, result.data}
-      {:error, _} = error -> error
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for add_pet_treatment but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -410,7 +457,6 @@ defmodule PetstoreClient.Api.PetApi do
         "{petId}",
         PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
         |> to_string()
-        |> encode_path_segment()
       )
 
     server = Keyword.get(opts, :server)
@@ -502,7 +548,6 @@ defmodule PetstoreClient.Api.PetApi do
         "{petId}",
         PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
         |> to_string()
-        |> encode_path_segment()
       )
 
     server = Keyword.get(opts, :server)
@@ -578,8 +623,24 @@ defmodule PetstoreClient.Api.PetApi do
           {:ok, binary()} | {:error, term()}
   def download_pet_document(%__MODULE__{} = api, pet_id, document_id, opts \\ []) do
     case download_pet_document_with_http_info(api, pet_id, document_id, opts) do
-      {:ok, result} -> {:ok, result.data}
-      {:error, _} = error -> error
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for download_pet_document but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -621,7 +682,6 @@ defmodule PetstoreClient.Api.PetApi do
         "{petId}",
         PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
         |> to_string()
-        |> encode_path_segment()
       )
 
     path =
@@ -638,7 +698,6 @@ defmodule PetstoreClient.Api.PetApi do
           false
         )
         |> to_string()
-        |> encode_path_segment()
       )
 
     server = Keyword.get(opts, :server)
@@ -696,8 +755,24 @@ defmodule PetstoreClient.Api.PetApi do
           {:ok, [Pet]} | {:error, term()}
   def find_pets_by_status(%__MODULE__{} = api, options, opts \\ []) do
     case find_pets_by_status_with_http_info(api, options, opts) do
-      {:ok, result} -> {:ok, result.data}
-      {:error, _} = error -> error
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for find_pets_by_status but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -803,8 +878,24 @@ defmodule PetstoreClient.Api.PetApi do
           {:ok, Pet} | {:error, term()}
   def get_external_pet_info(%__MODULE__{} = api, pet_id, opts \\ []) do
     case get_external_pet_info_with_http_info(api, pet_id, opts) do
-      {:ok, result} -> {:ok, result.data}
-      {:error, _} = error -> error
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for get_external_pet_info but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -841,7 +932,6 @@ defmodule PetstoreClient.Api.PetApi do
         "{petId}",
         PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
         |> to_string()
-        |> encode_path_segment()
       )
 
     server = Keyword.get(opts, :server)
@@ -895,8 +985,24 @@ defmodule PetstoreClient.Api.PetApi do
           {:ok, Pet} | {:error, term()}
   def get_multi_server_pet_info(%__MODULE__{} = api, pet_id, opts \\ []) do
     case get_multi_server_pet_info_with_http_info(api, pet_id, opts) do
-      {:ok, result} -> {:ok, result.data}
-      {:error, _} = error -> error
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for get_multi_server_pet_info but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -933,7 +1039,6 @@ defmodule PetstoreClient.Api.PetApi do
         "{petId}",
         PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
         |> to_string()
-        |> encode_path_segment()
       )
 
     server = Keyword.get(opts, :server)
@@ -989,8 +1094,24 @@ defmodule PetstoreClient.Api.PetApi do
           {:ok, binary()} | {:error, term()}
   def get_pet_avatar(%__MODULE__{} = api, pet_id, opts \\ []) do
     case get_pet_avatar_with_http_info(api, pet_id, opts) do
-      {:ok, result} -> {:ok, result.data}
-      {:error, _} = error -> error
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for get_pet_avatar but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -1027,7 +1148,6 @@ defmodule PetstoreClient.Api.PetApi do
         "{petId}",
         PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
         |> to_string()
-        |> encode_path_segment()
       )
 
     server = Keyword.get(opts, :server)
@@ -1083,8 +1203,24 @@ defmodule PetstoreClient.Api.PetApi do
           {:ok, binary()} | {:error, term()}
   def get_pet_avatar_thumbnail(%__MODULE__{} = api, pet_id, opts \\ []) do
     case get_pet_avatar_thumbnail_with_http_info(api, pet_id, opts) do
-      {:ok, result} -> {:ok, result.data}
-      {:error, _} = error -> error
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for get_pet_avatar_thumbnail but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -1121,7 +1257,6 @@ defmodule PetstoreClient.Api.PetApi do
         "{petId}",
         PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
         |> to_string()
-        |> encode_path_segment()
       )
 
     server = Keyword.get(opts, :server)
@@ -1188,8 +1323,24 @@ defmodule PetstoreClient.Api.PetApi do
           {:ok, Pet} | {:error, term()}
   def get_pet_by_id(%__MODULE__{} = api, pet_id, opts \\ []) do
     case get_pet_by_id_with_http_info(api, pet_id, opts) do
-      {:ok, result} -> {:ok, result.data}
-      {:error, _} = error -> error
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for get_pet_by_id but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -1226,7 +1377,6 @@ defmodule PetstoreClient.Api.PetApi do
         "{petId}",
         PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
         |> to_string()
-        |> encode_path_segment()
       )
 
     server = Keyword.get(opts, :server)
@@ -1282,8 +1432,24 @@ defmodule PetstoreClient.Api.PetApi do
           {:ok, PetPassport} | {:error, term()}
   def get_pet_passport(%__MODULE__{} = api, pet_id, opts \\ []) do
     case get_pet_passport_with_http_info(api, pet_id, opts) do
-      {:ok, result} -> {:ok, result.data}
-      {:error, _} = error -> error
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for get_pet_passport but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -1320,7 +1486,6 @@ defmodule PetstoreClient.Api.PetApi do
         "{petId}",
         PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
         |> to_string()
-        |> encode_path_segment()
       )
 
     server = Keyword.get(opts, :server)
@@ -1377,8 +1542,24 @@ defmodule PetstoreClient.Api.PetApi do
           {:ok, binary()} | {:error, term()}
   def get_pet_photo(%__MODULE__{} = api, pet_id, photo_id, opts \\ []) do
     case get_pet_photo_with_http_info(api, pet_id, photo_id, opts) do
-      {:ok, result} -> {:ok, result.data}
-      {:error, _} = error -> error
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for get_pet_photo but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -1420,7 +1601,6 @@ defmodule PetstoreClient.Api.PetApi do
         "{petId}",
         PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
         |> to_string()
-        |> encode_path_segment()
       )
 
     path =
@@ -1429,7 +1609,6 @@ defmodule PetstoreClient.Api.PetApi do
         "{photoId}",
         PetstoreClient.ValueSerializer.serialize_styled("photoId", photo_id, :path, "integer()", nil, "simple", false)
         |> to_string()
-        |> encode_path_segment()
       )
 
     server = Keyword.get(opts, :server)
@@ -1486,8 +1665,24 @@ defmodule PetstoreClient.Api.PetApi do
           {:ok, Pet} | {:error, term()}
   def get_pet_tag(%__MODULE__{} = api, pet_id, tag_name, options, opts \\ []) do
     case get_pet_tag_with_http_info(api, pet_id, tag_name, options, opts) do
-      {:ok, result} -> {:ok, result.data}
-      {:error, _} = error -> error
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for get_pet_tag but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -1529,7 +1724,6 @@ defmodule PetstoreClient.Api.PetApi do
         "{petId}",
         PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "matrix", false)
         |> to_string()
-        |> encode_path_segment()
       )
 
     path =
@@ -1538,7 +1732,6 @@ defmodule PetstoreClient.Api.PetApi do
         "{tagName}",
         PetstoreClient.ValueSerializer.serialize_styled("tagName", tag_name, :path, "String.t()", nil, "label", false)
         |> to_string()
-        |> encode_path_segment()
       )
 
     server = Keyword.get(opts, :server)
@@ -1654,8 +1847,24 @@ defmodule PetstoreClient.Api.PetApi do
           {:ok, Pet} | {:error, term()}
   def get_staging_pet_info(%__MODULE__{} = api, pet_id, opts \\ []) do
     case get_staging_pet_info_with_http_info(api, pet_id, opts) do
-      {:ok, result} -> {:ok, result.data}
-      {:error, _} = error -> error
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for get_staging_pet_info but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -1692,7 +1901,6 @@ defmodule PetstoreClient.Api.PetApi do
         "{petId}",
         PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
         |> to_string()
-        |> encode_path_segment()
       )
 
     server = Keyword.get(opts, :server)
@@ -1792,7 +2000,6 @@ defmodule PetstoreClient.Api.PetApi do
         "{petId}",
         PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
         |> to_string()
-        |> encode_path_segment()
       )
 
     server = Keyword.get(opts, :server)
@@ -1892,7 +2099,6 @@ defmodule PetstoreClient.Api.PetApi do
         "{petId}",
         PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
         |> to_string()
-        |> encode_path_segment()
       )
 
     server = Keyword.get(opts, :server)
@@ -1947,8 +2153,24 @@ defmodule PetstoreClient.Api.PetApi do
           {:ok, Pet} | {:error, term()}
   def update_pet(%__MODULE__{} = api, pet_id, pet, opts \\ []) do
     case update_pet_with_http_info(api, pet_id, pet, opts) do
-      {:ok, result} -> {:ok, result.data}
-      {:error, _} = error -> error
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for update_pet but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -1990,7 +2212,6 @@ defmodule PetstoreClient.Api.PetApi do
         "{petId}",
         PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
         |> to_string()
-        |> encode_path_segment()
       )
 
     server = Keyword.get(opts, :server)
@@ -2048,8 +2269,24 @@ defmodule PetstoreClient.Api.PetApi do
           {:ok, ApiResponse} | {:error, term()}
   def upload_pet_certificate(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     case upload_pet_certificate_with_http_info(api, pet_id, options, opts) do
-      {:ok, result} -> {:ok, result.data}
-      {:error, _} = error -> error
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for upload_pet_certificate but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -2086,7 +2323,6 @@ defmodule PetstoreClient.Api.PetApi do
         "{petId}",
         PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
         |> to_string()
-        |> encode_path_segment()
       )
 
     server = Keyword.get(opts, :server)
@@ -2145,8 +2381,24 @@ defmodule PetstoreClient.Api.PetApi do
           {:ok, ApiResponse} | {:error, term()}
   def upload_pet_document(%__MODULE__{} = api, pet_id, options, opts \\ []) do
     case upload_pet_document_with_http_info(api, pet_id, options, opts) do
-      {:ok, result} -> {:ok, result.data}
-      {:error, _} = error -> error
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for upload_pet_document but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -2183,7 +2435,6 @@ defmodule PetstoreClient.Api.PetApi do
         "{petId}",
         PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
         |> to_string()
-        |> encode_path_segment()
       )
 
     server = Keyword.get(opts, :server)
@@ -2232,22 +2483,5 @@ defmodule PetstoreClient.Api.PetApi do
       "ApiResponse",
       auth
     )
-  end
-
-  # Percent-encodes a value for use as a URL path segment.
-  #
-  # Encodes characters not allowed in a URI path segment, but preserves the
-  # sub-delimiters (including `;`, `=`, `,`, `.`) that OAS 3.0 matrix/label/
-  # simple styles use as structural separators in the styled value.
-  defp encode_path_segment(value) do
-    URI.encode(value, fn c ->
-      cond do
-        c in ?a..?z -> true
-        c in ?A..?Z -> true
-        c in ?0..?9 -> true
-        c in [?-, ?_, ?., ?~, ?!, ?$, ?&, ?', ?(, ?), ?*, ?+, ?,, ?;, ?=, ?:, ?@] -> true
-        true -> false
-      end
-    end)
   end
 end

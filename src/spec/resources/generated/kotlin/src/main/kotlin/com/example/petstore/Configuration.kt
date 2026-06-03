@@ -12,7 +12,7 @@ package com.example.petstore
  */
 class Configuration private constructor(
     val baseUrl: String,
-    val defaultHeaders: Map<String, String>,
+    val defaultHeaders: Map<String, String>
 ) {
     companion object {
         @Volatile
@@ -20,7 +20,9 @@ class Configuration private constructor(
 
         fun builder(): Builder = Builder()
 
-        fun getDefault(): Configuration = defaultInstance ?: builder().build().also { defaultInstance = it }
+        fun getDefault(): Configuration {
+            return defaultInstance ?: builder().build().also { defaultInstance = it }
+        }
 
         fun setDefault(config: Configuration) {
             defaultInstance = config
@@ -33,26 +35,17 @@ class Configuration private constructor(
 
         fun baseUrl(baseUrl: String): Builder = apply { this.baseUrl = baseUrl }
 
-        fun defaultHeader(
-            name: String,
-            value: String,
-        ): Builder =
-            apply {
-                defaultHeaders[name] = value
-            }
+        fun defaultHeader(name: String, value: String): Builder = apply {
+            defaultHeaders[name] = value
+        }
 
-        fun defaultHeaders(headers: Map<String, String>): Builder =
-            apply {
-                defaultHeaders.putAll(headers)
-            }
+        fun defaultHeaders(headers: Map<String, String>): Builder = apply {
+            defaultHeaders.putAll(headers)
+        }
 
-        fun server(
-            serverConfig: ServerConfiguration,
-            variables: Map<String, String>? = null,
-        ): Builder =
-            apply {
-                this.baseUrl = serverConfig.getUrl(variables ?: emptyMap())
-            }
+        fun server(serverConfig: ServerConfiguration, variables: Map<String, String>? = null): Builder = apply {
+            this.baseUrl = serverConfig.getUrl(variables ?: emptyMap())
+        }
 
         fun build(): Configuration = Configuration(baseUrl, defaultHeaders.toMap())
     }

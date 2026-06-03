@@ -9,25 +9,27 @@
 
 package com.example.petstore
 
-import kotlinx.serialization.Contextual
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.SerializationException
-import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Assertions.*
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import kotlin.uuid.Uuid
+import kotlinx.serialization.Contextual
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 
 class ObjectSerializerTest {
+
     private val serializer = ObjectSerializer()
 
     @Nested
     @DisplayName("DateTimeOffsetPreservationTests")
     inner class DateTimeOffsetPreservationTests {
+
         @Test
         @DisplayName("UTC datetime serializes containing date-time and offset")
         fun utcDateTimeSerializesWithOffset() {
@@ -74,10 +76,8 @@ class ObjectSerializerTest {
         fun serializedDateTimeHasOffset() {
             val dt = OffsetDateTime.of(2024, 1, 1, 12, 30, 45, 0, ZoneOffset.UTC)
             val result = serializer.stringify(dt)
-            assertTrue(
-                result.endsWith("+00:00") || result.endsWith("Z") || result.matches(Regex(".*[+-]\\d{2}:\\d{2}$")),
-                "should end with offset: $result",
-            )
+            assertTrue(result.endsWith("+00:00") || result.endsWith("Z") || result.matches(Regex(".*[+-]\\d{2}:\\d{2}$")),
+                "should end with offset: $result")
         }
 
         @Test
@@ -93,6 +93,7 @@ class ObjectSerializerTest {
     @Nested
     @DisplayName("NonAsciiSerializationTests")
     inner class NonAsciiSerializationTests {
+
         @Test
         @DisplayName("string with accented character serializes without unicode escape")
         fun accentedCharacterNotEscaped() {
@@ -118,6 +119,7 @@ class ObjectSerializerTest {
     @Nested
     @DisplayName("DeserializationErrorWrappingTests")
     inner class DeserializationErrorWrappingTests {
+
         @Test
         @DisplayName("truncated JSON throws SerializationException not raw parse error")
         fun truncatedJsonThrowsSerializationException() {
@@ -137,10 +139,9 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("thrown SerializationException message references original error")
         fun serializationExceptionHasMessage() {
-            val ex =
-                assertThrows(SerializationException::class.java) {
-                    serializer.deserialize<com.example.petstore.models.Category>("{")
-                }
+            val ex = assertThrows(SerializationException::class.java) {
+                serializer.deserialize<com.example.petstore.models.Category>("{")
+            }
             assertNotNull(ex.message, "exception should have a message")
         }
     }
@@ -148,6 +149,7 @@ class ObjectSerializerTest {
     @Nested
     @DisplayName("serialize")
     inner class SerializeTests {
+
         @Test
         @DisplayName("handles null")
         fun handlesNull() {
@@ -165,9 +167,7 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("includes fields explicitly set to default values")
         fun includesFieldsSetToDefaultValues() {
-            val category =
-                com.example.petstore.models
-                    .Category(id = 0L, name = "")
+            val category = com.example.petstore.models.Category(id = 0L, name = "")
             val json = serializer.serialize(category)
             assertTrue(json.contains("\"id\":0"), "serialized JSON should include id=0, got: $json")
             assertTrue(json.contains("\"name\":\"\""), "serialized JSON should include empty name, got: $json")
@@ -176,9 +176,7 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("omits fields explicitly set to null (Gap 13: discard nulls)")
         fun omitsNullFields() {
-            val category =
-                com.example.petstore.models
-                    .Category(id = null, name = "Dogs")
+            val category = com.example.petstore.models.Category(id = null, name = "Dogs")
             val json = serializer.serialize(category)
             assertFalse(json.contains("\"id\""), "serialized JSON should NOT contain null id, got: $json")
             assertTrue(json.contains("\"name\":\"Dogs\""), "serialized JSON should include name, got: $json")
@@ -189,6 +187,7 @@ class ObjectSerializerTest {
     @Nested
     @DisplayName("deserialize")
     inner class DeserializeTests {
+
         @Test
         @DisplayName("returns null for empty string")
         fun returnsNullForEmptyString() {
@@ -242,6 +241,7 @@ class ObjectSerializerTest {
     @Nested
     @DisplayName("stringify")
     inner class StringifyTests {
+
         @Test
         @DisplayName("null returns empty string")
         fun nullReturnsEmptyString() {
@@ -310,6 +310,7 @@ class ObjectSerializerTest {
     @Nested
     @DisplayName("toPathValue")
     inner class ToPathValueTests {
+
         @Test
         @DisplayName("returns empty string for null")
         fun returnsEmptyStringForNull() {
@@ -344,6 +345,7 @@ class ObjectSerializerTest {
     @Nested
     @DisplayName("toQueryValue")
     inner class ToQueryValueTests {
+
         @Test
         @DisplayName("returns null for null value")
         fun returnsNullForNull() {
@@ -420,6 +422,7 @@ class ObjectSerializerTest {
     @Nested
     @DisplayName("toCookieValue")
     inner class ToCookieValueTests {
+
         @Test
         @DisplayName("returns empty string for null")
         fun returnsEmptyStringForNull() {
@@ -442,6 +445,7 @@ class ObjectSerializerTest {
     @Nested
     @DisplayName("toHeaderValue")
     inner class ToHeaderValueTests {
+
         @Test
         @DisplayName("returns empty string for null")
         fun returnsEmptyStringForNull() {
@@ -471,6 +475,7 @@ class ObjectSerializerTest {
     @Nested
     @DisplayName("toFormValue")
     inner class ToFormValueTests {
+
         @Test
         @DisplayName("returns empty string for null")
         fun returnsEmptyStringForNull() {
@@ -511,6 +516,7 @@ class ObjectSerializerTest {
     @Nested
     @DisplayName("UuidSerializationTests")
     inner class UuidSerializationTests {
+
         @Test
         @DisplayName("UUID field serializes to canonical lowercase hex string")
         fun uuidFieldSerializesToCanonicalString() {
@@ -519,7 +525,7 @@ class ObjectSerializerTest {
             val json = serializer.serialize(holder)
             assertTrue(
                 json.contains("\"id\":\"550e8400-e29b-41d4-a716-446655440000\""),
-                "should contain canonical UUID string, got: $json",
+                "should contain canonical UUID string, got: $json"
             )
         }
 
@@ -535,11 +541,10 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("UUID round-trip preserves identity")
         fun uuidRoundTripPreservesIdentity() {
-            val original =
-                UuidHolder(
-                    id = Uuid.parse("123e4567-e89b-12d3-a456-426614174000"),
-                    optional = Uuid.parse("00000000-0000-0000-0000-000000000001"),
-                )
+            val original = UuidHolder(
+                id = Uuid.parse("123e4567-e89b-12d3-a456-426614174000"),
+                optional = Uuid.parse("00000000-0000-0000-0000-000000000001"),
+            )
             val encoded = serializer.serialize(original)
             val decoded = serializer.deserialize<UuidHolder>(encoded)
             assertNotNull(decoded)
@@ -553,6 +558,49 @@ class ObjectSerializerTest {
             val raw = "{\"id\":\"not-a-uuid\"}"
             assertThrows(SerializationException::class.java) {
                 serializer.deserialize<UuidHolder>(raw)
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("oneOf/anyOf no-match")
+    inner class OneOfNoMatch {
+
+        @Test
+        @DisplayName("oneof-nondiscriminator-no-match-silent: resolveOneOf throws when no variant matches")
+        fun resolveOneOfThrowsOnNoMatch() {
+            // Every candidate fails to decode the payload. The resolver must
+            // throw rather than silently return null/store the raw value, so a
+            // response matching none of the declared oneOf members surfaces a
+            // loud deserialize error like the other validate-and-throw SDKs.
+            val candidates: List<(String) -> Any?> = listOf(
+                { _ -> throw IllegalStateException("variant A does not match") },
+                { _ -> throw IllegalStateException("variant B does not match") },
+            )
+            assertThrows(ObjectSerializer.SerializationException::class.java) {
+                serializer.resolveOneOf("{\"unexpected\":true}", candidates)
+            }
+        }
+
+        @Test
+        @DisplayName("resolveOneOf returns the first matching variant")
+        fun resolveOneOfReturnsFirstMatch() {
+            val candidates: List<(String) -> Any?> = listOf(
+                { _ -> null },
+                { s -> "matched:$s" },
+            )
+            val result = serializer.resolveOneOf("payload", candidates)
+            assertEquals("matched:payload", result)
+        }
+
+        @Test
+        @DisplayName("resolveAnyOf throws when no variant matches")
+        fun resolveAnyOfThrowsOnNoMatch() {
+            val candidates: List<(String) -> Any?> = listOf(
+                { _ -> null },
+            )
+            assertThrows(ObjectSerializer.SerializationException::class.java) {
+                serializer.resolveAnyOf("{}", candidates)
             }
         }
     }

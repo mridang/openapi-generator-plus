@@ -155,6 +155,63 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       end
     end
 
+    # oauth-oidc-discovery-no-status-check: a non-2xx discovery response must
+    # raise a discovery-failure error rather than surfacing as an opaque
+    # "invalid JSON" parse error.
+    test "raises on non-2xx discovery response instead of parsing it as JSON" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 500,
+            body: "<html><body>Internal Server Error</body></html>"
+          }
+        ])
+
+      auth = create_authenticator()
+      auth = PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
+
+      assert_raise RuntimeError, ~r/discovery/i, fn ->
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+      end
+    end
+
+    # oauth-oidc-missing-endpoint-guard: a discovery document missing the
+    # authorization/token endpoint must raise rather than silently building
+    # a delegate with empty endpoint URLs.
+    test "raises when discovery document is missing authorization_endpoint" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"token_endpoint" => "https://auth.example.com/token"})
+          }
+        ])
+
+      auth = create_authenticator()
+      auth = PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
+
+      assert_raise RuntimeError, ~r/authorization_endpoint/, fn ->
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+      end
+    end
+
+    test "raises when discovery document is missing token_endpoint" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"authorization_endpoint" => "https://auth.example.com/authorize"})
+          }
+        ])
+
+      auth = create_authenticator()
+      auth = PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
+
+      assert_raise RuntimeError, ~r/token_endpoint/, fn ->
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+      end
+    end
+
     test "get_host returns configured host" do
       auth = create_authenticator()
 

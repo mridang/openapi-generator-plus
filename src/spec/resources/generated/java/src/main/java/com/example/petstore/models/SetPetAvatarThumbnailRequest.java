@@ -7,15 +7,25 @@
 
 package com.example.petstore.models;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
+import java.util.List;
 
+@com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+    using = SetPetAvatarThumbnailRequest.SetPetAvatarThumbnailRequestDeserializer.class)
 @SuppressWarnings("deprecation")
 public class SetPetAvatarThumbnailRequest {
 
+  /* Variant type tokens for the union. TypeReference (not Class.class) is
+   * used so that primitive/array/generic variants — e.g. String, byte[],
+   * List<String> — are representable; List<String>.class is not legal Java. */
+  private static final java.util.List<com.fasterxml.jackson.core.type.TypeReference<?>>
+      ONE_OF_SCHEMAS =
+          java.util.List.of(
+              new com.fasterxml.jackson.core.type.TypeReference<List<byte[]>>() {},
+              new com.fasterxml.jackson.core.type.TypeReference<byte[]>() {});
+
   private Object actualInstance;
 
-  @JsonCreator
   public SetPetAvatarThumbnailRequest(Object value) {
     this.actualInstance = value;
   }
@@ -23,5 +33,35 @@ public class SetPetAvatarThumbnailRequest {
   @JsonValue
   public Object getActualInstance() {
     return actualInstance;
+  }
+
+  static class SetPetAvatarThumbnailRequestDeserializer
+      extends com.fasterxml.jackson.databind.JsonDeserializer<SetPetAvatarThumbnailRequest> {
+    @Override
+    @SuppressWarnings("EmptyCatch")
+    public SetPetAvatarThumbnailRequest deserialize(
+        com.fasterxml.jackson.core.JsonParser p,
+        com.fasterxml.jackson.databind.DeserializationContext ctxt)
+        throws java.io.IOException {
+      com.fasterxml.jackson.databind.JsonNode node = p.readValueAsTree();
+      for (com.fasterxml.jackson.core.type.TypeReference<?> schema : ONE_OF_SCHEMAS) {
+        try {
+          com.fasterxml.jackson.databind.JavaType type =
+              ctxt.getTypeFactory().constructType(schema);
+          Object value = ctxt.readTreeAsValue(node, type);
+          return new SetPetAvatarThumbnailRequest(value);
+        } catch (Exception ignored) {
+        }
+      }
+      /* No schema in the union matched — throw rather than silently store
+       * the raw JSON tree as the actualInstance. This aligns the oneOf
+       * (no-discriminator) path with the seven SDKs that already throw on
+       * no-match (Python, Swift, Dart, Go, Rust, ...) and with this SDK's
+       * own anyOf path, so data-shape bugs surface loudly. */
+      throw com.fasterxml.jackson.databind.exc.MismatchedInputException.from(
+          p,
+          SetPetAvatarThumbnailRequest.class,
+          "JSON did not match any schema in the SetPetAvatarThumbnailRequest union: " + node);
+    }
   }
 }

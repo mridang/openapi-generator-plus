@@ -37,4 +37,15 @@ defmodule PetstoreClient.Models.MetadataTest do
       assert PetstoreClient.Models.Metadata.additional_properties() == true
     end
   end
+
+  # manifest-description-missing: the Hex package manifest must carry a
+  # non-empty description so the package does not publish with an empty
+  # description field.
+  describe "package manifest" do
+    test "mix project package metadata declares a non-empty description" do
+      description = PetstoreClient.MixProject.project()[:package][:description]
+      assert is_binary(description)
+      assert String.trim(description) != ""
+    end
+  end
 end

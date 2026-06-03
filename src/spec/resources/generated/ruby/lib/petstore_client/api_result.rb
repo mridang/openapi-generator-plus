@@ -17,7 +17,7 @@ module PetstoreClient
     # @return [Object, nil]
     attr_reader :data
 
-    # @return [String, nil]
+    # @return [String]
     attr_reader :raw_body
 
     # @return [Hash{String => String}]
@@ -25,7 +25,7 @@ module PetstoreClient
 
     # @param status_code [Integer]
     # @param data [Object, nil]
-    # @param raw_body [String, nil]
+    # @param raw_body [String]
     # @param headers [Hash{String => String}]
     def initialize(status_code:, data:, raw_body:, headers:)
       @status_code = status_code

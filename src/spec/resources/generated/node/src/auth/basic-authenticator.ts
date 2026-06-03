@@ -43,4 +43,14 @@ export class BasicAuthenticator extends BaseAuthenticator {
     const authHeader = 'Basic ' + Buffer.from(`${this.username}:${this.password}`).toString('base64');
     return { Authorization: authHeader };
   }
+
+  /* Redact the password from the default string/inspect representation so
+   * logging or inspecting the authenticator never leaks the credential. */
+  [Symbol.for('nodejs.util.inspect.custom')](): string {
+    return `BasicAuthenticator(host=${this.host}, username=${this.username}, password=***)`;
+  }
+
+  toJSON(): Record<string, string> {
+    return { host: this.host, username: this.username, password: '***' };
+  }
 }

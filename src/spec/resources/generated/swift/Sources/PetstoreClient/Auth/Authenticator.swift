@@ -14,7 +14,12 @@ public protocol Authenticator: Sendable {
     func host() -> String
 
     /// Returns the authentication headers to include in every request.
-    func authHeaders() async -> [String: String]
+    ///
+    /// May throw when resolving credentials requires an HTTP call (e.g. an
+    /// OAuth2 token exchange) that fails — the error is surfaced to the
+    /// caller rather than swallowed into an empty header map that would send
+    /// the request unauthenticated.
+    func authHeaders() async throws -> [String: String]
 
     /// Returns query parameters to include for authentication.
     func queryParams() -> [String: String]

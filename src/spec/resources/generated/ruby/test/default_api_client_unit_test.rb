@@ -499,8 +499,7 @@ describe PetstoreClient::DefaultApiClient do
     end
     client = PetstoreClient::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
-      resp = client.send_request(:POST, 'http://localhost/token', {}, 'grant_type=client_credentials',
-        no_redirect: true)
+      resp = client.send_request(:POST, 'http://localhost/token', {}, 'grant_type=client_credentials', no_redirect: true)
       _(resp.status_code).must_equal 200
     end
   end
@@ -546,6 +545,71 @@ describe PetstoreClient::DefaultApiClient do
       resp = client.send_request(:POST, 'https://localhost/r', {}, 'k=v')
       _(resp.status_code).must_equal 200
     end
+  end
+
+  # ── Bucket 3: redirect-exhaustion raises loudly ──
+
+  it 'raises ApiError when the redirect budget is exhausted' do
+    # The server keeps returning 302s forever. After max_redirects hops
+    # the client MUST raise an ApiError rather than silently returning the
+    # last 3xx response as if it were the final answer.
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/loop') do
+        [302, { 'location' => 'http://localhost/loop' }, '']
+      end
+    end
+    transport = PetstoreClient::TransportOptions.builder
+      .follow_redirects(true)
+      .max_redirects(2)
+      .build
+    client = PetstoreClient::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      err = assert_raises(PetstoreClient::ApiError) do
+        client.send_request(:GET, 'http://localhost/loop', {}, nil)
+      end
+      _(err.message).must_match(/redirect/i)
+    end
+  end
+
+  # ── Bucket 3: non-http(s) redirect scheme raises loudly ──
+
+  it 'raises ApiError when Location points at a non-http(s) scheme' do
+    # A Location header pointing at file:/javascript:/data: is an SSRF /
+    # local-file exfiltration vector. The client MUST refuse loudly with
+    # an ApiError instead of silently returning the 3xx response.
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/evil') do
+        [302, { 'location' => 'file:///etc/passwd' }, '']
+      end
+    end
+    transport = PetstoreClient::TransportOptions.builder.follow_redirects(true).build
+    client = PetstoreClient::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      err = assert_raises(PetstoreClient::ApiError) do
+        client.send_request(:GET, 'http://localhost/evil', {}, nil)
+      end
+      _(err.message).must_match(/non-http/i)
+    end
+  end
+
+  # ── Bucket 3: use-after-close raises loudly ──
+
+  it 'raises ApiError when send_request is called after close' do
+    # After #close releases the connection pool the client is dead; a
+    # subsequent send_request MUST raise an ApiError rather than lazily
+    # rebuilding a connection (which would make close a silent no-op).
+    client = PetstoreClient::DefaultApiClient.new
+    client.close
+    err = assert_raises(PetstoreClient::ApiError) do
+      client.send_request(:GET, 'http://localhost/echo', {}, nil)
+    end
+    _(err.message).must_match(/closed/i)
+  end
+
+  it 'close is idempotent' do
+    client = PetstoreClient::DefaultApiClient.new
+    client.close
+    client.close # must not raise
   end
 
   # ── Bucket 3.1: API-key header names included in cross-origin strip set ──

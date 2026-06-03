@@ -8,12 +8,17 @@
 package petstore_test
 
 import (
+	"errors"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	petstore "petstore/pkg"
+	pkgerrors "petstore/pkg/errors"
 	"petstore/pkg/models"
 	"petstore/pkg/options"
 )
@@ -432,6 +437,56 @@ func TestPetApi_UploadMultipartMock(t *testing.T) {
 	_, _ = api.UploadPetCertificate(int64(1), nil)
 }
 
+// multipart-object-part-contenttype-go: an object/model form field serialised
+// as JSON must carry a per-part Content-Type: application/json header, matching
+// the other 11 SDKs. AddPetPhotos sends a PhotoMetadata object as the "metadata"
+// part.
+func TestPetApi_MultipartObjectPartHasJSONContentType(t *testing.T) {
+	t.Parallel()
+	var metadataPartContentType string
+	var sawMetadataPart bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, params, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+		if err == nil {
+			if boundary, ok := params["boundary"]; ok {
+				mr := multipart.NewReader(r.Body, boundary)
+				for {
+					part, perr := mr.NextPart()
+					if perr != nil {
+						break
+					}
+					if part.FormName() == "metadata" {
+						sawMetadataPart = true
+						metadataPartContentType = part.Header.Get("Content-Type")
+					}
+				}
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	defer server.Close()
+
+	api := newPetApiForMock(t, server)
+	f := newTempFile(t, "photo1")
+	caption := "Test photo"
+	metadata := models.NewPhotoMetadata()
+	metadata.Caption = &caption
+
+	_, _ = api.AddPetPhotos(int64(1), &options.AddPetPhotosOptions{
+		Files:    []*os.File{f},
+		Metadata: *metadata,
+	})
+
+	if !sawMetadataPart {
+		t.Fatal("expected the multipart body to contain a 'metadata' part")
+	}
+	if !strings.HasPrefix(metadataPartContentType, "application/json") {
+		t.Errorf("expected metadata part Content-Type application/json, got %q", metadataPartContentType)
+	}
+}
+
 func TestPetApi_ErrorHandling_NotFound(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -446,6 +501,39 @@ func TestPetApi_ErrorHandling_NotFound(t *testing.T) {
 	_, err := api.GetPetById(int64(99999), nil)
 	if err == nil {
 		t.Fatal("expected error for non-existent pet")
+	}
+}
+
+// convenience-empty-body-handling: a 2xx response with an empty body for a
+// body-returning operation must surface a typed ApiError from the convenience
+// method (not a silent nil / zero-valued struct), while WithHTTPInfo reports
+// nil Data.
+func TestPetApi_EmptyBodyConvenienceReturnsApiError(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		// Intentionally write no body.
+	}))
+	defer server.Close()
+
+	api := newPetApiForMock(t, server)
+
+	_, err := api.GetPetById(int64(1), nil)
+	if err == nil {
+		t.Fatal("expected a typed ApiError when the body-returning operation receives an empty body")
+	}
+	var apiErr *pkgerrors.ApiError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected *ApiError, got %T: %v", err, err)
+	}
+
+	result, infoErr := api.GetPetByIdWithHTTPInfo(int64(1), nil)
+	if infoErr != nil {
+		t.Fatalf("WithHTTPInfo unexpected error: %v", infoErr)
+	}
+	if result.Data != nil {
+		t.Errorf("expected nil Data on empty body, got %v", result.Data)
 	}
 }
 

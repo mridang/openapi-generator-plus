@@ -140,4 +140,48 @@ class OpenIdConnectAuthenticatorTest {
 
     assertEquals("https://api.example.com", auth.getHost());
   }
+
+  @Test
+  void throwsWhenDiscoveryReturnsNon2xxStatus() {
+    ApiClient client =
+        (method, url, headers, body) ->
+            new ApiResponse(500, "<html>internal server error</html>", Map.of());
+
+    OpenIdConnectAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    // A non-2xx discovery response must surface as a clear error, not as
+    // an "invalid JSON" parse failure of the HTML error page.
+    assertThrows(RuntimeException.class, () -> auth.buildAuthorizationUrl(null));
+  }
+
+  @Test
+  void throwsWhenDiscoveryMissingAuthorizationEndpoint() {
+    ApiClient client =
+        (method, url, headers, body) ->
+            new ApiResponse(
+                200, "{\"token_endpoint\":\"https://auth.example.com/token\"}", Map.of());
+
+    OpenIdConnectAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    // Missing authorization_endpoint must throw rather than build a
+    // delegate with a null/empty endpoint URL.
+    assertThrows(RuntimeException.class, () -> auth.buildAuthorizationUrl(null));
+  }
+
+  @Test
+  void throwsWhenDiscoveryMissingTokenEndpoint() {
+    ApiClient client =
+        (method, url, headers, body) ->
+            new ApiResponse(
+                200,
+                "{\"authorization_endpoint\":\"https://auth.example.com/authorize\"}",
+                Map.of());
+
+    OpenIdConnectAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    assertThrows(RuntimeException.class, () -> auth.buildAuthorizationUrl(null));
+  }
 }

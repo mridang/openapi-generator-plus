@@ -137,6 +137,13 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
    * @param code the authorization code from the callback
    */
   public void exchangeCode(String code) {
+    /* RFC 6749 §4.1.3: the authorization code is a required parameter of
+     * the token request. Reject an empty/whitespace code before the POST
+     * so the caller sees a clear precondition error rather than a confusing
+     * downstream "invalid_grant" from the IdP (or no error at all). */
+    if (code == null || code.trim().isEmpty()) {
+      throw new IllegalArgumentException("Authorization code must not be empty");
+    }
     Map<String, String> params = new HashMap<>();
     params.put("grant_type", "authorization_code");
     params.put("code", code);

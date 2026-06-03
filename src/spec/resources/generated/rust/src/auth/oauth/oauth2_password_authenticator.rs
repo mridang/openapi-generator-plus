@@ -12,13 +12,13 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use crate::api_client::ApiClient;
-use crate::auth::Authenticator;
 use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
 use crate::auth::oauth::client_auth_method::ClientAuthMethod;
 use crate::auth::oauth::oauth2_token_manager::OAuth2TokenManager;
+use crate::auth::Authenticator;
 use crate::utils::form_url_encode;
-use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use base64::Engine as _;
 
 /// OAuth2PasswordAuthenticator provides OAuth2 resource owner password
 /// credentials flow authentication.
@@ -97,8 +97,9 @@ impl Authenticator for OAuth2PasswordAuthenticator {
                 // separately before joining with ':' and base64-encoding.
                 let encoded_id = form_url_encode(&self.client_id);
                 let encoded_secret = form_url_encode(&self.client_secret);
-                let credentials =
-                    BASE64_STANDARD.encode(format!("{}:{}", encoded_id, encoded_secret).as_bytes());
+                let credentials = BASE64_STANDARD.encode(
+                    format!("{}:{}", encoded_id, encoded_secret).as_bytes(),
+                );
                 extra_headers.insert(
                     "Authorization".to_string(),
                     format!("Basic {}", credentials),
@@ -132,7 +133,10 @@ impl Authenticator for OAuth2PasswordAuthenticator {
             {
                 Ok(token) => {
                     let mut headers = HashMap::new();
-                    headers.insert("Authorization".to_string(), format!("Bearer {}", token));
+                    headers.insert(
+                        "Authorization".to_string(),
+                        format!("Bearer {}", token),
+                    );
                     headers
                 }
                 Err(_) => HashMap::new(),

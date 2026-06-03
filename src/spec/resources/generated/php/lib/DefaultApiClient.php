@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -61,6 +60,14 @@ class DefaultApiClient implements ApiClient
 
     /** @var TransportOptions Transport configuration applied to every request. */
     private readonly TransportOptions $transportOptions;
+
+    /**
+     * Gap T-D4: tracks whether close() has been called. Once closed, any
+     * further sendRequest() raises an SDK-typed ApiException instead of
+     * silently re-using a reset client or leaking a foreign library error,
+     * giving every SDK a uniform use-after-close contract.
+     */
+    private bool $closed = false;
 
     /**
      * Create a client with default transport settings.
@@ -145,6 +152,13 @@ class DefaultApiClient implements ApiClient
         mixed $body,
         bool $noRedirect = false,
     ): ApiResponse {
+        /* Gap T-D4: refuse to send on a closed client. The other SDKs raise
+         * an SDK-typed error here; PHP matches by throwing ApiException
+         * rather than silently re-using the reset Symfony client. */
+        if ($this->closed) {
+            throw new ApiException('ApiClient has been closed and can no longer send requests');
+        }
+
         $mergedHeaders = array_merge($this->transportOptions->defaultHeaders, $headers);
 
         if (
@@ -292,7 +306,13 @@ class DefaultApiClient implements ApiClient
                     }
                     $scheme = parse_url($nextUrl, PHP_URL_SCHEME);
                     if (!in_array(strtolower((string) $scheme), ['http', 'https'], true)) {
-                        break;
+                        /* Gap T-D3: a Location pointing at a non-http(s)
+                         * scheme (file:, javascript:, data:, ...) is an
+                         * attack vector. Refuse loudly instead of silently
+                         * returning the 3xx, matching the throwing SDKs. */
+                        throw new ApiException(
+                            "Redirect to unsupported scheme '{$scheme}' in Location: {$nextUrl}"
+                        );
                     }
                     $crossOrigin = !self::sameOrigin($originalUrl, $nextUrl);
 
@@ -315,7 +335,12 @@ class DefaultApiClient implements ApiClient
                     $isDowngrade = $prevScheme === 'https' && $nextScheme === 'http';
                     $hasBody = isset($currentOptions['body']);
                     if ($isDowngrade && $hasBody && ($statusCode === 307 || $statusCode === 308)) {
-                        break;
+                        /* Gap 3.3 / T-D2: raise instead of silently returning
+                         * the 3xx so the caller sees the refused downgrade,
+                         * matching the SDKs that throw on a refused replay. */
+                        throw new ApiException(
+                            "Refusing to replay request body across HTTPS->HTTP downgrade redirect to {$nextUrl}"
+                        );
                     }
 
                     if ($statusCode === 307 || $statusCode === 308) {
@@ -361,6 +386,16 @@ class DefaultApiClient implements ApiClient
                     $currentHeaders = $redirectHeaders;
                     $response = $this->client->request($nextMethod, $nextUrl, $redirectOptions);
                     $hops++;
+                }
+
+                /* Gap T-D1: if we ran out of redirect budget while the
+                 * response is still a redirect, raise "too many redirects"
+                 * instead of silently returning the last 3xx as a normal
+                 * response — matching the throwing SDKs. */
+                if ($hops >= $maxRedirects && self::isRedirectStatus($response->getStatusCode())) {
+                    throw new ApiException(
+                        "Too many redirects (exceeded maxRedirects={$maxRedirects})"
+                    );
                 }
             }
 
@@ -724,6 +759,10 @@ class DefaultApiClient implements ApiClient
         if ($this->client instanceof \Symfony\Contracts\Service\ResetInterface) {
             $this->client->reset();
         }
+        /* Gap T-D4: flip the closed flag so a subsequent sendRequest()
+         * surfaces an SDK-typed ApiException. Idempotent — safe to call
+         * close() repeatedly. */
+        $this->closed = true;
     }
 
     /**

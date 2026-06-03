@@ -48,13 +48,7 @@ impl ApiClient for FakeApiClient {
         url: &str,
         headers: &HashMap<String, String>,
         body: Option<&RequestBody>,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
-                + Send
-                + '_,
-        >,
-    > {
+    ) -> Pin<Box<dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         // Delegate so the no_redirect flag is captured (some callers go
         // through send_request directly, e.g. the OpenID Connect
         // authenticator's GET /.well-known/openid-configuration discovery).
@@ -68,13 +62,7 @@ impl ApiClient for FakeApiClient {
         _headers: &HashMap<String, String>,
         body: Option<&RequestBody>,
         options: &RequestOptions,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
-                + Send
-                + '_,
-        >,
-    > {
+    ) -> Pin<Box<dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         {
             let mut last_url = self.last_url.lock().unwrap();
             *last_url = Some(url.to_string());
@@ -270,13 +258,7 @@ impl ApiClient for CountingApiClient {
         _url: &str,
         _headers: &HashMap<String, String>,
         _body: Option<&RequestBody>,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
-                + Send
-                + '_,
-        >,
-    > {
+    ) -> Pin<Box<dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         {
             let mut count = self.call_count.lock().unwrap();
             *count += 1;
@@ -348,11 +330,7 @@ async fn test_expires_in_short_lived_token_does_not_storm() {
         .expect("should succeed");
 
     assert_eq!("short", token);
-    assert_eq!(
-        0,
-        client.responses.lock().unwrap().len(),
-        "all enqueued responses consumed"
-    );
+    assert_eq!(0, client.responses.lock().unwrap().len(), "all enqueued responses consumed");
 }
 
 #[tokio::test(flavor = "multi_thread")]

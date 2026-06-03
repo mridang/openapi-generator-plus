@@ -7,8 +7,8 @@
 
 use std::collections::HashMap;
 
-use petstore::auth::Authenticator;
 use petstore::auth::oauth::OAuth2ImplicitAuthenticator;
+use petstore::auth::Authenticator;
 
 fn create_authenticator() -> OAuth2ImplicitAuthenticator {
     OAuth2ImplicitAuthenticator::new(

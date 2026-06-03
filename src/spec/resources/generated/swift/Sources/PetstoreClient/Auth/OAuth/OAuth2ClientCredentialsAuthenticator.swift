@@ -47,7 +47,7 @@ public class OAuth2ClientCredentialsAuthenticator: BaseAuthenticator, HttpAwareA
     }
 
     /// Returns the Bearer authentication header with a valid access token.
-    override public func authHeaders() async -> [String: String] {
+    override public func authHeaders() async throws -> [String: String] {
         var params: [String: String] = [
             "grant_type": "client_credentials"
         ]
@@ -68,12 +68,12 @@ public class OAuth2ClientCredentialsAuthenticator: BaseAuthenticator, HttpAwareA
             params["scope"] = scopes.joined(separator: " ")
         }
 
-        guard
-            let accessToken = try? await tokenManager.getAccessToken(
-                tokenURL: tokenURL, params: params, extraHeaders: extraHeaders)
-        else {
-            return [:]
-        }
+        /* Do NOT swallow the token-fetch error: a failed client-credentials
+         * exchange must surface to the caller, not be collapsed into an
+         * empty header map that would send the API request unauthenticated
+         * and produce a confusing downstream 401. */
+        let accessToken = try await tokenManager.getAccessToken(
+            tokenURL: tokenURL, params: params, extraHeaders: extraHeaders)
         return ["Authorization": "Bearer \(accessToken)"]
     }
 }

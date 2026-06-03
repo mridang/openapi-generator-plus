@@ -8,7 +8,7 @@
 import Foundation
 
 /// PhotoMetadata is a model class generated from the OpenAPI schema.
-public struct PhotoMetadata: Codable, Sendable {
+public struct PhotoMetadata: Codable, Sendable, Equatable, Hashable {
     /// Example: `null`
     public var caption: String?
     /// Example: `null`

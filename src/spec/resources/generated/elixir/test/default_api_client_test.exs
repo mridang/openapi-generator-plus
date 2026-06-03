@@ -374,13 +374,28 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert String.contains?(response.body, "userId")
   end
 
-  # Gap T6: close/1 is idempotent and returns :ok. Req/Finch owns a
-  # globally supervised connection pool, so per-client teardown is a
-  # no-op; the test pins the contract.
+  # Gap T6 / close-lifecycle: close/1 is idempotent and returns :ok, and
+  # marks the client closed so any subsequent use raises a typed SDK error
+  # (uniform use-after-close contract).
   test "close releases underlying client (Gap T6)" do
     client = PetstoreClient.DefaultApiClient.new()
     assert PetstoreClient.DefaultApiClient.close(client) == :ok
     assert PetstoreClient.DefaultApiClient.close(client) == :ok
+  end
+
+  test "use-after-close raises a typed ApiError" do
+    client = PetstoreClient.DefaultApiClient.new()
+    assert PetstoreClient.DefaultApiClient.close(client) == :ok
+
+    assert_raise PetstoreClient.ApiError, fn ->
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "http://127.0.0.1:1/never",
+        %{},
+        nil
+      )
+    end
   end
 
   # Gap F-W5-2: Req/Finch's `:receive_timeout` is per-chunk inactivity

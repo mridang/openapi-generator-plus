@@ -12,9 +12,9 @@ use std::sync::{Arc, Mutex};
 
 use petstore::api_client::{ApiClient, RequestBody};
 use petstore::api_response::ApiResponse;
+use petstore::auth::oauth::OpenIdConnectAuthenticator;
 use petstore::auth::Authenticator;
 use petstore::auth::HttpAwareAuthenticator;
-use petstore::auth::oauth::OpenIdConnectAuthenticator;
 
 struct FakeApiClient {
     responses: Mutex<Vec<ApiResponse>>,
@@ -62,13 +62,7 @@ impl ApiClient for FakeApiClient {
         url: &str,
         _headers: &HashMap<String, String>,
         body: Option<&RequestBody>,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
-                + Send
-                + '_,
-        >,
-    > {
+    ) -> Pin<Box<dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         {
             let mut last_method = self.last_method.lock().unwrap();
             *last_method = Some(method.to_string());
@@ -134,14 +128,37 @@ async fn test_fetches_discovery_document() {
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
 
-    auth.build_authorization_url("")
-        .await
-        .expect("should succeed");
+    auth.build_authorization_url("").await.expect("should succeed");
 
     assert_eq!("GET", client.last_method().unwrap());
     assert_eq!(
         "https://auth.example.com/.well-known/openid-configuration",
         client.last_url().unwrap()
+    );
+}
+
+/// oauth-oidc-discovery-no-status-check: a non-2xx discovery response (e.g. a
+/// 500 returning an HTML error page) must surface as a status error, NOT a
+/// misleading "invalid JSON" parse error.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_discovery_non_2xx_status_surfaces_status_error() {
+    let client = Arc::new(FakeApiClient::new());
+    // Server returns 500 with an HTML body that is not valid discovery JSON.
+    client.enqueue("<html><body>Internal Server Error</body></html>", 500);
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let result = auth.build_authorization_url("").await;
+    assert!(
+        result.is_err(),
+        "a 500 discovery response must produce an error"
+    );
+    let err = result.unwrap_err().to_string().to_lowercase();
+    assert!(
+        err.contains("500") || err.contains("status"),
+        "error must reference the HTTP status, not be a JSON parse error: {}",
+        err
     );
 }
 
@@ -160,12 +177,8 @@ async fn test_obtains_token_after_code_exchange() {
     auth.set_api_client(client.clone());
 
     // Must call build_authorization_url first to trigger discovery
-    auth.build_authorization_url("")
-        .await
-        .expect("should succeed");
-    auth.exchange_code("oidc-code")
-        .await
-        .expect("should succeed");
+    auth.build_authorization_url("").await.expect("should succeed");
+    auth.exchange_code("oidc-code").await.expect("should succeed");
 
     let body = client.last_body().expect("should have body");
     assert!(body.contains("grant_type=authorization_code"));
@@ -188,12 +201,8 @@ async fn test_get_auth_headers_returns_bearer_after_exchange() {
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
 
-    auth.build_authorization_url("")
-        .await
-        .expect("should succeed");
-    auth.exchange_code("oidc-code")
-        .await
-        .expect("should succeed");
+    auth.build_authorization_url("").await.expect("should succeed");
+    auth.exchange_code("oidc-code").await.expect("should succeed");
     let headers = auth.auth_headers().await;
 
     assert_eq!("Bearer oidc-tok", headers.get("Authorization").unwrap());

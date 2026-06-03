@@ -45,6 +45,25 @@ import Testing
         #expect(auth.queryParams() == ["api_key": "kéy"])
     }
 
+    // bearer-no-empty-token-guard (F-A6-G1): the Bearer authenticator must
+    // reject an empty or whitespace-only token at construction (it would
+    // otherwise emit the literal header `Authorization: Bearer ` and send the
+    // request effectively unauthenticated), mirroring the api-key
+    // authenticator's existing empty-value guard. The guard itself uses
+    // `preconditionFailure` (programmer error), which traps the process and —
+    // per the same limitation noted on `testApiKeyQueryAcceptsNonAscii` —
+    // cannot be caught from Swift Testing without trap helpers. This test
+    // pins the boundary that MUST still succeed: a non-empty token whose only
+    // whitespace is internal/leading is accepted and emitted verbatim, so the
+    // guard's `trimmingCharacters(...).isEmpty` check is asserted to be a
+    // whitespace-ONLY rejection and not an over-eager "contains whitespace"
+    // rejection that would break legitimate tokens.
+    @Test func testBearerAcceptsNonEmptyTokenWithGuardInPlace() async throws {
+        let auth = BearerAuthenticator(host: "/api/v3", token: "abc.def-123")
+        let headers = try await auth.authHeaders()
+        #expect(headers["Authorization"] == "Bearer abc.def-123")
+    }
+
     @Test func testApiGroupsAreAccessible() {
         let client = Client(authenticator: authenticator)
 

@@ -14,9 +14,60 @@
 #pragma warning disable CS0618 // Type or member is obsolete
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
 namespace PetstoreClient.Models;
 
+[JsonConverter(typeof(SetPetAvatarThumbnailRequestConverter))]
 public class SetPetAvatarThumbnailRequest(object value)
 {
     public object? ActualInstance { get; set; } = value;
+
+#pragma warning disable CA1812
+    private sealed class SetPetAvatarThumbnailRequestConverter
+        : JsonConverter<SetPetAvatarThumbnailRequest>
+#pragma warning restore CA1812
+    {
+        public override SetPetAvatarThumbnailRequest? Read(
+            ref Utf8JsonReader reader,
+            Type typeToConvert,
+            JsonSerializerOptions options
+        )
+        {
+            using JsonDocument doc = JsonDocument.ParseValue(ref reader);
+            string raw = doc.RootElement.GetRawText();
+            try
+            {
+                return new SetPetAvatarThumbnailRequest(
+                    JsonSerializer.Deserialize<List<byte[]>>(raw, options)!
+                );
+            }
+            catch (JsonException) { }
+            try
+            {
+                return new SetPetAvatarThumbnailRequest(
+                    JsonSerializer.Deserialize<byte[]>(raw, options)!
+                );
+            }
+            catch (JsonException) { }
+            /* No schema in the union matched — throw rather than silently
+             * store a raw value (or, like Dart, an empty object). The 7-SDK
+             * majority (Python/Swift/Dart/Go/Rust plus Java/Kotlin/Node here)
+             * surfaces oneOf no-match as a deserialize error so data-shape
+             * bugs fail loudly instead of producing type-confused data. */
+            throw new JsonException(
+                $"JSON did not match any schema in the SetPetAvatarThumbnailRequest union: {raw}"
+            );
+        }
+
+        public override void Write(
+            Utf8JsonWriter writer,
+            SetPetAvatarThumbnailRequest value,
+            JsonSerializerOptions options
+        )
+        {
+            JsonSerializer.Serialize(writer, value.ActualInstance, options);
+        }
+    }
 }

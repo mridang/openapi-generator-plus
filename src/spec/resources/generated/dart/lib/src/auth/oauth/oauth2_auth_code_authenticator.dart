@@ -93,6 +93,13 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
 
   /// Exchanges an authorization code for an access token.
   Future<void> exchangeCode(String code) async {
+    /* Cross-cutting `oauth-exchangecode-no-empty-code-guard`: refuse an
+     * empty/whitespace authorization code before issuing the token POST,
+     * so a missing code surfaces as a clear local error instead of a
+     * confusing downstream token-endpoint rejection. */
+    if (code.trim().isEmpty) {
+      throw ArgumentError('Authorization code must not be empty');
+    }
     final params = <String, String>{
       'grant_type': 'authorization_code',
       'code': code,

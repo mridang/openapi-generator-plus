@@ -12,11 +12,11 @@ defmodule PetstoreClient.ApiResponse do
 
   @type t :: %__MODULE__{
           status_code: integer(),
-          body: String.t() | nil,
+          body: String.t(),
           headers: %{optional(String.t()) => String.t()}
         }
 
   defstruct status_code: nil,
-            body: nil,
+            body: "",
             headers: %{}
 end

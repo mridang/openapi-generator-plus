@@ -105,6 +105,22 @@ public class OAuth2AuthCodeAuthenticatorTest
     }
 
     [Fact]
+    public async Task ExchangeCodeRejectsEmptyCode()
+    {
+        // oauth-exchangecode-no-empty-code-guard: an empty/whitespace
+        // authorization code is a precondition error and must be rejected
+        // before any token POST is issued.
+        var client = new FakeApiClient();
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => auth.ExchangeCodeAsync(""));
+        await Assert.ThrowsAsync<ArgumentException>(() => auth.ExchangeCodeAsync("   "));
+        // No request should have been sent for the rejected codes.
+        Assert.Null(client.LastBody);
+    }
+
+    [Fact]
     public async Task IncludesRefreshTokenOnRefresh()
     {
         var client = new FakeApiClient();

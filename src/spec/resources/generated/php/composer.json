@@ -1,4 +1,6 @@
 {
+    "name": "openapi/petstoreclient",
+    "description": "A simplified Pet Store API for integration testing.",
     "license": "MIT",
     "version": "1.0.0",
     "require": {

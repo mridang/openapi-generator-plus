@@ -92,10 +92,21 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
       Map<String, String> headers = new HashMap<>();
       headers.put("Accept", "application/json");
       ApiResponse response = apiClient.sendRequest("GET", openIdConnectUrl, headers, null);
+      /* Guard the HTTP status before parsing: a 5xx/4xx discovery
+       * response is typically an HTML/text error page, which would
+       * otherwise surface as a confusing "invalid JSON" error instead
+       * of the real "discovery failed" condition. */
+      if (response.statusCode() < 200 || response.statusCode() >= 300) {
+        throw new IllegalStateException(
+            "OpenID Connect discovery request to "
+                + openIdConnectUrl
+                + " failed with HTTP status "
+                + response.statusCode());
+      }
       ObjectMapper mapper = new ObjectMapper();
       JsonNode discovery = mapper.readTree(response.body());
-      String authorizationEndpoint = discovery.get("authorization_endpoint").asText();
-      String tokenEndpoint = discovery.get("token_endpoint").asText();
+      String authorizationEndpoint = requireEndpoint(discovery, "authorization_endpoint");
+      String tokenEndpoint = requireEndpoint(discovery, "token_endpoint");
       delegate =
           new OAuth2AuthorizationCodeAuthenticator(
               host,
@@ -111,6 +122,29 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
       throw new RuntimeException("Failed to fetch OpenID Connect discovery document", e);
     }
     return delegate;
+  }
+
+  /**
+   * Extract a required endpoint URL from the discovery document, validating that it is present and
+   * non-empty.
+   *
+   * @param discovery the parsed discovery document
+   * @param field the discovery field name (e.g. {@code token_endpoint})
+   * @return the endpoint URL
+   * @throws IllegalStateException if the field is absent, null, or empty
+   */
+  private static String requireEndpoint(JsonNode discovery, String field) {
+    JsonNode node = discovery.get(field);
+    if (node == null || node.isNull()) {
+      throw new IllegalStateException(
+          "OpenID Connect discovery document is missing required field: " + field);
+    }
+    String value = node.asText();
+    if (value.isEmpty()) {
+      throw new IllegalStateException(
+          "OpenID Connect discovery document has empty required field: " + field);
+    }
+    return value;
   }
 
   /**

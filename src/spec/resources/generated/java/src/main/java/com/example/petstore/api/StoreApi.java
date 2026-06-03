@@ -85,9 +85,8 @@ public class StoreApi extends BaseApi {
    * @return Map<String, Integer>
    * @throws ApiException if fails to make API call
    */
-  @Nullable
   public Map<String, Integer> getInventory() throws ApiException {
-    return getInventoryWithHttpInfo().data();
+    return requireBody(getInventoryWithHttpInfo(), "getInventory");
   }
 
   public ApiResult<Map<String, Integer>> getInventoryWithHttpInfo() throws ApiException {
@@ -113,9 +112,8 @@ public class StoreApi extends BaseApi {
    * @return Order
    * @throws ApiException if fails to make API call
    */
-  @Nullable
   public Order getOrderById(Long orderId) throws ApiException {
-    return getOrderByIdWithHttpInfo(orderId).data();
+    return requireBody(getOrderByIdWithHttpInfo(orderId), "getOrderById");
   }
 
   public ApiResult<Order> getOrderByIdWithHttpInfo(Long orderId) throws ApiException {
@@ -151,9 +149,8 @@ public class StoreApi extends BaseApi {
    * @return Order
    * @throws ApiException if fails to make API call
    */
-  @Nullable
   public Order placeOrder(@Nullable Order order) throws ApiException {
-    return placeOrderWithHttpInfo(order).data();
+    return requireBody(placeOrderWithHttpInfo(order), "placeOrder");
   }
 
   public ApiResult<Order> placeOrderWithHttpInfo(@Nullable Order order) throws ApiException {
@@ -170,5 +167,31 @@ public class StoreApi extends BaseApi {
         "application/json",
         placeOrderTypeRef,
         null);
+  }
+
+  /**
+   * Unwrap the body of a body-returning operation, throwing a typed {@link ApiException} when the
+   * server returned no decodable body (for example an empty or 204 response). The plain convenience
+   * accessor must never hand back a silent {@code null} for a declared non-void return type —
+   * callers get a catchable, typed error instead.
+   *
+   * @param result the API result whose data should be present
+   * @param operation the operation id, for the error message
+   * @param <T> the response body type
+   * @return the non-null response body
+   * @throws ApiException if the result carries no body
+   */
+  private static <T> T requireBody(ApiResult<T> result, String operation) throws ApiException {
+    T data = result.data();
+    if (data == null) {
+      throw new ApiException(
+          result.statusCode(),
+          "Operation '"
+              + operation
+              + "' returned an empty response body for a body-returning operation",
+          result.headers(),
+          result.rawBody());
+    }
+    return data;
   }
 }

@@ -16,11 +16,14 @@ class ApiError implements Exception {
   /// The error message.
   final String message;
 
-  /// The raw response body.
-  final String responseBody;
+  /// The raw response body, or null when the transport failed before a
+  /// body was produced. A null value is distinct from an empty body.
+  final String? responseBody;
 
-  /// The response headers.
-  final Map<String, String> responseHeaders;
+  /// The response headers, or null when the transport failed before any
+  /// headers were received. A null value is distinct from an empty header
+  /// map.
+  final Map<String, String>? responseHeaders;
 
   /// The parsed response body, if JSON.
   final Object? errorBody;
@@ -33,8 +36,8 @@ class ApiError implements Exception {
   const ApiError({
     required this.statusCode,
     required this.message,
-    this.responseBody = '',
-    this.responseHeaders = const {},
+    this.responseBody,
+    this.responseHeaders,
     this.errorBody,
     this.underlyingError,
   });
@@ -47,11 +50,13 @@ class ApiError implements Exception {
     if (statusCode != 0) {
       buf.write('\nHTTP status code: $statusCode');
     }
-    if (responseHeaders.isNotEmpty) {
-      buf.write('\nResponse headers: $responseHeaders');
+    final headers = responseHeaders;
+    if (headers != null && headers.isNotEmpty) {
+      buf.write('\nResponse headers: $headers');
     }
-    if (responseBody.isNotEmpty) {
-      buf.write('\nResponse body: $responseBody');
+    final body = responseBody;
+    if (body != null && body.isNotEmpty) {
+      buf.write('\nResponse body: $body');
     }
     return buf.toString();
   }
@@ -59,11 +64,12 @@ class ApiError implements Exception {
   /// Deserializes the response body into a typed value.
   /// Returns null if the body is empty or deserialization fails.
   T? typedErrorBody<T>(T Function(Map<String, dynamic>) fromJson) {
-    if (responseBody.isEmpty) {
+    final body = responseBody;
+    if (body == null || body.isEmpty) {
       return null;
     }
     try {
-      final decoded = jsonDecode(responseBody);
+      final decoded = jsonDecode(body);
       return fromJson(decoded as Map<String, dynamic>);
     } catch (_) {
       return null;

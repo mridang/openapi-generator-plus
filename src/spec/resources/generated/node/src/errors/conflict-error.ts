@@ -13,7 +13,7 @@ import { ClientError } from './client-error.js';
 export class ConflictError<T = unknown> extends ClientError<T> {
   constructor(
     message: string,
-    responseHeaders: Record<string, string> = {},
+    responseHeaders: Record<string, string> | null = {},
     responseBody: string | null = null,
     errorBody: T | null = null
   ) {

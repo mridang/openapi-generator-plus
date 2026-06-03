@@ -164,6 +164,7 @@ class DefaultApiClient:
         if transport_options is None:
             transport_options = TransportOptions.builder().build()
         self._transport_options = transport_options
+        self._closed = False
 
         if pool_manager is not None:
             self._pool_manager = pool_manager
@@ -187,8 +188,12 @@ class DefaultApiClient:
     def close(self) -> None:
         """Close the underlying urllib3 PoolManager and release sockets.
 
-        After calling this method the client must not be reused.
+        After calling this method the client must not be reused. Calling
+        :meth:`send_request` on a closed client raises
+        :class:`~petstore_client.errors.ApiException`. ``close()`` itself is
+        idempotent.
         """
+        self._closed = True
         if self._pool_manager is not None:
             self._pool_manager.clear()
 
@@ -232,6 +237,12 @@ class DefaultApiClient:
         Returns:
             :class:`ApiResponse` containing status code, body, and headers.
         """
+        # Use-after-close must surface the SDK's own error type rather than
+        # a foreign urllib3 exception (or silently succeeding against a
+        # cleared pool), matching the closed-flag guard the other SDKs use.
+        if self._closed:
+            raise ApiException(message='ApiClient has been closed and can no longer be used')
+
         # --- Merge headers: transport defaults < caller headers < injected ---
         merged_headers: Dict[str, str] = dict(self._transport_options.default_headers)
         merged_headers.update(headers)
@@ -326,10 +337,18 @@ class DefaultApiClient:
                 # contract is identical regardless of the transport
                 # follow_redirects setting.
                 raise ApiException(message=(f'Refusing to follow {response.status} redirect: caller requested no_redirect (likely an OAuth2 token request)'))
+
+            # The body read happens INSIDE the transport try/catch so a
+            # connection-reset / read-timeout / truncated-chunked failure
+            # that occurs AFTER the response headers are received is wrapped
+            # in the SDK's uniform ApiException (with the underlying error
+            # preserved as the cause) rather than leaking a raw urllib3
+            # exception. This gives callers one error type for the whole
+            # transport phase, matching Java/Swift/Ruby/PHP/Elixir.
+            raw_data = response.read()
         except urllib3.exceptions.HTTPError as e:
             raise ApiException(message=str(e)) from e
 
-        raw_data = response.read()
         content_encoding = (response.headers.get('content-encoding') or '').lower()
         decompressed = self._decompress_body(raw_data, content_encoding)
         content_type = response.headers.get('content-type') or ''
@@ -536,6 +555,14 @@ class DefaultApiClient:
             if original_proxy_headers is not None and isinstance(proxy_headers_attr, dict):
                 proxy_headers_attr.clear()
                 proxy_headers_attr.update(original_proxy_headers)
+
+        # Redirect-budget exhaustion must surface as a typed SDK error rather
+        # than silently handing back the final 3xx as if it were a normal
+        # response. We only got here with a redirect status still set (and a
+        # Location to follow) when the loop ran out of budget -- the
+        # no-Location case breaks out and is a legitimate terminal 3xx.
+        if response.status in self._REDIRECT_STATUSES and response.headers and response.headers.get('location'):
+            raise ApiException(message=f'Too many redirects (exceeded max_redirects={max_redirects})')
 
         return response
 

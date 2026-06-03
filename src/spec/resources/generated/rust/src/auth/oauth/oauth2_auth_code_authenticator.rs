@@ -14,9 +14,9 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use crate::api_client::ApiClient;
-use crate::auth::Authenticator;
 use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
 use crate::auth::oauth::oauth2_token_manager::OAuth2TokenManager;
+use crate::auth::Authenticator;
 
 /// Error returned by [`OAuth2AuthorizationCodeAuthenticator::try_auth_headers`]
 /// when the caller invokes it before [`exchange_code`]
@@ -115,10 +115,7 @@ impl OAuth2AuthorizationCodeAuthenticator {
             format!("redirect_uri={}", url_query_encode(&self.redirect_uri)),
         ];
         if !self.scopes.is_empty() {
-            params.push(format!(
-                "scope={}",
-                url_query_encode(&self.scopes.join(" "))
-            ));
+            params.push(format!("scope={}", url_query_encode(&self.scopes.join(" "))));
         }
         if !state.is_empty() {
             params.push(format!("state={}", url_query_encode(state)));
@@ -126,17 +123,8 @@ impl OAuth2AuthorizationCodeAuthenticator {
         /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
          * a query component. Use '&' as the separator when one is already
          * present so existing params are preserved, '?' otherwise. */
-        let separator = if self.authorization_url.contains('?') {
-            '&'
-        } else {
-            '?'
-        };
-        format!(
-            "{}{}{}",
-            self.authorization_url,
-            separator,
-            params.join("&")
-        )
+        let separator = if self.authorization_url.contains('?') { '&' } else { '?' };
+        format!("{}{}{}", self.authorization_url, separator, params.join("&"))
     }
 
     /// Exchanges an authorization code for an access token.
@@ -144,6 +132,12 @@ impl OAuth2AuthorizationCodeAuthenticator {
         &mut self,
         code: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        // oauth-exchangecode-no-empty-code-guard: an empty authorization code
+        // can never succeed at the token endpoint; reject it up front rather
+        // than issuing a guaranteed-to-fail POST with `code=`.
+        if code.is_empty() || code.trim().is_empty() {
+            return Err("authorization code must not be empty".into());
+        }
         let mut params = HashMap::new();
         params.insert("grant_type".to_string(), "authorization_code".to_string());
         params.insert("code".to_string(), code.to_string());
@@ -172,14 +166,16 @@ impl OAuth2AuthorizationCodeAuthenticator {
         &'a self,
     ) -> Pin<
         Box<
-            dyn Future<Output = Result<HashMap<String, String>, Box<dyn Error + Send + Sync>>>
-                + Send
+            dyn Future<
+                    Output = Result<HashMap<String, String>, Box<dyn Error + Send + Sync>>,
+                > + Send
                 + 'a,
         >,
     > {
         Box::pin(async move {
             if !self.token_exchanged {
-                return Err(Box::new(AuthCodeNotExchangedError) as Box<dyn Error + Send + Sync>);
+                return Err(Box::new(AuthCodeNotExchangedError)
+                    as Box<dyn Error + Send + Sync>);
             }
 
             let mut params = HashMap::new();
@@ -195,7 +191,10 @@ impl OAuth2AuthorizationCodeAuthenticator {
                 .await?;
 
             let mut headers = HashMap::new();
-            headers.insert("Authorization".to_string(), format!("Bearer {}", token));
+            headers.insert(
+                "Authorization".to_string(),
+                format!("Bearer {}", token),
+            );
             Ok(headers)
         })
     }
@@ -218,9 +217,7 @@ impl Authenticator for OAuth2AuthorizationCodeAuthenticator {
         &'a self,
     ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
         Box::pin(async move {
-            self.try_auth_headers()
-                .await
-                .unwrap_or_else(|_| HashMap::new())
+            self.try_auth_headers().await.unwrap_or_else(|_| HashMap::new())
         })
     }
 

@@ -16,7 +16,7 @@ public enum PetStatusEnum: String, Codable, Sendable, CaseIterable {
     case sold = "sold"
 }
 
-public struct Pet: Codable, Sendable {
+public struct Pet: Codable, Sendable, Equatable, Hashable {
     /// Example: `10`
     public var id: Int64?
     /// Example: `doggie`

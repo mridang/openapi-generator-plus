@@ -9,7 +9,6 @@
 
 package com.example.petstore
 
-import io.ktor.http.Url
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
@@ -17,19 +16,19 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonDecoder
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonEncoder
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.JsonUnquotedLiteral
+import kotlinx.serialization.json.JsonEncoder
+import kotlinx.serialization.json.JsonDecoder
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.contextual
 import kotlinx.serialization.serializer
+import kotlinx.serialization.json.JsonUnquotedLiteral
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.OffsetDateTime
@@ -37,6 +36,7 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAccessor
 import java.util.Base64
 import kotlin.uuid.Uuid
+import io.ktor.http.Url
 
 /**
  * Serializer for [ByteArray] properties that uses Base64 encoding in JSON.
@@ -48,29 +48,23 @@ import kotlin.uuid.Uuid
  */
 object Base64ByteArraySerializer : KSerializer<ByteArray> {
     override val descriptor = PrimitiveSerialDescriptor("ByteArray", PrimitiveKind.STRING)
-
-    override fun serialize(
-        encoder: Encoder,
-        value: ByteArray,
-    ) = encoder.encodeString(Base64.getEncoder().encodeToString(value))
-
-    override fun deserialize(decoder: Decoder): ByteArray = Base64.getDecoder().decode(decoder.decodeString())
+    override fun serialize(encoder: Encoder, value: ByteArray) =
+        encoder.encodeString(Base64.getEncoder().encodeToString(value))
+    override fun deserialize(decoder: Decoder): ByteArray =
+        Base64.getDecoder().decode(decoder.decodeString())
 }
 
 /**
  * Handles JSON serialization and deserialization for API requests and responses.
  */
 class ObjectSerializer(
-    val json: Json = createDefaultJson(),
+    val json: Json = createDefaultJson()
 ) {
     fun serialize(obj: Any?): String {
         if (obj == null) return "null"
-        val unwrapped =
-            try {
-                obj::class.java.getMethod("getActualInstance").invoke(obj)
-            } catch (_: NoSuchMethodException) {
-                obj
-            }
+        val unwrapped = try {
+            obj::class.java.getMethod("getActualInstance").invoke(obj)
+        } catch (_: NoSuchMethodException) { obj }
         if (unwrapped == null) return "null"
         if (unwrapped is Map<*, *> || unwrapped is List<*>) {
             return json.encodeToString(JsonElement.serializer(), toJsonElement(unwrapped))
@@ -117,21 +111,17 @@ class ObjectSerializer(
 
     fun toPathValue(value: Any?): String = stringify(value)
 
-    fun toQueryValue(
-        value: Any?,
-        collectionFormat: String?,
-    ): Any? {
+    fun toQueryValue(value: Any?, collectionFormat: String?): Any? {
         if (value == null) return null
         if (value is Collection<*>) {
             val items = value.map { stringify(it) }
             if ("multi" == collectionFormat) return items
-            val sep =
-                when (collectionFormat) {
-                    "ssv" -> " "
-                    "tsv" -> "\t"
-                    "pipes" -> "|"
-                    else -> ","
-                }
+            val sep = when (collectionFormat) {
+                "ssv" -> " "
+                "tsv" -> "\t"
+                "pipes" -> "|"
+                else -> ","
+            }
             return items.joinToString(sep)
         }
         return stringify(value)
@@ -156,12 +146,11 @@ class ObjectSerializer(
     /**
      * Resolve a oneOf schema by attempting deserialization against each candidate.
      * Each candidate is a function that takes a JSON string and returns a deserialized value.
-     * Returns the first successful result, or null if none match.
+     * Returns the first successful result, or throws [SerializationException] when no
+     * variant matches — a payload that satisfies none of the declared oneOf members is
+     * spec drift and must fail loud rather than be silently stored as a raw value.
      */
-    fun resolveOneOf(
-        jsonString: String,
-        candidates: List<(String) -> Any?>,
-    ): Any? {
+    fun resolveOneOf(jsonString: String, candidates: List<(String) -> Any?>): Any {
         for (candidate in candidates) {
             try {
                 val result = candidate(jsonString)
@@ -170,27 +159,24 @@ class ObjectSerializer(
                 continue
             }
         }
-        return null
+        throw SerializationException(
+            "No oneOf/anyOf variant matched the response body"
+        )
     }
 
     /**
      * Resolve an anyOf schema by attempting deserialization against each candidate.
-     * Returns the first successful result, or null if none match.
+     * Returns the first successful result, or throws [SerializationException] when none match.
      */
-    fun resolveAnyOf(
-        jsonString: String,
-        candidates: List<(String) -> Any?>,
-    ): Any? = resolveOneOf(jsonString, candidates)
+    fun resolveAnyOf(jsonString: String, candidates: List<(String) -> Any?>): Any {
+        return resolveOneOf(jsonString, candidates)
+    }
 
     companion object {
         private object OffsetDateTimeSerializer : KSerializer<OffsetDateTime> {
             override val descriptor = PrimitiveSerialDescriptor("OffsetDateTime", PrimitiveKind.STRING)
-
-            override fun serialize(
-                encoder: Encoder,
-                value: OffsetDateTime,
-            ) = encoder.encodeString(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssxxx").format(value))
-
+            override fun serialize(encoder: Encoder, value: OffsetDateTime) =
+                encoder.encodeString(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssxxx").format(value))
             override fun deserialize(decoder: Decoder): OffsetDateTime =
                 OffsetDateTime.parse(decoder.decodeString(), DateTimeFormatter.ISO_OFFSET_DATE_TIME)
         }
@@ -200,19 +186,14 @@ class ObjectSerializer(
         // through deserialize via reading the raw element source.
         private object BigDecimalSerializer : KSerializer<BigDecimal> {
             override val descriptor = PrimitiveSerialDescriptor("BigDecimal", PrimitiveKind.STRING)
-
             @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
-            override fun serialize(
-                encoder: Encoder,
-                value: BigDecimal,
-            ) {
+            override fun serialize(encoder: Encoder, value: BigDecimal) {
                 if (encoder is JsonEncoder) {
                     encoder.encodeJsonElement(JsonUnquotedLiteral(value.toPlainString()))
                 } else {
                     encoder.encodeString(value.toPlainString())
                 }
             }
-
             override fun deserialize(decoder: Decoder): BigDecimal {
                 if (decoder is JsonDecoder) {
                     val element = decoder.decodeJsonElement()
@@ -224,12 +205,8 @@ class ObjectSerializer(
 
         private object LocalDateSerializer : KSerializer<LocalDate> {
             override val descriptor = PrimitiveSerialDescriptor("LocalDate", PrimitiveKind.STRING)
-
-            override fun serialize(
-                encoder: Encoder,
-                value: LocalDate,
-            ) = encoder.encodeString(DateTimeFormatter.ISO_LOCAL_DATE.format(value))
-
+            override fun serialize(encoder: Encoder, value: LocalDate) =
+                encoder.encodeString(DateTimeFormatter.ISO_LOCAL_DATE.format(value))
             override fun deserialize(decoder: Decoder): LocalDate =
                 LocalDate.parse(decoder.decodeString(), DateTimeFormatter.ISO_LOCAL_DATE)
         }
@@ -241,12 +218,8 @@ class ObjectSerializer(
          * canonical RFC 4122 lowercase hex form. */
         private object UuidSerializer : KSerializer<Uuid> {
             override val descriptor = PrimitiveSerialDescriptor("Uuid", PrimitiveKind.STRING)
-
-            override fun serialize(
-                encoder: Encoder,
-                value: Uuid,
-            ) = encoder.encodeString(value.toString())
-
+            override fun serialize(encoder: Encoder, value: Uuid) =
+                encoder.encodeString(value.toString())
             override fun deserialize(decoder: Decoder): Uuid {
                 val raw = decoder.decodeString()
                 try {
@@ -268,13 +241,10 @@ class ObjectSerializer(
          * authority-only form `https://example.com`). */
         private object KtorUrlSerializer : KSerializer<Url> {
             override val descriptor = PrimitiveSerialDescriptor("KtorUrl", PrimitiveKind.STRING)
-
-            override fun serialize(
-                encoder: Encoder,
-                value: Url,
-            ) = encoder.encodeString(value.toString())
-
-            override fun deserialize(decoder: Decoder): Url = Url(decoder.decodeString())
+            override fun serialize(encoder: Encoder, value: Url) =
+                encoder.encodeString(value.toString())
+            override fun deserialize(decoder: Decoder): Url =
+                Url(decoder.decodeString())
         }
 
         /* Gap AZ: contextual serializer for raw `Any` so properties
@@ -287,18 +257,13 @@ class ObjectSerializer(
         @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
         private object AnySerializer : KSerializer<Any> {
             override val descriptor = PrimitiveSerialDescriptor("Any", PrimitiveKind.STRING)
-
-            override fun serialize(
-                encoder: Encoder,
-                value: Any,
-            ) {
+            override fun serialize(encoder: Encoder, value: Any) {
                 if (encoder is JsonEncoder) {
                     encoder.encodeJsonElement(toJsonElementStatic(value))
                 } else {
                     encoder.encodeString(value.toString())
                 }
             }
-
             override fun deserialize(decoder: Decoder): Any {
                 if (decoder is JsonDecoder) {
                     return fromJsonElement(decoder.decodeJsonElement())
@@ -310,52 +275,48 @@ class ObjectSerializer(
         /* Duplicate of the instance-level toJsonElement so AnySerializer
          * (which has no enclosing instance) can convert arbitrary values
          * to JsonElement. Kept private to the companion object. */
-        private fun toJsonElementStatic(value: Any?): JsonElement =
-            when (value) {
-                null -> JsonNull
-                is Number -> JsonPrimitive(value)
-                is Boolean -> JsonPrimitive(value)
-                is String -> JsonPrimitive(value)
-                is Map<*, *> -> JsonObject(value.entries.associate { (k, v) -> k.toString() to toJsonElementStatic(v) })
-                is List<*> -> JsonArray(value.map { toJsonElementStatic(it) })
-                else -> JsonPrimitive(value.toString())
-            }
+        private fun toJsonElementStatic(value: Any?): JsonElement = when (value) {
+            null -> JsonNull
+            is Number -> JsonPrimitive(value)
+            is Boolean -> JsonPrimitive(value)
+            is String -> JsonPrimitive(value)
+            is Map<*, *> -> JsonObject(value.entries.associate { (k, v) -> k.toString() to toJsonElementStatic(v) })
+            is List<*> -> JsonArray(value.map { toJsonElementStatic(it) })
+            else -> JsonPrimitive(value.toString())
+        }
 
-        private fun fromJsonElement(element: JsonElement): Any =
-            when (element) {
-                is JsonNull -> "null"
-                is JsonPrimitive ->
-                    element.booleanOrNull
-                        ?: element.longOrNull
-                        ?: element.doubleOrNull
-                        ?: element.content
-                is JsonObject -> element.mapValues { fromJsonElement(it.value) }
-                is JsonArray -> element.map { fromJsonElement(it) }
-            }
+        private fun fromJsonElement(element: JsonElement): Any = when (element) {
+            is JsonNull -> "null"
+            is JsonPrimitive ->
+                element.booleanOrNull
+                    ?: element.longOrNull
+                    ?: element.doubleOrNull
+                    ?: element.content
+            is JsonObject -> element.mapValues { fromJsonElement(it.value) }
+            is JsonArray -> element.map { fromJsonElement(it) }
+        }
 
-        fun createDefaultJson(): Json =
-            Json {
-                ignoreUnknownKeys = true
-                encodeDefaults = false
-                // Gap AJ: removed `explicitNulls = false` so deserialization
-                // throws on `{"name": null}` for a required non-nullable field
-                // instead of silently assigning null. Aligns with the 9 SDKs
-                // that throw; Python and Go also tightened in this cycle.
-                // explicitNulls defaults to true.
-                isLenient = true
-                // Gap AJ: removed `coerceInputValues = true` for the same
-                // reason — coercing missing values to defaults masked the
-                // required-field violation. Default is false (strict).
-                serializersModule =
-                    SerializersModule {
-                        contextual(OffsetDateTimeSerializer)
-                        contextual(LocalDateSerializer)
-                        contextual(BigDecimalSerializer)
-                        contextual(UuidSerializer)
-                        contextual(KtorUrlSerializer)
-                        contextual(Any::class, AnySerializer)
-                    }
+        fun createDefaultJson(): Json = Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = false
+            // Gap AJ: removed `explicitNulls = false` so deserialization
+            // throws on `{"name": null}` for a required non-nullable field
+            // instead of silently assigning null. Aligns with the 9 SDKs
+            // that throw; Python and Go also tightened in this cycle.
+            // explicitNulls defaults to true.
+            isLenient = true
+            // Gap AJ: removed `coerceInputValues = true` for the same
+            // reason — coercing missing values to defaults masked the
+            // required-field violation. Default is false (strict).
+            serializersModule = SerializersModule {
+                contextual(OffsetDateTimeSerializer)
+                contextual(LocalDateSerializer)
+                contextual(BigDecimalSerializer)
+                contextual(UuidSerializer)
+                contextual(KtorUrlSerializer)
+                contextual(Any::class, AnySerializer)
             }
+        }
     }
 
     class SerializationException : RuntimeException {

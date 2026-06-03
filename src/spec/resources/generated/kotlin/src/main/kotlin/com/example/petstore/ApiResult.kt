@@ -13,6 +13,6 @@ package com.example.petstore
 data class ApiResult<T>(
     val statusCode: Int,
     val data: T?,
-    val rawBody: String?,
-    val headers: Map<String, String>,
+    val rawBody: String,
+    val headers: Map<String, String>
 )

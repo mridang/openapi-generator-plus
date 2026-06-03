@@ -64,18 +64,16 @@ public class StoreApi : BaseApi
         string path = "/store/order/{orderId}";
         path = path.Replace(
             "{" + nameof(orderId) + "}",
-            ValueSerializer.EncodePathSegment(
-                (string)
-                    ValueSerializer.SerializeStyled(
-                        nameof(orderId),
-                        orderId,
-                        "path",
-                        "long",
-                        null,
-                        "simple",
-                        false
-                    )!
-            ),
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(orderId),
+                    orderId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -104,8 +102,18 @@ public class StoreApi : BaseApi
     {
         Task<ApiResult<Dictionary<string, int>>> task = GetInventoryWithHttpInfoAsync();
         ApiResult<Dictionary<string, int>> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
         return result.Data
-            ?? throw new InvalidOperationException("Expected non-null response body");
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                result.Headers,
+                result.RawBody
+            );
     }
 
     /// <summary>
@@ -143,8 +151,18 @@ public class StoreApi : BaseApi
     {
         Task<ApiResult<Order>> task = GetOrderByIdWithHttpInfoAsync(orderId);
         ApiResult<Order> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
         return result.Data
-            ?? throw new InvalidOperationException("Expected non-null response body");
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                result.Headers,
+                result.RawBody
+            );
     }
 
     /// <summary>
@@ -158,18 +176,16 @@ public class StoreApi : BaseApi
         string path = "/store/order/{orderId}";
         path = path.Replace(
             "{" + nameof(orderId) + "}",
-            ValueSerializer.EncodePathSegment(
-                (string)
-                    ValueSerializer.SerializeStyled(
-                        nameof(orderId),
-                        orderId,
-                        "path",
-                        "long",
-                        null,
-                        "simple",
-                        false
-                    )!
-            ),
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(orderId),
+                    orderId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -199,8 +215,18 @@ public class StoreApi : BaseApi
     {
         Task<ApiResult<Order>> task = PlaceOrderWithHttpInfoAsync(order);
         ApiResult<Order> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
         return result.Data
-            ?? throw new InvalidOperationException("Expected non-null response body");
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                result.Headers,
+                result.RawBody
+            );
     }
 
     /// <summary>

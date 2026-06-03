@@ -736,6 +736,36 @@ public class ValueSerializerTest
     }
 
     [Fact]
+    public void pathParamIsEncodedExactlyOnceNotDoubleEncoded()
+    {
+        // path-double-encoding regression: the operation method substitutes
+        // the *already* path-encoded output of SerializeStyled directly into
+        // the URL template. It must NOT wrap the result in a second
+        // EncodePathSegment call — doing so turns the '%' of an encoded
+        // octet into '%25', so a space becomes '%2520' and '/' becomes
+        // '%252F'. This asserts a single encode pass produces '%2F'/'%20',
+        // and that re-encoding that output (the old api-template bug) would
+        // wrongly yield '%252F'/'%2520'.
+        string once = (string)
+            ValueSerializer.SerializeStyled(
+                "name",
+                "a/b c",
+                "path",
+                "string",
+                null,
+                "simple",
+                false
+            )!;
+        Assert.Equal("a%2Fb%20c", once);
+
+        // The old template wrapped this a second time; prove that path is the
+        // corrupted one so the fix (substituting `once` verbatim) is locked in.
+        string twice = ValueSerializer.EncodePathSegment(once);
+        Assert.Equal("a%252Fb%2520c", twice);
+        Assert.NotEqual(once, twice);
+    }
+
+    [Fact]
     public void PathEncodingParityMatrixStyleEncodesValue()
     {
         Assert.Equal(

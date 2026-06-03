@@ -421,6 +421,22 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void transportFailureWrapsApiExceptionPreservingCause() {
+    // A send-phase transport failure (connection refused on a closed port)
+    // must surface as an ApiException whose getCause() is the underlying
+    // IOException, not a cause-less stringified error.
+    DefaultApiClient client = new DefaultApiClient();
+    ApiException ex =
+        assertThrows(
+            ApiException.class,
+            () -> client.sendRequest("GET", "http://127.0.0.1:1/never", Map.of(), null));
+    assertNotNull(ex.getCause(), "transport exception must be preserved as the cause");
+    assertTrue(
+        ex.getCause() instanceof java.io.IOException,
+        "cause should be the underlying IOException, was: " + ex.getCause());
+  }
+
+  @Test
   void httpsToHttpBodyReplayGuardIgnoredForSameSchemeRedirects() {
     java.net.URI httpOrig = java.net.URI.create("http://api.example.com/x");
     java.net.URI httpTarg = java.net.URI.create("http://api.example.com/y");

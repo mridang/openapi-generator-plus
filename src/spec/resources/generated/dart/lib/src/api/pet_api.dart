@@ -14,6 +14,7 @@ import 'base_api.dart';
 import '../configuration.dart';
 import '../object_serializer.dart';
 import '../value_serializer.dart';
+import '../errors/api_error.dart';
 import '../models/api_response.dart';
 import '../models/pet.dart';
 import '../models/pet_passport.dart';
@@ -167,7 +168,21 @@ class PetApi extends BaseApi {
 
   Future<Pet> addPet(Pet pet, {Authenticator? auth}) async {
     final result = await addPetWithHTTPInfo(pet, auth: auth);
-    return result.data as Pet;
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as Pet` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: 'Expected a response body for addPet but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
   }
 
   /// Performs the addPet operation and returns the full API result.
@@ -201,7 +216,22 @@ class PetApi extends BaseApi {
   Future<List<Photo>> addPetPhotos(int petId, AddPetPhotosOptions options,
       {Authenticator? auth}) async {
     final result = await addPetPhotosWithHTTPInfo(petId, options, auth: auth);
-    return result.data as List<Photo>;
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as List<Photo>` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for addPetPhotos but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
   }
 
   /// Performs the addPetPhotos operation and returns the full API result.
@@ -209,11 +239,15 @@ class PetApi extends BaseApi {
       int petId, AddPetPhotosOptions options,
       {Authenticator? auth}) async {
     var path = '/pet/{petId}/photos';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so the
+     * outer _encodePathSegment wrapper was encoding a second time (a
+     * space became %2520, `a/b` became a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. */
     path = path.replaceAll(
         '{' + 'petId' + '}',
-        _encodePathSegment(
-            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-                .toString()));
+        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+            .toString());
 
     final queryParams = <String, Object?>{};
 
@@ -245,7 +279,22 @@ class PetApi extends BaseApi {
       {Authenticator? auth}) async {
     final result =
         await addPetTreatmentWithHTTPInfo(petId, petTreatment, auth: auth);
-    return result.data as PetTreatment;
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as PetTreatment` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for addPetTreatment but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
   }
 
   /// Performs the addPetTreatment operation and returns the full API result.
@@ -253,11 +302,15 @@ class PetApi extends BaseApi {
       int petId, PetTreatment petTreatment,
       {Authenticator? auth}) async {
     var path = '/pet/{petId}/treatment';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so the
+     * outer _encodePathSegment wrapper was encoding a second time (a
+     * space became %2520, `a/b` became a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. */
     path = path.replaceAll(
         '{' + 'petId' + '}',
-        _encodePathSegment(
-            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-                .toString()));
+        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+            .toString());
 
     final queryParams = <String, Object?>{};
 
@@ -294,11 +347,15 @@ class PetApi extends BaseApi {
       int petId, DeletePetOptions? options,
       {Authenticator? auth}) async {
     var path = '/pet/{petId}';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so the
+     * outer _encodePathSegment wrapper was encoding a second time (a
+     * space became %2520, `a/b` became a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. */
     path = path.replaceAll(
         '{' + 'petId' + '}',
-        _encodePathSegment(
-            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-                .toString()));
+        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+            .toString());
 
     final queryParams = <String, Object?>{};
 
@@ -334,7 +391,22 @@ class PetApi extends BaseApi {
       {Authenticator? auth}) async {
     final result =
         await downloadPetDocumentWithHTTPInfo(petId, documentId, auth: auth);
-    return result.data as Uint8List;
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as Uint8List` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for downloadPetDocument but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
   }
 
   /// Performs the downloadPetDocument operation and returns the full API result.
@@ -342,16 +414,25 @@ class PetApi extends BaseApi {
       int petId, int documentId,
       {Authenticator? auth}) async {
     var path = '/pet/{petId}/documents/{documentId}';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so the
+     * outer _encodePathSegment wrapper was encoding a second time (a
+     * space became %2520, `a/b` became a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. */
     path = path.replaceAll(
         '{' + 'petId' + '}',
-        _encodePathSegment(
-            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-                .toString()));
+        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+            .toString());
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so the
+     * outer _encodePathSegment wrapper was encoding a second time (a
+     * space became %2520, `a/b` became a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. */
     path = path.replaceAll(
         '{' + 'documentId' + '}',
-        _encodePathSegment(serializeStyled(
+        serializeStyled(
                 'documentId', documentId, 'path', 'int', '', 'simple', false)
-            .toString()));
+            .toString());
 
     final queryParams = <String, Object?>{};
 
@@ -394,7 +475,22 @@ class PetApi extends BaseApi {
   Future<List<Pet>> findPetsByStatus(FindPetsByStatusOptions? options,
       {Authenticator? auth}) async {
     final result = await findPetsByStatusWithHTTPInfo(options, auth: auth);
-    return result.data as List<Pet>;
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as List<Pet>` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for findPetsByStatus but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
   }
 
   /// Performs the findPetsByStatus operation and returns the full API result.
@@ -443,7 +539,22 @@ class PetApi extends BaseApi {
       {Authenticator? auth}) async {
     final result =
         await getExternalPetInfoWithHTTPInfo(petId, server, auth: auth);
-    return result.data as Pet;
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as Pet` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for getExternalPetInfo but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
   }
 
   /// Performs the getExternalPetInfo operation and returns the full API result.
@@ -451,11 +562,15 @@ class PetApi extends BaseApi {
       int petId, GetExternalPetInfoServer? server,
       {Authenticator? auth}) async {
     var path = '/pet/{petId}/external';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so the
+     * outer _encodePathSegment wrapper was encoding a second time (a
+     * space became %2520, `a/b` became a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. */
     path = path.replaceAll(
         '{' + 'petId' + '}',
-        _encodePathSegment(
-            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-                .toString()));
+        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+            .toString());
     if (server != null) {
       final serverUrl = server.getUrl();
       if (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) {
@@ -490,7 +605,22 @@ class PetApi extends BaseApi {
       {Authenticator? auth}) async {
     final result =
         await getMultiServerPetInfoWithHTTPInfo(petId, server, auth: auth);
-    return result.data as Pet;
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as Pet` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for getMultiServerPetInfo but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
   }
 
   /// Performs the getMultiServerPetInfo operation and returns the full API result.
@@ -498,11 +628,15 @@ class PetApi extends BaseApi {
       int petId, GetMultiServerPetInfoServer? server,
       {Authenticator? auth}) async {
     var path = '/pet/{petId}/multi';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so the
+     * outer _encodePathSegment wrapper was encoding a second time (a
+     * space became %2520, `a/b` became a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. */
     path = path.replaceAll(
         '{' + 'petId' + '}',
-        _encodePathSegment(
-            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-                .toString()));
+        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+            .toString());
     if (server != null) {
       final serverUrl = server.getUrl();
       if (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) {
@@ -535,18 +669,37 @@ class PetApi extends BaseApi {
 
   Future<Uint8List> getPetAvatar(int petId, {Authenticator? auth}) async {
     final result = await getPetAvatarWithHTTPInfo(petId, auth: auth);
-    return result.data as Uint8List;
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as Uint8List` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for getPetAvatar but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
   }
 
   /// Performs the getPetAvatar operation and returns the full API result.
   Future<ApiResult<Uint8List>> getPetAvatarWithHTTPInfo(int petId,
       {Authenticator? auth}) async {
     var path = '/pet/{petId}/avatar';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so the
+     * outer _encodePathSegment wrapper was encoding a second time (a
+     * space became %2520, `a/b` became a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. */
     path = path.replaceAll(
         '{' + 'petId' + '}',
-        _encodePathSegment(
-            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-                .toString()));
+        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+            .toString());
 
     final queryParams = <String, Object?>{};
 
@@ -574,18 +727,37 @@ class PetApi extends BaseApi {
   Future<Uint8List> getPetAvatarThumbnail(int petId,
       {Authenticator? auth}) async {
     final result = await getPetAvatarThumbnailWithHTTPInfo(petId, auth: auth);
-    return result.data as Uint8List;
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as Uint8List` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for getPetAvatarThumbnail but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
   }
 
   /// Performs the getPetAvatarThumbnail operation and returns the full API result.
   Future<ApiResult<Uint8List>> getPetAvatarThumbnailWithHTTPInfo(int petId,
       {Authenticator? auth}) async {
     var path = '/pet/{petId}/avatar/thumbnail';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so the
+     * outer _encodePathSegment wrapper was encoding a second time (a
+     * space became %2520, `a/b` became a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. */
     path = path.replaceAll(
         '{' + 'petId' + '}',
-        _encodePathSegment(
-            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-                .toString()));
+        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+            .toString());
 
     final queryParams = <String, Object?>{};
 
@@ -628,7 +800,22 @@ class PetApi extends BaseApi {
   Future<Pet> getPetById(int petId, GetPetByIdServer? server,
       {Authenticator? auth}) async {
     final result = await getPetByIdWithHTTPInfo(petId, server, auth: auth);
-    return result.data as Pet;
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as Pet` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for getPetById but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
   }
 
   /// Performs the getPetById operation and returns the full API result.
@@ -636,11 +823,15 @@ class PetApi extends BaseApi {
       int petId, GetPetByIdServer? server,
       {Authenticator? auth}) async {
     var path = '/pet/{petId}';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so the
+     * outer _encodePathSegment wrapper was encoding a second time (a
+     * space became %2520, `a/b` became a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. */
     path = path.replaceAll(
         '{' + 'petId' + '}',
-        _encodePathSegment(
-            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-                .toString()));
+        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+            .toString());
     if (server != null) {
       final serverUrl = server.getUrl();
       if (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) {
@@ -673,18 +864,37 @@ class PetApi extends BaseApi {
 
   Future<PetPassport> getPetPassport(int petId, {Authenticator? auth}) async {
     final result = await getPetPassportWithHTTPInfo(petId, auth: auth);
-    return result.data as PetPassport;
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as PetPassport` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for getPetPassport but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
   }
 
   /// Performs the getPetPassport operation and returns the full API result.
   Future<ApiResult<PetPassport>> getPetPassportWithHTTPInfo(int petId,
       {Authenticator? auth}) async {
     var path = '/pet/{petId}/passport';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so the
+     * outer _encodePathSegment wrapper was encoding a second time (a
+     * space became %2520, `a/b` became a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. */
     path = path.replaceAll(
         '{' + 'petId' + '}',
-        _encodePathSegment(
-            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-                .toString()));
+        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+            .toString());
 
     final queryParams = <String, Object?>{};
 
@@ -713,23 +923,46 @@ class PetApi extends BaseApi {
   Future<Uint8List> getPetPhoto(int petId, int photoId,
       {Authenticator? auth}) async {
     final result = await getPetPhotoWithHTTPInfo(petId, photoId, auth: auth);
-    return result.data as Uint8List;
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as Uint8List` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for getPetPhoto but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
   }
 
   /// Performs the getPetPhoto operation and returns the full API result.
   Future<ApiResult<Uint8List>> getPetPhotoWithHTTPInfo(int petId, int photoId,
       {Authenticator? auth}) async {
     var path = '/pet/{petId}/photos/{photoId}';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so the
+     * outer _encodePathSegment wrapper was encoding a second time (a
+     * space became %2520, `a/b` became a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. */
     path = path.replaceAll(
         '{' + 'petId' + '}',
-        _encodePathSegment(
-            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-                .toString()));
+        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+            .toString());
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so the
+     * outer _encodePathSegment wrapper was encoding a second time (a
+     * space became %2520, `a/b` became a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. */
     path = path.replaceAll(
         '{' + 'photoId' + '}',
-        _encodePathSegment(serializeStyled(
-                'photoId', photoId, 'path', 'int', '', 'simple', false)
-            .toString()));
+        serializeStyled('photoId', photoId, 'path', 'int', '', 'simple', false)
+            .toString());
 
     final queryParams = <String, Object?>{};
 
@@ -757,7 +990,21 @@ class PetApi extends BaseApi {
       {Authenticator? auth}) async {
     final result =
         await getPetTagWithHTTPInfo(petId, tagName, options, auth: auth);
-    return result.data as Pet;
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as Pet` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: 'Expected a response body for getPetTag but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
   }
 
   /// Performs the getPetTag operation and returns the full API result.
@@ -765,16 +1012,25 @@ class PetApi extends BaseApi {
       int petId, String tagName, GetPetTagOptions? options,
       {Authenticator? auth}) async {
     var path = '/pet/{petId}/tag/{tagName}';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so the
+     * outer _encodePathSegment wrapper was encoding a second time (a
+     * space became %2520, `a/b` became a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. */
     path = path.replaceAll(
         '{' + 'petId' + '}',
-        _encodePathSegment(
-            serializeStyled('petId', petId, 'path', 'int', '', 'matrix', false)
-                .toString()));
+        serializeStyled('petId', petId, 'path', 'int', '', 'matrix', false)
+            .toString());
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so the
+     * outer _encodePathSegment wrapper was encoding a second time (a
+     * space became %2520, `a/b` became a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. */
     path = path.replaceAll(
         '{' + 'tagName' + '}',
-        _encodePathSegment(serializeStyled(
+        serializeStyled(
                 'tagName', tagName, 'path', 'String', '', 'label', false)
-            .toString()));
+            .toString());
 
     final queryParams = <String, Object?>{};
     if (options != null && options.colors != null) {
@@ -818,7 +1074,22 @@ class PetApi extends BaseApi {
       {Authenticator? auth}) async {
     final result =
         await getStagingPetInfoWithHTTPInfo(petId, server, auth: auth);
-    return result.data as Pet;
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as Pet` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for getStagingPetInfo but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
   }
 
   /// Performs the getStagingPetInfo operation and returns the full API result.
@@ -826,11 +1097,15 @@ class PetApi extends BaseApi {
       int petId, GetStagingPetInfoServer? server,
       {Authenticator? auth}) async {
     var path = '/pet/{petId}/staging';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so the
+     * outer _encodePathSegment wrapper was encoding a second time (a
+     * space became %2520, `a/b` became a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. */
     path = path.replaceAll(
         '{' + 'petId' + '}',
-        _encodePathSegment(
-            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-                .toString()));
+        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+            .toString());
     if (server != null) {
       final serverUrl = server.getUrl();
       if (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) {
@@ -870,11 +1145,15 @@ class PetApi extends BaseApi {
   Future<ApiResult<void>> setPetAvatarWithHTTPInfo(int petId, Uint8List body,
       {Authenticator? auth}) async {
     var path = '/pet/{petId}/avatar';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so the
+     * outer _encodePathSegment wrapper was encoding a second time (a
+     * space became %2520, `a/b` became a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. */
     path = path.replaceAll(
         '{' + 'petId' + '}',
-        _encodePathSegment(
-            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-                .toString()));
+        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+            .toString());
 
     final queryParams = <String, Object?>{};
 
@@ -910,11 +1189,15 @@ class PetApi extends BaseApi {
       int petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
       {Authenticator? auth}) async {
     var path = '/pet/{petId}/avatar/thumbnail';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so the
+     * outer _encodePathSegment wrapper was encoding a second time (a
+     * space became %2520, `a/b` became a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. */
     path = path.replaceAll(
         '{' + 'petId' + '}',
-        _encodePathSegment(
-            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-                .toString()));
+        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+            .toString());
 
     final queryParams = <String, Object?>{};
 
@@ -941,18 +1224,36 @@ class PetApi extends BaseApi {
 
   Future<Pet> updatePet(int petId, Pet pet, {Authenticator? auth}) async {
     final result = await updatePetWithHTTPInfo(petId, pet, auth: auth);
-    return result.data as Pet;
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as Pet` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: 'Expected a response body for updatePet but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
   }
 
   /// Performs the updatePet operation and returns the full API result.
   Future<ApiResult<Pet>> updatePetWithHTTPInfo(int petId, Pet pet,
       {Authenticator? auth}) async {
     var path = '/pet/{petId}';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so the
+     * outer _encodePathSegment wrapper was encoding a second time (a
+     * space became %2520, `a/b` became a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. */
     path = path.replaceAll(
         '{' + 'petId' + '}',
-        _encodePathSegment(
-            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-                .toString()));
+        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+            .toString());
 
     final queryParams = <String, Object?>{};
 
@@ -982,7 +1283,22 @@ class PetApi extends BaseApi {
       {Authenticator? auth}) async {
     final result =
         await uploadPetCertificateWithHTTPInfo(petId, options, auth: auth);
-    return result.data as ApiResponse;
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as ApiResponse` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for uploadPetCertificate but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
   }
 
   /// Performs the uploadPetCertificate operation and returns the full API result.
@@ -990,11 +1306,15 @@ class PetApi extends BaseApi {
       int petId, UploadPetCertificateOptions options,
       {Authenticator? auth}) async {
     var path = '/pet/{petId}/certificate';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so the
+     * outer _encodePathSegment wrapper was encoding a second time (a
+     * space became %2520, `a/b` became a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. */
     path = path.replaceAll(
         '{' + 'petId' + '}',
-        _encodePathSegment(
-            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-                .toString()));
+        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+            .toString());
 
     final queryParams = <String, Object?>{};
 
@@ -1027,7 +1347,22 @@ class PetApi extends BaseApi {
       {Authenticator? auth}) async {
     final result =
         await uploadPetDocumentWithHTTPInfo(petId, options, auth: auth);
-    return result.data as ApiResponse;
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as ApiResponse` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for uploadPetDocument but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
   }
 
   /// Performs the uploadPetDocument operation and returns the full API result.
@@ -1035,11 +1370,15 @@ class PetApi extends BaseApi {
       int petId, UploadPetDocumentOptions options,
       {Authenticator? auth}) async {
     var path = '/pet/{petId}/documents';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so the
+     * outer _encodePathSegment wrapper was encoding a second time (a
+     * space became %2520, `a/b` became a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. */
     path = path.replaceAll(
         '{' + 'petId' + '}',
-        _encodePathSegment(
-            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
-                .toString()));
+        serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+            .toString());
 
     final queryParams = <String, Object?>{};
 

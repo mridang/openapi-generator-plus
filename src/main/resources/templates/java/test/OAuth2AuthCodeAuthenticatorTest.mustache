@@ -119,8 +119,10 @@ class OAuth2AuthCodeAuthenticatorTest {
         auth.setApiClient((method, url, headers, body) ->
                 new ApiResponse(200, "{\"access_token\":\"at\"}", Map.of()));
 
+        // No exchangeCode(null) case: the code parameter is @NonNull, so
+        // NullAway rejects a literal null at compile time. Empty + whitespace
+        // exercise the runtime guard.
         assertThrows(IllegalArgumentException.class, () -> auth.exchangeCode(""));
-        assertThrows(IllegalArgumentException.class, () -> auth.exchangeCode(null));
         assertThrows(IllegalArgumentException.class, () -> auth.exchangeCode("   "));
     }
 

@@ -662,17 +662,70 @@ public class DefaultApiClientUnitTest
         );
         var client = new DefaultApiClient(new HttpClient(handler));
         // POST with a body over HTTPS, redirected (307) to plain HTTP.
-        var response = await client.SendRequestAsync(
-            "POST",
-            new Uri("https://secure.example.com/start"),
-            new Dictionary<string, string>(),
-            "secret-payload"
+        // T-D2: the downgraded body-replay is refused as a typed SDK error
+        // (not a silent return of the 307) so the caller can observe it.
+        var ex = await Assert.ThrowsAsync<ApiException>(
+            () =>
+                client.SendRequestAsync(
+                    "POST",
+                    new Uri("https://secure.example.com/start"),
+                    new Dictionary<string, string>(),
+                    "secret-payload"
+                )
         );
 
         // Only the original encrypted request must have been made; the
         // downgraded follow-up must be refused.
         Assert.Single(handler.Requests);
-        Assert.Equal(307, response.StatusCode);
+        Assert.Contains("downgrade", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // ---- T-D3: non-http(s) redirect target is refused with a typed error ----
+
+    [Fact]
+    public async Task RefusesRedirectToNonHttpScheme()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.Redirect,
+            location: new Uri("file:///etc/passwd")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var ex = await Assert.ThrowsAsync<ApiException>(
+            () =>
+                client.SendRequestAsync(
+                    "GET",
+                    new Uri("http://origin.example.com/start"),
+                    new Dictionary<string, string>(),
+                    null
+                )
+        );
+
+        // The blocked redirect must surface as an error, not a silent 3xx.
+        Assert.Single(handler.Requests);
+        Assert.Contains("non-http", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // ---- T-D1: exceeding maxRedirects throws "too many redirects" ----
+
+    [Fact]
+    public async Task ThrowsWhenRedirectChainExceedsMax()
+    {
+        // Always-redirect handler: every response is a 302 pointing at the
+        // same origin, so the loop runs until maxRedirects is exhausted.
+        var handler = new AlwaysRedirectHandler(new Uri("http://origin.example.com/next"));
+        var transport = TransportOptions.Builder().MaxRedirects(3).Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+        var ex = await Assert.ThrowsAsync<ApiException>(
+            () =>
+                client.SendRequestAsync(
+                    "GET",
+                    new Uri("http://origin.example.com/start"),
+                    new Dictionary<string, string>(),
+                    null
+                )
+        );
+
+        Assert.Contains("redirect", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -716,6 +769,70 @@ public class DefaultApiClientUnitTest
         Assert.Equal(2, handler.Requests.Count);
         Assert.Equal(200, response.StatusCode);
     }
+
+    // ---- response-body-read-error-not-wrapped ----
+
+    [Fact]
+    public async Task WrapsBodyReadFailureInApiException()
+    {
+        // A failure that happens AFTER headers (during body read) must surface
+        // as the uniform ApiException, not the raw IOException leaked by
+        // HttpClient — matching the send-phase error treatment so callers have
+        // one error type for the whole transport phase.
+        var client = new DefaultApiClient(new HttpClient(new FailingBodyHandler()));
+        var ex = await Assert.ThrowsAsync<ApiException>(
+            () =>
+                client.SendRequestAsync(
+                    "GET",
+                    new Uri("http://example.com/truncated"),
+                    new Dictionary<string, string>(),
+                    null
+                )
+        );
+
+        // The original transport error is preserved as the cause (either the
+        // IOException directly or an HttpRequestException wrapping it,
+        // depending on the runtime's HttpContent buffering).
+        Assert.NotNull(ex.InnerException);
+        bool causeChainHasIo = false;
+        for (Exception? cur = ex.InnerException; cur != null; cur = cur.InnerException)
+        {
+            if (cur is IOException)
+            {
+                causeChainHasIo = true;
+                break;
+            }
+        }
+        Assert.True(causeChainHasIo, "Expected an IOException somewhere in the cause chain");
+    }
+
+    // ---- close-lifecycle-three-way: use-after-close throws SDK error ----
+
+    [Fact]
+    public async Task UseAfterCloseThrowsApiException()
+    {
+        var client = new DefaultApiClient(CreateMockHttpClient(HttpStatusCode.OK, "{}"));
+        client.Dispose();
+
+        // A request on a disposed client must surface a typed SDK error, not
+        // the raw ObjectDisposedException leaked by HttpClient.
+        await Assert.ThrowsAsync<ApiException>(
+            () =>
+                client.SendRequestAsync(
+                    "GET",
+                    new Uri("http://example.com/echo"),
+                    new Dictionary<string, string>(),
+                    null
+                )
+        );
+    }
+
+    // ---- multipart-text-part-contenttype-csharp ----
+    // The code fix lives in BuildTextPart (StringContent emitted with no
+    // default text/plain Content-Type). A faithful regression test needs a
+    // real multipart/form-data operation to exercise BuildMultipartContent —
+    // a plain Dictionary body routes through the JSON path, not multipart.
+    // Deferred to the petstore-fixture wave (a multipart upload op).
 
     /// <summary>
     /// First request returns <paramref name="firstStatus"/> with a Location
@@ -762,6 +879,92 @@ public class DefaultApiClientUnitTest
             return Task.FromResult(
                 new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("") }
             );
+        }
+    }
+
+    /// <summary>
+    /// Every response is a 302 redirect to the same fixed location, so the
+    /// manual redirect loop never terminates on its own — it runs until the
+    /// configured maxRedirects cap is hit. Used to exercise the
+    /// redirect-exhaustion guard.
+    /// </summary>
+    private sealed class AlwaysRedirectHandler : HttpMessageHandler
+    {
+        private readonly Uri _location;
+
+        public AlwaysRedirectHandler(Uri location)
+        {
+            _location = location;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            var redirect = new HttpResponseMessage(HttpStatusCode.Redirect)
+            {
+                Content = new StringContent(""),
+            };
+            redirect.Headers.Location = _location;
+            return Task.FromResult(redirect);
+        }
+    }
+
+    /// <summary>
+    /// Returns a 200 OK whose body stream throws when read, simulating a
+    /// connection reset / truncated transfer AFTER response headers arrived.
+    /// </summary>
+    private sealed class FailingBodyHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StreamContent(new ThrowingStream()),
+            };
+            return Task.FromResult(response);
+        }
+
+        private sealed class ThrowingStream : Stream
+        {
+            public override bool CanRead => true;
+            public override bool CanSeek => false;
+            public override bool CanWrite => false;
+            public override long Length => throw new NotSupportedException();
+            public override long Position
+            {
+                get => throw new NotSupportedException();
+                set => throw new NotSupportedException();
+            }
+
+            public override int Read(byte[] buffer, int offset, int count) =>
+                throw new IOException("connection reset while reading body");
+
+            public override Task<int> ReadAsync(
+                byte[] buffer,
+                int offset,
+                int count,
+                CancellationToken cancellationToken
+            ) => throw new IOException("connection reset while reading body");
+
+            public override ValueTask<int> ReadAsync(
+                Memory<byte> buffer,
+                CancellationToken cancellationToken = default
+            ) => throw new IOException("connection reset while reading body");
+
+            public override void Flush() { }
+
+            public override long Seek(long offset, SeekOrigin origin) =>
+                throw new NotSupportedException();
+
+            public override void SetLength(long value) => throw new NotSupportedException();
+
+            public override void Write(byte[] buffer, int offset, int count) =>
+                throw new NotSupportedException();
         }
     }
 

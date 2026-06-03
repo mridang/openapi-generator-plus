@@ -12,10 +12,10 @@ use std::sync::{Arc, Mutex};
 
 use petstore::api_client::{ApiClient, RequestBody};
 use petstore::api_response::ApiResponse;
-use petstore::auth::Authenticator;
-use petstore::auth::HttpAwareAuthenticator;
 use petstore::auth::oauth::AuthCodeNotExchangedError;
 use petstore::auth::oauth::OAuth2AuthorizationCodeAuthenticator;
+use petstore::auth::Authenticator;
+use petstore::auth::HttpAwareAuthenticator;
 
 struct FakeApiClient {
     responses: Mutex<Vec<ApiResponse>>,
@@ -53,13 +53,7 @@ impl ApiClient for FakeApiClient {
         url: &str,
         _headers: &HashMap<String, String>,
         body: Option<&RequestBody>,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
-                + Send
-                + '_,
-        >,
-    > {
+    ) -> Pin<Box<dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         {
             let mut last_url = self.last_url.lock().unwrap();
             *last_url = Some(url.to_string());
@@ -122,15 +116,36 @@ async fn test_exchanges_code_with_correct_grant_type() {
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
 
-    auth.exchange_code("auth-code-xyz")
-        .await
-        .expect("should succeed");
+    auth.exchange_code("auth-code-xyz").await.expect("should succeed");
 
     let body = client.last_body().expect("should have body");
     assert!(body.contains("grant_type=authorization_code"));
     assert!(body.contains("code=auth-code-xyz"));
     assert!(body.contains("client_id=my-client-id"));
     assert!(body.contains("client_secret=my-client-secret"));
+}
+
+/// oauth-exchangecode-no-empty-code-guard: an empty authorization code must
+/// be rejected up front with an error, NOT POSTed to the token endpoint.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_exchange_code_rejects_empty_code() {
+    let client = Arc::new(FakeApiClient::new());
+    // No response enqueued: if the guard fails and a POST is attempted, the
+    // FakeApiClient would panic on the empty queue — so this also proves no
+    // request was issued.
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let result = auth.exchange_code("").await;
+    assert!(result.is_err(), "empty code must be rejected before the token POST");
+
+    let result_ws = auth.exchange_code("   ").await;
+    assert!(result_ws.is_err(), "whitespace-only code must be rejected");
+
+    assert!(
+        client.last_body().is_none(),
+        "no token request must be issued for an empty code"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -145,9 +160,7 @@ async fn test_includes_refresh_token_on_refresh() {
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
 
-    auth.exchange_code("auth-code-xyz")
-        .await
-        .expect("should succeed");
+    auth.exchange_code("auth-code-xyz").await.expect("should succeed");
 
     // GetAuthHeaders triggers a refresh since token is expired
     let headers = auth.auth_headers().await;
@@ -167,11 +180,7 @@ async fn test_throws_before_exchange_code_called() {
     // surfaces as a 401 instead of crashing the process. Callers that want
     // a precise error use try_auth_headers.
     let headers = auth.auth_headers().await;
-    assert!(
-        headers.is_empty(),
-        "expected empty headers before exchange_code, got {:?}",
-        headers
-    );
+    assert!(headers.is_empty(), "expected empty headers before exchange_code, got {:?}", headers);
 }
 
 #[tokio::test]

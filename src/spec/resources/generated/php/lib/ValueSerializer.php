@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -42,7 +41,8 @@ final class ValueSerializer
         string $location,
         string $schemaType,
         ?string $collectionFormat = null,
-    ): string|array|null {
+    ): string|array|null
+    {
         if ($value === null) {
             if ($location === 'query') {
                 return null;
@@ -76,10 +76,37 @@ final class ValueSerializer
         $str = ObjectSerializer::stringify($value);
 
         if ($location === 'path') {
-            return rawurlencode($str);
+            return self::encodePathSegment($str);
         }
 
         return $str;
+    }
+
+    /**
+     * Percent-encodes a value for use as a URL path segment.
+     *
+     * Encodes characters that are not allowed in a URI path segment per
+     * RFC 3986, but preserves the sub-delimiters (`; = , : @ ! $ & ' ( ) * +`)
+     * that OAS 3.0 matrix/label/simple styles use as structural separators.
+     * Bare rawurlencode() would over-encode these (e.g. `,` -> `%2C`),
+     * diverging from the 11 SDKs that keep them literal. The preserved set
+     * matches Java/Node/C#/Swift's encodePathSegment.
+     *
+     * @param string $value the raw value to encode
+     * @return string the percent-encoded path segment
+     */
+    public static function encodePathSegment(string $value): string
+    {
+        if ($value === '') {
+            return $value;
+        }
+
+        return strtr(rawurlencode($value), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
     }
 
     /**
@@ -149,7 +176,7 @@ final class ValueSerializer
          * (`,`, `;`, `=`) are sub-delimiters and must remain literal, so we
          * encode the items before joining, never after. */
         if ($location === 'path') {
-            $items = array_map('rawurlencode', $items);
+            $items = array_map(self::encodePathSegment(...), $items);
         }
 
         return match ($style) {

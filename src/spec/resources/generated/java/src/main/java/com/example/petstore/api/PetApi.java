@@ -222,9 +222,8 @@ public class PetApi extends BaseApi {
    * @return Pet
    * @throws ApiException if fails to make API call
    */
-  @Nullable
   public Pet addPet(PetStoreBearerAuthenticator auth, Pet pet) throws ApiException {
-    return addPetWithHttpInfo(auth, pet).data();
+    return requireBody(addPetWithHttpInfo(auth, pet), "addPet");
   }
 
   public ApiResult<Pet> addPetWithHttpInfo(PetStoreBearerAuthenticator auth, Pet pet)
@@ -232,9 +231,8 @@ public class PetApi extends BaseApi {
     return addPetInternal(auth, pet);
   }
 
-  @Nullable
   public Pet addPet(ApiKeyHeaderAuthenticator auth, Pet pet) throws ApiException {
-    return addPetWithHttpInfo(auth, pet).data();
+    return requireBody(addPetWithHttpInfo(auth, pet), "addPet");
   }
 
   public ApiResult<Pet> addPetWithHttpInfo(ApiKeyHeaderAuthenticator auth, Pet pet)
@@ -271,9 +269,8 @@ public class PetApi extends BaseApi {
    * @return List<Photo>
    * @throws ApiException if fails to make API call
    */
-  @Nullable
   public List<Photo> addPetPhotos(Long petId, AddPetPhotosOptions options) throws ApiException {
-    return addPetPhotosWithHttpInfo(petId, options).data();
+    return requireBody(addPetPhotosWithHttpInfo(petId, options), "addPetPhotos");
   }
 
   public ApiResult<List<Photo>> addPetPhotosWithHttpInfo(Long petId, AddPetPhotosOptions options)
@@ -315,10 +312,9 @@ public class PetApi extends BaseApi {
    * @return PetTreatment
    * @throws ApiException if fails to make API call
    */
-  @Nullable
   public PetTreatment addPetTreatment(
       PetStoreBasicAuthenticator auth, Long petId, PetTreatment petTreatment) throws ApiException {
-    return addPetTreatmentWithHttpInfo(auth, petId, petTreatment).data();
+    return requireBody(addPetTreatmentWithHttpInfo(auth, petId, petTreatment), "addPetTreatment");
   }
 
   public ApiResult<PetTreatment> addPetTreatmentWithHttpInfo(
@@ -326,10 +322,9 @@ public class PetApi extends BaseApi {
     return addPetTreatmentInternal(auth, petId, petTreatment);
   }
 
-  @Nullable
   public PetTreatment addPetTreatment(
       PetStoreBearerAuthenticator auth, Long petId, PetTreatment petTreatment) throws ApiException {
-    return addPetTreatmentWithHttpInfo(auth, petId, petTreatment).data();
+    return requireBody(addPetTreatmentWithHttpInfo(auth, petId, petTreatment), "addPetTreatment");
   }
 
   public ApiResult<PetTreatment> addPetTreatmentWithHttpInfo(
@@ -449,9 +444,8 @@ public class PetApi extends BaseApi {
    * @return InputStream
    * @throws ApiException if fails to make API call
    */
-  @Nullable
   public InputStream downloadPetDocument(Long petId, Long documentId) throws ApiException {
-    return downloadPetDocumentWithHttpInfo(petId, documentId).data();
+    return requireBody(downloadPetDocumentWithHttpInfo(petId, documentId), "downloadPetDocument");
   }
 
   public ApiResult<InputStream> downloadPetDocumentWithHttpInfo(Long petId, Long documentId)
@@ -501,9 +495,8 @@ public class PetApi extends BaseApi {
    */
   @Deprecated
   @SuppressWarnings("InlineMeSuggester")
-  @Nullable
   public List<Pet> findPetsByStatus(FindPetsByStatusOptions options) throws ApiException {
-    return findPetsByStatusWithHttpInfo(options).data();
+    return requireBody(findPetsByStatusWithHttpInfo(options), "findPetsByStatus");
   }
 
   public ApiResult<List<Pet>> findPetsByStatusWithHttpInfo(FindPetsByStatusOptions options)
@@ -541,7 +534,6 @@ public class PetApi extends BaseApi {
    * @return Pet
    * @throws ApiException if fails to make API call
    */
-  @Nullable
   public Pet getExternalPetInfo(Long petId) throws ApiException {
     return getExternalPetInfo(petId, null);
   }
@@ -550,10 +542,9 @@ public class PetApi extends BaseApi {
     return getExternalPetInfoWithHttpInfo(petId, null);
   }
 
-  @Nullable
   public Pet getExternalPetInfo(Long petId, @Nullable GetExternalPetInfoServer server)
       throws ApiException {
-    return getExternalPetInfoWithHttpInfo(petId, server).data();
+    return requireBody(getExternalPetInfoWithHttpInfo(petId, server), "getExternalPetInfo");
   }
 
   public ApiResult<Pet> getExternalPetInfoWithHttpInfo(
@@ -596,7 +587,6 @@ public class PetApi extends BaseApi {
    * @return Pet
    * @throws ApiException if fails to make API call
    */
-  @Nullable
   public Pet getMultiServerPetInfo(Long petId) throws ApiException {
     return getMultiServerPetInfo(petId, null);
   }
@@ -605,10 +595,9 @@ public class PetApi extends BaseApi {
     return getMultiServerPetInfoWithHttpInfo(petId, null);
   }
 
-  @Nullable
   public Pet getMultiServerPetInfo(Long petId, @Nullable GetMultiServerPetInfoServer server)
       throws ApiException {
-    return getMultiServerPetInfoWithHttpInfo(petId, server).data();
+    return requireBody(getMultiServerPetInfoWithHttpInfo(petId, server), "getMultiServerPetInfo");
   }
 
   public ApiResult<Pet> getMultiServerPetInfoWithHttpInfo(
@@ -651,9 +640,8 @@ public class PetApi extends BaseApi {
    * @return InputStream
    * @throws ApiException if fails to make API call
    */
-  @Nullable
   public InputStream getPetAvatar(Long petId) throws ApiException {
-    return getPetAvatarWithHttpInfo(petId).data();
+    return requireBody(getPetAvatarWithHttpInfo(petId), "getPetAvatar");
   }
 
   public ApiResult<InputStream> getPetAvatarWithHttpInfo(Long petId) throws ApiException {
@@ -690,9 +678,8 @@ public class PetApi extends BaseApi {
    * @return byte[]
    * @throws ApiException if fails to make API call
    */
-  @Nullable
   public byte[] getPetAvatarThumbnail(Long petId) throws ApiException {
-    return getPetAvatarThumbnailWithHttpInfo(petId).data();
+    return requireBody(getPetAvatarThumbnailWithHttpInfo(petId), "getPetAvatarThumbnail");
   }
 
   public ApiResult<byte[]> getPetAvatarThumbnailWithHttpInfo(Long petId) throws ApiException {
@@ -733,7 +720,6 @@ public class PetApi extends BaseApi {
    */
   @Deprecated
   @SuppressWarnings("InlineMeSuggester")
-  @Nullable
   public Pet getPetById(Long petId) throws ApiException {
     return getPetById(petId, null);
   }
@@ -742,9 +728,8 @@ public class PetApi extends BaseApi {
     return getPetByIdWithHttpInfo(petId, null);
   }
 
-  @Nullable
   public Pet getPetById(Long petId, @Nullable GetPetByIdServer server) throws ApiException {
-    return getPetByIdWithHttpInfo(petId, server).data();
+    return requireBody(getPetByIdWithHttpInfo(petId, server), "getPetById");
   }
 
   public ApiResult<Pet> getPetByIdWithHttpInfo(Long petId, @Nullable GetPetByIdServer server)
@@ -789,9 +774,8 @@ public class PetApi extends BaseApi {
    * @return PetPassport
    * @throws ApiException if fails to make API call
    */
-  @Nullable
   public PetPassport getPetPassport(Long petId) throws ApiException {
-    return getPetPassportWithHttpInfo(petId).data();
+    return requireBody(getPetPassportWithHttpInfo(petId), "getPetPassport");
   }
 
   public ApiResult<PetPassport> getPetPassportWithHttpInfo(Long petId) throws ApiException {
@@ -829,9 +813,8 @@ public class PetApi extends BaseApi {
    * @return InputStream
    * @throws ApiException if fails to make API call
    */
-  @Nullable
   public InputStream getPetPhoto(Long petId, Long photoId) throws ApiException {
-    return getPetPhotoWithHttpInfo(petId, photoId).data();
+    return requireBody(getPetPhotoWithHttpInfo(petId, photoId), "getPetPhoto");
   }
 
   public ApiResult<InputStream> getPetPhotoWithHttpInfo(Long petId, Long photoId)
@@ -879,9 +862,8 @@ public class PetApi extends BaseApi {
    * @return Pet
    * @throws ApiException if fails to make API call
    */
-  @Nullable
   public Pet getPetTag(Long petId, String tagName, GetPetTagOptions options) throws ApiException {
-    return getPetTagWithHttpInfo(petId, tagName, options).data();
+    return requireBody(getPetTagWithHttpInfo(petId, tagName, options), "getPetTag");
   }
 
   public ApiResult<Pet> getPetTagWithHttpInfo(Long petId, String tagName, GetPetTagOptions options)
@@ -953,7 +935,6 @@ public class PetApi extends BaseApi {
    * @return Pet
    * @throws ApiException if fails to make API call
    */
-  @Nullable
   public Pet getStagingPetInfo(Long petId) throws ApiException {
     return getStagingPetInfo(petId, null);
   }
@@ -962,10 +943,9 @@ public class PetApi extends BaseApi {
     return getStagingPetInfoWithHttpInfo(petId, null);
   }
 
-  @Nullable
   public Pet getStagingPetInfo(Long petId, @Nullable GetStagingPetInfoServer server)
       throws ApiException {
-    return getStagingPetInfoWithHttpInfo(petId, server).data();
+    return requireBody(getStagingPetInfoWithHttpInfo(petId, server), "getStagingPetInfo");
   }
 
   public ApiResult<Pet> getStagingPetInfoWithHttpInfo(
@@ -1089,9 +1069,8 @@ public class PetApi extends BaseApi {
    * @return Pet
    * @throws ApiException if fails to make API call
    */
-  @Nullable
   public Pet updatePet(Long petId, Pet pet) throws ApiException {
-    return updatePetWithHttpInfo(petId, pet).data();
+    return requireBody(updatePetWithHttpInfo(petId, pet), "updatePet");
   }
 
   public ApiResult<Pet> updatePetWithHttpInfo(Long petId, Pet pet) throws ApiException {
@@ -1133,10 +1112,9 @@ public class PetApi extends BaseApi {
    * @return ApiResponse
    * @throws ApiException if fails to make API call
    */
-  @Nullable
   public ApiResponse uploadPetCertificate(Long petId, UploadPetCertificateOptions options)
       throws ApiException {
-    return uploadPetCertificateWithHttpInfo(petId, options).data();
+    return requireBody(uploadPetCertificateWithHttpInfo(petId, options), "uploadPetCertificate");
   }
 
   public ApiResult<ApiResponse> uploadPetCertificateWithHttpInfo(
@@ -1179,10 +1157,9 @@ public class PetApi extends BaseApi {
    * @return ApiResponse
    * @throws ApiException if fails to make API call
    */
-  @Nullable
   public ApiResponse uploadPetDocument(Long petId, UploadPetDocumentOptions options)
       throws ApiException {
-    return uploadPetDocumentWithHttpInfo(petId, options).data();
+    return requireBody(uploadPetDocumentWithHttpInfo(petId, options), "uploadPetDocument");
   }
 
   public ApiResult<ApiResponse> uploadPetDocumentWithHttpInfo(
@@ -1219,5 +1196,31 @@ public class PetApi extends BaseApi {
         "multipart/form-data",
         uploadPetDocumentTypeRef,
         null);
+  }
+
+  /**
+   * Unwrap the body of a body-returning operation, throwing a typed {@link ApiException} when the
+   * server returned no decodable body (for example an empty or 204 response). The plain convenience
+   * accessor must never hand back a silent {@code null} for a declared non-void return type —
+   * callers get a catchable, typed error instead.
+   *
+   * @param result the API result whose data should be present
+   * @param operation the operation id, for the error message
+   * @param <T> the response body type
+   * @return the non-null response body
+   * @throws ApiException if the result carries no body
+   */
+  private static <T> T requireBody(ApiResult<T> result, String operation) throws ApiException {
+    T data = result.data();
+    if (data == null) {
+      throw new ApiException(
+          result.statusCode(),
+          "Operation '"
+              + operation
+              + "' returned an empty response body for a body-returning operation",
+          result.headers(),
+          result.rawBody());
+    }
+    return data;
   }
 }

@@ -8,11 +8,13 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use std::time::Duration;
 
-use reqwest::Proxy;
 use reqwest::{Client, ClientBuilder};
+use reqwest::Proxy;
 use uuid::Uuid;
 
 use crate::api_client::{ApiClient, MultipartValue, RequestBody, RequestOptions};
@@ -51,6 +53,11 @@ pub const SENSITIVE_HEADER_NAMES: &[&str] = &[
 pub struct DefaultApiClient {
     transport_options: TransportOptions,
     http_client: Client,
+    /// Gap T6: close-lifecycle flag. Set by `close()`; once set, any further
+    /// `send_request*` call fails fast with an `ApiError` instead of leaking a
+    /// foreign reqwest error or silently succeeding. Unified across all 12 SDKs
+    /// (closed-flag + SDK error on use-after-close).
+    closed: Arc<AtomicBool>,
 }
 
 impl DefaultApiClient {
@@ -62,16 +69,22 @@ impl DefaultApiClient {
         Self {
             transport_options: opts,
             http_client,
+            closed: Arc::new(AtomicBool::new(false)),
         }
     }
 
-    /// Gap T6: explicit close hook. `reqwest::Client` is an `Arc`-shared
-    /// handle that releases its connection pool / executor threads when
-    /// the last clone is dropped, so this is documentation-only — callers
-    /// who want deterministic teardown can call `close()` then drop the
-    /// client, or simply rely on `Drop` (see the trait impl below).
+    /// Gap T6: explicit close hook. Marks the client closed so that any
+    /// subsequent request fails fast with a uniform SDK `ApiError`
+    /// ("client is closed"). `reqwest::Client` additionally releases its
+    /// connection pool / executor threads when the last clone is dropped
+    /// (see the `Drop` impl below).
     pub fn close(&self) {
-        /* No-op: see Drop impl. Reqwest handles teardown via Arc<Drop>. */
+        self.closed.store(true, Ordering::SeqCst);
+    }
+
+    /// Returns true once `close()` has been called on this client.
+    pub fn is_closed(&self) -> bool {
+        self.closed.load(Ordering::SeqCst)
     }
 }
 
@@ -97,13 +110,7 @@ impl ApiClient for DefaultApiClient {
         url: &str,
         headers: &HashMap<String, String>,
         body: Option<&RequestBody>,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
-                + Send
-                + '_,
-        >,
-    > {
+    ) -> Pin<Box<dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         self.send_request_with_options(method, url, headers, body, &RequestOptions::default())
     }
 
@@ -118,13 +125,7 @@ impl ApiClient for DefaultApiClient {
         headers: &HashMap<String, String>,
         body: Option<&RequestBody>,
         options: &RequestOptions,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
-                + Send
-                + '_,
-        >,
-    > {
+    ) -> Pin<Box<dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         let method = method.to_string();
         let url = url.to_string();
         let headers = headers.clone();
@@ -132,12 +133,22 @@ impl ApiClient for DefaultApiClient {
         let options = options.clone();
 
         Box::pin(async move {
+            // Gap T6: use-after-close must surface as a uniform SDK error,
+            // not a foreign library exception or a silent success.
+            if self.closed.load(Ordering::SeqCst) {
+                return Err(Box::new(ApiError::new(
+                    0,
+                    "ApiClient is closed".to_string(),
+                    None,
+                    None,
+                    None,
+                )) as Box<dyn std::error::Error + Send + Sync>);
+            }
             let mut merged: HashMap<String, String> = self.transport_options.default_headers();
             for (k, v) in &headers {
                 merged.insert(k.clone(), v.clone());
             }
-            if !merged.contains_key("User-Agent") && !self.transport_options.user_agent().is_empty()
-            {
+            if !merged.contains_key("User-Agent") && !self.transport_options.user_agent().is_empty() {
                 merged.insert(
                     "User-Agent".to_string(),
                     self.transport_options.user_agent().to_string(),
@@ -180,9 +191,9 @@ impl ApiClient for DefaultApiClient {
                 merged.remove("Content-Type");
             }
 
-            let http_method = method
-                .parse::<reqwest::Method>()
-                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
+            let http_method = method.parse::<reqwest::Method>().map_err(|e| {
+                Box::new(e) as Box<dyn std::error::Error + Send + Sync>
+            })?;
 
             let mut request_builder = self.http_client.request(http_method, &url);
 
@@ -208,8 +219,15 @@ impl ApiClient for DefaultApiClient {
             }
 
             let mut response = request_builder.send().await.map_err(|e| {
-                Box::new(ApiError::new(0, e.to_string(), None, None, None))
-                    as Box<dyn std::error::Error + Send + Sync>
+                let message = e.to_string();
+                Box::new(ApiError::with_source(
+                    0,
+                    message,
+                    None,
+                    None,
+                    None,
+                    Arc::new(e),
+                )) as Box<dyn std::error::Error + Send + Sync>
             })?;
 
             // Gap BH: manual redirect loop with cross-origin header strip.
@@ -222,7 +240,8 @@ impl ApiClient for DefaultApiClient {
                 let mut hops = 0usize;
                 let mut current_method = method.to_string();
                 let mut current_body: Option<Vec<u8>> = body_bytes.clone();
-                let mut current_headers: std::collections::HashMap<String, String> = merged.clone();
+                let mut current_headers: std::collections::HashMap<String, String> =
+                    merged.clone();
                 while is_redirect_status(response.status().as_u16()) && hops < max {
                     // Gap 3.2: caller (typically an OAuth2 token POST) refuses
                     // body-preserving 307/308 redirects so credentials in the
@@ -243,8 +262,7 @@ impl ApiClient for DefaultApiClient {
                             None,
                             None,
                             None,
-                        ))
-                            as Box<dyn std::error::Error + Send + Sync>);
+                        )) as Box<dyn std::error::Error + Send + Sync>);
                     }
 
                     let location = match response
@@ -256,12 +274,28 @@ impl ApiClient for DefaultApiClient {
                         Some(l) => l,
                         None => break,
                     };
-                    let next_url = match current_url.as_ref().and_then(|c| c.join(&location).ok()) {
+                    let next_url = match current_url
+                        .as_ref()
+                        .and_then(|c| c.join(&location).ok())
+                    {
                         Some(u) => u,
                         None => break,
                     };
                     if next_url.scheme() != "http" && next_url.scheme() != "https" {
-                        break;
+                        // Gap T-D3: a `Location:` pointing at a non-http(s)
+                        // scheme (file:, javascript:, data:, ...) must be
+                        // refused loudly, not silently returned as the 3xx
+                        // response. Unified across the 12 SDKs.
+                        return Err(Box::new(ApiError::new(
+                            status_code,
+                            format!(
+                                "Refusing to follow redirect to non-http(s) URL: {}",
+                                next_url
+                            ),
+                            None,
+                            None,
+                            None,
+                        )) as Box<dyn std::error::Error + Send + Sync>);
                     }
                     let cross_origin = match original_url.as_ref() {
                         Some(orig) => !same_origin(orig, &next_url),
@@ -291,8 +325,7 @@ impl ApiClient for DefaultApiClient {
                             None,
                             None,
                             None,
-                        ))
-                            as Box<dyn std::error::Error + Send + Sync>);
+                        )) as Box<dyn std::error::Error + Send + Sync>);
                     }
 
                     // Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 /
@@ -313,9 +346,9 @@ impl ApiClient for DefaultApiClient {
                             ("GET".to_string(), None)
                         };
 
-                    let http_method = next_method
-                        .parse::<reqwest::Method>()
-                        .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
+                    let http_method = next_method.parse::<reqwest::Method>().map_err(|e| {
+                        Box::new(e) as Box<dyn std::error::Error + Send + Sync>
+                    })?;
                     let mut redirect_builder =
                         self.http_client.request(http_method, next_url.clone());
                     let mut redirect_headers = current_headers.clone();
@@ -336,14 +369,34 @@ impl ApiClient for DefaultApiClient {
                         redirect_builder = redirect_builder.body(b.clone());
                     }
                     response = redirect_builder.send().await.map_err(|e| {
-                        Box::new(ApiError::new(0, e.to_string(), None, None, None))
-                            as Box<dyn std::error::Error + Send + Sync>
+                        let message = e.to_string();
+                        Box::new(ApiError::with_source(
+                            0,
+                            message,
+                            None,
+                            None,
+                            None,
+                            Arc::new(e),
+                        )) as Box<dyn std::error::Error + Send + Sync>
                     })?;
                     current_url = Some(next_url);
                     current_method = next_method;
                     current_body = next_body;
                     current_headers = redirect_headers;
                     hops += 1;
+                }
+
+                // Gap T-D1: exceeding the redirect cap must fail loudly rather
+                // than silently returning the last 3xx as a normal response.
+                // Unified across the 12 SDKs ("too many redirects").
+                if is_redirect_status(response.status().as_u16()) && hops >= max {
+                    return Err(Box::new(ApiError::new(
+                        response.status().as_u16(),
+                        format!("too many redirects (exceeded {})", max),
+                        None,
+                        None,
+                        None,
+                    )) as Box<dyn std::error::Error + Send + Sync>);
                 }
             }
 
@@ -374,7 +427,22 @@ impl ApiClient for DefaultApiClient {
                 .get("content-type")
                 .cloned()
                 .unwrap_or_default();
-            let resp_bytes = response.bytes().await?;
+            // Gap: a body-read failure that occurs AFTER response headers are
+            // received (connection reset, read timeout, truncated chunked
+            // transfer, decompression error) must be wrapped in the uniform
+            // ApiError (statusCode 0) — the same treatment a send-phase failure
+            // gets — rather than escaping as a raw reqwest::Error.
+            let resp_bytes = response.bytes().await.map_err(|e| {
+                let message = e.to_string();
+                Box::new(ApiError::with_source(
+                    0,
+                    message,
+                    None,
+                    None,
+                    None,
+                    Arc::new(e),
+                )) as Box<dyn std::error::Error + Send + Sync>
+            })?;
             let resp_body = if is_text_content_type(&content_type) {
                 decode_text_body(&resp_bytes, &content_type)
             } else {
@@ -399,7 +467,11 @@ fn build_http_client(opts: &TransportOptions) -> Client {
     // Without these calls, the client advertises gzip/brotli/deflate/zstd
     // in Accept-Encoding but returns the raw compressed bytes to the caller,
     // corrupting any server response that picks one of those encodings.
-    builder = builder.gzip(true).brotli(true).deflate(true).zstd(true);
+    builder = builder
+        .gzip(true)
+        .brotli(true)
+        .deflate(true)
+        .zstd(true);
 
     builder = builder.danger_accept_invalid_certs(!opts.verify_ssl());
 
@@ -407,10 +479,15 @@ fn build_http_client(opts: &TransportOptions) -> Client {
         // Gap T4: surface CA-cert load/parse failures rather than silently
         // falling back to the system trust store. If the user explicitly
         // asked for SSL pinning we must not pretend it succeeded.
-        let ca_bytes = std::fs::read(ca_path)
-            .unwrap_or_else(|e| panic!("failed to read CA certificate from {:?}: {}", ca_path, e));
-        let cert = reqwest::Certificate::from_pem(&ca_bytes)
-            .unwrap_or_else(|e| panic!("failed to parse CA certificate from {:?}: {}", ca_path, e));
+        let ca_bytes = std::fs::read(ca_path).unwrap_or_else(|e| {
+            panic!("failed to read CA certificate from {:?}: {}", ca_path, e)
+        });
+        let cert = reqwest::Certificate::from_pem(&ca_bytes).unwrap_or_else(|e| {
+            panic!(
+                "failed to parse CA certificate from {:?}: {}",
+                ca_path, e
+            )
+        });
         builder = builder.add_root_certificate(cert);
     }
 
@@ -504,7 +581,12 @@ pub fn serialize_multipart_body(
 /// in-progress body buffer. Bytes parts are written as file uploads with a
 /// filename directive derived from the field name; text parts are written
 /// without a Content-Type header.
-fn append_multipart_field(out: &mut Vec<u8>, boundary: &str, name: &str, value: &MultipartValue) {
+fn append_multipart_field(
+    out: &mut Vec<u8>,
+    boundary: &str,
+    name: &str,
+    value: &MultipartValue,
+) {
     /* W-new-2: validate the field name on every branch (text and bytes)
      * before it lands in Content-Disposition. The name is interpolated
      * directly into `Content-Disposition: form-data; name="..."`, so
@@ -559,9 +641,7 @@ fn append_multipart_field(out: &mut Vec<u8>, boundary: &str, name: &str, value: 
 pub fn validate_multipart_filename(filename: &str) -> Result<(), String> {
     for c in filename.chars() {
         if c == '\r' || c == '\n' || c == '\0' {
-            return Err(
-                "multipart filename must not contain CR, LF, or NUL characters".to_string(),
-            );
+            return Err("multipart filename must not contain CR, LF, or NUL characters".to_string());
         }
     }
     Ok(())
@@ -614,10 +694,7 @@ pub fn build_filename_directive(filename: &str) -> String {
         .collect();
     let fallback_escaped = fallback.replace('\\', "\\\\").replace('"', "\\\"");
     let encoded = rfc5987_encode_value(filename);
-    format!(
-        "filename=\"{}\"; filename*=UTF-8''{}",
-        fallback_escaped, encoded
-    )
+    format!("filename=\"{}\"; filename*=UTF-8''{}", fallback_escaped, encoded)
 }
 
 /// Percent-encodes every byte that is not an RFC 3986 §2.3 unreserved character,
@@ -626,8 +703,11 @@ pub fn rfc5987_encode_value(s: &str) -> String {
     let bytes = s.as_bytes();
     let mut out = String::with_capacity(bytes.len() * 3);
     for &b in bytes {
-        let is_unreserved =
-            b.is_ascii_alphanumeric() || b == b'-' || b == b'.' || b == b'_' || b == b'~';
+        let is_unreserved = b.is_ascii_alphanumeric()
+            || b == b'-'
+            || b == b'.'
+            || b == b'_'
+            || b == b'~';
         if is_unreserved {
             out.push(b as char);
         } else {

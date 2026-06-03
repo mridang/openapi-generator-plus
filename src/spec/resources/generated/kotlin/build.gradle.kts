@@ -16,6 +16,7 @@ publishing {
     publications {
         withType<MavenPublication> {
             pom {
+                description.set("A simplified Pet Store API for integration testing.")
                 licenses {
                     license {
                         name.set("MIT")
@@ -35,6 +36,17 @@ kotlin {
     // Use whatever JDK is on PATH (Docker container provides a recent JDK).
     // Toolchain auto-provisioning requires extra repos configured; we skip that.
     jvm()
+
+    // The generated client uses `expect`/`actual` classes for the
+    // platform-specific TraceContextUtil (common interface, jvm impl).
+    // The Kotlin team still marks expect/actual *classes* (vs functions)
+    // as Beta per KT-61573 and emits a warning at every compile site.
+    // The opt-in flag silences it without changing semantics; the feature
+    // ships in every stable Kotlin release we target and only the marker
+    // is Beta.
+    compilerOptions {
+        freeCompilerArgs.add("-Xexpect-actual-classes")
+    }
 
     sourceSets {
         val commonMain by getting {

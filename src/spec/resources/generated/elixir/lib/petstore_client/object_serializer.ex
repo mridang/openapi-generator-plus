@@ -150,6 +150,14 @@ defmodule PetstoreClient.ObjectSerializer do
     nil
   end
 
+  # A "String" return type means "hand me the raw response body verbatim" —
+  # never JSON-parse it (a JSON envelope body would otherwise decode to a map
+  # and fail String coercion). Matches the raw-body return of the other SDKs
+  # and is not a deserialize failure (a binary is always a valid String).
+  def deserialize(body, "String") when is_binary(body) do
+    body
+  end
+
   def deserialize(json_string, target_type) when is_binary(json_string) do
     # RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text, but
     # Windows-generated payloads often include one and Jason rejects it.
@@ -550,22 +558,31 @@ defmodule PetstoreClient.ObjectSerializer do
     end
   end
 
-  defp atomize_enum(module, data) when is_atom(data) do
+  defp atomize_enum(_module, data) when is_atom(data) do
     data
   end
 
   defp atomize_enum(module, data) when is_binary(data) do
-    candidate = String.to_atom(String.downcase(data))
+    # An out-of-spec enum wire value is spec drift; raise instead of
+    # silently retaining the raw string as an invalid typed value, so
+    # callers see a deserialize error (matching the throwing behaviour of
+    # the other 10 SDKs). The wire value is matched case-sensitively — the
+    # previous implementation down-cased before comparing, which silently
+    # accepted mis-cased values.
+    candidate = String.to_atom(data)
 
     if Enum.member?(module.all_values(), candidate) do
       candidate
     else
-      data
+      raise PetstoreClient.SerializationError,
+            "Unknown enum value #{inspect(data)} for #{inspect(module)}; " <>
+              "allowed values: #{inspect(module.all_values())}"
     end
   end
 
-  defp atomize_enum(_module, data) do
-    data
+  defp atomize_enum(module, data) do
+    raise PetstoreClient.SerializationError,
+          "Cannot coerce #{inspect(data)} to an enum value for #{inspect(module)}"
   end
 
   # Returns true when at least one key in data matches a JSON key for the struct,

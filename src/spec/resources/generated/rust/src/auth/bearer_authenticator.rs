@@ -27,11 +27,16 @@ impl BearerAuthenticator {
     /// error rather than HTTP header injection from CR/LF or silently-
     /// mangled non-ASCII bytes.
     pub fn new(host: &str, token: &str) -> Self {
-        if token
-            .chars()
-            .any(|c| c != '\t' && ((c as u32) < 0x20 || (c as u32) >= 0x7F))
-        {
-            panic!("Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)");
+        // Reject empty / whitespace-only tokens: emitting a bare
+        // `Authorization: Bearer ` header is a programmer error that mirrors
+        // the api-key authenticator's own empty guard. Fail closed.
+        if token.is_empty() || token.trim().is_empty() {
+            panic!("Bearer token must not be empty or whitespace-only");
+        }
+        if token.chars().any(|c| c != '\t' && ((c as u32) < 0x20 || (c as u32) >= 0x7F)) {
+            panic!(
+                "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+            );
         }
         Self {
             host: host.to_string(),
@@ -61,7 +66,10 @@ impl Authenticator for BearerAuthenticator {
                 &self.token
             };
             let mut headers = HashMap::new();
-            headers.insert("Authorization".to_string(), format!("Bearer {}", value));
+            headers.insert(
+                "Authorization".to_string(),
+                format!("Bearer {}", value),
+            );
             headers
         })
     }

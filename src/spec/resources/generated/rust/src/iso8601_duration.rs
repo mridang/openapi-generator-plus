@@ -135,16 +135,22 @@ pub fn parse(s: &str) -> Result<Duration, String> {
             .map_err(|_| format!("ISO-8601 duration: bad number {:?}", raw))?;
         match c {
             'Y' => {
-                return Err("ISO-8601 duration: year designator not supported".into());
+                return Err(
+                    "ISO-8601 duration: year designator not supported".into()
+                );
             }
             'M' if !in_time => {
-                return Err("ISO-8601 duration: month designator not supported".into());
+                return Err(
+                    "ISO-8601 duration: month designator not supported".into()
+                );
             }
             'M' => {
                 total += Duration::nanoseconds((val * 60.0 * 1_000_000_000.0) as i64);
             }
             'W' => {
-                total += Duration::nanoseconds((val * 7.0 * 86_400.0 * 1_000_000_000.0) as i64);
+                total += Duration::nanoseconds(
+                    (val * 7.0 * 86_400.0 * 1_000_000_000.0) as i64,
+                );
             }
             'D' => {
                 total += Duration::nanoseconds((val * 86_400.0 * 1_000_000_000.0) as i64);
@@ -202,14 +208,19 @@ pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Duration, D::Error
 pub mod option {
     use super::*;
 
-    pub fn serialize<S: Serializer>(d: &Option<Duration>, s: S) -> Result<S::Ok, S::Error> {
+    pub fn serialize<S: Serializer>(
+        d: &Option<Duration>,
+        s: S,
+    ) -> Result<S::Ok, S::Error> {
         match d {
             Some(v) => s.serialize_str(&super::format(v)),
             None => s.serialize_none(),
         }
     }
 
-    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Option<Duration>, D::Error> {
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        d: D,
+    ) -> Result<Option<Duration>, D::Error> {
         let raw: Option<String> = Option::deserialize(d)?;
         match raw {
             Some(s) => super::parse(&s).map(Some).map_err(de::Error::custom),

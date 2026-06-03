@@ -72,4 +72,14 @@ export class ApiKeyAuthenticator extends BaseAuthenticator {
     }
     return {};
   }
+
+  /* Redact the API key from the default string/inspect representation so
+   * logging or inspecting the authenticator never leaks the credential. */
+  [Symbol.for('nodejs.util.inspect.custom')](): string {
+    return `ApiKeyAuthenticator(host=${this.host}, keyParamName=${this.keyParamName}, apiKey=***)`;
+  }
+
+  toJSON(): Record<string, string> {
+    return { host: this.host, keyParamName: this.keyParamName, apiKey: '***', location: this.location };
+  }
 }

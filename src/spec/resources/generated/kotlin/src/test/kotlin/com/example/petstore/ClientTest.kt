@@ -15,6 +15,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 class ClientTest {
+
     private val authenticator = BearerAuthenticator("/api/v3", "test-token")
 
     @Test
@@ -47,6 +48,22 @@ class ClientTest {
     }
 
     @Test
+    @DisplayName("bearer-no-empty-token-guard: Bearer rejects empty/blank token")
+    fun bearerRejectsEmptyOrBlankToken() {
+        // An empty or whitespace-only token would emit a credential-less
+        // "Authorization: Bearer " header (fail-open); reject it up front.
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("/api/v3", "")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("/api/v3", "   ")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("/api/v3", "\t")
+        }
+    }
+
+    @Test
     @DisplayName("ApiKey header rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)")
     fun apiKeyHeaderRejectsCrlfAndNonAscii() {
         // ApiKeyAuthenticator's HEADER location must reject any value
@@ -60,7 +77,7 @@ class ClientTest {
         }
         // Non-header locations accept arbitrary chars.
         assertNotNull(
-            ApiKeyAuthenticator("/api/v3", "api_key", "kéy", ApiKeyLocation.QUERY).getQueryParams(),
+            ApiKeyAuthenticator("/api/v3", "api_key", "kéy", ApiKeyLocation.QUERY).getQueryParams()
         )
     }
 

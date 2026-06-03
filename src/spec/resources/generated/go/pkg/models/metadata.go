@@ -19,6 +19,22 @@ type Metadata struct {
 	AdditionalProperties map[string]any `json:"-"`
 }
 
+// Equal reports whether this Metadata is value-equal to other.
+//
+// model-equality-swift-go: models may carry map / slice fields (e.g.
+// additionalProperties), so the built-in `==` operator panics at runtime on
+// such values. Comparing the canonical JSON encodings gives a value-equality
+// contract that works for every field shape, matching the equality semantics
+// of the other SDKs.
+func (o Metadata) Equal(other Metadata) bool {
+	a, errA := json.Marshal(o)
+	b, errB := json.Marshal(other)
+	if errA != nil || errB != nil {
+		return false
+	}
+	return string(a) == string(b)
+}
+
 // NewMetadata creates a new Metadata instance.
 func NewMetadata() *Metadata {
 	return &Metadata{}
@@ -38,7 +54,13 @@ func (o Metadata) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	/* Merge the two JSON objects */
+	/* Merge the two JSON objects. When every struct field is omitted the
+	   base marshals to "{}" (len 2); replacing its closing brace with a
+	   comma would yield invalid JSON ("{,...}"), so return the extras
+	   object verbatim in that case. */
+	if len(b) == 2 {
+		return extra, nil
+	}
 	b[len(b)-1] = ','
 	return append(b, extra[1:]...), nil
 }

@@ -70,8 +70,12 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
     }
 
     /// Returns the Bearer authentication header.
-    override public func authHeaders() async -> [String: String] {
-        guard let delegate = try? await resolveDelegate() else { return [:] }
+    ///
+    /// Surfaces any discovery or token-exchange failure to the caller rather
+    /// than collapsing it into an empty header map that would send the
+    /// request unauthenticated.
+    override public func authHeaders() async throws -> [String: String] {
+        let delegate = try await resolveDelegate()
         return await delegate.authHeaders()
     }
 
@@ -105,6 +109,19 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
 
         let headers = ["Accept": "application/json"]
         let response = try await client.sendRequest(method: "GET", url: openIDConnectURL, headers: headers, body: nil)
+
+        /* Guard on the HTTP status before attempting to JSON-decode the
+         * discovery document. A 5xx HTML error page or a 404 would
+         * otherwise surface as a misleading "invalid JSON" decode failure
+         * instead of the real transport error the caller needs to see. */
+        guard response.statusCode >= 200 && response.statusCode < 300 else {
+            throw ApiError(
+                statusCode: response.statusCode,
+                message: "OIDC discovery request to \(openIDConnectURL) failed with status \(response.statusCode)",
+                responseBody: response.body,
+                responseHeaders: response.headers
+            )
+        }
 
         guard let data = response.body.data(using: .utf8) else {
             throw URLError(.badServerResponse)

@@ -10,15 +10,17 @@ use std::sync::Arc;
 
 use crate::api::base_api::BaseApi;
 use crate::api::base_api::InvokeApiParams;
-#[allow(unused_imports)]
-use crate::api::options::*;
 use crate::api_client::ApiClient;
+#[allow(unused_imports)]
+use crate::api_error::ApiError;
 use crate::api_result::ApiResult;
 use crate::auth::Authenticator;
 use crate::configuration::Configuration;
 use crate::models::*;
 use crate::object_serializer;
 use crate::value_serializer;
+#[allow(unused_imports)]
+use crate::api::options::*;
 use crate::value_serializer::SerializedValue;
 
 /// StoreApi provides methods for the Store API group.
@@ -29,11 +31,7 @@ pub struct StoreApi {
 
 impl StoreApi {
     /// Creates a new StoreApi instance.
-    pub fn new(
-        api_client: Arc<dyn ApiClient>,
-        config: Configuration,
-        authenticator: Option<Arc<dyn Authenticator>>,
-    ) -> Self {
+    pub fn new(api_client: Arc<dyn ApiClient>, config: Configuration, authenticator: Option<Arc<dyn Authenticator>>) -> Self {
         Self {
             base: BaseApi::new(api_client, config, authenticator),
         }
@@ -44,8 +42,11 @@ impl StoreApi {
     pub async fn delete_order(
         &self,
         order_id: i64,
+
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.delete_order_with_http_info(order_id).await?;
+        let result = self.delete_order_with_http_info(
+            order_id,
+        ).await?;
         let _ = result;
         Ok(())
     }
@@ -54,7 +55,9 @@ impl StoreApi {
     pub async fn delete_order_with_http_info(
         &self,
         order_id: i64,
+
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
+
         let mut path = "/store/order/{orderId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "orderId",
@@ -68,41 +71,19 @@ impl StoreApi {
         ) {
             // URL-encode for use as a URL path segment, preserving sub-delimiters
             // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v
-                .chars()
-                .flat_map(|c| {
-                    if c.is_ascii_alphanumeric()
-                        || matches!(
-                            c,
-                            '-' | '_'
-                                | '.'
-                                | '~'
-                                | '!'
-                                | '$'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | ';'
-                                | '='
-                                | ':'
-                                | '@'
-                        )
-                    {
-                        vec![c]
-                    } else {
-                        let mut buf = [0u8; 4];
-                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                        bytes
-                            .into_iter()
-                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
-                            .collect()
-                    }
-                })
-                .collect();
+            let encoded: String = v.chars().flat_map(|c| {
+                if c.is_ascii_alphanumeric()
+                    || matches!(c, '-' | '_' | '.' | '~'
+                        | '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+'
+                        | ',' | ';' | '=' | ':' | '@')
+                {
+                    vec![c]
+                } else {
+                    let mut buf = [0u8; 4];
+                    let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
+                    bytes.into_iter().flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>()).collect()
+                }
+            }).collect();
             path = path.replace("{orderId}", &encoded);
         }
 
@@ -130,19 +111,31 @@ impl StoreApi {
     /// Returns pet inventories by status
     pub async fn get_inventory(
         &self,
-    ) -> Result<std::collections::HashMap<String, i32>, Box<dyn std::error::Error + Send + Sync>>
-    {
-        let result = self.get_inventory_with_http_info().await?;
-        Ok(result.data.ok_or("empty response body")?)
+
+    ) -> Result<std::collections::HashMap<String, i32>, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.get_inventory_with_http_info(
+        ).await?;
+        // convenience-empty-body-handling: a body-returning operation that
+        // receives no decodable body must surface the SDK's typed ApiError
+        // (not a silent null / zero value), matching the other SDKs.
+        match result.data {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                result.status_code,
+                "empty response body for an operation that declares a response type".to_string(),
+                Some(result.raw_body),
+                Some(result.headers),
+                None,
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
     }
 
     /// Performs the get_inventory operation and returns the full API result.
     pub async fn get_inventory_with_http_info(
         &self,
-    ) -> Result<
-        ApiResult<std::collections::HashMap<String, i32>>,
-        Box<dyn std::error::Error + Send + Sync>,
-    > {
+
+    ) -> Result<ApiResult<std::collections::HashMap<String, i32>>, Box<dyn std::error::Error + Send + Sync>> {
+
         let mut path = "/store/inventory".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -163,9 +156,7 @@ impl StoreApi {
             auth: None,
         };
 
-        self.base
-            .invoke_api_for_result::<std::collections::HashMap<String, i32>>(params)
-            .await
+        self.base.invoke_api_for_result::<std::collections::HashMap<String, i32>>(params).await
     }
 
     /// Find purchase order by ID
@@ -173,16 +164,33 @@ impl StoreApi {
     pub async fn get_order_by_id(
         &self,
         order_id: i64,
+
     ) -> Result<Order, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_order_by_id_with_http_info(order_id).await?;
-        Ok(result.data.ok_or("empty response body")?)
+        let result = self.get_order_by_id_with_http_info(
+            order_id,
+        ).await?;
+        // convenience-empty-body-handling: a body-returning operation that
+        // receives no decodable body must surface the SDK's typed ApiError
+        // (not a silent null / zero value), matching the other SDKs.
+        match result.data {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                result.status_code,
+                "empty response body for an operation that declares a response type".to_string(),
+                Some(result.raw_body),
+                Some(result.headers),
+                None,
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
     }
 
     /// Performs the get_order_by_id operation and returns the full API result.
     pub async fn get_order_by_id_with_http_info(
         &self,
         order_id: i64,
+
     ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
+
         let mut path = "/store/order/{orderId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "orderId",
@@ -196,41 +204,19 @@ impl StoreApi {
         ) {
             // URL-encode for use as a URL path segment, preserving sub-delimiters
             // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v
-                .chars()
-                .flat_map(|c| {
-                    if c.is_ascii_alphanumeric()
-                        || matches!(
-                            c,
-                            '-' | '_'
-                                | '.'
-                                | '~'
-                                | '!'
-                                | '$'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | ';'
-                                | '='
-                                | ':'
-                                | '@'
-                        )
-                    {
-                        vec![c]
-                    } else {
-                        let mut buf = [0u8; 4];
-                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                        bytes
-                            .into_iter()
-                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
-                            .collect()
-                    }
-                })
-                .collect();
+            let encoded: String = v.chars().flat_map(|c| {
+                if c.is_ascii_alphanumeric()
+                    || matches!(c, '-' | '_' | '.' | '~'
+                        | '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+'
+                        | ',' | ';' | '=' | ':' | '@')
+                {
+                    vec![c]
+                } else {
+                    let mut buf = [0u8; 4];
+                    let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
+                    bytes.into_iter().flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>()).collect()
+                }
+            }).collect();
             path = path.replace("{orderId}", &encoded);
         }
 
@@ -259,16 +245,33 @@ impl StoreApi {
     pub async fn place_order(
         &self,
         order: Option<Order>,
+
     ) -> Result<Order, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.place_order_with_http_info(order).await?;
-        Ok(result.data.ok_or("empty response body")?)
+        let result = self.place_order_with_http_info(
+            order,
+        ).await?;
+        // convenience-empty-body-handling: a body-returning operation that
+        // receives no decodable body must surface the SDK's typed ApiError
+        // (not a silent null / zero value), matching the other SDKs.
+        match result.data {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                result.status_code,
+                "empty response body for an operation that declares a response type".to_string(),
+                Some(result.raw_body),
+                Some(result.headers),
+                None,
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
     }
 
     /// Performs the place_order operation and returns the full API result.
     pub async fn place_order_with_http_info(
         &self,
         order: Option<Order>,
+
     ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
+
         let mut path = "/store/order".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();

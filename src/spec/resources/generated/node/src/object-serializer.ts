@@ -227,6 +227,17 @@ export class ObjectSerializer {
             }
           }
         }
+        /**
+         * 4.7 — oneOf/anyOf without a discriminator and no variant matched
+         * the payload. Previously we fell through to a generic
+         * plainToInstance that stored the raw bag-of-keys, hiding the
+         * spec mismatch (type confusion / silent data corruption). Throw
+         * so the caller sees the payload matches no declared variant,
+         * matching the validate-each-variant-then-throw canonical.
+         */
+        throw new DeserializationError(
+          `Value does not match any of the declared schemas ` + `(${schemas.join(', ')}).`
+        );
       }
 
       const instance = plainToInstance(cls, json, { excludeExtraneousValues: true });

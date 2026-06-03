@@ -23,18 +23,17 @@ import java.time.OffsetDateTime
 import java.time.ZoneOffset
 
 class StoreApiTest {
+
     companion object {
         private fun getBaseUrl(): String = ChasmContainer.getBaseUrl()
 
         // Share one ktor HttpClient across the suite — see PetApiTest for
         // why per-test client creation exhausts Chasm's connection limits.
         private val sharedApi: StoreApi by lazy {
-            val config =
-                Configuration
-                    .builder()
-                    .baseUrl(getBaseUrl())
-                    .defaultHeader("Authorization", "Bearer test-token")
-                    .build()
+            val config = Configuration.builder()
+                .baseUrl(getBaseUrl())
+                .defaultHeader("Authorization", "Bearer test-token")
+                .build()
             StoreApi(DefaultApiClient(), config)
         }
     }
@@ -42,20 +41,20 @@ class StoreApiTest {
     @Nested
     @DisplayName("Integration tests")
     inner class IntegrationTests {
+
         private val api: StoreApi get() = sharedApi
 
         @Test
         @DisplayName("placeOrder creates a new order")
         fun testPlaceOrder() {
-            val order =
-                Order(
-                    id = 1L,
-                    petId = 12345L,
-                    quantity = 1,
-                    shipDate = OffsetDateTime.now(ZoneOffset.UTC),
-                    status = Order.StatusEnum.PLACED,
-                    complete = false,
-                )
+            val order = Order(
+                id = 1L,
+                petId = 12345L,
+                quantity = 1,
+                shipDate = OffsetDateTime.now(ZoneOffset.UTC),
+                status = Order.StatusEnum.PLACED,
+                complete = false
+            )
 
             val result = runBlocking { api.placeOrder(order) }
 
@@ -66,15 +65,14 @@ class StoreApiTest {
         @Test
         @DisplayName("placeOrder with HttpInfo returns status and headers")
         fun testPlaceOrderWithHttpInfo() {
-            val order =
-                Order(
-                    id = 1L,
-                    petId = 12345L,
-                    quantity = 1,
-                    shipDate = OffsetDateTime.now(ZoneOffset.UTC),
-                    status = Order.StatusEnum.PLACED,
-                    complete = false,
-                )
+            val order = Order(
+                id = 1L,
+                petId = 12345L,
+                quantity = 1,
+                shipDate = OffsetDateTime.now(ZoneOffset.UTC),
+                status = Order.StatusEnum.PLACED,
+                complete = false
+            )
 
             val result = runBlocking { api.placeOrderWithHttpInfo(order) }
 
@@ -130,6 +128,7 @@ class StoreApiTest {
     @Nested
     @DisplayName("Mock tests")
     inner class MockTests {
+
         @Test
         @DisplayName("getOrderById 404 throws ApiException")
         fun testGetOrderNotFound() {
@@ -212,6 +211,56 @@ class StoreApiTest {
                     runBlocking { api.deleteOrder(99999L) }
                 }
             assertEquals(404, exception.statusCode)
+        }
+
+        @Test
+        @DisplayName("apiresult-rawbody-nullability: ApiResult.rawBody is a non-null String")
+        fun testApiResultRawBodyNonNull() {
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = """{"id":7,"petId":1,"quantity":1,"status":"placed","complete":false}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = StoreApi(DefaultApiClient(HttpClient(engine)), config)
+
+            val result = runBlocking { api.getOrderByIdWithHttpInfo(7L) }
+            // Assigning to a non-null String compiles only if rawBody is non-null.
+            val rawBody: String = result.rawBody
+            assertTrue(rawBody.isNotEmpty())
+        }
+
+        @Test
+        @DisplayName("convenience-empty-body-handling: getOrderById throws ApiException on empty 200 body")
+        fun testGetOrderByIdEmptyBodyThrows() {
+            // A body-returning operation that receives a 2xx with an empty body
+            // must surface a typed ApiException from the unwrapped convenience
+            // method rather than returning a silent null.
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = StoreApi(DefaultApiClient(HttpClient(engine)), config)
+
+            assertThrows(ApiException::class.java) {
+                runBlocking { api.getOrderById(1L) }
+            }
         }
     }
 }

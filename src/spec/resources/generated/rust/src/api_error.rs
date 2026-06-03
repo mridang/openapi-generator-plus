@@ -7,6 +7,7 @@
 
 use std::collections::HashMap;
 use std::fmt;
+use std::sync::Arc;
 
 /// ApiError represents an error returned by the API, including the HTTP status
 /// code, response headers, and response body.
@@ -26,10 +27,20 @@ pub struct ApiError {
 
     /// The parsed response body, if JSON.
     pub error_body: Option<serde_json::Value>,
+
+    /// The underlying transport-level error that caused this ApiError, if any.
+    ///
+    /// apierror-drops-transport-cause: rather than stringifying and discarding
+    /// the originating error (DNS/connect/TLS/IO/body-read failure), it is
+    /// preserved here and exposed via [`std::error::Error::source`], so callers
+    /// can downcast the cause and inspect it — matching the 10 other SDKs that
+    /// retain `cause` / `Unwrap` / `__cause__` / `InnerException`. Stored as an
+    /// `Arc` so `ApiError` stays `Clone`.
+    pub source: Option<Arc<dyn std::error::Error + Send + Sync>>,
 }
 
 impl ApiError {
-    /// Creates a new ApiError.
+    /// Creates a new ApiError with no preserved transport cause.
     pub fn new(
         status_code: u16,
         message: String,
@@ -43,6 +54,28 @@ impl ApiError {
             response_body,
             response_headers,
             error_body,
+            source: None,
+        }
+    }
+
+    /// Creates a new ApiError that preserves the underlying transport `source`
+    /// error so callers can inspect the original cause via
+    /// [`std::error::Error::source`].
+    pub fn with_source(
+        status_code: u16,
+        message: String,
+        response_body: Option<String>,
+        response_headers: Option<HashMap<String, String>>,
+        error_body: Option<serde_json::Value>,
+        source: Arc<dyn std::error::Error + Send + Sync>,
+    ) -> Self {
+        Self {
+            status_code,
+            message,
+            response_body,
+            response_headers,
+            error_body,
+            source: Some(source),
         }
     }
 
@@ -98,7 +131,16 @@ impl fmt::Display for ApiError {
     }
 }
 
-impl std::error::Error for ApiError {}
+impl std::error::Error for ApiError {
+    /// Returns the underlying transport error that caused this ApiError, if it
+    /// was preserved via [`ApiError::with_source`]. Lets callers walk the error
+    /// chain and downcast to the originating reqwest / IO error.
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.source
+            .as_ref()
+            .map(|s| s.as_ref() as &(dyn std::error::Error + 'static))
+    }
+}
 
 /// ApiErrorFields carries the per-variant payload for ApiErrorKind.
 ///
@@ -233,11 +275,7 @@ impl fmt::Display for ApiErrorKind {
             Self::Other(code, msg) => write!(f, "API error (status {}): {}", code, msg),
             other => {
                 let fields = other.fields().expect("HTTP variants have fields");
-                write!(
-                    f,
-                    "API error (status {}): {}",
-                    fields.status_code, fields.message
-                )
+                write!(f, "API error (status {}): {}", fields.status_code, fields.message)
             }
         }
     }

@@ -8,7 +8,7 @@
 import Foundation
 
 /// Category is a model class generated from the OpenAPI schema.
-public struct Category: Codable, Sendable {
+public struct Category: Codable, Sendable, Equatable, Hashable {
     /// Example: `1`
     public var id: Int64?
     /// Example: `Dogs`

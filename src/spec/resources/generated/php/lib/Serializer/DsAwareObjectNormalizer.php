@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -223,13 +222,11 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
             return null;
         }
         $escapedParam = preg_quote($parameter->getName(), '/');
-        if (
-            !preg_match(
-                '/@param\s+\S+<([^>]+)>(?:\|null)?\s+\$' . $escapedParam . '\b/',
-                $doc,
-                $matches,
-            )
-        ) {
+        if (!preg_match(
+            '/@param\s+\S+<([^>]+)>(?:\|null)?\s+\$' . $escapedParam . '\b/',
+            $doc,
+            $matches,
+        )) {
             return null;
         }
         $inner = trim($matches[1]);

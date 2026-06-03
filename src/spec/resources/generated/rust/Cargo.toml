@@ -4,6 +4,7 @@ version = "1.0.0"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT"
+description = "A simplified Pet Store API for integration testing."
 
 [lints.rust]
 # Generated OAuth2 token-manager + OIDC authenticator templates declare

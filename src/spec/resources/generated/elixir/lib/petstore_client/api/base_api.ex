@@ -250,11 +250,12 @@ defmodule PetstoreClient.Api.BaseApi do
                   PetstoreClient.HeaderSelector.json_mime?(resp_content_type)
 
               if is_json do
-                try do
-                  PetstoreClient.ObjectSerializer.deserialize(response.body, return_type)
-                rescue
-                  _ -> response.body
-                end
+                # A 2xx body that does not match the declared schema is a
+                # contract violation; propagate the decode error to the
+                # caller instead of silently substituting the raw body
+                # string (which would yield type confusion). Matches the
+                # fail-loud behaviour of the other 11 SDKs.
+                PetstoreClient.ObjectSerializer.deserialize(response.body, return_type)
               else
                 response.body
               end

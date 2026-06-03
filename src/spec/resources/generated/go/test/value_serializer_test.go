@@ -418,6 +418,26 @@ func TestSerializeStyled_SimpleScalarPathEncodesValue(t *testing.T) {
 	}
 }
 
+// go-path-slash-not-encoded: a path value containing '/' must be encoded to
+// %2F so it cannot inject extra path segments. This is asserted both for the
+// simple style and for the no-style (empty) path, since api/api.mustache routes
+// every path param through SerializeStyled.
+func TestSerializeStyled_SimpleScalarPathEncodesSlash(t *testing.T) {
+	t.Parallel()
+	result := petstore.SerializeStyled("id", "a/b", "path", "string", "", "simple", false)
+	if result != "a%2Fb" {
+		t.Errorf("expected 'a%%2Fb' (slash percent-encoded for path), got %v", result)
+	}
+}
+
+func TestSerializeStyled_NoStylePathEncodesSlash(t *testing.T) {
+	t.Parallel()
+	result := petstore.SerializeStyled("id", "a/b", "path", "string", "", "", false)
+	if result != "a%2Fb" {
+		t.Errorf("expected 'a%%2Fb' (slash percent-encoded for path), got %v", result)
+	}
+}
+
 // ── SerializeStyled: form ──
 
 func TestSerializeStyled_FormScalar(t *testing.T) {

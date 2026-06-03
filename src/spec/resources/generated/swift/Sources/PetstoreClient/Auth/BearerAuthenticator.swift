@@ -14,6 +14,17 @@ public class BearerAuthenticator: BaseAuthenticator, @unchecked Sendable {
 
     /// Creates a new Bearer authenticator.
     public init(host: String, token: String) {
+        /* Reject an empty or whitespace-only token: it would otherwise be
+         * sent as the literal header `Authorization: Bearer ` and the
+         * request would go out effectively unauthenticated. This mirrors
+         * the empty-value guard the api-key authenticator already enforces.
+         * preconditionFailure is appropriate because this is a programmer
+         * error, not a recoverable runtime condition. */
+        if token.isEmpty || token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            preconditionFailure(
+                "Bearer token must not be empty or whitespace"
+            )
+        }
         /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
          * Reject anything outside printable ASCII + TAB so callers see
          * a clear error rather than HTTP header injection from CR/LF or

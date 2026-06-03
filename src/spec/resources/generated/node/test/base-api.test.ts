@@ -612,6 +612,26 @@ describe('CrossOriginRedirectTests', () => {
   });
 });
 
+describe('ConvenienceEmptyBodyTests', () => {
+  test('body-returning convenience method throws ApiError on an empty 204 body', async () => {
+    // convenience-empty-body-handling: a declared-non-void operation that
+    // receives no decodable body must surface a typed ApiError, not a
+    // silently-cast undefined.
+    const client = new CapturingApiClient();
+    client.responseBody = '';
+    client.responseHeaders = { 'content-type': 'application/json' };
+    // Force a 204 No Content response.
+    const original = client.sendRequest.bind(client);
+    client.sendRequest = async (method, url, headers, body) => {
+      await original(method, url, headers, body);
+      return { statusCode: 204, body: '', headers: { 'content-type': 'application/json' } };
+    };
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const petApi = new PetApi(client, config);
+    await expect(petApi.getExternalPetInfo(99)).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
 describe('NullBodyContentTypeTests', () => {
   test('null body POST does not send Content-Type', async () => {
     const client = new CapturingApiClient();

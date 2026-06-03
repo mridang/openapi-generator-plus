@@ -14,6 +14,7 @@ import 'base_api.dart';
 import '../configuration.dart';
 import '../object_serializer.dart';
 import '../value_serializer.dart';
+import '../errors/api_error.dart';
 import '../models/order.dart';
 
 /// StoreApi provides methods for the Store API group.
@@ -37,11 +38,15 @@ class StoreApi extends BaseApi {
   Future<ApiResult<void>> deleteOrderWithHTTPInfo(int orderId,
       {Authenticator? auth}) async {
     var path = '/store/order/{orderId}';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so the
+     * outer _encodePathSegment wrapper was encoding a second time (a
+     * space became %2520, `a/b` became a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. */
     path = path.replaceAll(
         '{' + 'orderId' + '}',
-        _encodePathSegment(serializeStyled(
-                'orderId', orderId, 'path', 'int', '', 'simple', false)
-            .toString()));
+        serializeStyled('orderId', orderId, 'path', 'int', '', 'simple', false)
+            .toString());
 
     final queryParams = <String, Object?>{};
 
@@ -66,7 +71,22 @@ class StoreApi extends BaseApi {
 
   Future<Map<String, int>> getInventory({Authenticator? auth}) async {
     final result = await getInventoryWithHTTPInfo(auth: auth);
-    return result.data as Map<String, int>;
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as Map<String, int>` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for getInventory but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
   }
 
   /// Performs the getInventory operation and returns the full API result.
@@ -99,18 +119,37 @@ class StoreApi extends BaseApi {
 
   Future<Order> getOrderById(int orderId, {Authenticator? auth}) async {
     final result = await getOrderByIdWithHTTPInfo(orderId, auth: auth);
-    return result.data as Order;
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as Order` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for getOrderById but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
   }
 
   /// Performs the getOrderById operation and returns the full API result.
   Future<ApiResult<Order>> getOrderByIdWithHTTPInfo(int orderId,
       {Authenticator? auth}) async {
     var path = '/store/order/{orderId}';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so the
+     * outer _encodePathSegment wrapper was encoding a second time (a
+     * space became %2520, `a/b` became a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. */
     path = path.replaceAll(
         '{' + 'orderId' + '}',
-        _encodePathSegment(serializeStyled(
-                'orderId', orderId, 'path', 'int', '', 'simple', false)
-            .toString()));
+        serializeStyled('orderId', orderId, 'path', 'int', '', 'simple', false)
+            .toString());
 
     final queryParams = <String, Object?>{};
 
@@ -136,7 +175,22 @@ class StoreApi extends BaseApi {
 
   Future<Order> placeOrder(Order? order, {Authenticator? auth}) async {
     final result = await placeOrderWithHTTPInfo(order, auth: auth);
-    return result.data as Order;
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as Order` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for placeOrder but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
   }
 
   /// Performs the placeOrder operation and returns the full API result.

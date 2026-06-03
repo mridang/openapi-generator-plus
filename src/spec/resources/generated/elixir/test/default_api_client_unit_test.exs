@@ -456,6 +456,19 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert response.status_code == 200
   end
 
+  # redirect-scheme-refusal-silent: a redirect whose Location points at a
+  # non-http(s) scheme (file:, javascript:, data:) must raise a typed SDK
+  # error rather than silently returning the 3xx response.
+  test "redirect to non-http(s) Location raises ApiError" do
+    {source_url, _} = start_redirect_server(302, "file:///etc/passwd")
+
+    client = PetstoreClient.DefaultApiClient.new()
+
+    assert_raise PetstoreClient.ApiError, fn ->
+      PetstoreClient.DefaultApiClient.send_request(client, :get, source_url, %{}, nil)
+    end
+  end
+
   test "3.2: send_request/6 with no_redirect: true returns the raw 302 response" do
     {target_url, _} = start_header_capture_server()
     {source_url, _} = start_redirect_server(302, "#{target_url}/echo")

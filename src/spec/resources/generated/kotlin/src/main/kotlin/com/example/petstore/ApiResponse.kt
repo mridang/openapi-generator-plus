@@ -13,5 +13,5 @@ package com.example.petstore
 data class ApiResponse(
     val statusCode: Int,
     val body: String,
-    val headers: Map<String, String>,
+    val headers: Map<String, String>
 )
