@@ -11,6 +11,15 @@ class BearerAuthenticator extends BaseAuthenticator
 
     public function __construct(string $host, string $token)
     {
+        /* Reject an empty / whitespace-only token up-front. Without this an
+         * empty token would emit the literal `Authorization: Bearer ` header
+         * (no credential), sending the request effectively unauthenticated.
+         * Mirrors the api-key authenticator's own empty guard. */
+        if ($token === '' || trim($token) === '') {
+            throw new \InvalidArgumentException(
+                'Bearer token must not be empty'
+            );
+        }
         /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
          * Reject anything outside printable ASCII + TAB so callers see a
          * clear error rather than HTTP header injection from CR/LF or

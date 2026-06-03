@@ -36,6 +36,15 @@ test('bearer rejects non ascii', function (): void {
         ->toThrow(\InvalidArgumentException::class);
 });
 
+test('bearer rejects empty token', function (): void {
+    // An empty / whitespace-only token would emit "Authorization: Bearer "
+    // (no credential), so it must be rejected at construction.
+    expect(fn () => new BearerAuthenticator('{{{basePath}}}', ''))
+        ->toThrow(\InvalidArgumentException::class);
+    expect(fn () => new BearerAuthenticator('{{{basePath}}}', '   '))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
 test('api key header rejects crlf and non ascii', function (): void {
     // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
     // ApiKeyAuthenticator's HEADER location must reject anything

@@ -452,6 +452,7 @@ class ObjectSerializer
                         sprintf('Expected a JSON object, got %s', get_debug_type($decoded))
                     );
                 }
+                self::assertRequiredPresent($decoded, $class);
                 self::assertPrimitiveTypes($decoded, $class);
                 /** @var object $result */
                 $result = self::getSerializer()->denormalize($decoded, $class);
@@ -465,6 +466,7 @@ class ObjectSerializer
 
         try {
             if (is_array($data)) {
+                self::assertRequiredPresent($data, $class);
                 self::assertPrimitiveTypes($data, $class);
             }
             /** @var object $result */
@@ -474,6 +476,60 @@ class ObjectSerializer
             throw new ApiException($e->getMessage());
         } catch (\Throwable $e) {
             throw new ApiException($e->getMessage());
+        }
+    }
+
+    /**
+     * F-BM-05 — hard-fail on a missing required property at deserialize.
+     *
+     * The generated model constructor declares every required var as a
+     * non-defaulted parameter, so a payload that omits one is a contract
+     * violation. Symfony's denormalizer is lenient for required-but-nullable
+     * types (it silently passes null), so we walk the constructor parameters
+     * that have no default value, map each to its wire name via the matching
+     * property's SerializedName attribute, and throw an SDK-typed
+     * InvalidArgumentException when the key is absent — aligning PHP with the
+     * other 11 SDKs which all reject a missing required field.
+     *
+     * @param array<array-key, mixed> $data
+     */
+    private static function assertRequiredPresent(array $data, string $class): void
+    {
+        if (!class_exists($class)) {
+            return;
+        }
+        $reflection = new \ReflectionClass($class);
+        $constructor = $reflection->getConstructor();
+        if ($constructor === null) {
+            return;
+        }
+        foreach ($constructor->getParameters() as $param) {
+            if ($param->isOptional() || $param->isDefaultValueAvailable()) {
+                continue;
+            }
+            $wireName = $param->getName();
+            if ($reflection->hasProperty($param->getName())) {
+                $property = $reflection->getProperty($param->getName());
+                foreach (
+                    $property->getAttributes(
+                        \Symfony\Component\Serializer\Attribute\SerializedName::class
+                    ) as $attr
+                ) {
+                    $args = $attr->getArguments();
+                    if (isset($args[0]) && is_string($args[0])) {
+                        $wireName = $args[0];
+                    } elseif (isset($args['name']) && is_string($args['name'])) {
+                        $wireName = $args['name'];
+                    }
+                }
+            }
+            if (!array_key_exists($wireName, $data)) {
+                throw new \InvalidArgumentException(sprintf(
+                    "Missing required property '%s' on %s",
+                    $wireName,
+                    $class
+                ));
+            }
         }
     }
 

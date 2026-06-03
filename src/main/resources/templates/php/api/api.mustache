@@ -148,8 +148,22 @@ class {{classname}} extends BaseApi
 {{#returnType}}
     public function {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#hasAuthMethods}}, ?Authenticator $auth = null{{/hasAuthMethods}})
     {
+        $apiResult = $this->{{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}${{paramName}}{{/vendorExtensions.op.signatureArgs}}{{#hasAuthMethods}}, $auth{{/hasAuthMethods}});
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \{{invokerPackage}}\ApiException(
+                'Expected a response body for {{operationId}} but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
         /** @var {{{returnType}}} $result */
-        $result = $this->{{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}${{paramName}}{{/vendorExtensions.op.signatureArgs}}{{#hasAuthMethods}}, $auth{{/hasAuthMethods}})->data;
+        $result = $apiResult->data;
         return $result;
     }
 

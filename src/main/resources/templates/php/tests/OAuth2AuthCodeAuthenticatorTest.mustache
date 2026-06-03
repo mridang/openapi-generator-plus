@@ -67,6 +67,30 @@ test('exchanges code with correct grant type', function (): void {
     expect($request['body'] ?? '')->toContain('client_secret=my-client-secret');
 });
 
+test('exchange code rejects empty code', function (): void {
+    /* exchangeCode must reject an empty / whitespace-only authorization
+     * code before issuing the token POST, surfacing the caller bug as a
+     * catchable InvalidArgumentException rather than a server-side
+     * invalid_grant. */
+    $client = makeOAuth2AuthCodeMockClient();
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect(fn (): mixed => $authenticator->exchangeCode(''))
+        ->toThrow(\InvalidArgumentException::class);
+    expect(fn (): mixed => $authenticator->exchangeCode('   '))
+        ->toThrow(\InvalidArgumentException::class);
+    expect($client->capturedRequests)->toHaveCount(0);
+});
+
 test('includes refresh token on refresh', function (): void {
     $client = new MockTokenApiClient();
     // First call (exchangeCode) returns a refresh token with an expired access token

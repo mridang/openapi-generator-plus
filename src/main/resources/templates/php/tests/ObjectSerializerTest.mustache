@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use {{invokerPackage}}\ObjectSerializer;
 use {{invokerPackage}}\Models\Category;
+use {{invokerPackage}}\Models\Pet;
 
 // -- toPathValue --
 
@@ -482,3 +483,28 @@ test('DateInterval invalid string surfaces exception', function (): void {
     expect(fn () => ObjectSerializer::deserialize('"not-a-duration"', 'DateInterval'))
         ->toThrow(\Exception::class);
 });
+
+// -- F-BM-05: missing required field hard-fails on deserialize --
+
+test('deserialize throws when a required field is missing', function (): void {
+    /* Pet declares `name` and `photoUrls` as required. A payload that omits
+     * a required field must surface an error (matching the other 11 SDKs)
+     * rather than silently constructing a partial object. */
+    $json = '{"id":1,"photoUrls":["http://x/a.png"]}'; // missing "name"
+    expect(fn (): mixed => ObjectSerializer::deserialize($json, Pet::class))
+        ->toThrow(\{{invokerPackage}}\ApiException::class);
+});
+
+test('deserialize succeeds when all required fields are present', function (): void {
+    $json = '{"name":"doggie","photoUrls":["http://x/a.png"]}';
+    /** @var Pet $pet */
+    $pet = ObjectSerializer::deserialize($json, Pet::class);
+    expect($pet)->toBeInstanceOf(Pet::class);
+    expect($pet->name)->toBe('doggie');
+});
+
+// -- F-BM-03 (WONTFIX for PHP): PHP's native #[\Deprecated] attribute does
+// NOT target properties (only functions/methods/class-constants/enum-cases),
+// so a deprecated *property* can only carry the `@deprecated` PHPDoc tag —
+// which PHPStan honours. This matches the Ruby/Elixir language-bound half of
+// the finding. No runtime attribute assertion is possible here.

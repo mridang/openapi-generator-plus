@@ -10,6 +10,7 @@ use {{invokerPackage}}\Api\Options\GetPetTagOptions;
 use {{invokerPackage}}\Api\Options\UploadPetCertificateOptions;
 use {{invokerPackage}}\Api\Options\UploadPetDocumentOptions;
 use {{invokerPackage}}\Api\PetApi;
+use {{invokerPackage}}\ApiException;
 use {{invokerPackage}}\Auth\BearerAuthenticator;
 use {{invokerPackage}}\Configuration;
 use {{invokerPackage}}\Errors\NotFoundException;
@@ -216,6 +217,15 @@ test('error handling server error', function (): void {
     $api = newPetApiForMock(500, 'application/json', '{"message":"Internal server error"}');
 
     expect(fn () => $api->getPetById(1))->toThrow(ServerException::class);
+});
+
+test('empty body for body returning op throws api exception', function (): void {
+    /* getPetById declares a non-void return type. A 2xx with an empty body
+     * is a contract violation, so the convenience method must throw the
+     * SDK's typed ApiException instead of returning a silent null. */
+    $api = newPetApiForMock(200, 'application/json', '');
+
+    expect(fn (): mixed => $api->getPetById(1))->toThrow(ApiException::class);
 });
 
 // -- Mock-based binary download test --
