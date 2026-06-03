@@ -496,6 +496,27 @@ public class BaseApiTest
     }
 
     [Fact]
+    public async Task FormUrlencodedBodyEncodesSpaceAsPlusNotPercent20()
+    {
+        // form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
+        // is defined by the WHATWG/HTML form-encoding standard, which mandates
+        // '+' for a space (not RFC-3986 '%20'). Aligns C# with the 9-SDK
+        // majority so the body wire bytes are identical across languages.
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object> { { "full name", "Ada Lovelace" } },
+            ["application/json"], "application/x-www-form-urlencoded");
+        Assert.NotNull(client.CapturedBody);
+        string wire = client.CapturedBody.ToString()!;
+        Assert.Equal("full+name=Ada+Lovelace", wire);
+        Assert.DoesNotContain("%20", wire);
+    }
+
+    [Fact]
     public async Task PassesBinaryBodyAsIs()
     {
         var client = new CapturingApiClient();

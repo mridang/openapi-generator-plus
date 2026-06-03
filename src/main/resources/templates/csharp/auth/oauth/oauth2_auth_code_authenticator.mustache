@@ -115,6 +115,18 @@ public class OAuth2AuthorizationCodeAuthenticator
     /// <param name="code">The authorization code from the callback.</param>
     public async Task ExchangeCodeAsync(string code)
     {
+        /* Reject an empty/whitespace authorization code before issuing the
+         * token POST: an empty code is a programmer/precondition error that
+         * would otherwise surface as a confusing downstream OAuth error.
+         * Matches the harmonised cross-SDK canonical (validate code non-empty
+         * before the exchange). */
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            throw new ArgumentException(
+                "Authorization code must not be empty",
+                nameof(code));
+        }
+
         Dictionary<string, string> parameters = new()
         {
             ["grant_type"] = "authorization_code",

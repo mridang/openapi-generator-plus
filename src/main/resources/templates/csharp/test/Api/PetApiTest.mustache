@@ -262,6 +262,49 @@ public class PetApiTest
         }
     }
 
+    private sealed class UrlCapturingApiClient : IApiClient
+    {
+        public Uri? CapturedUrl { get; private set; }
+
+        public Task<{{packageName}}.ApiResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+        {
+            CapturedUrl = url;
+            return Task.FromResult(new {{packageName}}.ApiResponse(200, "{\"name\":\"x\",\"photoUrls\":[]}",
+                new Dictionary<string, string> { { "Content-Type", "application/json" } }));
+        }
+    }
+
+    [Fact]
+    public async Task TestPathParamEncodedExactlyOnce()
+    {
+        // path-double-encoding regression: a string path param carrying an
+        // encodable char (space, '/') must be percent-encoded exactly once.
+        // The old api template wrapped the already-encoded SerializeStyled
+        // output in a second EncodePathSegment, turning '%' into '%25' so a
+        // space became '%2520' and '/' became '%252F'. tagName uses label
+        // style, petId uses matrix style.
+        var client = new UrlCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var api = new PetApi(client, config);
+
+        await api.GetPetTagAsync(7L, "a b/c", new GetPetTagOptions());
+
+        // Use AbsoluteUri / PathAndQuery, which preserve percent-encoding in
+        // the path (unlike ToString() which may unescape %20). A '%' is always
+        // kept escaped, so the double-encoded "%25xx" artifacts survive
+        // canonicalisation and are the reliable regression signal.
+        string url = client.CapturedUrl!.AbsoluteUri;
+        // '/' inside the value is always kept as %2F by .NET Uri.
+        Assert.Contains("b%2Fc", url);
+        // matrix style on petId -> ";petId=7".
+        Assert.Contains(";petId=7", url);
+        // The double-encoded artifacts (the old api-template bug) must NOT appear.
+        Assert.DoesNotContain("%2520", url);
+        Assert.DoesNotContain("%252F", url);
+        Assert.DoesNotContain("%253D", url);
+    }
+
     private static PetApi NewPetApiForMock(int status, string contentType, string body)
     {
         var config = Configuration.Builder()
@@ -276,6 +319,19 @@ public class PetApiTest
         var mockApi = NewPetApiForMock(404, "application/json", "{\"message\":\"Pet not found\"}");
 
         await Assert.ThrowsAsync<{{packageName}}.Errors.NotFoundException>(async () => await mockApi.GetPetByIdAsync(99999L));
+    }
+
+    [Fact]
+    public async Task TestEmptyBodyForBodyReturningOpThrowsApiException()
+    {
+        // convenience-empty-body-handling: a body-returning operation that
+        // gets a 200 with an empty body must surface a typed, catchable
+        // ApiException (not a silent null nor a non-SDK exception type).
+        var mockApi = NewPetApiForMock(200, "application/json", "");
+
+        var ex = await Assert.ThrowsAsync<{{packageName}}.ApiException>(
+            () => mockApi.GetPetByIdAsync(1L));
+        Assert.Equal(200, ex.StatusCode);
     }
 
     [Fact]

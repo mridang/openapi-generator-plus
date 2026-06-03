@@ -38,11 +38,9 @@ public enum {{classname}}
 {{^isEnum}}
 {{#oneOf}}
 {{#-first}}
-{{#discriminator}}
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-{{/discriminator}}
 namespace {{packageName}}.Models;
 
 {{#isDeprecated}}
@@ -102,9 +100,37 @@ public abstract class {{classname}}
 }
 {{/discriminator}}
 {{^discriminator}}
+[JsonConverter(typeof({{classname}}Converter))]
 public class {{classname}}(object value)
 {
     public object? ActualInstance { get; set; } = value;
+
+#pragma warning disable CA1812
+    private sealed class {{classname}}Converter : JsonConverter<{{classname}}>
+#pragma warning restore CA1812
+    {
+        public override {{classname}}? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            using JsonDocument doc = JsonDocument.ParseValue(ref reader);
+            string raw = doc.RootElement.GetRawText();
+            {{#oneOf}}
+            try { return new {{classname}}(JsonSerializer.Deserialize<{{{.}}}>(raw, options)!); }
+            catch (JsonException) { }
+            {{/oneOf}}
+            /* No schema in the union matched — throw rather than silently
+             * store a raw value (or, like Dart, an empty object). The 7-SDK
+             * majority (Python/Swift/Dart/Go/Rust plus Java/Kotlin/Node here)
+             * surfaces oneOf no-match as a deserialize error so data-shape
+             * bugs fail loudly instead of producing type-confused data. */
+            throw new JsonException(
+                $"JSON did not match any schema in the {{classname}} union: {raw}");
+        }
+
+        public override void Write(Utf8JsonWriter writer, {{classname}} value, JsonSerializerOptions options)
+        {
+            JsonSerializer.Serialize(writer, value.ActualInstance, options);
+        }
+    }
 }
 {{/discriminator}}
 {{/-first}}

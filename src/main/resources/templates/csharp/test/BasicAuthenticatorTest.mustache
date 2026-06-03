@@ -18,21 +18,24 @@ public class BasicAuthenticatorTest
     [Fact]
     public void RejectsUsernameWithCrlf()
     {
-        var auth = new BasicAuthenticator("https://api.example.com", "alice\r\n", "s3cret");
-        Assert.Throws<ArgumentException>(() => auth.GetAuthHeaders());
+        // auth-validation-timing: credentials are validated eagerly at
+        // construction (matching the 10-SDK majority), so a malformed username
+        // throws when the authenticator is created, not at first use.
+        Assert.Throws<ArgumentException>(() =>
+            new BasicAuthenticator("https://api.example.com", "alice\r\n", "s3cret"));
     }
 
     [Fact]
     public void RejectsPasswordWithNul()
     {
-        var auth = new BasicAuthenticator("https://api.example.com", "alice", "s3c\0ret");
-        Assert.Throws<ArgumentException>(() => auth.GetAuthHeaders());
+        Assert.Throws<ArgumentException>(() =>
+            new BasicAuthenticator("https://api.example.com", "alice", "s3c\0ret"));
     }
 
     [Fact]
     public void RejectsUsernameWithColon()
     {
-        var auth = new BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret");
-        Assert.Throws<ArgumentException>(() => auth.GetAuthHeaders());
+        Assert.Throws<ArgumentException>(() =>
+            new BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret"));
     }
 }

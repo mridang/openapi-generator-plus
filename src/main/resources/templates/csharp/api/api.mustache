@@ -184,8 +184,17 @@ public class {{classname}} : BaseApi
         {{#returnType}}
         Task<ApiResult<{{{returnType}}}>> task = {{operationId}}WithHttpInfoAsync({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#vendorExtensions.op.signatureArgs}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}});
         ApiResult<{{{returnType}}}> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
         return result.Data
-            ?? throw new InvalidOperationException("Expected non-null response body");
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                result.Headers,
+                result.RawBody);
         {{/returnType}}
         {{^returnType}}
         Task<ApiResult<object?>> task = {{operationId}}WithHttpInfoAsync({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#vendorExtensions.op.signatureArgs}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}});
@@ -271,7 +280,7 @@ public class {{classname}} : BaseApi
 {{/isPrimitiveType}}
         path = path.Replace(
             "{" + nameof({{paramName}}) + "}",
-            ValueSerializer.EncodePathSegment((string)ValueSerializer.SerializeStyled(nameof({{paramName}}), {{paramName}}, "path", "{{{dataType}}}", null, "{{style}}", {{isExplode}})!),
+            (string)ValueSerializer.SerializeStyled(nameof({{paramName}}), {{paramName}}, "path", "{{{dataType}}}", null, "{{style}}", {{isExplode}})!,
             StringComparison.Ordinal
         );
         {{/pathParams}}

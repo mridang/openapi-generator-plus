@@ -88,6 +88,31 @@ public class ComposedSchemaTest
         Assert.NotEmpty(serialized);
     }
 
+    // -- oneOf without discriminator: SetPetAvatarThumbnailRequest --
+
+    [Fact]
+    public void OneOfNonDiscriminatorDeserializesStringVariant()
+    {
+        // The byte/string variant of the oneOf.
+        var json = "\"YmFzZTY0\"";
+        var result = _serializer.Deserialize<SetPetAvatarThumbnailRequest>(json);
+        Assert.NotNull(result);
+        Assert.NotNull(result!.ActualInstance);
+    }
+
+    [Fact]
+    public void OneOfNonDiscriminatorNoMatchThrows()
+    {
+        // oneof-nondiscriminator-no-match-silent: the variants are a base64
+        // string and an array of base64 strings. A JSON object matches
+        // neither, so deserialization must throw rather than silently storing
+        // a raw value (Java/C#/Kotlin/Node previously kept it) or — as Dart did
+        // — an empty object. Aligns C# with the throw-on-no-match canonical.
+        var json = "{\"unexpected\":\"shape\"}";
+        Assert.Throws<System.Text.Json.JsonException>(
+            () => _serializer.Deserialize<SetPetAvatarThumbnailRequest>(json));
+    }
+
     // -- allOf: PetWithOwner --
 
     [Fact]

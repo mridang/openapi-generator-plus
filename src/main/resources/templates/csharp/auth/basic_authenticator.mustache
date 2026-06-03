@@ -1,21 +1,28 @@
 {{>api_info}}
 
+#pragma warning disable IDE0290 // Use primary constructor — validation runs in the body
+
 namespace {{packageName}}.Auth;
 
 /// <summary>
 /// Authenticator for HTTP Basic authentication.
 /// </summary>
-public class BasicAuthenticator(string host, string username, string password)
-    : BaseAuthenticator
+public class BasicAuthenticator : BaseAuthenticator
 {
-    /// <inheritdoc/>
-    public override string GetHost()
-    {
-        return host;
-    }
+    private readonly string _host;
+    private readonly string _username;
+    private readonly string _password;
 
-    /// <inheritdoc/>
-    public override Dictionary<string, string> GetAuthHeaders()
+    /// <summary>
+    /// Create a Basic authenticator. The credentials are validated eagerly at
+    /// construction (matching the 10-SDK majority that validates up front
+    /// rather than lazily at first use), so a malformed credential surfaces at
+    /// the call site where it is supplied.
+    /// </summary>
+    /// <param name="host">API base URL.</param>
+    /// <param name="username">The user-id.</param>
+    /// <param name="password">The password.</param>
+    public BasicAuthenticator(string host, string username, string password)
     {
         /* RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field
          * separator) and neither user-id nor password may carry CR/LF/NUL
@@ -51,7 +58,21 @@ public class BasicAuthenticator(string host, string username, string password)
                 }
             }
         }
-        string credentials = (username ?? string.Empty) + ":" + (password ?? string.Empty);
+        _host = host;
+        _username = username ?? string.Empty;
+        _password = password ?? string.Empty;
+    }
+
+    /// <inheritdoc/>
+    public override string GetHost()
+    {
+        return _host;
+    }
+
+    /// <inheritdoc/>
+    public override Dictionary<string, string> GetAuthHeaders()
+    {
+        string credentials = _username + ":" + _password;
         string authHeader =
             "Basic " + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(credentials));
         return new() { ["Authorization"] = authHeader };

@@ -1,35 +1,64 @@
 {{>api_info}}
 
+#pragma warning disable IDE0290 // Use primary constructor — validation runs in the body
+
 namespace {{packageName}}.Auth;
 
 /// <summary>
 /// Authenticator for HTTP Bearer token authentication.
 /// </summary>
-public class BearerAuthenticator(string host, string token) : BaseAuthenticator
+public class BearerAuthenticator : BaseAuthenticator
 {
-    /// <inheritdoc/>
-    public override string GetHost()
-    {
-        return host;
-    }
+    private readonly string _host;
+    private readonly string _token;
 
-    /// <inheritdoc/>
-    public override Dictionary<string, string> GetAuthHeaders()
+    /// <summary>
+    /// Create a Bearer authenticator. The token is validated eagerly at
+    /// construction (matching the 10-SDK majority that validates credentials
+    /// up front rather than lazily at first use), so a malformed credential
+    /// surfaces at the call site where it is supplied.
+    /// </summary>
+    /// <param name="host">API base URL.</param>
+    /// <param name="token">The bearer token.</param>
+    public BearerAuthenticator(string host, string token)
     {
+        /* Reject an empty/whitespace token: it would otherwise emit a bare
+         * "Authorization: Bearer " header, sending the request effectively
+         * unauthenticated. Mirrors the api-key authenticator's own empty
+         * guard and the harmonised cross-SDK canonical. */
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new ArgumentException(
+                "Bearer token must not be empty",
+                nameof(token));
+        }
         /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
          * Reject anything outside printable ASCII + TAB so callers see a
          * clear error rather than HTTP header injection from CR/LF or
          * silently-mangled non-ASCII bytes. */
-        if (token?.Any(c => c != '\t' && c is < (char)0x20 or >= (char)0x7F) == true)
+        if (token.Any(c => c != '\t' && c is < (char)0x20 or >= (char)0x7F))
         {
             throw new ArgumentException(
                 "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
                 nameof(token));
         }
+        _host = host;
+        _token = token;
+    }
+
+    /// <inheritdoc/>
+    public override string GetHost()
+    {
+        return _host;
+    }
+
+    /// <inheritdoc/>
+    public override Dictionary<string, string> GetAuthHeaders()
+    {
         /* Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
          * from env files are commonly stored already-prefixed; emitting
          * "Bearer Bearer xyz" would otherwise silently break auth. */
-        string value = token ?? string.Empty;
+        string value = _token;
         if (value.Length >= 7 && value[..7].Equals("Bearer ", StringComparison.OrdinalIgnoreCase))
         {
             value = value[7..];
