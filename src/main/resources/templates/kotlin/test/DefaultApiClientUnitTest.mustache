@@ -678,7 +678,9 @@ class DefaultApiClientUnitTest {
             // SDK's ApiException, not leak the raw Ktor/IO exception.
             val engine = MockEngine { _ ->
                 val channel = io.ktor.utils.io.ByteChannel(autoFlush = true)
-                channel.close(java.io.IOException("simulated body read failure"))
+                // cancel(cause) fails the channel with the given throwable so a
+                // reader sees it mid-body; ByteChannel.close() takes no cause arg.
+                channel.cancel(java.io.IOException("simulated body read failure"))
                 respond(
                     content = channel,
                     status = HttpStatusCode.OK,
