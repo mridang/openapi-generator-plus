@@ -45,7 +45,9 @@ interface RustSpec extends LanguageSpec, DockerImageSpec {
                 "apt-get update -qq && apt-get install -y -qq --no-install-recommends"
                         + " curl ca-certificates",
                 "rustup component add rustfmt clippy",
-                "mkdir -p $CARGO_HOME/bin && curl -LsSf https://get.nexte.st/latest/linux"
+                "mkdir -p $CARGO_HOME/bin && curl -LsSf"
+                        + " \"https://get.nexte.st/latest/$(case \"$(uname -m)\" in"
+                        + " aarch64|arm64) echo linux-arm ;; *) echo linux ;; esac)\""
                         + " | tar zxf - -C $CARGO_HOME/bin",
                 "mkdir -p .config && printf '%s\\n%s\\n' '[profile.ci.junit]'"
                         + " 'path = \"junit.xml\"' > .config/nextest.toml");
