@@ -348,15 +348,27 @@ describe('SENSITIVE_HEADER_NAMES allowlist', () => {
     expect(SENSITIVE_HEADER_NAMES.has('proxy-authorization')).toBe(true);
   });
 
-  it('includes common API-key header names', () => {
-    expect(SENSITIVE_HEADER_NAMES.has('x-api-key')).toBe(true);
-    expect(SENSITIVE_HEADER_NAMES.has('api-key')).toBe(true);
-    expect(SENSITIVE_HEADER_NAMES.has('apikey')).toBe(true);
-    expect(SENSITIVE_HEADER_NAMES.has('x-auth-token')).toBe(true);
-    expect(SENSITIVE_HEADER_NAMES.has('x-access-token')).toBe(true);
-    expect(SENSITIVE_HEADER_NAMES.has('x-functions-key')).toBe(true);
-    expect(SENSITIVE_HEADER_NAMES.has('x-amz-security-token')).toBe(true);
-    expect(SENSITIVE_HEADER_NAMES.has('ocp-apim-subscription-key')).toBe(true);
+  /*
+   * node-hardcoded-redirect-strip-list: the stripped set must be derived
+   * from the spec's apiKey-in-header security schemes ({{#apiKeyHeaderNames}}{{name}}, {{/apiKeyHeaderNames}})
+   * rather than a hardcoded SaaS-provider list. The petstore spec declares
+   * X-API-Key and X-Internal-Key as apiKey-in-header schemes, so both are
+   * present; query/cookie apiKeys are NOT header credentials and must be absent.
+   */
+  it('includes the spec-declared apiKey-in-header names', () => {
+{{#apiKeyHeaderNames}}
+    expect(SENSITIVE_HEADER_NAMES.has('{{nameLower}}')).toBe(true);
+{{/apiKeyHeaderNames}}
+  });
+
+  it('does NOT include hardcoded SaaS-provider key names absent from the spec', () => {
+    // These were in the old static list but are not declared by any
+    // apiKey-in-header scheme in this spec, so they must no longer be stripped.
+    expect(SENSITIVE_HEADER_NAMES.has('x-functions-key')).toBe(false);
+    expect(SENSITIVE_HEADER_NAMES.has('x-amz-security-token')).toBe(false);
+    expect(SENSITIVE_HEADER_NAMES.has('ocp-apim-subscription-key')).toBe(false);
+    expect(SENSITIVE_HEADER_NAMES.has('cf-access-client-secret')).toBe(false);
+    expect(SENSITIVE_HEADER_NAMES.has('fastly-key')).toBe(false);
   });
 
   it('entries are lowercase so case-insensitive matching works on Set.has', () => {
@@ -408,7 +420,7 @@ describe('cross-origin redirect strips API-key headers', () => {
     await new Promise<void>(resolve => dstServer.close(() => resolve()));
   });
 
-  it('strips Authorization, X-Api-Key, and Cookie on cross-origin 302', async () => {
+  it('strips Authorization, the spec-declared apiKey headers, and Cookie on cross-origin 302', async () => {
     const transport = TransportOptions.builder().followRedirects(true).build();
     const client = new DefaultApiClient(transport);
     await client.sendRequest(
@@ -417,18 +429,17 @@ describe('cross-origin redirect strips API-key headers', () => {
       {
         Authorization: 'Bearer secret',
         'X-Api-Key': 'k-12345',
+        'X-Internal-Key': 'internal-secret',
         Cookie: 'session=xyz',
-        'X-Functions-Key': 'azure-func-key',
-        'Ocp-Apim-Subscription-Key': 'apim-key',
         Accept: 'application/json',
       },
       null,
     );
     expect(lastReceivedHeaders['authorization']).toBeUndefined();
+    // X-API-Key and X-Internal-Key are apiKey-in-header schemes in the spec.
     expect(lastReceivedHeaders['x-api-key']).toBeUndefined();
+    expect(lastReceivedHeaders['x-internal-key']).toBeUndefined();
     expect(lastReceivedHeaders['cookie']).toBeUndefined();
-    expect(lastReceivedHeaders['x-functions-key']).toBeUndefined();
-    expect(lastReceivedHeaders['ocp-apim-subscription-key']).toBeUndefined();
     // Non-sensitive headers should still be forwarded.
     expect(lastReceivedHeaders['accept']).toBe('application/json');
   });
@@ -624,5 +635,105 @@ describe('HTTPS -> HTTP body replay guard', () => {
     );
     expect(response.statusCode).toBe(200);
     expect(call).toBe(2);
+  });
+});
+
+/*
+ * T-D3: a Location pointing at a non-HTTP(S) scheme must be refused with a
+ * loud, typed ApiError, never silently surfaced as the 3xx response.
+ */
+describe('redirect to non-HTTP(S) scheme is refused', () => {
+  const originalFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it('throws an ApiError when Location uses a file:/javascript: scheme', async () => {
+    global.fetch = (async (): Promise<Response> => {
+      return new Response(null, {
+        status: 302,
+        headers: { Location: 'file:///etc/passwd' },
+      });
+    }) as typeof fetch;
+
+    const transport = TransportOptions.builder().followRedirects(true).build();
+    const client = new DefaultApiClient(transport);
+    await expect(
+      client.sendRequest('GET', 'http://api.example/start', {}, null),
+    ).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
+/*
+ * T-D1: exhausting the redirect budget must throw "too many redirects",
+ * not silently return the last 3xx response as if it were normal.
+ */
+describe('redirect exhaustion throws', () => {
+  const originalFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it('throws an ApiError once maxRedirects is exceeded', async () => {
+    let n = 0;
+    global.fetch = (async (): Promise<Response> => {
+      n++;
+      // Always redirect onward so the budget is exhausted.
+      return new Response(null, {
+        status: 302,
+        headers: { Location: `http://api.example/hop${n}` },
+      });
+    }) as typeof fetch;
+
+    const transport = TransportOptions.builder()
+      .followRedirects(true)
+      .maxRedirects(3)
+      .build();
+    const client = new DefaultApiClient(transport);
+    await expect(
+      client.sendRequest('GET', 'http://api.example/start', {}, null),
+    ).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
+/*
+ * T-D4: use-after-close must surface the SDK's own ApiError type rather than
+ * a foreign undici exception or silently succeeding.
+ */
+describe('use-after-close', () => {
+  it('throws an ApiError when sendRequest is called after close()', async () => {
+    const client = new DefaultApiClient();
+    await client.close();
+    await expect(
+      client.sendRequest('GET', 'http://api.example/x', {}, null),
+    ).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
+/*
+ * response-body-read-error-not-wrapped: a failure during the post-headers
+ * body read (connection reset / truncated body) must be wrapped in the
+ * uniform ApiError type, not leak the raw fetch error.
+ */
+describe('body-read error is wrapped in ApiError', () => {
+  const originalFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it('wraps an arrayBuffer() rejection in ApiError', async () => {
+    global.fetch = (async (): Promise<Response> => {
+      // A Response whose body read rejects, simulating a mid-stream reset.
+      const resp = new Response('', { status: 200 });
+      Object.defineProperty(resp, 'arrayBuffer', {
+        value: () => Promise.reject(new TypeError('terminated')),
+      });
+      return resp;
+    }) as typeof fetch;
+
+    const client = new DefaultApiClient();
+    await expect(
+      client.sendRequest('GET', 'http://api.example/x', {}, null),
+    ).rejects.toBeInstanceOf(ApiError);
   });
 });

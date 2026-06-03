@@ -1,6 +1,12 @@
 {
   "name": "{{npmName}}",
   "version": "{{packageVersion}}",
+{{#appDescription}}
+  "description": "{{appDescription}}",
+{{/appDescription}}
+{{^appDescription}}
+  "description": "Generated API client for {{#appName}}{{appName}}{{/appName}}{{^appName}}{{npmName}}{{/appName}}",
+{{/appDescription}}
   "license": "MIT",
   "engines": {
     "node": ">=22"

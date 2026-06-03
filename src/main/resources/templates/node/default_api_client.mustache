@@ -27,36 +27,32 @@ import { ProxyAgent, Agent } from 'undici';
 /**
  * Header names that MUST be stripped when following a cross-origin
  * redirect. Includes the classic credential carriers (`Authorization`,
- * `Cookie`, `Proxy-Authorization`) plus the common API-key header
- * names emitted by `ApiKeyAuthenticator` (and observed across major
- * SaaS providers). undici's automatic redirect follower only strips
- * `Authorization`-style headers; leaving API-key headers attached
- * would leak the key to attacker-controlled hosts via a malicious
- * 302/307 from an upstream that supports both bearer and api-key
- * auth. Match is case-insensitive; entries here MUST be lowercase.
+ * `Cookie`, `Proxy-Authorization`) plus the apiKey-in-header header
+ * names declared by this spec's security schemes (merged at codegen
+ * time from the spec's apiKey-in-header schemes). undici's automatic redirect
+ * follower only strips `Authorization`-style headers; leaving an
+ * API-key header attached would leak the key to attacker-controlled
+ * hosts via a malicious 302/307 from an upstream that supports both
+ * bearer and api-key auth. Deriving the set from the spec keeps the
+ * credential-stripping boundary accurate and uniform across all SDKs.
+ * Match is case-insensitive; entries here MUST be lowercase.
  */
 export const SENSITIVE_HEADER_NAMES: ReadonlySet<string> = new Set<string>([
   'authorization',
   'cookie',
   'proxy-authorization',
-  'x-api-key',
-  'api-key',
-  'apikey',
-  'x-auth-token',
-  'auth-token',
-  'x-access-token',
-  'access-token',
-  'x-functions-key',
-  'x-amz-security-token',
-  'ocp-apim-subscription-key',
-  'fastly-key',
-  'cf-access-client-id',
-  'cf-access-client-secret',
+{{#apiKeyHeaderNames}}
+  '{{nameLower}}',
+{{/apiKeyHeaderNames}}
 ]);
 
 export class DefaultApiClient implements ApiClient {
   private readonly transportOptions: TransportOptions;
   private readonly dispatcher?: ProxyAgent | Agent;
+  /* T-D4: once close() has run the client must refuse further use with
+   * the SDK's own error type rather than leaking a foreign undici
+   * exception or silently succeeding against a cleared pool. */
+  private closed = false;
 
   /**
    * Create a client with default transport settings.
@@ -142,6 +138,15 @@ export class DefaultApiClient implements ApiClient {
     body: string | Buffer | Record<string, unknown> | null,
     options?: SendRequestOptions
   ): Promise<ApiResponse> {
+    if (this.closed) {
+      throw new ApiError(
+        0,
+        'ApiClient has been closed and can no longer be used',
+        {},
+        null,
+        null
+      );
+    }
     if (body instanceof Blob) {
       body = Buffer.from(await body.arrayBuffer());
     }
@@ -218,7 +223,19 @@ export class DefaultApiClient implements ApiClient {
           if (location == null || location.length === 0) break;
           const nextUrl = new URL(location, currentUrl).toString();
           const nextParsed = new URL(nextUrl);
-          if (nextParsed.protocol !== 'http:' && nextParsed.protocol !== 'https:') break;
+          /* T-D3: a Location pointing at a non-HTTP(S) scheme
+           * (file:, javascript:, data:, ...) must be refused loudly,
+           * never silently surfaced as the 3xx response. Throw a typed
+           * ApiError so callers see the offending URL. */
+          if (nextParsed.protocol !== 'http:' && nextParsed.protocol !== 'https:') {
+            throw new ApiError(
+              0,
+              `Refusing to follow redirect to non-HTTP(S) URL: ${nextUrl}`,
+              {},
+              null,
+              null
+            );
+          }
           const crossOrigin = !DefaultApiClient.sameOrigin(originalUrl, nextUrl);
 
           /* Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
@@ -293,6 +310,18 @@ export class DefaultApiClient implements ApiClient {
           response = await fetch(nextUrl, redirectOptions as RequestInit);
           hops++;
         }
+        /* T-D1: exhausting the redirect budget must fail loudly. The
+         * other SDKs throw "too many redirects" rather than silently
+         * returning the final 3xx as if it were a normal response. */
+        if (hops >= maxRedirects && DefaultApiClient.isRedirectStatus(response.status)) {
+          throw new ApiError(
+            0,
+            `Too many redirects (exceeded maxRedirects=${maxRedirects})`,
+            {},
+            null,
+            null
+          );
+        }
       }
     } catch (error) {
       /* ApiError already carries a useful status + message
@@ -311,7 +340,25 @@ export class DefaultApiClient implements ApiClient {
       );
     }
 
-    const responseBytes = Buffer.from(await response.arrayBuffer());
+    /* Wrap the post-headers body read in the SDK's transport error type.
+     * A connection reset / read-timeout / truncated-chunked / decompression
+     * failure that occurs AFTER response headers are received must surface
+     * as the same ApiError (statusCode 0, underlying cause preserved) as a
+     * send-phase failure, so callers have one error type for the entire
+     * transport phase instead of a raw fetch TypeError / AbortError. */
+    let responseBytes: Buffer;
+    try {
+      responseBytes = Buffer.from(await response.arrayBuffer());
+    } catch (error) {
+      throw new ApiError(
+        0,
+        error instanceof Error ? error.message : String(error),
+        {},
+        null,
+        null,
+        { cause: error }
+      );
+    }
     const contentType = response.headers.get('content-type') ?? '';
     const responseBody = DefaultApiClient.isTextContentType(contentType)
       ? DefaultApiClient.decodeBody(responseBytes, contentType)
@@ -609,6 +656,7 @@ export class DefaultApiClient implements ApiClient {
    * reused.
    */
   async close(): Promise<void> {
+    this.closed = true;
     if (this.dispatcher != null) {
       await this.dispatcher.close();
     }

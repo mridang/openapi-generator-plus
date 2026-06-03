@@ -91,6 +91,15 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
       { Accept: 'application/json' },
       null
     );
+    /* Guard the HTTP status before JSON-parsing: an error response (e.g.
+     * a 500 HTML page) must surface as a clear discovery failure, not be
+     * mis-reported as "invalid JSON" from a downstream parse error. */
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw new Error(
+        `OIDC discovery request to ${this.openIdConnectUrl} failed with ` +
+          `HTTP status ${response.statusCode}`
+      );
+    }
     const discovery = JSON.parse(response.body) as Record<string, unknown>;
     this.delegate = new OAuth2AuthorizationCodeAuthenticator(
       this.host,

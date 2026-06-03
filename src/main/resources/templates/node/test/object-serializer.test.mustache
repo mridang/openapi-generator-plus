@@ -1,7 +1,7 @@
 {{>api_info}}
 
 import { ObjectSerializer } from '../src/object-serializer{{importFileExtension}}';
-import { Category, DryFood, WetFood, PetPassport } from '../src/models/index{{importFileExtension}}';
+import { Category, DryFood, WetFood, PetPassport, Pet, PetStatusEnum } from '../src/models/index{{importFileExtension}}';
 import { uuid, isUuid } from '../src/brand{{importFileExtension}}';
 import { Temporal } from 'temporal-polyfill';
 
@@ -304,6 +304,20 @@ describe('ObjectSerializer', () => {
       expect(category).toBeDefined();
       expect(category!.id).toBe(1);
       expect(category!.name).toBe('Dogs');
+    });
+
+    test('accepts a valid enum value on a model property', () => {
+      const json = { name: 'Fido', photoUrls: [], status: 'available' };
+      const pet = ObjectSerializer.deserialize(json, Pet);
+      expect(pet!.status).toBe(PetStatusEnum.Available);
+    });
+
+    test('throws on an unknown enum wire value instead of silently keeping it', () => {
+      // enum-unknown-value-silent-vs-throw: an out-of-spec enum value (e.g.
+      // status:"banana") must surface as a deserialize error rather than
+      // being stored verbatim on the typed field (type confusion).
+      const json = { name: 'Fido', photoUrls: [], status: 'banana' };
+      expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow();
     });
   });
 

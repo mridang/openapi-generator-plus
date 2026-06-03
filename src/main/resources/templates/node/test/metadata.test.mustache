@@ -1,7 +1,21 @@
 {{>api_info}}
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { ObjectSerializer } from '../src/object-serializer{{importFileExtension}}';
 import { Metadata } from '../src/models/index{{importFileExtension}}';
+
+describe('package.json manifest', () => {
+  test('declares a non-empty description', () => {
+    // manifest-description-missing: the published manifest must carry a
+    // description (wired from the spec's appDescription) so registries do
+    // not show an empty description.
+    const pkgPath = path.resolve(__dirname, '..', 'package.json');
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')) as { description?: string };
+    expect(typeof pkg.description).toBe('string');
+    expect(pkg.description!.length).toBeGreaterThan(0);
+  });
+});
 
 describe('Metadata model (typed additionalProperties)', () => {
   test('serializes empty metadata', () => {

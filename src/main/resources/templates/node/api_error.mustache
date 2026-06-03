@@ -11,11 +11,16 @@ export class ApiError<T = unknown> extends Error {
   /** HTTP status code. */
   public readonly statusCode: number;
 
-  /** Raw response body string. */
+  /** Raw response body string, or null when the transport produced no body. */
   public readonly responseBody: string | null;
 
-  /** Response headers. */
-  public readonly responseHeaders: Record<string, string>;
+  /**
+   * Response headers, or null when the transport produced no headers (e.g.
+   * a send-phase failure before any response was received). Null is
+   * distinct from an empty header map, matching the nullable-majority SDKs
+   * (apierror-responsebody-headers-nullable-split).
+   */
+  public readonly responseHeaders: Record<string, string> | null;
 
   /** Deserialized error body, if available. */
   public readonly errorBody: T | null;
@@ -23,7 +28,7 @@ export class ApiError<T = unknown> extends Error {
   constructor(
     statusCode: number,
     message: string,
-    responseHeaders: Record<string, string> = {},
+    responseHeaders: Record<string, string> | null = {},
     responseBody: string | null = null,
     errorBody: T | null = null,
     options?: { cause?: unknown }

@@ -113,6 +113,15 @@ describe('OAuth2AuthorizationCodeAuthenticator', () => {
     await expect(authenticator.getAuthHeadersAsync()).rejects.toThrow();
   });
 
+  test('exchangeCode rejects an empty or whitespace code without hitting the token endpoint', async () => {
+    // oauth-exchangecode-no-empty-code-guard: an empty code can only fail
+    // at the token endpoint, so reject it up front.
+    await expect(authenticator.exchangeCode('')).rejects.toThrow();
+    await expect(authenticator.exchangeCode('   ')).rejects.toThrow();
+    // No token request should have been issued for the invalid code.
+    expect(mockClient.lastMethod).toBe('');
+  });
+
   test('getHost returns configured host', () => {
     expect(authenticator.getHost()).toBe('https://api.example.com');
   });

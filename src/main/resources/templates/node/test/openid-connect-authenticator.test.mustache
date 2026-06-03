@@ -142,6 +142,20 @@ describe('OpenIdConnectAuthenticator', () => {
     expect(headers['Authorization']).toBe('Bearer oidc-tok');
   });
 
+  test('throws on a non-2xx discovery response instead of mis-parsing it', async () => {
+    // oauth-oidc-discovery-no-status-check: a 500 (e.g. an HTML error page)
+    // must surface as a discovery failure, not a downstream "invalid JSON".
+    mockClient.responses = [
+      {
+        statusCode: 500,
+        body: '<html><body>Internal Server Error</body></html>',
+        headers: { 'content-type': 'text/html' }
+      }
+    ];
+
+    await expect(authenticator.buildAuthorizationUrl()).rejects.toThrow();
+  });
+
   test('throws when no ApiClient injected', async () => {
     const auth = new OpenIdConnectAuthenticator(
       'https://api.example.com',

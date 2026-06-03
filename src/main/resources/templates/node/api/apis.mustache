@@ -1,6 +1,7 @@
 {{>api_info}}
 
 import type { ApiClient } from '../api-client{{importFileExtension}}';
+import { ApiError } from '../api-error{{importFileExtension}}';
 import type { ApiResult } from '../api-result{{importFileExtension}}';
 import type { Authenticator } from '../auth/authenticator{{importFileExtension}}';
 import { BaseApi } from './base-api{{importFileExtension}}';
@@ -174,7 +175,20 @@ export class {{classname}} extends BaseApi {
 {{/required}}
 {{/cookieParams}}
 {{#returnType}}
-    return (await this.{{nickname}}WithHttpInfo({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#vendorExtensions.op.signatureArgs}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}})).data as {{{returnType}}};
+    const {{nickname}}Result = await this.{{nickname}}WithHttpInfo({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#vendorExtensions.op.signatureArgs}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}});
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if ({{nickname}}Result.data == null) {
+      throw new ApiError(
+        {{nickname}}Result.statusCode,
+        'Expected a response body for {{nickname}} but received none',
+        {{nickname}}Result.headers,
+        {{nickname}}Result.rawBody,
+        null
+      );
+    }
+    return {{nickname}}Result.data as {{{returnType}}};
 {{/returnType}}
 {{^returnType}}
     await this.{{nickname}}WithHttpInfo({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#vendorExtensions.op.signatureArgs}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}});
@@ -239,7 +253,11 @@ export class {{classname}} extends BaseApi {
     path = path.replace(`{${'{{baseName}}'}}`, ValueSerializer.encodePathSegment(ValueSerializer.stringifyDate({{paramName}})));
 {{/isDate}}
 {{^isDate}}
-    path = path.replace(`{${'{{baseName}}'}}`, ValueSerializer.encodePathSegment(ValueSerializer.serializeStyled('{{baseName}}', {{paramName}}, 'path', '{{{dataType}}}', null, '{{style}}', {{isExplode}}) as string));
+    {{! path-double-encoding: serializeStyled already percent-encodes path
+        segments via encodePathSegment internally; wrapping its result in a
+        second encodePathSegment double-encodes (space -> %2520, a/b ->
+        a%252Fb). Encode once, in the serializer. }}
+    path = path.replace(`{${'{{baseName}}'}}`, ValueSerializer.serializeStyled('{{baseName}}', {{paramName}}, 'path', '{{{dataType}}}', null, '{{style}}', {{isExplode}}) as string);
 {{/isDate}}
 {{/pathParams}}
 {{#servers}}

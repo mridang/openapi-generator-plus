@@ -102,6 +102,12 @@ export class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
    * @param code the authorization code from the callback
    */
   async exchangeCode(code: string): Promise<void> {
+    /* An empty/whitespace authorization code is a precondition error:
+     * posting it to the token endpoint can only fail. Reject it up front
+     * so the caller sees the real cause instead of a confusing server error. */
+    if (code.trim().length === 0) {
+      throw new Error('Authorization code must not be empty');
+    }
     const params: Record<string, string> = {
       grant_type: 'authorization_code',
       code,
