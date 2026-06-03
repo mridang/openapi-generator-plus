@@ -13,10 +13,7 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Models;
 
-use Ds\Set;
-use Ds\Vector;
 use Symfony\Component\Serializer\Attribute\SerializedName;
-use Uri\Rfc3986\Uri;
 
 /**
  * A pet record extended with owner information
@@ -42,13 +39,13 @@ class PetWithOwner
     #[SerializedName('category')]
     public ?Category $category = null;
 
-    /** @var Set<string> */
+    /** @var \Ds\Set<string> */
     #[SerializedName('photoUrls')]
-    public Set $photoUrls;
+    public \Ds\Set $photoUrls;
 
-    /** @var Vector<Tag>|null */
+    /** @var \Ds\Vector<Tag>|null */
     #[SerializedName('tags')]
-    public ?Vector $tags = null;
+    public ?\Ds\Vector $tags = null;
 
     /**
      * pet status in the store
@@ -58,16 +55,16 @@ class PetWithOwner
     #[SerializedName('status')]
     public ?PetWithOwnerStatusEnum $status = null;
 
-    /** @var Vector<mixed>|null */
+    /** @var \Ds\Vector<mixed>|null */
     #[SerializedName('location')]
-    public ?Vector $location = null;
+    public ?\Ds\Vector $location = null;
 
     /**
      * Absolute URL to the pet's public profile page
      * @example https://example.com/pets/fido
      */
     #[SerializedName('homepageUrl')]
-    public ?Uri $homepageUrl = null;
+    public ?\Uri\Rfc3986\Uri $homepageUrl = null;
 
     /**
      * Optionally-relative thumbnail location
@@ -99,20 +96,20 @@ class PetWithOwner
     public string $ownerName;
 
     /**
-     * @param Set<string> $photoUrls
-     * @param Vector<Tag>|null $tags
-     * @param Vector<mixed>|null $location
+     * @param \Ds\Set<string> $photoUrls
+     * @param \Ds\Vector<Tag>|null $tags
+     * @param \Ds\Vector<mixed>|null $location
      */
     public function __construct(
         string $name,
-        Set $photoUrls,
+        \Ds\Set $photoUrls,
         string $ownerName,
         ?int $id = null,
         ?Category $category = null,
-        ?Vector $tags = null,
+        ?\Ds\Vector $tags = null,
         ?PetWithOwnerStatusEnum $status = null,
-        ?Vector $location = null,
-        ?Uri $homepageUrl = null,
+        ?\Ds\Vector $location = null,
+        ?\Uri\Rfc3986\Uri $homepageUrl = null,
         ?string $thumbnailRef = null,
         ?string $linkTemplate = null,
         ?string $ownerEmail = null,

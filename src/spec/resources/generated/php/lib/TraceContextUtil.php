@@ -13,8 +13,6 @@ declare(strict_types=1);
 
 namespace PetstoreClient;
 
-use OpenTelemetry\API\Globals;
-
 /**
  * Utility for injecting W3C Trace Context headers (traceparent, tracestate)
  * into outgoing API requests when OpenTelemetry is available.
@@ -34,8 +32,8 @@ class TraceContextUtil
     public static function injectTraceContext(array &$headers): void
     {
         try {
-            if (class_exists(Globals::class)) {
-                Globals::propagator()->inject($headers);
+            if (class_exists(\OpenTelemetry\API\Globals::class)) {
+                \OpenTelemetry\API\Globals::propagator()->inject($headers);
             }
         } catch (\Throwable) {
         }

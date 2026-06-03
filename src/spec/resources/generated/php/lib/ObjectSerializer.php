@@ -13,9 +13,6 @@ declare(strict_types=1);
 
 namespace PetstoreClient;
 
-use Ds\Map;
-use Ds\Set;
-use Ds\Vector;
 use PetstoreClient\Serializer\DsAwareObjectNormalizer;
 use PetstoreClient\Serializer\DsMapNormalizer;
 use PetstoreClient\Serializer\DsSetNormalizer;
@@ -24,14 +21,12 @@ use PetstoreClient\Serializer\UriNormalizer;
 use Symfony\Component\PropertyInfo\Extractor\PhpDocExtractor;
 use Symfony\Component\PropertyInfo\Extractor\ReflectionExtractor;
 use Symfony\Component\PropertyInfo\PropertyInfoExtractor;
-use Symfony\Component\Serializer\Attribute\SerializedName;
 use Symfony\Component\Serializer\Encoder\JsonEncoder;
 use Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer;
 use Symfony\Component\Serializer\Normalizer\ArrayDenormalizer;
 use Symfony\Component\Serializer\Normalizer\BackedEnumNormalizer;
 use Symfony\Component\Serializer\Normalizer\DateTimeNormalizer;
 use Symfony\Component\Serializer\Serializer;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * Handles JSON serialization and deserialization for API requests and responses.
@@ -115,7 +110,7 @@ class ObjectSerializer
             return self::formatIso8601Duration($data);
         }
 
-        if ($data instanceof Uuid) {
+        if ($data instanceof \Symfony\Component\Uid\Uuid) {
             return $data->toRfc4122();
         }
 
@@ -164,7 +159,7 @@ class ObjectSerializer
             return self::formatIso8601Duration($value);
         }
 
-        if ($value instanceof Uuid) {
+        if ($value instanceof \Symfony\Component\Uid\Uuid) {
             return $value->toRfc4122();
         }
 
@@ -251,7 +246,7 @@ class ObjectSerializer
                 foreach ($data as $key => $value) {
                     $mapItems[(string) $key] = self::deserialize($value, $inner);
                 }
-                return new Map($mapItems);
+                return new \Ds\Map($mapItems);
             }
             /** @var array<int, mixed> $listItems */
             $listItems = [];
@@ -259,7 +254,7 @@ class ObjectSerializer
             foreach ($data as $value) {
                 $listItems[] = self::deserialize($value, $inner);
             }
-            return $container === 'Set' ? new Set($listItems) : new Vector($listItems);
+            return $container === 'Set' ? new \Ds\Set($listItems) : new \Ds\Vector($listItems);
         }
 
         if (str_ends_with($class, '[]')) {
@@ -411,7 +406,7 @@ class ObjectSerializer
                 }
             }
             if (is_string($data) && $data !== '') {
-                return Uuid::fromString($data);
+                return \Symfony\Component\Uid\Uuid::fromString($data);
             }
             return null;
         }
@@ -529,7 +524,7 @@ class ObjectSerializer
                 $property = $reflection->getProperty($param->getName());
                 foreach (
                     $property->getAttributes(
-                        SerializedName::class
+                        \Symfony\Component\Serializer\Attribute\SerializedName::class
                     ) as $attr
                 ) {
                     $args = $attr->getArguments();
@@ -577,7 +572,7 @@ class ObjectSerializer
             }
             $typeName = $type->getName();
             $serializedName = $property->getName();
-            foreach ($property->getAttributes(SerializedName::class) as $attr) {
+            foreach ($property->getAttributes(\Symfony\Component\Serializer\Attribute\SerializedName::class) as $attr) {
                 $args = $attr->getArguments();
                 if (isset($args[0]) && is_string($args[0])) {
                     $serializedName = $args[0];

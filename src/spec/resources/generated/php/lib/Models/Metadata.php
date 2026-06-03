@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Models;
 
-use Ds\Map;
 use Symfony\Component\Serializer\Attribute\SerializedName;
 
 class Metadata
@@ -22,8 +21,8 @@ class Metadata
     #[SerializedName('createdAt')]
     public ?\DateTime $createdAt = null;
 
-    /** @var Map<string, mixed>|null */
-    public ?Map $additionalProperties = null;
+    /** @var \Ds\Map<string, mixed>|null */
+    public ?\Ds\Map $additionalProperties = null;
 
     /**
      */

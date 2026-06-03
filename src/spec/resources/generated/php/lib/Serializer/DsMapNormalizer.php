@@ -13,14 +13,13 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Serializer;
 
-use Ds\Map;
 use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareTrait;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 
 /**
- * Round-trips {@see Map} ↔ a JSON object (NOT an array-of-pairs).
+ * Round-trips {@see \Ds\Map} ↔ a JSON object (NOT an array-of-pairs).
  *
  * Critical wire-shape choice: \Ds\Map's native iteration yields key/value
  * pairs, which would round-trip as a JSON array of two-element arrays —
@@ -37,7 +36,7 @@ final class DsMapNormalizer implements NormalizerInterface, DenormalizerInterfac
      */
     public function normalize(mixed $object, ?string $format = null, array $context = []): \ArrayObject
     {
-        \assert($object instanceof Map);
+        \assert($object instanceof \Ds\Map);
         /** @var \ArrayObject<string, mixed> $out */
         $out = new \ArrayObject([], \ArrayObject::ARRAY_AS_PROPS);
         foreach ($object as $key => $value) {
@@ -56,15 +55,15 @@ final class DsMapNormalizer implements NormalizerInterface, DenormalizerInterfac
      */
     public function supportsNormalization(mixed $data, ?string $format = null, array $context = []): bool
     {
-        return $data instanceof Map;
+        return $data instanceof \Ds\Map;
     }
 
     /**
      * @param array<string, mixed> $context
      */
-    public function denormalize(mixed $data, string $type, ?string $format = null, array $context = []): Map
+    public function denormalize(mixed $data, string $type, ?string $format = null, array $context = []): \Ds\Map
     {
-        $map = new Map();
+        $map = new \Ds\Map();
         if (is_object($data)) {
             foreach (get_object_vars($data) as $key => $value) {
                 $map->put($key, $value);
@@ -84,7 +83,7 @@ final class DsMapNormalizer implements NormalizerInterface, DenormalizerInterfac
     public function supportsDenormalization(mixed $data, string $type, ?string $format = null, array $context = []): bool
     {
         return (is_array($data) || is_object($data)) && (
-            $type === Map::class
+            $type === \Ds\Map::class
             || ltrim($type, '\\') === 'Ds\\Map'
         );
     }
@@ -94,6 +93,6 @@ final class DsMapNormalizer implements NormalizerInterface, DenormalizerInterfac
      */
     public function getSupportedTypes(?string $format): array
     {
-        return [Map::class => true];
+        return [\Ds\Map::class => true];
     }
 }

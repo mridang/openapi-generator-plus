@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Models;
 
-use PetstoreClient\ObjectSerializer;
 use Symfony\Component\Serializer\Attribute\SerializedName;
 
 class SetPetAvatarRequest
@@ -48,7 +47,7 @@ class SetPetAvatarRequest
      */
     public function getDataAsBytes(): ?string
     {
-        return ObjectSerializer::decodeBytes($this->data);
+        return \PetstoreClient\ObjectSerializer::decodeBytes($this->data);
     }
 
     /**
@@ -59,7 +58,7 @@ class SetPetAvatarRequest
      */
     public function setDataFromBytes(?string $raw): void
     {
-        $encoded = ObjectSerializer::encodeBytes($raw);
+        $encoded = \PetstoreClient\ObjectSerializer::encodeBytes($raw);
         if ($encoded !== null) {
             $this->data = $encoded;
         }

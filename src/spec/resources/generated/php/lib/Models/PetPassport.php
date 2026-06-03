@@ -13,8 +13,6 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Models;
 
-use Ds\Vector;
-use PetstoreClient\ObjectSerializer;
 use Symfony\Component\Serializer\Attribute\SerializedName;
 
 class PetPassport
@@ -32,11 +30,11 @@ class PetPassport
 
     /**
      * Base64-encoded scans of each passport page
-     * @var Vector<string>|null
+     * @var \Ds\Vector<string>|null
      * @example null
      */
     #[SerializedName('scans')]
-    public ?Vector $scans = null;
+    public ?\Ds\Vector $scans = null;
 
     /** @example null */
     #[SerializedName('issuedAt')]
@@ -50,12 +48,12 @@ class PetPassport
     public ?string $biometricChip = null;
 
     /**
-     * @param Vector<string>|null $scans
+     * @param \Ds\Vector<string>|null $scans
      */
     public function __construct(
         ?Pet $pet = null,
         ?string $thumbnail = null,
-        ?Vector $scans = null,
+        ?\Ds\Vector $scans = null,
         ?\DateTime $issuedAt = null,
         ?string $biometricChip = null,
     ) {
@@ -75,7 +73,7 @@ class PetPassport
      */
     public function getThumbnailAsBytes(): ?string
     {
-        return ObjectSerializer::decodeBytes($this->thumbnail);
+        return \PetstoreClient\ObjectSerializer::decodeBytes($this->thumbnail);
     }
 
     /**
@@ -86,7 +84,7 @@ class PetPassport
      */
     public function setThumbnailFromBytes(?string $raw): void
     {
-        $encoded = ObjectSerializer::encodeBytes($raw);
+        $encoded = \PetstoreClient\ObjectSerializer::encodeBytes($raw);
         if ($encoded !== null) {
             $this->thumbnail = $encoded;
         }
