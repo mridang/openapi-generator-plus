@@ -16,7 +16,7 @@ interface NodeSpec extends LanguageSpec {
 
   @Override
   default DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("node:24-slim");
+    return DockerImageName.parse("node:24-alpine");
   }
 
   @Override

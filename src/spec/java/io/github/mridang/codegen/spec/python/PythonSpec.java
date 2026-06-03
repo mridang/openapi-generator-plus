@@ -17,12 +17,12 @@ interface PythonSpec extends LanguageSpec, DockerImageSpec {
 
   @Override
   default DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("python:3-slim");
+    return DockerImageName.parse("python:3-alpine");
   }
 
   @Override
   default String getDockerImage() {
-    return "python:3-slim";
+    return "python:3-alpine";
   }
 
   @Override

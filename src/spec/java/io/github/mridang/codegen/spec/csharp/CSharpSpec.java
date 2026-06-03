@@ -17,12 +17,12 @@ interface CSharpSpec extends LanguageSpec, DockerImageSpec {
 
   @Override
   default DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("mcr.microsoft.com/dotnet/sdk:10.0");
+    return DockerImageName.parse("mcr.microsoft.com/dotnet/sdk:10.0-alpine");
   }
 
   @Override
   default String getDockerImage() {
-    return "mcr.microsoft.com/dotnet/sdk:10.0";
+    return "mcr.microsoft.com/dotnet/sdk:10.0-alpine";
   }
 
   @Override
