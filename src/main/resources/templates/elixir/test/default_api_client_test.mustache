@@ -326,6 +326,11 @@ defmodule {{moduleName}}.DefaultApiClientIntegrationTest do
     assert String.contains?(response.body, "userId")
   end
 
+  @tag :skip
+  # :brotli is declared only: [:dev, :prod], so it is not loaded in the
+  # :test env (keeps the Alpine test image toolchain-free, since brotli is
+  # a NIF that would otherwise compile from source). Req cannot decompress
+  # br without it; consumers opt in by adding :brotli to their own deps.
   test "decompresses brotli response" do
     client = {{moduleName}}.DefaultApiClient.new()
     response = {{moduleName}}.DefaultApiClient.send_request(

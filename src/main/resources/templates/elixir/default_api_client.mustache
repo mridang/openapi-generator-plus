@@ -137,7 +137,17 @@ defmodule {{moduleName}}.DefaultApiClient do
 
     merged =
       if !Map.has_key?(merged, "Accept-Encoding") do
-        Map.put(merged, "Accept-Encoding", "gzip, deflate, br")
+        # Only advertise "br" when the optional :brotli NIF is actually
+        # loaded; otherwise a server may return a brotli-compressed body
+        # that Req cannot decode, leaving raw bytes the caller can't parse.
+        accept_encoding =
+          if Code.ensure_loaded?(:brotli) do
+            "gzip, deflate, br"
+          else
+            "gzip, deflate"
+          end
+
+        Map.put(merged, "Accept-Encoding", accept_encoding)
       else
         merged
       end

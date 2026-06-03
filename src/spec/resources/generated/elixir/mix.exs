@@ -47,14 +47,25 @@ defmodule PetstoreClient.MixProject do
     [
       {:req, "~> 0.5"},
       {:jason, "~> 1.4"},
-      {:brotli, "~> 0.3"},
+      {:brotli, "~> 0.3", only: :prod, optional: true},
       {:mime, "~> 2.0"},
       {:excoveralls, "~> 0.18", only: :test},
       {:junit_formatter, "~> 3.4", only: :test},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.30", only: :dev, runtime: false},
-      {:testcontainers, "~> 1.12", only: :test}
+      {:testcontainers, "~> 1.12", only: :test},
+      # `fs` is a transitive dep of `testcontainers` (used only by the
+      # `mix testcontainers.run`/`.test` helper task that we don't call).
+      # On boot Mix auto-starts every runtime dep; `fs`'s OTP app callback
+      # spawns an `inotifywait` port driver and logs `backend port not
+      # found: :inotifywait` when the binary isn't installed (the stock
+      # `elixir:1.18` Docker image doesn't ship `inotify-tools`).
+      # `runtime: false` keeps the dep compiled (so `testcontainers`
+      # links cleanly) but skips the OTP start — no inotifywait, no
+      # warning, no apt-install. `override: true` is required because
+      # `testcontainers` declares `fs` itself.
+      {:fs, "~> 8.6", only: :test, override: true, runtime: false}
     ]
   end
 end

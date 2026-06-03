@@ -17,12 +17,12 @@ interface ElixirSpec extends LanguageSpec, DockerImageSpec {
 
   @Override
   default DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("elixir:1.18");
+    return DockerImageName.parse("elixir:1.18-alpine");
   }
 
   @Override
   default String getDockerImage() {
-    return "elixir:1.18";
+    return "elixir:1.18-alpine";
   }
 
   @Override
