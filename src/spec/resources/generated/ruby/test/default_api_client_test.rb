@@ -359,6 +359,7 @@ describe PetstoreClient::DefaultApiClient do
     end
 
     it 'decompresses brotli response' do
+      skip 'brotli gem not installed (optional group)' unless defined?(Brotli)
       client = PetstoreClient::DefaultApiClient.new
       response = client.send_request(
         :GET, 'https://jsonplaceholder.typicode.com/posts/1',
@@ -370,6 +371,7 @@ describe PetstoreClient::DefaultApiClient do
     end
 
     it 'decompresses zstd response' do
+      skip 'zstd-ruby gem not installed (optional group)' unless defined?(Zstd)
       client = PetstoreClient::DefaultApiClient.new
       response = client.send_request(
         :GET, 'https://jsonplaceholder.typicode.com/posts/1',
