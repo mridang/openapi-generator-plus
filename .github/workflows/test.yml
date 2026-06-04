@@ -19,6 +19,22 @@ jobs:
         with:
           docker-cache-free-disk: 'true'
 
+      - name: Synthetic root-owned files in ~/.cache (validates sudo tar path)
+        run: |
+          # Simulate what containers running as root + bind-mount would
+          # produce: files in ~/.cache owned by root that the runner user
+          # cannot read. If our post-step's sudo tar works, these files
+          # should be included in the cache; if it falls back to plain
+          # tar, they will be silently skipped.
+          sudo mkdir -p "$HOME/.cache/synthetic-root-owned"
+          echo "secret-from-root-$(date +%s%N)" | sudo tee "$HOME/.cache/synthetic-root-owned/marker.txt" > /dev/null
+          sudo chmod 0600 "$HOME/.cache/synthetic-root-owned/marker.txt"
+          sudo chown -R root:root "$HOME/.cache/synthetic-root-owned"
+          echo "--- ls -la as runner ---"
+          ls -la "$HOME/.cache/synthetic-root-owned" || true
+          echo "--- cat as runner (should fail with permission denied) ---"
+          cat "$HOME/.cache/synthetic-root-owned/marker.txt" 2>&1 || echo "expected: permission denied"
+
       - name: Free disk space (GitHub runner ~14GB; we pull 12 lang Docker images during tests)
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
