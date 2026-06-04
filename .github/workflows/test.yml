@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Runner Common Setup (test branch)
-        uses: mridang/action-runner-common@f952992ed9f57e3aea251672048a5d679a518d32
+        uses: mridang/action-runner-common@09c9da927e668e949e3d084aa6caf2b0fef171ad
         with:
           docker-cache-free-disk: 'true'
 
