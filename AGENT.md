@@ -805,3 +805,22 @@ speed, and "good enough".
    `docker ps -aq --filter label=org.testcontainers=true --filter status=exited | xargs -r docker rm -f`.
 
 If you cannot honour all of the above for a change, do not make the change.
+
+## TEST-COUNT PARITY — every SDK has every test
+
+Part of the PRIME DIRECTIVE. All 12 SDKs emit JUnit XML, and the per-language
+test count MUST be similar across all languages. The clients are one product
+in 12 languages, so the test SUITES must mirror each other.
+
+1. **Every behavioral test exists in all 12 SDK suites.** When a test is added
+   for one language, the equivalent test (same scenario, same assertion intent)
+   must be added to the other 11. A fix or feature is not complete until its
+   test is present in all 12.
+
+2. **Counts must stay close.** A language with materially fewer tests than the
+   others is a coverage gap to be closed, not accepted. Periodically compare
+   the JUnit XML test counts across languages; investigate and backfill any
+   language that lags.
+
+3. **No language is exempt.** If a scenario genuinely cannot be expressed in
+   one language's test harness, STOP and raise it — do not silently skip it.
