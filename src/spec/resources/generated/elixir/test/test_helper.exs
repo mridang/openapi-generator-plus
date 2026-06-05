@@ -82,3 +82,17 @@ Process.sleep(3000)
 squid_host = System.get_env("TESTCONTAINERS_HOST_OVERRIDE") || Testcontainers.get_host()
 squid_port = Testcontainers.Container.mapped_port(squid, 3128)
 System.put_env("PROXY_URL", "http://#{squid_host}:#{squid_port}")
+
+# Ryuk (the testcontainers reaper) is disabled above, so nothing tears the
+# chasm/squid containers or the shared network down when the suite ends.
+# Without this they leak as running containers that keep holding their host
+# ports, so the next `mix test` run hangs waiting to bind. Stop them
+# explicitly after the suite finishes (runs on pass or failure).
+ExUnit.after_suite(fn _results ->
+  Testcontainers.stop_container(squid.container_id)
+  Testcontainers.stop_container(chasm.container_id)
+
+  DockerEngineAPI.Api.Network.network_delete(docker_api_conn, network_name)
+
+  :ok
+end)
