@@ -127,7 +127,7 @@ class HeaderSelector {
     ): String {
         if (weight == 1000) return header
         val cleanHeader = header.replace(Regex("[;\\s]+$"), "")
-        var weightStr = "%.3f".format(weight / 1000.0).trimEnd('0')
+        var weightStr = String.format(java.util.Locale.ROOT, "%.3f", weight / 1000.0).trimEnd('0')
         if (weightStr.endsWith(".")) weightStr = weightStr.dropLast(1)
         return "$cleanHeader;q=$weightStr"
     }

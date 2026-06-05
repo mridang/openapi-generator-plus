@@ -212,7 +212,7 @@ public final class HeaderSelector {
         }
 
         String cleanHeader = header.replaceAll("[;\\s]+$", "");
-        String weightStr = String.format("%.3f", weight / 1000.0).replaceAll("0+$", "");
+        String weightStr = String.format(Locale.ROOT, "%.3f", weight / 1000.0).replaceAll("0+$", "");
         if (weightStr.endsWith(".")) {
             weightStr = weightStr.substring(0, weightStr.length() - 1);
         }
