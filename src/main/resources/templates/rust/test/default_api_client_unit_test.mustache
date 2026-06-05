@@ -662,8 +662,12 @@ fn start_infinite_redirect_server(max_conns: usize) -> String {
             let mut stream = stream.unwrap();
             let mut buf = [0u8; 4096];
             let _ = stream.read(&mut buf);
+            {{! Connection: close so reqwest opens a fresh TCP connection for }}
+            {{! each redirect hop — this bare server handles one request per }}
+            {{! connection, and keep-alive reuse would otherwise stall hop 2 }}
+            {{! and surface as a connection error instead of "too many redirects". }}
             let response = format!(
-                "HTTP/1.1 302 Found\r\nLocation: {}\r\nContent-Length: 0\r\n\r\n",
+                "HTTP/1.1 302 Found\r\nLocation: {}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
                 loc
             );
             let _ = std::io::Write::write_all(&mut stream, response.as_bytes());

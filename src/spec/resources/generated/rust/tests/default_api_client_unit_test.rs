@@ -739,7 +739,7 @@ fn start_infinite_redirect_server(max_conns: usize) -> String {
             let mut buf = [0u8; 4096];
             let _ = stream.read(&mut buf);
             let response = format!(
-                "HTTP/1.1 302 Found\r\nLocation: {}\r\nContent-Length: 0\r\n\r\n",
+                "HTTP/1.1 302 Found\r\nLocation: {}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
                 loc
             );
             let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
