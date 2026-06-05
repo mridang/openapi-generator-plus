@@ -16,19 +16,17 @@ class BasicAuthenticator extends BaseAuthenticator {
   final String _password;
 
   /// Creates a new Basic authenticator.
+  ///
+  /// Credentials are validated eagerly at construction, so a malformed
+  /// credential surfaces where it is supplied rather than lazily at first
+  /// request.
   BasicAuthenticator({
     required String host,
     required String username,
     required String password,
   }) : _host = host,
        _username = username,
-       _password = password;
-
-  @override
-  String host() => _host;
-
-  @override
-  Map<String, String> authHeaders() {
+       _password = password {
     /* RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field
      * separator) and neither user-id nor password may carry CR/LF/NUL
      * (header-injection / smuggling vectors common when credentials are
@@ -58,6 +56,13 @@ class BasicAuthenticator extends BaseAuthenticator {
         );
       }
     }
+  }
+
+  @override
+  String host() => _host;
+
+  @override
+  Map<String, String> authHeaders() {
     final authHeader =
         'Basic ${base64Encode(utf8.encode('$_username:$_password'))}';
     return {

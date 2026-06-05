@@ -14,18 +14,15 @@ describe('BasicAuthenticator', () => {
     expect(headers['Authorization']).toBe('Basic YWxpY2U6czNjcmV0');
   });
 
-  it('rejects username with crlf', () => {
-    const auth = new BasicAuthenticator('https://api.example.com', 'alice\r\n', 's3cret');
-    expect(() => auth.getAuthHeaders()).toThrow();
+  it('rejects username with crlf at construction', () => {
+    expect(() => new BasicAuthenticator('https://api.example.com', 'alice\r\n', 's3cret')).toThrow();
   });
 
-  it('rejects password with nul', () => {
-    const auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3c\0ret');
-    expect(() => auth.getAuthHeaders()).toThrow();
+  it('rejects password with nul at construction', () => {
+    expect(() => new BasicAuthenticator('https://api.example.com', 'alice', 's3c\0ret')).toThrow();
   });
 
-  it('rejects username with colon', () => {
-    const auth = new BasicAuthenticator('https://api.example.com', 'ali:ce', 's3cret');
-    expect(() => auth.getAuthHeaders()).toThrow();
+  it('rejects username with colon at construction', () => {
+    expect(() => new BasicAuthenticator('https://api.example.com', 'ali:ce', 's3cret')).toThrow();
   });
 });

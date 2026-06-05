@@ -7,8 +7,32 @@
 
 package com.example.petstore.auth;
 
-public final class ServiceTokenAuthenticator extends BearerAuthenticator {
+import java.util.Map;
+
+public final class ServiceTokenAuthenticator extends BaseAuthenticator {
+  private final BearerAuthenticator delegate;
+
   public ServiceTokenAuthenticator(String host, String token) {
-    super(host, token);
+    this.delegate = new BearerAuthenticator(host, token);
+  }
+
+  @Override
+  public String getHost() {
+    return delegate.getHost();
+  }
+
+  @Override
+  public Map<String, String> getAuthHeaders() {
+    return delegate.getAuthHeaders();
+  }
+
+  @Override
+  public Map<String, String> getQueryParams() {
+    return delegate.getQueryParams();
+  }
+
+  @Override
+  public Map<String, String> getCookieParams() {
+    return delegate.getCookieParams();
   }
 }

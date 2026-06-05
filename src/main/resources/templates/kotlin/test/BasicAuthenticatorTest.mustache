@@ -16,26 +16,23 @@ class BasicAuthenticatorTest {
     }
 
     @Test
-    fun rejectsUsernameWithCrlf() {
-        val auth = BasicAuthenticator("https://api.example.com", "alice\r\n", "s3cret")
+    fun rejectsUsernameWithCrlfAtConstruction() {
         assertThrows(IllegalArgumentException::class.java) {
-            runBlocking { auth.getAuthHeaders() }
+            BasicAuthenticator("https://api.example.com", "alice\r\n", "s3cret")
         }
     }
 
     @Test
-    fun rejectsPasswordWithNul() {
-        val auth = BasicAuthenticator("https://api.example.com", "alice", "s3c\u0000ret")
+    fun rejectsPasswordWithNulAtConstruction() {
         assertThrows(IllegalArgumentException::class.java) {
-            runBlocking { auth.getAuthHeaders() }
+            BasicAuthenticator("https://api.example.com", "alice", "s3c\u0000ret")
         }
     }
 
     @Test
-    fun rejectsUsernameWithColon() {
-        val auth = BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret")
+    fun rejectsUsernameWithColonAtConstruction() {
         assertThrows(IllegalArgumentException::class.java) {
-            runBlocking { auth.getAuthHeaders() }
+            BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret")
         }
     }
 }

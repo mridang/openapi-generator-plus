@@ -33,63 +33,73 @@ class ApiKeyAuthenticatorTest {
   }
 
   @Test
-  void emptyKeyHeaderThrows() {
-    ApiKeyAuthenticator auth =
-        new ApiKeyAuthenticator("https://api.example.com", "X-API-Key", "", ApiKeyLocation.HEADER);
+  void emptyKeyHeaderThrowsAtConstruction() {
     IllegalArgumentException ex =
-        assertThrows(IllegalArgumentException.class, auth::getAuthHeaders);
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                new ApiKeyAuthenticator(
+                    "https://api.example.com", "X-API-Key", "", ApiKeyLocation.HEADER));
     String msg = ex.getMessage();
     assertNotNull(msg);
     assertTrue(msg.contains("must not be empty"));
   }
 
   @Test
-  void emptyKeyQueryThrows() {
-    ApiKeyAuthenticator auth =
-        new ApiKeyAuthenticator("https://api.example.com", "api_key", "", ApiKeyLocation.QUERY);
-    assertThrows(IllegalArgumentException.class, auth::getQueryParams);
+  void emptyKeyQueryThrowsAtConstruction() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new ApiKeyAuthenticator(
+                "https://api.example.com", "api_key", "", ApiKeyLocation.QUERY));
   }
 
   @Test
-  void emptyKeyCookieThrows() {
-    ApiKeyAuthenticator auth =
-        new ApiKeyAuthenticator("https://api.example.com", "session", "", ApiKeyLocation.COOKIE);
-    assertThrows(IllegalArgumentException.class, auth::getCookieParams);
+  void emptyKeyCookieThrowsAtConstruction() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new ApiKeyAuthenticator(
+                "https://api.example.com", "session", "", ApiKeyLocation.COOKIE));
   }
 
   @Test
-  void whitespaceOnlyKeyThrows() {
-    ApiKeyAuthenticator auth =
-        new ApiKeyAuthenticator(
-            "https://api.example.com", "X-API-Key", "   ", ApiKeyLocation.HEADER);
-    assertThrows(IllegalArgumentException.class, auth::getAuthHeaders);
+  void whitespaceOnlyKeyThrowsAtConstruction() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new ApiKeyAuthenticator(
+                "https://api.example.com", "X-API-Key", "   ", ApiKeyLocation.HEADER));
   }
 
   @Test
-  void crlfInQueryKeyThrows() {
-    ApiKeyAuthenticator auth =
-        new ApiKeyAuthenticator(
-            "https://api.example.com", "api_key", "abc\r\n", ApiKeyLocation.QUERY);
+  void crlfInQueryKeyThrowsAtConstruction() {
     IllegalArgumentException ex =
-        assertThrows(IllegalArgumentException.class, auth::getQueryParams);
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                new ApiKeyAuthenticator(
+                    "https://api.example.com", "api_key", "abc\r\n", ApiKeyLocation.QUERY));
     String msg = ex.getMessage();
     assertNotNull(msg);
     assertTrue(msg.contains("forbidden control"));
   }
 
   @Test
-  void crlfInCookieKeyThrows() {
-    ApiKeyAuthenticator auth =
-        new ApiKeyAuthenticator(
-            "https://api.example.com", "session", "abc\n", ApiKeyLocation.COOKIE);
-    assertThrows(IllegalArgumentException.class, auth::getCookieParams);
+  void crlfInCookieKeyThrowsAtConstruction() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new ApiKeyAuthenticator(
+                "https://api.example.com", "session", "abc\n", ApiKeyLocation.COOKIE));
   }
 
   @Test
-  void crlfInHeaderKeyThrows() {
-    ApiKeyAuthenticator auth =
-        new ApiKeyAuthenticator(
-            "https://api.example.com", "X-API-Key", "abc\rdef", ApiKeyLocation.HEADER);
-    assertThrows(IllegalArgumentException.class, auth::getAuthHeaders);
+  void crlfInHeaderKeyThrowsAtConstruction() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new ApiKeyAuthenticator(
+                "https://api.example.com", "X-API-Key", "abc\rdef", ApiKeyLocation.HEADER));
   }
 }

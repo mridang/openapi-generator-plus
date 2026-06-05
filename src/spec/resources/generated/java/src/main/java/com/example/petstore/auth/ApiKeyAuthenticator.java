@@ -14,7 +14,7 @@ import java.util.Map;
  * Authenticator for API key authentication. Supports sending the key as a header, query parameter,
  * or cookie.
  */
-public class ApiKeyAuthenticator extends BaseAuthenticator {
+public final class ApiKeyAuthenticator extends BaseAuthenticator {
 
   private final String host;
   private final String keyParamName;
@@ -27,6 +27,7 @@ public class ApiKeyAuthenticator extends BaseAuthenticator {
     this.keyParamName = keyParamName;
     this.apiKey = apiKey;
     this.location = location;
+    validateApiKey();
   }
 
   @Override
@@ -40,8 +41,9 @@ public class ApiKeyAuthenticator extends BaseAuthenticator {
      * HTTP headers (HEADER location) or break URL/cookie construction
      * (QUERY/COOKIE — even though URL-encoded later, trapping at
      * construction surfaces the bug clearly). RFC 7230 §3.2.6 printable-
-     * ASCII rule still applies to HEADER values. Validation is lazy
-     * (not in constructor) to avoid SpotBugs CT_CONSTRUCTOR_THROW. */
+     * ASCII rule still applies to HEADER values. Validated eagerly at
+     * construction; the class is final so this does not trip SpotBugs
+     * CT_CONSTRUCTOR_THROW. */
     if (apiKey == null || apiKey.isEmpty()) {
       throw new IllegalArgumentException(
           "API key value for '" + keyParamName + "' must not be empty");
@@ -81,7 +83,6 @@ public class ApiKeyAuthenticator extends BaseAuthenticator {
     if (location != ApiKeyLocation.HEADER) {
       return Collections.emptyMap();
     }
-    validateApiKey();
     return Collections.singletonMap(keyParamName, apiKey);
   }
 
@@ -90,7 +91,6 @@ public class ApiKeyAuthenticator extends BaseAuthenticator {
     if (location != ApiKeyLocation.QUERY) {
       return Collections.emptyMap();
     }
-    validateApiKey();
     return Collections.singletonMap(keyParamName, apiKey);
   }
 
@@ -99,7 +99,6 @@ public class ApiKeyAuthenticator extends BaseAuthenticator {
     if (location != ApiKeyLocation.COOKIE) {
       return Collections.emptyMap();
     }
-    validateApiKey();
     return Collections.singletonMap(keyParamName, apiKey);
   }
 }

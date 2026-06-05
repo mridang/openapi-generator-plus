@@ -17,9 +17,9 @@ open class BasicAuthenticator(
     private val username: String,
     private val password: String,
 ) : BaseAuthenticator() {
-    override fun getHost(): String = host
-
-    override suspend fun getAuthHeaders(): Map<String, String> {
+    init {
+        // Validate eagerly at construction so a malformed credential surfaces
+        // where it is supplied rather than lazily at first request.
         // RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field
         // separator) and neither user-id nor password may carry CR/LF/NUL
         // (header-injection / smuggling vectors common when credentials
@@ -39,6 +39,11 @@ open class BasicAuthenticator(
                 "Basic auth password must not contain CR, LF, or NUL characters",
             )
         }
+    }
+
+    override fun getHost(): String = host
+
+    override suspend fun getAuthHeaders(): Map<String, String> {
         val credentials = Base64.getEncoder().encodeToString("$username:$password".toByteArray())
         return mapOf("Authorization" to "Basic $credentials")
     }

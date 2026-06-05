@@ -20,17 +20,17 @@ test('valid credentials produce basic header', function (): void {
     expect($headers['Authorization'])->toBe('Basic YWxpY2U6czNjcmV0');
 });
 
-test('rejects username with crlf', function (): void {
-    $auth = new BasicAuthenticator('https://api.example.com', "alice\r\n", 's3cret');
-    expect(fn () => $auth->getAuthHeaders())->toThrow(\InvalidArgumentException::class);
+test('rejects username with crlf at construction', function (): void {
+    expect(fn () => new BasicAuthenticator('https://api.example.com', "alice\r\n", 's3cret'))
+        ->toThrow(\InvalidArgumentException::class);
 });
 
-test('rejects password with nul', function (): void {
-    $auth = new BasicAuthenticator('https://api.example.com', 'alice', "s3c\0ret");
-    expect(fn () => $auth->getAuthHeaders())->toThrow(\InvalidArgumentException::class);
+test('rejects password with nul at construction', function (): void {
+    expect(fn () => new BasicAuthenticator('https://api.example.com', 'alice', "s3c\0ret"))
+        ->toThrow(\InvalidArgumentException::class);
 });
 
-test('rejects username with colon', function (): void {
-    $auth = new BasicAuthenticator('https://api.example.com', 'ali:ce', 's3cret');
-    expect(fn () => $auth->getAuthHeaders())->toThrow(\InvalidArgumentException::class);
+test('rejects username with colon at construction', function (): void {
+    expect(fn () => new BasicAuthenticator('https://api.example.com', 'ali:ce', 's3cret'))
+        ->toThrow(\InvalidArgumentException::class);
 });

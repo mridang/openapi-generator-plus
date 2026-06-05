@@ -19,20 +19,17 @@ class TestBasicAuthenticator:
         headers = auth.get_auth_headers()
         assert headers['Authorization'] == 'Basic YWxpY2U6czNjcmV0'
 
-    def test_rejects_username_with_crlf(self) -> None:
-        auth = BasicAuthenticator(host='https://api.example.com', username='alice\r\n', password='s3cret')
+    def test_rejects_username_with_crlf_at_construction(self) -> None:
         with pytest.raises(ValueError):
-            auth.get_auth_headers()
+            BasicAuthenticator(host='https://api.example.com', username='alice\r\n', password='s3cret')
 
-    def test_rejects_password_with_nul(self) -> None:
-        auth = BasicAuthenticator(host='https://api.example.com', username='alice', password='s3c\x00ret')
+    def test_rejects_password_with_nul_at_construction(self) -> None:
         with pytest.raises(ValueError):
-            auth.get_auth_headers()
+            BasicAuthenticator(host='https://api.example.com', username='alice', password='s3c\x00ret')
 
-    def test_rejects_username_with_colon(self) -> None:
-        auth = BasicAuthenticator(host='https://api.example.com', username='ali:ce', password='s3cret')
+    def test_rejects_username_with_colon_at_construction(self) -> None:
         with pytest.raises(ValueError):
-            auth.get_auth_headers()
+            BasicAuthenticator(host='https://api.example.com', username='ali:ce', password='s3cret')
 
     def test_password_is_not_leaked_in_repr(self) -> None:
         # The default repr/str must never expose the secret.

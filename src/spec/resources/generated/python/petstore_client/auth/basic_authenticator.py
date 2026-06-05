@@ -22,10 +22,9 @@ class BasicAuthenticator(BaseAuthenticator):
     # auto-generated repr/str (e.g. logging, f-strings, %r).
     password: str = field(repr=False)
 
-    def get_host(self) -> str:
-        return self.host
-
-    def get_auth_headers(self) -> Dict[str, str]:
+    def __post_init__(self) -> None:
+        # Validate eagerly at construction so a malformed credential surfaces
+        # where it is supplied rather than lazily at first request.
         # RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field
         # separator) and neither user-id nor password may carry CR/LF/NUL
         # (header-injection / smuggling vectors common when credentials
@@ -36,5 +35,10 @@ class BasicAuthenticator(BaseAuthenticator):
             raise ValueError("Basic auth username must not contain ':' (RFC 7617 §2)")
         if any(c in ('\r', '\n', '\x00') for c in self.password):
             raise ValueError('Basic auth password must not contain CR, LF, or NUL characters')
+
+    def get_host(self) -> str:
+        return self.host
+
+    def get_auth_headers(self) -> Dict[str, str]:
         credentials = base64.b64encode(f'{self.username}:{self.password}'.encode('utf-8')).decode('utf-8')
         return {'Authorization': f'Basic {credentials}'}

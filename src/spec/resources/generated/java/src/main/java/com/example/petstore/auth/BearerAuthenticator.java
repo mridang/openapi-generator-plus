@@ -11,36 +11,12 @@ import java.util.Collections;
 import java.util.Map;
 
 /** Authenticator for HTTP Bearer token authentication. */
-public class BearerAuthenticator extends BaseAuthenticator {
+public final class BearerAuthenticator extends BaseAuthenticator {
 
   private final String host;
   private final String token;
 
   public BearerAuthenticator(String host, String token) {
-    this.host = host;
-    this.token = token;
-  }
-
-  @Override
-  public String getHost() {
-    return host;
-  }
-
-  @Override
-  public Map<String, String> getAuthHeaders() {
-    /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
-     * Reject anything outside printable ASCII + TAB at use time so
-     * callers see a clear error rather than (a) HTTP header injection
-     * from a CR/LF (common when reading tokens from .env / files with
-     * trailing newlines), or (b) silently-mangled non-ASCII bytes that
-     * different HTTP libs encode differently per language. Validation
-     * is lazy (not in the constructor) to avoid SpotBugs
-     * CT_CONSTRUCTOR_THROW on a non-final class. */
-    /* Reject empty/whitespace tokens at use time: an empty token would
-     * otherwise emit the literal "Authorization: Bearer " header, sending
-     * the request effectively unauthenticated. This mirrors the api-key
-     * authenticator's own empty guard so all credential schemes fail
-     * loudly on a missing secret rather than silently. */
     if (token == null || token.isEmpty()) {
       throw new IllegalArgumentException("Bearer token must not be empty");
     }
@@ -58,6 +34,17 @@ public class BearerAuthenticator extends BaseAuthenticator {
     if (allWhitespace) {
       throw new IllegalArgumentException("Bearer token must not be empty");
     }
+    this.host = host;
+    this.token = token;
+  }
+
+  @Override
+  public String getHost() {
+    return host;
+  }
+
+  @Override
+  public Map<String, String> getAuthHeaders() {
     /* Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
      * from env files are commonly stored already-prefixed; emitting
      * "Bearer Bearer xyz" would otherwise silently break auth. */

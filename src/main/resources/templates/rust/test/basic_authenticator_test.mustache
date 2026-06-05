@@ -15,23 +15,20 @@ async fn test_valid_credentials_produce_basic_header() {
 
 #[tokio::test(flavor = "multi_thread")]
 #[should_panic]
-async fn test_rejects_username_with_crlf() {
-    let auth = BasicAuthenticator::new("https://api.example.com", "alice\r\n", "s3cret");
-    let _ = auth.auth_headers().await;
+async fn test_rejects_username_with_crlf_at_construction() {
+    let _ = BasicAuthenticator::new("https://api.example.com", "alice\r\n", "s3cret");
 }
 
 #[tokio::test(flavor = "multi_thread")]
 #[should_panic]
-async fn test_rejects_password_with_nul() {
-    let auth = BasicAuthenticator::new("https://api.example.com", "alice", "s3c\0ret");
-    let _ = auth.auth_headers().await;
+async fn test_rejects_password_with_nul_at_construction() {
+    let _ = BasicAuthenticator::new("https://api.example.com", "alice", "s3c\0ret");
 }
 
 #[tokio::test(flavor = "multi_thread")]
 #[should_panic]
-async fn test_rejects_username_with_colon() {
-    let auth = BasicAuthenticator::new("https://api.example.com", "ali:ce", "s3cret");
-    let _ = auth.auth_headers().await;
+async fn test_rejects_username_with_colon_at_construction() {
+    let _ = BasicAuthenticator::new("https://api.example.com", "ali:ce", "s3cret");
 }
 
 /// basic-auth-rust-silent-drop: malformed credentials must FAIL CLOSED
@@ -40,6 +37,5 @@ async fn test_rejects_username_with_colon() {
 #[tokio::test(flavor = "multi_thread")]
 #[should_panic(expected = "invalid HTTP Basic credentials")]
 async fn test_malformed_credentials_panic_not_silent_drop() {
-    let auth = BasicAuthenticator::new("https://api.example.com", "al\nice", "s3cret");
-    let _ = auth.auth_headers().await;
+    let _ = BasicAuthenticator::new("https://api.example.com", "al\nice", "s3cret");
 }

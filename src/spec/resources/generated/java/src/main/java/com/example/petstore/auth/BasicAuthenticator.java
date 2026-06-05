@@ -12,31 +12,13 @@ import java.util.Collections;
 import java.util.Map;
 
 /** Authenticator for HTTP Basic authentication. */
-public class BasicAuthenticator extends BaseAuthenticator {
+public final class BasicAuthenticator extends BaseAuthenticator {
 
   private final String host;
   private final String username;
   private final String password;
 
   public BasicAuthenticator(String host, String username, String password) {
-    this.host = host;
-    this.username = username;
-    this.password = password;
-  }
-
-  @Override
-  public String getHost() {
-    return host;
-  }
-
-  @Override
-  public Map<String, String> getAuthHeaders() {
-    /* RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field
-     * separator) and neither user-id nor password may carry CR/LF/NUL
-     * (header-injection / smuggling vectors common when credentials
-     * are read from .env files or interactive prompts). Validation is
-     * lazy (not in the constructor) to avoid SpotBugs
-     * CT_CONSTRUCTOR_THROW on a non-final class. */
     if (username != null) {
       for (int i = 0; i < username.length(); i++) {
         char c = username.charAt(i);
@@ -59,6 +41,18 @@ public class BasicAuthenticator extends BaseAuthenticator {
         }
       }
     }
+    this.host = host;
+    this.username = username;
+    this.password = password;
+  }
+
+  @Override
+  public String getHost() {
+    return host;
+  }
+
+  @Override
+  public Map<String, String> getAuthHeaders() {
     String credentials =
         (username == null ? "" : username) + ":" + (password == null ? "" : password);
     String authHeader =

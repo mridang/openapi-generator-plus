@@ -7,8 +7,32 @@
 
 package com.example.petstore.auth;
 
-public final class InternalApiKeyAuthenticator extends ApiKeyAuthenticator {
+import java.util.Map;
+
+public final class InternalApiKeyAuthenticator extends BaseAuthenticator {
+  private final ApiKeyAuthenticator delegate;
+
   public InternalApiKeyAuthenticator(String host, String apiKey) {
-    super(host, "X-Internal-Key", apiKey, ApiKeyLocation.HEADER);
+    this.delegate = new ApiKeyAuthenticator(host, "X-Internal-Key", apiKey, ApiKeyLocation.HEADER);
+  }
+
+  @Override
+  public String getHost() {
+    return delegate.getHost();
+  }
+
+  @Override
+  public Map<String, String> getAuthHeaders() {
+    return delegate.getAuthHeaders();
+  }
+
+  @Override
+  public Map<String, String> getQueryParams() {
+    return delegate.getQueryParams();
+  }
+
+  @Override
+  public Map<String, String> getCookieParams() {
+    return delegate.getCookieParams();
   }
 }

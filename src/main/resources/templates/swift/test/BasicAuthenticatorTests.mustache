@@ -3,11 +3,13 @@ import Foundation
 import Testing
 @testable import {{packageName}}
 
-/* Negative scenarios (CR/LF/NUL/colon) trip `preconditionFailure`,
+/* Credentials are validated eagerly in BasicAuthenticator.init.
+ * Negative scenarios (CR/LF/NUL/colon) trip `preconditionFailure`,
  * which traps the test process and cannot be exercised under Swift
  * Testing without `exitTest` (Swift 6.1+, not adopted here). The
  * positive path locks in the encoding contract; the validator's
- * trap behavior is documented in BasicAuthenticator.authHeaders. */
+ * construction-time trap behavior is documented in
+ * BasicAuthenticator.init. */
 @Suite final class BasicAuthenticatorTests {
 
     @Test func validCredentialsProduceBasicHeader() async {

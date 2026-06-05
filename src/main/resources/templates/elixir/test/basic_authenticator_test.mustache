@@ -11,27 +11,21 @@ defmodule {{moduleName}}.Auth.BasicAuthenticatorTest do
       assert headers["Authorization"] == "Basic YWxpY2U6czNjcmV0"
     end
 
-    test "rejects username with crlf" do
-      auth = BasicAuthenticator.new("https://api.example.com", "alice\r\n", "s3cret")
-
+    test "rejects username with crlf at construction" do
       assert_raise ArgumentError, fn ->
-        BasicAuthenticator.auth_headers(auth)
+        BasicAuthenticator.new("https://api.example.com", "alice\r\n", "s3cret")
       end
     end
 
-    test "rejects password with nul" do
-      auth = BasicAuthenticator.new("https://api.example.com", "alice", "s3c\0ret")
-
+    test "rejects password with nul at construction" do
       assert_raise ArgumentError, fn ->
-        BasicAuthenticator.auth_headers(auth)
+        BasicAuthenticator.new("https://api.example.com", "alice", "s3c\0ret")
       end
     end
 
-    test "rejects username with colon" do
-      auth = BasicAuthenticator.new("https://api.example.com", "ali:ce", "s3cret")
-
+    test "rejects username with colon at construction" do
       assert_raise ArgumentError, fn ->
-        BasicAuthenticator.auth_headers(auth)
+        BasicAuthenticator.new("https://api.example.com", "ali:ce", "s3cret")
       end
     end
   end

@@ -7,8 +7,32 @@
 
 package com.example.petstore.auth;
 
-public final class SessionCookieAuthenticator extends ApiKeyAuthenticator {
+import java.util.Map;
+
+public final class SessionCookieAuthenticator extends BaseAuthenticator {
+  private final ApiKeyAuthenticator delegate;
+
   public SessionCookieAuthenticator(String host, String apiKey) {
-    super(host, "SESSION_ID", apiKey, ApiKeyLocation.COOKIE);
+    this.delegate = new ApiKeyAuthenticator(host, "SESSION_ID", apiKey, ApiKeyLocation.COOKIE);
+  }
+
+  @Override
+  public String getHost() {
+    return delegate.getHost();
+  }
+
+  @Override
+  public Map<String, String> getAuthHeaders() {
+    return delegate.getAuthHeaders();
+  }
+
+  @Override
+  public Map<String, String> getQueryParams() {
+    return delegate.getQueryParams();
+  }
+
+  @Override
+  public Map<String, String> getCookieParams() {
+    return delegate.getCookieParams();
   }
 }

@@ -53,12 +53,26 @@ pub struct BasicAuthenticator {
 
 impl BasicAuthenticator {
     /// Creates a new Basic authenticator.
+    ///
+    /// # Panics
+    ///
+    /// Credentials are validated eagerly at construction, so a malformed
+    /// credential (colon in user-id, or CR/LF/NUL in either field per
+    /// RFC 7617 §2) panics where it is supplied rather than lazily at first
+    /// use — matching the fail-closed behaviour of the Bearer and API-key
+    /// authenticators. Use [`BasicAuthenticator::try_auth_headers`] when you
+    /// need to recover from malformed credentials instead of crashing; note
+    /// that this constructor itself panics on the same conditions.
     pub fn new(host: &str, username: &str, password: &str) -> Self {
-        Self {
+        let auth = Self {
             host: host.to_string(),
             username: username.to_string(),
             password: password.to_string(),
+        };
+        if let Err(e) = auth.try_auth_headers() {
+            panic!("invalid HTTP Basic credentials: {}", e);
         }
+        auth
     }
 
     /// Returns the Basic Authorization header, or a typed [`BasicAuthError`]

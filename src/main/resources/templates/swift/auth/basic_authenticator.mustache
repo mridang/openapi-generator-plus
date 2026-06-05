@@ -8,20 +8,11 @@ public class BasicAuthenticator: BaseAuthenticator, @unchecked Sendable {
     private let password: String
 
     /// Creates a new Basic authenticator.
+    ///
+    /// Credentials are validated eagerly at construction, so a malformed
+    /// credential traps where it is supplied rather than lazily at first
+    /// request.
     public init(host: String, username: String, password: String) {
-        self._host = host
-        self.username = username
-        self.password = password
-        super.init()
-    }
-
-    /// Returns the API base URL.
-    override public func host() -> String {
-        return _host
-    }
-
-    /// Returns the Basic authentication header.
-    override public func authHeaders() async -> [String: String] {
         /* RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field
          * separator) and neither user-id nor password may carry CR/LF/NUL
          * (header-injection / smuggling vectors common when credentials
@@ -47,6 +38,19 @@ public class BasicAuthenticator: BaseAuthenticator, @unchecked Sendable {
                 )
             }
         }
+        self._host = host
+        self.username = username
+        self.password = password
+        super.init()
+    }
+
+    /// Returns the API base URL.
+    override public func host() -> String {
+        return _host
+    }
+
+    /// Returns the Basic authentication header.
+    override public func authHeaders() async -> [String: String] {
         let credentials = "\(username):\(password)"
         let encoded = Data(credentials.utf8).base64EncodedString()
         return ["Authorization": "Basic \(encoded)"]

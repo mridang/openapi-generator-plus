@@ -43,9 +43,10 @@ class BearerAuthenticatorTest {
   }
 
   @Test
-  void emptyTokenIsRejected() {
-    BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", "");
-    assertThrows(IllegalArgumentException.class, auth::getAuthHeaders);
+  void emptyTokenIsRejectedAtConstruction() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new BearerAuthenticator("https://api.example.com", ""));
   }
 
   // No null-token test: the token parameter is @NonNull, so NullAway
@@ -54,8 +55,9 @@ class BearerAuthenticatorTest {
   // exercise the runtime guard.
 
   @Test
-  void whitespaceOnlyTokenIsRejected() {
-    BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", "   ");
-    assertThrows(IllegalArgumentException.class, auth::getAuthHeaders);
+  void whitespaceOnlyTokenIsRejectedAtConstruction() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new BearerAuthenticator("https://api.example.com", "   "));
   }
 }

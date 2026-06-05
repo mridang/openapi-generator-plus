@@ -12,6 +12,27 @@ export class BasicAuthenticator extends BaseAuthenticator {
 
   constructor(host: string, username: string, password: string) {
     super();
+    /* RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field
+     * separator) and neither user-id nor password may carry CR/LF/NUL
+     * (header-injection / smuggling vectors common when credentials are
+     * read from .env files or interactive prompts). Validated eagerly at
+     * construction so a malformed credential surfaces where it is supplied
+     * rather than lazily at first request. */
+    if (/[\r\n\0]/.test(username)) {
+      throw new Error(
+        'Basic auth username must not contain CR, LF, or NUL characters'
+      );
+    }
+    if (username.includes(':')) {
+      throw new Error(
+        "Basic auth username must not contain ':' (RFC 7617 §2)"
+      );
+    }
+    if (/[\r\n\0]/.test(password)) {
+      throw new Error(
+        'Basic auth password must not contain CR, LF, or NUL characters'
+      );
+    }
     this.host = host;
     this.username = username;
     this.password = password;
@@ -22,25 +43,6 @@ export class BasicAuthenticator extends BaseAuthenticator {
   }
 
   getAuthHeaders(): Record<string, string> {
-    /* RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field
-     * separator) and neither user-id nor password may carry CR/LF/NUL
-     * (header-injection / smuggling vectors common when credentials are
-     * read from .env files or interactive prompts). */
-    if (/[\r\n\0]/.test(this.username)) {
-      throw new Error(
-        'Basic auth username must not contain CR, LF, or NUL characters'
-      );
-    }
-    if (this.username.includes(':')) {
-      throw new Error(
-        "Basic auth username must not contain ':' (RFC 7617 §2)"
-      );
-    }
-    if (/[\r\n\0]/.test(this.password)) {
-      throw new Error(
-        'Basic auth password must not contain CR, LF, or NUL characters'
-      );
-    }
     const authHeader =
       'Basic ' + Buffer.from(`${this.username}:${this.password}`).toString('base64');
     return { Authorization: authHeader };

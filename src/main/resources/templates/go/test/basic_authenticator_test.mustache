@@ -22,33 +22,30 @@ func TestBasicAuthenticator_RejectsUsernameWithCrlf(t *testing.T) {
 	t.Parallel()
 	defer func() {
 		if recover() == nil {
-			t.Fatal("expected panic for CRLF in username")
+			t.Fatal("expected panic at construction for CRLF in username")
 		}
 	}()
-	a := auth.NewBasicAuthenticator("https://api.example.com", "alice\r\n", "s3cret")
-	a.AuthHeaders()
+	_ = auth.NewBasicAuthenticator("https://api.example.com", "alice\r\n", "s3cret")
 }
 
 func TestBasicAuthenticator_RejectsPasswordWithNul(t *testing.T) {
 	t.Parallel()
 	defer func() {
 		if recover() == nil {
-			t.Fatal("expected panic for NUL in password")
+			t.Fatal("expected panic at construction for NUL in password")
 		}
 	}()
-	a := auth.NewBasicAuthenticator("https://api.example.com", "alice", "s3c\x00ret")
-	a.AuthHeaders()
+	_ = auth.NewBasicAuthenticator("https://api.example.com", "alice", "s3c\x00ret")
 }
 
 func TestBasicAuthenticator_RejectsUsernameWithColon(t *testing.T) {
 	t.Parallel()
 	defer func() {
 		if recover() == nil {
-			t.Fatal("expected panic for ':' in username")
+			t.Fatal("expected panic at construction for ':' in username")
 		}
 	}()
-	a := auth.NewBasicAuthenticator("https://api.example.com", "ali:ce", "s3cret")
-	a.AuthHeaders()
+	_ = auth.NewBasicAuthenticator("https://api.example.com", "ali:ce", "s3cret")
 }
 
 // authenticator-secret-in-default-string-repr: the default string/format

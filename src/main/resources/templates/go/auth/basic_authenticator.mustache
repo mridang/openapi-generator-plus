@@ -28,12 +28,23 @@ type BasicAuthenticator struct {
 }
 
 // NewBasicAuthenticator creates a new Basic authenticator.
+//
+// Credentials are validated eagerly at construction, so a malformed
+// credential panics where it is supplied rather than lazily at first use —
+// matching the fail-fast behaviour of the Bearer and API-key
+// authenticators. Use AuthHeadersOrError on the returned value when you
+// need to recover from malformed credentials instead of crashing; note
+// that this constructor itself panics on the same conditions.
 func NewBasicAuthenticator(host, username, password string) *BasicAuthenticator {
-	return &BasicAuthenticator{
+	a := &BasicAuthenticator{
 		host:     host,
 		username: username,
 		password: password,
 	}
+	if _, err := a.AuthHeadersOrError(); err != nil {
+		panic(err)
+	}
+	return a
 }
 
 // Host returns the API base URL.

@@ -35,6 +35,27 @@ defmodule PetstoreClient.Auth.BasicAuthenticator do
   """
   @spec new(String.t(), String.t(), String.t()) :: t()
   def new(host, username, password) do
+    # Validate eagerly at construction so a malformed credential surfaces
+    # where it is supplied rather than lazily at first request.
+    # RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field
+    # separator) and neither user-id nor password may carry CR/LF/NUL
+    # (header-injection / smuggling vectors common when credentials are
+    # read from .env files or interactive prompts).
+    if username =~ ~r/[\r\n\x00]/ do
+      raise ArgumentError,
+            "Basic auth username must not contain CR, LF, or NUL characters"
+    end
+
+    if String.contains?(username, ":") do
+      raise ArgumentError,
+            "Basic auth username must not contain ':' (RFC 7617 §2)"
+    end
+
+    if password =~ ~r/[\r\n\x00]/ do
+      raise ArgumentError,
+            "Basic auth password must not contain CR, LF, or NUL characters"
+    end
+
     %__MODULE__{
       host: host,
       username: username,
@@ -49,25 +70,6 @@ defmodule PetstoreClient.Auth.BasicAuthenticator do
 
   @impl true
   def auth_headers(%__MODULE__{} = self) do
-    # RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field
-    # separator) and neither user-id nor password may carry CR/LF/NUL
-    # (header-injection / smuggling vectors common when credentials are
-    # read from .env files or interactive prompts).
-    if self.username =~ ~r/[\r\n\x00]/ do
-      raise ArgumentError,
-            "Basic auth username must not contain CR, LF, or NUL characters"
-    end
-
-    if String.contains?(self.username, ":") do
-      raise ArgumentError,
-            "Basic auth username must not contain ':' (RFC 7617 §2)"
-    end
-
-    if self.password =~ ~r/[\r\n\x00]/ do
-      raise ArgumentError,
-            "Basic auth password must not contain CR, LF, or NUL characters"
-    end
-
     encoded = Base.encode64("#{self.username}:#{self.password}")
     %{"Authorization" => "Basic #{encoded}"}
   end

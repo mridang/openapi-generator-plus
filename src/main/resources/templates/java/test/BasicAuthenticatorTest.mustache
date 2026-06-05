@@ -18,23 +18,20 @@ class BasicAuthenticatorTest {
     }
 
     @Test
-    void rejectsUsernameWithCrlf() {
-        BasicAuthenticator auth =
-                new BasicAuthenticator("https://api.example.com", "alice\r\n", "s3cret");
-        assertThrows(IllegalArgumentException.class, auth::getAuthHeaders);
+    void rejectsUsernameWithCrlfAtConstruction() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new BasicAuthenticator("https://api.example.com", "alice\r\n", "s3cret"));
     }
 
     @Test
-    void rejectsPasswordWithNul() {
-        BasicAuthenticator auth =
-                new BasicAuthenticator("https://api.example.com", "alice", "s3c\0ret");
-        assertThrows(IllegalArgumentException.class, auth::getAuthHeaders);
+    void rejectsPasswordWithNulAtConstruction() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new BasicAuthenticator("https://api.example.com", "alice", "s3c\0ret"));
     }
 
     @Test
-    void rejectsUsernameWithColon() {
-        BasicAuthenticator auth =
-                new BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret");
-        assertThrows(IllegalArgumentException.class, auth::getAuthHeaders);
+    void rejectsUsernameWithColonAtConstruction() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret"));
     }
 }

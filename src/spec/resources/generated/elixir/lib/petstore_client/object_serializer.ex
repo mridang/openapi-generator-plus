@@ -199,23 +199,25 @@ defmodule PetstoreClient.ObjectSerializer do
     "false"
   end
 
+  # Truncate to second precision so the wire format matches the other 11 SDKs,
+  # whose date-time formatters emit no fractional seconds (HH:MM:SS).
   def stringify(%DateTime{} = dt) do
-    DateTime.to_iso8601(dt)
+    dt |> DateTime.truncate(:second) |> DateTime.to_iso8601()
   end
 
   def stringify(%NaiveDateTime{} = dt) do
-    NaiveDateTime.to_iso8601(dt)
+    dt |> NaiveDateTime.truncate(:second) |> NaiveDateTime.to_iso8601()
   end
 
   def stringify(%Date{} = d) do
     Date.to_iso8601(d)
   end
 
-  # 4.8: ISO-8601 wire formatting for format:time (HH:MM:SS[.fff]) and
+  # 4.8: ISO-8601 wire formatting for format:time (HH:MM:SS) and
   # format:duration (PnYnMnDTnHnMnS). Both round-trip through the matching
   # `convert_to_type/2` clauses below.
   def stringify(%Time{} = t) do
-    Time.to_iso8601(t)
+    t |> Time.truncate(:second) |> Time.to_iso8601()
   end
 
   def stringify(%Duration{} = d) do
@@ -327,17 +329,18 @@ defmodule PetstoreClient.ObjectSerializer do
     Date.to_iso8601(d)
   end
 
+  # Truncate to second precision so the wire format matches the other 11 SDKs.
   def sanitize_for_serialization(%DateTime{} = dt) do
-    DateTime.to_iso8601(dt)
+    dt |> DateTime.truncate(:second) |> DateTime.to_iso8601()
   end
 
   def sanitize_for_serialization(%NaiveDateTime{} = dt) do
-    NaiveDateTime.to_iso8601(dt)
+    dt |> NaiveDateTime.truncate(:second) |> NaiveDateTime.to_iso8601()
   end
 
   # 4.8: serialize stdlib Time / Duration as ISO-8601 strings on the wire.
   def sanitize_for_serialization(%Time{} = t) do
-    Time.to_iso8601(t)
+    t |> Time.truncate(:second) |> Time.to_iso8601()
   end
 
   def sanitize_for_serialization(%Duration{} = d) do

@@ -7,8 +7,32 @@
 
 package com.example.petstore.auth;
 
-public final class PetStoreBasicAuthenticator extends BasicAuthenticator {
+import java.util.Map;
+
+public final class PetStoreBasicAuthenticator extends BaseAuthenticator {
+  private final BasicAuthenticator delegate;
+
   public PetStoreBasicAuthenticator(String host, String username, String password) {
-    super(host, username, password);
+    this.delegate = new BasicAuthenticator(host, username, password);
+  }
+
+  @Override
+  public String getHost() {
+    return delegate.getHost();
+  }
+
+  @Override
+  public Map<String, String> getAuthHeaders() {
+    return delegate.getAuthHeaders();
+  }
+
+  @Override
+  public Map<String, String> getQueryParams() {
+    return delegate.getQueryParams();
+  }
+
+  @Override
+  public Map<String, String> getCookieParams() {
+    return delegate.getCookieParams();
   }
 }
