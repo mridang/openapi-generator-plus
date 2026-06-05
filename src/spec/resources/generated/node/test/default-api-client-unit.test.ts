@@ -218,6 +218,17 @@ describe('DefaultApiClient unit', () => {
   });
 });
 
+describe('DefaultApiClient CA certificate fail-fast', () => {
+  it('throws ApiError at construction for a non-existent caCertPath', () => {
+    // ca-cert-fail-fast: an explicitly configured CA certificate path that
+    // cannot be read or parsed must fail fast at construction with the SDK's
+    // ApiError rather than silently falling back to the system trust store
+    // (security theater).
+    const transport = TransportOptions.builder().caCertPath('/nonexistent/ca.pem').build();
+    expect(() => new DefaultApiClient(transport)).toThrow(ApiError);
+  });
+});
+
 describe('DefaultApiClient.decodeBody charset handling', () => {
   it('decodes ISO-8859-1 when declared via Content-Type charset', () => {
     const buf = Buffer.from([0xe9]);

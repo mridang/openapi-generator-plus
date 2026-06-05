@@ -670,4 +670,15 @@ describe PetstoreClient::DefaultApiClient do
     _(lc.key?('x-api-key')).must_equal false
     _(lc.key?('x-internal-key')).must_equal false
   end
+
+  # ── Bucket T4: explicit CA cert that cannot be read fails fast ──
+  # An explicitly configured CA certificate path that cannot be read or parsed
+  # must fail fast at construction with a typed ApiError rather than silently
+  # falling back to the system trust store (security theater).
+  it 'raises ApiError at construction for a non-existent ca_cert_path' do
+    transport = PetstoreClient::TransportOptions.builder.ca_cert_path('/nonexistent/ca.pem').build
+    assert_raises(PetstoreClient::ApiError) do
+      PetstoreClient::DefaultApiClient.new(transport)
+    end
+  end
 end

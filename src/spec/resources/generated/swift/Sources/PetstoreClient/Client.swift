@@ -41,9 +41,9 @@ public final class Client: Sendable {
     /// If the authenticator conforms to ``HttpAwareAuthenticator``, the shared
     /// ``ApiClient`` is injected so that token exchange and discovery requests use
     /// the same proxy, TLS, and timeout settings.
-    public init(authenticator: Authenticator, transportOptions: TransportOptions? = nil) {
+    public init(authenticator: Authenticator, transportOptions: TransportOptions? = nil) throws {
         let opts = transportOptions ?? TransportOptionsBuilder().build()
-        let apiClient = DefaultApiClient(transportOptions: opts)
+        let apiClient = try DefaultApiClient(transportOptions: opts)
 
         if let httpAware = authenticator as? HttpAwareAuthenticator {
             httpAware.setApiClient(apiClient)
@@ -58,8 +58,8 @@ public final class Client: Sendable {
     }
 
     /// Creates a client authenticated with a static Bearer token.
-    public convenience init(host: String, accessToken: String, transportOptions: TransportOptions? = nil) {
-        self.init(
+    public convenience init(host: String, accessToken: String, transportOptions: TransportOptions? = nil) throws {
+        try self.init(
             authenticator: BearerAuthenticator(host: host, token: accessToken), transportOptions: transportOptions)
     }
 }

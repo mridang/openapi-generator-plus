@@ -178,15 +178,13 @@ import Testing
     @Test func testFollowsRedirectsWhenEnabled() async throws {
         let transport = TransportOptionsBuilder().followRedirects(true).build()
         #expect(transport.followRedirects)
-        let client = DefaultApiClient(transportOptions: transport)
-        #expect(client != nil)
+        _ = try DefaultApiClient(transportOptions: transport)
     }
 
     @Test func testReturnsRedirectWhenDisabled() async throws {
         let transport = TransportOptionsBuilder().followRedirects(false).build()
         #expect(!(transport.followRedirects))
-        let client = DefaultApiClient(transportOptions: transport)
-        #expect(client != nil)
+        _ = try DefaultApiClient(transportOptions: transport)
     }
 
     @Test func testRespectsMaxRedirectsLimit() async throws {
@@ -195,8 +193,7 @@ import Testing
             .maxRedirects(3)
             .build()
         #expect(transport.maxRedirects == 3)
-        let client = DefaultApiClient(transportOptions: transport)
-        #expect(client != nil)
+        _ = try DefaultApiClient(transportOptions: transport)
     }
 
     // Gap T3: 303 forces follow-up to GET and drops body per RFC 7231 §6.4.4.

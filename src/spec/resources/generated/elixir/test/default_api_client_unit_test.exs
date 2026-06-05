@@ -469,6 +469,18 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     end
   end
 
+  # ca-cert-fail-fast: an explicitly configured CA certificate path that cannot
+  # be read or parsed must fail fast at construction with a typed SDK error
+  # rather than silently falling back to the system trust store (security
+  # theater).
+  test "non-existent caCertPath raises ApiError at construction" do
+    transport = PetstoreClient.TransportOptions.new(ca_cert_path: "/nonexistent/ca.pem")
+
+    assert_raise PetstoreClient.ApiError, fn ->
+      PetstoreClient.DefaultApiClient.new(transport)
+    end
+  end
+
   test "3.2: send_request/6 with no_redirect: true returns the raw 302 response" do
     {target_url, _} = start_header_capture_server()
     {source_url, _} = start_redirect_server(302, "#{target_url}/echo")

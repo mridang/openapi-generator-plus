@@ -43,15 +43,51 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
      * of the Java/C# SDKs. */
     internal let proxyAuthHeader: String?
 
+    /// Creates a client with default transport settings.
+    ///
+    /// The default ``TransportOptions`` configure no custom CA certificate,
+    /// so this initializer never fails and is non-throwing.
+    public convenience init() {
+        try! self.init(transportOptions: TransportOptionsBuilder().build())
+    }
+
     /// Creates a client with the given transport settings.
     /// If transportOptions is nil, default transport settings are used.
-    public init(transportOptions: TransportOptions? = nil) {
+    ///
+    /// Gap T4: when ``TransportOptions/caCertPath`` is set, the certificate
+    /// is read and parsed eagerly here. If it cannot be read or parsed, this
+    /// initializer throws an ``ApiError`` rather than silently falling back
+    /// to the system trust store — if the caller explicitly asked for SSL
+    /// pinning we must not pretend it succeeded.
+    public init(transportOptions: TransportOptions?) throws {
         let opts = transportOptions ?? TransportOptionsBuilder().build()
+        try DefaultApiClient.validateCaCertPath(opts.caCertPath)
         self.transportOptions = opts
         self.proxyAuthHeader = DefaultApiClient.buildProxyAuthHeader(opts.proxy)
-        let (session, delegate) = try! DefaultApiClient.buildSession(opts)
+        let (session, delegate) = try DefaultApiClient.buildSession(opts)
         self.session = session
         self.sessionDelegate = delegate
+    }
+
+    /// Validates that a user-supplied CA certificate path can be read and
+    /// parsed as a DER/PEM certificate, throwing a typed ``ApiError`` when it
+    /// cannot. A nil path is a no-op (the system trust store is used).
+    static func validateCaCertPath(_ caCertPath: String?) throws {
+        guard let path = caCertPath else { return }
+        guard let certData = try? Data(contentsOf: URL(fileURLWithPath: path)) else {
+            throw ApiError(
+                statusCode: 0,
+                message: "failed to read CA certificate from \"\(path)\""
+            )
+        }
+        #if canImport(Security)
+        guard SecCertificateCreateWithData(nil, certData as CFData) != nil else {
+            throw ApiError(
+                statusCode: 0,
+                message: "failed to parse CA certificate from \"\(path)\": no PEM blocks found or unparseable"
+            )
+        }
+        #endif
     }
 
     /// Creates a client with the given transport settings and a pre-built URLSession.

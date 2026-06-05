@@ -448,4 +448,14 @@ class DefaultApiClientUnitTest {
     // HTTP -> HTTPS is an upgrade, not a downgrade, so don't refuse.
     assertFalse(DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(httpOrig, httpsTarg, 307, true));
   }
+
+  @Test
+  void nonexistentCaCertPathFailsFast() {
+    // ca-cert-fail-fast: an explicitly configured CA certificate path that
+    // cannot be read or parsed must fail fast at construction rather than
+    // silently falling back to the system trust store (security theater).
+    TransportOptions transport =
+        TransportOptions.builder().caCertPath("/nonexistent/ca.pem").build();
+    assertThrows(RuntimeException.class, () -> new DefaultApiClient(transport));
+  }
 }

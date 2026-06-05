@@ -855,3 +855,16 @@ async fn test_request_after_close_returns_sdk_error() {
         err
     );
 }
+
+/// ca-cert-fail-fast: an explicitly configured CA certificate path that cannot
+/// be read or parsed must fail fast at construction rather than silently
+/// falling back to the system trust store (security theater). The Rust client
+/// panics when the reqwest builder cannot load the cert.
+#[test]
+#[should_panic(expected = "CA certificate")]
+fn test_nonexistent_ca_cert_path_fails_fast() {
+    let transport = TransportOptionsBuilder::new()
+        .ca_cert_path("/nonexistent/ca.pem")
+        .build();
+    let _client = DefaultApiClient::new(Some(transport));
+}

@@ -79,7 +79,27 @@ class DefaultApiClient implements ApiClient
                 $options['verify_peer'] = false;
                 $options['verify_host'] = false;
             } elseif ($this->transportOptions->caCertPath !== null) {
-                $options['cafile'] = $this->transportOptions->caCertPath;
+                /* Gap T4: fail fast on a user-supplied CA cert that cannot be
+                 * read or parsed rather than silently falling back to the
+                 * system trust store. If the caller explicitly asked for SSL
+                 * pinning we must not pretend it succeeded -- validate the PEM
+                 * eagerly at construction. */
+                $caCertPath = $this->transportOptions->caCertPath;
+                $pem = @file_get_contents($caCertPath);
+                if ($pem === false) {
+                    throw new ApiException(
+                        sprintf('failed to read CA certificate from "%s"', $caCertPath)
+                    );
+                }
+                if (openssl_x509_read($pem) === false) {
+                    throw new ApiException(
+                        sprintf(
+                            'failed to parse CA certificate from "%s": no PEM blocks found or unparseable',
+                            $caCertPath
+                        )
+                    );
+                }
+                $options['cafile'] = $caCertPath;
             }
 
             if ($this->transportOptions->proxy !== null) {

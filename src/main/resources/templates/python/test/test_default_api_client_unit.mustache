@@ -789,6 +789,19 @@ class TestBodyReadErrorWrapped:
         assert isinstance(excinfo.value.__cause__, urllib3.exceptions.HTTPError)
 
 
+class TestCaCertPathFailsFast:
+    """An explicitly configured CA certificate path that cannot be read or
+    parsed must fail fast at construction with the SDK's ApiException rather
+    than silently falling back to the system trust store (security theater)."""
+
+    def test_nonexistent_ca_cert_path_raises_api_exception(self) -> None:
+        from {{packageName}}.errors import ApiException
+
+        transport = TransportOptions.builder().ca_cert_path("/nonexistent/ca.pem").build()
+        with pytest.raises(ApiException):
+            DefaultApiClient(transport)
+
+
 class TestApiKeyHeaderStrippedOnCrossOrigin:
     """3.1: spec-declared API-key header names are added to the cross-origin
     sensitive-header allowlist at codegen time. When the spec declares no

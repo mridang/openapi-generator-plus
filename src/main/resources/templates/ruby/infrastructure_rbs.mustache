@@ -142,6 +142,7 @@ module {{moduleName}}
     def close: () -> void
     def self.supported_encodings: () -> String
     private
+    def validate_ca_cert_path: (String?) -> void
     def https_to_http_downgrade?: (String, String) -> bool
     def text_content_type?: (String) -> bool
     def decode_text_body: (String, String?) -> String

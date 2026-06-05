@@ -409,6 +409,19 @@ import Testing
             headers: [:], body: nil)
         #expect(resp.statusCode == 200)
     }
+
+    // MARK: - CA certificate fail-fast
+
+    @Test func testNonexistentCaCertPathFailsFast() {
+        // ca-cert-fail-fast: an explicitly configured CA certificate path that
+        // cannot be read or parsed must fail fast at construction with the
+        // SDK's ApiError rather than silently falling back to the system trust
+        // store (security theater).
+        let transport = TransportOptionsBuilder().caCertPath("/nonexistent/ca.pem").build()
+        #expect(throws: ApiError.self) {
+            _ = try DefaultApiClient(transportOptions: transport)
+        }
+    }
 }
 
 // MARK: - URL Protocol stub for unit tests

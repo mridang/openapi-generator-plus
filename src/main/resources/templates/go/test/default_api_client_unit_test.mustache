@@ -668,3 +668,21 @@ func TestDefaultApiClient_BodyReadErrorWrappedInApiError(t *testing.T) {
 		t.Error("expected the underlying decompression error to be preserved on .Cause")
 	}
 }
+
+// ca-cert-fail-fast: an explicitly configured CA certificate path that cannot
+// be read or parsed must fail fast at construction rather than silently
+// falling back to the system trust store (security theater). The Go client
+// panics when buildHTTPClient cannot load the cert.
+func TestDefaultApiClient_NonexistentCaCertPathFailsFast(t *testing.T) {
+	t.Parallel()
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected a panic when constructing with a non-existent caCertPath")
+		}
+	}()
+
+	transport := {{packageName}}.NewTransportOptionsBuilder().
+		CACertPath("/nonexistent/ca.pem").
+		Build()
+	_ = {{packageName}}.NewDefaultApiClient(transport)
+}

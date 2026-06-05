@@ -11,6 +11,7 @@ require 'faraday'
 require 'faraday/follow_redirects'
 require 'json'
 require 'securerandom'
+require 'openssl'
 require 'base64'
 require 'stringio'
 require 'zlib'
@@ -66,6 +67,7 @@ module PetstoreClient
       super()
       @transport_options = transport_options || TransportOptions.builder.build
       @closed = false
+      validate_ca_cert_path(@transport_options.ca_cert_path)
     end
 
     # Send an HTTP request with transport-level settings applied.
@@ -278,6 +280,27 @@ module PetstoreClient
     end
 
     private
+
+    # Bucket T4: fail fast on a user-supplied CA cert that cannot be read or
+    # parsed rather than silently falling back to the system trust store. If
+    # the caller explicitly asked for SSL pinning we must not pretend it
+    # succeeded -- validate the PEM eagerly at construction.
+    def validate_ca_cert_path(ca_cert_path)
+      return if ca_cert_path.nil?
+
+      begin
+        pem = File.read(ca_cert_path)
+      rescue SystemCallError => e
+        raise ApiError, %(failed to read CA certificate from "#{ca_cert_path}": #{e.message})
+      end
+
+      begin
+        OpenSSL::X509::Certificate.new(pem)
+      rescue OpenSSL::X509::CertificateError => e
+        raise ApiError,
+          %(failed to parse CA certificate from "#{ca_cert_path}": no PEM blocks found or unparseable: #{e.message})
+      end
+    end
 
     def text_content_type?(content_type)
       media_type = content_type.split(';').first.to_s.strip.downcase

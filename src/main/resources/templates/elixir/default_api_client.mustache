@@ -46,12 +46,42 @@ defmodule {{moduleName}}.DefaultApiClient do
   def new(transport_options \\ nil) do
     opts = transport_options || {{moduleName}}.TransportOptions.new()
 
+    validate_ca_cert_path(opts.ca_cert_path)
+
     %__MODULE__{
       transport_options: opts,
       base_req: Req.new(build_static_req_options(opts)),
       proxy_auth_header: build_proxy_auth_header(opts.proxy),
       closed: :atomics.new(1, signed: false)
     }
+  end
+
+  # Gap T4: fail fast on a user-supplied CA cert that cannot be read or
+  # parsed rather than silently falling back to the system trust store.
+  # If the caller explicitly asked for SSL pinning we must not pretend it
+  # succeeded -- validate the PEM eagerly at construction.
+  defp validate_ca_cert_path(nil), do: :ok
+
+  defp validate_ca_cert_path(path) when is_binary(path) do
+    case File.read(path) do
+      {:error, reason} ->
+        raise {{moduleName}}.ApiError,
+          message:
+            "failed to read CA certificate from #{inspect(path)}: #{to_string(:file.format_error(reason))}",
+          status_code: 0
+
+      {:ok, contents} ->
+        case :public_key.pem_decode(contents) do
+          [] ->
+            raise {{moduleName}}.ApiError,
+              message:
+                "failed to parse CA certificate from #{inspect(path)}: no PEM blocks found or unparseable",
+              status_code: 0
+
+          _entries ->
+            :ok
+        end
+    end
   end
 
   # Gap AK: Finch's proxy tuple has no slot for basic-auth credentials,

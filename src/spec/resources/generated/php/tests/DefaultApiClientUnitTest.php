@@ -724,3 +724,14 @@ test('close is idempotent', function (): void {
     expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/x', [], null))
         ->toThrow(ApiException::class);
 });
+
+test('non-existent caCertPath throws api exception at construction', function (): void {
+    /* ca-cert-fail-fast: an explicitly configured CA certificate path that
+     * cannot be read or parsed must fail fast at construction with the SDK's
+     * ApiException rather than silently falling back to the system trust
+     * store (security theater). */
+    $transport = TransportOptions::builder()->caCertPath('/nonexistent/ca.pem')->build();
+
+    expect(fn (): mixed => new DefaultApiClient($transport))
+        ->toThrow(ApiException::class);
+});

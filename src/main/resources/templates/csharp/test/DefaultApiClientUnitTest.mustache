@@ -740,6 +740,17 @@ public class DefaultApiClientUnitTest
         ));
     }
 
+    [Fact]
+    public void NonexistentCaCertPathThrowsApiExceptionAtConstruction()
+    {
+        // ca-cert-fail-fast: an explicitly configured CA certificate path that
+        // cannot be read or parsed must fail fast at construction with the
+        // SDK's ApiException rather than silently falling back to the system
+        // trust store (security theater).
+        var transport = TransportOptions.Builder().CaCertPath("/nonexistent/ca.pem").Build();
+        Assert.Throws<ApiException>(() => new DefaultApiClient(transport));
+    }
+
     // ---- multipart-text-part-contenttype-csharp ----
     // The code fix lives in BuildTextPart (StringContent emitted with no
     // default text/plain Content-Type). A faithful regression test needs a

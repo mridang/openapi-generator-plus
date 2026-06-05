@@ -10,6 +10,7 @@ open class BaseApi: @unchecked Sendable {
 
     /// Creates a new BaseApi instance.
     public init(apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil) {
+        {{! DefaultApiClient() (no transport options) configures no custom CA certificate, so its non-throwing convenience initializer is used here. }}
         self.apiClient = apiClient ?? DefaultApiClient()
         self.config = config ?? Configuration.default()
         self.headerSelector = HeaderSelector()

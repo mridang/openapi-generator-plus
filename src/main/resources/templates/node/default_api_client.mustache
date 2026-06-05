@@ -76,11 +76,37 @@ export class DefaultApiClient implements ApiClient {
 
     const needsTls =
       this.transportOptions.caCertPath != null || !this.transportOptions.verifySsl;
+    /* Gap T4: fail fast on a user-supplied CA cert that cannot be read or
+     * parsed rather than silently falling back to the system trust store.
+     * If the caller explicitly asked for SSL pinning we must not pretend it
+     * succeeded -- read and parse the PEM eagerly at construction, surfacing
+     * any failure as the SDK's own ApiError. */
+    let caCert: Buffer | undefined;
+    if (this.transportOptions.caCertPath != null) {
+      const caCertPath = this.transportOptions.caCertPath;
+      try {
+        caCert = fs.readFileSync(caCertPath);
+      } catch (e) {
+        throw new ApiError(0, `failed to read CA certificate from "${caCertPath}"`, {}, null, null, {
+          cause: e,
+        });
+      }
+      try {
+        new crypto.X509Certificate(caCert);
+      } catch (e) {
+        throw new ApiError(
+          0,
+          `failed to parse CA certificate from "${caCertPath}": no PEM blocks found or unparseable`,
+          {},
+          null,
+          null,
+          { cause: e }
+        );
+      }
+    }
     const tlsOptions = needsTls
       ? {
-          ca: this.transportOptions.caCertPath
-            ? fs.readFileSync(this.transportOptions.caCertPath)
-            : undefined,
+          ca: caCert,
           rejectUnauthorized: this.transportOptions.verifySsl,
           /* Gap AM: verifySsl=false must disable BOTH cert-chain AND
            * hostname verification (curl -k semantics). undici's

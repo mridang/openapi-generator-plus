@@ -10,6 +10,7 @@ import base64
 import gzip
 import mimetypes
 import re
+import ssl
 import uuid
 import zlib
 from urllib.parse import quote as _url_quote, urlsplit, urlunsplit
@@ -176,6 +177,16 @@ class DefaultApiClient:
                 kwargs['cert_reqs'] = 'CERT_NONE'
                 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
             elif transport_options.ca_cert_path:
+                # Gap T4: fail fast on a user-supplied CA cert that cannot be
+                # read or parsed rather than silently falling back to the
+                # system trust store. If the caller explicitly asked for SSL
+                # pinning we must not pretend it succeeded -- validate the
+                # PEM eagerly at construction.
+                try:
+                    ctx = ssl.create_default_context()
+                    ctx.load_verify_locations(cafile=transport_options.ca_cert_path)
+                except (OSError, ssl.SSLError) as e:
+                    raise ApiException(message=(f'failed to load CA certificate from {transport_options.ca_cert_path!r}: {e}')) from e
                 kwargs['ca_certs'] = transport_options.ca_cert_path
                 kwargs['cert_reqs'] = 'CERT_REQUIRED'
 

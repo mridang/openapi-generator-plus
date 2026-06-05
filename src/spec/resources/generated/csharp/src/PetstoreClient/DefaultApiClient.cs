@@ -147,7 +147,29 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         else if (transportOptions.CaCertPath != null)
         {
             X509Certificate2Collection caCerts = [];
-            caCerts.ImportFromPemFile(transportOptions.CaCertPath);
+            try
+            {
+                caCerts.ImportFromPemFile(transportOptions.CaCertPath);
+            }
+            catch (Exception ex)
+                when (ex
+                        is System.IO.IOException
+                            or System.Security.Cryptography.CryptographicException
+                            or UnauthorizedAccessException
+                )
+            {
+                throw new ApiException(
+                    $"failed to load CA certificate from \"{transportOptions.CaCertPath}\": {ex.Message}",
+                    ex
+                );
+            }
+
+            if (caCerts.Count == 0)
+            {
+                throw new ApiException(
+                    $"failed to parse CA certificate from \"{transportOptions.CaCertPath}\": no PEM blocks found or unparseable"
+                );
+            }
             handler.ServerCertificateCustomValidationCallback = (_, cert, _, _) =>
             {
                 if (cert == null)

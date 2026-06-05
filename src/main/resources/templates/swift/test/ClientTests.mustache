@@ -7,24 +7,18 @@ import Testing
 
     private let authenticator = BearerAuthenticator(host: "{{{basePath}}}", token: "test-token")
 
-    @Test func testConstructWithAuthenticatorOnly() {
-        let client = {{clientClassName}}(authenticator: authenticator)
-
-        #expect(client != nil)
+    @Test func testConstructWithAuthenticatorOnly() throws {
+        _ = try {{clientClassName}}(authenticator: authenticator)
     }
 
-    @Test func testConstructWithAuthenticatorAndNilTransportOptions() {
-        let client = {{clientClassName}}(authenticator: authenticator, transportOptions: nil)
-
-        #expect(client != nil)
+    @Test func testConstructWithAuthenticatorAndNilTransportOptions() throws {
+        _ = try {{clientClassName}}(authenticator: authenticator, transportOptions: nil)
     }
 
-    @Test func testConstructWithAuthenticatorAndTransportOptions() {
+    @Test func testConstructWithAuthenticatorAndTransportOptions() throws {
         let transport = TransportOptionsBuilder().build()
 
-        let client = {{clientClassName}}(authenticator: authenticator, transportOptions: transport)
-
-        #expect(client != nil)
+        _ = try {{clientClassName}}(authenticator: authenticator, transportOptions: transport)
     }
 
     @Test func testApiKeyQueryAcceptsNonAscii() {
@@ -57,8 +51,8 @@ import Testing
         #expect(headers["Authorization"] == "Bearer abc.def-123")
     }
 
-    @Test func testApiGroupsAreAccessible() {
-        let client = {{clientClassName}}(authenticator: authenticator)
+    @Test func testApiGroupsAreAccessible() throws {
+        let client = try {{clientClassName}}(authenticator: authenticator)
 
 {{#apiInfo}}
 {{#apis}}

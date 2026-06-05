@@ -873,6 +873,18 @@ void main() {
         await server.close();
       }
     });
+
+    test('non-existent caCertPath fails fast at construction', () {
+      // An explicitly configured CA certificate path that cannot be read or
+      // parsed must fail fast at construction rather than silently falling
+      // back to the system trust store (security theater).
+      final transport =
+          TransportOptionsBuilder().caCertPath('/nonexistent/ca.pem').build();
+      expect(
+        () => DefaultApiClient(transportOptions: transport),
+        throwsA(isA<Exception>()),
+      );
+    });
   });
 }
 {{/generateTests}}
