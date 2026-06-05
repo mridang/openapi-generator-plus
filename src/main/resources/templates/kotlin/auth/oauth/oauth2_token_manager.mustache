@@ -158,11 +158,18 @@ class OAuth2TokenManager {
             "Accept" to "application/json",
         ) + extraHeaders
 
-        // Gap 3.2: 307/308 redirects on the token endpoint would silently
-        // replay client credentials (client_secret, refresh_token, password)
-        // in the form body to a redirect target. Refuse them; let 301/302/303
-        // through because those drop the body anyway.
+        // Gap 3.2: refuse ANY 3xx redirect on the token endpoint (RFC 6749
+        // §3.2 forbids redirects there). 307/308 would silently replay client
+        // credentials (client_secret, refresh_token, password) in the form
+        // body to a redirect target; 301/302/303 are rejected too so a
+        // misconfigured or malicious server cannot bounce the request at all.
         val response: ApiResponse = client.sendRequest("POST", tokenUrl, headers, body, noRedirect = true)
+        if (response.statusCode in 300..399) {
+            throw OAuth2TokenError(
+                "Refusing to follow ${response.statusCode} redirect on OAuth2 token " +
+                    "endpoint $tokenUrl; token POSTs carry credentials and must not be replayed.",
+            )
+        }
         if (response.statusCode < 200 || response.statusCode >= 300) {
             /* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
              * `error` (required), `error_description`, `error_uri`. Parse

@@ -151,6 +151,18 @@ func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]strin
 		return fmt.Errorf("token request failed: %w", err)
 	}
 
+	if resp.StatusCode >= 300 && resp.StatusCode < 400 {
+		/* RFC 6749 §3.2 forbids redirects at the token endpoint. With
+		 * NoRedirect set, the transport surfaces the 3xx verbatim instead
+		 * of replaying the credential-bearing POST; we refuse all 3xx
+		 * explicitly so the caller fails closed rather than leaking the
+		 * client_secret / refresh_token to the redirect target. */
+		return &OAuth2TokenError{Message: fmt.Sprintf(
+			"refusing to follow %d redirect on OAuth2 token endpoint %s; "+
+				"token POSTs carry credentials and must not be replayed",
+			resp.StatusCode, tokenURL)}
+	}
+
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		/* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
 		 * `error` (required), `error_description`, `error_uri`. Parse

@@ -427,10 +427,11 @@ class _FakeResp:
 
 
 class TestNoRedirectOnTokenPost:
-    """3.2: ``no_redirect=True`` must refuse a 307/308 response on the
-    OAuth2 token POST so a malicious redirect cannot replay the credential
-    body against an attacker-controlled endpoint. 301/302/303 still flow
-    through the normal coerce-to-GET / strip-body path."""
+    """3.2: ``no_redirect=True`` must NOT follow redirects. The first 3xx
+    response is returned to the caller verbatim (status/body/headers) rather
+    than being thrown. The OAuth2 token manager inspects and rejects the 3xx
+    itself, so the credential body is never silently replayed -- but the
+    transport's job is simply to return the response as-is."""
 
     def _make_pool(self, responses: list[Any]) -> Any:
         class _Pool:
@@ -444,9 +445,7 @@ class TestNoRedirectOnTokenPost:
 
         return _Pool()
 
-    def test_307_on_token_post_raises_when_no_redirect(self) -> None:
-        from petstore_client.errors import ApiException
-
+    def test_307_returned_as_is_when_no_redirect(self) -> None:
         transport = TransportOptions.builder().follow_redirects(True).build()
         pool = self._make_pool(
             [
@@ -454,20 +453,20 @@ class TestNoRedirectOnTokenPost:
             ]
         )
         client = DefaultApiClient(transport, pool_manager=pool)
-        with pytest.raises(ApiException):
-            client.send_request(
-                'POST',
-                'https://auth.example.com/token',
-                {'Content-Type': 'application/x-www-form-urlencoded'},
-                'grant_type=client_credentials&client_id=x&client_secret=y',
-                no_redirect=True,
-            )
-        # The replay request to the attacker host must never have been issued.
+        result = client.send_request(
+            'POST',
+            'https://auth.example.com/token',
+            {'Content-Type': 'application/x-www-form-urlencoded'},
+            'grant_type=client_credentials&client_id=x&client_secret=y',
+            no_redirect=True,
+        )
+        # The 3xx is returned verbatim and the replay request to the
+        # attacker host must never have been issued.
+        assert result.status_code == 307
+        assert result.headers.get('location') == 'https://attacker.example.com/steal'
         assert len(pool.calls) == 1
 
-    def test_308_on_token_post_raises_when_no_redirect(self) -> None:
-        from petstore_client.errors import ApiException
-
+    def test_308_returned_as_is_when_no_redirect(self) -> None:
         transport = TransportOptions.builder().follow_redirects(True).build()
         pool = self._make_pool(
             [
@@ -475,36 +474,35 @@ class TestNoRedirectOnTokenPost:
             ]
         )
         client = DefaultApiClient(transport, pool_manager=pool)
-        with pytest.raises(ApiException):
-            client.send_request(
-                'POST',
-                'https://auth.example.com/token',
-                {'Content-Type': 'application/x-www-form-urlencoded'},
-                'grant_type=password&username=u&password=p',
-                no_redirect=True,
-            )
+        result = client.send_request(
+            'POST',
+            'https://auth.example.com/token',
+            {'Content-Type': 'application/x-www-form-urlencoded'},
+            'grant_type=password&username=u&password=p',
+            no_redirect=True,
+        )
+        assert result.status_code == 308
         assert len(pool.calls) == 1
 
-    def test_303_on_token_post_still_follows_when_no_redirect(self) -> None:
-        # 303 coerces to GET and drops the body, so it is not a replay
-        # vector for the token endpoint and ``no_redirect`` does not block it.
+    def test_303_returned_as_is_when_no_redirect(self) -> None:
+        # no_redirect disables redirect following entirely, so even a 303
+        # is returned to the caller rather than coerced-to-GET and followed.
         transport = TransportOptions.builder().follow_redirects(True).build()
         pool = self._make_pool(
             [
                 _FakeResp(303, {'location': 'https://auth.example.com/done'}),
-                _FakeResp(200, {}),
             ]
         )
         client = DefaultApiClient(transport, pool_manager=pool)
-        client.send_request(
+        result = client.send_request(
             'POST',
             'https://auth.example.com/token',
             {'Content-Type': 'application/x-www-form-urlencoded'},
             'grant_type=client_credentials',
             no_redirect=True,
         )
-        assert len(pool.calls) == 2
-        assert pool.calls[1][0] == 'GET'
+        assert result.status_code == 303
+        assert len(pool.calls) == 1
 
     def test_no_redirect_does_not_affect_normal_request(self) -> None:
         # Without no_redirect, 307 follows normally (replays the body).

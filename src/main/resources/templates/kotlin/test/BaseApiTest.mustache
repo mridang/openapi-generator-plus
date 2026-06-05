@@ -494,6 +494,20 @@ class BaseApiTest {
             }
             // No exception means success
         }
+
+        @Test
+        @DisplayName("collapses double-slash when baseUrl has trailing slash")
+        fun collapsesDoubleSlashWhenBaseUrlHasTrailingSlash() {
+            // baseUrl='http://host/' + path='/v1/thing' must produce
+            // 'http://host/v1/thing', not 'http://host//v1/thing' which most
+            // servers route to 404.
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://host/")
+            runBlocking {
+                testApi.call("GET", "/v1/thing")
+            }
+            assertEquals("http://host/v1/thing", client.capturedUrl)
+        }
     }
 
     @Suppress("DEPRECATION")

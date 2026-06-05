@@ -393,6 +393,22 @@ public class BaseApiTest
     }
 
     [Fact]
+    public async Task CollapsesDoubleSlashWhenBaseUrlHasTrailingSlash()
+    {
+        // baseUrl='http://host/' + path='/v1/thing' must produce
+        // 'http://host/v1/thing', not 'http://host//v1/thing' which most
+        // servers route to 404.
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://host/");
+        await testApi.CallAsync<object>(
+            "GET", "/v1/thing",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.Equal("http://host/v1/thing", client.CapturedUrl!.ToString());
+    }
+
+    [Fact]
     public async Task AllowEmptyValueParamIncludedWithDefaultOptions()
     {
         var client = new CapturingApiClient();

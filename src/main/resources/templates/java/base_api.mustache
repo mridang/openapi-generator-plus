@@ -130,7 +130,11 @@ public abstract class BaseApi {
         if (path.startsWith("http://") || path.startsWith("https://")) {
             url = path;
         } else {
-            url = config.getBaseUrl() + path;
+            {{! Strip trailing slash from baseUrl when the path starts with a
+                slash so baseUrl='https://x/' + path='/y' yields 'https://x/y'
+                rather than 'https://x//y', which most servers route to 404. }}
+            String base = path.startsWith("/") ? config.getBaseUrl().replaceAll("/+$", "") : config.getBaseUrl();
+            url = base + path;
         }
 
         Authenticator effectiveAuth = (auth != null) ? auth : this.authenticator;

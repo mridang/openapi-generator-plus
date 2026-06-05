@@ -275,4 +275,23 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
     manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
     _(client.last_no_redirect).must_equal true
   end
+
+  # Bucket 3.2: RFC 6749 §3.2 forbids redirects at the token endpoint. The
+  # manager must refuse the whole 300-399 range (302 and 307 both exercised
+  # here, plus 301/303/308) with OAuth2TokenError rather than replaying the
+  # credential-bearing POST to the redirect target.
+  [301, 302, 303, 307, 308].each do |status|
+    it "refuses #{status} redirect on token endpoint" do
+      client = FakeTokenClient.new([{ status: status, body: '' }])
+      manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+      manager.api_client = client
+
+      assert_raises(PetstoreClient::Auth::OAuth::OAuth2TokenError) do
+        manager.get_access_token(
+          'https://auth.example.com/token',
+          { 'grant_type' => 'client_credentials', 'client_secret' => 'topsecret' }
+        )
+      end
+    end
+  end
 end

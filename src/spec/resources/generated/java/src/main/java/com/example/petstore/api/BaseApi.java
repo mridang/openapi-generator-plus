@@ -132,7 +132,9 @@ public abstract class BaseApi {
     if (path.startsWith("http://") || path.startsWith("https://")) {
       url = path;
     } else {
-      url = config.getBaseUrl() + path;
+      String base =
+          path.startsWith("/") ? config.getBaseUrl().replaceAll("/+$", "") : config.getBaseUrl();
+      url = base + path;
     }
 
     Authenticator effectiveAuth = (auth != null) ? auth : this.authenticator;

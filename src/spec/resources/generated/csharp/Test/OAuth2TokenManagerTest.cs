@@ -398,7 +398,7 @@ public class OAuth2TokenManagerTest
         );
     }
 
-    // ---- 3.2: token POSTs must refuse 307/308 redirects ----
+    // ---- 3.2: token POSTs must refuse ALL 3xx redirects ----
 
     [Fact]
     public async Task TokenRequestSetsNoRedirect()
@@ -419,11 +419,19 @@ public class OAuth2TokenManagerTest
         Assert.True(client.LastNoRedirect);
     }
 
-    [Fact]
-    public async Task RefusesRedirect307FromTokenEndpoint()
+    // RFC 6749 §3.2 forbids redirects at the token endpoint; the manager must
+    // reject the whole 300-399 range (302 and 307 both exercised here, plus
+    // 301/303/308) rather than only the body-preserving 307/308.
+    [Theory]
+    [InlineData(301)]
+    [InlineData(302)]
+    [InlineData(303)]
+    [InlineData(307)]
+    [InlineData(308)]
+    public async Task RefusesRedirectFromTokenEndpoint(int statusCode)
     {
         var client = new FakeApiClient();
-        client.Enqueue("", statusCode: 307);
+        client.Enqueue("", statusCode: statusCode);
 
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);
@@ -434,26 +442,7 @@ public class OAuth2TokenManagerTest
                 new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
             )
         );
-        Assert.Equal(307, ex.StatusCode);
-        Assert.Equal("redirect_refused", ex.Code);
-    }
-
-    [Fact]
-    public async Task RefusesRedirect308FromTokenEndpoint()
-    {
-        var client = new FakeApiClient();
-        client.Enqueue("", statusCode: 308);
-
-        var manager = new OAuth2TokenManager();
-        manager.SetApiClient(client);
-
-        var ex = await Assert.ThrowsAsync<OAuth2ServerError>(() =>
-            manager.GetAccessTokenAsync(
-                new Uri("https://auth.example.com/token"),
-                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
-            )
-        );
-        Assert.Equal(308, ex.StatusCode);
+        Assert.Equal(statusCode, ex.StatusCode);
         Assert.Equal("redirect_refused", ex.Code);
     }
 }

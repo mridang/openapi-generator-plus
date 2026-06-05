@@ -35,6 +35,26 @@ class _BaseApiAuth implements Authenticator {
   Map<String, String> cookieParams() => cookies;
 }
 
+class _CapturingApiClient implements ApiClient {
+  String capturedUrl = '';
+
+  @override
+  Future<HttpApiResponse> sendRequest(
+    String method,
+    String url,
+    Map<String, String> headers,
+    Object? body, {
+    bool noRedirect = false,
+  }) async {
+    capturedUrl = url;
+    return const HttpApiResponse(
+      statusCode: 200,
+      body: '{}',
+      headers: {'content-type': 'application/json'},
+    );
+  }
+}
+
 PetApi _chasmApi() {
   final config = ConfigurationBuilder().baseUrl(chasmHttpUrl).build();
   return PetApi(apiClient: DefaultApiClient(), config: config);
@@ -756,6 +776,23 @@ void main() {
       } finally {
         await server.close();
       }
+    });
+
+    test('collapses double-slash when baseUrl has trailing slash', () async {
+      // baseUrl='http://host/' + path='/pet/1' must produce
+      // 'http://host/pet/1', not 'http://host//pet/1' which most servers
+      // route to 404.
+      final client = _CapturingApiClient();
+      final config = ConfigurationBuilder().baseUrl('http://host/').build();
+      final api = PetApi(apiClient: client, config: config);
+      try {
+        await api.getPetById(1, null);
+      } catch (_) {}
+      expect(
+        client.capturedUrl,
+        equals('http://host/pet/1'),
+        reason: 'expected exactly one slash, got: ${client.capturedUrl}',
+      );
     });
 
     test('serializes JSON body for POST', () async {

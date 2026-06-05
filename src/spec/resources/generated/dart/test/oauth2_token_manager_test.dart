@@ -365,41 +365,29 @@ void main() {
       expect(client.requestCount, equals(2));
     });
 
-    /* Gap 3.2: a 307/308 on the token endpoint must be refused outright
+    /* Gap 3.2: ANY 3xx on the token endpoint must be refused outright
      * instead of replaying `client_id` / `client_secret` to a redirected
-     * host. The token manager also passes `noRedirect: true` to the
-     * underlying ApiClient so the raw 3xx status surfaces here. */
-    test('refuses 307 redirect on token endpoint', () async {
-      final client = _FakeApiClient();
-      client.enqueue('', statusCode: 307);
+     * host. RFC 6749 §3.2 forbids redirects at the token endpoint, so
+     * 302 and 307 (plus 301/303/308) are all rejected. The token manager
+     * also passes `noRedirect: true` to the underlying ApiClient so the
+     * raw 3xx status surfaces here. */
+    for (final status in [301, 302, 303, 307, 308]) {
+      test('refuses $status redirect on token endpoint', () async {
+        final client = _FakeApiClient();
+        client.enqueue('', statusCode: status);
 
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
 
-      await expectLater(
-        () => manager.getAccessToken(
-          'https://auth.example.com/token',
-          {'grant_type': 'client_credentials'},
-        ),
-        throwsA(isA<OAuth2TokenError>()),
-      );
-    });
-
-    test('refuses 308 redirect on token endpoint', () async {
-      final client = _FakeApiClient();
-      client.enqueue('', statusCode: 308);
-
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
-
-      await expectLater(
-        () => manager.getAccessToken(
-          'https://auth.example.com/token',
-          {'grant_type': 'client_credentials'},
-        ),
-        throwsA(isA<OAuth2TokenError>()),
-      );
-    });
+        await expectLater(
+          () => manager.getAccessToken(
+            'https://auth.example.com/token',
+            {'grant_type': 'client_credentials', 'client_secret': 'topsecret'},
+          ),
+          throwsA(isA<OAuth2TokenError>()),
+        );
+      });
+    }
 
     test('throws when token request fails', () async {
       final client = _FakeApiClient();

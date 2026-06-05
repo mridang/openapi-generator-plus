@@ -386,12 +386,13 @@ fn test_sensitive_header_allowlist_contains_fixed_credential_headers() {
     }
 }
 
-/// Gap 3.2: `send_request_with_options(no_redirect=true)` must refuse to
-/// follow a 307 redirect — the request must error out rather than replaying
-/// the body (which may carry an OAuth2 client_secret) to the redirect
-/// target. The second connection must NOT happen.
+/// Gap 3.2: `send_request_with_options(no_redirect=true)` must NOT follow a
+/// 307 redirect; the 3xx response is returned to the caller verbatim rather
+/// than replaying the body (which may carry an OAuth2 client_secret) to the
+/// redirect target. The token manager inspects/rejects the 3xx itself, so the
+/// second connection must NOT happen.
 #[tokio::test]
-async fn test_no_redirect_refuses_to_follow_307() {
+async fn test_no_redirect_returns_307_verbatim() {
     let (base_url, captured) = start_307_redirect_server("http://127.0.0.1:1/never".to_string());
 
     let transport = TransportOptionsBuilder::new()
@@ -412,12 +413,10 @@ async fn test_no_redirect_refuses_to_follow_307() {
         )
         .await;
 
-    assert!(result.is_err(), "expected error when refusing 307 redirect");
-    let err = result.unwrap_err().to_string();
-    assert!(
-        err.contains("307") || err.to_lowercase().contains("refus"),
-        "error must mention 307 or 'refus...': {}",
-        err
+    let response = result.expect("no_redirect must return the 3xx, not error");
+    assert_eq!(
+        307, response.status_code,
+        "no_redirect=true must return the 3xx response as-is"
     );
     // Only the first (initial) request must have been issued; the redirect
     // target must NOT have been contacted.

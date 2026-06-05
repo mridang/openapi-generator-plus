@@ -183,25 +183,30 @@ pub fn to_form_value<T: Serialize>(value: &T) -> String {
 
 /// Resolve a oneOf schema by attempting deserialization against each candidate.
 /// Each candidate is a closure that takes a parsed JSON value and returns a boxed
-/// result. Returns the first successful deserialization, or None if none match.
+/// result. Returns the first successful deserialization, or `Err` when no candidate
+/// matches — a payload satisfying none of the declared variants is a contract
+/// violation and must fail loudly rather than be silently dropped to None.
 pub fn resolve_one_of(
     data: &serde_json::Value,
     candidates: &[fn(&serde_json::Value) -> Result<Box<dyn std::any::Any>, SerializationError>],
-) -> Option<Box<dyn std::any::Any>> {
+) -> Result<Box<dyn std::any::Any>, SerializationError> {
     for candidate in candidates {
         if let Ok(result) = candidate(data) {
-            return Some(result);
+            return Ok(result);
         }
     }
-    None
+    Err(SerializationError {
+        message: "No oneOf/anyOf variant matched the JSON".to_string(),
+        cause: None,
+    })
 }
 
 /// Resolve an anyOf schema by attempting deserialization against each candidate.
-/// Returns the first successful deserialization, or None if none match.
+/// Returns the first successful deserialization, or `Err` when no candidate matches.
 pub fn resolve_any_of(
     data: &serde_json::Value,
     candidates: &[fn(&serde_json::Value) -> Result<Box<dyn std::any::Any>, SerializationError>],
-) -> Option<Box<dyn std::any::Any>> {
+) -> Result<Box<dyn std::any::Any>, SerializationError> {
     resolve_one_of(data, candidates)
 }
 

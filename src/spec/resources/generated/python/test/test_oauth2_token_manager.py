@@ -458,3 +458,27 @@ class TestOAuth2TokenManager:
         # positional or kwarg form so we're not coupled to the call style.
         call = mock_client.send_request.call_args
         assert call.kwargs.get('no_redirect') is True, f'OAuth2 token POST must pass no_redirect=True; got call={call!r}'
+
+    def test_token_endpoint_redirect_is_rejected(self) -> None:
+        """3.2: RFC 6749 §3.2 forbids redirects at the token endpoint. The
+        manager must refuse the whole 300-399 range (302 and 307 both checked
+        here, plus 301/303/308) with OAuth2TokenError rather than replaying
+        the credential-bearing POST to the redirect target."""
+        for status in (301, 302, 303, 307, 308):
+            manager = OAuth2TokenManager()
+            mock_client = MagicMock()
+            mock_client.send_request.return_value = ApiResponse(
+                status_code=status,
+                body='',
+                headers={'location': 'https://attacker.example/steal'},
+            )
+            manager.set_api_client(mock_client)
+
+            try:
+                manager.get_access_token(
+                    'https://auth.example.com/token',
+                    {'grant_type': 'client_credentials', 'client_secret': 'topsecret'},
+                )
+                assert False, f'Expected OAuth2TokenError for status {status}'
+            except OAuth2TokenError:
+                pass

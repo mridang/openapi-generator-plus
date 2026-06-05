@@ -691,3 +691,53 @@ fn test_naive_time_serde_round_trip() {
     let back: Wrap = serde_json::from_str(&json).expect("deserialize");
     assert_eq!(back, value);
 }
+
+fn variant_miss(_data: &serde_json::Value) -> Result<Box<dyn std::any::Any>, SerializationError> {
+    Err(SerializationError {
+        message: "variant does not match".to_string(),
+        cause: None,
+    })
+}
+
+fn variant_hit(_data: &serde_json::Value) -> Result<Box<dyn std::any::Any>, SerializationError> {
+    Ok(Box::new("matched".to_string()))
+}
+
+#[test]
+fn test_resolve_one_of_returns_first_match() {
+    let data = serde_json::json!({"k": "v"});
+    let candidates: &[fn(
+        &serde_json::Value,
+    ) -> Result<Box<dyn std::any::Any>, SerializationError>] = &[variant_miss, variant_hit];
+    let result = object_serializer::resolve_one_of(&data, candidates).expect("expected a match");
+    let value = result
+        .downcast::<String>()
+        .expect("expected a String variant");
+    assert_eq!(*value, "matched");
+}
+
+// A payload matching none of the declared variants is a contract violation and
+// must fail loudly with an Err rather than be silently returned as None.
+#[test]
+fn test_resolve_one_of_throws_on_no_match() {
+    let data = serde_json::json!({"unexpected": true});
+    let candidates: &[fn(
+        &serde_json::Value,
+    ) -> Result<Box<dyn std::any::Any>, SerializationError>] = &[variant_miss, variant_miss];
+    assert!(
+        object_serializer::resolve_one_of(&data, candidates).is_err(),
+        "expected an Err when no oneOf variant matched"
+    );
+}
+
+#[test]
+fn test_resolve_any_of_throws_on_no_match() {
+    let data = serde_json::json!({});
+    let candidates: &[fn(
+        &serde_json::Value,
+    ) -> Result<Box<dyn std::any::Any>, SerializationError>] = &[variant_miss];
+    assert!(
+        object_serializer::resolve_any_of(&data, candidates).is_err(),
+        "expected an Err when no anyOf variant matched"
+    );
+}

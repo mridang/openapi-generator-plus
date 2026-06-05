@@ -446,9 +446,12 @@ export class ObjectSerializer {
    *
    * @param json the JSON string to deserialize
    * @param candidates array of deserializer functions that accept a JSON string
-   * @returns the first non-null successful result, or null if none match
+   * @returns the first non-null successful result
+   * @throws SerializationError if no candidate matches the JSON — a payload
+   *   satisfying none of the declared variants is a contract violation and must
+   *   fail loudly rather than be silently dropped to null
    */
-  static resolveOneOf<T>(json: string, candidates: Array<(json: string) => T | null>): T | null {
+  static resolveOneOf<T>(json: string, candidates: Array<(json: string) => T | null>): T {
     for (const candidate of candidates) {
       try {
         const result = candidate(json);
@@ -459,7 +462,7 @@ export class ObjectSerializer {
         continue;
       }
     }
-    return null;
+    throw new SerializationError('No oneOf/anyOf variant matched the JSON');
   }
 
   /**
@@ -468,9 +471,10 @@ export class ObjectSerializer {
    *
    * @param json the JSON string to deserialize
    * @param candidates array of deserializer functions that accept a JSON string
-   * @returns the first non-null successful result, or null if none match
+   * @returns the first non-null successful result
+   * @throws SerializationError if no candidate matches the JSON
    */
-  static resolveAnyOf<T>(json: string, candidates: Array<(json: string) => T | null>): T | null {
+  static resolveAnyOf<T>(json: string, candidates: Array<(json: string) => T | null>): T {
     return ObjectSerializer.resolveOneOf(json, candidates);
   }
 }

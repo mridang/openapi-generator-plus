@@ -77,10 +77,11 @@ module PetstoreClient
     # @param url [String] fully qualified URL
     # @param headers [Hash{String => String}] caller-provided headers
     # @param body [Object, nil] request body
-    # @param no_redirect [Boolean] when true, refuse to follow any 3xx
-    #   redirect. Used by the OAuth2 token-endpoint POST so that
-    #   credentials in the form body are never silently replayed to a
-    #   redirect target (Bucket 3.2).
+    # @param no_redirect [Boolean] when true, do not follow redirects; the
+    #   first 3xx response is returned to the caller as-is. Used by the
+    #   OAuth2 token-endpoint POST so credentials in the form body are
+    #   never silently replayed to a redirect target — the token manager
+    #   inspects and rejects the 3xx itself (Bucket 3.2).
     # @return [ApiResponse] the HTTP response
     def send_request(method, url, headers, body, no_redirect: false) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
       # Bucket 3: using the client after #close has released its connection
@@ -126,18 +127,13 @@ module PetstoreClient
         # follow Location: headers manually here, stripping the sensitive
         # headers when the next URL's origin (scheme + host + port) differs
         # from the original.
-        # Bucket 3.2: when the caller passed `no_redirect: true` (the OAuth2
-        # token endpoint POST does this), refuse to follow any 3xx. The
-        # token request carries `client_id` / `client_secret` /
-        # `refresh_token` in the form body; silently replaying that body
-        # to a redirect target would leak credentials to an attacker-
-        # controlled host. We surface the redirect as an ApiError instead.
-        if no_redirect && redirect_status?(response.status)
-          raise ApiError, "Refusing to follow #{response.status} redirect: " \
-                          'token endpoint redirects are not permitted'
-        end
-
-        if @transport_options.follow_redirects
+        # Bucket 3.2: `no_redirect: true` (the OAuth2 token endpoint POST
+        # does this) means "do not follow redirects; return the 3xx as-is".
+        # The redirect loop is skipped and the first 3xx surfaces to the
+        # caller verbatim. The OAuth2 token manager inspects and rejects the
+        # 3xx itself, so a credential-bearing body is never silently
+        # replayed to a redirect target.
+        if @transport_options.follow_redirects && !no_redirect
           max_redirects = @transport_options.max_redirects || 20
           original_url = url
           hops = 0

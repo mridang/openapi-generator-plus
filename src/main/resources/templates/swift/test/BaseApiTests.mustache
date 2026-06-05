@@ -401,6 +401,19 @@ import Testing
         #expect(str == "q=a%2Bb")
     }
 
+    // MARK: - URL trailing-slash collapse
+
+    @Test func testCollapsesDoubleSlashWhenBaseURLHasTrailingSlash() async throws {
+        // baseUrl='http://host/' + path='/pet/1' must produce
+        // 'http://host/pet/1', not 'http://host//pet/1' which most servers
+        // route to 404.
+        let mockClient = MockApiClient()
+        let config = ConfigurationBuilder().baseURL("http://host/").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+        _ = try? await api.getPetById(petId: 1)
+        #expect(mockClient.lastURL == "http://host/pet/1")
+    }
+
     // MARK: - 418 Teapot (unrecognized status)
 
     @Test func testErrorDispatch418() async throws {

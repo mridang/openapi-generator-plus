@@ -514,4 +514,39 @@ import Testing
         let decoded = try ObjectSerializer.deserialize(json, as: Holder.self)
         #expect(decoded?.at == "14:30:00")
     }
+
+    // MARK: - oneOf/anyOf no-match
+
+    @Test func testResolveOneOfReturnsFirstMatch() throws {
+        struct VariantMiss: Error {}
+        let candidates: [(Any) throws -> String] = [
+            { _ in throw VariantMiss() },
+            { json in "matched:\(json)" },
+        ]
+        let result = try ObjectSerializer.resolveOneOf("payload", candidates: candidates)
+        #expect(result == "matched:payload")
+    }
+
+    @Test func testResolveOneOfThrowsOnNoMatch() {
+        // A payload matching none of the declared variants is a contract
+        // violation and must fail loudly rather than be silently returned as nil.
+        struct VariantMiss: Error {}
+        let candidates: [(Any) throws -> String] = [
+            { _ in throw VariantMiss() },
+            { _ in throw VariantMiss() },
+        ]
+        #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.resolveOneOf(["unexpected": true], candidates: candidates)
+        }
+    }
+
+    @Test func testResolveAnyOfThrowsOnNoMatch() {
+        struct VariantMiss: Error {}
+        let candidates: [(Any) throws -> String] = [
+            { _ in throw VariantMiss() },
+        ]
+        #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.resolveAnyOf([String: Any](), candidates: candidates)
+        }
+    }
 }

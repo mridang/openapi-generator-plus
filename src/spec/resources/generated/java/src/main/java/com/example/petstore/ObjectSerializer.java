@@ -250,9 +250,11 @@ public final class ObjectSerializer {
    * @param <T> the expected return type
    * @param json the JSON string to deserialize
    * @param candidates list of deserializer functions that accept a JSON string
-   * @return the first non-null successful result, or null if none match
+   * @return the first non-null successful result
+   * @throws SerializationException if no candidate matches the JSON — a payload satisfying none of
+   *     the declared variants is a contract violation and must fail loudly rather than be silently
+   *     dropped to null
    */
-  @Nullable
   @SuppressWarnings("EmptyCatch")
   public <T> T resolveOneOf(String json, List<Function<String, T>> candidates) {
     for (Function<String, T> candidate : candidates) {
@@ -264,7 +266,7 @@ public final class ObjectSerializer {
       } catch (Exception ignored) {
       }
     }
-    return null;
+    throw new SerializationException("No oneOf/anyOf variant matched the JSON");
   }
 
   /**
@@ -275,9 +277,9 @@ public final class ObjectSerializer {
    * @param <T> the expected return type
    * @param json the JSON string to deserialize
    * @param candidates list of deserializer functions that accept a JSON string
-   * @return the first non-null successful result, or null if none match
+   * @return the first non-null successful result
+   * @throws SerializationException if no candidate matches the JSON
    */
-  @Nullable
   public <T> T resolveAnyOf(String json, List<Function<String, T>> candidates) {
     return resolveOneOf(json, candidates);
   }

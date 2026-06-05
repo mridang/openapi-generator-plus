@@ -374,38 +374,28 @@ import Testing
             "spec apiKey header 'X-Internal-Key' must be on the strip-list")
     }
 
-    // MARK: - noRedirect refusal (Gap 3.2)
+    // MARK: - noRedirect returns the 3xx as-is (Gap 3.2)
 
-    /// noRedirect=true MUST surface a 307 as an ApiError instead of
-    /// silently replaying the request body to the Location target.
-    @Test func testNoRedirectRefuses307() async throws {
+    /// noRedirect=true MUST NOT follow the redirect; the 307 is returned to
+    /// the caller verbatim rather than replaying the request body to the
+    /// Location target. The token manager inspects/rejects the 3xx itself.
+    @Test func testNoRedirectReturns307() async throws {
         let client = makeClient { _ in (self.body("moved"), 307, ["Location": "https://other.example/x"]) }
-        do {
-            _ = try await client.sendRequest(
-                method: "POST", url: "https://auth.example.com/token",
-                headers: [:], body: Data("grant_type=client_credentials".utf8), noRedirect: true)
-            Issue.record("Expected ApiError on 307 with noRedirect=true")
-        } catch let err as ApiError {
-            #expect(err.statusCode == 307)
-        } catch {
-            Issue.record("Expected ApiError, got: \(error)")
-        }
+        let resp = try await client.sendRequest(
+            method: "POST", url: "https://auth.example.com/token",
+            headers: [:], body: Data("grant_type=client_credentials".utf8), noRedirect: true)
+        #expect(resp.statusCode == 307)
+        #expect(resp.headers["location"] == "https://other.example/x")
     }
 
-    /// 308 (Permanent Redirect) has the same body-replay risk as 307
-    /// per RFC 7538 §3, and MUST also be refused under noRedirect.
-    @Test func testNoRedirectRefuses308() async throws {
+    /// 308 (Permanent Redirect) is likewise returned verbatim under
+    /// noRedirect rather than followed.
+    @Test func testNoRedirectReturns308() async throws {
         let client = makeClient { _ in (self.body("moved permanently"), 308, ["Location": "https://other.example/x"]) }
-        do {
-            _ = try await client.sendRequest(
-                method: "POST", url: "https://auth.example.com/token",
-                headers: [:], body: Data("grant_type=client_credentials".utf8), noRedirect: true)
-            Issue.record("Expected ApiError on 308 with noRedirect=true")
-        } catch let err as ApiError {
-            #expect(err.statusCode == 308)
-        } catch {
-            Issue.record("Expected ApiError, got: \(error)")
-        }
+        let resp = try await client.sendRequest(
+            method: "POST", url: "https://auth.example.com/token",
+            headers: [:], body: Data("grant_type=client_credentials".utf8), noRedirect: true)
+        #expect(resp.statusCode == 308)
     }
 
     /// When noRedirect is omitted the default-arg overload routes

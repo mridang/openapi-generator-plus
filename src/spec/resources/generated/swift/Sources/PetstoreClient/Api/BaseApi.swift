@@ -39,7 +39,16 @@ open class BaseApi: @unchecked Sendable {
     func invokeAPI(_ params: InvokeAPIParams) async throws -> HttpResponse {
         var requestURL = params.path
         if !requestURL.hasPrefix("http://") && !requestURL.hasPrefix("https://") {
-            requestURL = config.baseURL + params.path
+            /* Strip trailing slash from baseUrl when path starts with `/` so
+             * baseUrl='https://x/' + path='/y' produces 'https://x/y', not
+             * 'https://x//y' which most servers route to 404. */
+            var base = config.baseURL
+            if params.path.hasPrefix("/") {
+                while base.hasSuffix("/") {
+                    base.removeLast()
+                }
+            }
+            requestURL = base + params.path
         }
 
         /* Merge authentication query params */

@@ -170,12 +170,13 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         do {
             /* Gap 3.2: when noRedirect is set (used by the OAuth2 token
              * endpoint POST), route through a dedicated, non-following
-             * session and surface a 307/308 as an ApiError rather than
-             * silently replaying the credential-bearing body to the
-             * Location target. 301/302/303 are still surfaced as 3xx
-             * responses for callers to inspect. */
+             * session so no redirect is followed; the first 3xx response
+             * is returned to the caller as-is (status, body, headers). The
+             * token manager inspects and rejects the 3xx itself, so the
+             * credential-bearing body is never silently replayed to the
+             * Location target. */
             let activeSession: URLSession = noRedirect
-                ? DefaultApiClient.buildNoRedirectSession(transportOptions)
+                ? buildNoRedirectSession(transportOptions)
                 : session
             (data, response) = try await activeSession.data(for: request)
         } catch let urlError as URLError {
@@ -197,14 +198,6 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
            3xx response. */
         if let refusal = sessionDelegate?.takeRedirectError() {
             throw refusal
-        }
-
-        if noRedirect && (httpResponse.statusCode == 307 || httpResponse.statusCode == 308) {
-            throw ApiError(
-                statusCode: httpResponse.statusCode,
-                message: "Refusing to follow 307/308 redirect on no-redirect request "
-                    + "(would replay request body to Location target)"
-            )
         }
 
         /* Gap BE+BF: response header keys are normalised to lowercase so
@@ -485,18 +478,25 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         return (URLSession(configuration: config), nil)
     }
 
-    /// Builds an ephemeral session that refuses to follow any HTTP
-    /// redirect. Used for the OAuth2 token-endpoint POST (Gap 3.2)
-    /// where silently replaying a credential-bearing body to a
-    /// Location target is unacceptable. TLS settings are inherited
-    /// from ``TransportOptions`` so custom CA / verifySSL flags still
-    /// apply on the token request.
-    static func buildNoRedirectSession(_ opts: TransportOptions) -> URLSession {
+    /// Builds an ephemeral session that does not follow any HTTP
+    /// redirect; the 3xx response is returned to the caller as-is. Used
+    /// for the OAuth2 token-endpoint POST (Gap 3.2) so a credential-bearing
+    /// body is never silently replayed to a Location target — the token
+    /// manager inspects and rejects the 3xx itself. TLS settings are
+    /// inherited from ``TransportOptions`` so custom CA / verifySSL flags
+    /// still apply on the token request.
+    func buildNoRedirectSession(_ opts: TransportOptions) -> URLSession {
         let config = URLSessionConfiguration.ephemeral
         if let timeout = opts.timeout {
             let seconds = TimeInterval(timeout) / 1000.0
             config.timeoutIntervalForRequest = seconds
             config.timeoutIntervalForResource = seconds
+        }
+        /* Carry over any custom URLProtocol classes the caller registered on
+           the primary session (e.g. test stubs) so the no-redirect path is
+           interceptable in tests and routes through the same transport. */
+        if let primaryProtocols = session.configuration.protocolClasses {
+            config.protocolClasses = primaryProtocols
         }
         let delegate = SessionDelegate(
             verifySSL: opts.verifySSL,

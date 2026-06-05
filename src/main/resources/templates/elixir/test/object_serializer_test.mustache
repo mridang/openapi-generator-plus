@@ -388,5 +388,38 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert {{moduleName}}.ObjectSerializer.deserialize(nil, "Category") == nil
     end
   end
+
+  describe "oneOf/anyOf no-match" do
+    test "resolve_one_of returns the first matching variant" do
+      candidates = [
+        fn _ -> raise "variant A does not match" end,
+        fn data -> {:matched, data} end
+      ]
+
+      result = {{moduleName}}.ObjectSerializer.resolve_one_of(%{"k" => "v"}, candidates)
+      assert result == {:matched, %{"k" => "v"}}
+    end
+
+    test "resolve_one_of raises when no variant matches" do
+      # A payload matching none of the declared variants is a contract violation
+      # and must fail loudly rather than be silently returned as nil.
+      candidates = [
+        fn _ -> raise "variant A does not match" end,
+        fn _ -> raise "variant B does not match" end
+      ]
+
+      assert_raise {{moduleName}}.SchemaMismatchError, fn ->
+        {{moduleName}}.ObjectSerializer.resolve_one_of(%{"unexpected" => true}, candidates)
+      end
+    end
+
+    test "resolve_any_of raises when no variant matches" do
+      candidates = [fn _ -> raise "no match" end]
+
+      assert_raise {{moduleName}}.SchemaMismatchError, fn ->
+        {{moduleName}}.ObjectSerializer.resolve_any_of(%{}, candidates)
+      end
+    end
+  end
 end
 {{/generateTests}}

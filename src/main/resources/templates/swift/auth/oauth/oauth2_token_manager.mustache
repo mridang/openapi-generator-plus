@@ -207,6 +207,18 @@ public final class OAuth2TokenManager: @unchecked Sendable {
             noRedirect: true
         )
 
+        if response.statusCode >= 300 && response.statusCode < 400 {
+            /* RFC 6749 §3.2 forbids redirects at the token endpoint. With
+             * noRedirect=true the transport surfaces the 3xx verbatim rather
+             * than replaying the credential-bearing POST; we refuse all 3xx
+             * explicitly so the caller fails closed instead of leaking the
+             * client secret / refresh_token to the redirect target. */
+            throw OAuth2TokenError.redirectRefused(
+                "Refusing to follow \(response.statusCode) redirect on OAuth2 token "
+                    + "endpoint \(tokenURL); token POSTs carry credentials and must not be replayed."
+            )
+        }
+
         guard response.statusCode >= 200 && response.statusCode < 300 else {
             /* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
              * `error` (required), `error_description`, `error_uri`. Parse
@@ -324,6 +336,10 @@ public final class OAuth2TokenManager: @unchecked Sendable {
 /// on 4xx/5xx) so callers can recover differently via `catch`.
 public enum OAuth2TokenError: Error, Equatable {
     case missingAccessToken(String)
+    /// Thrown when the token endpoint responds with a 3xx redirect. RFC 6749
+    /// §3.2 forbids redirects there; following one would replay the
+    /// credential-bearing POST body to the redirect target.
+    case redirectRefused(String)
 }
 
 /// Typed representation of an RFC 6749 §5.2 OAuth2 error response. The

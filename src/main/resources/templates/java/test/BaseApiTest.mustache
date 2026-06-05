@@ -410,6 +410,20 @@ class BaseApiTest {
             assertFalse(client.capturedUrl.contains("?"),
                     "Expected no query string but got: " + client.capturedUrl);
         }
+
+        @Test
+        @DisplayName("collapses double-slash when baseUrl has trailing slash")
+        void collapsesDoubleSlashWhenBaseUrlHasTrailingSlash() throws ApiException {
+            // baseUrl='http://x/' + path='/v1/thing' must produce
+            // 'http://x/v1/thing', not 'http://x//v1/thing' which most
+            // servers route to 404.
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://host/");
+            testApi.call("GET", "/v1/thing", new HashMap<>(), new HashMap<>(), null,
+                    new String[] {"application/json"}, "application/json", null, null);
+            assertEquals("http://host/v1/thing", client.capturedUrl,
+                    "Expected exactly one slash but got: " + client.capturedUrl);
+        }
     }
 
     @SuppressWarnings("deprecation")

@@ -364,6 +364,36 @@ import Testing
             "OAuth2TokenManager must request noRedirect=true on the token POST")
     }
 
+    /// Gap 3.2: RFC 6749 §3.2 forbids redirects at the token endpoint. The
+    /// manager must refuse the whole 300-399 range (302 and 307 both exercised
+    /// here, plus 301/303/308) with an OAuth2TokenError rather than replaying
+    /// the credential-bearing POST to the redirect target.
+    @Test(arguments: [301, 302, 303, 307, 308])
+    func testTokenEndpointRedirectIsRejected(status: Int) async {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "", statusCode: status))
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        do {
+            _ = try await manager.getAccessToken(
+                tokenURL: "https://auth.example.com/token",
+                params: ["grant_type": "client_credentials", "client_secret": "topsecret"]
+            )
+            Issue.record("Expected OAuth2TokenError for status \(status)")
+        } catch let error as OAuth2TokenError {
+            switch error {
+            case .redirectRefused:
+                break
+            default:
+                Issue.record("status \(status): expected .redirectRefused, got \(error)")
+            }
+        } catch {
+            Issue.record("status \(status): expected OAuth2TokenError, got \(error)")
+        }
+    }
+
     @Test func testThrowsWhenTokenRequestFails() async {
         let client = MockApiClient()
         client.responses.append(makeResponse(body: "{\"error\":\"invalid_client\"}", statusCode: 401))

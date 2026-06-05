@@ -37,14 +37,11 @@ fn encode_path_segment(s: &str) -> String {
 /// Percent-encodes a single path-array ITEM before it is joined with the `,`
 /// structural separator (OAS `simple`/`label`/`matrix` non-explode styles).
 ///
-/// rust-styled-separator-collision: unlike [`encode_path_segment`], this
-/// encoder also percent-encodes a literal `,` (to `%2C`) so that an item value
-/// containing a comma cannot be mistaken for an additional array element. For
-/// example `["a,b", "c"]` must serialize to `a%2Cb,c`, distinguishable from the
-/// three-element `["a", "b", "c"]` -> `a,b,c`. Every per-item value is encoded
-/// BEFORE the join, matching the other 11 SDKs.
+/// Per RFC 6570 a literal `,` inside an item value is preserved (not escaped),
+/// matching the other 11 SDKs. For example `["a,b", "c"]` serializes to
+/// `a,b,c`. Every per-item value is encoded BEFORE the join.
 fn encode_path_array_item(s: &str) -> String {
-    encode_path_segment(s).replace(',', "%2C")
+    encode_path_segment(s)
 }
 
 /// Serializes a parameter value for HTTP requests based on its location.
@@ -152,8 +149,8 @@ pub fn serialize_styled(
                         .collect();
                     Some(SerializedValue::Single(parts.join("")))
                 } else {
-                    // Items are joined with `,`; encode each item's literal
-                    // commas so they cannot collide with the separator.
+                    // Items are joined with `,`; per RFC 6570 a literal `,`
+                    // inside an item is preserved (not escaped).
                     let enc: Vec<String> = if location == "path" {
                         arr.iter().map(|v| encode_path_array_item(v)).collect()
                     } else {
@@ -185,8 +182,8 @@ pub fn serialize_styled(
                     };
                     Some(SerializedValue::Single(format!(".{}", enc.join("."))))
                 } else {
-                    // Non-explode joins with `,`; encode each item's commas so
-                    // they cannot collide with the separator.
+                    // Non-explode joins with `,`; per RFC 6570 a literal `,`
+                    // inside an item is preserved (not escaped).
                     let enc: Vec<String> = if location == "path" {
                         arr.iter().map(|v| encode_path_array_item(v)).collect()
                     } else {
@@ -252,8 +249,8 @@ pub fn serialize_styled(
                 return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
             }
             if let Some(arr) = items {
-                // `simple` always joins with `,`; encode each item's literal
-                // commas so they cannot collide with the separator.
+                // `simple` always joins with `,`; per RFC 6570 a literal `,`
+                // inside an item is preserved (not escaped).
                 let enc: Vec<String> = if location == "path" {
                     arr.iter().map(|v| encode_path_array_item(v)).collect()
                 } else {

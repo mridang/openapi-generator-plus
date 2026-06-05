@@ -621,4 +621,34 @@ describe PetstoreClient::ObjectSerializer do
       end
     end
   end
+
+  describe 'oneOf/anyOf no-match' do
+    it 'resolve_one_of returns the first matching variant' do
+      candidates = [
+        ->(_data) { raise StandardError, 'variant A does not match' },
+        ->(data) { "matched:#{data}" }
+      ]
+      result = PetstoreClient::ObjectSerializer.resolve_one_of('payload', candidates)
+      _(result).must_equal('matched:payload')
+    end
+
+    it 'resolve_one_of raises when no variant matches' do
+      # A payload matching none of the declared variants is a contract
+      # violation and must fail loudly rather than be silently returned as nil.
+      candidates = [
+        ->(_data) { raise StandardError, 'variant A does not match' },
+        ->(_data) { raise StandardError, 'variant B does not match' }
+      ]
+      assert_raises(PetstoreClient::SchemaMismatchError) do
+        PetstoreClient::ObjectSerializer.resolve_one_of({ 'unexpected' => true }, candidates)
+      end
+    end
+
+    it 'resolve_any_of raises when no variant matches' do
+      candidates = [->(_data) { raise StandardError, 'no match' }]
+      assert_raises(PetstoreClient::SchemaMismatchError) do
+        PetstoreClient::ObjectSerializer.resolve_any_of({}, candidates)
+      end
+    end
+  end
 end

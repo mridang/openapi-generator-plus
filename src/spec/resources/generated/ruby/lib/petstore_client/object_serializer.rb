@@ -437,15 +437,17 @@ module PetstoreClient
     #
     # @param data [Object] the parsed JSON data
     # @param candidates [Array<Proc>] lambdas that attempt deserialization
-    # @return [Object, nil] the first successfully deserialized result, or nil
-    #   if no candidate matches
+    # @return [Object] the first successfully deserialized result
+    # @raise [SchemaMismatchError] if no candidate matches the data. A payload
+    #   satisfying none of the declared variants is a contract violation and
+    #   must fail loudly rather than be silently dropped to nil.
     def self.resolve_one_of(data, candidates)
       candidates.each do |candidate|
         return candidate.call(data)
       rescue StandardError
         next
       end
-      nil
+      raise SchemaMismatchError, 'No oneOf/anyOf variant matched the JSON'
     end
 
     # Attempt to deserialize data against a list of candidate schemas using
@@ -453,8 +455,8 @@ module PetstoreClient
     #
     # @param data [Object] the parsed JSON data
     # @param candidates [Array<Proc>] lambdas that attempt deserialization
-    # @return [Object, nil] the first successfully deserialized result, or nil
-    #   if no candidate matches
+    # @return [Object] the first successfully deserialized result
+    # @raise [SchemaMismatchError] if no candidate matches the data
     def self.resolve_any_of(data, candidates)
       resolve_one_of(data, candidates)
     end

@@ -63,6 +63,30 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
+    fun `token_endpoint_redirect_is_rejected`() {
+        // Gap 3.2: RFC 6749 §3.2 forbids redirects at the token endpoint. The
+        // manager must refuse the whole 300-399 range (302 and 307 both checked
+        // here, plus 301/303/308) with a typed OAuth2TokenError rather than
+        // replaying the credential-bearing POST.
+        for (status in listOf(301, 302, 303, 307, 308)) {
+            val client = FakeApiClient()
+            client.enqueue("", statusCode = status)
+            val manager = OAuth2TokenManager()
+            manager.apiClient = client
+
+            val ex = assertThrows(OAuth2TokenError::class.java) {
+                runBlocking {
+                    manager.getAccessToken(
+                        "https://auth.example.com/token",
+                        mapOf("grant_type" to "client_credentials", "client_secret" to "topsecret"),
+                    )
+                }
+            }
+            assertNotNull(ex.message, "status $status must produce a redirect-refusal message")
+        }
+    }
+
+    @Test
     fun extractsAccessTokenFromResponse() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok123","expires_in":3600}""")

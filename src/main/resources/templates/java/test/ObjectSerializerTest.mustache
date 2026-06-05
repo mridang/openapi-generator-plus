@@ -508,4 +508,49 @@ class ObjectSerializerTest {
             assertEquals("Dogs", category.name);
         }
     }
+
+    @Nested
+    @DisplayName("oneOf/anyOf no-match")
+    class OneOfNoMatch {
+
+        @Test
+        @DisplayName("resolveOneOf returns the first matching variant")
+        void resolveOneOfReturnsFirstMatch() {
+            List<java.util.function.Function<String, String>> candidates =
+                    Arrays.asList(
+                            json -> {
+                                throw new IllegalStateException("variant A does not match");
+                            },
+                            json -> "matched:" + json);
+            assertEquals("matched:payload", serializer.resolveOneOf("payload", candidates));
+        }
+
+        @Test
+        @DisplayName("resolveOneOf throws when no variant matches")
+        void resolveOneOfThrowsOnNoMatch() {
+            // A payload matching none of the declared variants is a contract
+            // violation and must fail loudly rather than be silently returned as null.
+            List<java.util.function.Function<String, String>> candidates =
+                    Arrays.asList(
+                            json -> {
+                                throw new IllegalStateException("variant A does not match");
+                            },
+                            json -> {
+                                throw new IllegalStateException("variant B does not match");
+                            });
+            assertThrows(
+                    ObjectSerializer.SerializationException.class,
+                    () -> serializer.resolveOneOf("{\"unexpected\":true}", candidates));
+        }
+
+        @Test
+        @DisplayName("resolveAnyOf throws when no variant matches")
+        void resolveAnyOfThrowsOnNoMatch() {
+            List<java.util.function.Function<String, String>> candidates =
+                    Arrays.asList(json -> null);
+            assertThrows(
+                    ObjectSerializer.SerializationException.class,
+                    () -> serializer.resolveAnyOf("{}", candidates));
+        }
+    }
 }

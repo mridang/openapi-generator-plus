@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 
 use petstore::api_client::{ApiClient, RequestBody, RequestOptions};
 use petstore::api_response::ApiResponse;
-use petstore::auth::oauth::OAuth2TokenManager;
+use petstore::auth::oauth::{OAuth2TokenError, OAuth2TokenManager};
 
 struct FakeApiClient {
     responses: Mutex<Vec<ApiResponse>>,
@@ -556,6 +556,34 @@ async fn test_token_post_uses_no_redirect() {
         captured,
         "OAuth2 token POST must call send_request_with_options with no_redirect=true"
     );
+}
+
+/// Gap 3.2: RFC 6749 §3.2 forbids redirects at the token endpoint. The
+/// manager must refuse the whole 300-399 range (302 and 307 both exercised
+/// here, plus 301/303/308) with an OAuth2TokenError rather than replaying the
+/// credential-bearing POST to the redirect target.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_token_endpoint_redirect_is_rejected() {
+    for status in [301u16, 302, 303, 307, 308] {
+        let client = Arc::new(FakeApiClient::new());
+        client.enqueue("", status);
+
+        let manager = OAuth2TokenManager::new();
+        manager.set_api_client(client);
+
+        let mut params = HashMap::new();
+        params.insert("grant_type".to_string(), "client_credentials".to_string());
+        params.insert("client_secret".to_string(), "topsecret".to_string());
+
+        let err = manager
+            .get_access_token("https://auth.example.com/token", &params)
+            .await
+            .expect_err(&format!("status {status} must be refused"));
+        assert!(
+            err.downcast_ref::<OAuth2TokenError>().is_some(),
+            "status {status} must surface as OAuth2TokenError, got: {err}"
+        );
+    }
 }
 
 #[tokio::test(flavor = "multi_thread")]

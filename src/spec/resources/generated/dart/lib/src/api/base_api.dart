@@ -62,7 +62,13 @@ class BaseApi {
     var requestUrl = path;
     if (!requestUrl.startsWith('http://') &&
         !requestUrl.startsWith('https://')) {
-      requestUrl = config.baseUrl + path;
+      /* Strip trailing slash from baseUrl when path starts with `/` so
+       * baseUrl='https://x/' + path='/y' produces 'https://x/y', not
+       * 'https://x//y' which most servers route to 404. */
+      final base = path.startsWith('/')
+          ? config.baseUrl.replaceAll(RegExp(r'/+$'), '')
+          : config.baseUrl;
+      requestUrl = base + path;
     }
 
     final allQueryParams = <String, Object?>{};

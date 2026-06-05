@@ -96,7 +96,15 @@ class BaseApi
         ?string $returnType,
         ?Authenticator $auth = null
     ): ApiResult {
-        $url = str_starts_with($path, 'http://') || str_starts_with($path, 'https://') ? $path : $this->config->baseUrl . $path;
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            $url = $path;
+        } else {
+            /* Strip trailing slash from baseUrl when path starts with `/` so
+             * baseUrl='https://x/' + path='/y' produces 'https://x/y', not
+             * 'https://x//y' which most servers route to 404. */
+            $base = str_starts_with($path, '/') ? rtrim($this->config->baseUrl, '/') : $this->config->baseUrl;
+            $url = $base . $path;
+        }
 
         $effectiveAuth = $auth ?? $this->authenticator;
         if ($effectiveAuth instanceof Authenticator) {
@@ -262,37 +270,47 @@ class BaseApi
     /**
      * Build a query string from an array of key value pairs.
      *
+     * When `$form` is true the result is encoded as
+     * application/x-www-form-urlencoded (WHATWG form encoding), where a
+     * space is encoded as `+`. Otherwise the result is a URL query string
+     * where a space is encoded as `%20`.
+     *
      * @param array<string, mixed> $params Query string parameters
+     * @param bool                 $form   Encode as form body (space -> `+`)
      */
-    private function buildQuery(array $params): string
+    private function buildQuery(array $params, bool $form = false): string
     {
         if ($params === []) {
             return '';
         }
 
+        $encode = static fn (string $s): string => $form
+            ? str_replace('%20', '+', rawurlencode($s))
+            : rawurlencode($s);
+
         $qs = '';
         foreach ($params as $k => $v) {
-            $k = rawurlencode($k);
+            $key = $encode($k);
             if (is_array($v)) {
                 foreach ($v as $vv) {
-                    $qs .= $k;
+                    $qs .= $key;
                     if (is_bool($vv)) {
-                        $qs .= '=' . rawurlencode($vv ? 'true' : 'false');
+                        $qs .= '=' . $encode($vv ? 'true' : 'false');
                     } elseif (is_scalar($vv)) {
-                        $qs .= '=' . rawurlencode((string) $vv);
+                        $qs .= '=' . $encode((string) $vv);
                     } else {
-                        $qs .= '=' . rawurlencode((string) json_encode($vv, JSON_UNESCAPED_SLASHES));
+                        $qs .= '=' . $encode((string) json_encode($vv, JSON_UNESCAPED_SLASHES));
                     }
                     $qs .= '&';
                 }
             } else {
-                $qs .= $k;
+                $qs .= $key;
                 if (is_bool($v)) {
-                    $qs .= '=' . rawurlencode($v ? 'true' : 'false');
+                    $qs .= '=' . $encode($v ? 'true' : 'false');
                 } elseif (is_scalar($v)) {
-                    $qs .= '=' . rawurlencode((string) $v);
+                    $qs .= '=' . $encode((string) $v);
                 } elseif (!is_null($v)) {
-                    $qs .= '=' . rawurlencode((string) json_encode($v, JSON_UNESCAPED_SLASHES));
+                    $qs .= '=' . $encode((string) json_encode($v, JSON_UNESCAPED_SLASHES));
                 }
                 $qs .= '&';
             }
@@ -332,7 +350,7 @@ class BaseApi
         if ($contentType === 'application/x-www-form-urlencoded') {
             assert(is_array($body));
             /** @var array<string, mixed> $body */
-            return $this->buildQuery($body);
+            return $this->buildQuery($body, true);
         }
 
         return ObjectSerializer::serialize($body);

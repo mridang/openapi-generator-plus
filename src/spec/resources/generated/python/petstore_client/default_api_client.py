@@ -228,11 +228,12 @@ class DefaultApiClient:
             headers: HTTP headers from the caller.
             body: Request body (serialized JSON string, bytes, dict for
                 multipart, or None).
-            no_redirect: When ``True``, the redirect loop refuses to follow
-                a 307 or 308 response and raises
-                :class:`~petstore_client.errors.ApiException`. Used by the
-                OAuth2 token manager so a credential-bearing POST cannot be
-                silently replayed against an attacker-controlled endpoint.
+            no_redirect: When ``True``, redirects are not followed for this
+                request; the first 3xx response is returned to the caller
+                verbatim (status, body, headers). Used by the OAuth2 token
+                manager so a credential-bearing POST is never silently
+                replayed against a redirect target -- the token manager
+                inspects and rejects the 3xx itself.
 
         Returns:
             :class:`ApiResponse` containing status code, body, and headers.
@@ -320,7 +321,12 @@ class DefaultApiClient:
                 **request_kwargs,
             )
 
-            if self._transport_options.follow_redirects:
+            # no_redirect means "do not follow redirects; return the 3xx
+            # response as-is" -- not "throw on redirect". When redirects are
+            # disabled (either no_redirect or follow_redirects=False) the loop
+            # is skipped and the first 3xx surfaces to the caller verbatim,
+            # matching java/csharp/go/php/node/dart/elixir.
+            if self._transport_options.follow_redirects and not no_redirect:
                 response = self._follow_redirects(
                     response=response,
                     initial_url=url,
@@ -328,15 +334,7 @@ class DefaultApiClient:
                     initial_body=encoded_body,
                     initial_headers=merged_headers,
                     request_kwargs=request_kwargs,
-                    no_redirect=no_redirect,
                 )
-            elif no_redirect and response.status in (307, 308):
-                # Caller demanded "no 307/308 silently". With redirect
-                # following disabled altogether the status surfaces back
-                # to them anyway, but we still raise explicitly so the
-                # contract is identical regardless of the transport
-                # follow_redirects setting.
-                raise ApiException(message=(f'Refusing to follow {response.status} redirect: caller requested no_redirect (likely an OAuth2 token request)'))
 
             # The body read happens INSIDE the transport try/catch so a
             # connection-reset / read-timeout / truncated-chunked failure
@@ -352,10 +350,12 @@ class DefaultApiClient:
         content_encoding = (response.headers.get('content-encoding') or '').lower()
         decompressed = self._decompress_body(raw_data, content_encoding)
         content_type = response.headers.get('content-type') or ''
-        if decompressed:
-            response_body = _decode_with_charset(decompressed, content_type) if _is_text_content_type(content_type) else base64.b64encode(decompressed).decode('ascii')
-        else:
-            response_body = ''
+        # Empty bodies flow through the same content-type decode path as the
+        # other 11 SDKs rather than short-circuiting to ''. For an empty body
+        # _decode_with_charset returns '' and base64-encoding empty bytes also
+        # returns '', so the observable output is identical -- this keeps the
+        # decode path structurally uniform across all transports.
+        response_body = _decode_with_charset(decompressed, content_type) if _is_text_content_type(content_type) else base64.b64encode(decompressed).decode('ascii')
         # Gap BE+BF: response header keys are normalised to lowercase so
         # callers can look them up consistently regardless of the casing the
         # server used (HTTP header names are case-insensitive per RFC 7230
@@ -406,7 +406,6 @@ class DefaultApiClient:
         initial_body: Any,
         initial_headers: Dict[str, str],
         request_kwargs: Dict[str, Any],
-        no_redirect: bool = False,
     ) -> Any:
         """Drive the redirect loop manually with security guards.
 
@@ -458,16 +457,6 @@ class DefaultApiClient:
                 scheme = (parsed_next.scheme or '').lower()
                 if scheme not in ('http', 'https'):
                     raise ApiException(message=f'Refusing to follow redirect to non-HTTP(S) URL: {next_url}')
-
-                # Guard 1b (3.2): caller-requested 307/308 refusal. Token
-                # POSTs to the OAuth2 endpoint set ``no_redirect=True`` so a
-                # malicious 307/308 cannot silently replay the credential-
-                # bearing body against an attacker-controlled host. We raise
-                # before the cross-origin / TLS-downgrade checks below so
-                # the failure mode is uniform whether or not the redirect
-                # also crosses origins.
-                if no_redirect and response.status in (307, 308):
-                    raise ApiException(message=(f'Refusing to follow {response.status} redirect: caller requested no_redirect (likely an OAuth2 token request)'))
 
                 same_origin = self._same_origin(current_url, next_url)
 

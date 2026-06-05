@@ -67,7 +67,14 @@ type invokeApiParams struct {
 func (b *BaseApi) invokeApiForResult(params invokeApiParams) (*HttpResponse, error) {
 	requestURL := params.path
 	if !strings.HasPrefix(requestURL, "http://") && !strings.HasPrefix(requestURL, "https://") {
-		requestURL = b.config.BaseURL() + params.path
+		// Strip trailing slash from baseUrl when path starts with `/` so
+		// baseUrl='https://x/' + path='/y' produces 'https://x/y', not
+		// 'https://x//y' which most servers route to 404.
+		base := b.config.BaseURL()
+		if strings.HasPrefix(params.path, "/") {
+			base = strings.TrimRight(base, "/")
+		}
+		requestURL = base + params.path
 	}
 
 	/* Determine effective authenticator (per-request overrides instance-level) */

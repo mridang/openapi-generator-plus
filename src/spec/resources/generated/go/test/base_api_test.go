@@ -449,6 +449,23 @@ func TestBaseApi_QueryParamSerialization(t *testing.T) {
 	}
 }
 
+func TestBaseApi_CollapsesDoubleSlashWhenBaseURLHasTrailingSlash(t *testing.T) {
+	t.Parallel()
+	// baseUrl='http://localhost/' + path='/pet/1' must produce
+	// 'http://localhost/pet/1', not 'http://localhost//pet/1' which most
+	// servers route to 404.
+	client := &queryCapturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost/").Build()
+	api := petstore.NewPetApi(client, config, nil)
+	_, _ = api.GetPetById(int64(1), nil)
+	if client.capturedURL != "http://localhost/pet/1" {
+		t.Errorf("expected exactly one slash, got %q", client.capturedURL)
+	}
+	if strings.Contains(client.capturedURL, "//pet") {
+		t.Errorf("expected no double slash in URL, got %q", client.capturedURL)
+	}
+}
+
 func TestBaseApi_QueryParamEmptyWhenNoOptions(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}

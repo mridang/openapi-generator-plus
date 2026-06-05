@@ -445,6 +445,26 @@ test('handles empty query params', function (): void {
     expect($client->capturedUrl)->not->toContain('?');
 });
 
+test('collapses double-slash when base url has trailing slash', function (): void {
+    // baseUrl='http://host/' + path='/v1/thing' must produce
+    // 'http://host/v1/thing', not 'http://host//v1/thing' which most
+    // servers route to 404.
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://host/');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call(
+        'GET',
+        '/v1/thing',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    expect($client->capturedUrl)->toBe('http://host/v1/thing');
+});
+
 // -- server variable overrides via Configuration --
 
 test('server variable overrides resolve in base url', function (): void {
@@ -571,6 +591,25 @@ test('serializes form urlencoded body', function (): void {
     expect($client->capturedBody)->not->toBeNull();
     expect($client->capturedBody)->toBeString();
     expect($client->capturedBody)->toContain('name=alice');
+});
+
+test('form urlencoded body encodes space as plus', function (): void {
+    // application/x-www-form-urlencoded bodies encode a space as '+'
+    // (WHATWG form-encoding), matching the other 11 SDKs, not '%20'.
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call(
+        'POST',
+        '/test/echo',
+        [],
+        [],
+        ['q' => 'a b c'],
+        ['application/json'],
+        'application/x-www-form-urlencoded',
+        null
+    );
+    expect($client->capturedBody)->toBe('q=a+b+c');
 });
 
 test('passes binary body as is', function (): void {

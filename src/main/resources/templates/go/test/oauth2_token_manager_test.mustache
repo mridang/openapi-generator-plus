@@ -82,6 +82,31 @@ func TestOAuth2TokenManager_TokenPostsSetNoRedirect(t *testing.T) {
 	}
 }
 
+// Gap 3.2: RFC 6749 §3.2 forbids redirects at the token endpoint. The manager
+// must refuse the whole 300-399 range (302 and 307 both exercised below, plus
+// 301/303/308) with an *OAuth2TokenError rather than silently falling through.
+func TestOAuth2TokenManager_RejectsRedirect(t *testing.T) {
+	t.Parallel()
+	for _, status := range []int{301, 302, 303, 307, 308} {
+		client := newFakeTokenClient(fakeResponse{body: "", statusCode: status})
+		manager := oauth.NewOAuth2TokenManager()
+		manager.SetApiClient(client)
+
+		_, err := manager.GetAccessToken("https://auth.example.com/token", map[string]string{
+			"grant_type":    "client_credentials",
+			"client_secret": "topsecret",
+		})
+		if err == nil {
+			t.Errorf("status %d: expected redirect refusal error, got nil", status)
+			continue
+		}
+		var tokenErr *oauth.OAuth2TokenError
+		if !errors.As(err, &tokenErr) {
+			t.Errorf("status %d: expected *OAuth2TokenError, got %T: %v", status, err, err)
+		}
+	}
+}
+
 func TestOAuth2TokenManager_ExtractsAccessTokenFromResponse(t *testing.T) {
 	t.Parallel()
 	client := newFakeTokenClient(fakeResponse{

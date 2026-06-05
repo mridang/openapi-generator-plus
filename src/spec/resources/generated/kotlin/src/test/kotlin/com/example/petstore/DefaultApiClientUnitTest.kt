@@ -535,10 +535,12 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("Gap 3.2: noRedirect=true throws on 307")
-        fun noRedirectThrowsOn307() {
+        @DisplayName("Gap 3.2: noRedirect=true returns the 307 verbatim")
+        fun noRedirectReturns307() {
+            var hopCount = 0
             val engine =
                 MockEngine { _ ->
+                    hopCount++
                     respond(
                         content = "",
                         status = HttpStatusCode.TemporaryRedirect,
@@ -547,24 +549,26 @@ class DefaultApiClientUnitTest {
                 }
             val transport = TransportOptions.builder().followRedirects(true).build()
             val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
-            val ex =
-                assertThrows(ApiException::class.java) {
-                    runBlocking {
-                        apiClient.sendRequest(
-                            "POST",
-                            "http://first.example.com/token",
-                            emptyMap(),
-                            "grant_type=client_credentials",
-                            noRedirect = true,
-                        )
-                    }
+            val response =
+                runBlocking {
+                    apiClient.sendRequest(
+                        "POST",
+                        "http://first.example.com/token",
+                        emptyMap(),
+                        "grant_type=client_credentials",
+                        noRedirect = true,
+                    )
                 }
-            assertTrue(ex.message!!.contains("307"), "exception message should mention 307")
+            // The 3xx surfaces to the caller as-is; the redirect target is
+            // never hit -- the token manager inspects/rejects the 3xx itself.
+            assertEquals(307, response.statusCode)
+            assertEquals("http://other.example.com/dest", response.headers["location"])
+            assertEquals(1, hopCount, "no follow-up request must be issued")
         }
 
         @Test
-        @DisplayName("Gap 3.2: noRedirect=true throws on 308")
-        fun noRedirectThrowsOn308() {
+        @DisplayName("Gap 3.2: noRedirect=true returns the 308 verbatim")
+        fun noRedirectReturns308() {
             val engine =
                 MockEngine { _ ->
                     respond(
@@ -575,37 +579,31 @@ class DefaultApiClientUnitTest {
                 }
             val transport = TransportOptions.builder().followRedirects(true).build()
             val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
-            val ex =
-                assertThrows(ApiException::class.java) {
-                    runBlocking {
-                        apiClient.sendRequest(
-                            "POST",
-                            "http://first.example.com/token",
-                            emptyMap(),
-                            "grant_type=client_credentials",
-                            noRedirect = true,
-                        )
-                    }
+            val response =
+                runBlocking {
+                    apiClient.sendRequest(
+                        "POST",
+                        "http://first.example.com/token",
+                        emptyMap(),
+                        "grant_type=client_credentials",
+                        noRedirect = true,
+                    )
                 }
-            assertTrue(ex.message!!.contains("308"), "exception message should mention 308")
+            assertEquals(308, response.statusCode)
         }
 
         @Test
-        @DisplayName("Gap 3.2: noRedirect=true still permits 302 (body dropped per RFC)")
-        fun noRedirectAllows302() {
+        @DisplayName("Gap 3.2: noRedirect=true returns a 302 verbatim (no follow)")
+        fun noRedirectReturns302() {
             var hopCount = 0
             val engine =
                 MockEngine { _ ->
                     hopCount++
-                    if (hopCount == 1) {
-                        respond(
-                            content = "",
-                            status = HttpStatusCode.Found,
-                            headers = headersOf("Location", "http://other.example.com/dest"),
-                        )
-                    } else {
-                        respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
-                    }
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.Found,
+                        headers = headersOf("Location", "http://other.example.com/dest"),
+                    )
                 }
             val transport = TransportOptions.builder().followRedirects(true).build()
             val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
@@ -619,7 +617,8 @@ class DefaultApiClientUnitTest {
                         noRedirect = true,
                     )
                 }
-            assertEquals(200, response.statusCode)
+            assertEquals(302, response.statusCode)
+            assertEquals(1, hopCount, "no follow-up request must be issued")
         }
 
         @Test

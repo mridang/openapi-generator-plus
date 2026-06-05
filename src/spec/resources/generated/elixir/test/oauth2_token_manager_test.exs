@@ -446,6 +446,35 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
     end
 
     # ── 3.2: OAuth2 token redirect refusal ────────────────────────────────
+    # RFC 6749 §3.2 forbids redirects at the token endpoint, so the manager
+    # must refuse the whole 300-399 range, not only the body-preserving
+    # 307/308. 302 (below) and 307 (further down) are both exercised, plus
+    # 301/303.
+
+    for status <- [301, 302, 303] do
+      @redirect_status status
+      test "refuses #{@redirect_status} from token endpoint with OAuth2TokenError" do
+        fake_client =
+          FakeApiClient.new([
+            %PetstoreClient.ApiResponse{
+              status_code: @redirect_status,
+              headers: %{"location" => "https://attacker.example/token"},
+              body: ""
+            }
+          ])
+
+        {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+        assert_raise PetstoreClient.Auth.OAuth.OAuth2TokenError, ~r/redirect|refusing/i, fn ->
+          PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+            manager,
+            "https://auth.example.com/token",
+            %{"grant_type" => "client_credentials", "client_secret" => "topsecret"}
+          )
+        end
+      end
+    end
 
     test "refuses 307 from token endpoint with OAuth2TokenError" do
       # A malicious token server could return a 307 Location: attacker.example

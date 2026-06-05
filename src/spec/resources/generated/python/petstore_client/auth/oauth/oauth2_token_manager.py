@@ -153,6 +153,14 @@ class OAuth2TokenManager:
         # redirection chains in any case, but we enforce it on the client
         # side for defence in depth.
         response = self._api_client.send_request('POST', token_url, headers, body, no_redirect=True)
+        if 300 <= response.status_code < 400:
+            # RFC 6749 §3.2 forbids redirects at the token endpoint. With
+            # no_redirect=True the transport surfaces the 3xx verbatim
+            # rather than replaying the credential-bearing POST; we refuse
+            # all 3xx explicitly so the caller fails closed instead of
+            # leaking the client_secret / refresh_token to the redirect
+            # target.
+            raise OAuth2TokenError(f'Refusing to follow {response.status_code} redirect on OAuth2 token endpoint {token_url}; token POSTs carry credentials and must not be replayed.')
         if response.status_code < 200 or response.status_code >= 300:
             # RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
             # `error` (required), `error_description`, `error_uri`. Parse

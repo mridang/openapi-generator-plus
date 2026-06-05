@@ -210,25 +210,25 @@ public sealed class OAuth2TokenManager
             }
         }
 
-        /* Gap 3.2: token POSTs MUST NOT follow 307/308 redirects. A
-         * compromised or malicious token endpoint could otherwise
-         * issue a 307 that replays the form body (containing the
-         * client secret / refresh token) to an attacker-controlled
-         * URL. We pass noRedirect: true so the transport surfaces
-         * the 3xx verbatim; if the response is a 307/308 we refuse
-         * to honour it and raise OAuth2ServerError so the caller
-         * sees an explicit failure rather than a silently leaked
+        /* Gap 3.2: token POSTs MUST NOT follow ANY 3xx redirect (RFC 6749
+         * §3.2 forbids redirects at the token endpoint). A compromised or
+         * malicious token endpoint could otherwise issue a redirect that
+         * replays the form body (containing the client secret / refresh
+         * token) to an attacker-controlled URL. We pass noRedirect: true so
+         * the transport surfaces the 3xx verbatim; if the response is any
+         * 3xx we refuse to honour it and raise OAuth2ServerError so the
+         * caller sees an explicit failure rather than a silently leaked
          * credential. */
         ApiResponse response = await _apiClient
             .SendRequestAsync("POST", tokenUrl, headers, body, noRedirect: true)
             .ConfigureAwait(false);
 
-        if (response.StatusCode == 307 || response.StatusCode == 308)
+        if (response.StatusCode is >= 300 and < 400)
         {
             throw new OAuth2ServerError(
                 response.StatusCode,
                 "redirect_refused",
-                "Refusing to follow body-preserving redirect from OAuth2 token "
+                "Refusing to follow redirect from OAuth2 token "
                     + "endpoint; replaying client credentials to the redirect "
                     + "target would leak them.",
                 null,

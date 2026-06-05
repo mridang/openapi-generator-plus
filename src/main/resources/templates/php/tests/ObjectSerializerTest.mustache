@@ -503,6 +503,35 @@ test('deserialize succeeds when all required fields are present', function (): v
     expect($pet->name)->toBe('doggie');
 });
 
+// -- resolveOneOf / resolveAnyOf no-match --
+
+test('resolveOneOf returns the first matching variant', function (): void {
+    $candidates = [
+        fn (mixed $data): mixed => throw new \RuntimeException('variant A does not match'),
+        fn (mixed $data): mixed => 'matched',
+    ];
+    expect(ObjectSerializer::resolveOneOf(['k' => 'v'], $candidates))->toBe('matched');
+});
+
+test('resolveOneOf throws when no variant matches', function (): void {
+    /* A payload matching none of the declared variants is a contract violation
+     * and must fail loudly rather than be silently returned as null. */
+    $candidates = [
+        fn (mixed $data): mixed => throw new \RuntimeException('variant A does not match'),
+        fn (mixed $data): mixed => throw new \RuntimeException('variant B does not match'),
+    ];
+    expect(fn (): mixed => ObjectSerializer::resolveOneOf(['unexpected' => true], $candidates))
+        ->toThrow(\UnexpectedValueException::class);
+});
+
+test('resolveAnyOf throws when no variant matches', function (): void {
+    $candidates = [
+        fn (mixed $data): mixed => throw new \RuntimeException('no match'),
+    ];
+    expect(fn (): mixed => ObjectSerializer::resolveAnyOf([], $candidates))
+        ->toThrow(\UnexpectedValueException::class);
+});
+
 // -- F-BM-03 (WONTFIX for PHP): PHP's native #[\Deprecated] attribute does
 // NOT target properties (only functions/methods/class-constants/enum-cases),
 // so a deprecated *property* can only carry the `@deprecated` PHPDoc tag —

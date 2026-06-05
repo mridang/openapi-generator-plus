@@ -130,6 +130,15 @@ module {{moduleName}}
             no_redirect: true
           )
           status = response.status_code
+          # RFC 6749 §3.2 forbids redirects at the token endpoint. With
+          # no_redirect: true the transport surfaces the 3xx verbatim rather
+          # than replaying the credential-bearing POST; refuse all 3xx
+          # explicitly so the caller fails closed instead of leaking the
+          # client credentials / refresh_token to the redirect target.
+          if (300..399).cover?(status)
+            raise OAuth2TokenError, "Refusing to follow #{status} redirect on " \
+              "OAuth2 token endpoint; token POSTs carry credentials and must not be replayed."
+          end
           # RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
           # `error` (required), `error_description`, `error_uri`. Parse them
           # into a typed OAuth2ServerError so callers can recover via rescue.

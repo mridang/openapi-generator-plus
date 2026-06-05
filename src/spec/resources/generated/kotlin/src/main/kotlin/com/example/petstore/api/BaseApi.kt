@@ -118,7 +118,11 @@ abstract class BaseApi {
             if (path.startsWith("http://") || path.startsWith("https://")) {
                 path
             } else {
-                config.baseUrl + path
+                /* Strip trailing slash from baseUrl when path starts with `/`
+                 * so baseUrl='https://x/' + path='/y' produces 'https://x/y',
+                 * not 'https://x//y' which most servers route to 404. */
+                val base = if (path.startsWith("/")) config.baseUrl.trimEnd('/') else config.baseUrl
+                base + path
             }
 
         val effectiveAuth = auth ?: this.authenticator

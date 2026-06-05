@@ -272,20 +272,23 @@ public enum ObjectSerializer {
 
     /// Resolve a oneOf schema by attempting deserialization against each candidate.
     /// Each candidate is a closure that takes parsed JSON (Any) and returns a deserialized value.
-    /// Returns the first successful result.
-    public static func resolveOneOf<T>(_ json: Any, candidates: [(Any) throws -> T]) -> T? {
+    /// Returns the first successful result, or throws a ``SerializationError`` when no
+    /// candidate matches — a payload satisfying none of the declared variants is a
+    /// contract violation and must fail loudly rather than be silently dropped to nil.
+    public static func resolveOneOf<T>(_ json: Any, candidates: [(Any) throws -> T]) throws -> T {
         for candidate in candidates {
             if let result = try? candidate(json) {
                 return result
             }
         }
-        return nil
+        throw SerializationError(message: "No oneOf/anyOf variant matched the JSON")
     }
 
     /// Resolve an anyOf schema by attempting deserialization against each candidate.
-    /// Returns the first successful result.
-    public static func resolveAnyOf<T>(_ json: Any, candidates: [(Any) throws -> T]) -> T? {
-        return resolveOneOf(json, candidates: candidates)
+    /// Returns the first successful result, or throws a ``SerializationError`` when no
+    /// candidate matches.
+    public static func resolveAnyOf<T>(_ json: Any, candidates: [(Any) throws -> T]) throws -> T {
+        return try resolveOneOf(json, candidates: candidates)
     }
 
     private static func joinCollection(_ items: [String], collectionFormat: String) -> Any {

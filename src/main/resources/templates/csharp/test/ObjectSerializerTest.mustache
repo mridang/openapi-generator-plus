@@ -685,4 +685,39 @@ public class ObjectSerializerTest
             Assert.Equal(original, parsed);
         }
     }
+
+    public class ResolveOneOfTests
+    {
+        [Fact]
+        public void ResolveOneOfReturnsFirstMatchingVariant()
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse("{\"k\":\"v\"}");
+            object result = ObjectSerializer.ResolveOneOf(
+                doc.RootElement,
+                _ => throw new System.Text.Json.JsonException("first miss"),
+                _ => "matched");
+            Assert.Equal("matched", result);
+        }
+
+        [Fact]
+        public void ResolveOneOfThrowsOnNoMatch()
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse("{\"unexpected\":true}");
+            Assert.Throws<System.Text.Json.JsonException>(
+                () => ObjectSerializer.ResolveOneOf(
+                    doc.RootElement,
+                    _ => throw new System.Text.Json.JsonException("variant A does not match"),
+                    _ => throw new System.Text.Json.JsonException("variant B does not match")));
+        }
+
+        [Fact]
+        public void ResolveAnyOfThrowsOnNoMatch()
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse("{}");
+            Assert.Throws<System.Text.Json.JsonException>(
+                () => ObjectSerializer.ResolveAnyOf(
+                    doc.RootElement,
+                    _ => (object?)null));
+        }
+    }
 }

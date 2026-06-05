@@ -460,24 +460,31 @@ describe {{moduleName}}::DefaultApiClient do
     _(captured_proxy.password).must_equal 'pass'
   end
 
-  # ── Bucket 3.2: no_redirect refuses 3xx on token POSTs ──
+  # ── Bucket 3.2: no_redirect returns the 3xx as-is (does not follow) ──
 
-  it 'raises ApiError when 302 is returned and no_redirect: true' do
+  it 'returns the 308 verbatim when no_redirect: true' do
+    follow_up_hit = false
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.post('/token') do
-        [302, { 'location' => 'https://attacker.example.com/steal' }, '']
+        [308, { 'location' => 'https://attacker.example.com/steal' }, '']
+      end
+      stub.post('/steal') do
+        follow_up_hit = true
+        [200, {}, '']
       end
     end
     client = {{moduleName}}::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
-      err = assert_raises({{moduleName}}::ApiError) do
-        client.send_request(:POST, 'http://localhost/token', {}, 'grant_type=client_credentials', no_redirect: true)
-      end
-      _(err.message).must_match(/Refusing to follow/)
+      resp = client.send_request(:POST, 'http://localhost/token', {}, 'grant_type=client_credentials', no_redirect: true)
+      # The 3xx surfaces to the caller verbatim and the redirect target is
+      # never hit -- the token manager inspects/rejects the 3xx itself.
+      _(resp.status_code).must_equal 308
+      _(resp.headers['location']).must_equal 'https://attacker.example.com/steal'
+      _(follow_up_hit).must_equal false
     end
   end
 
-  it 'raises ApiError on 307 redirect when no_redirect: true' do
+  it 'returns the 307 verbatim when no_redirect: true' do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.post('/token') do
         [307, { 'location' => 'https://attacker.example.com/steal' }, '']
@@ -485,9 +492,8 @@ describe {{moduleName}}::DefaultApiClient do
     end
     client = {{moduleName}}::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
-      assert_raises({{moduleName}}::ApiError) do
-        client.send_request(:POST, 'http://localhost/token', {}, 'client_id=abc&client_secret=xyz', no_redirect: true)
-      end
+      resp = client.send_request(:POST, 'http://localhost/token', {}, 'client_id=abc&client_secret=xyz', no_redirect: true)
+      _(resp.status_code).must_equal 307
     end
   end
 

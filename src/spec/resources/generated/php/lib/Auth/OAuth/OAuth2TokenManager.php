@@ -181,17 +181,18 @@ final class OAuth2TokenManager
         $body = http_build_query($params);
 
         try {
-            /* Gap 3.2: token POSTs must not transparently follow 307/308
-             * redirects. A malicious upstream proxy that rewrites a token
+            /* Gap 3.2: token POSTs must not transparently follow ANY 3xx
+             * redirect (RFC 6749 §3.2 forbids redirects at the token
+             * endpoint). A malicious upstream proxy that rewrites a token
              * endpoint Location to an attacker-controlled host would
              * otherwise harvest client credentials (or a refresh token)
              * sent in the body. We disable redirect following on the
-             * transport via $noRedirect=true and additionally refuse a
-             * 307/308 response explicitly so callers get a clear failure
+             * transport via $noRedirect=true and additionally refuse any
+             * 3xx response explicitly so callers get a clear failure
              * mode instead of a silent token-endpoint hijack. */
             $response = $this->apiClient->sendRequest('POST', $tokenUrl, $headers, $body, noRedirect: true);
-            if ($response->statusCode === 307 || $response->statusCode === 308) {
-                throw new \RuntimeException(
+            if ($response->statusCode >= 300 && $response->statusCode < 400) {
+                throw new OAuth2TokenError(
                     'Refusing to follow ' . $response->statusCode
                     . ' redirect on OAuth2 token endpoint; '
                     . 'token POSTs must not be replayed across redirects.'

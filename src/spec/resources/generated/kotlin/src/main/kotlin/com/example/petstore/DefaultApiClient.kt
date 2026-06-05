@@ -144,7 +144,11 @@ class DefaultApiClient internal constructor(
         // sensitive headers (Authorization, Cookie, Proxy-Authorization) on
         // cross-origin hops AND preserve the original verb+body per RFC 7231.
         // When `maxRedirects` is null we cap at 20 hops to avoid pathological loops.
-        if (transportOptions.followRedirects) {
+        // Gap 3.2: noRedirect=true (the OAuth2 token POST) means "do not follow
+        // redirects; return the 3xx as-is" -- the loop is skipped and the first
+        // 3xx surfaces verbatim. The token manager inspects and rejects the 3xx
+        // itself, so a credential-bearing body is never silently replayed.
+        if (transportOptions.followRedirects && !noRedirect) {
             var redirectsRemaining = transportOptions.maxRedirects ?: 20
             var currentUrl = url
             var currentHeaders: Map<String, String> = mergedHeaders.toMap()
@@ -153,16 +157,6 @@ class DefaultApiClient internal constructor(
 
             while (response.status.value in 300..399 && redirectsRemaining > 0) {
                 val location = response.headers[HttpHeaders.Location] ?: break
-                // Gap 3.2: caller (e.g. OAuth2 token POST) explicitly refuses
-                // to follow body-preserving 307/308 redirects so credentials
-                // in the request body cannot be replayed to a redirect
-                // target. 301/302/303 still permitted because those drop the
-                // body anyway.
-                if (noRedirect && response.status.value in 307..308) {
-                    throw ApiException(
-                        "Refusing to follow ${response.status.value} redirect when noRedirect=true (url=$currentUrl)",
-                    )
-                }
                 response.bodyAsBytes() // consume redirect body to release the connection
                 val originalUri = java.net.URI(currentUrl)
                 val redirectUri = originalUri.resolve(location)

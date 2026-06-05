@@ -496,28 +496,38 @@ defmodule {{moduleName}}.ObjectSerializer do
   accepts the raw JSON data and returns a deserialized value or raises on failure.
   Candidates where no JSON key matches any struct field are skipped.
   """
-  @spec resolve_one_of(term(), [function()]) :: term() | nil
+  @spec resolve_one_of(term(), [function()]) :: term()
   def resolve_one_of(data, candidates) do
-    Enum.reduce_while(candidates, nil, fn candidate, _fallback ->
-      try do
-        result = candidate.(data)
+    resolved =
+      Enum.reduce_while(candidates, nil, fn candidate, _fallback ->
+        try do
+          result = candidate.(data)
 
-        if fields_overlap?(data, result) do
-          {:halt, result}
-        else
-          {:cont, nil}
+          if fields_overlap?(data, result) do
+            {:halt, result}
+          else
+            {:cont, nil}
+          end
+        rescue
+          _ -> {:cont, nil}
         end
-      rescue
-        _ -> {:cont, nil}
-      end
-    end)
+      end)
+
+    if is_nil(resolved) do
+      # A payload satisfying none of the declared variants is a contract
+      # violation and must fail loudly rather than be silently dropped to nil.
+      raise {{moduleName}}.SchemaMismatchError,
+        message: "No oneOf/anyOf variant matched the JSON"
+    else
+      resolved
+    end
   end
 
   @doc """
   Attempt to deserialize data against a list of candidate schemas using
   anyOf semantics. Delegates to `resolve_one_of/2`.
   """
-  @spec resolve_any_of(term(), [function()]) :: term() | nil
+  @spec resolve_any_of(term(), [function()]) :: term()
   def resolve_any_of(data, candidates) do
     resolve_one_of(data, candidates)
   end

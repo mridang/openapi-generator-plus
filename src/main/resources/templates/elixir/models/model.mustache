@@ -200,16 +200,18 @@ defmodule {{moduleName}}.Models.{{classname}} do
         fn d -> {{moduleName}}.ObjectSerializer.convert_to_type(d, type_name) end
       end)
 
-    result = {{moduleName}}.ObjectSerializer.resolve_any_of(data, candidates)
-
     cond do
-      not is_nil(result) -> result
-      "AnyType" in openapi_any_of() -> data
+      "AnyType" in openapi_any_of() ->
+        try do
+          {{moduleName}}.ObjectSerializer.resolve_any_of(data, candidates)
+        rescue
+          {{moduleName}}.SchemaMismatchError -> data
+        end
+
       true ->
-        # Raise on union no-match instead of returning nil — aligns with
-        # the 5 SDKs that already throw (Python/Swift/Dart/Go/Rust).
-        raise ArgumentError,
-              "JSON did not match any schema in the {{classname}} anyOf union"
+        # resolve_any_of raises on union no-match instead of returning nil,
+        # so an out-of-spec payload surfaces a loud error like the other SDKs.
+        {{moduleName}}.ObjectSerializer.resolve_any_of(data, candidates)
     end
   end
 end

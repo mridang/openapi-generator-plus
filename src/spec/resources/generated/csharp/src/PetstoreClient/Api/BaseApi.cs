@@ -100,7 +100,8 @@ public abstract class BaseApi
         }
         else
         {
-            url = Config.BaseUrl + path;
+            string baseUrl = path.StartsWith('/') ? Config.BaseUrl.TrimEnd('/') : Config.BaseUrl;
+            url = baseUrl + path;
         }
 
         if (effectiveAuth is not null)

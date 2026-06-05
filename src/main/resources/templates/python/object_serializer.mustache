@@ -493,7 +493,12 @@ class ObjectSerializer:
             candidates: List of callable deserializers that accept a JSON string.
 
         Returns:
-            The first non-None successful result, or None if none match.
+            The first non-None successful result.
+
+        Raises:
+            SerializationError: If no candidate matches the JSON. A payload
+                satisfying none of the declared variants is a contract violation
+                and must fail loudly rather than be silently dropped to None.
         """
         for candidate in candidates:
             try:
@@ -502,7 +507,7 @@ class ObjectSerializer:
                     return result
             except Exception:
                 continue
-        return None
+        raise SerializationError('No oneOf/anyOf variant matched the JSON')
 
     def resolve_any_of(self, json_string: str, candidates: list[Callable[[str], Any]]) -> Any:
         """Resolve an anyOf schema by trying each candidate deserializer in order.
@@ -514,6 +519,9 @@ class ObjectSerializer:
             candidates: List of callable deserializers that accept a JSON string.
 
         Returns:
-            The first non-None successful result, or None if none match.
+            The first non-None successful result.
+
+        Raises:
+            SerializationError: If no candidate matches the JSON.
         """
         return self.resolve_one_of(json_string, candidates)

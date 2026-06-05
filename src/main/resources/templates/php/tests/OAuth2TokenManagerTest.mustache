@@ -2,6 +2,7 @@
 namespace {{invokerPackage}}\Test;
 
 use {{invokerPackage}}\ApiResponse;
+use {{invokerPackage}}\Auth\OAuth\OAuth2TokenError;
 use {{invokerPackage}}\Auth\OAuth\OAuth2TokenManager;
 
 function makeOAuth2TokenManagerResponse(
@@ -262,7 +263,7 @@ test('throws when token request fails', function (): void {
         ->toThrow(\RuntimeException::class);
 });
 
-// -- 3.2: token POSTs refuse 307/308 redirects --
+// -- 3.2: token POSTs refuse ALL 3xx redirects --
 
 test('token post requests no redirect from transport', function (): void {
     $client = new MockTokenApiClient();
@@ -277,24 +278,18 @@ test('token post requests no redirect from transport', function (): void {
     expect($client->capturedRequests[0]['method'])->toBe('POST');
 });
 
-test('token post 307 refused with runtime exception', function (): void {
+// RFC 6749 §3.2 forbids redirects at the token endpoint; the manager must
+// refuse the whole 300-399 range (302 and 307 both covered here, plus
+// 301/303/308) rather than only the body-preserving 307/308.
+test('token post refuses 3xx redirect', function (int $status): void {
     $client = new MockTokenApiClient();
-    $client->enqueueResponse(new ApiResponse(307, '', ['Location' => 'https://attacker.example.com/token']));
+    $client->enqueueResponse(new ApiResponse($status, '', ['Location' => 'https://attacker.example.com/token']));
 
     $manager = new OAuth2TokenManager();
     $manager->setApiClient($client);
 
-    expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
-        ->toThrow(\RuntimeException::class);
-});
-
-test('token post 308 refused with runtime exception', function (): void {
-    $client = new MockTokenApiClient();
-    $client->enqueueResponse(new ApiResponse(308, '', ['Location' => 'https://attacker.example.com/token']));
-
-    $manager = new OAuth2TokenManager();
-    $manager->setApiClient($client);
-
-    expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
-        ->toThrow(\RuntimeException::class);
-});
+    expect(fn () => $manager->getAccessToken(
+        'https://auth.example.com/token',
+        ['grant_type' => 'client_credentials', 'client_secret' => 'topsecret']
+    ))->toThrow(OAuth2TokenError::class);
+})->with([301, 302, 303, 307, 308]);

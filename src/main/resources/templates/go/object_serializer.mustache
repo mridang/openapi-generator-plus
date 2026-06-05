@@ -275,7 +275,9 @@ func ToFormValue(value any) string {
 
 // ResolveOneOf attempts deserialization against each candidate factory function.
 // Each factory receives parsed JSON (map/slice/primitive) and returns a deserialized
-// value or an error. Returns the first successful result, or nil if none match.
+// value or an error. Returns the first successful result, or a non-nil error when no
+// candidate matches — a payload satisfying none of the declared variants is a
+// contract violation and must fail loudly rather than be silently dropped to nil.
 func ResolveOneOf(data any, candidates []func(any) (any, error)) (any, error) {
 	for _, candidate := range candidates {
 		result, err := candidate(data)
@@ -283,11 +285,11 @@ func ResolveOneOf(data any, candidates []func(any) (any, error)) (any, error) {
 			return result, nil
 		}
 	}
-	return nil, nil
+	return nil, &SerializationError{Message: "No oneOf/anyOf variant matched the JSON"}
 }
 
 // ResolveAnyOf attempts deserialization against each candidate factory function.
-// Returns the first successful result.
+// Returns the first successful result, or a non-nil error when no candidate matches.
 func ResolveAnyOf(data any, candidates []func(any) (any, error)) (any, error) {
 	return ResolveOneOf(data, candidates)
 }

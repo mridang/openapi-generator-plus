@@ -175,19 +175,17 @@ public class ObjectSerializer
     /// Resolve a oneOf schema by attempting deserialization against each candidate.
     /// Each candidate is a function that accepts a parsed <see cref="JsonElement"/>
     /// and returns a deserialized value, or throws on failure.
-    /// Returns the first successful deserialization result.
+    /// Returns the first successful deserialization result, or throws a
+    /// <see cref="JsonException"/> when no candidate matches — a payload that
+    /// satisfies none of the declared variants is a contract violation and must
+    /// fail loudly rather than be silently dropped to null.
     /// </summary>
-    public static object? ResolveOneOf(
+    public static object ResolveOneOf(
         JsonElement json,
         params Func<JsonElement, object?>[] candidates
     )
     {
         ArgumentNullException.ThrowIfNull(candidates);
-
-        if (json.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
-        {
-            return null;
-        }
 
         foreach (Func<JsonElement, object?> candidate in candidates)
         {
@@ -203,16 +201,17 @@ public class ObjectSerializer
             catch (NotSupportedException) { }
         }
 
-        return null;
+        throw new JsonException("No oneOf/anyOf variant matched the JSON");
     }
 
     /// <summary>
     /// Resolve an anyOf schema by attempting deserialization against each candidate.
     /// Each candidate is a function that accepts a parsed <see cref="JsonElement"/>
     /// and returns a deserialized value, or throws on failure.
-    /// Returns the first successful deserialization result.
+    /// Returns the first successful deserialization result, or throws a
+    /// <see cref="JsonException"/> when no candidate matches.
     /// </summary>
-    public static object? ResolveAnyOf(
+    public static object ResolveAnyOf(
         JsonElement json,
         params Func<JsonElement, object?>[] candidates
     )

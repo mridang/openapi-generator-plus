@@ -456,12 +456,15 @@ class OAuth2TokenManagerTest {
   }
 
   /*
-   * Bucket 3.2 — if the token endpoint replies with a 3xx (because
+   * Bucket 3.2 — if the token endpoint replies with ANY 3xx (because
    * followRedirects was bypassed), the manager must treat it as an
-   * error rather than caching nothing and silently returning.
+   * error rather than caching nothing and silently returning. RFC 6749
+   * §3.2 forbids redirects at the token endpoint; we reject the whole
+   * 300-399 range (302 and 307 both shown below, plus 301/303).
    */
-  @Test
-  void tokenEndpointRedirectIsRejected() {
+  @org.junit.jupiter.params.ParameterizedTest
+  @org.junit.jupiter.params.provider.ValueSource(ints = {301, 302, 303, 307, 308})
+  void tokenEndpointRedirectIsRejected(int status) {
     ApiClient client =
         new ApiClient() {
           @Override
@@ -477,7 +480,7 @@ class OAuth2TokenManagerTest {
               Map<String, String> headers,
               @Nullable Object body,
               boolean noRedirect) {
-            return new ApiResponse(307, "", Map.of("location", "https://attacker.example/take"));
+            return new ApiResponse(status, "", Map.of("location", "https://attacker.example/take"));
           }
         };
     OAuth2TokenManager manager = new OAuth2TokenManager();
@@ -498,6 +501,6 @@ class OAuth2TokenManagerTest {
                 && ex.getCause().getMessage() != null
                 && ex.getCause().getMessage().contains("redirect"))
             || ex instanceof OAuth2TokenManager.OAuth2TokenError,
-        "expected redirect-refusal failure, got " + ex);
+        "expected redirect-refusal failure for status " + status + ", got " + ex);
   }
 }

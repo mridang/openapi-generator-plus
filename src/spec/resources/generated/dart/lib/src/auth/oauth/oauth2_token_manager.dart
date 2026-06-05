@@ -157,15 +157,16 @@ class OAuth2TokenManager {
       noRedirect: true,
     );
 
-    /* Gap 3.2: refuse 307/308 on OAuth2 token POSTs. The transport layer
-     * normally re-emits the request body across 307/308 hops, which on a
-     * token endpoint would replay `client_id` / `client_secret` /
-     * `refresh_token` to whatever host the redirect points at. Silently
-     * trusting a redirect on a credential endpoint is a credential-leak
-     * primitive; we surface it instead. We also pass `noRedirect: true`
-     * above so the ApiClient does not strip the body or otherwise mutate
-     * the request before we get to see the status code. */
-    if (response.statusCode == 307 || response.statusCode == 308) {
+    /* Gap 3.2: refuse ANY 3xx on OAuth2 token POSTs (RFC 6749 §3.2 forbids
+     * redirects at the token endpoint). The transport layer normally
+     * re-emits the request body across 307/308 hops, which on a token
+     * endpoint would replay `client_id` / `client_secret` / `refresh_token`
+     * to whatever host the redirect points at. Silently trusting a redirect
+     * on a credential endpoint is a credential-leak primitive; we surface it
+     * instead. We also pass `noRedirect: true` above so the ApiClient does
+     * not strip the body or otherwise mutate the request before we get to
+     * see the status code. */
+    if (response.statusCode >= 300 && response.statusCode < 400) {
       throw OAuth2TokenError(
         'Token endpoint returned ${response.statusCode} redirect. '
         'Refusing to replay credentials to a redirected URL.',

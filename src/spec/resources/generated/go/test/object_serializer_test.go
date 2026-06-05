@@ -9,6 +9,7 @@ package petstore_test
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -792,5 +793,45 @@ func TestModelEqual_MapBearingModel(t *testing.T) {
 	c := models.Metadata{AdditionalProperties: map[string]any{"k": "w"}}
 	if a.Equal(c) {
 		t.Errorf("expected Metadata with differing AdditionalProperties to compare unequal")
+	}
+}
+
+func TestResolveOneOf_ReturnsFirstMatch(t *testing.T) {
+	t.Parallel()
+	candidates := []func(any) (any, error){
+		func(any) (any, error) { return nil, errors.New("variant A does not match") },
+		func(data any) (any, error) { return data, nil },
+	}
+	result, err := petstore.ResolveOneOf("payload", candidates)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result != "payload" {
+		t.Errorf("expected first matching variant, got %v", result)
+	}
+}
+
+// A payload matching none of the declared variants is a contract violation and
+// must fail loudly with a non-nil error rather than be silently returned as nil.
+func TestResolveOneOf_ThrowsOnNoMatch(t *testing.T) {
+	t.Parallel()
+	candidates := []func(any) (any, error){
+		func(any) (any, error) { return nil, errors.New("variant A does not match") },
+		func(any) (any, error) { return nil, errors.New("variant B does not match") },
+	}
+	_, err := petstore.ResolveOneOf(map[string]any{"unexpected": true}, candidates)
+	if err == nil {
+		t.Errorf("expected a non-nil error when no oneOf variant matched")
+	}
+}
+
+func TestResolveAnyOf_ThrowsOnNoMatch(t *testing.T) {
+	t.Parallel()
+	candidates := []func(any) (any, error){
+		func(any) (any, error) { return nil, errors.New("no match") },
+	}
+	_, err := petstore.ResolveAnyOf(map[string]any{}, candidates)
+	if err == nil {
+		t.Errorf("expected a non-nil error when no anyOf variant matched")
 	}
 }

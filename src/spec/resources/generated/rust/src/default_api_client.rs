@@ -121,9 +121,10 @@ impl ApiClient for DefaultApiClient {
     }
 
     /// Gap 3.2: extended `send_request` that honours per-request options.
-    /// Set `options.no_redirect=true` (e.g. on OAuth2 token POSTs) to refuse
-    /// 307/308 redirects so the credentialed body cannot be replayed to a
-    /// redirect target chosen by the remote server.
+    /// Set `options.no_redirect=true` (e.g. on OAuth2 token POSTs) to skip
+    /// redirect following entirely; the first 3xx response is returned to the
+    /// caller as-is. The token manager inspects and rejects the 3xx itself, so
+    /// the credentialed body is never silently replayed to a redirect target.
     fn send_request_with_options(
         &self,
         method: &str,
@@ -245,7 +246,12 @@ impl ApiClient for DefaultApiClient {
             })?;
 
             // Gap BH: manual redirect loop with cross-origin header strip.
-            if self.transport_options.follow_redirects() {
+            // Gap 3.2: options.no_redirect (the OAuth2 token POST) means "do
+            // not follow redirects; return the 3xx as-is". The loop is skipped
+            // and the first 3xx surfaces verbatim. The token manager inspects
+            // and rejects the 3xx itself, so a credential-bearing body is never
+            // silently replayed to a redirect target.
+            if self.transport_options.follow_redirects() && !options.no_redirect {
                 // Default to 20 hops when caller does not configure an explicit
                 // cap — unified across all 12 SDKs.
                 let max = self.transport_options.max_redirects().unwrap_or(20);
@@ -256,29 +262,7 @@ impl ApiClient for DefaultApiClient {
                 let mut current_body: Option<Vec<u8>> = body_bytes.clone();
                 let mut current_headers: std::collections::HashMap<String, String> = merged.clone();
                 while is_redirect_status(response.status().as_u16()) && hops < max {
-                    // Gap 3.2: caller (typically an OAuth2 token POST) refuses
-                    // body-preserving 307/308 redirects so credentials in the
-                    // body cannot be replayed to a redirect target. 301/302/303
-                    // are unaffected because they drop the body anyway.
                     let status_code = response.status().as_u16();
-                    if options.no_redirect && (status_code == 307 || status_code == 308) {
-                        return Err(Box::new(ApiError::new(
-                            status_code,
-                            format!(
-                                "Refusing to follow {} redirect when no_redirect=true (url={})",
-                                status_code,
-                                current_url
-                                    .as_ref()
-                                    .map(|u| u.to_string())
-                                    .unwrap_or_else(|| url.clone())
-                            ),
-                            None,
-                            None,
-                            None,
-                        ))
-                            as Box<dyn std::error::Error + Send + Sync>);
-                    }
-
                     let location = match response
                         .headers()
                         .get("location")
