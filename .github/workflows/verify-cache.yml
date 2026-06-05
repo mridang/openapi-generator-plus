@@ -1,0 +1,59 @@
+name: Verify Cache Round-Trip
+
+on: push
+
+permissions:
+  contents: read
+
+jobs:
+  save:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Runner Common Setup (restores; post-step saves)
+        uses: mridang/action-runner-common@8561057a6d0cc77a35654acdf290af98c053b1a1
+        with:
+          docker-cache: 'false'
+
+      - name: Plant 50MB root-owned data in ~/.cache (runner cannot read)
+        run: |
+          D="$HOME/.cache/synthetic-root-owned"
+          sudo mkdir -p "$D"
+          echo "secret-from-root-$(date +%s%N)" | sudo tee "$D/marker.txt" > /dev/null
+          sudo dd if=/dev/urandom of="$D/blob.bin" bs=1M count=50 status=none
+          sudo chmod -R 0600 "$D"
+          sudo chown -R root:root "$D"
+          echo "=== planted (measured as root) ==="
+          sudo du -sh "$D"
+          echo "=== runner trying to read marker (should be denied) ==="
+          cat "$D/marker.txt" 2>&1 || echo "expected: permission denied"
+      # The action's post-step runs here and saves ~/.cache via sudo tar.
+
+  restore:
+    runs-on: ubuntu-latest
+    needs: save
+    steps:
+      - name: Runner Common Setup (restores what 'save' cached)
+        uses: mridang/action-runner-common@8561057a6d0cc77a35654acdf290af98c053b1a1
+        with:
+          docker-cache: 'false'
+
+      - name: Verify the root-owned data round-tripped
+        run: |
+          D="$HOME/.cache/synthetic-root-owned"
+          M="$D/marker.txt"
+          B="$D/blob.bin"
+          echo "=== restored dir ==="
+          du -sh "$D" 2>&1 || true
+          ls -la "$D" 2>&1 || true
+          FAIL=0
+          if [ -f "$M" ]; then
+            echo "PASS marker present; contents:"; cat "$M"
+          else
+            echo "FAIL marker missing"; FAIL=1
+          fi
+          if [ -f "$B" ]; then
+            echo "PASS blob present: $(stat -c%s "$B") bytes"
+          else
+            echo "FAIL blob missing"; FAIL=1
+          fi
+          exit $FAIL
