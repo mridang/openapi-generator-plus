@@ -110,6 +110,36 @@ class PetWithOwner {
 
   /// Creates a [PetWithOwner] from a JSON map.
   factory PetWithOwner.fromJson(Map<String, dynamic> json) {
+    /* DIVERGENCE #10 — a REQUIRED, non-nullable field must be present and
+       non-null on the wire. An absent key reads as null in Dart, so this
+       single guard covers both the missing and explicitly-null cases. We
+       raise the SDK's own SerializationError (not an incidental cast/TypeError)
+       so callers see a uniform, catchable wire-shape failure. */
+    if (json['name'] == null) {
+      throw SerializationError(
+        "Missing required field 'name' for PetWithOwner",
+      );
+    }
+    /* DIVERGENCE #10 — a REQUIRED, non-nullable field must be present and
+       non-null on the wire. An absent key reads as null in Dart, so this
+       single guard covers both the missing and explicitly-null cases. We
+       raise the SDK's own SerializationError (not an incidental cast/TypeError)
+       so callers see a uniform, catchable wire-shape failure. */
+    if (json['photoUrls'] == null) {
+      throw SerializationError(
+        "Missing required field 'photoUrls' for PetWithOwner",
+      );
+    }
+    /* DIVERGENCE #10 — a REQUIRED, non-nullable field must be present and
+       non-null on the wire. An absent key reads as null in Dart, so this
+       single guard covers both the missing and explicitly-null cases. We
+       raise the SDK's own SerializationError (not an incidental cast/TypeError)
+       so callers see a uniform, catchable wire-shape failure. */
+    if (json['ownerName'] == null) {
+      throw SerializationError(
+        "Missing required field 'ownerName' for PetWithOwner",
+      );
+    }
     return PetWithOwner(
       id: json['id'] as int?,
 

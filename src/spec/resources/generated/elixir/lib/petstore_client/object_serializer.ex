@@ -689,6 +689,15 @@ defmodule PetstoreClient.ObjectSerializer do
     openapi_types = module.openapi_types()
     attr_map = module.attribute_map()
 
+    # Divergence #10: a required, non-nullable property that is absent or
+    # explicitly null in the wire payload is a contract violation. Fail
+    # loudly with a SerializationError instead of silently building a
+    # partial struct (which would surface as a confusing nil far from the
+    # actual fault). Aligns Elixir with Go/PHP/Kotlin/Swift/Rust, which
+    # all reject a missing/null required field on deserialize. Optional and
+    # required-but-nullable fields are untouched.
+    assert_required_present(data, module)
+
     transformed =
       Enum.reduce(openapi_types, %{}, fn {attr, type}, acc ->
         json_key = Map.get(attr_map, attr)
@@ -714,6 +723,30 @@ defmodule PetstoreClient.ObjectSerializer do
 
   defp deserialize_model(_data, _module) do
     nil
+  end
+
+  # Raises SerializationError if any required, non-nullable property declared
+  # by `module.required_fields/0` is missing from, or explicitly null in, the
+  # already-stringified wire map. See the call site in `deserialize_model/2`.
+  defp assert_required_present(data, module) when is_map(data) do
+    if function_exported?(module, :required_fields, 0) do
+      Enum.each(module.required_fields(), fn json_key ->
+        cond do
+          not Map.has_key?(data, json_key) ->
+            raise PetstoreClient.SerializationError,
+              message: "Missing required field '#{json_key}' for #{inspect(module)}"
+
+          is_nil(Map.get(data, json_key)) ->
+            raise PetstoreClient.SerializationError,
+              message: "Required field '#{json_key}' for #{inspect(module)} must not be null"
+
+          true ->
+            :ok
+        end
+      end)
+    end
+
+    :ok
   end
 
   defp resolve_model_module(type_name) do

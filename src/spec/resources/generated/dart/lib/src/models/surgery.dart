@@ -27,6 +27,16 @@ class Surgery {
 
   /// Creates a [Surgery] from a JSON map.
   factory Surgery.fromJson(Map<String, dynamic> json) {
+    /* DIVERGENCE #10 — a REQUIRED, non-nullable field must be present and
+       non-null on the wire. An absent key reads as null in Dart, so this
+       single guard covers both the missing and explicitly-null cases. We
+       raise the SDK's own SerializationError (not an incidental cast/TypeError)
+       so callers see a uniform, catchable wire-shape failure. */
+    if (json['procedureName'] == null) {
+      throw SerializationError(
+        "Missing required field 'procedureName' for Surgery",
+      );
+    }
     return Surgery(
       procedureName: json['procedureName'] as String,
 

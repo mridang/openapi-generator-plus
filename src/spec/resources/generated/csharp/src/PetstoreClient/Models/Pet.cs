@@ -42,7 +42,9 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     /// <example>doggie</example>
     [JsonRequired]
     [JsonPropertyName("name")]
-    public string Name { get; set; } = name ?? throw new ArgumentNullException(nameof(name));
+    public string Name { get; set; } =
+        name
+        ?? throw new System.Text.Json.JsonException("Required property 'name' on Pet was null");
 
     /// <example>null</example>
     [JsonPropertyName("category")]
@@ -51,7 +53,11 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     /// <example>null</example>
     [JsonRequired]
     [JsonPropertyName("photoUrls")]
-    public HashSet<string> PhotoUrls { get; set; } = photoUrls;
+    public HashSet<string> PhotoUrls { get; set; } =
+        photoUrls
+        ?? throw new System.Text.Json.JsonException(
+            "Required property 'photoUrls' on Pet was null"
+        );
 
     /// <example>null</example>
     [JsonPropertyName("tags")]

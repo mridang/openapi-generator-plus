@@ -28,6 +28,26 @@ class SetPetAvatarRequest {
 
   /// Creates a [SetPetAvatarRequest] from a JSON map.
   factory SetPetAvatarRequest.fromJson(Map<String, dynamic> json) {
+    /* DIVERGENCE #10 — a REQUIRED, non-nullable field must be present and
+       non-null on the wire. An absent key reads as null in Dart, so this
+       single guard covers both the missing and explicitly-null cases. We
+       raise the SDK's own SerializationError (not an incidental cast/TypeError)
+       so callers see a uniform, catchable wire-shape failure. */
+    if (json['data'] == null) {
+      throw SerializationError(
+        "Missing required field 'data' for SetPetAvatarRequest",
+      );
+    }
+    /* DIVERGENCE #10 — a REQUIRED, non-nullable field must be present and
+       non-null on the wire. An absent key reads as null in Dart, so this
+       single guard covers both the missing and explicitly-null cases. We
+       raise the SDK's own SerializationError (not an incidental cast/TypeError)
+       so callers see a uniform, catchable wire-shape failure. */
+    if (json['mimeType'] == null) {
+      throw SerializationError(
+        "Missing required field 'mimeType' for SetPetAvatarRequest",
+      );
+    }
     return SetPetAvatarRequest(
       data: base64Decode(json['data'] as String),
 

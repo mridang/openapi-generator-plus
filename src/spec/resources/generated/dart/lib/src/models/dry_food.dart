@@ -27,6 +27,22 @@ class DryFood {
 
   /// Creates a [DryFood] from a JSON map.
   factory DryFood.fromJson(Map<String, dynamic> json) {
+    /* DIVERGENCE #10 — a REQUIRED, non-nullable field must be present and
+       non-null on the wire. An absent key reads as null in Dart, so this
+       single guard covers both the missing and explicitly-null cases. We
+       raise the SDK's own SerializationError (not an incidental cast/TypeError)
+       so callers see a uniform, catchable wire-shape failure. */
+    if (json['foodType'] == null) {
+      throw SerializationError("Missing required field 'foodType' for DryFood");
+    }
+    /* DIVERGENCE #10 — a REQUIRED, non-nullable field must be present and
+       non-null on the wire. An absent key reads as null in Dart, so this
+       single guard covers both the missing and explicitly-null cases. We
+       raise the SDK's own SerializationError (not an incidental cast/TypeError)
+       so callers see a uniform, catchable wire-shape failure. */
+    if (json['weightKg'] == null) {
+      throw SerializationError("Missing required field 'weightKg' for DryFood");
+    }
     return DryFood(
       foodType: json['foodType'] as String,
 

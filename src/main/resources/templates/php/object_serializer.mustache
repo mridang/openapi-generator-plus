@@ -530,6 +530,27 @@ class ObjectSerializer
                     $class
                 ));
             }
+            /* DIVERGENCE #10: reject an explicitly-NULL value for a required,
+             * non-nullable field. array_key_exists is true for an explicit
+             * `"name": null`, so the absent-key check above lets a null
+             * through to a non-nullable constructor parameter, where Symfony's
+             * denormalizer behaviour is version-dependent and not guaranteed
+             * to throw. Inspect the parameter's declared type: when the value
+             * is null and the type does NOT allow null, that is a contract
+             * violation. Required-but-nullable parameters (type allows null)
+             * are left untouched, so an explicit null stays valid for them. */
+            $paramType = $param->getType();
+            if (
+                $data[$wireName] === null
+                && $paramType !== null
+                && !$paramType->allowsNull()
+            ) {
+                throw new \InvalidArgumentException(sprintf(
+                    "Required property '%s' on %s must not be null",
+                    $wireName,
+                    $class
+                ));
+            }
         }
     }
 

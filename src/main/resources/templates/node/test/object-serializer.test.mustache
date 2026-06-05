@@ -319,6 +319,33 @@ describe('ObjectSerializer', () => {
       const json = { name: 'Fido', photoUrls: [], status: 'banana' };
       expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow();
     });
+
+    test('deserializing a complete object still succeeds (no regression)', () => {
+      // Divergence #10 control: the strict required-field guard must not
+      // affect a payload that supplies every required field. Pet requires
+      // name + photoUrls; both are present here.
+      const json = { id: 5, name: 'Rex', photoUrls: ['http://example.com/rex.jpg'] };
+      const pet = ObjectSerializer.deserialize(json, Pet);
+      expect(pet).toBeDefined();
+      expect(pet!.name).toBe('Rex');
+    });
+
+    test('throws when a required field is ABSENT from the payload', () => {
+      // Divergence #10: a required, non-nullable field missing from the wire
+      // payload must hard-fail with the SDK serialization error rather than
+      // silently building a partial object. Pet requires `name`; it is
+      // omitted here while the other required field (photoUrls) is present.
+      const json = { id: 5, photoUrls: ['http://example.com/rex.jpg'] };
+      expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(SerializationError);
+    });
+
+    test('throws when a required field is explicitly NULL in the payload', () => {
+      // Divergence #10: a required, non-nullable field present but explicitly
+      // null on the wire is just as invalid as an absent one and must
+      // hard-fail rather than store null on a non-null-typed field.
+      const json = { id: 5, name: null, photoUrls: ['http://example.com/rex.jpg'] };
+      expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(SerializationError);
+    });
   });
 
   describe('SerializeDiscardsNullFields', () => {

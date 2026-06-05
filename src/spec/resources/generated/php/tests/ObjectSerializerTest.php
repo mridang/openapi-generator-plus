@@ -495,12 +495,41 @@ test('deserialize throws when a required field is missing', function (): void {
         ->toThrow(\PetstoreClient\ApiException::class);
 });
 
+test('deserialize throws when a required field is explicitly null', function (): void {
+    /* DIVERGENCE #10: a required, non-nullable field present on the wire but
+     * set to null is a contract violation just like an absent field. The key
+     * exists so the missing-field check passes it through, but the constructor
+     * parameter type (`string $name`) does not allow null, so deserialize must
+     * hard-fail rather than build a partial object. */
+    $json = '{"name":null,"photoUrls":["http://x/a.png"]}';
+    expect(fn (): mixed => ObjectSerializer::deserialize($json, Pet::class))
+        ->toThrow(\PetstoreClient\ApiException::class);
+});
+
+test('deserialize throws when a required container field is explicitly null', function (): void {
+    /* photoUrls is a required, non-nullable \Ds\Set. Explicit null must fail. */
+    $json = '{"name":"doggie","photoUrls":null}';
+    expect(fn (): mixed => ObjectSerializer::deserialize($json, Pet::class))
+        ->toThrow(\PetstoreClient\ApiException::class);
+});
+
 test('deserialize succeeds when all required fields are present', function (): void {
     $json = '{"name":"doggie","photoUrls":["http://x/a.png"]}';
     /** @var Pet $pet */
     $pet = ObjectSerializer::deserialize($json, Pet::class);
     expect($pet)->toBeInstanceOf(Pet::class);
     expect($pet->name)->toBe('doggie');
+});
+
+test('deserialize allows an optional nullable field set to null', function (): void {
+    /* Pet's id is optional + nullable. An explicit null on an optional field
+     * must NOT trip the required-null guard — only required non-nullable
+     * fields are rejected. */
+    $json = '{"name":"doggie","photoUrls":["http://x/a.png"],"id":null}';
+    /** @var Pet $pet */
+    $pet = ObjectSerializer::deserialize($json, Pet::class);
+    expect($pet)->toBeInstanceOf(Pet::class);
+    expect($pet->id)->toBeNull();
 });
 
 // -- Gap K: discriminator auto-injection on subtype serialize --

@@ -472,6 +472,99 @@ public class ObjectSerializerTest
         }
     }
 
+    public class RequiredFieldStrictnessTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void CompletePetDeserializesSuccessfully()
+        {
+            var json =
+                "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[\"https://example.com/fido.jpg\"]}";
+            var pet = _serializer.Deserialize<Pet>(json);
+            Assert.NotNull(pet);
+            Assert.Equal("Fido", pet!.Name);
+            Assert.Contains("https://example.com/fido.jpg", pet.PhotoUrls);
+        }
+
+        [Fact]
+        public void MissingRequiredStringFieldThrows()
+        {
+            // 'name' is required but absent — [JsonRequired] rejects it.
+            var json = "{\"id\":1,\"photoUrls\":[\"https://example.com/fido.jpg\"]}";
+            Assert.Throws<System.Text.Json.JsonException>(() => _serializer.Deserialize<Pet>(json));
+        }
+
+        [Fact]
+        public void MissingRequiredArrayFieldThrows()
+        {
+            // 'photoUrls' is required but absent — [JsonRequired] rejects it.
+            var json = "{\"id\":1,\"name\":\"Fido\"}";
+            Assert.Throws<System.Text.Json.JsonException>(() => _serializer.Deserialize<Pet>(json));
+        }
+
+        [Fact]
+        public void NullRequiredStringFieldThrows()
+        {
+            // 'name' is present but explicitly null — the model constructor's
+            // null-guard surfaces this as a JsonException.
+            var json = "{\"id\":1,\"name\":null,\"photoUrls\":[\"https://example.com/fido.jpg\"]}";
+            Assert.Throws<System.Text.Json.JsonException>(() => _serializer.Deserialize<Pet>(json));
+        }
+
+        [Fact]
+        public void NullRequiredArrayFieldThrows()
+        {
+            // 'photoUrls' is present but explicitly null — the model
+            // constructor's null-guard surfaces this as a JsonException.
+            var json = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":null}";
+            Assert.Throws<System.Text.Json.JsonException>(() => _serializer.Deserialize<Pet>(json));
+        }
+
+        [Fact]
+        public void NullRequiredByteArrayFieldThrows()
+        {
+            // SetPetAvatarRequest requires a byte[] 'data' field; an explicit
+            // null must hard-fail with the SDK serialization error rather than
+            // build a partial object with a null byte array.
+            var json = "{\"data\":null,\"mimeType\":\"image/png\"}";
+            Assert.Throws<System.Text.Json.JsonException>(() =>
+                _serializer.Deserialize<SetPetAvatarRequest>(json)
+            );
+        }
+
+        [Fact]
+        public void MissingRequiredByteArrayFieldThrows()
+        {
+            var json = "{\"mimeType\":\"image/png\"}";
+            Assert.Throws<System.Text.Json.JsonException>(() =>
+                _serializer.Deserialize<SetPetAvatarRequest>(json)
+            );
+        }
+
+        [Fact]
+        public void OptionalFieldsMayBeOmitted()
+        {
+            // Only the required fields are present; all optional fields absent.
+            var json = "{\"name\":\"Fido\",\"photoUrls\":[\"u\"]}";
+            var pet = _serializer.Deserialize<Pet>(json);
+            Assert.NotNull(pet);
+            Assert.Null(pet!.Id);
+            Assert.Null(pet.Category);
+        }
+
+        [Fact]
+        public void OptionalFieldsMayBeExplicitlyNull()
+        {
+            // An optional field explicitly null is tolerated (only required
+            // fields hard-fail on null).
+            var json = "{\"name\":\"Fido\",\"photoUrls\":[\"u\"],\"category\":null}";
+            var pet = _serializer.Deserialize<Pet>(json);
+            Assert.NotNull(pet);
+            Assert.Null(pet!.Category);
+        }
+    }
+
     // Gap #13 — discard nulls on serialize.
     // The ObjectSerializer's default JsonSerializerOptions configures
     // DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull so

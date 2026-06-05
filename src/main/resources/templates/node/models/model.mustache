@@ -332,12 +332,27 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     super(data);
 {{/parent}}
     Object.assign(this, data);
+{{! Divergence #10: a REQUIRED, non-nullable field that is missing
+    (undefined) or explicitly null in the wire payload must hard-fail.
+    ObjectSerializer.deserialize routes plainToInstance output back
+    through this constructor, so a loose-equality null check (which
+    matches both undefined and null) surfaces a missing-or-null required
+    field as a thrown error that deserialize wraps in a
+    SerializationError. Required-but-nullable fields are excluded so an
+    explicit null is accepted for them; optional fields are never checked. }}
 {{#hasRequired}}
     if (data !== undefined) {
 {{#requiredVars}}
+{{^isNullable}}
       if (this.{{name}} == null) {
         throw new Error('{{name}} is required');
       }
+{{/isNullable}}
+{{#isNullable}}
+      if (this.{{name}} === undefined) {
+        throw new Error('{{name}} is required');
+      }
+{{/isNullable}}
 {{/requiredVars}}
     }
 {{/hasRequired}}

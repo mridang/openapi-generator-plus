@@ -347,6 +347,56 @@ describe {{moduleName}}::ObjectSerializer do
     end
   end
 
+  # ── required field hard-fail on deserialize (#10) ──
+  #
+  # A required, non-nullable model field that is ABSENT or explicitly NULL
+  # in the input JSON must raise the SDK serialization error rather than
+  # producing a partial object. Canonical across the product — matches
+  # Kotlin / PHP / Swift / Rust / Go / Python / Dart. Pet declares
+  # `name` and `photoUrls` as required.
+
+  describe 'required field hard-fail on deserialize' do
+    it 'raises when a required field is absent from the JSON' do
+      # photoUrls present, name missing.
+      json = '{"id":1,"photoUrls":["http://example.com/p.jpg"]}'
+      _(proc {
+        {{moduleName}}::ObjectSerializer.deserialize(json, 'Pet')
+      }).must_raise({{moduleName}}::SerializationError)
+    end
+
+    it 'raises when a second required field is absent from the JSON' do
+      # name present, photoUrls missing.
+      json = '{"id":1,"name":"doggie"}'
+      _(proc {
+        {{moduleName}}::ObjectSerializer.deserialize(json, 'Pet')
+      }).must_raise({{moduleName}}::SerializationError)
+    end
+
+    it 'raises when a required field is explicitly null in the JSON' do
+      json = '{"id":1,"name":null,"photoUrls":["http://example.com/p.jpg"]}'
+      _(proc {
+        {{moduleName}}::ObjectSerializer.deserialize(json, 'Pet')
+      }).must_raise({{moduleName}}::SerializationError)
+    end
+
+    it 'deserializes successfully when all required fields are present' do
+      json = '{"id":1,"name":"doggie","photoUrls":["http://example.com/p.jpg"]}'
+      pet = {{moduleName}}::ObjectSerializer.deserialize(json, 'Pet')
+      _(pet).must_be_kind_of({{moduleName}}::Models::Pet)
+      _(pet.name).must_equal('doggie')
+      _(pet.photo_urls.to_a).must_equal(['http://example.com/p.jpg'])
+    end
+
+    it 'leaves optional fields untouched when omitted' do
+      # Only the required fields are supplied; optional `id`/`status` stay nil.
+      json = '{"name":"doggie","photoUrls":["http://example.com/p.jpg"]}'
+      pet = {{moduleName}}::ObjectSerializer.deserialize(json, 'Pet')
+      _(pet.name).must_equal('doggie')
+      _(pet.id).must_be_nil
+      _(pet.status).must_be_nil
+    end
+  end
+
   # ── nil discard on serialize (#13) ──
 
   describe 'nil discard on serialize' do

@@ -185,4 +185,36 @@ class ComposedSchemaTest {
       assertThat(restored.ownerName).isEqualTo(original.ownerName);
     }
   }
+
+  @Nested
+  @DisplayName("required-field strictness: Pet (name + photoUrls)")
+  class RequiredFieldStrictness {
+
+    private static final TypeReference<Pet> PET_TYPE = new TypeReference<>() {};
+
+    @Test
+    @DisplayName("missing required field raises SerializationException")
+    void missingRequiredFieldRaises() {
+      String json = "{\"photoUrls\":[\"http://example.com/photo.jpg\"]}";
+      assertThatThrownBy(() -> serializer.deserialize(json, PET_TYPE))
+          .isInstanceOf(ObjectSerializer.SerializationException.class);
+    }
+
+    @Test
+    @DisplayName("explicitly null required field raises SerializationException")
+    void explicitNullRequiredFieldRaises() {
+      String json = "{\"name\":null,\"photoUrls\":[\"http://example.com/photo.jpg\"]}";
+      assertThatThrownBy(() -> serializer.deserialize(json, PET_TYPE))
+          .isInstanceOf(ObjectSerializer.SerializationException.class);
+    }
+
+    @Test
+    @DisplayName("complete object with all required fields deserializes successfully")
+    void completeObjectDeserializes() {
+      String json = "{\"name\":\"doggie\",\"photoUrls\":[\"http://example.com/photo.jpg\"]}";
+      Pet result = Objects.requireNonNull(serializer.deserialize(json, PET_TYPE));
+      assertThat(result.name).isEqualTo("doggie");
+      assertThat(result.photoUrls).contains("http://example.com/photo.jpg");
+    }
+  }
 }

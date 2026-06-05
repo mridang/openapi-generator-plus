@@ -389,6 +389,56 @@ defmodule {{moduleName}}.ObjectSerializerTest do
     end
   end
 
+  # Divergence #10: deserialization must hard-fail when a required,
+  # non-nullable field is missing or explicitly null, instead of silently
+  # building a partial struct. Pet declares `name` and `photoUrls` as
+  # required non-nullable fields. Optional fields (id, status, ...) stay
+  # untouched. Canonical across the product; parity with Go/PHP/Kotlin/
+  # Swift/Rust which all reject a missing/null required field.
+  describe "required field strictness (Divergence #10)" do
+    test "deserializing a complete object still succeeds" do
+      json = ~s({"name":"Rex","photoUrls":["http://example.com/rex.jpg"]})
+      pet = {{moduleName}}.ObjectSerializer.deserialize(json, "Pet")
+      assert %{{moduleName}}.Models.Pet{} = pet
+      assert pet.name == "Rex"
+      assert pet.photo_urls == MapSet.new(["http://example.com/rex.jpg"])
+    end
+
+    test "missing required field raises SerializationError" do
+      # photoUrls (required, non-nullable) is absent.
+      json = ~s({"name":"Rex"})
+
+      assert_raise {{moduleName}}.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.deserialize(json, "Pet")
+      end
+    end
+
+    test "explicitly-null required field raises SerializationError" do
+      json = ~s({"name":"Rex","photoUrls":null})
+
+      assert_raise {{moduleName}}.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.deserialize(json, "Pet")
+      end
+    end
+
+    test "null on a required field other than the first also raises" do
+      # Guard against only the first required field being checked: here
+      # `name` is null while `photoUrls` is present and valid.
+      json = ~s({"name":null,"photoUrls":["http://example.com/rex.jpg"]})
+
+      assert_raise {{moduleName}}.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.deserialize(json, "Pet")
+      end
+    end
+
+    test "omitting an optional field does not raise" do
+      # `status` is optional; its absence must not trip the required check.
+      json = ~s({"name":"Rex","photoUrls":["http://example.com/rex.jpg"]})
+      pet = {{moduleName}}.ObjectSerializer.deserialize(json, "Pet")
+      assert pet.status == nil
+    end
+  end
+
   describe "format: time round-tripping" do
     test "stringify emits HH:MM:SS for a Time" do
       assert {{moduleName}}.ObjectSerializer.stringify(~T[13:45:30]) == "13:45:30"

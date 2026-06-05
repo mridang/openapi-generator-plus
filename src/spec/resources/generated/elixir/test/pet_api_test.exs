@@ -183,7 +183,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     def send_request(_method, url, _headers, _body) do
       name = Process.get(__MODULE__)
       Agent.update(name, fn _ -> url end)
-      %PetstoreClient.ApiResponse{status_code: 200, body: "{}", headers: %{"Content-Type" => "application/json"}}
+      %PetstoreClient.ApiResponse{status_code: 200, body: "", headers: %{"Content-Type" => "application/json"}}
     end
   end
 

@@ -235,7 +235,9 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     def send_request(_method, url, _headers, _body) do
       name = Process.get(__MODULE__)
       Agent.update(name, fn _ -> url end)
-      %{{moduleName}}.ApiResponse{status_code: 200, body: "{}", headers: %{"Content-Type" => "application/json"}}
+      {{! Empty body deserializes to nil for any return type, so these }}
+      {{! URL-capturing tests don't trip required-field deserialization. }}
+      %{{moduleName}}.ApiResponse{status_code: 200, body: "", headers: %{"Content-Type" => "application/json"}}
     end
   end
 
@@ -846,7 +848,9 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     def send_request(_method, url, _headers, _body) do
       name = Process.get(__MODULE__)
       Agent.update(name, fn _ -> url end)
-      %{{moduleName}}.ApiResponse{status_code: 200, body: "{}", headers: %{"Content-Type" => "application/json"}}
+      {{! Empty body deserializes to nil for any return type, so these }}
+      {{! URL-capturing tests don't trip required-field deserialization. }}
+      %{{moduleName}}.ApiResponse{status_code: 200, body: "", headers: %{"Content-Type" => "application/json"}}
     end
   end
 

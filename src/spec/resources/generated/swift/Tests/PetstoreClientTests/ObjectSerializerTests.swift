@@ -569,4 +569,70 @@ import Testing
             _ = try ObjectSerializer.resolveAnyOf([String: Any](), candidates: candidates)
         }
     }
+
+    // MARK: - Divergence #10 — required-field deserialisation must hard-fail
+
+    // A required, non-nullable model field that is ABSENT from the input JSON
+    // must abort deserialisation rather than yield a partial object. Swift's
+    // synthesised/explicit `decode(_:forKey:)` throws DecodingError.keyNotFound,
+    // which ObjectSerializer.deserialize re-wraps as a SerializationError.
+    // The fixture is otherwise complete — only the required `name` is missing.
+    @Test func testDeserializeMissingRequiredFieldThrows() {
+        let json = "{\"photoUrls\":[\"http://example.com/fido.jpg\"]}"
+        #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.deserialize(json, as: Pet.self)
+        }
+    }
+
+    // A required, non-nullable model field that is present but explicitly NULL
+    // must also abort deserialisation. Swift's `decode(_:forKey:)` throws
+    // DecodingError.valueNotFound for a JSON null on a non-optional property,
+    // which ObjectSerializer.deserialize re-wraps as a SerializationError.
+    // The fixture is otherwise complete — only the required `name` is null.
+    @Test func testDeserializeExplicitNullRequiredFieldThrows() {
+        let json = "{\"name\":null,\"photoUrls\":[\"http://example.com/fido.jpg\"]}"
+        #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.deserialize(json, as: Pet.self)
+        }
+    }
+
+    // The underlying DecodingError raised when a required field is absent must
+    // be keyNotFound for the offending key — pins the hard-fail mechanism, not
+    // just the wrapper, so a future regression to decodeIfPresent is caught.
+    @Test func testMissingRequiredFieldRaisesKeyNotFound() {
+        let jsonData = Data("{\"photoUrls\":[\"http://example.com/fido.jpg\"]}".utf8)
+        do {
+            _ = try JSONDecoder().decode(Pet.self, from: jsonData)
+            Issue.record("expected DecodingError.keyNotFound for missing required 'name'")
+        } catch let DecodingError.keyNotFound(key, _) {
+            #expect(
+                key.stringValue == "name",
+                "error must identify the missing required key: \(key.stringValue)")
+        } catch {
+            Issue.record("expected DecodingError.keyNotFound, got: \(error)")
+        }
+    }
+
+    // An explicitly-null required field must raise valueNotFound (not
+    // keyNotFound), distinguishing "absent" from "present but null".
+    @Test func testExplicitNullRequiredFieldRaisesValueNotFound() {
+        let jsonData = Data("{\"name\":null,\"photoUrls\":[\"http://example.com/fido.jpg\"]}".utf8)
+        do {
+            _ = try JSONDecoder().decode(Pet.self, from: jsonData)
+            Issue.record("expected DecodingError.valueNotFound for null required 'name'")
+        } catch DecodingError.valueNotFound {
+            // Expected: a JSON null for a non-optional property.
+        } catch {
+            Issue.record("expected DecodingError.valueNotFound, got: \(error)")
+        }
+    }
+
+    // A complete object must still deserialise cleanly — guards that the
+    // strict required-field handling does not break the happy path.
+    @Test func testCompleteObjectDeserializesSuccessfully() throws {
+        let json = "{\"name\":\"Fido\",\"photoUrls\":[\"http://example.com/fido.jpg\"]}"
+        let pet = try ObjectSerializer.deserialize(json, as: Pet.self)
+        #expect(pet?.name == "Fido")
+        #expect(pet?.photoUrls.contains("http://example.com/fido.jpg") == true)
+    }
 }

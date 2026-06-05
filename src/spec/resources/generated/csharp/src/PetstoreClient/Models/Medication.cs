@@ -25,7 +25,10 @@ public class Medication(string drugName) : IEquatable<Medication>
     [JsonRequired]
     [JsonPropertyName("drugName")]
     public string DrugName { get; set; } =
-        drugName ?? throw new ArgumentNullException(nameof(drugName));
+        drugName
+        ?? throw new System.Text.Json.JsonException(
+            "Required property 'drugName' on Medication was null"
+        );
 
     /// <example>null</example>
     [JsonPropertyName("dosage")]

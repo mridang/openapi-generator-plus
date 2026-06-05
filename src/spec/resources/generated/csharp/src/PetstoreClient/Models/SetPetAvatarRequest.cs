@@ -27,13 +27,20 @@ public class SetPetAvatarRequest(byte[] data, string mimeType) : IEquatable<SetP
     /// <example>null</example>
     [JsonRequired]
     [JsonPropertyName("data")]
-    public byte[] Data { get; set; } = data;
+    public byte[] Data { get; set; } =
+        data
+        ?? throw new System.Text.Json.JsonException(
+            "Required property 'data' on SetPetAvatarRequest was null"
+        );
 
     /// <example>image/jpeg</example>
     [JsonRequired]
     [JsonPropertyName("mimeType")]
     public string MimeType { get; set; } =
-        mimeType ?? throw new ArgumentNullException(nameof(mimeType));
+        mimeType
+        ?? throw new System.Text.Json.JsonException(
+            "Required property 'mimeType' on SetPetAvatarRequest was null"
+        );
 
     /// <summary>Value-equality based on all declared fields. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in

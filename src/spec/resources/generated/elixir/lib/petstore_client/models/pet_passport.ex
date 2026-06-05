@@ -45,6 +45,21 @@ defmodule PetstoreClient.Models.PetPassport do
     attribute_map() |> Map.new(fn {k, v} -> {v, k} end)
   end
 
+  @doc """
+  JSON keys of the required, non-nullable properties.
+
+  Divergence #10: deserialization hard-fails when one of these keys is
+  absent or explicitly null in the wire payload, rather than silently
+  building a partial struct. Required-but-nullable properties and
+  required properties carrying a default value are intentionally excluded
+  (a default satisfies the requirement, and a nullable field admits null),
+  matching the Go / PHP / Kotlin reference behaviour.
+  """
+  @spec required_fields() :: [String.t()]
+  def required_fields do
+    []
+  end
+
   @doc "Attribute type mapping."
   @spec openapi_types() :: %{atom() => String.t()}
   def openapi_types do

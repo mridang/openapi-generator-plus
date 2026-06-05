@@ -345,6 +345,71 @@ void main() {
       expect(pet.status, isNull);
     });
 
+    // -- RequiredFieldHardFailTests (DIVERGENCE #10) --
+    //
+    // Deserialising a model whose required, non-nullable field is MISSING or
+    // explicitly NULL must hard-fail with the SDK's SerializationError rather
+    // than silently building a partial object. Pet requires both `name` and
+    // `photoUrls`.
+    test('fromJson throws when a required field is absent', () {
+      final input = <String, dynamic>{
+        'id': 1,
+        // 'name' omitted entirely
+        'photoUrls': <String>['http://x/y.jpg'],
+      };
+      expect(
+        () => Pet.fromJson(input),
+        throwsA(isA<SerializationError>()),
+      );
+    });
+
+    test('fromJson throws when a required field is explicitly null', () {
+      final input = <String, dynamic>{
+        'id': 1,
+        'name': null,
+        'photoUrls': <String>['http://x/y.jpg'],
+      };
+      expect(
+        () => Pet.fromJson(input),
+        throwsA(isA<SerializationError>()),
+      );
+    });
+
+    test('fromJson throws when a required array field is absent', () {
+      final input = <String, dynamic>{
+        'id': 1,
+        'name': 'Fido',
+        // 'photoUrls' omitted entirely
+      };
+      expect(
+        () => Pet.fromJson(input),
+        throwsA(isA<SerializationError>()),
+      );
+    });
+
+    test('fromJson throws when a required array field is explicitly null', () {
+      final input = <String, dynamic>{
+        'id': 1,
+        'name': 'Fido',
+        'photoUrls': null,
+      };
+      expect(
+        () => Pet.fromJson(input),
+        throwsA(isA<SerializationError>()),
+      );
+    });
+
+    test('fromJson succeeds when all required fields are present', () {
+      final input = <String, dynamic>{
+        'id': 1,
+        'name': 'Fido',
+        'photoUrls': <String>['http://x/y.jpg'],
+      };
+      final pet = Pet.fromJson(input);
+      expect(pet.name, equals('Fido'));
+      expect(pet.photoUrls, contains('http://x/y.jpg'));
+    });
+
     // -- MapOfModelDeepDeserializeTests (4.6) --
     //
     // For a Map<String, Foo> field on a generated model, the template
