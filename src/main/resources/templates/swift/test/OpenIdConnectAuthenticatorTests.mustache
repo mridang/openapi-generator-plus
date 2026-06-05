@@ -139,6 +139,40 @@ import Testing
         #expect(caught?.statusCode == 500)
     }
 
+    @Test func testThrowsWhenDiscoveryMissingAuthorizationEndpoint() async {
+        let client = MockApiClient()
+        // Missing authorization_endpoint must throw rather than build a
+        // delegate with a null/empty endpoint URL.
+        client.responses.append(makeResponse(
+            body: "{\"token_endpoint\":\"https://auth.example.com/token\"}"))
+
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        do {
+            _ = try await auth.buildAuthorizationURL()
+            Issue.record("expected discovery to throw when authorization_endpoint is missing")
+        } catch {
+            #expect(error != nil)
+        }
+    }
+
+    @Test func testThrowsWhenDiscoveryMissingTokenEndpoint() async {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(
+            body: "{\"authorization_endpoint\":\"https://auth.example.com/authorize\"}"))
+
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        do {
+            _ = try await auth.buildAuthorizationURL()
+            Issue.record("expected discovery to throw when token_endpoint is missing")
+        } catch {
+            #expect(error != nil)
+        }
+    }
+
     @Test func testGetHostReturnsConfiguredHost() {
         let auth = createAuthenticator()
 

@@ -176,4 +176,22 @@ import Testing
 
         #expect(auth.host() == "https://api.example.com")
     }
+
+    @Test func testAuthorizeURLWithExistingQueryStringUsesAmpSeparator() {
+        let auth = OAuth2AuthorizationCodeAuthenticator(
+            host: "https://api.example.com",
+            clientID: "my-client-id",
+            clientSecret: "my-client-secret",
+            authorizationURL: "https://x.auth0.com/authorize?audience=api",
+            tokenURL: "https://x.auth0.com/oauth/token",
+            redirectURI: "https://app.example.com/callback",
+            scopes: ["read"]
+        )
+
+        let url = auth.buildAuthorizationURL()
+
+        #expect(url.contains("audience=api"))
+        #expect(url.contains("response_type=code"))
+        #expect(url.filter { $0 == "?" }.count == 1)
+    }
 }

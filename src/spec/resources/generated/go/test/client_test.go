@@ -27,6 +27,19 @@ func TestClient_ConstructWithAuthenticatorOnly(t *testing.T) {
 	}
 }
 
+func TestClient_ConstructWithAuthenticatorAndNilTransportOptions(t *testing.T) {
+	t.Parallel()
+	// A nil transport must fall back to the default builder output, so the
+	// constructor stays usable when callers do not customise transport.
+	authenticator := auth.NewBearerAuthenticator("/api/v3", "test-token")
+
+	client := petstore.NewClient(authenticator, nil)
+
+	if client == nil {
+		t.Fatal("expected non-nil client")
+	}
+}
+
 func TestClient_ConstructWithAuthenticatorAndTransportOptions(t *testing.T) {
 	t.Parallel()
 	authenticator := auth.NewBearerAuthenticator("/api/v3", "test-token")

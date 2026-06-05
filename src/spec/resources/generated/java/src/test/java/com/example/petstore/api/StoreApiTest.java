@@ -11,6 +11,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import com.example.petstore.ApiResult;
 import com.example.petstore.ChasmContainer;
 import com.example.petstore.Configuration;
 import com.example.petstore.DefaultApiClient;
@@ -63,11 +64,43 @@ class StoreApiTest {
   }
 
   @Test
+  void testGetInventoryWithHttpInfo() throws Exception {
+    ApiResult<Map<String, Integer>> result = api.getInventoryWithHttpInfo();
+    assertNotNull(result);
+    assertThat(result.statusCode()).isBetween(200, 299);
+    assertThat(result.data()).isNotNull();
+  }
+
+  @Test
+  void testPlaceOrderWithHttpInfo() throws Exception {
+    Order order = new Order();
+    order.id = 1L;
+    order.petId = 12345L;
+    order.quantity = 1;
+    order.shipDate = OffsetDateTime.now(ZoneOffset.UTC);
+    order.status = Order.StatusEnum.PLACED;
+    order.complete = false;
+
+    ApiResult<Order> result = api.placeOrderWithHttpInfo(order);
+    assertNotNull(result);
+    assertThat(result.statusCode()).isBetween(200, 299);
+    assertThat(result.data()).isNotNull();
+  }
+
+  @Test
   void testGetOrderById() throws Exception {
     Order result = api.getOrderById(1L);
     assertNotNull(result);
 
     assertThat(result.id).isNotNull();
+  }
+
+  @Test
+  void testGetOrderByIdWithHttpInfo() throws Exception {
+    ApiResult<Order> result = api.getOrderByIdWithHttpInfo(1L);
+    assertNotNull(result);
+    assertThat(result.statusCode()).isBetween(200, 299);
+    assertThat(result.data()).isNotNull();
   }
 
   @Test

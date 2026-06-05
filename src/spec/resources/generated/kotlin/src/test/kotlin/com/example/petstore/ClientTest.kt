@@ -81,6 +81,17 @@ class ClientTest {
     }
 
     @Test
+    @DisplayName("ApiKey query location accepts non-ASCII characters")
+    fun apiKeyQueryAcceptsNonAscii() {
+        // The QUERY location is URL-encoded downstream, so it must accept a
+        // non-ASCII key value verbatim and surface it through getQueryParams.
+        assertEquals(
+            mapOf("api_key" to "kéy"),
+            ApiKeyAuthenticator("/api/v3", "api_key", "kéy", ApiKeyLocation.QUERY).getQueryParams(),
+        )
+    }
+
+    @Test
     @DisplayName("API groups are accessible")
     fun apiGroupsAreAccessible() {
         val client = Client(authenticator)

@@ -50,6 +50,21 @@ class ClientTest {
   }
 
   @Test
+  void bearerRejectsEmptyToken() {
+    // bearer-no-empty-token-guard: an empty or whitespace-only token would
+    // emit a bare "Authorization: Bearer " header and send the request
+    // unauthenticated. It must be rejected, like the api-key empty guard.
+    // Validation is lazy (at getAuthHeaders) on this non-final class to
+    // avoid SpotBugs CT_CONSTRUCTOR_THROW, matching the CR/LF check above.
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new BearerAuthenticator("/api/v3", "").getAuthHeaders());
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new BearerAuthenticator("/api/v3", "   ").getAuthHeaders());
+  }
+
+  @Test
   void apiKeyHeaderRejectsCrlfAndNonAscii() {
     // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
     // ApiKeyAuthenticator's HEADER location must reject any value
@@ -71,6 +86,16 @@ class ClientTest {
     // Non-header locations accept arbitrary chars (they go through
     // their own URL-encoding pipeline downstream).
     assertNotNull(
+        new ApiKeyAuthenticator("/api/v3", "api_key", "kéy", ApiKeyLocation.QUERY)
+            .getQueryParams());
+  }
+
+  @Test
+  void apiKeyQueryAcceptsNonAscii() {
+    // The QUERY location is URL-encoded downstream, so it must accept a
+    // non-ASCII key value verbatim and surface it through getQueryParams.
+    assertEquals(
+        java.util.Collections.singletonMap("api_key", "kéy"),
         new ApiKeyAuthenticator("/api/v3", "api_key", "kéy", ApiKeyLocation.QUERY)
             .getQueryParams());
   }

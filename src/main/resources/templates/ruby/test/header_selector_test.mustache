@@ -39,6 +39,10 @@ describe {{moduleName}}::HeaderSelector do
       _(@header_selector.json_mime?('application/xml')).must_equal(false)
     end
 
+    it 'returns false for application/octet-stream' do
+      _(@header_selector.json_mime?('application/octet-stream')).must_equal(false)
+    end
+
     it 'returns false for nil' do
       _(@header_selector.json_mime?(nil)).must_equal(false)
     end

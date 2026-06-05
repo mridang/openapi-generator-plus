@@ -38,6 +38,10 @@ class BaseApiTest {
             super(apiClient, new Configuration(baseUrl, Map.of()));
         }
 
+        TestableApi(ApiClient apiClient, String baseUrl, @Nullable Authenticator authenticator) {
+            super(apiClient, new Configuration(baseUrl, Map.of()), authenticator);
+        }
+
         <T> @Nullable T call(
                 String method,
                 String path,
@@ -562,6 +566,45 @@ class BaseApiTest {
                     "application/json",
                     null,
                     auth);
+        }
+
+        @Test
+        @DisplayName("falls back to client-level authenticator when no per-call auth is supplied")
+        void fallsBackToClientLevelAuthenticator() throws ApiException {
+            var client = new CapturingApiClient();
+            var clientAuth =
+                    new TestAuthenticator(
+                            Map.of("X-Client-Auth", "client-level-token"), Map.of(), Map.of());
+            var testApi = new TestableApi(client, "http://localhost", clientAuth);
+            testApi.call(
+                    "GET", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, null);
+            assertEquals("client-level-token", client.capturedHeaders.get("X-Client-Auth"));
+        }
+
+        @Test
+        @DisplayName("per-call auth overrides the client-level authenticator")
+        void perCallAuthOverridesClientLevel() throws ApiException {
+            var client = new CapturingApiClient();
+            var clientAuth =
+                    new TestAuthenticator(
+                            Map.of("X-Client-Auth", "client-level-token"), Map.of(), Map.of());
+            var perCallAuth =
+                    new TestAuthenticator(
+                            Map.of("X-Client-Auth", "per-call-token"), Map.of(), Map.of());
+            var testApi = new TestableApi(client, "http://localhost", clientAuth);
+            testApi.call(
+                    "GET", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, perCallAuth);
+            assertEquals("per-call-token", client.capturedHeaders.get("X-Client-Auth"));
         }
     }
 

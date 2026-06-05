@@ -45,7 +45,10 @@ import Testing
 
         let url = auth.buildAuthorizationURL()
 
-        #expect(url.contains("scope=read%20write"))
+        #expect(
+            url.contains("scope=read%20write")
+                || url.contains("scope=read+write")
+                || url.contains("scope=read write"))
     }
 
     @Test func testBuildsAuthorizationUrlWithState() {

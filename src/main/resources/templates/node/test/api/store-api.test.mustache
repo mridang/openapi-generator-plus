@@ -47,11 +47,47 @@ describe('StoreApi', () => {
     expect(result.id).toBeDefined();
   });
 
+  test('getInventoryWithHttpInfo', async () => {
+    const result = await api.getInventoryWithHttpInfo();
+
+    expect(result).toBeDefined();
+    expect(result.statusCode).toBeGreaterThanOrEqual(200);
+    expect(result.statusCode).toBeLessThan(300);
+    expect(result.data).toBeDefined();
+  });
+
+  test('placeOrderWithHttpInfo', async () => {
+    const order: Order = {
+      id: 1,
+      petId: 12345,
+      quantity: 1,
+      shipDate: new Date(),
+      status: OrderStatusEnum.Placed,
+      complete: false,
+    };
+
+    const result = await api.placeOrderWithHttpInfo(order);
+
+    expect(result).toBeDefined();
+    expect(result.statusCode).toBeGreaterThanOrEqual(200);
+    expect(result.statusCode).toBeLessThan(300);
+    expect(result.data).toBeDefined();
+  });
+
   test('getOrderById', async () => {
     const result = await api.getOrderById(1);
 
     expect(result).toBeDefined();
     expect(result.id).toBeDefined();
+  });
+
+  test('getOrderByIdWithHttpInfo', async () => {
+    const result = await api.getOrderByIdWithHttpInfo(1);
+
+    expect(result).toBeDefined();
+    expect(result.statusCode).toBeGreaterThanOrEqual(200);
+    expect(result.statusCode).toBeLessThan(300);
+    expect(result.data).toBeDefined();
   });
 
   test('deleteOrder', async () => {

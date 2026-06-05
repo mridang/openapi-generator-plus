@@ -13,6 +13,7 @@ declare(strict_types=1);
 namespace PetstoreClient\Test;
 
 use PetstoreClient\ApiResponse;
+use PetstoreClient\Auth\OAuth\OAuth2ServerError;
 use PetstoreClient\Auth\OAuth\OAuth2TokenError;
 use PetstoreClient\Auth\OAuth\OAuth2TokenManager;
 
@@ -272,6 +273,51 @@ test('throws when token request fails', function (): void {
 
     expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
         ->toThrow(\RuntimeException::class);
+});
+
+test('missing access_token in 2xx response throws typed OAuth2TokenError', function (): void {
+    // A 2xx response whose body omits access_token must surface as the typed
+    // OAuth2TokenError, not silently cache an empty token.
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiResponse(
+        200,
+        (string) json_encode(['refresh_token' => 'x']),
+        ['Content-Type' => 'application/json']
+    ));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
+        ->toThrow(OAuth2TokenError::class);
+});
+
+test('server error response parsed to typed OAuth2ServerError', function (): void {
+    // RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a
+    // typed OAuth2ServerError carrying code/description/uri.
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiResponse(
+        400,
+        (string) json_encode([
+            'error' => 'invalid_grant',
+            'error_description' => 'refresh token expired',
+            'error_uri' => 'https://docs.example.com/errors/invalid_grant',
+        ]),
+        ['Content-Type' => 'application/json']
+    ));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    try {
+        $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+        expect(false)->toBeTrue('Expected OAuth2ServerError');
+    } catch (OAuth2ServerError $error) {
+        expect($error->statusCode)->toBe(400);
+        expect($error->errorCode)->toBe('invalid_grant');
+        expect($error->description)->toBe('refresh token expired');
+        expect($error->uri)->toBe('https://docs.example.com/errors/invalid_grant');
+    }
 });
 
 // -- 3.2: token POSTs refuse ALL 3xx redirects --

@@ -159,6 +159,37 @@ public class ConfigurationTest : IDisposable
     }
 
     [Fact]
+    public void InvalidServerVariableEnumValueThrows()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, ["api", "staging"]),
+            }
+        );
+
+        Assert.Throws<ArgumentException>(() =>
+            Configuration
+                .Builder()
+                .Server(server, new Dictionary<string, string> { { "env", "invalid" } })
+                .Build()
+        );
+    }
+
+    [Fact]
+    public void BuilderProducesIndependentInstances()
+    {
+        var builder = Configuration.Builder().BaseUrl("https://example.com");
+        var first = builder.Build();
+        var second = builder.Build();
+
+        Assert.NotSame(first, second);
+        Assert.Equal(first.BaseUrl, second.BaseUrl);
+    }
+
+    [Fact]
     public void BuilderBaseUrlOverridesServer()
     {
         var server = new ServerConfiguration(

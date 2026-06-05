@@ -65,6 +65,28 @@ class TestConfigurationBuilder:
         assert config.default_headers['X-Second'] == 'two'
         assert config.default_headers['X-Third'] == 'three'
 
+    def test_builder_merges_single_and_bulk_headers(self) -> None:
+        config = (
+            Configuration.builder()
+            .default_header('X-First', 'one')
+            .default_headers({'X-Second': 'two'})
+            .default_header('X-Third', 'three')
+            .build()
+        )
+
+        assert len(config.default_headers) == 3
+        assert config.default_headers['X-First'] == 'one'
+        assert config.default_headers['X-Second'] == 'two'
+        assert config.default_headers['X-Third'] == 'three'
+
+    def test_builder_produces_independent_instances(self) -> None:
+        builder = Configuration.builder().base_url('https://example.com')
+        first = builder.build()
+        second = builder.build()
+
+        assert first is not second
+        assert first.base_url == second.base_url
+
     def test_builder_sets_all_fields(self) -> None:
         config = (
             Configuration.builder()

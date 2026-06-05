@@ -23,6 +23,17 @@ fn test_client_construct_with_authenticator_only() {
 }
 
 #[test]
+fn test_client_construct_with_none_transport_options() {
+    // A None transport must fall back to the default builder output, so the
+    // constructor stays usable when callers do not customise transport.
+    let authenticator = BearerAuthenticator::new("/api/v3", "test-token");
+
+    let client = Client::new(Box::new(authenticator), None);
+
+    let _ = &client;
+}
+
+#[test]
 fn test_client_construct_with_transport_options() {
     let authenticator = BearerAuthenticator::new("/api/v3", "test-token");
     let transport = TransportOptionsBuilder::new().build();

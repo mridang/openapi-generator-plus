@@ -398,4 +398,21 @@ describe PetstoreClient::DefaultApiClient do
       _(json['contentLength']).must_equal(0)
     end
   end
+
+  describe 'client lifecycle (Gap T6)' do
+    # Gap T6: #close releases the underlying connection and is idempotent.
+    # A request issued on a closed client must raise the SDK-typed ApiError
+    # (closed-flag guard) rather than silently rebuilding a connection,
+    # matching the uniform use-after-close contract across SDKs.
+    it 'close releases underlying client' do
+      client = PetstoreClient::DefaultApiClient.new
+      client.close
+      client.close
+
+      error = _ do
+        client.send_request(:GET, 'https://example.com', {}, nil)
+      end.must_raise PetstoreClient::ApiError
+      _(error.message).must_include('closed')
+    end
+  end
 end

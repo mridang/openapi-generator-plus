@@ -43,6 +43,19 @@ describe PetstoreClient::Client do
     }).must_raise ArgumentError
   end
 
+  it 'BearerAuthenticator rejects an empty or whitespace token' do
+    # bearer-no-empty-token-guard: an empty/whitespace token would emit a
+    # bare "Authorization: Bearer " header, sending the request
+    # unauthenticated, so the constructor must reject it.
+    _(-> {
+      PetstoreClient::Auth::BearerAuthenticator.new('/api/v3', '')
+    }).must_raise ArgumentError
+
+    _(-> {
+      PetstoreClient::Auth::BearerAuthenticator.new('/api/v3', '   ')
+    }).must_raise ArgumentError
+  end
+
   it 'ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII' do
     # RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
     # The HEADER location must reject anything outside printable ASCII

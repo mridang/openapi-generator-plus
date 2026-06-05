@@ -389,6 +389,52 @@ void main() {
         throwsA(isA<OAuth2TokenError>()),
       );
     });
+
+    test('missing access_token in 2xx response throws typed OAuth2TokenError', () async {
+      // A 2xx response whose body omits access_token must surface as the typed
+      // OAuth2TokenError, not silently cache an empty token.
+      final client = _FakeApiClient();
+      client.enqueue('{"refresh_token":"x"}');
+
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+
+      await expectLater(
+        () => manager.getAccessToken(
+          'https://auth.example.com/token',
+          {'grant_type': 'client_credentials'},
+        ),
+        throwsA(isA<OAuth2TokenError>()),
+      );
+    });
+
+    test('token endpoint error response parsed to typed OAuth2ServerError', () async {
+      // RFC 6749 §5.2: a 4xx response with a JSON error object must surface as
+      // a typed OAuth2ServerError carrying code/description/uri.
+      final client = _FakeApiClient();
+      client.enqueue(
+        '{"error":"invalid_grant","error_description":"refresh token expired",'
+        '"error_uri":"https://docs.example.com/errors/invalid_grant"}',
+        statusCode: 400,
+      );
+
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+
+      await expectLater(
+        () => manager.getAccessToken(
+          'https://auth.example.com/token',
+          {'grant_type': 'client_credentials'},
+        ),
+        throwsA(
+          isA<OAuth2ServerError>()
+              .having((e) => e.statusCode, 'statusCode', 400)
+              .having((e) => e.code, 'code', 'invalid_grant')
+              .having((e) => e.description, 'description', 'refresh token expired')
+              .having((e) => e.uri, 'uri', 'https://docs.example.com/errors/invalid_grant'),
+        ),
+      );
+    });
   });
 }
 {{/generateTests}}

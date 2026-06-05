@@ -99,6 +99,14 @@ public class ClientTest : IDisposable
     }
 
     [Fact]
+    public void ApiKeyQueryAcceptsNonAscii()
+    {
+        var auth = new ApiKeyAuthenticator("/api/v3", "api_key", "kéy", ApiKeyLocation.Query);
+
+        Assert.Equal(new Dictionary<string, string> { ["api_key"] = "kéy" }, auth.GetQueryParams());
+    }
+
+    [Fact]
     public void ApiGroupsAreAccessible()
     {
         using var client = new Client(_authenticator);

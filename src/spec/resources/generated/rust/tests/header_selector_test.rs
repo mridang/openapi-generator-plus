@@ -127,6 +127,100 @@ fn test_header_selector_is_json_mime_case_insensitive() {
 }
 
 #[test]
+fn test_header_selector_single_non_json_accept_as_is() {
+    let hs = HeaderSelector::new();
+
+    let headers = hs.select_headers(&["text/html"], "application/json", false);
+
+    assert_eq!(headers.get("Accept").unwrap(), "text/html");
+}
+
+#[test]
+fn test_header_selector_comma_separated_when_no_json() {
+    let hs = HeaderSelector::new();
+
+    let headers = hs.select_headers(&["text/html", "text/plain"], "application/json", false);
+
+    assert_eq!(headers.get("Accept").unwrap(), "text/html,text/plain");
+}
+
+#[test]
+fn test_header_selector_multiple_json_types_with_priority() {
+    let hs = HeaderSelector::new();
+
+    let headers = hs.select_headers(
+        &["text/html", "application/vnd.api+json", "application/json"],
+        "application/json",
+        false,
+    );
+
+    let accept = headers.get("Accept").unwrap();
+    assert!(accept.starts_with("application/json"));
+    let json_idx = accept.find("application/json").unwrap();
+    let vendor_idx = accept.find("application/vnd.api+json").unwrap();
+    let html_idx = accept.find("text/html").unwrap();
+    assert!(json_idx < vendor_idx);
+    assert!(vendor_idx < html_idx);
+}
+
+#[test]
+fn test_header_selector_filters_out_empty_entries() {
+    let hs = HeaderSelector::new();
+
+    let headers = hs.select_headers(&["", "application/json"], "application/json", false);
+
+    assert_eq!(headers.get("Accept").unwrap(), "application/json");
+}
+
+#[test]
+fn test_header_selector_preserves_existing_quality_weights_in_order() {
+    let hs = HeaderSelector::new();
+
+    let headers = hs.select_headers(
+        &["text/html;q=0.9", "application/json", "text/plain;q=0.8"],
+        "application/json",
+        false,
+    );
+
+    assert!(
+        headers
+            .get("Accept")
+            .unwrap()
+            .starts_with("application/json")
+    );
+}
+
+#[test]
+fn test_header_selector_formats_quality_weight_correctly() {
+    let hs = HeaderSelector::new();
+
+    let headers = hs.select_headers(
+        &["application/json", "text/html"],
+        "application/json",
+        false,
+    );
+
+    let accept = headers.get("Accept").unwrap();
+    assert!(
+        accept.contains("text/html;q=0.9") || accept.contains("text/html;q=0."),
+        "expected text/html with quality weight, got {accept}"
+    );
+}
+
+#[test]
+fn test_header_selector_removes_trailing_zeros_from_quality_weight() {
+    let hs = HeaderSelector::new();
+
+    let headers = hs.select_headers(
+        &["application/json", "text/html"],
+        "application/json",
+        false,
+    );
+
+    assert!(!headers.get("Accept").unwrap().contains(";q=0.900"));
+}
+
+#[test]
 fn test_get_next_weight_standard_sequence() {
     let hs = HeaderSelector::new();
 

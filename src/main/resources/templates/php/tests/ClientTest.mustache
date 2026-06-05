@@ -18,6 +18,14 @@ test('construct with authenticator only', function (): void {
     expect($client)->toBeInstanceOf({{clientClassName}}::class);
 });
 
+test('construct with authenticator and null transport options', function (): void {
+    // A null transport must fall back to the default builder output, so
+    // constructing with an explicit null is equivalent to omitting it.
+    $client = new {{clientClassName}}($this->authenticator, null);
+
+    expect($client)->toBeInstanceOf({{clientClassName}}::class);
+});
+
 test('construct with authenticator and transport options', function (): void {
     $transport = TransportOptions::builder()->build();
 

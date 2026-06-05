@@ -38,6 +38,18 @@ class ConfigurationTest {
     }
 
     @Nested
+    @DisplayName("builder factory")
+    inner class BuilderFactory {
+        @Test
+        @DisplayName("builder() returns a Builder instance")
+        fun builderReturnsBuilderInstance() {
+            val builder = Configuration.builder()
+            assertNotNull(builder)
+            assertTrue(builder is Configuration.Builder)
+        }
+    }
+
+    @Nested
     @DisplayName("baseUrl")
     inner class BaseUrl {
         @Test
@@ -49,6 +61,21 @@ class ConfigurationTest {
                     .baseUrl("https://custom.example.com")
                     .build()
             assertEquals("https://custom.example.com", config.baseUrl)
+        }
+
+        @Test
+        @DisplayName("builder sets base URL and multiple headers in one configuration")
+        fun builderSetsBaseUrlAndMultipleHeaders() {
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("https://api.example.com")
+                    .defaultHeader("Authorization", "Bearer token")
+                    .defaultHeaders(mapOf("X-Custom" to "value"))
+                    .build()
+            assertEquals("https://api.example.com", config.baseUrl)
+            assertEquals("Bearer token", config.defaultHeaders["Authorization"])
+            assertEquals("value", config.defaultHeaders["X-Custom"])
         }
     }
 

@@ -41,6 +41,10 @@ describe('HeaderSelector', () => {
       expect(headerSelector.isJsonMime('application/xml')).toBe(false);
     });
 
+    test('returns false for application/octet-stream', () => {
+      expect(headerSelector.isJsonMime('application/octet-stream')).toBe(false);
+    });
+
     test('returns false for null', () => {
       expect(headerSelector.isJsonMime(null)).toBe(false);
     });

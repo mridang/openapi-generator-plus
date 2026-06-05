@@ -431,5 +431,20 @@ void main() {
         reason: 'POST with null body must emit Content-Length: 0',
       );
     });
+
+    // Gap T6: close() releases the underlying HTTP client and is
+    // idempotent. A request issued on a closed client must surface a
+    // uniform SDK error (ApiError) rather than the dart:http package's
+    // "Client is already closed" exception.
+    test('close releases underlying client', () async {
+      final client = DefaultApiClient();
+      client.close();
+      // close() is idempotent.
+      client.close();
+      expect(
+        () => client.sendRequest('GET', 'https://example.com', {}, null),
+        throwsA(isA<ApiError>()),
+      );
+    });
   });
 }

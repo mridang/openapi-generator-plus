@@ -224,6 +224,44 @@ async fn test_get_auth_headers_returns_bearer_after_exchange() {
     assert_eq!("Bearer oidc-tok", headers.get("Authorization").unwrap());
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn test_throws_when_discovery_missing_authorization_endpoint() {
+    let client = Arc::new(FakeApiClient::new());
+    // Missing authorization_endpoint must produce an error rather than build a
+    // delegate with a null/empty endpoint URL.
+    client.enqueue(
+        r#"{"token_endpoint":"https://auth.example.com/token"}"#,
+        200,
+    );
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let result = auth.build_authorization_url("").await;
+    assert!(
+        result.is_err(),
+        "a discovery document missing authorization_endpoint must produce an error"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_throws_when_discovery_missing_token_endpoint() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"authorization_endpoint":"https://auth.example.com/authorize"}"#,
+        200,
+    );
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let result = auth.build_authorization_url("").await;
+    assert!(
+        result.is_err(),
+        "a discovery document missing token_endpoint must produce an error"
+    );
+}
+
 #[tokio::test]
 async fn test_throws_when_no_api_client_injected() {
     let auth = create_authenticator();

@@ -44,6 +44,16 @@ public class ComposedSchemaTest
     }
 
     [Fact]
+    public void OneOfMissingDiscriminatorThrows()
+    {
+        {{! A payload omitting the discriminator property entirely cannot route }}
+        {{! to any subtype; the converter throws rather than silently wrapping. }}
+        {{! Aligns C# with Python / Swift / PHP / Ruby / Dart / Rust. }}
+        var json = "{\"weightKg\":2.5}";
+        Assert.Throws<System.Text.Json.JsonException>(() => _serializer.Deserialize<PetFood>(json));
+    }
+
+    [Fact]
     public void OneOfSerializesDryFood()
     {
         var json = "{\"foodType\":\"dry\",\"weightKg\":2.5}";

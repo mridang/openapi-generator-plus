@@ -115,6 +115,44 @@ class HeaderSelectorTest {
         }
 
         @Test
+        @DisplayName("returns single non-JSON accept as-is")
+        fun returnsSingleNonJsonAcceptAsIs() {
+            val headers =
+                selector.selectHeaders(
+                    arrayOf("text/html"),
+                    "application/json",
+                    false,
+                )
+            assertEquals("text/html", headers["Accept"])
+        }
+
+        @Test
+        @DisplayName("filters out empty entries")
+        fun filtersOutEmptyEntries() {
+            val headers =
+                selector.selectHeaders(
+                    arrayOf("", "application/json"),
+                    "application/json",
+                    false,
+                )
+            assertEquals("application/json", headers["Accept"])
+        }
+
+        @Test
+        @DisplayName("preserves existing quality weights in order")
+        fun preservesExistingQualityWeightsInOrder() {
+            val headers =
+                selector.selectHeaders(
+                    arrayOf("text/html;q=0.9", "application/json", "text/plain;q=0.8"),
+                    "application/json",
+                    false,
+                )
+            val accept = headers["Accept"]
+            assertNotNull(accept)
+            assertTrue(accept!!.startsWith("application/json"))
+        }
+
+        @Test
         @DisplayName("does not set Accept header for empty accepts")
         fun doesNotSetAcceptForEmptyAccepts() {
             val headers =

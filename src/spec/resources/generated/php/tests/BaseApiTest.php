@@ -319,6 +319,44 @@ test('sets cookie header', function (): void {
     expect(true)->toBeTrue();
 });
 
+test('falls back to client-level authenticator when no per-call auth is supplied', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $clientAuth = new TestAuthenticator(headers: ['X-Client-Auth' => 'client-level-token']);
+    $api = new TestableApi($client, $config, $clientAuth);
+    $api->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    expect($client->capturedHeaders['X-Client-Auth'] ?? '')->toBe('client-level-token');
+});
+
+test('per-call auth overrides the client-level authenticator', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $clientAuth = new TestAuthenticator(headers: ['X-Client-Auth' => 'client-level-token']);
+    $perCallAuth = new TestAuthenticator(headers: ['X-Client-Auth' => 'per-call-token']);
+    $api = new TestableApi($client, $config, $clientAuth);
+    $api->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null,
+        $perCallAuth
+    );
+    expect($client->capturedHeaders['X-Client-Auth'] ?? '')->toBe('per-call-token');
+});
+
 test('serializes json body', function (): void {
     $result = makeBaseApiTestableApi()->call(
         'POST',

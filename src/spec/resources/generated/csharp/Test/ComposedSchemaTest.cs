@@ -49,6 +49,13 @@ public class ComposedSchemaTest
     }
 
     [Fact]
+    public void OneOfMissingDiscriminatorThrows()
+    {
+        var json = "{\"weightKg\":2.5}";
+        Assert.Throws<System.Text.Json.JsonException>(() => _serializer.Deserialize<PetFood>(json));
+    }
+
+    [Fact]
     public void OneOfSerializesDryFood()
     {
         var json = "{\"foodType\":\"dry\",\"weightKg\":2.5}";

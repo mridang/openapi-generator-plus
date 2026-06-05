@@ -851,3 +851,55 @@ class TestApiKeyHeaderStrippedOnCrossOrigin:
         assert not any(k.lower() == api_key_header.lower() for k in followup_headers), \
             f"API-key header {api_key_header!r} leaked on cross-origin redirect: {followup_headers!r}"
     {{/hasApiKeyHeaderNames}}
+
+    def test_authorization_stripped_on_cross_origin_redirect(self) -> None:
+        # The static credential trio is always stripped on a cross-origin hop
+        # regardless of whether the spec declared any apiKey-in-header schemes.
+        class _Pool:
+            def __init__(self) -> None:
+                self.calls: list[Any] = []
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url, dict(kwargs.get("headers") or {})))
+                if len(self.calls) == 1:
+                    return _FakeResp(302, {"location": "https://other.example.com/dest"})
+                return _FakeResp(200, {})
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = _Pool()
+        client = DefaultApiClient(transport, pool_manager=pool)
+        client.send_request(
+            "GET",
+            "https://example.com/start",
+            {"Authorization": "Bearer secret", "X-Trace": "keep"},
+            None,
+        )
+        assert len(pool.calls) == 2
+        followup_headers = pool.calls[1][2]
+        assert not any(k.lower() == "authorization" for k in followup_headers), \
+            f"Authorization leaked on cross-origin redirect: {followup_headers!r}"
+        # Non-sensitive headers must survive the hop.
+        assert any(k.lower() == "x-trace" for k in followup_headers)
+
+
+class TestRedirectToNonHttpScheme:
+    """A Location pointing at a non-http(s) scheme (file:, javascript:, data:)
+    must be refused with a typed ApiException rather than silently returned."""
+
+    def test_non_http_scheme_redirect_raises(self) -> None:
+        from {{packageName}}.errors import ApiException
+
+        class _Pool:
+            def __init__(self) -> None:
+                self.calls: list[Any] = []
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url))
+                return _FakeResp(302, {"location": "file:///etc/passwd"})
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = _Pool()
+        client = DefaultApiClient(transport, pool_manager=pool)
+        with pytest.raises(ApiException) as excinfo:
+            client.send_request("GET", "https://example.com/start", {}, None)
+        assert "non-http" in str(excinfo.value.message or "").lower()
+        # The non-http(s) target must never have been contacted.
+        assert len(pool.calls) == 1

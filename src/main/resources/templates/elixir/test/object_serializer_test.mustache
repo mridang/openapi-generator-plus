@@ -389,6 +389,62 @@ defmodule {{moduleName}}.ObjectSerializerTest do
     end
   end
 
+  describe "format: time round-tripping" do
+    test "stringify emits HH:MM:SS for a Time" do
+      assert {{moduleName}}.ObjectSerializer.stringify(~T[13:45:30]) == "13:45:30"
+    end
+
+    test "serialize emits HH:MM:SS for a Time inside a map" do
+      json = {{moduleName}}.ObjectSerializer.serialize(%{"opens_at" => ~T[09:00:00]})
+      assert Jason.decode!(json)["opens_at"] == "09:00:00"
+    end
+  end
+
+  describe "format: duration round-tripping" do
+    test "stringify emits canonical ISO-8601 for a Duration" do
+      d = Duration.new!(hour: 1, minute: 30)
+      assert {{moduleName}}.ObjectSerializer.stringify(d) == "PT1H30M"
+    end
+
+    test "serialize emits the canonical duration string inside a map" do
+      d = Duration.new!(minute: 5)
+      json = {{moduleName}}.ObjectSerializer.serialize(%{"ttl" => d})
+      assert Jason.decode!(json)["ttl"] == "PT5M"
+    end
+  end
+
+  # ── Gap K — discriminator auto-injection on subtype serialize ──
+
+  describe "discriminator auto-injection" do
+    test "dry subtype serialize auto-emits the discriminator" do
+      # DryFood defaults food_type to "dry", so a caller that omits it
+      # still gets the discriminator on the wire.
+      dry = %{{moduleName}}.Models.DryFood{weight_kg: 2.5}
+      data = Jason.decode!({{moduleName}}.ObjectSerializer.serialize(dry))
+      assert data["foodType"] == "dry"
+      assert data["weightKg"] == 2.5
+    end
+
+    test "wet subtype serialize auto-emits the discriminator" do
+      wet = %{{moduleName}}.Models.WetFood{volume_ml: 350}
+      data = Jason.decode!({{moduleName}}.ObjectSerializer.serialize(wet))
+      assert data["foodType"] == "wet"
+    end
+  end
+
+  # ── Gap #13 — null fields omitted on serialize ──
+
+  describe "nil discard on serialize" do
+    test "omits model fields that are nil" do
+      # Category's id is optional; left nil it must be dropped from the
+      # payload rather than emitted as "id": null.
+      category = %{{moduleName}}.Models.Category{id: nil, name: "Dogs"}
+      data = Jason.decode!({{moduleName}}.ObjectSerializer.serialize(category))
+      refute Map.has_key?(data, "id")
+      assert data["name"] == "Dogs"
+    end
+  end
+
   describe "oneOf/anyOf no-match" do
     test "resolve_one_of returns the first matching variant" do
       candidates = [

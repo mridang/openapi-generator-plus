@@ -177,6 +177,12 @@ import Testing
         #expect(opts.timeout == 1000)
     }
 
+    @Test func testTimeoutCanBeExplicitlyDisabled() {
+        // Passing nil explicitly disables the timeout (no end-to-end deadline).
+        let opts = TransportOptionsBuilder().timeout(nil).build()
+        #expect(opts.timeout == nil)
+    }
+
     // ProxyConfigTests
 
     @Test func testProxyUrlIsPreservedOnReadBack() throws {

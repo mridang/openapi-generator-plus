@@ -398,6 +398,48 @@ public class OAuth2TokenManagerTest
         );
     }
 
+    [Fact]
+    public async Task TokenResponseMissingAccessTokenThrowsTypedError()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"refresh_token\":\"x\"}");
+
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        await Assert.ThrowsAsync<OAuth2TokenError>(() =>
+            manager.GetAccessTokenAsync(
+                new Uri("https://auth.example.com/token"),
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+            )
+        );
+    }
+
+    [Fact]
+    public async Task TokenEndpointErrorResponseParsedToTypedError()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"error\":\"invalid_grant\",\"error_description\":\"refresh token expired\","
+                + "\"error_uri\":\"https://docs.example.com/errors/invalid_grant\"}",
+            statusCode: 400
+        );
+
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<OAuth2ServerError>(() =>
+            manager.GetAccessTokenAsync(
+                new Uri("https://auth.example.com/token"),
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+            )
+        );
+        Assert.Equal(400, ex.StatusCode);
+        Assert.Equal("invalid_grant", ex.Code);
+        Assert.Equal("refresh token expired", ex.Description);
+        Assert.Equal("https://docs.example.com/errors/invalid_grant", ex.Uri);
+    }
+
     // ---- 3.2: token POSTs must refuse ALL 3xx redirects ----
 
     [Fact]

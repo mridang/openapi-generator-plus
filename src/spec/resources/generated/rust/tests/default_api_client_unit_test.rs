@@ -12,7 +12,10 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use petstore::api_client::{RequestBody, RequestOptions};
-use petstore::default_api_client::{SENSITIVE_HEADER_NAMES, is_https_to_http_body_replay};
+use petstore::default_api_client::{
+    SENSITIVE_HEADER_NAMES, build_filename_directive, decode_text_body,
+    is_https_to_http_body_replay, mime_for_filename, parse_charset, validate_multipart_filename,
+};
 use petstore::*;
 
 /// Starts a minimal HTTP server that captures request headers and responds
@@ -943,4 +946,122 @@ fn test_nonexistent_ca_cert_path_fails_fast() {
         .ca_cert_path("/nonexistent/ca.pem")
         .build();
     let _client = DefaultApiClient::new(Some(transport));
+}
+
+// ── Per-part MIME sniffing (Gap J) ──
+
+#[test]
+fn test_mime_for_filename_png() {
+    assert_eq!(mime_for_filename("image.png"), "image/png");
+}
+
+#[test]
+fn test_mime_for_filename_pdf() {
+    assert_eq!(mime_for_filename("doc.pdf"), "application/pdf");
+}
+
+#[test]
+fn test_mime_for_filename_no_extension_defaults_to_octet_stream() {
+    assert_eq!(mime_for_filename("blob"), "application/octet-stream");
+}
+
+// ── Multipart filename directive (Gap BI / Gap F) ──
+
+#[test]
+fn test_build_filename_directive_non_ascii_emits_rfc5987() {
+    let directive = build_filename_directive("日本.pdf");
+    assert!(
+        directive.contains("filename*=UTF-8''"),
+        "non-ASCII filename must emit RFC 5987 filename*= form, got: {}",
+        directive
+    );
+    assert!(
+        directive.contains("%E6%97%A5%E6%9C%AC"),
+        "RFC 5987 value must be percent-encoded UTF-8, got: {}",
+        directive
+    );
+    assert!(
+        directive.starts_with("filename=\""),
+        "must still include an ASCII fallback filename=\"...\", got: {}",
+        directive
+    );
+}
+
+#[test]
+fn test_build_filename_directive_ascii_only_omits_filename_star() {
+    let directive = build_filename_directive("pet.png");
+    assert_eq!(directive, "filename=\"pet.png\"");
+    assert!(
+        !directive.contains("filename*="),
+        "ASCII-only filename must not emit filename*=, got: {}",
+        directive
+    );
+}
+
+#[test]
+fn test_build_filename_directive_backslash_escapes_quotes() {
+    let directive = build_filename_directive("a\"b.txt");
+    assert!(
+        directive.contains("a\\\"b.txt"),
+        "embedded quote must be backslash-escaped, got: {}",
+        directive
+    );
+}
+
+#[test]
+fn test_validate_multipart_filename_rejects_crlf() {
+    assert!(validate_multipart_filename("a\rb.pdf").is_err());
+    assert!(validate_multipart_filename("a\nb.pdf").is_err());
+    assert!(validate_multipart_filename("a\r\nb.pdf").is_err());
+    // ASCII filename is accepted.
+    assert!(validate_multipart_filename("pet.png").is_ok());
+}
+
+#[test]
+fn test_validate_multipart_filename_rejects_nul() {
+    assert!(validate_multipart_filename("a\u{0}b.pdf").is_err());
+}
+
+// ── Response charset decoding (Gap H) ──
+
+#[test]
+fn test_decode_text_body_iso_8859_1() {
+    // 0xE9 is "é" in ISO-8859-1.
+    let decoded = decode_text_body(&[0xE9], "text/plain; charset=ISO-8859-1");
+    assert_eq!(decoded, "é");
+}
+
+#[test]
+fn test_decode_text_body_defaults_to_utf8_when_no_charset() {
+    let decoded = decode_text_body("héllo".as_bytes(), "text/plain");
+    assert_eq!(decoded, "héllo");
+}
+
+#[test]
+fn test_decode_text_body_unknown_charset_falls_back_to_utf8() {
+    // Unknown charset must not panic and must fall back to UTF-8.
+    let decoded = decode_text_body("héllo".as_bytes(), "text/plain; charset=not-a-real-charset");
+    assert_eq!(decoded, "héllo");
+    // parse_charset still surfaces the raw label.
+    assert_eq!(
+        parse_charset("text/plain; charset=not-a-real-charset").as_deref(),
+        Some("not-a-real-charset")
+    );
+}
+
+// ── Gap 3.1: spec-declared API-key header names are sensitive ──
+
+#[test]
+fn test_sensitive_header_allowlist_includes_spec_api_key_headers() {
+    let names: Vec<&str> = SENSITIVE_HEADER_NAMES.to_vec();
+    assert!(
+        names.iter().any(|n| *n == "x-api-key"),
+        "expected spec apiKey header 'x-api-key' in {:?}",
+        names
+    );
+    assert!(
+        names.iter().any(|n| *n == "x-internal-key"),
+        "expected spec apiKey header 'x-internal-key' in {:?}",
+        names
+    );
 }

@@ -72,6 +72,12 @@ class HeaderSelectorTest {
     }
 
     @Test
+    @DisplayName("should return false for application/octet-stream")
+    void shouldReturnFalseForApplicationOctetStream() {
+      assertFalse(headerSelector.isJsonMime("application/octet-stream"));
+    }
+
+    @Test
     @DisplayName("should return false for null")
     void shouldReturnFalseForNull() {
       assertFalse(headerSelector.isJsonMime(null));

@@ -6,8 +6,10 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"{{packageName}}/pkg/auth"
 	"{{packageName}}/pkg/auth/oauth"
@@ -267,6 +269,68 @@ func TestOAuth2TokenManager_InvalidateAccessTokenForcesRefetch(t *testing.T) {
 	}
 	if atomic.LoadInt32(&client.index) != 2 {
 		t.Errorf("expected 2 HTTP calls after invalidate, got %d", atomic.LoadInt32(&client.index))
+	}
+}
+
+// slowFakeTokenClient counts calls and stalls briefly so that concurrent
+// callers genuinely race against a single in-flight refresh.
+type slowFakeTokenClient struct {
+	callCount int32
+	body      string
+	delay     time.Duration
+}
+
+func (c *slowFakeTokenClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.HttpResponse, error) {
+	return c.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (c *slowFakeTokenClient) SendRequestWithOptions(_, _ string, _ map[string]string, _ any, _ *auth.RequestOptions) (*auth.HttpResponse, error) {
+	atomic.AddInt32(&c.callCount, 1)
+	if c.delay > 0 {
+		time.Sleep(c.delay)
+	}
+	return &auth.HttpResponse{StatusCode: 200, Body: c.body, Headers: map[string]string{}}, nil
+}
+
+func TestOAuth2TokenManager_SingleFlightCoalescesConcurrentCallers(t *testing.T) {
+	t.Parallel()
+	// 10 goroutines all see no cached token and race into GetAccessToken.
+	// The mutex + double-checked cache must coalesce them into exactly one
+	// network round-trip to the token endpoint.
+	client := &slowFakeTokenClient{
+		body:  `{"access_token":"shared-tok","expires_in":3600}`,
+		delay: 50 * time.Millisecond,
+	}
+
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	params := map[string]string{"grant_type": "client_credentials"}
+
+	const goroutines = 10
+	tokens := make([]string, goroutines)
+	var wg sync.WaitGroup
+	for i := 0; i < goroutines; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			token, err := manager.GetAccessToken("https://auth.example.com/token", params)
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+			tokens[idx] = token
+		}(i)
+	}
+	wg.Wait()
+
+	if got := atomic.LoadInt32(&client.callCount); got != 1 {
+		t.Errorf("single-flight refresh must coalesce concurrent callers into one token request; got %d calls", got)
+	}
+	for _, token := range tokens {
+		if token != "shared-tok" {
+			t.Errorf("all callers must observe the same token; got %q", token)
+		}
 	}
 }
 

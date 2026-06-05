@@ -167,6 +167,16 @@ import Testing
         }
     }
 
+    @Test func testBuilderMethodsReturnBuilderForChaining() throws {
+        let builder = ConfigurationBuilder()
+        let server = ServerConfiguration(urlTemplate: "https://example.com")
+
+        #expect(builder.baseURL("https://example.com") === builder)
+        #expect(builder.defaultHeader(name: "X-Key", value: "value") === builder)
+        #expect(builder.defaultHeaders(["X-Other": "val"]) === builder)
+        #expect(try builder.server(server) === builder)
+    }
+
     @Test func testBuilderProducesIndependentInstances() {
         let builder = ConfigurationBuilder().baseURL("https://example.com")
         let first = builder.build()

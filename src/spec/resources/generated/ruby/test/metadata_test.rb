@@ -46,3 +46,21 @@ describe PetstoreClient::Models::Metadata, 'round-trip and constants' do
     _(PetstoreClient::Models::Metadata::ADDITIONAL_PROPERTIES).must_equal(true)
   end
 end
+
+describe 'gem manifest' do
+  parallelize_me!
+
+  # manifest-description-missing: the published gemspec must carry a
+  # non-empty description (wired from the spec's appDescription, with a
+  # generated fallback) so the gem does not publish with an empty
+  # description on RubyGems.
+  it 'declares a non-empty description' do
+    gemspec_path = File.join(File.expand_path('..', __dir__), 'petstore_client.gemspec')
+    _(File.exist?(gemspec_path)).must_equal(true)
+
+    spec = Gem::Specification.load(gemspec_path)
+    _(spec).wont_be_nil
+    _(spec.description).must_be_kind_of(String)
+    _(spec.description.strip).wont_be_empty
+  end
+end

@@ -555,3 +555,27 @@ func TestDefaultApiClient_PostWithNullBodySendsContentLengthZero(t *testing.T) {
 		t.Errorf("expected contentLength 0, got %v", cl)
 	}
 }
+
+// Gap T6: Close releases idle connections held by the underlying
+// http.Transport and is idempotent. A request issued on a closed client
+// must surface the SDK's own error (closed-flag guard) rather than
+// silently rebuilding a connection, matching the uniform use-after-close
+// contract across SDKs.
+func TestDefaultApiClient_CloseReleasesUnderlyingClient(t *testing.T) {
+	t.Parallel()
+	client := {{packageName}}.NewDefaultApiClient({{packageName}}.NewTransportOptionsBuilder().Build())
+	if err := client.Close(); err != nil {
+		t.Fatalf("unexpected error from Close: %v", err)
+	}
+	// Close is idempotent.
+	if err := client.Close(); err != nil {
+		t.Fatalf("unexpected error from second Close: %v", err)
+	}
+	_, err := client.SendRequest("GET", "https://example.com", map[string]string{}, nil)
+	if err == nil {
+		t.Fatal("expected an error after Close, got nil")
+	}
+	if !strings.Contains(err.Error(), "closed") {
+		t.Errorf("expected a closed-client error, got %q", err.Error())
+	}
+}

@@ -507,4 +507,22 @@ public class DefaultApiClientTest
             "session-id cookie must not be replayed on a subsequent request"
         );
     }
+
+    [Fact]
+    public async Task CloseReleasesUnderlyingClient()
+    {
+        var client = new DefaultApiClient();
+        client.Dispose();
+        client.Dispose();
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("https://example.com"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+        Assert.Contains("closed", ex.Message);
+    }
 }

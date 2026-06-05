@@ -202,3 +202,23 @@ fn test_get_host_returns_configured_host() {
     let auth = create_authenticator();
     assert_eq!("https://api.example.com", auth.host());
 }
+
+#[tokio::test]
+async fn test_authorize_url_with_existing_query_string_uses_amp_separator() {
+    let auth = OAuth2AuthorizationCodeAuthenticator::new(
+        "https://api.example.com",
+        "my-client-id",
+        "my-client-secret",
+        "https://x.auth0.com/authorize?audience=api",
+        "https://x.auth0.com/oauth/token",
+        "https://app.example.com/callback",
+        vec!["read".to_string()],
+        "",
+    );
+
+    let url = auth.build_authorization_url("");
+
+    assert!(url.contains("audience=api"), "existing query param must be preserved: {}", url);
+    assert!(url.contains("response_type=code"), "response_type param must be appended: {}", url);
+    assert_eq!(1, url.matches('?').count(), "result must contain exactly one '?': {}", url);
+}

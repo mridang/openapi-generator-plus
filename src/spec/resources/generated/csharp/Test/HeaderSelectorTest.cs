@@ -53,6 +53,12 @@ public class HeaderSelectorTest
         }
 
         [Fact]
+        public void ShouldReturnFalseForApplicationOctetStream()
+        {
+            Assert.False(HeaderSelector.IsJsonMime("application/octet-stream"));
+        }
+
+        [Fact]
         public void ShouldReturnFalseForNull()
         {
             Assert.False(HeaderSelector.IsJsonMime(null));

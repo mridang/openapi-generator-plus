@@ -153,6 +153,30 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
+    public async Task ThrowsWhenDiscoveryMissingAuthorizationEndpoint()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"token_endpoint\":\"https://auth.example.com/token\"}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await Assert.ThrowsAnyAsync<Exception>(() => auth.BuildAuthorizationUrlAsync());
+    }
+
+    [Fact]
+    public async Task ThrowsWhenDiscoveryMissingTokenEndpoint()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"authorization_endpoint\":\"https://auth.example.com/authorize\"}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await Assert.ThrowsAnyAsync<Exception>(() => auth.BuildAuthorizationUrlAsync());
+    }
+
+    [Fact]
     public void GetHostReturnsConfiguredHost()
     {
         var auth = CreateAuthenticator();

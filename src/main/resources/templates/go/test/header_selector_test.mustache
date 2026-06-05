@@ -143,6 +143,104 @@ func TestHeaderSelector_SelectHeadersWithVendorJSON(t *testing.T) {
 	}
 }
 
+func TestHeaderSelector_SelectHeadersSingleNonJSONAcceptAsIs(t *testing.T) {
+	t.Parallel()
+	hs := {{packageName}}.NewHeaderSelector()
+
+	headers := hs.SelectHeaders([]string{"text/html"}, "application/json", false)
+
+	if headers["Accept"] != "text/html" {
+		t.Errorf("expected Accept 'text/html', got %q", headers["Accept"])
+	}
+}
+
+func TestHeaderSelector_SelectHeadersCommaSeparatedWhenNoJSON(t *testing.T) {
+	t.Parallel()
+	hs := {{packageName}}.NewHeaderSelector()
+
+	headers := hs.SelectHeaders([]string{"text/html", "text/plain"}, "application/json", false)
+
+	if headers["Accept"] != "text/html,text/plain" {
+		t.Errorf("expected Accept 'text/html,text/plain', got %q", headers["Accept"])
+	}
+}
+
+func TestHeaderSelector_SelectHeadersMultipleJSONTypesWithPriority(t *testing.T) {
+	t.Parallel()
+	hs := {{packageName}}.NewHeaderSelector()
+
+	headers := hs.SelectHeaders(
+		[]string{"text/html", "application/vnd.api+json", "application/json"},
+		"application/json",
+		false,
+	)
+
+	accept := headers["Accept"]
+	if !strings.HasPrefix(accept, "application/json") {
+		t.Errorf("expected Accept to start with application/json, got %q", accept)
+	}
+	jsonIdx := strings.Index(accept, "application/json")
+	vendorIdx := strings.Index(accept, "application/vnd.api+json")
+	htmlIdx := strings.Index(accept, "text/html")
+	if !(jsonIdx < vendorIdx) {
+		t.Error("expected application/json to appear before application/vnd.api+json")
+	}
+	if !(vendorIdx < htmlIdx) {
+		t.Error("expected application/vnd.api+json to appear before text/html")
+	}
+}
+
+func TestHeaderSelector_SelectHeadersFiltersOutEmptyEntries(t *testing.T) {
+	t.Parallel()
+	hs := {{packageName}}.NewHeaderSelector()
+
+	headers := hs.SelectHeaders([]string{"", "application/json"}, "application/json", false)
+
+	if headers["Accept"] != "application/json" {
+		t.Errorf("expected Accept 'application/json', got %q", headers["Accept"])
+	}
+}
+
+func TestHeaderSelector_SelectHeadersPreservesExistingQualityWeightsInOrder(t *testing.T) {
+	t.Parallel()
+	hs := {{packageName}}.NewHeaderSelector()
+
+	headers := hs.SelectHeaders(
+		[]string{"text/html;q=0.9", "application/json", "text/plain;q=0.8"},
+		"application/json",
+		false,
+	)
+
+	accept := headers["Accept"]
+	if !strings.HasPrefix(accept, "application/json") {
+		t.Errorf("expected Accept to start with application/json, got %q", accept)
+	}
+}
+
+func TestHeaderSelector_SelectHeadersFormatsQualityWeightCorrectly(t *testing.T) {
+	t.Parallel()
+	hs := {{packageName}}.NewHeaderSelector()
+
+	headers := hs.SelectHeaders([]string{"application/json", "text/html"}, "application/json", false)
+
+	accept := headers["Accept"]
+	if !strings.Contains(accept, "text/html;q=0.9") && !strings.Contains(accept, "text/html;q=0.") {
+		t.Errorf("expected Accept to contain text/html with quality weight, got %q", accept)
+	}
+}
+
+func TestHeaderSelector_SelectHeadersRemovesTrailingZeros(t *testing.T) {
+	t.Parallel()
+	hs := {{packageName}}.NewHeaderSelector()
+
+	headers := hs.SelectHeaders([]string{"application/json", "text/html"}, "application/json", false)
+
+	accept := headers["Accept"]
+	if strings.Contains(accept, ";q=0.900") {
+		t.Errorf("expected no trailing-zero quality weight, got %q", accept)
+	}
+}
+
 func TestHeaderSelector_GetNextWeight_StandardSequence(t *testing.T) {
 	t.Parallel()
 	hs := {{packageName}}.NewHeaderSelector()

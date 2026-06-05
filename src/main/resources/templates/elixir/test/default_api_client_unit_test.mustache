@@ -449,6 +449,127 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     refute_receive {:captured_headers, _}, 200
   end
 
+  test "3.2: send_request/6 with no_redirect: true returns the raw 308 response" do
+    {target_url, _} = start_header_capture_server()
+    {source_url, _} = start_redirect_server(308, "#{target_url}/echo")
+
+    client = {{moduleName}}.DefaultApiClient.new()
+
+    response =
+      {{moduleName}}.DefaultApiClient.send_request(
+        client, :post, source_url, %{}, "grant_type=client_credentials", no_redirect: true
+      )
+
+    assert response.status_code == 308
+    refute_receive {:captured_headers, _}, 200
+  end
+
+  test "3.2: no_redirect: false follows the redirect to completion" do
+    {target_url, _} = start_header_capture_server()
+    {source_url, _} = start_redirect_server(307, "#{target_url}/echo")
+
+    client = {{moduleName}}.DefaultApiClient.new()
+
+    response =
+      {{moduleName}}.DefaultApiClient.send_request(
+        client, :get, source_url, %{}, nil, no_redirect: false
+      )
+
+    assert response.status_code == 200
+    assert_receive {:captured_headers, _}, 5000
+  end
+
+  # ── Redirect exhaustion raises loudly ──────────────────────────────────────
+
+  # Always answers with a 302 pointing back at itself so the redirect budget is
+  # exhausted while the response is still a 3xx. Handles up to `max_conns`
+  # connections then stops.
+  defp start_infinite_redirect_server(max_conns) do
+    {:ok, listen_socket} =
+      :gen_tcp.listen(0, [:binary, packet: :raw, active: false, reuseaddr: true])
+
+    {:ok, port} = :inet.port(listen_socket)
+    loc = "http://127.0.0.1:#{port}/loop"
+
+    spawn(fn ->
+      Enum.reduce_while(1..max_conns, :ok, fn _, _ ->
+        case :gen_tcp.accept(listen_socket, 5000) do
+          {:ok, socket} ->
+            :gen_tcp.recv(socket, 0, 2000)
+
+            response =
+              "HTTP/1.1 302 Found\r\n" <>
+                "Location: #{loc}\r\n" <>
+                "Content-Length: 0\r\n" <>
+                "Connection: close\r\n" <>
+                "\r\n"
+
+            :gen_tcp.send(socket, response)
+            :gen_tcp.close(socket)
+            {:cont, :ok}
+
+          _ ->
+            {:halt, :ok}
+        end
+      end)
+
+      :gen_tcp.close(listen_socket)
+    end)
+
+    Process.sleep(20)
+    "http://127.0.0.1:#{port}"
+  end
+
+  test "raises ApiError when the redirect budget is exhausted" do
+    base_url = start_infinite_redirect_server(10)
+
+    transport =
+      {{moduleName}}.TransportOptions.new(follow_redirects: true, max_redirects: 2)
+
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+
+    assert_raise {{moduleName}}.ApiError, fn ->
+      {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url}/loop", %{}, nil)
+    end
+  end
+
+  # ── Multipart filename directive (Gap BI / Gap F) ──────────────────────────
+
+  test "build_content_disposition emits RFC 5987 filename* for non-ASCII names" do
+    cd = {{moduleName}}.DefaultApiClient.build_content_disposition("file", "日本.pdf")
+    assert String.contains?(cd, "filename*=UTF-8''")
+    assert String.contains?(cd, "%E6%97%A5%E6%9C%AC")
+    assert String.contains?(cd, "filename=\"")
+  end
+
+  test "build_content_disposition omits filename* for ASCII-only names" do
+    cd = {{moduleName}}.DefaultApiClient.build_content_disposition("file", "pet.png")
+    assert String.contains?(cd, "filename=\"pet.png\"")
+    refute String.contains?(cd, "filename*=")
+  end
+
+  test "build_content_disposition backslash-escapes quotes in the filename" do
+    cd = {{moduleName}}.DefaultApiClient.build_content_disposition("file", "a\"b.txt")
+    assert String.contains?(cd, "a\\\"b.txt")
+  end
+
+  test "build_content_disposition rejects filenames containing CRLF" do
+    for bad <- ["a\rb.pdf", "a\nb.pdf", "a\r\nb.pdf"] do
+      assert_raise ArgumentError, fn ->
+        {{moduleName}}.DefaultApiClient.build_content_disposition("file", bad)
+      end
+    end
+
+    # ASCII filename does not raise.
+    {{moduleName}}.DefaultApiClient.build_content_disposition("file", "pet.png")
+  end
+
+  test "build_content_disposition rejects filenames containing NUL" do
+    assert_raise ArgumentError, fn ->
+      {{moduleName}}.DefaultApiClient.build_content_disposition("file", "a" <> <<0>> <> "b.pdf")
+    end
+  end
+
   # ── 4.8: format:time / format:duration round-trip ──────────────────────────
 
   describe "4.8 format: time" do

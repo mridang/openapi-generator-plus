@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace {{invokerPackage}}\Test\Api;
 
 use {{invokerPackage}}\Api\StoreApi;
+use {{invokerPackage}}\ApiResult;
 use {{invokerPackage}}\Configuration;
 use {{invokerPackage}}\Errors\NotFoundException;
 use {{invokerPackage}}\Errors\ServerException;
@@ -43,11 +44,46 @@ test('get inventory', function (): void {
     expect($result)->toBeInstanceOf(\Ds\Map::class);
 });
 
+test('get inventory with http info', function (): void {
+    $result = $this->api->getInventoryWithHttpInfo();
+
+    expect($result)->toBeInstanceOf(ApiResult::class);
+    expect($result->statusCode)->toBeGreaterThanOrEqual(200);
+    expect($result->statusCode)->toBeLessThan(300);
+    expect($result->data)->not->toBeNull();
+});
+
 test('get order by id', function (): void {
     $result = $this->api->getOrderById(1);
 
     expect($result)->toBeInstanceOf(Order::class);
     expect($result->id)->not->toBeNull();
+});
+
+test('get order by id with http info', function (): void {
+    $result = $this->api->getOrderByIdWithHttpInfo(1);
+
+    expect($result)->toBeInstanceOf(ApiResult::class);
+    expect($result->statusCode)->toBeGreaterThanOrEqual(200);
+    expect($result->statusCode)->toBeLessThan(300);
+    expect($result->data)->toBeInstanceOf(Order::class);
+});
+
+test('place order with http info', function (): void {
+    $order = new Order();
+    $order->id = 1;
+    $order->petId = 12345;
+    $order->quantity = 1;
+    $order->shipDate = new \DateTime();
+    $order->status = OrderStatusEnum::PLACED;
+    $order->complete = false;
+
+    $result = $this->api->placeOrderWithHttpInfo($order);
+
+    expect($result)->toBeInstanceOf(ApiResult::class);
+    expect($result->statusCode)->toBeGreaterThanOrEqual(200);
+    expect($result->statusCode)->toBeLessThan(300);
+    expect($result->data)->toBeInstanceOf(Order::class);
 });
 
 test('place order', function (): void {

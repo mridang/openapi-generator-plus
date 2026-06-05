@@ -37,6 +37,19 @@ defmodule {{moduleName}}.ClientTest do
     end
   end
 
+  test "BearerAuthenticator rejects an empty or whitespace token" do
+    # bearer-no-empty-token-guard: an empty/whitespace token would emit a
+    # bare "Authorization: Bearer " header, sending the request
+    # unauthenticated, so new/2 must reject it.
+    assert_raise ArgumentError, fn ->
+      {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "")
+    end
+
+    assert_raise ArgumentError, fn ->
+      {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "   ")
+    end
+  end
+
   test "ApiKeyAuthenticator :header rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)" do
     # HEADER location must reject anything outside printable ASCII + TAB
     # to prevent header injection (\r\n) and silent UTF-8 mangling that

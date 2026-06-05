@@ -40,12 +40,54 @@ describe {{moduleName}}::Api::StoreApi do
     end
   end
 
+  describe '#get_inventory_with_http_info' do
+    it 'returns inventory with status and data' do
+      result = @api.get_inventory_with_http_info
+
+      _(result).wont_be_nil
+      _(result.status_code).must_be :>=, 200
+      _(result.status_code).must_be :<, 300
+      _(result.data).wont_be_nil
+    end
+  end
+
+  describe '#place_order_with_http_info' do
+    it 'places an order with status and data' do
+      order = {{moduleName}}::Models::Order.new(
+        id: 1,
+        pet_id: 12_345,
+        quantity: 1,
+        ship_date: Time.now.utc.iso8601,
+        status: 'placed',
+        complete: false
+      )
+
+      result = @api.place_order_with_http_info(order)
+
+      _(result).wont_be_nil
+      _(result.status_code).must_be :>=, 200
+      _(result.status_code).must_be :<, 300
+      _(result.data).wont_be_nil
+    end
+  end
+
   describe '#get_order_by_id' do
     it 'returns an order by id' do
       result = @api.get_order_by_id(1)
 
       _(result).wont_be_nil
       _(result.id).wont_be_nil
+    end
+  end
+
+  describe '#get_order_by_id_with_http_info' do
+    it 'returns an order by id with status and data' do
+      result = @api.get_order_by_id_with_http_info(1)
+
+      _(result).wont_be_nil
+      _(result.status_code).must_be :>=, 200
+      _(result.status_code).must_be :<, 300
+      _(result.data).wont_be_nil
     end
   end
 

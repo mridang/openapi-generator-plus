@@ -429,4 +429,61 @@ import Testing
             #expect(error != nil)
         }
     }
+
+    /// A 2xx response whose body omits access_token must surface as the typed
+    /// OAuth2TokenError.missingAccessToken, not silently cache an empty token.
+    @Test func testTokenResponseMissingAccessTokenThrowsTypedError() async {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"refresh_token\":\"x\"}"))
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        do {
+            _ = try await manager.getAccessToken(
+                tokenURL: "https://auth.example.com/token",
+                params: ["grant_type": "client_credentials"]
+            )
+            Issue.record("Expected OAuth2TokenError when access_token is missing")
+        } catch let error as OAuth2TokenError {
+            switch error {
+            case .missingAccessToken:
+                break
+            default:
+                Issue.record("expected .missingAccessToken, got \(error)")
+            }
+        } catch {
+            Issue.record("expected OAuth2TokenError, got \(error)")
+        }
+    }
+
+    /// RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a
+    /// typed OAuth2ServerError carrying code/description/uri.
+    @Test func testTokenEndpointErrorResponseParsedToTypedError() async {
+        let client = MockApiClient()
+        client.responses.append(
+            makeResponse(
+                body: "{\"error\":\"invalid_grant\",\"error_description\":\"refresh token expired\","
+                    + "\"error_uri\":\"https://docs.example.com/errors/invalid_grant\"}",
+                statusCode: 400
+            ))
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        do {
+            _ = try await manager.getAccessToken(
+                tokenURL: "https://auth.example.com/token",
+                params: ["grant_type": "client_credentials"]
+            )
+            Issue.record("Expected OAuth2ServerError when token request fails")
+        } catch let error as OAuth2ServerError {
+            #expect(error.statusCode == 400)
+            #expect(error.code == "invalid_grant")
+            #expect(error.description == "refresh token expired")
+            #expect(error.uri == "https://docs.example.com/errors/invalid_grant")
+        } catch {
+            Issue.record("expected OAuth2ServerError, got \(error)")
+        }
+    }
 }

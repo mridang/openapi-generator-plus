@@ -421,6 +421,27 @@ class TestDurationFormat:
             ObjectSerializer()._deserialize('P1M', 'datetime.timedelta')
 
 
+class TestDiscriminatorAutoInjection:
+    """Gap K — a subtype constructed without the discriminator must still
+    emit it on serialize. The generated DryFood/WetFood models default
+    ``food_type`` to their oneOf mapping value ("dry"/"wet")."""
+
+    def test_dry_subtype_auto_emits_discriminator(self) -> None:
+        import json
+        from {{packageName}}.models.dry_food import DryFood
+        dry = DryFood(weightKg=2.5)
+        data = json.loads(ObjectSerializer().serialize(dry))
+        assert data['foodType'] == 'dry'
+        assert data['weightKg'] == 2.5
+
+    def test_wet_subtype_auto_emits_discriminator(self) -> None:
+        import json
+        from {{packageName}}.models.wet_food import WetFood
+        wet = WetFood(volumeMl=350)
+        data = json.loads(ObjectSerializer().serialize(wet))
+        assert data['foodType'] == 'wet'
+
+
 class TestResolveOneOf:
     def test_resolve_one_of_returns_first_matching_variant(self) -> None:
         def miss(_: str) -> object:

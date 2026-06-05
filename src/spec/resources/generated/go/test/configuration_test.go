@@ -237,6 +237,31 @@ func TestConfiguration_InvalidServerVariableEnumValueReturnsError(t *testing.T) 
 	}
 }
 
+func TestConfiguration_BuilderMethodsReturnBuilderForChaining(t *testing.T) {
+	t.Parallel()
+	builder := petstore.NewConfigurationBuilder()
+	server := &petstore.ServerConfiguration{
+		URLTemplate: "https://example.com",
+	}
+
+	if builder.BaseURL("https://example.com") != builder {
+		t.Error("BaseURL should return the same builder")
+	}
+	if builder.DefaultHeader("X-Key", "value") != builder {
+		t.Error("DefaultHeader should return the same builder")
+	}
+	if builder.DefaultHeaders(map[string]string{"X-Other": "val"}) != builder {
+		t.Error("DefaultHeaders should return the same builder")
+	}
+	returned, err := builder.Server(server, nil)
+	if err != nil {
+		t.Fatalf("Server() returned error: %v", err)
+	}
+	if returned != builder {
+		t.Error("Server should return the same builder")
+	}
+}
+
 func TestConfiguration_BuilderProducesIndependentInstances(t *testing.T) {
 	t.Parallel()
 	builder := petstore.NewConfigurationBuilder().BaseURL("https://example.com")

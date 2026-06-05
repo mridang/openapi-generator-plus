@@ -22,6 +22,7 @@ import { UnprocessableEntityError } from '../src/errors/unprocessable-entity-err
 import { InternalServerError } from '../src/errors/internal-server-error.js';
 import type { ApiClient } from '../src/api-client.js';
 import type { ApiResponse } from '../src/api-response.js';
+import type { ApiResult } from '../src/api-result.js';
 import { PetApi } from '../src/api/pet-api.js';
 
 class CapturingApiClient implements ApiClient {
@@ -56,6 +57,30 @@ class TestableApi extends BaseApi {
     auth?: Authenticator | null
   ): Promise<T | void> {
     return this.invokeApi(method, path, queryParams, headerParams, body, accepts, contentType, returnType, auth);
+  }
+
+  async callForResult<T>(
+    method: string,
+    path: string,
+    queryParams: Record<string, unknown>,
+    headerParams: Record<string, string>,
+    body: unknown,
+    accepts: string[],
+    contentType: string,
+    returnType: ((json: unknown) => T) | null,
+    auth?: Authenticator | null
+  ): Promise<ApiResult<T>> {
+    return this.invokeApiForResult(
+      method,
+      path,
+      queryParams,
+      headerParams,
+      body,
+      accepts,
+      contentType,
+      returnType,
+      auth
+    );
   }
 }
 
@@ -655,5 +680,51 @@ describe('NullBodyContentTypeTests', () => {
     const testApi = new TestableApi(client, config);
     await testApi.call('POST', '/test/echo', {}, {}, {}, ['application/json'], 'application/json', null);
     expect(client.capturedHeaders['Content-Type']).toBe('application/json');
+  });
+});
+
+describe('BaseApi WithHTTPInfo variant', () => {
+  test('returns ApiResult with status, data, headers, and rawBody', async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = '{"id":7,"name":"WithInfoPet"}';
+    client.responseHeaders = { 'content-type': 'application/json' };
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    const result: ApiResult<{ id: number; name: string }> = await testApi.callForResult(
+      'GET',
+      '/test/echo',
+      {},
+      {},
+      null,
+      ['application/json'],
+      'application/json',
+      (json) => json as { id: number; name: string }
+    );
+    expect(result.statusCode).toBe(200);
+    expect(result.data).toBeDefined();
+    expect((result.data as { name: string }).name).toBe('WithInfoPet');
+    expect(result.headers).toBeDefined();
+    expect(result.rawBody).toBe('{"id":7,"name":"WithInfoPet"}');
+  });
+});
+
+describe('BaseApi per-call auth optional', () => {
+  test('falls back to client-level authenticator when no per-call auth supplied', async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const clientAuth = new TestAuthenticator({ 'X-Client-Auth': 'client-level-token' });
+    const testApi = new TestableApi(client, config, clientAuth);
+    await testApi.call('GET', '/test/echo', {}, {}, null, ['application/json'], 'application/json', null, null);
+    expect(client.capturedHeaders['X-Client-Auth']).toBe('client-level-token');
+  });
+
+  test('per-call auth overrides client-level authenticator', async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const clientAuth = new TestAuthenticator({ 'X-Client-Auth': 'client-level-token' });
+    const perCallAuth = new TestAuthenticator({ 'X-Client-Auth': 'per-call-token' });
+    const testApi = new TestableApi(client, config, clientAuth);
+    await testApi.call('GET', '/test/echo', {}, {}, null, ['application/json'], 'application/json', null, perCallAuth);
+    expect(client.capturedHeaders['X-Client-Auth']).toBe('per-call-token');
   });
 });

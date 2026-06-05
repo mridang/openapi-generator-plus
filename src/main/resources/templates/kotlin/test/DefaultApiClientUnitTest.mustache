@@ -207,6 +207,29 @@ class DefaultApiClientUnitTest {
     }
 
     @Nested
+    @DisplayName("per-part MIME sniffing")
+    inner class MultipartMimeSniffing {
+
+        @Test
+        @DisplayName(".png filename sets image/png")
+        fun pngFilenameSetsImagePng() {
+            assertEquals("image/png", contentTypeForFilename("image.png").toString())
+        }
+
+        @Test
+        @DisplayName(".pdf filename sets application/pdf")
+        fun pdfFilenameSetsApplicationPdf() {
+            assertEquals("application/pdf", contentTypeForFilename("doc.pdf").toString())
+        }
+
+        @Test
+        @DisplayName("filename without extension defaults to octet-stream")
+        fun noExtensionDefaultsToOctetStream() {
+            assertEquals("application/octet-stream", contentTypeForFilename("blob").toString())
+        }
+    }
+
+    @Nested
     @DisplayName("default headers")
     inner class DefaultHeaders {
 
@@ -585,6 +608,90 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
+        @DisplayName("Gap 3.1: cross-origin redirect strips sensitive headers")
+        fun crossOriginRedirectStripsSensitiveHeaders() {
+            var hopHeaders: io.ktor.http.Headers? = null
+            var hopCount = 0
+            val engine = MockEngine { req ->
+                hopCount++
+                if (hopCount == 1) {
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.TemporaryRedirect,
+                        headers = headersOf("Location", "http://other.example.com/dest"),
+                    )
+                } else {
+                    hopHeaders = req.headers
+                    respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                }
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            runBlocking {
+                apiClient.sendRequest(
+                    "GET",
+                    "http://first.example.com/start",
+                    mapOf("Authorization" to "Bearer secret", "X-Trace" to "keep"),
+                    null,
+                )
+            }
+            assertNull(hopHeaders?.get("Authorization"),
+                "Authorization must be stripped on cross-origin redirect")
+            assertEquals("keep", hopHeaders?.get("X-Trace"),
+                "non-sensitive headers must be preserved across the redirect")
+        }
+
+        @Test
+        @DisplayName("Gap 3.2: noRedirect=false follows redirects normally")
+        fun noRedirectFalseFollowsRedirects() {
+            var hopCount = 0
+            val engine = MockEngine { _ ->
+                hopCount++
+                if (hopCount == 1) {
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.TemporaryRedirect,
+                        headers = headersOf("Location", "http://first.example.com/dest"),
+                    )
+                } else {
+                    respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                }
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val response = runBlocking {
+                apiClient.sendRequest(
+                    "GET", "http://first.example.com/start", emptyMap(), null, noRedirect = false,
+                )
+            }
+            assertEquals(200, response.statusCode)
+            assertEquals(2, hopCount, "the redirect must be followed to completion")
+        }
+
+        @Test
+        @DisplayName("redirect to non-http(s) scheme throws ApiException")
+        fun redirectToNonHttpSchemeThrows() {
+            val engine = MockEngine { _ ->
+                respond(
+                    content = "",
+                    status = HttpStatusCode.Found,
+                    headers = headersOf("Location", "file:///etc/passwd"),
+                )
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val ex = assertThrows(ApiException::class.java) {
+                runBlocking {
+                    apiClient.sendRequest("GET", "http://first.example.com/start", emptyMap(), null)
+                }
+            }
+            assertTrue(
+                ex.message!!.contains("non-HTTP", ignoreCase = true),
+                "exception should mention the refused non-HTTP(S) target, got: ${ex.message}",
+            )
+        }
+
+        @Test
         @DisplayName("Gap 3.3: refuses to replay body on HTTPS->HTTP downgrade")
         fun refusesBodyReplayOnHttpsToHttpDowngrade() {
             val engine = MockEngine { _ ->
@@ -610,6 +717,35 @@ class DefaultApiClientUnitTest {
                 ex.message!!.contains("HTTPS->HTTP"),
                 "exception message should mention HTTPS->HTTP downgrade",
             )
+        }
+
+        @Test
+        @DisplayName("Gap 3.3: HTTPS->HTTPS body replay allowed (no downgrade)")
+        fun httpsToHttpsBodyReplayAllowed() {
+            // Both legs are HTTPS, so a 307 with a body replays the body and
+            // completes — the downgrade guard fires only on HTTPS->HTTP.
+            var hopCount = 0
+            val engine = MockEngine { _ ->
+                hopCount++
+                if (hopCount == 1) {
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.TemporaryRedirect,
+                        headers = headersOf("Location", "https://secure.example.com/dest"),
+                    )
+                } else {
+                    respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                }
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val response = runBlocking {
+                apiClient.sendRequest(
+                    "POST", "https://secure.example.com/start", emptyMap(), "payload",
+                )
+            }
+            assertEquals(200, response.statusCode)
+            assertEquals(2, hopCount, "HTTPS->HTTPS body replay must be followed")
         }
 
         @Test

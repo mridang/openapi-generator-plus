@@ -387,3 +387,21 @@ class TestNullBodyContentLength:
         payload = json.loads(response.body)
         # chasm envelope uses camelCase `contentLength` as an integer (not string)
         assert payload.get('contentLength') == 0
+
+
+class TestClientLifecycle:
+    # Gap T6: close() releases the underlying urllib3 PoolManager and is
+    # idempotent. A request issued on a closed client must surface the SDK's
+    # own ApiException (closed-flag guard), not a leaked transport error,
+    # matching the uniform use-after-close contract across SDKs.
+    def test_close_releases_underlying_client(self) -> None:
+        from petstore_client.errors import ApiException
+
+        client = DefaultApiClient()
+        client.close()
+        # close() is idempotent.
+        client.close()
+
+        with pytest.raises(ApiException) as excinfo:
+            client.send_request('GET', 'https://example.com', {}, None)
+        assert 'closed' in str(excinfo.value)

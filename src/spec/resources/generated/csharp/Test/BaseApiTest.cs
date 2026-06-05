@@ -33,6 +33,9 @@ public class BaseApiTest
         public TestableApi(IApiClient apiClient, string baseUrl)
             : base(apiClient, new Configuration(baseUrl)) { }
 
+        public TestableApi(IApiClient apiClient, string baseUrl, IAuthenticator? authenticator)
+            : base(apiClient, new Configuration(baseUrl), authenticator) { }
+
         public async Task<T?> CallAsync<T>(
             string method,
             string path,
@@ -1020,5 +1023,72 @@ public class BaseApiTest
 
         Assert.Equal(200, response.StatusCode);
         Assert.Contains("\"method\"", response.Body);
+    }
+
+    [Fact]
+    public void GetTypedErrorBodyReturnsCastErrorBody()
+    {
+        var category = new PetstoreClient.Models.Category { Id = 42L, Name = "Dogs" };
+        var ex = new BadRequestException(
+            "boom",
+            new Dictionary<string, string>(),
+            "{\"id\":42,\"name\":\"Dogs\"}",
+            category
+        );
+        var typed = ex.GetTypedErrorBody<PetstoreClient.Models.Category>();
+        Assert.NotNull(typed);
+        Assert.Equal(42L, typed!.Id);
+        Assert.Equal("Dogs", typed.Name);
+    }
+
+    [Fact]
+    public void GetTypedErrorBodyReturnsNullWhenAbsent()
+    {
+        var ex = new BadRequestException("boom", new Dictionary<string, string>(), "", null);
+        Assert.Null(ex.GetTypedErrorBody<PetstoreClient.Models.Category>());
+    }
+
+    [Fact]
+    public async Task FallsBackToClientLevelAuthenticator()
+    {
+        var client = new CapturingApiClient();
+        var clientAuth = new TestAuthenticator(
+            headers: new Dictionary<string, string> { { "X-Client-Auth", "client-level-token" } }
+        );
+        var api = new TestableApi(client, "http://localhost", clientAuth);
+        await api.CallAsync<object>(
+            "GET",
+            "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null,
+            ["application/json"],
+            "application/json"
+        );
+        Assert.Equal("client-level-token", client.CapturedHeaders["X-Client-Auth"]);
+    }
+
+    [Fact]
+    public async Task PerCallAuthOverridesClientLevelAuthenticator()
+    {
+        var client = new CapturingApiClient();
+        var clientAuth = new TestAuthenticator(
+            headers: new Dictionary<string, string> { { "X-Client-Auth", "client-level-token" } }
+        );
+        var perCallAuth = new TestAuthenticator(
+            headers: new Dictionary<string, string> { { "X-Client-Auth", "per-call-token" } }
+        );
+        var api = new TestableApi(client, "http://localhost", clientAuth);
+        await api.CallAsync<object>(
+            "GET",
+            "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null,
+            ["application/json"],
+            "application/json",
+            perCallAuth
+        );
+        Assert.Equal("per-call-token", client.CapturedHeaders["X-Client-Auth"]);
     }
 }

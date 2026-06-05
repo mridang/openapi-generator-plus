@@ -906,5 +906,213 @@ void main() {
         throwsA(isA<Exception>()),
       );
     });
+
+    // -- Gap BI / Gap F: multipart filename directive + validation --
+
+    test('non-ASCII multipart filename emits RFC 5987 filename*', () {
+      final directive = buildFilenameDirective('日本.pdf');
+      expect(directive, contains("filename*=UTF-8''"));
+      expect(directive, contains('%E6%97%A5%E6%9C%AC'));
+      expect(directive, startsWith('filename="'));
+    });
+
+    test('ASCII-only multipart filename omits filename*', () {
+      final directive = buildFilenameDirective('pet.png');
+      expect(directive, equals('filename="pet.png"'));
+      expect(directive, isNot(contains('filename*=')));
+    });
+
+    test('backslash-escapes quotes in multipart filename', () {
+      final directive = buildFilenameDirective('a"b.txt');
+      expect(directive, contains('a\\"b.txt'));
+    });
+
+    test('rejects multipart filename containing CRLF', () {
+      expect(
+        () => validateMultipartFilename('a\rb.pdf'),
+        throwsA(isA<ArgumentError>()),
+      );
+      expect(
+        () => validateMultipartFilename('a\nb.pdf'),
+        throwsA(isA<ArgumentError>()),
+      );
+      expect(
+        () => validateMultipartFilename('a\r\nb.pdf'),
+        throwsA(isA<ArgumentError>()),
+      );
+      // ASCII filename does not throw.
+      validateMultipartFilename('pet.png');
+    });
+
+    test('rejects multipart filename containing NUL', () {
+      expect(
+        () => validateMultipartFilename('a\x00b.pdf'),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    // -- Gap J: per-part MIME sniffing from the filename extension --
+
+    test('multipart .png field sets image/png Content-Type', () async {
+      String body = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        body = (await utf8.decoder.bind(request).join()).toLowerCase();
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        await client.sendRequest(
+          'POST',
+          'http://127.0.0.1:${server.port}/upload',
+          {},
+          {
+            'image.png': Uint8List.fromList([0x89, 0x50, 0x4E, 0x47]),
+          },
+        );
+        expect(body, contains('content-type: image/png'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('multipart .pdf field sets application/pdf Content-Type', () async {
+      String body = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        body = (await utf8.decoder.bind(request).join()).toLowerCase();
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        await client.sendRequest(
+          'POST',
+          'http://127.0.0.1:${server.port}/upload',
+          {},
+          {
+            'doc.pdf': Uint8List.fromList([0x25, 0x50, 0x44, 0x46]),
+          },
+        );
+        expect(body, contains('content-type: application/pdf'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test(
+      'multipart field without extension defaults to octet-stream',
+      () async {
+        String body = '';
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          body = (await utf8.decoder.bind(request).join()).toLowerCase();
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          await client.sendRequest(
+            'POST',
+            'http://127.0.0.1:${server.port}/upload',
+            {},
+            {
+              'blob': Uint8List.fromList([0x00, 0x01, 0x02]),
+            },
+          );
+          expect(body, contains('content-type: application/octet-stream'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    // -- Gap 3.2: noRedirect controls redirect following --
+
+    test('noRedirect: true returns raw 308 without following', () async {
+      var targetHits = 0;
+      final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      target.listen((request) {
+        targetHits++;
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      final source = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      source.listen((request) {
+        request.response
+          ..statusCode = 308
+          ..headers.set('Location', 'http://127.0.0.1:${target.port}/landed')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'POST',
+          'http://localhost:${source.port}/token',
+          {},
+          null,
+          noRedirect: true,
+        );
+        expect(resp.statusCode, equals(308));
+        expect(
+          targetHits,
+          equals(0),
+          reason: 'noRedirect must suppress the redirect follow',
+        );
+      } finally {
+        await source.close();
+        await target.close();
+      }
+    });
+
+    test('noRedirect: false follows redirects normally', () async {
+      var targetHits = 0;
+      final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      target.listen((request) {
+        targetHits++;
+        request.response
+          ..statusCode = 200
+          ..write('ok')
+          ..close();
+      });
+
+      final source = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      source.listen((request) {
+        request.response
+          ..statusCode = 307
+          ..headers.set('Location', 'http://127.0.0.1:${target.port}/landed')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'GET',
+          'http://localhost:${source.port}/start',
+          {},
+          null,
+          noRedirect: false,
+        );
+        expect(resp.statusCode, equals(200));
+        expect(
+          targetHits,
+          equals(1),
+          reason: 'the redirect must be followed to the target',
+        );
+      } finally {
+        await source.close();
+        await target.close();
+      }
+    });
   });
 }

@@ -123,6 +123,49 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
+    fun throwsWhenDiscoveryReturnsNon2xxStatus() {
+        val client = FakeApiClient()
+        // A non-2xx discovery response (e.g. a 500 HTML error page) must
+        // surface as a clear error, not as an "invalid JSON" parse failure.
+        client.enqueue("<html>internal server error</html>", statusCode = 500)
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        assertThrows(RuntimeException::class.java) {
+            runBlocking { auth.buildAuthorizationUrl() }
+        }
+    }
+
+    @Test
+    fun throwsWhenDiscoveryMissingAuthorizationEndpoint() {
+        val client = FakeApiClient()
+        client.enqueue("""{"token_endpoint":"https://auth.example.com/token"}""")
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        // Missing authorization_endpoint must throw rather than build a
+        // delegate with a null/empty endpoint URL.
+        assertThrows(RuntimeException::class.java) {
+            runBlocking { auth.buildAuthorizationUrl() }
+        }
+    }
+
+    @Test
+    fun throwsWhenDiscoveryMissingTokenEndpoint() {
+        val client = FakeApiClient()
+        client.enqueue("""{"authorization_endpoint":"https://auth.example.com/authorize"}""")
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        assertThrows(RuntimeException::class.java) {
+            runBlocking { auth.buildAuthorizationUrl() }
+        }
+    }
+
+    @Test
     fun throwsWhenNoApiClientInjected() {
         val auth = createAuthenticator()
 

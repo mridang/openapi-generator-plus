@@ -652,4 +652,27 @@ class DefaultApiClientTest {
             )
         }
     }
+
+    @Nested
+    @DisplayName("client lifecycle (Gap T6)")
+    inner class ClientLifecycle {
+        @Test
+        @DisplayName("close releases underlying client and blocks new requests")
+        fun closeReleasesUnderlyingClient() {
+            val client = DefaultApiClient()
+            client.close()
+            // Calling close again is idempotent.
+            client.close()
+            val thrown =
+                assertThrows(ApiException::class.java) {
+                    runBlocking {
+                        client.sendRequest("GET", "https://example.com", emptyMap(), null)
+                    }
+                }
+            assertTrue(
+                thrown.message?.contains("closed") == true,
+                "expected a closed-client message, got ${thrown.message}",
+            )
+        }
+    }
 }

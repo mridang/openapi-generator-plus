@@ -1,4 +1,6 @@
 import json
+import os
+import tomllib
 from petstore_client.object_serializer import ObjectSerializer
 
 
@@ -33,3 +35,17 @@ class TestMetadataTypedAdditionalProperties:
         metadata = ObjectSerializer().deserialize(json_str, 'Metadata')
         assert metadata is not None
         assert hasattr(metadata, 'additional_properties')
+
+
+class TestPackageManifest:
+    def test_pyproject_declares_non_empty_description(self) -> None:
+        # manifest-description-missing: the published pyproject.toml must carry
+        # a non-empty description (wired from the spec's appDescription) so the
+        # package does not publish with an empty description on PyPI.
+        pyproject_path = os.path.join(os.getcwd(), 'pyproject.toml')
+        assert os.path.exists(pyproject_path)
+        with open(pyproject_path, 'rb') as handle:
+            manifest = tomllib.load(handle)
+        description = manifest['project']['description']
+        assert isinstance(description, str)
+        assert description.strip() != ''

@@ -57,6 +57,15 @@ class ComposedSchemaTest {
         }
 
         @Test
+        @DisplayName("fails to deserialize when discriminator field is missing")
+        fun testMissingDiscriminator() {
+            val jsonString = """{"weightKg":2.5}"""
+
+            val result = runCatching { json.decodeFromString<PetFood>(jsonString) }.getOrNull()
+            assertNull(result)
+        }
+
+        @Test
         @DisplayName("serializes DryFood back to JSON")
         fun testSerializeDryFood() {
             val encodingJson = Json {

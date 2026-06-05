@@ -67,6 +67,20 @@ void main() {
       },
     );
 
+    test('BearerAuthenticator rejects an empty or whitespace token', () {
+      // bearer-no-empty-token-guard: an empty / whitespace-only token would
+      // emit a bare "Authorization: Bearer " header and send the request
+      // unauthenticated, so the constructor must reject it.
+      expect(
+        () => BearerAuthenticator(host: '/api/v3', token: ''),
+        throwsArgumentError,
+      );
+      expect(
+        () => BearerAuthenticator(host: '/api/v3', token: '   '),
+        throwsArgumentError,
+      );
+    });
+
     test(
       'ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)',
       () {

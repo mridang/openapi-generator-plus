@@ -36,6 +36,10 @@ test('should return false for application xml', function (): void {
     expect($this->headerSelector->isJsonMime('application/xml'))->toBeFalse();
 });
 
+test('should return false for application octet stream', function (): void {
+    expect($this->headerSelector->isJsonMime('application/octet-stream'))->toBeFalse();
+});
+
 test('should return false for empty string', function (): void {
     expect($this->headerSelector->isJsonMime(''))->toBeFalse();
 });

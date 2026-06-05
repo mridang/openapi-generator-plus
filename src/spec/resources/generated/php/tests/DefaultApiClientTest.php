@@ -407,3 +407,18 @@ test('post with null body sends content length zero', function (): void {
     $payload = (array) json_decode($response->body, true);
     expect($payload['contentLength'])->toBe(0);
 });
+
+// -- Client lifecycle (Gap T6) --
+
+// Gap T6: close() releases the underlying HTTP client and is idempotent.
+// Once closed, any subsequent sendRequest() must raise the SDK-typed
+// ApiException (closed-flag guard), giving a uniform use-after-close
+// contract across SDKs.
+test('close releases underlying client', function (): void {
+    $client = new DefaultApiClient();
+    $client->close();
+    $client->close();
+
+    expect(fn () => $client->sendRequest('GET', 'https://example.com', [], null))
+        ->toThrow(\PetstoreClient\ApiException::class, 'closed');
+});

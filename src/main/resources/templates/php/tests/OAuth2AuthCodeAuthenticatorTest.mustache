@@ -197,3 +197,21 @@ test('auth headers before exchange returns recoverable error', function (): void
     // Caller continues normally after catching -- no process crash.
     expect($authenticator->getHost())->toBe('https://api.example.com');
 });
+
+test('authorize url with existing query string uses ampersand separator', function (): void {
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://x.auth0.com/authorize?audience=api',
+        'https://x.auth0.com/oauth/token',
+        'https://app.example.com/callback',
+        ['read']
+    );
+
+    $url = $authenticator->buildAuthorizationUrl();
+
+    expect($url)->toContain('audience=api');
+    expect($url)->toContain('response_type=code');
+    expect(substr_count($url, '?'))->toBe(1);
+});

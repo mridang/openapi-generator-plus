@@ -157,4 +157,24 @@ public class OAuth2AuthCodeAuthenticatorTest
         // Caller continues normally after catching -- no process crash.
         Assert.Equal("https://api.example.com", auth.GetHost());
     }
+
+    [Fact]
+    public void AuthorizeUrlWithExistingQueryStringUsesAmpSeparator()
+    {
+        var auth = new OAuth2AuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            new Uri("https://x.auth0.com/authorize?audience=api"),
+            new Uri("https://x.auth0.com/oauth/token"),
+            null,
+            new Uri("https://app.example.com/callback"),
+            new[] { "read" });
+
+        string url = auth.BuildAuthorizationUrl().ToString();
+
+        Assert.Contains("audience=api", url);
+        Assert.Contains("response_type=code", url);
+        Assert.Equal(1, url.Split('?').Length - 1);
+    }
 }

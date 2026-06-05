@@ -622,6 +622,25 @@ describe {{moduleName}}::ObjectSerializer do
     end
   end
 
+  # ── Gap K — discriminator auto-injection on subtype serialize ──
+
+  describe 'discriminator auto-injection' do
+    it 'dry subtype serialize auto-emits the discriminator' do
+      # DryFood defaults food_type to 'dry', so a caller that omits it
+      # still gets the discriminator on the wire.
+      dry = {{moduleName}}::Models::DryFood.new(weight_kg: 2.5)
+      data = JSON.parse({{moduleName}}::ObjectSerializer.serialize(dry))
+      _(data['foodType']).must_equal('dry')
+      _(data['weightKg']).must_equal(2.5)
+    end
+
+    it 'wet subtype serialize auto-emits the discriminator' do
+      wet = {{moduleName}}::Models::WetFood.new(volume_ml: 350)
+      data = JSON.parse({{moduleName}}::ObjectSerializer.serialize(wet))
+      _(data['foodType']).must_equal('wet')
+    end
+  end
+
   describe 'oneOf/anyOf no-match' do
     it 'resolve_one_of returns the first matching variant' do
       candidates = [

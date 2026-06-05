@@ -146,6 +146,15 @@ describe('Configuration', () => {
     expect(Configuration.getDefault().baseUrl).toBe('https://custom.example.com');
   });
 
+  test('builder produces independent instances', () => {
+    const builder = Configuration.builder().baseUrl('https://example.com');
+    const first = builder.build();
+    const second = builder.build();
+
+    expect(first).not.toBe(second);
+    expect(first.baseUrl).toBe(second.baseUrl);
+  });
+
   test('configuration is immutable', () => {
     const config = Configuration.builder().defaultHeader('X-Key', 'value').build();
 

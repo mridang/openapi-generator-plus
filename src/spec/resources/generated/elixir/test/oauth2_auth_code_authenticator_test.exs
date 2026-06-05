@@ -156,5 +156,24 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.host(auth) ==
                "https://api.example.com"
     end
+
+    test "authorize URL with existing query string uses amp separator" do
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.new(
+          "https://api.example.com",
+          "my-client-id",
+          "my-client-secret",
+          "https://x.auth0.com/authorize?audience=api",
+          "https://x.auth0.com/oauth/token",
+          "https://app.example.com/callback",
+          ["read"]
+        )
+
+      url = PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(auth)
+
+      assert String.contains?(url, "audience=api")
+      assert String.contains?(url, "response_type=code")
+      assert length(String.split(url, "?")) - 1 == 1
+    end
   end
 end

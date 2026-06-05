@@ -324,6 +324,17 @@ import Testing
         #expect(json.contains("\"name\":\"\""), "serialized JSON should include empty name, got: \(json)")
     }
 
+    // MARK: - Gap #13 — null fields omitted on serialise
+
+    @Test func testNilFieldsOmittedOnSerialize() throws {
+        // Category encodes optional fields with encodeIfPresent, so a field
+        // left nil must be dropped from the payload rather than emitted as null.
+        let category = Category(id: nil, name: "Dogs")
+        let json = try ObjectSerializer.serialize(category)
+        #expect(!json.contains("\"id\""), "nil id must be omitted, got: \(json)")
+        #expect(json.contains("\"name\":\"Dogs\""), "name should be present, got: \(json)")
+    }
+
     // MARK: - Gap K — discriminator auto-emitted on subtype serialise
 
     @Test func testSubtypeSerializeAutoEmitsDiscriminator() throws {

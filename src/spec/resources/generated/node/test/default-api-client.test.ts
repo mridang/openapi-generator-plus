@@ -405,4 +405,20 @@ describe('DefaultApiClient', () => {
       expect(payload.contentLength).toBe(0);
     }, 30000);
   });
+
+  describe('client lifecycle (Gap T6)', () => {
+    /*
+     * Gap T6: close() releases the underlying undici dispatcher and is
+     * idempotent. A request issued on a closed client must surface the
+     * SDK's own ApiError (closed-flag guard), matching the uniform
+     * use-after-close contract across SDKs.
+     */
+    test('close releases underlying client', async () => {
+      const client = new DefaultApiClient();
+      await client.close();
+      // close() is idempotent.
+      await client.close();
+      await expect(client.sendRequest('GET', 'https://example.com', {}, null)).rejects.toThrow('closed');
+    });
+  });
 });

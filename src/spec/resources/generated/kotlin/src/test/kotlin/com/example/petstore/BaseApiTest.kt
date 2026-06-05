@@ -915,4 +915,30 @@ class BaseApiTest {
             assertEquals("http://user:pass@proxy.example.com:3128", opts.proxy)
         }
     }
+
+    // ── Typed error body deserializer (getTypedErrorBody) ──
+
+    @Nested
+    @DisplayName("TypedErrorBodyTests")
+    inner class TypedErrorBodyTests {
+        @Test
+        @DisplayName("getTypedErrorBody returns the error body cast to the requested type")
+        fun returnsCastErrorBody() {
+            val category =
+                com.example.petstore.models
+                    .Category(id = 42L, name = "Dogs")
+            val ex = BadRequestException("boom", emptyMap(), "{\"id\":42,\"name\":\"Dogs\"}", category)
+            val typed = ex.getTypedErrorBody(com.example.petstore.models.Category::class.java)
+            assertNotNull(typed)
+            assertEquals(42L, typed!!.id)
+            assertEquals("Dogs", typed.name)
+        }
+
+        @Test
+        @DisplayName("getTypedErrorBody returns null when the error body is of a different type")
+        fun returnsNullForMismatchedType() {
+            val ex = BadRequestException("boom", emptyMap(), "", null)
+            assertNull(ex.getTypedErrorBody(com.example.petstore.models.Category::class.java))
+        }
+    }
 }

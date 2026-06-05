@@ -71,6 +71,23 @@ func TestPetFood_DeserializeUnknownDiscriminator(t *testing.T) {
 	}
 }
 
+func TestPetFood_DeserializeMissingDiscriminator(t *testing.T) {
+	t.Parallel()
+	// A payload omitting the discriminator field entirely cannot route to any
+	// variant; UnmarshalJSON surfaces an error rather than leaving the union
+	// silently nil. Aligns Go with Python / Swift / PHP / Ruby / Dart / Rust.
+	jsonData := []byte(`{"weightKg":2.5}`)
+
+	var food models.PetFood
+	err := json.Unmarshal(jsonData, &food)
+	if err == nil {
+		t.Fatalf("expected error for missing discriminator field, got nil")
+	}
+	if !strings.Contains(err.Error(), "discriminator") {
+		t.Errorf("expected 'discriminator' in error message, got: %v", err)
+	}
+}
+
 func TestPetFood_SerializeDryFood(t *testing.T) {
 	t.Parallel()
 	food := models.PetFood{}

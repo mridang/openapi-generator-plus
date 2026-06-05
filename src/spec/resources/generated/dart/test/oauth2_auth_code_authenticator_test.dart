@@ -163,5 +163,23 @@ void main() {
       // Caller continues normally after catching -- no process crash.
       expect(auth.host(), equals('https://api.example.com'));
     });
+
+    test('authorize URL with existing query string uses amp separator', () {
+      final auth = OAuth2AuthorizationCodeAuthenticator(
+        host: 'https://api.example.com',
+        clientId: 'my-client-id',
+        clientSecret: 'my-client-secret',
+        authorizationUrl: 'https://x.auth0.com/authorize?audience=api',
+        tokenUrl: 'https://x.auth0.com/oauth/token',
+        redirectUri: 'https://app.example.com/callback',
+        scopes: ['read'],
+      );
+
+      final url = auth.buildAuthorizationUrl();
+
+      expect(url, contains('audience=api'));
+      expect(url, contains('response_type=code'));
+      expect('?'.allMatches(url).length, equals(1));
+    });
   });
 }

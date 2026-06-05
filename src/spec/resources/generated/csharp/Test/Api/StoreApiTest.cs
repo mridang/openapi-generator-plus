@@ -56,12 +56,52 @@ public class StoreApiTest
     }
 
     [Fact]
+    public async Task TestGetInventoryWithHttpInfo()
+    {
+        var result = await _api.GetInventoryWithHttpInfoAsync();
+
+        Assert.NotNull(result);
+        Assert.InRange(result.StatusCode, 200, 299);
+        Assert.NotNull(result.Data);
+    }
+
+    [Fact]
+    public async Task TestPlaceOrderWithHttpInfo()
+    {
+        var order = new Order
+        {
+            Id = 1L,
+            PetId = 12345L,
+            Quantity = 1,
+            ShipDate = DateTime.UtcNow,
+            Status = Order.StatusEnum.Placed,
+            Complete = false,
+        };
+
+        var result = await _api.PlaceOrderWithHttpInfoAsync(order);
+
+        Assert.NotNull(result);
+        Assert.InRange(result.StatusCode, 200, 299);
+        Assert.NotNull(result.Data);
+    }
+
+    [Fact]
     public async Task TestGetOrderById()
     {
         var result = await _api.GetOrderByIdAsync(1L);
 
         Assert.NotNull(result);
         Assert.NotNull(result.Id);
+    }
+
+    [Fact]
+    public async Task TestGetOrderByIdWithHttpInfo()
+    {
+        var result = await _api.GetOrderByIdWithHttpInfoAsync(1L);
+
+        Assert.NotNull(result);
+        Assert.InRange(result.StatusCode, 200, 299);
+        Assert.NotNull(result.Data);
     }
 
     [Fact]

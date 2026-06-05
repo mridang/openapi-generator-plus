@@ -155,6 +155,55 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
+  void singleFlightRefreshCoalescesConcurrentCallers() throws InterruptedException {
+    // 10 threads all see no cached token and race into getAccessToken.
+    // The synchronized method + double-checked cache must coalesce them
+    // into exactly one network round-trip to the token endpoint.
+    AtomicInteger networkCalls = new AtomicInteger(0);
+    ApiClient client =
+        (method, url, headers, body) -> {
+          networkCalls.incrementAndGet();
+          // Tiny sleep to widen the race window for the other threads.
+          try {
+            Thread.sleep(50);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+          return new ApiResponse(
+              200, "{\"access_token\":\"shared-tok\",\"expires_in\":3600}", Map.of());
+        };
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "client_credentials");
+
+    int threadCount = 10;
+    String[] tokens = new String[threadCount];
+    Thread[] threads = new Thread[threadCount];
+    for (int i = 0; i < threadCount; i++) {
+      final int idx = i;
+      threads[i] =
+          new Thread(
+              () -> tokens[idx] = manager.getAccessToken("https://auth.example.com/token", params));
+    }
+    for (Thread t : threads) {
+      t.start();
+    }
+    for (Thread t : threads) {
+      t.join();
+    }
+
+    assertEquals(
+        1,
+        networkCalls.get(),
+        "single-flight refresh must coalesce concurrent callers into one token request");
+    for (String token : tokens) {
+      assertEquals("shared-tok", token, "all callers must observe the same token");
+    }
+  }
+
+  @Test
   void expiresInShortLivedTokenDoesNotStorm() {
     // Gap CM: short-lived tokens (expires_in < safety buffer) must not
     // trigger a refresh storm — a single getAccessToken call must

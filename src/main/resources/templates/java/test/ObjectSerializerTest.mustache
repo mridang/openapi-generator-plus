@@ -510,6 +510,98 @@ class ObjectSerializerTest {
     }
 
     @Nested
+    @DisplayName("DurationSerializationTests")
+    class DurationSerializationTests {
+
+        {{! 4.8 — format:duration stringifies to the ISO-8601 duration form. }}
+        {{! java.time.Duration.toString() is contractually ISO-8601 (PnDTnHnMnS). }}
+        @Test
+        @DisplayName("Duration stringifies as ISO-8601 duration")
+        void durationStringifiesAsIso8601() {
+            java.time.Duration d = java.time.Duration.ofHours(1).plusMinutes(30);
+            assertEquals("PT1H30M", ObjectSerializer.stringify(d));
+        }
+
+        @Test
+        @DisplayName("zero Duration stringifies as PT0S")
+        void zeroDurationStringifies() {
+            assertEquals("PT0S", ObjectSerializer.stringify(java.time.Duration.ZERO));
+        }
+    }
+
+    @Nested
+    @DisplayName("DiscriminatorAutoInjectionTests")
+    class DiscriminatorAutoInjectionTests {
+
+        {{! Gap K — a subtype constructed without the discriminator must still }}
+        {{! emit it on serialize because the generated model defaults the field }}
+        {{! to its oneOf mapping value (foodType = "dry"/"wet"). }}
+        @Test
+        @DisplayName("dry subtype serialization includes discriminator without caller setting it")
+        void drySubtypeAutoEmitsDiscriminator() {
+            {{modelPackage}}.DryFood dry = new {{modelPackage}}.DryFood(2.5);
+            String json = serializer.serialize(dry);
+            assertTrue(json.contains("\"foodType\":\"dry\""),
+                    "serialized JSON must contain auto-injected discriminator, got: " + json);
+            assertTrue(json.contains("\"weightKg\":2.5"), "should contain weightKg, got: " + json);
+        }
+
+        @Test
+        @DisplayName("wet subtype defaults discriminator to its mapping name")
+        void wetSubtypeAutoEmitsDiscriminator() {
+            {{modelPackage}}.WetFood wet = new {{modelPackage}}.WetFood(350);
+            String json = serializer.serialize(wet);
+            assertTrue(json.contains("\"foodType\":\"wet\""),
+                    "serialized JSON must contain auto-injected discriminator, got: " + json);
+        }
+    }
+
+    @Nested
+    @DisplayName("UuidSerializationTests")
+    class UuidSerializationTests {
+
+        {{! Gap 2.2 — a UUID field carried inside a model object must round-trip }}
+        {{! through Jackson as its canonical string form. }}
+        @Test
+        @DisplayName("UUID field round-trips within a model object")
+        void uuidFieldRoundTripsWithinModel() {
+            UuidHolder holder =
+                    new UuidHolder(UUID.fromString("550e8400-e29b-41d4-a716-446655440000"));
+            String json = serializer.serialize(holder);
+            assertTrue(json.contains("\"id\":\"550e8400-e29b-41d4-a716-446655440000\""),
+                    "UUID field should serialize as canonical string, got: " + json);
+            UuidHolder decoded =
+                    serializer.deserialize(
+                            json, new com.fasterxml.jackson.core.type.TypeReference<UuidHolder>() {});
+            assertNotNull(decoded);
+            assertEquals(holder.id, decoded.id);
+        }
+
+        @Test
+        @DisplayName("malformed UUID string fails to deserialize within a model object")
+        void malformedUuidFailsWithinModel() {
+            assertThrows(
+                    ObjectSerializer.SerializationException.class,
+                    () ->
+                            serializer.deserialize(
+                                    "{\"id\":\"not-a-uuid\"}",
+                                    new com.fasterxml.jackson.core.type.TypeReference<UuidHolder>() {}));
+        }
+    }
+
+    static class UuidHolder {
+        {{! NullAway treats fields as @NonNull by default; the no-arg constructor }}
+        {{! Jackson needs leaves id unset, so the field must be declared nullable. }}
+        public @javax.annotation.Nullable UUID id;
+
+        public UuidHolder() {}
+
+        public UuidHolder(UUID id) {
+            this.id = id;
+        }
+    }
+
+    @Nested
     @DisplayName("oneOf/anyOf no-match")
     class OneOfNoMatch {
 

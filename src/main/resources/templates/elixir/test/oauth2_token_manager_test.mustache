@@ -56,6 +56,27 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
     def call_count(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1)
   end
 
+  defmodule NoRedirectCapturingClient do
+    @moduledoc """
+    Exports `send_request/6` so the token manager exercises its
+    `function_exported?(mod, :send_request, 6)` branch and propagates the
+    `no_redirect: true` option. Captures the received options for assertion.
+    """
+
+    defstruct [:opts_agent]
+
+    def new(opts_agent), do: %__MODULE__{opts_agent: opts_agent}
+
+    def send_request(%__MODULE__{opts_agent: opts_agent}, _method, _url, _headers, _body, opts) do
+      Agent.update(opts_agent, fn _ -> opts end)
+
+      %{{moduleName}}.ApiResponse{
+        status_code: 200,
+        body: Jason.encode!(%{"access_token" => "tok", "expires_in" => 3600})
+      }
+    end
+  end
+
   describe "OAuth2TokenManager" do
     test "extracts access token from response" do
       fake_client = FakeApiClient.new([
@@ -416,6 +437,48 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
           %{"grant_type" => "client_credentials"}
         )
       end
+    end
+
+    test "missing access_token in 2xx response raises typed OAuth2TokenError" do
+      # A 2xx response whose body omits access_token must surface as the typed
+      # OAuth2TokenError, not silently cache an empty token.
+      fake_client = FakeApiClient.new([
+        %{{moduleName}}.ApiResponse{
+          status_code: 200,
+          body: Jason.encode!(%{"refresh_token" => "x"})
+        }
+      ])
+
+      {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      assert_raise {{moduleName}}.Auth.OAuth.OAuth2TokenError, fn ->
+        {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(
+          manager,
+          "https://auth.example.com/token",
+          %{"grant_type" => "client_credentials"}
+        )
+      end
+    end
+
+    test "token POST passes no_redirect flag to the ApiClient transport" do
+      # Gap 3.2: the token POST must opt out of redirect following at the
+      # transport layer. The manager passes no_redirect: true to clients that
+      # export send_request/6; this fake captures the propagated options.
+      {:ok, opts_agent} = Agent.start_link(fn -> nil end)
+      client = NoRedirectCapturingClient.new(opts_agent)
+
+      {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, client)
+
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(
+        manager,
+        "https://auth.example.com/token",
+        %{"grant_type" => "client_credentials"}
+      )
+
+      captured = Agent.get(opts_agent, & &1)
+      assert Keyword.get(captured, :no_redirect) == true
     end
 
     # ── 3.2: OAuth2 token redirect refusal ────────────────────────────────

@@ -190,6 +190,16 @@ class ConfigurationTest {
     }
 
     @Test
+    void builderProducesIndependentInstances() {
+        Configuration.Builder builder = Configuration.builder().baseUrl("https://example.com");
+        Configuration first = builder.build();
+        Configuration second = builder.build();
+
+        assertNotSame(first, second);
+        assertEquals(first.getBaseUrl(), second.getBaseUrl());
+    }
+
+    @Test
     void builderIsFluent() {
         Configuration.Builder builder = Configuration.builder();
 

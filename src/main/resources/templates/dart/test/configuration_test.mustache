@@ -167,6 +167,16 @@ void main() {
       );
     });
 
+    test('builder methods return the builder for chaining', () {
+      final builder = ConfigurationBuilder();
+      final server = ServerConfiguration(urlTemplate: 'https://example.com');
+
+      expect(identical(builder.baseUrl('https://example.com'), builder), isTrue);
+      expect(identical(builder.defaultHeader('X-Key', 'value'), builder), isTrue);
+      expect(identical(builder.defaultHeaders({'X-Other': 'val'}), builder), isTrue);
+      expect(identical(builder.server(server), builder), isTrue);
+    });
+
     test('builder produces independent instances', () {
       final builder = ConfigurationBuilder().baseUrl('https://example.com');
       final first = builder.build();

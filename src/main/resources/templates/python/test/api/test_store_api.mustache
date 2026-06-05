@@ -41,11 +41,41 @@ class TestStoreApi:
         assert result is not None
         assert result.id is not None
 
+    async def test_get_inventory_with_http_info(self) -> None:
+        result = await self.api.get_inventory_with_http_info()
+
+        assert result is not None
+        assert 200 <= result.status_code < 300
+        assert result.data is not None
+
+    async def test_place_order_with_http_info(self) -> None:
+        order = Order(
+            id=1,
+            petId=12345,
+            quantity=1,
+            shipDate=datetime.now(timezone.utc),
+            status=OrderStatusEnum.PLACED,
+            complete=False
+        )
+
+        result = await self.api.place_order_with_http_info(order)
+
+        assert result is not None
+        assert 200 <= result.status_code < 300
+        assert result.data is not None
+
     async def test_get_order_by_id(self) -> None:
         result = await self.api.get_order_by_id(1)
 
         assert result is not None
         assert result.id is not None
+
+    async def test_get_order_by_id_with_http_info(self) -> None:
+        result = await self.api.get_order_by_id_with_http_info(1)
+
+        assert result is not None
+        assert 200 <= result.status_code < 300
+        assert result.data is not None
 
     async def test_delete_order(self) -> None:
         await self.api.delete_order(1)

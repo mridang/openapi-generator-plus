@@ -1,5 +1,7 @@
 {{>api_info}}
 import json
+import threading
+import time
 from unittest.mock import MagicMock
 
 from {{packageName}}.auth.oauth.oauth2_token_manager import (
@@ -162,6 +164,51 @@ class TestOAuth2TokenManager:
             assert False, 'Expected RuntimeError'
         except RuntimeError:
             pass
+
+    def test_single_flight_coalesces_concurrent_callers(self) -> None:
+        # 10 threads all see no cached token and race into get_access_token.
+        # The lock + cache check must coalesce them into exactly ONE network
+        # round-trip to the token endpoint.
+        network_calls = [0]
+        call_lock = threading.Lock()
+
+        def slow_send_request(*_args: object, **_kwargs: object) -> ApiResponse:
+            with call_lock:
+                network_calls[0] += 1
+            # Tiny sleep to widen the race window for the other threads.
+            time.sleep(0.05)
+            return ApiResponse(
+                status_code=200,
+                body=json.dumps({'access_token': 'shared-tok', 'expires_in': 3600}),
+                headers={'content-type': 'application/json'},
+            )
+
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.side_effect = slow_send_request
+        manager.set_api_client(mock_client)
+
+        params = {'grant_type': 'client_credentials'}
+        tokens: list[str] = [''] * 10
+
+        def worker(idx: int) -> None:
+            tokens[idx] = manager.get_access_token(
+                'https://auth.example.com/token', params
+            )
+
+        threads = [threading.Thread(target=worker, args=(i,)) for i in range(10)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        assert network_calls[0] == 1, (
+            'single-flight refresh must coalesce concurrent callers into one '
+            'token request'
+        )
+        assert all(token == 'shared-tok' for token in tokens), (
+            'all callers must observe the same token'
+        )
 
     def test_expires_in_short_lived_token_does_not_storm(self) -> None:
         # Gap CM: a short-lived token (expires_in < 30s safety buffer) must

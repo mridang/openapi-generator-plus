@@ -16,6 +16,15 @@ class TestClient:
         with pytest.raises(ValueError):
             BearerAuthenticator('{{{basePath}}}', 'ñoño')
 
+    def test_bearer_rejects_empty_token(self) -> None:
+        # bearer-no-empty-token-guard: an empty / whitespace-only token would
+        # emit a bare "Authorization: Bearer " header and send the request
+        # unauthenticated, so construction must reject it.
+        with pytest.raises(ValueError):
+            BearerAuthenticator('{{{basePath}}}', '')
+        with pytest.raises(ValueError):
+            BearerAuthenticator('{{{basePath}}}', '   ')
+
     def test_api_key_header_rejects_crlf(self) -> None:
         # RFC 7230 §3.2.6 — HEADER location must reject anything outside
         # printable ASCII + TAB to prevent header injection (\r\n) and

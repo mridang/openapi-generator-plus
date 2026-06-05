@@ -504,6 +504,160 @@ func TestDefaultApiClient_NoRedirectOptionShortCircuits307(t *testing.T) {
 	}
 }
 
+// Gap 3.2: NoRedirect must also short-circuit a 308 (Permanent Redirect),
+// returning it verbatim rather than replaying the body to the Location target.
+func TestDefaultApiClient_NoRedirectOptionShortCircuits308(t *testing.T) {
+	t.Parallel()
+	var followUpHit bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/redirect") {
+			w.Header().Set("Location", "/followed")
+			w.WriteHeader(308)
+			return
+		}
+		followUpHit = true
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	client := petstore.NewDefaultApiClient(nil)
+	resp, err := client.SendRequestWithOptions(
+		"POST", server.URL+"/redirect",
+		map[string]string{"Content-Type": "application/x-www-form-urlencoded"},
+		[]byte("client_secret=hunter2"),
+		&petstore.RequestOptions{NoRedirect: true},
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 308 {
+		t.Errorf("expected raw 308 to surface, got %d", resp.StatusCode)
+	}
+	if followUpHit {
+		t.Error("follow-up endpoint must not be hit when NoRedirect is true")
+	}
+}
+
+// Gap J: per-part Content-Type is derived from the (field-name) filename
+// extension. POST a multipart body and inspect the echoed wire form to
+// confirm each part advertises the sniffed media type.
+func TestDefaultApiClient_MultipartPngFieldSetsImagePng(t *testing.T) {
+	t.Parallel()
+	var wireBody string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		wireBody = string(b)
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	client := petstore.NewDefaultApiClient(nil)
+	_, err := client.SendRequest("POST", server.URL+"/upload",
+		map[string]string{}, map[string]any{"image.png": []byte{0x89, 0x50, 0x4E, 0x47}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(wireBody, "Content-Type: image/png") {
+		t.Errorf("expected image/png part Content-Type, got: %q", wireBody)
+	}
+}
+
+func TestDefaultApiClient_MultipartPdfFieldSetsApplicationPdf(t *testing.T) {
+	t.Parallel()
+	var wireBody string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		wireBody = string(b)
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	client := petstore.NewDefaultApiClient(nil)
+	_, err := client.SendRequest("POST", server.URL+"/upload",
+		map[string]string{}, map[string]any{"doc.pdf": []byte{0x25, 0x50, 0x44, 0x46}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(wireBody, "Content-Type: application/pdf") {
+		t.Errorf("expected application/pdf part Content-Type, got: %q", wireBody)
+	}
+}
+
+func TestDefaultApiClient_MultipartFieldWithoutExtensionDefaultsToOctetStream(t *testing.T) {
+	t.Parallel()
+	var wireBody string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		wireBody = string(b)
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	client := petstore.NewDefaultApiClient(nil)
+	_, err := client.SendRequest("POST", server.URL+"/upload",
+		map[string]string{}, map[string]any{"blob": []byte{0x00, 0x01, 0x02}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(wireBody, "Content-Type: application/octet-stream") {
+		t.Errorf("expected application/octet-stream fallback, got: %q", wireBody)
+	}
+}
+
+// Gap BI / Gap F: filename directive + filename validation helpers.
+
+func TestDefaultApiClient_BuildFilenameDirectiveNonAsciiEmitsRFC5987(t *testing.T) {
+	t.Parallel()
+	directive := petstore.BuildFilenameDirective("日本.pdf")
+	if !strings.Contains(directive, "filename*=UTF-8''") {
+		t.Errorf("non-ASCII filename must emit RFC 5987 filename*=, got: %q", directive)
+	}
+	if !strings.Contains(directive, "%E6%97%A5%E6%9C%AC") {
+		t.Errorf("RFC 5987 value must be percent-encoded UTF-8, got: %q", directive)
+	}
+	if !strings.HasPrefix(directive, `filename="`) {
+		t.Errorf("must include an ASCII fallback filename=\"...\", got: %q", directive)
+	}
+}
+
+func TestDefaultApiClient_BuildFilenameDirectiveAsciiOnlyOmitsFilenameStar(t *testing.T) {
+	t.Parallel()
+	directive := petstore.BuildFilenameDirective("pet.png")
+	if directive != `filename="pet.png"` {
+		t.Errorf("expected filename=\"pet.png\", got: %q", directive)
+	}
+	if strings.Contains(directive, "filename*=") {
+		t.Errorf("ASCII-only filename must not emit filename*=, got: %q", directive)
+	}
+}
+
+func TestDefaultApiClient_BuildFilenameDirectiveBackslashEscapesQuotes(t *testing.T) {
+	t.Parallel()
+	directive := petstore.BuildFilenameDirective(`a"b.txt`)
+	if !strings.Contains(directive, `a\"b.txt`) {
+		t.Errorf("embedded quote must be backslash-escaped, got: %q", directive)
+	}
+}
+
+func TestDefaultApiClient_ValidateMultipartFilenameRejectsCRLF(t *testing.T) {
+	t.Parallel()
+	for _, bad := range []string{"a\rb.pdf", "a\nb.pdf", "a\r\nb.pdf"} {
+		if err := petstore.ValidateMultipartFilename(bad); err == nil {
+			t.Errorf("expected error for filename %q", bad)
+		}
+	}
+	if err := petstore.ValidateMultipartFilename("pet.png"); err != nil {
+		t.Errorf("ASCII filename must be accepted, got: %v", err)
+	}
+}
+
+func TestDefaultApiClient_ValidateMultipartFilenameRejectsNUL(t *testing.T) {
+	t.Parallel()
+	if err := petstore.ValidateMultipartFilename("a\x00b.pdf"); err == nil {
+		t.Error("expected error for filename containing NUL")
+	}
+}
+
 // Gap 3.3: refuse to replay a request body across an HTTPS → HTTP
 // downgrade. A malicious 307 from an HTTPS endpoint to its HTTP twin
 // would otherwise leak the form-encoded body in plaintext on the wire.

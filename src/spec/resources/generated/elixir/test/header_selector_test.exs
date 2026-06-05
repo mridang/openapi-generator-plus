@@ -81,6 +81,11 @@ defmodule PetstoreClient.HeaderSelectorTest do
       assert headers["Accept"] == "application/json"
     end
 
+    test "returns single non-JSON accept as-is" do
+      headers = PetstoreClient.HeaderSelector.select_headers(["text/html"], "application/json", false)
+      assert headers["Accept"] == "text/html"
+    end
+
     test "returns comma-separated list when no JSON types present" do
       headers = PetstoreClient.HeaderSelector.select_headers(["text/html", "text/plain"], "application/json", false)
       assert headers["Accept"] == "text/html,text/plain"

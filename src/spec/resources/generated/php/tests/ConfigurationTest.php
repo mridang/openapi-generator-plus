@@ -134,6 +134,32 @@ test('builder server with variable overrides', function (): void {
     expect($config->baseUrl)->toBe('https://staging.example.com/api/v2');
 });
 
+test('invalid server variable enum value throws', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com',
+        variables: [
+            'env' => new ServerVariable(
+                defaultValue: 'api',
+                enumValues: ['api', 'staging'],
+            ),
+        ],
+    );
+
+    expect(fn () => Configuration::builder()
+        ->server($server, ['env' => 'invalid'])
+        ->build())
+        ->toThrow(InvalidArgumentException::class);
+});
+
+test('builder produces independent instances', function (): void {
+    $builder = Configuration::builder()->baseUrl('https://example.com');
+    $first = $builder->build();
+    $second = $builder->build();
+
+    expect($first)->not->toBe($second);
+    expect($first->baseUrl)->toBe($second->baseUrl);
+});
+
 test('builder base url overrides server', function (): void {
     $server = new ServerConfiguration(
         urlTemplate: 'https://api.example.com',

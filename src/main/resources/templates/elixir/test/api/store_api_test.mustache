@@ -35,10 +35,37 @@ defmodule {{moduleName}}.Api.StoreApiTest do
     assert result.id != nil
   end
 
+  test "get_inventory_with_http_info returns status and data", %{api: api} do
+    assert {:ok, result} = {{moduleName}}.Api.StoreApi.get_inventory_with_http_info(api)
+    assert result.status_code >= 200 and result.status_code < 300
+    assert result.data != nil
+  end
+
+  test "place_order_with_http_info returns status and data", %{api: api} do
+    order = %{{moduleName}}.Models.Order{
+      id: :rand.uniform(1_000_000_000),
+      pet_id: :rand.uniform(1_000_000_000),
+      quantity: 1,
+      ship_date: DateTime.utc_now() |> DateTime.to_iso8601(),
+      status: "placed",
+      complete: false
+    }
+
+    assert {:ok, result} = {{moduleName}}.Api.StoreApi.place_order_with_http_info(api, order)
+    assert result.status_code >= 200 and result.status_code < 300
+    assert result.data != nil
+  end
+
   test "get_order_by_id returns an order by id", %{api: api} do
     assert {:ok, result} = {{moduleName}}.Api.StoreApi.get_order_by_id(api, :rand.uniform(1_000_000_000))
     assert result != nil
     assert result.id != nil
+  end
+
+  test "get_order_by_id_with_http_info returns status and data", %{api: api} do
+    assert {:ok, result} = {{moduleName}}.Api.StoreApi.get_order_by_id_with_http_info(api, :rand.uniform(1_000_000_000))
+    assert result.status_code >= 200 and result.status_code < 300
+    assert result.data != nil
   end
 
   test "delete_order deletes an order", %{api: api} do

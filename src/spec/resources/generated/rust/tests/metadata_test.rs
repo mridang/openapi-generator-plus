@@ -61,3 +61,28 @@ fn test_metadata_round_trip() {
         "expected non-empty serialized data after round-trip"
     );
 }
+
+// manifest-description-missing: the published Cargo.toml must carry a
+// non-empty `description` (wired from the spec's appDescription) so the crate
+// does not publish with an empty description on crates.io.
+#[test]
+fn test_cargo_manifest_declares_non_empty_description() {
+    let manifest_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
+    let contents = std::fs::read_to_string(&manifest_path).expect("failed to read Cargo.toml");
+
+    let description = contents
+        .lines()
+        .find_map(|line| {
+            let trimmed = line.trim_start();
+            let rest = trimmed.strip_prefix("description")?;
+            let rest = rest.trim_start().strip_prefix('=')?.trim();
+            let unquoted = rest.strip_prefix('"').and_then(|s| s.strip_suffix('"'));
+            unquoted.map(str::to_string)
+        })
+        .expect("Cargo.toml must declare a description");
+
+    assert!(
+        !description.trim().is_empty(),
+        "description must not be empty"
+    );
+}

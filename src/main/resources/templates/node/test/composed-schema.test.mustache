@@ -68,6 +68,25 @@ describe('Composed Schema', () => {
     expect(() => ObjectSerializer.deserialize(data, FakePetFood)).toThrow(DeserializationError);
   });
 
+  test('oneOf: missing discriminator throws DeserializationError', () => {
+    // A payload omitting the discriminator property entirely cannot route to
+    // any variant; the deserializer throws rather than structurally guessing
+    // a variant. Aligns Node with Python / Swift / PHP / Ruby / Dart / Rust.
+    const data = { weightKg: 2.5 };
+    expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(DeserializationError);
+  });
+
+  test('oneOf: missing discriminator error names the property', () => {
+    const data = { weightKg: 2.5 };
+    try {
+      ObjectSerializer.deserialize(data, PetFood);
+      fail('expected throw');
+    } catch (e) {
+      expect(e).toBeInstanceOf(DeserializationError);
+      expect((e as Error).message).toContain('foodType');
+    }
+  });
+
   test('oneOf: serializes DryFood back to JSON', () => {
     const data = { foodType: 'dry', weightKg: 2.5 };
     const result = ObjectSerializer.deserialize(data, PetFood);

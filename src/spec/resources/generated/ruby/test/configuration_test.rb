@@ -185,6 +185,16 @@ describe PetstoreClient::Configuration do
     _(PetstoreClient::Configuration.default.base_url).must_equal('https://custom.example.com')
   end
 
+  it 'builder produces independent instances' do
+    builder = PetstoreClient::Configuration.builder
+      .base_url('https://example.com')
+    first = builder.build
+    second = builder.build
+
+    _(first).wont_be_same_as(second)
+    _(first.base_url).must_equal(second.base_url)
+  end
+
   it 'configuration is frozen' do
     config = PetstoreClient::Configuration.builder
       .default_header('X-Key', 'value')

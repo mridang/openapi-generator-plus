@@ -29,6 +29,17 @@ defmodule PetstoreClient.ComposedSchemaTest do
       end
     end
 
+    test "raises ArgumentError for missing discriminator field" do
+      # A payload omitting the discriminator field entirely cannot route to
+      # any variant; the union build raises instead of silently returning nil.
+      # Aligns Elixir with Python / Swift / PHP / Ruby / Dart / Rust.
+      json = ~s({"weightKg":2.5})
+
+      assert_raise ArgumentError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
+      end
+    end
+
     test "serializes DryFood back to JSON" do
       json = ~s({"foodType":"dry","weightKg":2.5})
       result = PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")

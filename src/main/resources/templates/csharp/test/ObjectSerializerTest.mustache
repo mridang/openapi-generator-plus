@@ -686,6 +686,66 @@ public class ObjectSerializerTest
         }
     }
 
+    {{! Gap K — a subtype constructed without the discriminator must still emit }}
+    {{! it on serialize because the generated model defaults FoodType to its }}
+    {{! oneOf mapping value ("dry"/"wet"). }}
+    public class DiscriminatorAutoInjectionTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void DrySubtypeAutoEmitsDiscriminator()
+        {
+            var dry = new DryFood(2.5);
+            var json = _serializer.Serialize(dry);
+            Assert.Contains("\"foodType\":\"dry\"", json);
+            Assert.Contains("\"weightKg\":2.5", json);
+        }
+
+        [Fact]
+        public void WetSubtypeAutoEmitsDiscriminator()
+        {
+            var wet = new WetFood(350);
+            var json = _serializer.Serialize(wet);
+            Assert.Contains("\"foodType\":\"wet\"", json);
+        }
+    }
+
+    {{! Gap 2.2 — a Guid field carried inside a model object must round-trip }}
+    {{! through System.Text.Json as its canonical string form. }}
+    public class GuidWithinModelTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        public sealed class GuidHolder
+        {
+            [System.Text.Json.Serialization.JsonPropertyName("id")]
+            public Guid Id { get; set; }
+        }
+
+        [Fact]
+        public void GuidFieldRoundTripsWithinModel()
+        {
+            var holder = new GuidHolder
+            {
+                Id = Guid.Parse("550e8400-e29b-41d4-a716-446655440000"),
+            };
+            var json = _serializer.Serialize(holder);
+            Assert.Contains("\"id\":\"550e8400-e29b-41d4-a716-446655440000\"", json);
+
+            var decoded = _serializer.Deserialize<GuidHolder>(json);
+            Assert.NotNull(decoded);
+            Assert.Equal(holder.Id, decoded!.Id);
+        }
+
+        [Fact]
+        public void MalformedGuidFailsWithinModel()
+        {
+            Assert.Throws<System.Text.Json.JsonException>(
+                () => _serializer.Deserialize<GuidHolder>("{\"id\":\"not-a-guid\"}"));
+        }
+    }
+
     public class ResolveOneOfTests
     {
         [Fact]

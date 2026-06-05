@@ -143,6 +143,29 @@ test('fetches discovery document', function (): void {
     expect($discoveryRequests)->toHaveCount(1);
 });
 
+test('oidc throws when discovery returns non-2xx status', function (): void {
+    $client = new MockTokenApiClient();
+    // A non-2xx discovery response (e.g. a 500 HTML error page) must surface
+    // as a clear error, not as an "invalid JSON" parse failure of the body.
+    $client->enqueueResponse(new ApiResponse(
+        500,
+        '<html>internal server error</html>',
+        ['Content-Type' => 'text/html']
+    ));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect(fn () => $authenticator->buildAuthorizationUrl())->toThrow(\RuntimeException::class);
+});
+
 test('oidc throws when no api client injected', function (): void {
     $authenticator = new OpenIdConnectAuthenticator(
         'https://api.example.com',

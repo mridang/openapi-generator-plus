@@ -155,6 +155,11 @@ defmodule PetstoreClient.TransportOptionsTest do
     assert opts.timeout == 1000
   end
 
+  test "timeout can be explicitly set to nil for no timeout" do
+    opts = PetstoreClient.TransportOptions.new(timeout: nil)
+    assert opts.timeout == nil
+  end
+
   # ProxyConfigTests
 
   test "setting proxy URL is preserved on read-back" do

@@ -93,6 +93,52 @@ class DefaultApiClientUnitTest {
           exchange.sendResponseHeaders(307, -1);
           exchange.close();
         });
+    server.createContext(
+        "/redirect-308",
+        exchange -> {
+          exchange.getResponseHeaders().add("Location", "/echo-headers");
+          exchange.sendResponseHeaders(308, -1);
+          exchange.close();
+        });
+    server.createContext(
+        "/redirect-bad-scheme",
+        exchange -> {
+          exchange.getResponseHeaders().add("Location", "file:///etc/passwd");
+          exchange.sendResponseHeaders(302, -1);
+          exchange.close();
+        });
+    server.createContext(
+        "/latin1",
+        exchange -> {
+          byte[] body = new byte[] {(byte) 0xE9}; // "é" in ISO-8859-1
+          exchange.getResponseHeaders().add("Content-Type", "text/plain; charset=ISO-8859-1");
+          exchange.sendResponseHeaders(200, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
+    server.createContext(
+        "/utf8-default",
+        exchange -> {
+          byte[] body = "héllo".getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().add("Content-Type", "text/plain");
+          exchange.sendResponseHeaders(200, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
+    server.createContext(
+        "/unknown-charset",
+        exchange -> {
+          byte[] body = "héllo".getBytes(StandardCharsets.UTF_8);
+          exchange
+              .getResponseHeaders()
+              .add("Content-Type", "text/plain; charset=not-a-real-charset");
+          exchange.sendResponseHeaders(200, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
     server.start();
     baseUrl = "http://localhost:" + server.getAddress().getPort();
   }
@@ -457,5 +503,174 @@ class DefaultApiClientUnitTest {
     TransportOptions transport =
         TransportOptions.builder().caCertPath("/nonexistent/ca.pem").build();
     assertThrows(RuntimeException.class, () -> new DefaultApiClient(transport));
+  }
+
+  @Test
+  void multipartFileWithPngExtensionSetsImagePngContentType() {
+    assertEquals("image/png", DefaultApiClient.guessMimeTypeFromName("image.png"));
+  }
+
+  @Test
+  void multipartFileWithPdfExtensionSetsApplicationPdfContentType() {
+    assertEquals("application/pdf", DefaultApiClient.guessMimeTypeFromName("doc.pdf"));
+  }
+
+  @Test
+  void multipartFileWithoutExtensionDefaultsToOctetStream() {
+    assertEquals("application/octet-stream", DefaultApiClient.guessMimeTypeFromName("blob"));
+  }
+
+  @Test
+  void multipartFilenameNonAsciiEmitsRFC5987() {
+    String directive = DefaultApiClient.buildFilenameDirective("日本.pdf");
+    assertTrue(directive.contains("filename*=UTF-8''"));
+    assertTrue(directive.contains("%E6%97%A5%E6%9C%AC"));
+    assertTrue(directive.startsWith("filename=\""));
+  }
+
+  @Test
+  void multipartFilenameAsciiOnlyOmitsFilenameStar() {
+    String directive = DefaultApiClient.buildFilenameDirective("pet.png");
+    assertEquals("filename=\"pet.png\"", directive);
+    assertFalse(directive.contains("filename*="));
+  }
+
+  @Test
+  void multipartFilenameBackslashEscapesQuotes() {
+    String directive = DefaultApiClient.buildFilenameDirective("a\"b.txt");
+    assertTrue(directive.contains("a\\\"b.txt"));
+  }
+
+  @Test
+  void multipartFilenameCRLFRejected() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> DefaultApiClient.validateMultipartFilename("a\rb.pdf"));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> DefaultApiClient.validateMultipartFilename("a\nb.pdf"));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> DefaultApiClient.validateMultipartFilename("a\r\nb.pdf"));
+    // ASCII filenames are accepted
+    DefaultApiClient.validateMultipartFilename("pet.png");
+  }
+
+  @Test
+  void multipartFilenameNulRejected() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> DefaultApiClient.validateMultipartFilename("a\0b.pdf"));
+  }
+
+  @Test
+  void sensitiveHeaderNamesIncludesApiKeyHeaderNames() {
+    assertTrue(
+        DefaultApiClient.SENSITIVE_HEADER_NAMES.contains("x-api-key"),
+        "expected SENSITIVE_HEADER_NAMES to contain harvested apiKey header 'x-api-key'");
+    assertTrue(
+        DefaultApiClient.SENSITIVE_HEADER_NAMES.contains("x-internal-key"),
+        "expected SENSITIVE_HEADER_NAMES to contain harvested apiKey header 'x-internal-key'");
+  }
+
+  @Test
+  void noRedirectReturns308Response() throws Exception {
+    TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    ApiResponse response =
+        client.sendRequest("POST", baseUrl + "/redirect-308", Map.of(), "credentials=secret", true);
+    assertEquals(
+        308,
+        response.statusCode(),
+        "noRedirect=true must return the 3xx response as-is, never replay to Location");
+  }
+
+  @Test
+  void redirectToNonHttpSchemeThrows() {
+    TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    ApiException ex =
+        assertThrows(
+            ApiException.class,
+            () -> client.sendRequest("GET", baseUrl + "/redirect-bad-scheme", Map.of(), null));
+    assertTrue(ex.getMessage().toLowerCase(java.util.Locale.ROOT).contains("non-http"));
+  }
+
+  @Test
+  void useAfterCloseThrowsApiException() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    client.close();
+    assertThrows(
+        ApiException.class, () -> client.sendRequest("GET", baseUrl + "/echo", Map.of(), null));
+  }
+
+  @Test
+  void decodesResponseBodyUsingDeclaredCharset() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    ApiResponse response = client.sendRequest("GET", baseUrl + "/latin1", Map.of(), null);
+    assertEquals("é", response.body());
+  }
+
+  @Test
+  void decodesResponseBodyAsUtf8WhenNoCharsetSpecified() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    ApiResponse response = client.sendRequest("GET", baseUrl + "/utf8-default", Map.of(), null);
+    assertEquals("héllo", response.body());
+  }
+
+  @Test
+  void fallsBackToUtf8WhenCharsetIsUnknown() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    // Must not throw despite the unknown charset.
+    ApiResponse response = client.sendRequest("GET", baseUrl + "/unknown-charset", Map.of(), null);
+    assertEquals("héllo", response.body());
+  }
+
+  @Test
+  void crossOriginRedirectStripsSensitiveHeaders() throws Exception {
+    // A second server on a different port is a different origin, so the
+    // manual redirect loop must drop Authorization but keep non-sensitive
+    // headers when following the 307 to it.
+    final java.util.concurrent.atomic.AtomicReference<String> seenAuth =
+        new java.util.concurrent.atomic.AtomicReference<>("__unset__");
+    final java.util.concurrent.atomic.AtomicReference<String> seenTrace =
+        new java.util.concurrent.atomic.AtomicReference<>("__unset__");
+    HttpServer target = HttpServer.create(new InetSocketAddress(0), 0);
+    target.createContext(
+        "/landed",
+        exchange -> {
+          seenAuth.set(exchange.getRequestHeaders().getFirst("Authorization"));
+          seenTrace.set(exchange.getRequestHeaders().getFirst("X-Trace"));
+          exchange.sendResponseHeaders(200, -1);
+          exchange.close();
+        });
+    target.start();
+    String targetUrl = "http://localhost:" + target.getAddress().getPort() + "/landed";
+
+    HttpServer origin = HttpServer.create(new InetSocketAddress(0), 0);
+    origin.createContext(
+        "/start",
+        exchange -> {
+          exchange.getResponseHeaders().add("Location", targetUrl);
+          exchange.sendResponseHeaders(307, -1);
+          exchange.close();
+        });
+    origin.start();
+    String originUrl = "http://localhost:" + origin.getAddress().getPort() + "/start";
+
+    try {
+      TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
+      DefaultApiClient client = new DefaultApiClient(transport);
+      Map<String, String> headers = new HashMap<>();
+      headers.put("Authorization", "Bearer secret");
+      headers.put("X-Trace", "keep");
+      ApiResponse response = client.sendRequest("GET", originUrl, headers, null);
+      assertEquals(200, response.statusCode());
+      assertNull(seenAuth.get(), "Authorization must be stripped on cross-origin redirect");
+      assertEquals("keep", seenTrace.get(), "non-sensitive headers must be preserved");
+    } finally {
+      origin.stop(0);
+      target.stop(0);
+    }
   }
 }

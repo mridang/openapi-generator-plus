@@ -231,6 +231,13 @@ class TransportOptionsTest {
     assertEquals(1000, opts.getTimeout());
   }
 
+  @Test
+  @DisplayName("explicitly setting timeout to null disables timeout")
+  void timeoutCanBeExplicitlyDisabled() {
+    TransportOptions opts = TransportOptions.builder().timeout(null).build();
+    assertNull(opts.getTimeout());
+  }
+
   // ProxyConfigTests
 
   @Test

@@ -503,6 +503,42 @@ test('deserialize succeeds when all required fields are present', function (): v
     expect($pet->name)->toBe('doggie');
 });
 
+// -- Gap K: discriminator auto-injection on subtype serialize --
+
+test('dry subtype serialize auto-emits discriminator', function (): void {
+    /* The generated DryFood model defaults foodType to "dry", so a caller
+     * that omits it still gets the discriminator on the wire. */
+    $dry = new \PetstoreClient\Models\DryFood(2.5);
+    $json = ObjectSerializer::serialize($dry);
+    /** @var array<string, mixed> $data */
+    $data = json_decode($json, true);
+    expect($data['foodType'])->toBe('dry');
+    expect($data['weightKg'])->toBe(2.5);
+});
+
+test('wet subtype serialize auto-emits discriminator', function (): void {
+    $wet = new \PetstoreClient\Models\WetFood(350);
+    $json = ObjectSerializer::serialize($wet);
+    /** @var array<string, mixed> $data */
+    $data = json_decode($json, true);
+    expect($data['foodType'])->toBe('wet');
+});
+
+// -- Gap #13: null fields omitted on serialize --
+
+test('serialize omits model fields that are null', function (): void {
+    /* Category's id/name are nullable. A field left null must be dropped
+     * from the JSON payload (SKIP_NULL_VALUES), not emitted as "id":null. */
+    $category = new Category();
+    $category->id = null;
+    $category->name = 'Dogs';
+    $json = ObjectSerializer::serialize($category);
+    /** @var array<string, mixed> $data */
+    $data = json_decode($json, true);
+    expect($data)->not->toHaveKey('id');
+    expect($data['name'])->toBe('Dogs');
+});
+
 // -- resolveOneOf / resolveAnyOf no-match --
 
 test('resolveOneOf returns the first matching variant', function (): void {

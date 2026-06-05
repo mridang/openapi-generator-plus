@@ -112,6 +112,96 @@ void main() {
       expect(hs.isJsonMime('APPLICATION/JSON'), isTrue);
     });
 
+    test('selectHeaders single non-JSON accept as-is', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders(['text/html'], 'application/json', false);
+
+      expect(headers['Accept'], equals('text/html'));
+    });
+
+    test('selectHeaders comma-separated list when no JSON types', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders(
+        ['text/html', 'text/plain'],
+        'application/json',
+        false,
+      );
+
+      expect(headers['Accept'], equals('text/html,text/plain'));
+    });
+
+    test('selectHeaders multiple JSON types with priority', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders(
+        ['text/html', 'application/vnd.api+json', 'application/json'],
+        'application/json',
+        false,
+      );
+
+      final accept = headers['Accept']!;
+      expect(accept.startsWith('application/json'), isTrue);
+      final jsonIdx = accept.indexOf('application/json');
+      final vendorIdx = accept.indexOf('application/vnd.api+json');
+      final htmlIdx = accept.indexOf('text/html');
+      expect(jsonIdx, lessThan(vendorIdx));
+      expect(vendorIdx, lessThan(htmlIdx));
+    });
+
+    test('selectHeaders filters out empty entries', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders(
+        ['', 'application/json'],
+        'application/json',
+        false,
+      );
+
+      expect(headers['Accept'], equals('application/json'));
+    });
+
+    test('selectHeaders preserves existing quality weights in order', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders(
+        ['text/html;q=0.9', 'application/json', 'text/plain;q=0.8'],
+        'application/json',
+        false,
+      );
+
+      expect(headers['Accept']!.startsWith('application/json'), isTrue);
+    });
+
+    test('selectHeaders formats quality weight correctly', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders(
+        ['application/json', 'text/html'],
+        'application/json',
+        false,
+      );
+
+      final accept = headers['Accept']!;
+      expect(
+        accept.contains('text/html;q=0.9') || accept.contains('text/html;q=0.'),
+        isTrue,
+      );
+    });
+
+    test('selectHeaders removes trailing zeros from quality weight', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders(
+        ['application/json', 'text/html'],
+        'application/json',
+        false,
+      );
+
+      expect(headers['Accept'], isNot(contains(';q=0.900')));
+    });
+
     test('getNextWeight standard sequence', () {
       final hs = HeaderSelector();
 

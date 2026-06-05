@@ -127,4 +127,21 @@ describe PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     # Caller continues normally after rescuing -- no process crash.
     _(auth.host).must_equal 'https://api.example.com'
   end
+
+  it 'authorize URL with existing query string uses ampersand separator' do
+    auth_with_query = PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
+      'https://api.example.com',
+      'my_client_id',
+      'my_client_secret',
+      'https://x.auth0.com/authorize?audience=api',
+      'https://x.auth0.com/oauth/token',
+      'https://app.example.com/callback',
+      %w[read]
+    )
+
+    url = auth_with_query.build_authorization_url
+    _(url).must_include 'audience=api'
+    _(url).must_include 'response_type=code'
+    _(url.count('?')).must_equal 1
+  end
 end

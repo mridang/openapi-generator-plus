@@ -36,6 +36,28 @@ class FakeTokenClient
   end
 end
 
+# Thread-safe client that counts calls and stalls briefly so concurrent
+# callers genuinely race against a single in-flight refresh.
+class SlowCountingTokenClient
+  attr_reader :call_count
+
+  def initialize(body)
+    @body = body
+    @call_count = 0
+    @mutex = Mutex.new
+  end
+
+  def send_request(_method, _url, _headers, _body, **_kwargs)
+    @mutex.synchronize { @call_count += 1 }
+    sleep 0.05
+    PetstoreClient::ApiResponse.new(
+      status_code: 200,
+      body: @body.to_json,
+      headers: { 'content-type' => 'application/json' }
+    )
+  end
+end
+
 describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
   parallelize_me!
 
@@ -123,6 +145,66 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
     assert_raises(RuntimeError) do
       manager.get_access_token('https://auth.example.com/token', {})
     end
+  end
+
+  it 'single-flight refresh coalesces concurrent callers' do
+    # 10 threads all see no cached token and race into get_access_token.
+    # The mutex + cache check must coalesce them into exactly ONE network
+    # round-trip to the token endpoint.
+    client = SlowCountingTokenClient.new({ 'access_token' => 'shared-tok', 'expires_in' => 3600 })
+    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    params = { 'grant_type' => 'client_credentials' }
+    tokens = Array.new(10)
+    threads = (0...10).map do |i|
+      Thread.new do
+        tokens[i] = manager.get_access_token('https://auth.example.com/token', params)
+      end
+    end
+    threads.each(&:join)
+
+    _(client.call_count).must_equal 1
+    _(tokens.all? { |t| t == 'shared-tok' }).must_equal true
+  end
+
+  it 'missing access_token in 2xx response raises typed OAuth2TokenError' do
+    # A 2xx response whose body omits access_token must surface as the typed
+    # OAuth2TokenError, not silently cache an empty token.
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'refresh_token' => 'x' } }
+    ])
+    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    assert_raises(PetstoreClient::Auth::OAuth::OAuth2TokenError) do
+      manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    end
+  end
+
+  it 'token endpoint error response parsed to typed OAuth2ServerError' do
+    # RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a
+    # typed OAuth2ServerError carrying code/description/uri.
+    client = FakeTokenClient.new([
+      {
+        status: 400,
+        body: {
+          'error' => 'invalid_grant',
+          'error_description' => 'refresh token expired',
+          'error_uri' => 'https://docs.example.com/errors/invalid_grant'
+        }
+      }
+    ])
+    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    error = assert_raises(PetstoreClient::Auth::OAuth::OAuth2ServerError) do
+      manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    end
+    _(error.status_code).must_equal 400
+    _(error.code).must_equal 'invalid_grant'
+    _(error.description).must_equal 'refresh token expired'
+    _(error.uri).must_equal 'https://docs.example.com/errors/invalid_grant'
   end
 
   it 'expires_in short-lived token does not storm' do

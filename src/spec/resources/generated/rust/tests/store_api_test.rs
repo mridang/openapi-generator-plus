@@ -69,10 +69,53 @@ async fn test_store_api_get_inventory() {
 }
 
 #[tokio::test]
+async fn test_store_api_get_inventory_with_http_info() {
+    let api = new_store_api_for_integration();
+    let result = api.get_inventory_with_http_info().await;
+    assert!(
+        result.is_ok(),
+        "GetInventoryWithHttpInfo failed: {:?}",
+        result.err()
+    );
+    let result = result.unwrap();
+    assert!(result.status_code >= 200 && result.status_code < 300);
+    assert!(result.data.is_some());
+}
+
+#[tokio::test]
 async fn test_store_api_get_order_by_id() {
     let api = new_store_api_for_integration();
     let result = api.get_order_by_id(1).await;
     assert!(result.is_ok(), "GetOrderById failed: {:?}", result.err());
+}
+
+#[tokio::test]
+async fn test_store_api_get_order_by_id_with_http_info() {
+    let api = new_store_api_for_integration();
+    let result = api.get_order_by_id_with_http_info(1).await;
+    assert!(
+        result.is_ok(),
+        "GetOrderByIdWithHttpInfo failed: {:?}",
+        result.err()
+    );
+    let result = result.unwrap();
+    assert!(result.status_code >= 200 && result.status_code < 300);
+    assert!(result.data.is_some());
+}
+
+#[tokio::test]
+async fn test_store_api_place_order_with_http_info() {
+    let api = new_store_api_for_integration();
+    let order = Order::new();
+    let result = api.place_order_with_http_info(Some(order)).await;
+    assert!(
+        result.is_ok(),
+        "PlaceOrderWithHttpInfo failed: {:?}",
+        result.err()
+    );
+    let result = result.unwrap();
+    assert!(result.status_code >= 200 && result.status_code < 300);
+    assert!(result.data.is_some());
 }
 
 #[tokio::test]

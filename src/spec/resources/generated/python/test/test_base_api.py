@@ -146,6 +146,16 @@ class TestSuccessDeserialization:
         result = await api.call_result('GET', '/test/echo', {}, {}, None, ['application/json'], 'application/json', 'object')
         assert isinstance(result.raw_body, str)
 
+    async def test_with_http_info_returns_status_data_headers_and_raw_body(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        result = await stub.call_result('GET', '/test/echo', {}, {}, None, ['application/json'], 'application/json', 'object')
+        assert result.status_code == 200
+        assert result.data is not None
+        assert result.headers is not None
+        assert result.raw_body == '{}'
+
 
 class TestQueryParameters:
     async def test_appends_query_params(self, api: Any) -> None:
@@ -242,6 +252,23 @@ class TestAuthInjection:
     async def test_sets_cookie_header(self, api: Any) -> None:
         auth = StubAuthenticator(cookies={'session': 'abc123'})
         await api.call('GET', '/test/echo', {}, {}, None, ['application/json'], 'application/json', None, auth)
+
+    async def test_falls_back_to_client_level_authenticator(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        client_auth = StubAuthenticator(headers={'X-Client-Auth': 'client-level-token'})
+        stub = StubApi(api_client=client, config=config, authenticator=client_auth)
+        await stub.call('GET', '/test/echo', {}, {}, None, ['application/json'], 'application/json', None)
+        assert client.captured_headers.get('X-Client-Auth') == 'client-level-token'
+
+    async def test_per_call_auth_overrides_client_level(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        client_auth = StubAuthenticator(headers={'X-Client-Auth': 'client-level-token'})
+        per_call_auth = StubAuthenticator(headers={'X-Client-Auth': 'per-call-token'})
+        stub = StubApi(api_client=client, config=config, authenticator=client_auth)
+        await stub.call('GET', '/test/echo', {}, {}, None, ['application/json'], 'application/json', None, per_call_auth)
+        assert client.captured_headers.get('X-Client-Auth') == 'per-call-token'
 
 
 class TestBodySerialization:

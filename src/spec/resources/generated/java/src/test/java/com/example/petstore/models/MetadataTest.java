@@ -11,7 +11,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.petstore.ObjectSerializer;
 import com.fasterxml.jackson.core.type.TypeReference;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 
 class MetadataTest {
@@ -65,5 +70,15 @@ class MetadataTest {
 
     java.util.Map<String, Object> additionalProps = metadata.getAdditionalProperties();
     assertThat(additionalProps).containsEntry("key", "value");
+  }
+
+  @Test
+  void testPomManifestDeclaresNonEmptyDescription() throws IOException {
+    Path pom = Path.of("pom.xml");
+    assertThat(Files.exists(pom)).as("pom.xml must exist at the project root").isTrue();
+    String contents = Files.readString(pom);
+    Matcher matcher = Pattern.compile("<description>(.*?)</description>").matcher(contents);
+    assertThat(matcher.find()).as("pom.xml must declare a <description>").isTrue();
+    assertThat(matcher.group(1).trim()).as("description must not be empty").isNotEmpty();
   }
 }

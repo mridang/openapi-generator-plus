@@ -419,6 +419,36 @@ test('multipart png file gets image png content type', function (): void {
     }
 });
 
+test('multipart pdf file gets application pdf content type', function (): void {
+    $tmp = tempnam(sys_get_temp_dir(), 'mp_');
+    expect($tmp)->toBeString();
+    $pdfPath = $tmp . '.pdf';
+    rename($tmp, $pdfPath);
+    file_put_contents($pdfPath, "%PDF-1.4\n");
+
+    $capturedBody = '';
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$capturedBody): MockResponse {
+            $capturedBody = collectDefaultApiClientRequestBody($options['body'] ?? '');
+            return new MockResponse('{}', ['http_code' => 200]);
+        }
+    );
+
+    try {
+        $client = new DefaultApiClient(null, $mockClient);
+        $client->sendRequest(
+            'POST',
+            'http://example.com/upload',
+            [],
+            ['file' => new \SplFileObject($pdfPath)]
+        );
+
+        expect($capturedBody)->toContain('Content-Type: application/pdf');
+    } finally {
+        @unlink($pdfPath);
+    }
+});
+
 test('multipart resource falls back to octet stream', function (): void {
     $stream = fopen('php://temp', 'w+');
     expect($stream)->toBeResource();
