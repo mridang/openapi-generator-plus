@@ -89,6 +89,7 @@ public class ObjectSerializer
                 "yyyy-MM-dd'T'HH:mm:sszzz",
                 System.Globalization.CultureInfo.InvariantCulture
             ),
+            IFormattable f => f.ToString(null, System.Globalization.CultureInfo.InvariantCulture),
             _ => value.ToString() ?? "",
         };
     }
