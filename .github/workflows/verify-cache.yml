@@ -20,11 +20,16 @@ jobs:
           sudo mkdir -p "$D"
           echo "secret-from-root-$(date +%s%N)" | sudo tee "$D/marker.txt" > /dev/null
           sudo dd if=/dev/urandom of="$D/blob.bin" bs=1M count=50 status=none
-          sudo chmod -R 0600 "$D"
           sudo chown -R root:root "$D"
+          # Directory stays traversable (0755) — like a real container-
+          # written cache dir. Files are 0600 root-owned so the runner
+          # genuinely cannot read their contents at save time.
+          sudo chmod 0755 "$D"
+          sudo chmod 0600 "$D/marker.txt" "$D/blob.bin"
           echo "=== planted (measured as root) ==="
           sudo du -sh "$D"
-          echo "=== runner trying to read marker (should be denied) ==="
+          echo "=== runner can list the dir but not read the file ==="
+          ls -la "$D"
           cat "$D/marker.txt" 2>&1 || echo "expected: permission denied"
       # The action's post-step runs here and saves ~/.cache via sudo tar.
 
