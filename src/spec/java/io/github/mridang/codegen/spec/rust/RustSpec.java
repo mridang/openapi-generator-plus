@@ -55,14 +55,21 @@ interface RustSpec extends LanguageSpec, DockerImageSpec {
 
     @Override
     default Map<String, String> getCacheEnv() {
-        /* CARGO_HOME holds the registry index + downloaded crate sources;
-         * CARGO_TARGET_DIR holds compiled artifacts (debug/release/test/clippy
-         * each get their own profile-keyed subdir, so cargo test → cargo
-         * clippy doesn't invalidate cargo build). Together they let
-         * RustBuildSpec → RustClientSpec → RustLintingSpec share every byte
-         * of compile output across the inter-spec /work wipe. */
+        /* CARGO_HOME holds the registry index + downloaded crate sources —
+         * stable across CI runs, so it lives under /root/.cache (bind-
+         * mounted to the host cache and persisted run-to-run).
+         *
+         * CARGO_TARGET_DIR holds compiled artifacts. These are large
+         * (~3GB) and re-derived whenever the generated client changes,
+         * which is every run — so caching them across runs wastes cache
+         * budget for near-zero hit value. We point it at /tmp instead.
+         * The shared per-language container is long-lived and the inter-
+         * spec reset only wipes /work, never /tmp, so RustBuildSpec →
+         * RustClientSpec → RustLintingSpec still share every byte of
+         * compile output WITHIN a run; we just don't persist it BETWEEN
+         * runs. */
         return Map.of(
                 "CARGO_HOME", "/root/.cache/rust/cargo",
-                "CARGO_TARGET_DIR", "/root/.cache/rust/target");
+                "CARGO_TARGET_DIR", "/tmp/build/rust/target");
     }
 }

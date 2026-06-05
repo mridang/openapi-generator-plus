@@ -37,9 +37,15 @@ interface SwiftSpec extends LanguageSpec, DockerImageSpec {
      * CLI help omits any ENVIRONMENT section entirely) but read by
      * SwiftPM's CommandLineToolApiSupport when no --scratch-path flag
      * is given. Relocates the entire .build/ tree (debug, repositories,
-     * checkouts, ModuleCache, Modules) outside /work so all three Swift
-     * specs (Build, Client, Linting) reuse the same compile artifacts.
-     * Verified empirically against swift:6.2 image. */
-    return Map.of("SWIFTPM_BUILD_DIR", "/root/.cache/swift/build");
+     * checkouts, ModuleCache, Modules) so all three Swift specs (Build,
+     * Client, Linting) reuse the same artifacts within a run.
+     *
+     * Pointed at /tmp rather than /root/.cache: the .build/ tree mixes
+     * deps (checkouts/repositories) with compiled output and is ~772MB.
+     * SwiftPM has no separate deps-only env var, so we keep the whole
+     * tree ephemeral — shared across specs in the long-lived container
+     * (only /work is wiped between specs), but not persisted between CI
+     * runs. Swift re-resolves + recompiles each run. */
+    return Map.of("SWIFTPM_BUILD_DIR", "/tmp/build/swift/build");
   }
 }
