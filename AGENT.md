@@ -766,3 +766,42 @@ the default its multipart library makes easiest — rather than a wire-
 format bug. Callers who need a specific filename can pass one
 explicitly via the per-language file-part API (where exposed). Not
 fixing.
+
+## PRIME DIRECTIVE — identical behaviour across all 12 SDKs, no shortcuts
+
+This is the most important rule in this file. It overrides convenience,
+speed, and "good enough".
+
+1. **All 12 SDKs must behave, read, and work the SAME way.** The generated
+   clients are one product in 12 languages. Same inputs → same wire output,
+   same parsing, same errors, same semantics. There is no "this language is
+   special".
+
+2. **No shortcuts. No per-SDK exceptions.** Do NOT "document an exception"
+   for a language that can't easily match (e.g. a Dart const-default
+   limitation). Do NOT change a *test assertion* to paper over divergent
+   behaviour. Do NOT mark something WONTFIX/accepted to dodge work. If one
+   SDK genuinely cannot match the others, STOP and raise it with the owner
+   — do not silently carve it out.
+
+3. **A change is not done until the WHOLE thing is proven green.** For every
+   behavioural change you MUST run each affected language's ENTIRE spec
+   package locally — not just `{Lang}ClientSpec`, but ALSO `FormattingSpec`,
+   `LintingSpec`/`StaticAnalysisSpec`, `TypeCheckSpec`, `BuildSpec`,
+   `ReservedWordsSpec` — and see them all green before committing or pushing.
+   Run the language's full `spec.{lang}` set (list the spec class FQNs;
+   `mvn verify` for a sweep). Running only `ClientSpec` is forbidden — it
+   hides formatting/lint/type/static failures.
+
+4. **Every behavioural fix needs the SAME test in all 12 SDK suites**
+   (prefer a negative/malformed-input test), asserting the one
+   cross-language-agreed behaviour. A fix that lands in fewer than 12 is
+   incomplete.
+
+5. **Working with parallel agents / Docker:** you may fix+verify up to two
+   DISJOINT languages at once (separate worktrees so mvn/target don't
+   collide). Keep a Docker prune loop running and prune leaked
+   testcontainers between waves; never restart Docker to recover —
+   `docker ps -aq --filter label=org.testcontainers=true --filter status=exited | xargs -r docker rm -f`.
+
+If you cannot honour all of the above for a change, do not make the change.
