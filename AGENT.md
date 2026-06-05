@@ -843,3 +843,24 @@ local verification.
   `open -a Docker`, then wait until `docker info` succeeds before re-running.
 - Never leave Docker in a half-restarted state; always wait for the daemon
   to be ready again.
+
+## Accepted non-divergences (decided, not pending)
+
+Some cross-language differences are intentionally NOT forced to byte-identical
+output because they are semantically equivalent and forcing them would fight
+each language's standard library for zero functional benefit (or require a
+risky refactor with no observable change). These are decisions, not gaps:
+
+- **Multipart serialization location** (#17): some SDKs build the multipart
+  body + boundary in base_api, others in the api-client layer. All 12 emit
+  valid `multipart/form-data` on the wire — the difference is purely internal
+  structure, not observable behavior. Not forced.
+- **Whole-number float form** (`1` vs `1.0`) and **UTC offset form** (`Z` vs
+  `+00:00`): JSON/RFC-3339 semantically identical. Accepted.
+- **Test-style differences**: table-driven tests (one function, many cases) vs
+  one-test-per-case. Coverage parity is the requirement, not identical test
+  counts. Accepted.
+
+Genuine wire-correctness divergences in the same areas WERE fixed (locale-
+sensitive decimal separators in java/kotlin/csharp; elixir sub-second
+datetime precision) — equivalence is the bar, not laziness.
