@@ -15,13 +15,16 @@ jobs:
 
     steps:
       - name: Runner Common Setup
-        uses: mridang/action-runner-common@v1
+        uses: mridang/action-runner-common@06a9dfb1eb5a1f08b0a12197ad8cf929ad39c8a8
         with:
           # Polyglot test matrix pulls ~12 GB of language images during the
           # job. Free runner bloat (Android SDK, .NET, Haskell, CodeQL,
           # PyPy, etc.) up front so the post-step bin-pack has room to
           # actually save those images to cache.
           docker-cache-free-disk: 'true'
+          # Print the per-node ~/.cache tree breakdown on save/restore so
+          # we can see the real toolchain cache sizes.
+          generic-cache-debug: 'true'
 
       - name: Checkout code
         uses: actions/checkout@v4
