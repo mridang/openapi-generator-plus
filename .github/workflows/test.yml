@@ -70,3 +70,24 @@ jobs:
         with:
           results-path: 'target/surefire-reports/*.xml'
           coverage-path: 'target/coverage/jacoco.xml'
+
+      - name: One-time prune of stale build output from restored cache
+        if: always()
+        run: |
+          # The restored cache still holds build output from before the
+          # env-var redirect (target/, .build, GOCACHE). New builds now
+          # write those to /tmp, but the stale copies were carried in by
+          # the restore. Remove them once so the action's post-step saves
+          # a clean deps-only cache; future runs stay small because the
+          # build output never re-enters ~/.cache.
+          echo "=== before prune ==="
+          sudo du -sh ~/.cache/openapi-gen 2>/dev/null || true
+          sudo du -sh ~/.cache/openapi-gen/* 2>/dev/null | sort -rh || true
+          sudo rm -rf \
+            ~/.cache/openapi-gen/rust/target \
+            ~/.cache/openapi-gen/go/build \
+            ~/.cache/openapi-gen/swift/build \
+            ~/.cache/openapi-gen/swift || true
+          echo "=== after prune ==="
+          sudo du -sh ~/.cache/openapi-gen 2>/dev/null || true
+          sudo du -sh ~/.cache/openapi-gen/* 2>/dev/null | sort -rh || true
