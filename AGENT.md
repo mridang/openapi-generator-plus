@@ -824,3 +824,22 @@ in 12 languages, so the test SUITES must mirror each other.
 
 3. **No language is exempt.** If a scenario genuinely cannot be expressed in
    one language's test harness, STOP and raise it — do not silently skip it.
+
+## Docker hygiene — restart when degraded
+
+Local Docker Desktop can enter a degraded state (file-sharing returns EIO:
+`mvn`/build inside a bind-mounted container fails with a bare
+`java.io.IOException: I/O error` even though the same code compiles fine on
+the host). When the in-container integration specs fail this way for an
+environmental reason (not a code defect), it is OK and expected to restart
+Docker Desktop to recover, then re-run. Do NOT ship around it by skipping
+local verification.
+
+- Prune leaked test containers before/after every run (the Elixir harness
+  in particular leaks squid/chasm containers — it runs testcontainers
+  without a ryuk reaper).
+- If pruning does not clear the EIO, restart Docker Desktop:
+  `osascript -e 'quit app "Docker"'` (or `killall Docker`), then
+  `open -a Docker`, then wait until `docker info` succeeds before re-running.
+- Never leave Docker in a half-restarted state; always wait for the daemon
+  to be ready again.
