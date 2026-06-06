@@ -10,6 +10,7 @@ package com.example.petstore;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Map;
+import java.util.Objects;
 import org.junit.jupiter.api.Test;
 
 class ApiExceptionTest {
@@ -26,7 +27,8 @@ class ApiExceptionTest {
 
     assertEquals(404, ex.getStatusCode());
     assertEquals("{\"id\":7,\"name\":\"missing\"}", ex.getResponseBody());
-    assertEquals("application/json", ex.getResponseHeaders().get("content-type"));
+    assertEquals(
+        "application/json", Objects.requireNonNull(ex.getResponseHeaders()).get("content-type"));
     assertNull(ex.getErrorBody());
   }
 

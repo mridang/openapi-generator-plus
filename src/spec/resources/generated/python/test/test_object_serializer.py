@@ -460,6 +460,7 @@ class TestDiscriminatorAutoInjection:
 
         json_str = '{"foodType": "dry", "weightKg": 2.5}'
         result = ObjectSerializer().deserialize(json_str, 'PetFood')
+        assert result is not None
         assert isinstance(result.actual_instance, DryFood)
         assert result.actual_instance.weight_kg == 2.5
 

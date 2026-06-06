@@ -655,11 +655,15 @@ class ValueSerializerTest {
       // path segment, so the api template must NOT wrap it again. A space
       // must become %20 (never %2520) and a slash %2F (never %252F).
       String space =
-          ValueSerializer.serializeStyled("id", "a b", "path", "string", null, "simple", false);
+          String.valueOf(
+              ValueSerializer.serializeStyled(
+                  "id", "a b", "path", "string", null, "simple", false));
       assertEquals("a%20b", space);
       assertFalse(space.contains("%2520"));
       String slash =
-          ValueSerializer.serializeStyled("id", "a/b", "path", "string", null, "simple", false);
+          String.valueOf(
+              ValueSerializer.serializeStyled(
+                  "id", "a/b", "path", "string", null, "simple", false));
       assertEquals("a%2Fb", slash);
       assertFalse(slash.contains("%252F"));
     }

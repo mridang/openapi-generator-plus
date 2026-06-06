@@ -61,4 +61,15 @@ public final class BasicAuthenticator extends BaseAuthenticator {
                 .encodeToString(credentials.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     return Collections.singletonMap("Authorization", authHeader);
   }
+
+  /**
+   * Returns a string representation that redacts the password so credentials never leak into logs
+   * or stack traces (matching the other SDKs).
+   *
+   * @return a redacted string representation
+   */
+  @Override
+  public String toString() {
+    return "BasicAuthenticator{username=" + username + ", password=<redacted>}";
+  }
 }

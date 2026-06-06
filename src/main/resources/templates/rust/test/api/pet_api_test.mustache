@@ -382,9 +382,11 @@ async fn test_pet_api_add_pet_per_call_auth_override() {
     let _ = api.add_pet(Some(&auth), pet).await;
 
     let request = rx.recv().expect("expected a captured request");
+    /* hyper writes HTTP/1.1 header names lowercased, so assert on the VALUE:
+     * the per-call token must win over the config default-token. */
     assert!(
-        request.contains("Authorization: Bearer test-token"),
-        "expected per-call auth header on the wire, got request: {}",
+        request.contains("Bearer test-token") && !request.contains("Bearer default-token"),
+        "expected per-call auth (test-token) to override default-token on the wire, got request: {}",
         request
     );
 }

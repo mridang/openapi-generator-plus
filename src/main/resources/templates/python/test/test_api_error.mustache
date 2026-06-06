@@ -15,6 +15,7 @@ class TestApiErrorShape:
         assert err.status_code == 404
         assert err.message == 'not found'
         assert err.response_body == '{"id":7,"name":"missing"}'
+        assert err.response_headers is not None
         assert err.response_headers['content-type'] == 'application/json'
         assert err.error_body is None
 

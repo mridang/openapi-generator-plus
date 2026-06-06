@@ -591,10 +591,11 @@ class ObjectSerializerTest {
       // Jackson @JsonSubTypes routing on foodType="dry".
       String json = "{\"foodType\":\"dry\",\"weightKg\":2.5}";
       com.example.petstore.models.PetFood food =
-          serializer.deserialize(
-              json,
-              new com.fasterxml.jackson.core.type.TypeReference<
-                  com.example.petstore.models.PetFood>() {});
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  json,
+                  new com.fasterxml.jackson.core.type.TypeReference<
+                      com.example.petstore.models.PetFood>() {}));
       assertTrue(
           food instanceof com.example.petstore.models.DryFood,
           "deserialized PetFood should be a DryFood, got: " + food.getClass());
