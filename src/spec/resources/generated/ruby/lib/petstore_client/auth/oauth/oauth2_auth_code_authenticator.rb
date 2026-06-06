@@ -39,7 +39,6 @@ module PetstoreClient
         # @param redirect_uri [String] redirect URI registered with the OAuth2 provider
         # @param scopes [Array<String>] requested scopes
         # @param refresh_url [String, nil] refresh endpoint URL (defaults to token_url)
-        # rubocop:disable Metrics/MethodLength, Metrics/ParameterLists
         def initialize(host, client_id, client_secret, authorization_url,
                        token_url, redirect_uri, scopes, refresh_url: nil)
           super()
@@ -54,7 +53,6 @@ module PetstoreClient
           @token_manager = OAuth2TokenManager.new
           @token_exchanged = false
         end
-        # rubocop:enable Metrics/MethodLength, Metrics/ParameterLists
 
         # Inject the shared API client for making token requests.
         #

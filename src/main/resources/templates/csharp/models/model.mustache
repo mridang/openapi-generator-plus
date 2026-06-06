@@ -1,14 +1,5 @@
 {{>api_info}}
 
-#pragma warning disable CA1002 // Do not expose generic lists
-#pragma warning disable CA1056 // URI-like properties should not be strings
-#pragma warning disable CA1711 // Identifiers should not have incorrect suffix
-#pragma warning disable CA1724 // Type names should not match namespaces
-#pragma warning disable CA1819 // Properties should not return arrays
-#pragma warning disable CA2227 // Collection properties should be read only
-#pragma warning disable CS0618 // Type or member is obsolete
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-
 {{#models}}
 {{#model}}
 {{#isEnum}}
@@ -69,9 +60,7 @@ namespace {{packageName}}.Models;
 [JsonConverter(typeof({{classname}}Converter))]
 public abstract class {{classname}}
 {
-#pragma warning disable CA1812
     private sealed class {{classname}}Converter : JsonConverter<{{classname}}>
-#pragma warning restore CA1812
     {
         public override {{classname}}? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
@@ -105,9 +94,7 @@ public class {{classname}}(object value)
 {
     public object? ActualInstance { get; set; } = value;
 
-#pragma warning disable CA1812
     private sealed class {{classname}}Converter : JsonConverter<{{classname}}>
-#pragma warning restore CA1812
     {
         public override {{classname}}? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
@@ -170,9 +157,7 @@ public class {{classname}}(object value)
 {
     public object? ActualInstance { get; set; } = value;
 
-#pragma warning disable CA1812
     private sealed class {{classname}}Converter : JsonConverter<{{classname}}>
-#pragma warning restore CA1812
     {
         public override {{classname}}? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {

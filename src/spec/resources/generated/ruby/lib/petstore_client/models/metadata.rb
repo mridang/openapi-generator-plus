@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable Style/OneClassPerFile
-
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -66,4 +64,3 @@ module PetstoreClient
     end
   end
 end
-# rubocop:enable Style/OneClassPerFile

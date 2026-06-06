@@ -12,7 +12,7 @@ require 'uri'
 
 module PetstoreClient
   # Serializes parameter values for HTTP requests based on their location.
-  class ValueSerializer # rubocop:disable Metrics/ClassLength
+  class ValueSerializer
     # Percent-encodes a string for use as a path segment, preserving
     # sub-delimiters that OAS 3.0 path styles use as structural separators.
     PRESERVE_ENCODED = {
@@ -54,7 +54,7 @@ module PetstoreClient
       end
     end
 
-    def self.serialize_query_array(value, collection_format) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
+    def self.serialize_query_array(value, collection_format)
       case collection_format
       when :multi
         value.map { |v| ObjectSerializer.stringify(v) }
@@ -105,7 +105,7 @@ module PetstoreClient
     #   'simple', 'spaceDelimited', 'pipeDelimited')
     # @param explode [Boolean] whether to explode array values
     # @return [String, Array<String>, nil] the serialized value
-    def self.serialize_styled(param_name, value, location, schema_type, collection_format, style, explode) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/ParameterLists, Metrics/PerceivedComplexity
+    def self.serialize_styled(param_name, value, location, schema_type, collection_format, style, explode)
       # Path parameters are required components of the URL — accepting an
       # empty string would silently produce a malformed URL like
       # `/pet//details`, which most servers route to 404 instead of

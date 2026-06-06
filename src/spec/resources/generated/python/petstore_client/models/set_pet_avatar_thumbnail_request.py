@@ -7,9 +7,9 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator  # noqa: F401
-from typing import Annotated, Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
-from typing_extensions import Self  # noqa: F401
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from typing import Annotated, Any, ClassVar, Dict, List, Optional, Set, Union
+from typing_extensions import Self
 
 
 class SetPetAvatarThumbnailRequest(BaseModel):
@@ -56,7 +56,7 @@ class SetPetAvatarThumbnailRequest(BaseModel):
 
     @field_validator('actual_instance')
     def actual_instance_must_validate_oneof(cls, v: Any) -> Any:
-        instance = SetPetAvatarThumbnailRequest.model_construct()  # noqa: F841
+        instance = SetPetAvatarThumbnailRequest.model_construct()
         error_messages = []
         match = 0
         try:

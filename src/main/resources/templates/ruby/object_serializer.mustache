@@ -34,8 +34,7 @@ module {{moduleName}}
   # All serde operations in the generated client route through this class.
   # The parameter encoding methods provide consistent value conversion for
   # URL path, query string, header, and form parameters.
-  class ObjectSerializer # rubocop:disable Metrics/ClassLength
-    # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
+  class ObjectSerializer
     DEFAULT_DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S%:z'
 
     # Serialize an object to a JSON string.
@@ -455,8 +454,6 @@ module {{moduleName}}
     def self.resolve_any_of(data, candidates)
       resolve_one_of(data, candidates)
     end
-
-    # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
 
     private_class_method :sanitize_for_serialization, :deserialize_model
   end

@@ -80,7 +80,7 @@ def _create_mock_server(status: int, content_type: str, body: str) -> tuple[Stor
         def do_DELETE(self) -> None:
             self.do_GET()
 
-        def log_message(self, format: str, *args: object) -> None:  # noqa: A002
+        def log_message(self, format: str, *args: object) -> None:
             pass
 
     server = HTTPServer(('127.0.0.1', 0), Handler)

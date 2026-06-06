@@ -55,15 +55,15 @@ class ApiException(OpenApiException):
 
 
 # Re-export exception subclasses for convenience
-from {{packageName}}.errors.client_exception import ClientException  # noqa: E402
-from {{packageName}}.errors.server_exception import ServerException  # noqa: E402
-from {{packageName}}.errors.bad_request_exception import BadRequestException  # noqa: E402
-from {{packageName}}.errors.unauthorized_exception import UnauthorizedException  # noqa: E402
-from {{packageName}}.errors.forbidden_exception import ForbiddenException  # noqa: E402
-from {{packageName}}.errors.not_found_exception import NotFoundException  # noqa: E402
-from {{packageName}}.errors.conflict_exception import ConflictException  # noqa: E402
-from {{packageName}}.errors.unprocessable_entity_exception import UnprocessableEntityException  # noqa: E402
-from {{packageName}}.errors.internal_server_error_exception import InternalServerErrorException  # noqa: E402
+from {{packageName}}.errors.client_exception import ClientException
+from {{packageName}}.errors.server_exception import ServerException
+from {{packageName}}.errors.bad_request_exception import BadRequestException
+from {{packageName}}.errors.unauthorized_exception import UnauthorizedException
+from {{packageName}}.errors.forbidden_exception import ForbiddenException
+from {{packageName}}.errors.not_found_exception import NotFoundException
+from {{packageName}}.errors.conflict_exception import ConflictException
+from {{packageName}}.errors.unprocessable_entity_exception import UnprocessableEntityException
+from {{packageName}}.errors.internal_server_error_exception import InternalServerErrorException
 
 __all__ = [
     'OpenApiException',

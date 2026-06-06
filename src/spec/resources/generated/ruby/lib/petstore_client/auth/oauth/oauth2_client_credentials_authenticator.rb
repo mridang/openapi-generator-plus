@@ -34,7 +34,6 @@ module PetstoreClient
         # @param client_auth_method [Symbol] how to transmit the client
         #   credentials. One of {ClientAuthMethod::BODY} (default) or
         #   {ClientAuthMethod::BASIC}.
-        # rubocop:disable Metrics/ParameterLists
         def initialize(host, client_id, client_secret, token_url, scopes, client_auth_method: ClientAuthMethod::BODY)
           super()
           @host = host
@@ -45,7 +44,6 @@ module PetstoreClient
           @client_auth_method = client_auth_method
           @token_manager = OAuth2TokenManager.new
         end
-        # rubocop:enable Metrics/ParameterLists
 
         # Inject the shared API client for making token requests.
         #

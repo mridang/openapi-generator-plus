@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable Metrics/BlockLength, Metrics/ParameterLists, Lint/MissingCopEnableDirective
-
 require 'minitest/autorun'
 require 'json'
 require '{{gemName}}'
@@ -23,7 +21,7 @@ end
 class CapturingApiClient
   attr_reader :captured_url, :captured_headers, :captured_body
 
-  def send_request(_method, url, headers, body, no_redirect: false) # rubocop:disable Lint/UnusedMethodArgument
+  def send_request(_method, url, headers, body, no_redirect: false)
     @captured_url = url
     @captured_headers = headers
     @captured_body = body

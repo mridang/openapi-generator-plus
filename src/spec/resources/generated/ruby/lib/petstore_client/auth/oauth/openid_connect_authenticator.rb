@@ -35,7 +35,6 @@ module PetstoreClient
         # @param client_secret [String] OAuth2 client secret
         # @param redirect_uri [String] redirect URI registered with the provider
         # @param scopes [Array<String>] requested scopes
-        # rubocop:disable Metrics/ParameterLists
         def initialize(host, openid_connect_url, client_id, client_secret, redirect_uri, scopes)
           super()
           @host = host
@@ -51,7 +50,6 @@ module PetstoreClient
 
         # RFC 8414 recommended default max-age for OIDC discovery documents.
         DEFAULT_DISCOVERY_MAX_AGE_SECONDS = 86_400
-        # rubocop:enable Metrics/ParameterLists
 
         # Inject the shared API client for making discovery and token requests.
         #
@@ -89,7 +87,7 @@ module PetstoreClient
         #
         # @return [OAuth2AuthorizationCodeAuthenticator]
         # @raise [RuntimeError] if the API client has not been injected
-        def resolve_delegate # rubocop:disable Metrics/MethodLength
+        def resolve_delegate
           return @delegate if @delegate && Time.now < @discovery_expiry
 
           client = @api_client

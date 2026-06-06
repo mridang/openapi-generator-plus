@@ -57,14 +57,12 @@ public static class ValueSerializer
     /// The serialized value suitable for the given location, or <c>null</c> for query
     /// parameters with a null input value.
     /// </returns>
-#pragma warning disable IDE0060 // Remove unused parameter
     public static object? Serialize(
         object? value,
         string location,
         string schemaType,
         string? collectionFormat = null
     )
-#pragma warning restore IDE0060 // Remove unused parameter
     {
         if (value == null)
         {

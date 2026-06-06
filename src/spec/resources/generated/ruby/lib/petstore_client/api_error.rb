@@ -17,7 +17,7 @@ module PetstoreClient
     #   ApiError.new('message')
     #   ApiError.new(status_code: 500, response_headers: {}, response_body: '')
     #   ApiError.new(status_code: 404, message: 'Not Found')
-    def initialize(arg = nil) # rubocop:disable Metrics/MethodLength
+    def initialize(arg = nil)
       if arg.is_a? Hash
         if arg.key?(:message) || arg.key?('message')
           super(arg[:message] || arg['message'])

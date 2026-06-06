@@ -35,7 +35,6 @@ module PetstoreClient
         # @param scopes [Array<String>] requested scopes
         # @param refresh_url [String, nil] refresh endpoint URL (defaults to token_url)
         # @param client_auth_method [Symbol] one of {ClientAuthMethod::BODY} (default) or {ClientAuthMethod::BASIC}
-        # rubocop:disable Metrics/ParameterLists,Metrics/MethodLength
         def initialize(host, client_id, client_secret, token_url, username, password, scopes,
                        refresh_url: nil, client_auth_method: ClientAuthMethod::BODY)
           super()
@@ -50,7 +49,6 @@ module PetstoreClient
           @scopes = scopes.freeze
           @token_manager = OAuth2TokenManager.new
         end
-        # rubocop:enable Metrics/ParameterLists,Metrics/MethodLength
 
         # Inject the shared API client for making token requests.
         #

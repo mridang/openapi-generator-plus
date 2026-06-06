@@ -2,8 +2,6 @@
 
 {{>api_info}}
 
-# rubocop:disable Metrics/BlockLength, Lint/MissingCopEnableDirective
-
 require 'minitest/autorun'
 require 'json'
 require 'uri'
@@ -17,7 +15,7 @@ class FakeAuthCodeClient
     @call_index = 0
   end
 
-  def send_request(_method, url, _headers, body, no_redirect: false) # rubocop:disable Lint/UnusedMethodArgument
+  def send_request(_method, url, _headers, body, no_redirect: false)
     @last_url = url
     @last_body = body
     response = @responses[@call_index] || @responses.last

@@ -3,7 +3,7 @@
 require 'test_helper'
 require 'json'
 
-describe 'Composed Schema' do # rubocop:disable Metrics/BlockLength
+describe 'Composed Schema' do
   parallelize_me!
 
   describe 'oneOf with discriminator: PetFood' do

@@ -59,7 +59,7 @@ module PetstoreClient
     class Builder
       def initialize
         @base_url = '/api/v3'
-        @default_headers = {} #: Hash[String, String] # rubocop:disable Layout/LeadingCommentSpace
+        @default_headers = {} #: Hash[String, String]
       end
 
       # Set the base URL for all API requests.

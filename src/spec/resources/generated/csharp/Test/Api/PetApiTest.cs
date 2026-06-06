@@ -12,9 +12,6 @@ using PetstoreClient.Auth;
 using PetstoreClient.Models;
 using Xunit;
 
-#pragma warning disable CS0618 // Intentionally testing deprecated APIs
-#pragma warning disable xUnit1004 // Skip is intentional (external host not reachable in test)
-
 namespace Test.Api;
 
 [Collection("Chasm")]

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable Metrics/BlockLength, Lint/MissingCopEnableDirective
-
 require 'json'
 require 'test_helper'
 

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable Metrics/BlockLength, Lint/MissingCopEnableDirective
-
 require 'test_helper'
 
 describe PetstoreClient::Configuration do

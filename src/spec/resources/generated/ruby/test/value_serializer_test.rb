@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable Metrics/BlockLength, Lint/MissingCopEnableDirective
-
 require 'test_helper'
 
 describe PetstoreClient::ValueSerializer do
@@ -395,8 +393,7 @@ describe PetstoreClient::ValueSerializer do
     end
 
     it 'simple style array encodes each item' do
-      result = PetstoreClient::ValueSerializer.serialize_styled('color', ['a b', 'c?d'], :path, 'array', nil, 'simple',
-        false)
+      result = PetstoreClient::ValueSerializer.serialize_styled('color', ['a b', 'c?d'], :path, 'array', nil, 'simple', false)
       _(result).must_equal('a%20b,c%3Fd')
     end
 

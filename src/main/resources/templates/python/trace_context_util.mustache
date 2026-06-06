@@ -14,7 +14,7 @@ def inject_trace_context(headers: Dict[str, str]) -> None:
     :param headers: mutable dict of request headers
     """
     try:
-        from opentelemetry.propagate import inject  # type: ignore[import-not-found]
+        from opentelemetry.propagate import inject
 
         inject(carrier=headers)
     except ImportError:

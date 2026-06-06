@@ -52,14 +52,15 @@ public static class ValueSerializer
     /// The serialized value suitable for the given location, or <c>null</c> for query
     /// parameters with a null input value.
     /// </returns>
-#pragma warning disable IDE0060 // Remove unused parameter
+    {{! schemaType is part of the shared serializer signature (the style/typed
+        overload below uses it); kept here for a uniform call shape even though
+        this overload does not branch on it. IDE0060 is silenced in .editorconfig. }}
     public static object? Serialize(
         object? value,
         string location,
         string schemaType,
         string? collectionFormat = null
     )
-#pragma warning restore IDE0060 // Remove unused parameter
     {
         if (value == null)
         {

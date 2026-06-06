@@ -8,13 +8,13 @@ import re
 import uuid
 from datetime import timezone
 from enum import Enum
-from typing import Any, Callable, ClassVar, Optional, Type, TypeVar, Union
+from typing import Any, Callable, ClassVar, Optional, Type, TypeVar, Union, cast
 
 from dateutil.parser import parse
 from pydantic import BaseModel, SecretStr, TypeAdapter
 
 try:
-    import isodate as _isodate  # type: ignore[import-untyped]
+    import isodate as _isodate
 except ImportError:  # pragma: no cover - isodate is a hard dep at runtime
     _isodate = None
 
@@ -89,7 +89,7 @@ def _parse_timedelta_iso8601(value: str) -> datetime.timedelta:
         return parsed
     raise ValueError(f'Could not parse {value!r} as a fixed-length duration')
 
-import {{packageName}}.models  # noqa: E402
+import {{packageName}}.models
 
 
 T = TypeVar('T')
@@ -102,18 +102,23 @@ _LIST_ADAPTER_CACHE: dict[type, TypeAdapter[Any]] = {}
 _DICT_ADAPTER_CACHE: dict[type, TypeAdapter[Any]] = {}
 
 
-def _list_adapter(inner: type) -> TypeAdapter[Any]:
+# `inner` is a runtime type object used to build a parametrized container
+# type for pydantic. It is annotated as Any (not `type`) because subscripting
+# `list[inner]` / `dict[str, inner]` with a `type`-annotated variable is not a
+# valid static type expression; Any lets mypy treat the result as the
+# (correct) `list[Any]` / `dict[str, Any]` without an inline override.
+def _list_adapter(inner: Any) -> TypeAdapter[Any]:
     cached = _LIST_ADAPTER_CACHE.get(inner)
     if cached is None:
-        cached = TypeAdapter(list[inner])  # type: ignore[valid-type]
+        cached = TypeAdapter(list[inner])
         _LIST_ADAPTER_CACHE[inner] = cached
     return cached
 
 
-def _dict_adapter(inner: type) -> TypeAdapter[Any]:
+def _dict_adapter(inner: Any) -> TypeAdapter[Any]:
     cached = _DICT_ADAPTER_CACHE.get(inner)
     if cached is None:
-        cached = TypeAdapter(dict[str, inner])  # type: ignore[valid-type]
+        cached = TypeAdapter(dict[str, inner])
         _DICT_ADAPTER_CACHE[inner] = cached
     return cached
 
@@ -217,7 +222,9 @@ class ObjectSerializer:
                 json_string,
                 parse_constant=ObjectSerializer._reject_nonfinite_constant,
             )
-            return self._deserialize(data, target_type)  # type: ignore[no-any-return]
+            # _deserialize is dynamically typed (returns Any); narrow it back
+            # to the declared Optional[T] for callers without an inline override.
+            return cast(Optional[T], self._deserialize(data, target_type))
         except json.JSONDecodeError as e:
             raise SerializationError(f'Failed to parse JSON: {e}', e)
         except Exception as e:

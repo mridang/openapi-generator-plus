@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable Metrics/BlockLength, Lint/MissingCopEnableDirective
-
 # Integration tests for the Pet API endpoints.
 
 require 'test_helper'
@@ -192,12 +190,12 @@ describe PetstoreClient::Api::PetApi do
   end
 
   describe 'error handling' do
-    def new_pet_api_for_mock(status, content_type, body) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+    def new_pet_api_for_mock(status, content_type, body)
       server = TCPServer.new('127.0.0.1', 0)
       port = server.addr[1]
       thread = Thread.new do
         loop do
-          client = server.accept rescue break # rubocop:disable Style/RescueModifier
+          client = server.accept rescue break
           client.gets # read request line
           while (line = client.gets)
             break if line.strip.empty?
@@ -281,12 +279,12 @@ describe PetstoreClient::Api::PetApi do
   # template wrapped the already-encoded serializer output in a second
   # encode_path_segment pass, turning a space into %2520 instead of %20.
   describe 'path encoding' do
-    def capture_request_line(status, content_type, body) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
+    def capture_request_line(status, content_type, body)
       server = TCPServer.new('127.0.0.1', 0)
       port = server.addr[1]
       captured = Queue.new
       thread = Thread.new do
-        client = server.accept rescue next # rubocop:disable Style/RescueModifier
+        client = server.accept rescue next
         captured << client.gets.to_s
         while (line = client.gets)
           break if line.strip.empty?

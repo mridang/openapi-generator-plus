@@ -22,9 +22,9 @@ class {{classname}}(str, Enum):
 {{#-first}}
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator  # noqa: F401
-from typing import Annotated, Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
-from typing_extensions import Self  # noqa: F401
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from typing import Annotated, Any, ClassVar, Dict, List, Optional, Set, Union
+from typing_extensions import Self
 
 
 class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}):
@@ -129,7 +129,7 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
             return v
 
         {{/isNullable}}
-        instance = {{{classname}}}.model_construct()  # noqa: F841
+        instance = {{{classname}}}.model_construct()
         error_messages = []
         match = 0
         {{#composedSchemas.oneOf}}
@@ -177,9 +177,9 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
 {{#-first}}
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator  # noqa: F401
-from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
-from typing_extensions import Self  # noqa: F401
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from typing import Any, ClassVar, Dict, List, Optional, Set, Union
+from typing_extensions import Self
 
 
 class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}):
@@ -247,11 +247,11 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
 {{^anyOf}}
 from __future__ import annotations
 
-import re  # noqa: F401
-import warnings  # noqa: F401
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator  # noqa: F401
-from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
-from typing_extensions import Self  # noqa: F401
+import re
+import warnings
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from typing import Any, ClassVar, Dict, List, Optional, Set, Union
+from typing_extensions import Self
 {{#hasEnums}}
 from enum import Enum
 {{/hasEnums}}
@@ -453,7 +453,7 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
 {{/oneOf}}
 
 {{#imports}}
-{{{.}}}  # noqa: F401
+{{{.}}}
 {{/imports}}
 
 {{classname}}.model_rebuild(raise_errors=False)

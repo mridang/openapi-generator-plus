@@ -405,14 +405,13 @@ public sealed class OAuth2TokenManager
 /* CA1032: extra constructors (parameterless / message+inner) are unused;
    we only ever throw this from one site with a fixed-shape message. */
 /* IDE0290: primary-constructor form makes the XML doc less natural. */
-#pragma warning disable CA1710, CA1032, IDE0290
+/* CA1710/CA1032/IDE0290 are silenced project-wide in .editorconfig. */
 public sealed class OAuth2TokenError : Exception
 {
     /// <summary>Creates a new <see cref="OAuth2TokenError"/> with the given message.</summary>
     public OAuth2TokenError(string message)
         : base(message) { }
 }
-#pragma warning restore CA1710, CA1032, IDE0290
 
 /// <summary>
 /// Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
@@ -429,7 +428,7 @@ public sealed class OAuth2TokenError : Exception
    the OAuth2 server response — keep as `string` to round-trip verbatim
    what the server sent without forcing System.Uri's stricter parsing. */
 /* IDE0290: primary-constructor form is awkward with the BuildMessage call. */
-#pragma warning disable CA1710, CA1032, CA1054, CA1056, IDE0290
+/* CA1710/CA1032/CA1054/CA1056/IDE0290 are silenced project-wide in .editorconfig. */
 public sealed class OAuth2ServerError : Exception
 {
     /// <summary>HTTP status code returned by the token endpoint.</summary>
@@ -482,4 +481,3 @@ public sealed class OAuth2ServerError : Exception
         return $"Token request failed with status {statusCode}: {code}";
     }
 }
-#pragma warning restore CA1710, CA1032, CA1054, CA1056, IDE0290

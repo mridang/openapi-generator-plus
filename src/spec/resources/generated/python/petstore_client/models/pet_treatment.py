@@ -7,9 +7,9 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator  # noqa: F401
-from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
-from typing_extensions import Self  # noqa: F401
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from typing import Any, ClassVar, Dict, List, Optional, Set, Union
+from typing_extensions import Self
 
 
 class PetTreatment(BaseModel):
@@ -55,9 +55,9 @@ class PetTreatment(BaseModel):
         return v
 
 
-from petstore_client.models.medication import Medication  # noqa: F401
-from petstore_client.models.surgery import Surgery  # noqa: F401
-from pydantic import StrictInt  # noqa: F401
-from pydantic import StrictStr  # noqa: F401
+from petstore_client.models.medication import Medication
+from petstore_client.models.surgery import Surgery
+from pydantic import StrictInt
+from pydantic import StrictStr
 
 PetTreatment.model_rebuild(raise_errors=False)

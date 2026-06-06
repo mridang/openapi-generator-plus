@@ -2,13 +2,6 @@
 
 {{>api_info}}
 
-# rubocop:disable Lint/RedundantCopDisableDirective, Layout/LineLength
-# rubocop:disable Layout/EmptyLinesAroundModuleBody, Layout/EmptyLineBetweenDefs, Layout/EmptyLines
-# rubocop:disable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity, Naming/AccessorMethodName
-# rubocop:disable Style/MethodCallWithoutArgsParentheses
-# rubocop:disable Style/DefWithParentheses
-# rubocop:disable Style/StringConcatenation
-
 # :nodoc:
 module {{moduleName}}
   module Api
@@ -248,7 +241,7 @@ module {{moduleName}}
 {{/hasFormParams}}
 {{^hasFormParams}}
 {{#bodyParam}}
-        request_body = {{{paramName}}}{{^required}} # rubocop:disable Lint/SelfAssignment{{/required}}
+        request_body = {{{paramName}}}
 {{/bodyParam}}
 {{^bodyParam}}
         request_body = nil
@@ -268,9 +261,3 @@ module {{moduleName}}
 {{/operations}}
   end
 end
-# rubocop:enable Lint/RedundantCopDisableDirective, Layout/LineLength
-# rubocop:enable Layout/EmptyLinesAroundModuleBody, Layout/EmptyLineBetweenDefs, Layout/EmptyLines
-# rubocop:enable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity, Naming/AccessorMethodName
-# rubocop:enable Style/MethodCallWithoutArgsParentheses
-# rubocop:enable Style/DefWithParentheses
-# rubocop:enable Style/StringConcatenation

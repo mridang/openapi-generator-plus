@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable Metrics/BlockLength, Lint/MissingCopEnableDirective
-
 require 'minitest/autorun'
 require 'json'
 require 'petstore_client'
@@ -475,8 +473,7 @@ describe PetstoreClient::DefaultApiClient do
     end
     client = PetstoreClient::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
-      resp = client.send_request(:POST, 'http://localhost/token', {}, 'grant_type=client_credentials',
-        no_redirect: true)
+      resp = client.send_request(:POST, 'http://localhost/token', {}, 'grant_type=client_credentials', no_redirect: true)
       # The 3xx surfaces to the caller verbatim and the redirect target is
       # never hit -- the token manager inspects/rejects the 3xx itself.
       _(resp.status_code).must_equal 308
@@ -493,8 +490,7 @@ describe PetstoreClient::DefaultApiClient do
     end
     client = PetstoreClient::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
-      resp = client.send_request(:POST, 'http://localhost/token', {}, 'client_id=abc&client_secret=xyz',
-        no_redirect: true)
+      resp = client.send_request(:POST, 'http://localhost/token', {}, 'client_id=abc&client_secret=xyz', no_redirect: true)
       _(resp.status_code).must_equal 307
     end
   end
@@ -507,8 +503,7 @@ describe PetstoreClient::DefaultApiClient do
     end
     client = PetstoreClient::DefaultApiClient.new
     client.stub(:build_connection, stub_connection(stubs)) do
-      resp = client.send_request(:POST, 'http://localhost/token', {}, 'grant_type=client_credentials',
-        no_redirect: true)
+      resp = client.send_request(:POST, 'http://localhost/token', {}, 'grant_type=client_credentials', no_redirect: true)
       _(resp.status_code).must_equal 200
     end
   end

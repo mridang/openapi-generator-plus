@@ -16,15 +16,23 @@ from {{packageName}}.api_response import ApiResponse
 from {{packageName}}.errors import ApiException
 from {{packageName}}.transport_options import TransportOptions
 
-try:
-    import brotli as _brotli  # type: ignore[import-untyped]
-except ImportError:
-    _brotli = None
+from types import ModuleType
 
+_brotli: Optional[ModuleType] = None
 try:
-    import zstandard as _zstandard
+    import brotli
+
+    _brotli = brotli
 except ImportError:
-    _zstandard = None  # type: ignore[assignment]
+    pass
+
+_zstandard: Optional[ModuleType] = None
+try:
+    import zstandard
+
+    _zstandard = zstandard
+except ImportError:
+    pass
 
 
 def _supported_encodings() -> str:

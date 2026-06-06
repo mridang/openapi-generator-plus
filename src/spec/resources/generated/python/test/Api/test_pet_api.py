@@ -146,7 +146,7 @@ def _create_mock_server(status: int, content_type: str, body: str) -> tuple[PetA
             self.end_headers()
             self.wfile.write(body.encode('utf-8'))
 
-        def log_message(self, format: str, *args: object) -> None:  # noqa: A002
+        def log_message(self, format: str, *args: object) -> None:
             pass
 
     server = HTTPServer(('127.0.0.1', 0), Handler)
@@ -209,7 +209,7 @@ class TestPetApiErrorHandling:
                 self.end_headers()
                 self.wfile.write(b'{"id":1,"name":"x","photoUrls":[]}')
 
-            def log_message(self, format: str, *args: object) -> None:  # noqa: A002
+            def log_message(self, format: str, *args: object) -> None:
                 pass
 
         server = HTTPServer(('127.0.0.1', 0), Handler)

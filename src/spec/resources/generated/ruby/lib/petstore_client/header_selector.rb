@@ -80,7 +80,6 @@ module PetstoreClient
     # @param accept [Array<String>] Array of Accept Headers
     # @param headers_with_json [Array<String>] Array of Accept Headers of type "json"
     # @return [String] "Accept" Header (e.g. "application/json, text/html; q=0.9")
-    # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
     def get_accept_header_with_adjusted_weight(accept, headers_with_json)
       # @type var with_application_json: Array[untyped]
       with_application_json = []
@@ -113,7 +112,6 @@ module PetstoreClient
 
       accept_headers.join(',')
     end
-    # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
 
     # Given an Accept header, returns the header and its weight.
     #
@@ -136,7 +134,6 @@ module PetstoreClient
     # @param current_weight [Array<Integer>] array containing current weight (modified in place)
     # @param has_more_than_28_headers [Boolean] whether there are more than 28 total headers
     # @return [Array<String>] array of adjusted "Accept" headers
-    # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
     def adjust_weight(headers, current_weight, has_more_than_28_headers)
       headers.sort_by! { |h| -h.weight }
 
@@ -155,7 +152,6 @@ module PetstoreClient
 
       accept_headers
     end
-    # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
 
     # Build a single Accept header string with optional quality weight.
     #

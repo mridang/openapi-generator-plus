@@ -71,7 +71,7 @@ module PetstoreClient
     attr_reader :inject_request_id
 
     # @api private
-    def initialize(verify_ssl:, ca_cert_path:, proxy:, timeout:, # rubocop:disable Metrics/ParameterLists
+    def initialize(verify_ssl:, ca_cert_path:, proxy:, timeout:,
                    follow_redirects:, max_redirects:, user_agent:,
                    default_headers:, inject_request_id:)
       @verify_ssl = verify_ssl
@@ -108,7 +108,7 @@ module PetstoreClient
         @follow_redirects = true
         @max_redirects = nil
         @user_agent = 'petstore_client/1.0.0 (ruby)'
-        @default_headers = {} #: Hash[String, String] # rubocop:disable Layout/LeadingCommentSpace
+        @default_headers = {} #: Hash[String, String]
         @inject_request_id = false
       end
 
@@ -203,7 +203,7 @@ module PetstoreClient
 
       # Build and return an immutable {TransportOptions} instance.
       # @return [TransportOptions]
-      def build # rubocop:disable Metrics/MethodLength
+      def build
         TransportOptions.new(
           verify_ssl: @verify_ssl,
           ca_cert_path: @ca_cert_path,

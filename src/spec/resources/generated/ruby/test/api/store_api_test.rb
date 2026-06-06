@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable Metrics/BlockLength, Lint/MissingCopEnableDirective
-
 # Integration tests for the Store API endpoints.
 
 require 'test_helper'
@@ -98,12 +96,12 @@ describe PetstoreClient::Api::StoreApi do
   end
 
   describe 'error handling' do
-    def new_store_api_for_mock(status, content_type, body) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+    def new_store_api_for_mock(status, content_type, body)
       server = TCPServer.new('127.0.0.1', 0)
       port = server.addr[1]
       thread = Thread.new do
         loop do
-          client = server.accept rescue break # rubocop:disable Style/RescueModifier
+          client = server.accept rescue break
           client.gets # read request line
           while (line = client.gets)
             break if line.strip.empty?

@@ -430,7 +430,6 @@ public class DefaultApiClientTest
         Assert.Contains("userId", response.Body);
     }
 
-#pragma warning disable xUnit1004
     [Fact(Skip = "zstd decompression is not natively supported by the .NET HttpClient")]
     public async Task DecompressesZstdResponse()
     {
@@ -445,7 +444,6 @@ public class DefaultApiClientTest
         Assert.Equal(200, response.StatusCode);
         Assert.Contains("userId", response.Body);
     }
-#pragma warning restore xUnit1004
 
     /*
      * Regression: POST/PUT/PATCH with body == null must emit an explicit

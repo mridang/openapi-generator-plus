@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable Style/OneClassPerFile
-
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -79,11 +77,9 @@ module PetstoreClient
       attribute :ship_date, Types::Any.optional.meta(omittable: true)
       # Order Status
       # @example approved
-      attribute :status,
-        Types::String.enum('placed', 'approved', 'delivered').optional.meta(omittable: true).default('placed')
+      attribute :status, Types::String.enum('placed', 'approved', 'delivered').optional.meta(omittable: true).default('placed')
       # @example null
       attribute :complete, Types::Any.optional.meta(omittable: true)
     end
   end
 end
-# rubocop:enable Style/OneClassPerFile

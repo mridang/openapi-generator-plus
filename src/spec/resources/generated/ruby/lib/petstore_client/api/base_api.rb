@@ -19,7 +19,7 @@ module PetstoreClient
     # Base class for all API classes. Provides the invoke_api method that
     # handles URL construction, header selection, body serialization, request
     # dispatch, and response deserialization.
-    class BaseApi # rubocop:disable Metrics/ClassLength
+    class BaseApi
       # @return [Configuration]
       attr_reader :config
 
@@ -36,8 +36,7 @@ module PetstoreClient
 
       protected
 
-      # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
-      def invoke_api_for_result( # rubocop:disable Metrics/ParameterLists
+      def invoke_api_for_result(
         method, path, query_params, header_params, body,
         accepts, content_type, return_type, auth = nil
       )
@@ -128,7 +127,7 @@ module PetstoreClient
         )
       end
 
-      def invoke_api( # rubocop:disable Metrics/ParameterLists
+      def invoke_api(
         method, path, query_params, header_params, body,
         accepts, content_type, return_type, auth = nil
       )
@@ -137,14 +136,12 @@ module PetstoreClient
           accepts, content_type, return_type, auth
         ).data
       end
-      # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
 
       private
 
       # Attempts to parse the response body as JSON so that structured error
       # data (e.g. from a +default+ response schema) is available via
       # {ApiError#error_body}.
-      # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
       def throw_api_error(response)
         code = response.status_code
         msg = "API returned status code #{code}"
@@ -180,9 +177,8 @@ module PetstoreClient
         end
         raise PetstoreClient::ApiError.new(status_code: code, **err_opts)
       end
-      # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
 
-      def build_query_string(query_params) # rubocop:disable Metrics/MethodLength
+      def build_query_string(query_params)
         pairs = query_params.compact.flat_map do |k, v|
           encoded_key = CGI.escape(k.to_s)
           if v.is_a?(Array)
@@ -199,7 +195,7 @@ module PetstoreClient
         pairs.join('&')
       end
 
-      def serialize_body(body, content_type) # rubocop:disable Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
+      def serialize_body(body, content_type)
         return nil if body.nil?
 
         if content_type == 'multipart/form-data'

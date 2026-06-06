@@ -174,9 +174,7 @@ public class BaseApiTest
         }
         catch (ApiException ex)
         {
-#pragma warning disable xUnit2032
             Assert.IsType(expectedType, ex);
-#pragma warning restore xUnit2032
             Assert.Equal(status, ex.StatusCode);
             Assert.NotNull(ex.ResponseBody);
             Assert.NotEmpty(ex.ResponseBody);
@@ -577,7 +575,6 @@ public class BaseApiTest
         var client = new CapturingApiClient();
         var config = new Configuration("http://localhost");
         var api = new PetApi(client, config);
-#pragma warning disable CS0618
         try
         {
             await api.FindPetsByStatusAsync(new FindPetsByStatusOptions());
@@ -586,7 +583,6 @@ public class BaseApiTest
         {
             // Response deserialization may fail; we only care about the captured URL
         }
-#pragma warning restore CS0618
         Assert.Contains("status=", client.CapturedUrl!.ToString());
     }
 
@@ -596,7 +592,6 @@ public class BaseApiTest
         var client = new CapturingApiClient();
         var config = new Configuration("http://localhost");
         var api = new PetApi(client, config);
-#pragma warning disable CS0618
         try
         {
             await api.FindPetsByStatusAsync(new FindPetsByStatusOptions { Status = "" });
@@ -605,7 +600,6 @@ public class BaseApiTest
         {
             // Response deserialization may fail; we only care about the captured URL
         }
-#pragma warning restore CS0618
         Assert.Contains("status=", client.CapturedUrl!.ToString());
     }
 

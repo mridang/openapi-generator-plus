@@ -45,7 +45,7 @@ module PetstoreClient
   # 2. Caller-provided headers (from BaseApi -- includes config defaults, auth, operation headers)
   # 3. {TransportOptions#user_agent} -- injected if not already set
   # 4. {TransportOptions#inject_request_id} -- injected if not already set
-  class DefaultApiClient < ApiClient # rubocop:disable Metrics/ClassLength
+  class DefaultApiClient < ApiClient
     # Bucket 3.1: extra header names stripped on cross-origin redirects in
     # addition to the static {Authorization, Cookie, Proxy-Authorization}
     # set. Populated at codegen time from `securitySchemes` entries whose
@@ -85,7 +85,7 @@ module PetstoreClient
     #   never silently replayed to a redirect target — the token manager
     #   inspects and rejects the 3xx itself (Bucket 3.2).
     # @return [ApiResponse] the HTTP response
-    def send_request(method, url, headers, body, no_redirect: false) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
+    def send_request(method, url, headers, body, no_redirect: false)
       # Bucket 3: using the client after #close has released its connection
       # pool is a caller error. Surface it loudly as an ApiError instead of
       # lazily rebuilding a connection (which would make close a silent
@@ -246,7 +246,7 @@ module PetstoreClient
       # normalise both shapes. The joined form is not directly parseable
       # for Set-Cookie; callers needing structured cookie access should
       # use HTTP::Cookie.parse or read the raw Faraday::Utils::Headers.
-      normalized_headers = {} # : Hash[String, String]
+      normalized_headers = {} #: Hash[String, String]
       response.headers.each do |name, value|
         joined = value.is_a?(Array) ? value.join(', ') : value.to_s
         normalized_headers[name.to_s.downcase] = joined
@@ -347,7 +347,6 @@ module PetstoreClient
       Encoding::UTF_8
     end
 
-    # rubocop:disable Metrics/CyclomaticComplexity,Metrics/MethodLength
     def decompress_body(body, encoding)
       return body if body.nil? || body.empty?
 
@@ -364,7 +363,6 @@ module PetstoreClient
         body
       end
     end
-    # rubocop:enable Metrics/CyclomaticComplexity,Metrics/MethodLength
 
     # Returns the cached Faraday connection, building it on first use.
     # The connection is built once per ApiClient instance to preserve the
@@ -374,7 +372,7 @@ module PetstoreClient
       @connection ||= build_connection
     end
 
-    def build_connection # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
+    def build_connection
       Faraday.new do |f|
         f.proxy = @transport_options.proxy if @transport_options.proxy
         f.ssl.verify = @transport_options.verify_ssl
@@ -456,7 +454,7 @@ module PetstoreClient
       parts.join
     end
 
-    def multipart_part(name, value, boundary) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
+    def multipart_part(name, value, boundary)
       safe_name = sanitize_multipart_field_name(name)
       if value.respond_to?(:read)
         filename = if value.respond_to?(:path) && value.path
@@ -508,7 +506,7 @@ module PetstoreClient
     # @param filename [String] proposed filename
     # @return [String] the Content-Disposition header value
     # @raise [ArgumentError] if +filename+ contains CR, LF, or NUL
-    def build_content_disposition(name, filename) # rubocop:disable Metrics/MethodLength
+    def build_content_disposition(name, filename)
       fname = filename.to_s
       if fname.match?(/[\r\n\0]/)
         raise ArgumentError,
@@ -534,7 +532,7 @@ module PetstoreClient
     #
     # @param filename [String] the filename to inspect
     # @return [String] the resolved MIME type
-    def sniff_part_mime(filename) # rubocop:disable Metrics/MethodLength,Metrics/CyclomaticComplexity
+    def sniff_part_mime(filename)
       fname = filename.to_s
       if defined?(MIME::Types)
         types = MIME::Types.type_for(fname)

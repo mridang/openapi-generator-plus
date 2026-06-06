@@ -55,11 +55,29 @@ extend-select = ["B006", "B008", "RUF012"]
 ignore = ["E501", "B904", "B017", "B011"]
 
 [tool.ruff.lint.per-file-ignores]
-"{{packageName}}/models/*.py" = ["E402"]
+# Generated model modules emit imports after a `from __future__` / runtime
+# re-export block (E402), keep typing/pydantic imports that are only used by
+# conditionally-generated branches (F401), and build a throwaway
+# `model_construct()` instance whose attributes are assigned in oneOf
+# validation branches that may be empty for some schemas (F841). None of
+# these are reachable to rewrite without breaking the conditional template
+# branches, so they are scoped to the generated model files here.
+"{{packageName}}/models/*.py" = ["E402", "F401", "F841"]
+# The object_serializer module imports `{{packageName}}.models` only after
+# its helper functions are defined to avoid a circular import at module load
+# time, which trips E402.
+"{{packageName}}/object_serializer.py" = ["E402"]
+# Generated api modules carry a fixed set of typing/pydantic/model imports
+# that are only referenced by operations present in a given spec, so some are
+# unused per file (F401).
+"{{packageName}}/api/*.py" = ["F401"]
 "{{packageName}}/__init__.py" = ["I001", "E402", "F401"]
 "{{packageName}}/api/__init__.py" = ["I001", "F401"]
 "{{packageName}}/models/__init__.py" = ["I001", "F401"]
-"{{packageName}}/errors/__init__.py" = ["I001", "F401"]
+# The errors package __init__ defines the base exception classes first, then
+# re-exports the concrete subclasses for convenience (E402), and the
+# re-exports themselves are unused within the module (F401).
+"{{packageName}}/errors/__init__.py" = ["I001", "F401", "E402"]
 "{{packageName}}/auth/__init__.py" = ["I001", "F401"]
 
 [tool.ruff.format]
@@ -69,6 +87,16 @@ quote-style = "single"
 strict = true
 cache_dir = ".mypy"
 python_version = "3.13"
+
+# Optional runtime dependencies imported behind try/except ImportError shims.
+# These ship no type stubs (brotli, isodate) or are an optional, possibly
+# absent integration (opentelemetry), so resolving them as untyped is the
+# documented, intentional behavior rather than a real type error. Treating the
+# modules as Any also lets the `_zstandard = None` / `_brotli = None` fallback
+# assignments type-check without an inline override.
+[[tool.mypy.overrides]]
+module = ["brotli", "isodate", "zstandard", "opentelemetry.*"]
+ignore_missing_imports = true
 
 [tool.pyright]
 pythonVersion = "3.13"
