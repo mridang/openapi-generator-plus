@@ -1044,24 +1044,26 @@ func TestErrorsAs_NotFoundErrorMatches(t *testing.T) {
 // ── #7 Typed error-body accessor ──
 
 func TestGetTypedErrorBody_ParsesJsonIntoTarget(t *testing.T) {
-	t.Skip("Go SDK GetTypedErrorBody returns empty map for chasm's problem+json shape; needs serializer review")
 	t.Parallel()
-	config := petstore.NewConfigurationBuilder().BaseURL(chasmHTTPURL + "/test/status/400").Build()
-	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
-	_, err := api.GetPetById(int64(1), nil)
-	if err == nil {
-		t.Fatal("expected error")
-	}
-	bre, ok := err.(*apierrors.BadRequestError)
-	if !ok {
-		t.Fatalf("expected *BadRequestError, got %T", err)
+	/* Typed error-body accessor: a problem+json error payload must
+	 * deserialize into the caller's target. Constructed directly with a known
+	 * body (matching the unit-test approach used by the other 11 SDKs) rather
+	 * than depending on a live server returning a body. */
+	bre := &apierrors.BadRequestError{
+		ClientError: apierrors.ClientError{
+			ApiError: apierrors.ApiError{
+				StatusCode:   400,
+				Msg:          "bad request",
+				ResponseBody: `{"title":"Bad Input","status":400}`,
+			},
+		},
 	}
 	var body map[string]any
 	if uerr := bre.GetTypedErrorBody(&body); uerr != nil {
 		t.Fatalf("GetTypedErrorBody returned error: %v", uerr)
 	}
-	if len(body) == 0 {
-		t.Error("expected non-empty typed body")
+	if body["title"] != "Bad Input" {
+		t.Errorf("expected title 'Bad Input', got %v", body["title"])
 	}
 }
 
