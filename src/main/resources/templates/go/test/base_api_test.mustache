@@ -368,10 +368,17 @@ func TestBaseApi_SkipsDeserializationForNonJSON(t *testing.T) {
 	}
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := {{packageName}}.NewPetApi(client, config, nil)
-	_, err := api.GetPetById(int64(1), nil)
-	/* The call may fail on deserialization, but should not panic.
-	 * The important thing is that it does not try to JSON-parse plain text. */
-	_ = err
+	pet, err := api.GetPetById(int64(1), nil)
+	/* A text/plain body must NOT be handed to the JSON deserializer: had the
+	 * SDK attempted to parse "hello plain text" as JSON it would surface a
+	 * deserialization error. Skipping deserialization yields a nil error and a
+	 * model with no fields populated from the plain-text body. */
+	if err != nil {
+		t.Fatalf("expected no error when skipping non-JSON deserialization, got: %v", err)
+	}
+	if pet != nil && pet.Id != nil {
+		t.Errorf("expected no fields populated from plain-text body, got Id=%v", *pet.Id)
+	}
 }
 
 func TestBaseApi_DeserializesVendorJsonMimeType(t *testing.T) {

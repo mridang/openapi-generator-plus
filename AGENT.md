@@ -860,6 +860,16 @@ risky refactor with no observable change). These are decisions, not gaps:
 - **Test-style differences**: table-driven tests (one function, many cases) vs
   one-test-per-case. Coverage parity is the requirement, not identical test
   counts. Accepted.
+- **Error type suffix** (`ApiException` vs `ApiError`): java/kotlin/csharp/php/
+  python use the `Exception` suffix; go/rust/swift/dart/ruby/node use `Error`;
+  elixir uses tagged tuples (no class). This is dictated by each language's
+  base-throwable convention — and forcing uniformity would *introduce* lint
+  violations, e.g. C# analyzer **CA1710** mandates the `Exception` suffix for
+  exception types, while Go (`error`), Rust (`std::error::Error`) and JS
+  (`Error`) idiomatically forbid an `Exception` suffix. Renaming to match would
+  violate the no-suppression rule for zero functional benefit. The class
+  hierarchy, fields, and behavior are identical across all SDKs; only the
+  suffix differs. Accepted (idiomatic, not forced).
 
 Genuine wire-correctness divergences in the same areas WERE fixed (locale-
 sensitive decimal separators in java/kotlin/csharp; elixir sub-second
