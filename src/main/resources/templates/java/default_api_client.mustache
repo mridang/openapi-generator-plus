@@ -232,6 +232,29 @@ public final class DefaultApiClient implements ApiClient {
     }
 
     /**
+     * Send a request, retrying ONCE when the JDK HttpClient fails because it
+     * reused a keep-alive connection the server had already closed. That
+     * surfaces as {@code java.io.IOException: HTTP/1.1 header parser received
+     * no bytes}: zero bytes were exchanged, so the request never reached the
+     * server and replaying it is safe even for non-idempotent methods. This
+     * matches the stale-connection resilience the other SDKs' HTTP stacks
+     * (reqwest, undici, urllib3, ...) provide automatically. Any other
+     * IOException propagates unchanged.
+     */
+    private HttpResponse<byte[]> sendWithRetry(HttpRequest request)
+            throws IOException, InterruptedException {
+        try {
+            return httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+        } catch (IOException e) {
+            String message = e.getMessage();
+            if (message != null && message.contains("header parser received no bytes")) {
+                return httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+            }
+            throw e;
+        }
+    }
+
+    /**
      * Bucket 3.2 — extended {@code sendRequest} that lets the caller refuse
      * to follow 3xx redirects for this single request. OAuth2 token POSTs
      * pass {@code noRedirect=true} so a 307/308 from the IdP cannot replay
@@ -308,8 +331,7 @@ public final class DefaultApiClient implements ApiClient {
         }
 
         try {
-            HttpResponse<byte[]> response =
-                    httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofByteArray());
+            HttpResponse<byte[]> response = sendWithRetry(builder.build());
 
             /*
              * Manual redirect handling when maxRedirects is configured. The
@@ -408,9 +430,7 @@ public final class DefaultApiClient implements ApiClient {
                     for (Map.Entry<String, String> entry : redirectHeaders.entrySet()) {
                         redirectBuilder.header(entry.getKey(), entry.getValue());
                     }
-                    response = httpClient.send(
-                            redirectBuilder.build(),
-                            HttpResponse.BodyHandlers.ofByteArray());
+                    response = sendWithRetry(redirectBuilder.build());
                     currentMethod = nextMethod;
                     currentBody = nextBody;
                     currentHeaders = redirectHeaders;
