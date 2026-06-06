@@ -67,6 +67,10 @@ func (o *StrictTag) UnmarshalJSON(data []byte) error {
 			return fmt.Errorf("unknown property '%s' on StrictTag (unevaluatedProperties:false)", key)
 		}
 	}
+	// Gap AJ: encoding/json silently zero-inits required fields when the
+	// value is null or missing. Reject both for required non-nullable fields
+	// so a malformed server response surfaces at the deserialize call,
+	// consistent with the other model branches and the other SDKs.
 	*o = StrictTag(*aux)
 	return nil
 }

@@ -698,6 +698,21 @@ defmodule PetstoreClient.ObjectSerializer do
     # required-but-nullable fields are untouched.
     assert_required_present(data, module)
 
+    # Gap AX.1 / parity with Go: when the schema declares
+    # unevaluatedProperties:false (the codegen emits from_map_strict/1 only
+    # for such models), reject any wire key not declared by the model instead
+    # of silently dropping it, matching the other SDKs.
+    if function_exported?(module, :from_map_strict, 1) do
+      declared = attr_map |> Map.values() |> MapSet.new()
+
+      Enum.each(Map.keys(data), fn key ->
+        unless MapSet.member?(declared, key) do
+          raise PetstoreClient.SerializationError,
+            message: "Unknown property '#{key}' on #{inspect(module)} (unevaluatedProperties:false)"
+        end
+      end)
+    end
+
     transformed =
       Enum.reduce(openapi_types, %{}, fn {attr, type}, acc ->
         json_key = Map.get(attr_map, attr)

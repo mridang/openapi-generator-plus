@@ -297,6 +297,21 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 			return fmt.Errorf("unknown property '%s' on {{classname}} (unevaluatedProperties:false)", key)
 		}
 	}
+	// Gap AJ: encoding/json silently zero-inits required fields when the
+	// value is null or missing. Reject both for required non-nullable fields
+	// so a malformed server response surfaces at the deserialize call,
+	// consistent with the other model branches and the other SDKs.
+{{#vars}}
+{{#required}}
+{{^isNullable}}
+	if rawVal, ok := raw["{{baseName}}"]; !ok {
+		return fmt.Errorf("required field '{{baseName}}' is missing in {{classname}}")
+	} else if string(rawVal) == "null" {
+		return fmt.Errorf("required field '{{baseName}}' must not be null in {{classname}}")
+	}
+{{/isNullable}}
+{{/required}}
+{{/vars}}
 	*o = {{classname}}(*aux)
 	return nil
 }
