@@ -52,7 +52,6 @@ import javax.annotation.Nullable;
  * @see <a href="{{url}}">{{description}}</a>
 {{/tagExternalDocs}}
  */
-@SuppressWarnings("deprecation")
 public class {{classname}} extends BaseApi {
 {{#operation}}
 {{#returnType}}
@@ -164,7 +163,6 @@ public class {{classname}} extends BaseApi {
      */
 {{#isDeprecated}}
     @Deprecated
-    @SuppressWarnings("InlineMeSuggester")
 {{/isDeprecated}}
 {{#hasAuthMethods}}
     {{#authMethods}}

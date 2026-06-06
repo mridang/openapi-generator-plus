@@ -1,7 +1,5 @@
 {{>api_info}}
 
-@file:Suppress("DEPRECATION")
-
 package {{invokerPackage}}
 
 import {{invokerPackage}}.auth.Authenticator
@@ -510,7 +508,6 @@ class BaseApiTest {
         }
     }
 
-    @Suppress("DEPRECATION")
     @Nested
     @DisplayName("allowEmptyValue query params")
     inner class AllowEmptyValueQueryParams {

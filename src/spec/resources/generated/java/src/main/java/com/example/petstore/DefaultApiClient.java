@@ -266,7 +266,6 @@ public final class DefaultApiClient implements ApiClient {
    * as-is.
    */
   @Override
-  @SuppressWarnings("unchecked")
   public ApiResponse sendRequest(
       String method,
       String url,
@@ -299,10 +298,10 @@ public final class DefaultApiClient implements ApiClient {
        * restricted header so we cannot (and need not) set it
        * manually via builder.header(). */
       bodyPublisher = HttpRequest.BodyPublishers.noBody();
-    } else if (body instanceof Map) {
+    } else if (body instanceof Map<?, ?> formMap) {
       String boundary = UUID.randomUUID().toString();
       mergedHeaders.put("Content-Type", "multipart/form-data; boundary=" + boundary);
-      bodyPublisher = buildMultipartBody((Map<String, Object>) body, boundary);
+      bodyPublisher = buildMultipartBody(formMap, boundary);
     } else if (body instanceof byte[] bytes) {
       bodyPublisher = HttpRequest.BodyPublishers.ofByteArray(bytes);
     } else if (body instanceof InputStream stream) {
@@ -657,18 +656,19 @@ public final class DefaultApiClient implements ApiClient {
     }
   }
 
-  @SuppressWarnings("EmptyCatch")
   private static String getSupportedEncodings() {
     StringBuilder sb = new StringBuilder("gzip, deflate");
     try {
       Class.forName("org.brotli.dec.BrotliInputStream");
       sb.append(", br");
     } catch (ClassNotFoundException ignored) {
+      /* Optional brotli dependency absent; do not advertise "br". */
     }
     try {
       Class.forName("com.github.luben.zstd.Zstd");
       sb.append(", zstd");
     } catch (ClassNotFoundException ignored) {
+      /* Optional zstd dependency absent; do not advertise "zstd". */
     }
     return sb.toString();
   }
@@ -683,12 +683,11 @@ public final class DefaultApiClient implements ApiClient {
    * @param boundary the multipart boundary string
    * @return a body publisher for the multipart content
    */
-  private HttpRequest.BodyPublisher buildMultipartBody(
-      Map<String, Object> formFields, String boundary) {
+  private HttpRequest.BodyPublisher buildMultipartBody(Map<?, ?> formFields, String boundary) {
     var byteArrays = new java.util.ArrayList<byte[]>();
 
-    for (Map.Entry<String, Object> entry : formFields.entrySet()) {
-      String fieldName = entry.getKey();
+    for (Map.Entry<?, ?> entry : formFields.entrySet()) {
+      String fieldName = String.valueOf(entry.getKey());
       Object value = entry.getValue();
 
       if (value instanceof java.util.List<?> list) {

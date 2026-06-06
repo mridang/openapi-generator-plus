@@ -10,10 +10,8 @@ use std::sync::Arc;
 
 use crate::api::base_api::BaseApi;
 use crate::api::base_api::InvokeApiParams;
-#[allow(unused_imports)]
 use crate::api::options::*;
 use crate::api_client::ApiClient;
-#[allow(unused_imports)]
 use crate::api_error::ApiError;
 use crate::api_result::ApiResult;
 use crate::auth::Authenticator;

@@ -113,7 +113,6 @@ public final class ObjectSerializer {
    * @param value the value to stringify (may be null)
    * @return the string representation, never null
    */
-  @SuppressWarnings("EmptyCatch")
   public static String stringify(@Nullable Object value) {
     if (value == null) {
       return "";
@@ -135,6 +134,8 @@ public final class ObjectSerializer {
         java.lang.reflect.Method m = e.getDeclaringClass().getMethod("getValue");
         return String.valueOf(m.invoke(e));
       } catch (ReflectiveOperationException ignored) {
+        /* Not a generated enum exposing a JSON getValue(); fall back to
+        the constant name below. */
       }
       return e.name();
     }
@@ -255,7 +256,6 @@ public final class ObjectSerializer {
    *     the declared variants is a contract violation and must fail loudly rather than be silently
    *     dropped to null
    */
-  @SuppressWarnings("EmptyCatch")
   public <T> T resolveOneOf(String json, List<Function<String, T>> candidates) {
     for (Function<String, T> candidate : candidates) {
       try {
@@ -264,6 +264,8 @@ public final class ObjectSerializer {
           return result;
         }
       } catch (Exception ignored) {
+        /* This candidate variant did not match the payload; try the
+        next one. A total no-match throws after the loop. */
       }
     }
     throw new SerializationException("No oneOf/anyOf variant matched the JSON");

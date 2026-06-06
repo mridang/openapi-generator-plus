@@ -96,7 +96,6 @@ class DefaultApiClient internal constructor(
      */
     constructor() : this(TransportOptions.builder().build())
 
-    @Suppress("UNCHECKED_CAST")
     override suspend fun sendRequest(
         method: String,
         url: String,
@@ -323,7 +322,6 @@ class DefaultApiClient internal constructor(
                 builder.setBody(ByteArray(0))
             body == null -> {}
             body is Map<*, *> -> {
-                @Suppress("UNCHECKED_CAST")
                 val formFields = body as Map<String, Any?>
                 builder.setBody(
                     MultiPartFormDataContent(

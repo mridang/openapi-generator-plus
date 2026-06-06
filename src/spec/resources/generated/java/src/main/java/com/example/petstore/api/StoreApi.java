@@ -20,7 +20,6 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 /** StoreApi provides methods for the Store API group. Access to Petstore orders */
-@SuppressWarnings("deprecation")
 public class StoreApi extends BaseApi {
 
   private static final TypeReference<Map<String, Integer>> getInventoryTypeRef =

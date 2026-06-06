@@ -93,13 +93,11 @@ public enum {{classname}} {
   @JsonSubTypes.Type(value = {{modelName}}.class, name = "{{mappingName}}"){{^-last}},{{/-last}}
 {{/mappedModels}}
 })
-@SuppressWarnings("deprecation")
 public abstract class {{classname}} {}
 {{/discriminator}}
 {{^discriminator}}
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
     using = {{classname}}.{{classname}}Deserializer.class)
-@SuppressWarnings("deprecation")
 public class {{classname}} {
 
   /* Variant type tokens for the union. TypeReference (not Class.class) is
@@ -125,7 +123,6 @@ public class {{classname}} {
   static class {{classname}}Deserializer
       extends com.fasterxml.jackson.databind.JsonDeserializer<{{classname}}> {
     @Override
-    @SuppressWarnings("EmptyCatch")
     public {{classname}} deserialize(
         com.fasterxml.jackson.core.JsonParser p,
         com.fasterxml.jackson.databind.DeserializationContext ctxt)
@@ -138,6 +135,8 @@ public class {{classname}} {
           Object value = ctxt.readTreeAsValue(node, type);
           return new {{classname}}(value);
         } catch (Exception ignored) {
+          /* This union variant did not match; try the next. A total
+             no-match throws after the loop. */
         }
       }
       /* No schema in the union matched — throw rather than silently store
@@ -196,7 +195,6 @@ public class {{classname}} {
 {{/isDeprecated}}
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
     using = {{classname}}.{{classname}}Deserializer.class)
-@SuppressWarnings("deprecation")
 public class {{classname}} {
 
   private static final Class<?>[] ANY_OF_SCHEMAS = {
@@ -217,7 +215,6 @@ public class {{classname}} {
   static class {{classname}}Deserializer
       extends com.fasterxml.jackson.databind.JsonDeserializer<{{classname}}> {
     @Override
-    @SuppressWarnings("EmptyCatch")
     public {{classname}} deserialize(
         com.fasterxml.jackson.core.JsonParser p,
         com.fasterxml.jackson.databind.DeserializationContext ctxt)
@@ -228,6 +225,8 @@ public class {{classname}} {
           Object value = ctxt.readTreeAsValue(node, schema);
           return new {{classname}}(value);
         } catch (Exception ignored) {
+          /* This union variant did not match; try the next. A total
+             no-match throws after the loop. */
         }
       }
       /* No schema in the union matched — throw rather than silently
@@ -290,7 +289,6 @@ public class {{classname}} {
 {{/description}}
 {{/isDeprecated}}
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2", "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"})
-@SuppressWarnings({"deprecation", "serial"})
 public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{#vars}}
 {{#isEnum}}
@@ -420,6 +418,15 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/isUnevaluatedPropertiesFalse}}
 {{#hasRequired}}
 
+  /* No-arg constructor required by deserialization/test tooling. It
+   * intentionally leaves the @NonNull required fields uninitialized — the
+   * @JsonCreator constructor below populates them on the deserialization path.
+   * NullAway.Init cannot be moved to a global config home without either
+   * excluding every @JsonProperty field from init-checking (which would hide
+   * genuinely-missing initializers across all models) or marking whole classes
+   * unannotated (disabling null-safety on the model entirely); both weaken a
+   * real correctness rule, so the suppression is kept here, scoped to this
+   * single framework-mandated constructor. */
   @SuppressWarnings("NullAway.Init")
   public {{classname}}() {}
 

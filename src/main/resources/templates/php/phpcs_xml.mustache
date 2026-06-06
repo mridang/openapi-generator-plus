@@ -15,9 +15,31 @@
             <property name="lineLimit" value="200"/>
             <property name="absoluteLineLimit" value="0"/>
         </properties>
+        <!-- Generated API classes and serializer tests carry verbatim spec
+             text in PHPDoc and long fully-qualified-type method signatures
+             that can exceed even the relaxed 200-char limit. Wrapping them
+             would corrupt the embedded spec text / type names, so the
+             line-length sniff cannot apply to these generated paths. -->
+        <exclude-pattern>*/Api/*</exclude-pattern>
+        <exclude-pattern>tests/ValueSerializerTest.php</exclude-pattern>
     </rule>
-    <rule ref="PSR1.Classes.ClassDeclaration">
+    <!-- PSR1 forbids more than one class per file. The codegen
+         intentionally co-locates tightly-coupled classes in a single
+         generated file:
+           - Models/*: a model plus its inline enum/sub-schema classes.
+           - Api/*: each operation group emits an abstract server-variant
+             base, its concrete variants, and the public Api class.
+           - Auth/OAuth/*: the OAuth2 token manager ships with its
+             companion error classes (OAuth2TokenError, OAuth2ServerError).
+           - tests/: Pest test files declare helper/fixture classes
+             alongside the test class.
+         These groupings are deliberate and behaviour-neutral, so the
+         multiple-classes sniff cannot apply to generated output. -->
+    <rule ref="PSR1.Classes.ClassDeclaration.MultipleClasses">
         <exclude-pattern>*/Models/*</exclude-pattern>
+        <exclude-pattern>*/Api/*</exclude-pattern>
+        <exclude-pattern>*/Auth/OAuth/*</exclude-pattern>
+        <exclude-pattern>tests/</exclude-pattern>
     </rule>
     <rule ref="SlevomatCodingStandard.TypeHints.DeclareStrictTypes">
         <properties>

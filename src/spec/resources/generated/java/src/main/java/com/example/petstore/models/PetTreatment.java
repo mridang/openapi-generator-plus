@@ -12,7 +12,6 @@ import com.fasterxml.jackson.annotation.JsonValue;
 /** A treatment that can match a medication, a surgery, or both */
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
     using = PetTreatment.PetTreatmentDeserializer.class)
-@SuppressWarnings("deprecation")
 public class PetTreatment {
 
   private static final Class<?>[] ANY_OF_SCHEMAS = {Medication.class, Surgery.class};
@@ -31,7 +30,6 @@ public class PetTreatment {
   static class PetTreatmentDeserializer
       extends com.fasterxml.jackson.databind.JsonDeserializer<PetTreatment> {
     @Override
-    @SuppressWarnings("EmptyCatch")
     public PetTreatment deserialize(
         com.fasterxml.jackson.core.JsonParser p,
         com.fasterxml.jackson.databind.DeserializationContext ctxt)
@@ -42,6 +40,8 @@ public class PetTreatment {
           Object value = ctxt.readTreeAsValue(node, schema);
           return new PetTreatment(value);
         } catch (Exception ignored) {
+          /* This union variant did not match; try the next. A total
+          no-match throws after the loop. */
         }
       }
       /* No schema in the union matched — throw rather than silently

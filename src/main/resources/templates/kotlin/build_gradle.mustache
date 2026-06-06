@@ -46,6 +46,19 @@ kotlin {
     // is Beta.
     compilerOptions {
         freeCompilerArgs.add("-Xexpect-actual-classes")
+        // The transport + serializer layers cast erased generic types
+        // (e.g. `body as Map<String, Any?>` after an `is Map<*, *>` guard,
+        // and the reified-`T` response deserialization) that the compiler
+        // cannot prove safe at the call site. These casts are inherent to
+        // OpenAPI's dynamic wire surface, so UNCHECKED_CAST is suppressed
+        // globally rather than annotated at each generated call site.
+        freeCompilerArgs.add("-Xsuppress-warning=UNCHECKED_CAST")
+        // Generated tests deliberately exercise operations the OpenAPI spec
+        // marks deprecated (the SDK propagates `@Deprecated` to consumers but
+        // must still cover the deprecated path). No generated production code
+        // consumes a deprecated symbol, so DEPRECATION is suppressed globally
+        // rather than annotated on each generated test.
+        freeCompilerArgs.add("-Xsuppress-warning=DEPRECATION")
     }
 
     sourceSets {

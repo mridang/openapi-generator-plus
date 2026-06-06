@@ -1,9 +1,10 @@
 <?xml version="1.0"?>
 <FindBugsFilter>
-  <!-- Generated SDK template uses @SuppressWarnings defensively across many
-       classes; SpotBugs flags some as unnecessary on this particular JDK.
-       Per-class US_USELESS_SUPPRESSION_ON_CLASS suppression is not actionable
-       without per-template introspection. -->
+  <!-- Generated models/utilities carry @SuppressFBWarnings on a handful of
+       intentional patterns (exposed fields, ignored best-effort exceptions).
+       SpotBugs flags some of these as unnecessary on certain JDKs via
+       US_USELESS_SUPPRESSION_*; that verdict varies by analysis build and is
+       not actionable without per-template introspection, so it is filtered. -->
   <Match>
     <Bug pattern="US_USELESS_SUPPRESSION_ON_CLASS"/>
   </Match>

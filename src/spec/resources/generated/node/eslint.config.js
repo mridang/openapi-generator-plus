@@ -18,18 +18,20 @@ module.exports = [
       '@typescript-eslint': tsPlugin
     },
     rules: {
-      // Generated code triggers many of these; relax to keep CI green.
-      // Add stricter rules incrementally later.
+      // These rules are disabled here, at the single config home, rather than
+      // with inline suppressions in the generated sources. They cannot apply
+      // to generated code:
+      //   - no-explicit-any: deserialized API payloads and dynamic dispatch
+      //     legitimately surface `any` at the transport boundary.
+      //   - no-unused-vars / no-unused-vars (core): generators emit complete
+      //     parameter lists and imports per the spec, some unused per operation.
+      //   - no-require-imports: CommonJS interop in emitted config/helpers.
+      //   - no-undef: redundant for TypeScript, which already checks bindings.
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
       '@typescript-eslint/no-require-imports': 'off',
       'no-unused-vars': 'off',
       'no-undef': 'off'
-    },
-    linterOptions: {
-      // Generated test files contain proactive eslint-disable comments
-      // for cases we may or may not hit; don't fail on unused ones.
-      reportUnusedDisableDirectives: 'off'
     }
   },
   {

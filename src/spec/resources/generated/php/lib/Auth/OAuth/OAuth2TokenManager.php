@@ -302,7 +302,6 @@ final class OAuth2TokenManager
  * {@see OAuth2ServerError} (which represents RFC 6749 §5.2 error responses
  * on 4xx/5xx) so callers can recover differently.
  */
-/* phpcs:disable PSR1.Classes.ClassDeclaration.MultipleClasses */
 class OAuth2TokenError extends \RuntimeException
 {
 }
@@ -334,4 +333,3 @@ class OAuth2ServerError extends \RuntimeException
         parent::__construct($message);
     }
 }
-/* phpcs:enable PSR1.Classes.ClassDeclaration.MultipleClasses */

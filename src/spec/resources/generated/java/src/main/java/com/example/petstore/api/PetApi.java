@@ -42,7 +42,6 @@ import javax.annotation.Nullable;
  *
  * @see <a href="https://example.com/docs/pets">Find out more about pets</a>
  */
-@SuppressWarnings("deprecation")
 public class PetApi extends BaseApi {
 
   private static final TypeReference<Pet> addPetTypeRef = new TypeReference<>() {};
@@ -494,7 +493,6 @@ public class PetApi extends BaseApi {
    * @see <a href="https://example.com/docs/filtering">Finds Pets by status Documentation</a>
    */
   @Deprecated
-  @SuppressWarnings("InlineMeSuggester")
   public List<Pet> findPetsByStatus(FindPetsByStatusOptions options) throws ApiException {
     return requireBody(findPetsByStatusWithHttpInfo(options), "findPetsByStatus");
   }
@@ -719,7 +717,6 @@ public class PetApi extends BaseApi {
    * @deprecated This operation is deprecated.
    */
   @Deprecated
-  @SuppressWarnings("InlineMeSuggester")
   public Pet getPetById(Long petId) throws ApiException {
     return getPetById(petId, null);
   }

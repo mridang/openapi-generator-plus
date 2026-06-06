@@ -11,9 +11,6 @@
 
 declare(strict_types=1);
 
-/* phpcs:disable Generic.Files.LineLength.TooLong */
-/* phpcs:disable PSR1.Classes.ClassDeclaration.MultipleClasses */
-
 namespace PetstoreClient\Api;
 
 use PetstoreClient\Api\Options\AddPetPhotosOptions;

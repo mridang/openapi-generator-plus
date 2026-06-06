@@ -1185,9 +1185,11 @@ fn test_api_error_typed_body_returns_none_when_no_body() {
 
 #[test]
 fn test_api_error_typed_body_returns_err_when_body_invalid() {
+    // The field is only a deserialization target and is never read directly;
+    // underscore-prefixing exempts it from dead_code without a suppression,
+    // while `serde(rename)` preserves the on-the-wire field name `id`.
     #[derive(serde::Deserialize, Debug)]
-    #[allow(dead_code)]
-    struct Strict { id: i64 }
+    struct Strict { #[serde(rename = "id")] _id: i64 }
     let err = {{packageName}}::api_error::ApiError::new(
         400,
         "bad".to_string(),

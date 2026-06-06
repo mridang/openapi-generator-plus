@@ -12,7 +12,6 @@ import java.util.List;
 
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
     using = SetPetAvatarThumbnailRequest.SetPetAvatarThumbnailRequestDeserializer.class)
-@SuppressWarnings("deprecation")
 public class SetPetAvatarThumbnailRequest {
 
   /* Variant type tokens for the union. TypeReference (not Class.class) is
@@ -38,7 +37,6 @@ public class SetPetAvatarThumbnailRequest {
   static class SetPetAvatarThumbnailRequestDeserializer
       extends com.fasterxml.jackson.databind.JsonDeserializer<SetPetAvatarThumbnailRequest> {
     @Override
-    @SuppressWarnings("EmptyCatch")
     public SetPetAvatarThumbnailRequest deserialize(
         com.fasterxml.jackson.core.JsonParser p,
         com.fasterxml.jackson.databind.DeserializationContext ctxt)
@@ -51,6 +49,8 @@ public class SetPetAvatarThumbnailRequest {
           Object value = ctxt.readTreeAsValue(node, type);
           return new SetPetAvatarThumbnailRequest(value);
         } catch (Exception ignored) {
+          /* This union variant did not match; try the next. A total
+          no-match throws after the loop. */
         }
       }
       /* No schema in the union matched — throw rather than silently store

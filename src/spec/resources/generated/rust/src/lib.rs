@@ -1,6 +1,31 @@
+// Crate-level lint configuration for generated code.
+//
+// This is the single, documented home for lint exclusions that cannot be
+// expressed cleanly in the templates because they depend on the shape of the
+// user's OpenAPI document, not on the templates themselves. Inline
+// `#[allow(...)]` attributes are forbidden; anything that must be silenced for
+// the whole generated crate lives here with a justification.
+//
+// `deprecated`: a schema may legitimately mark fields/models `#[deprecated]`,
+//   and generated constructors/accessors must still set and read them.
+// `unused_imports`: glob imports (`use super::*`, `use crate::models::*`) are
+//   emitted unconditionally but a given spec may not exercise every symbol.
+// `unused_mut`: some request-builder paths only mutate locals when the spec
+//   declares matching parameters, so `mut` is conditionally unused.
 #![allow(deprecated)]
 #![allow(unused_imports)]
 #![allow(unused_mut)]
+// Clippy style lints that fire on machine-generated code where the "idiomatic"
+// rewrite is not expressible from a template that must cover every spec shape:
+// `new_without_default`: generated `new()` takes required fields, so a blanket
+//   `Default` is not always meaningful.
+// `manual_range_contains`/`manual_is_ascii_check`/`manual_pattern_char_comparison`:
+//   validation code is emitted literally from schema constraints.
+// `useless_format`/`uninlined_format_args`: URL/string assembly is templated
+//   uniformly rather than per-call.
+// `ptr_arg`: signatures mirror the spec's parameter types.
+// `too_many_arguments`/`type_complexity`: operation signatures and result types
+//   are dictated by the OpenAPI document, not chosen by the generator.
 #![allow(clippy::new_without_default)]
 #![allow(clippy::manual_range_contains)]
 #![allow(clippy::useless_format)]

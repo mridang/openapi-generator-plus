@@ -18,7 +18,6 @@ import javax.annotation.Nullable;
  */
 @Deprecated
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2", "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"})
-@SuppressWarnings({"deprecation", "serial"})
 public class Tag {
 
   /** Example: {@code null} */

@@ -43,8 +43,7 @@ open class ApiException : Exception {
         this.errorBody = errorBody
     }
 
-    @Suppress("UNCHECKED_CAST")
-    fun <T> getTypedErrorBody(clazz: Class<T>): T? = if (clazz.isInstance(errorBody)) errorBody as T else null
+    fun <T> getTypedErrorBody(clazz: Class<T>): T? = if (clazz.isInstance(errorBody)) clazz.cast(errorBody) else null
 
     override val message: String
         get() =

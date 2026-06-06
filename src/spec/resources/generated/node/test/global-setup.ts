@@ -1,6 +1,12 @@
-import { GenericContainer, Network, Wait } from 'testcontainers';
+import { GenericContainer, Network, Wait, StartedTestContainer, StartedNetwork } from 'testcontainers';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
+
+declare global {
+  var __CHASM_CONTAINER__: StartedTestContainer | undefined;
+  var __SQUID_CONTAINER__: StartedTestContainer | undefined;
+  var __PROXY_NETWORK__: StartedNetwork | undefined;
+}
 
 export default async function globalSetup() {
   const hostAppPath = process.env.HOST_APP_PATH || process.cwd();
@@ -81,10 +87,7 @@ export default async function globalSetup() {
     })
   );
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (globalThis as any).__CHASM_CONTAINER__ = chasm;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (globalThis as any).__SQUID_CONTAINER__ = squid;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (globalThis as any).__PROXY_NETWORK__ = proxyNetwork;
+  globalThis.__CHASM_CONTAINER__ = chasm;
+  globalThis.__SQUID_CONTAINER__ = squid;
+  globalThis.__PROXY_NETWORK__ = proxyNetwork;
 }

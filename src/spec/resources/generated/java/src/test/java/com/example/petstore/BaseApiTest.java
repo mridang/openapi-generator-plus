@@ -487,13 +487,21 @@ class BaseApiTest {
     }
   }
 
-  @SuppressWarnings("deprecation")
   @Nested
   @DisplayName("allowEmptyValue query params")
   class AllowEmptyValueQueryParams {
 
     @Test
     @DisplayName("null options omits allowEmptyValue param")
+    /* This regression test deliberately passes null to a @NonNull parameter
+     * to assert the URL omits the param. Passing null is the exact thing
+     * NullAway forbids, so the violation is intrinsic to what the test
+     * verifies and cannot be refactored away. It cannot move to a global
+     * config home without either excluding all error-prone checks from the
+     * test sources (-XepExcludedPaths) or disabling NullAway on tests
+     * wholesale, both of which would drop real null-safety coverage from the
+     * test tree; the suppression is therefore kept, scoped to this one
+     * intentionally-null-passing test method. */
     @SuppressWarnings("NullAway")
     void nullOptionsOmitsAllowEmptyValueParam() {
       var client = new CapturingApiClient();

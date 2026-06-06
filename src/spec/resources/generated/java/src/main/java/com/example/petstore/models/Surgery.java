@@ -12,7 +12,6 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nullable;
 
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2", "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"})
-@SuppressWarnings({"deprecation", "serial"})
 public class Surgery {
 
   /** Example: {@code null} */
@@ -24,6 +23,15 @@ public class Surgery {
   @Nullable
   public Integer durationMinutes;
 
+  /* No-arg constructor required by deserialization/test tooling. It
+   * intentionally leaves the @NonNull required fields uninitialized — the
+   * @JsonCreator constructor below populates them on the deserialization path.
+   * NullAway.Init cannot be moved to a global config home without either
+   * excluding every @JsonProperty field from init-checking (which would hide
+   * genuinely-missing initializers across all models) or marking whole classes
+   * unannotated (disabling null-safety on the model entirely); both weaken a
+   * real correctness rule, so the suppression is kept here, scoped to this
+   * single framework-mandated constructor. */
   @SuppressWarnings("NullAway.Init")
   public Surgery() {}
 

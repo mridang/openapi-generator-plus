@@ -174,7 +174,6 @@ abstract class BaseApi {
                     "multipart/form-data" == contentType && body is Map<*, *> -> body
                     "text/plain" == contentType -> body.toString()
                     "application/x-www-form-urlencoded" == contentType && body is Map<*, *> -> {
-                        @Suppress("UNCHECKED_CAST")
                         val formParams = body as Map<String, Any?>
                         formParams.entries.joinToString("&") { (key, value) ->
                             "${encode(key)}=${encode(value.toString())}"
@@ -233,7 +232,6 @@ abstract class BaseApi {
             response.headers.entries
                 .firstOrNull { it.key.equals("content-type", ignoreCase = true) }
                 ?.value ?: ""
-        @Suppress("UNCHECKED_CAST")
         val data: T? =
             if (response.body.isNotEmpty()) {
                 if (T::class == ByteArray::class) {

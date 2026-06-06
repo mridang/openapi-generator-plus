@@ -25,7 +25,6 @@ import javax.annotation.Nullable;
  * @see <a href="https://example.com/docs/pet">Learn more about the Pet model</a>
  */
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2", "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"})
-@SuppressWarnings({"deprecation", "serial"})
 public class Pet {
 
   public enum StatusEnum {
@@ -140,6 +139,15 @@ public class Pet {
   @Nullable
   public BigDecimal weightKg;
 
+  /* No-arg constructor required by deserialization/test tooling. It
+   * intentionally leaves the @NonNull required fields uninitialized — the
+   * @JsonCreator constructor below populates them on the deserialization path.
+   * NullAway.Init cannot be moved to a global config home without either
+   * excluding every @JsonProperty field from init-checking (which would hide
+   * genuinely-missing initializers across all models) or marking whole classes
+   * unannotated (disabling null-safety on the model entirely); both weaken a
+   * real correctness rule, so the suppression is kept here, scoped to this
+   * single framework-mandated constructor. */
   @SuppressWarnings("NullAway.Init")
   public Pet() {}
 

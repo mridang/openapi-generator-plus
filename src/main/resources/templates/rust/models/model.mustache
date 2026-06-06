@@ -1,7 +1,6 @@
 {{>api_info}}
 
 use serde::{Serialize, Deserialize};
-#[allow(unused_imports)]
 use super::*;
 
 {{#models}}
@@ -113,7 +112,6 @@ pub struct {{classname}} {
 }
 
 {{#hasVars}}
-#[allow(deprecated)]
 impl {{classname}} {
     /// Creates a new {{classname}} instance with required parameters.
     pub fn new({{#requiredVars}}{{^isDiscriminator}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}, {{/isDiscriminator}}{{/requiredVars}}) -> Self {

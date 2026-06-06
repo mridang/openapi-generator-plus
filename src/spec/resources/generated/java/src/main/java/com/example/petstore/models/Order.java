@@ -15,7 +15,6 @@ import java.time.OffsetDateTime;
 import javax.annotation.Nullable;
 
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2", "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"})
-@SuppressWarnings({"deprecation", "serial"})
 public class Order {
 
   public enum StatusEnum {

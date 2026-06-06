@@ -1,4 +1,3 @@
-#[allow(unused_imports)]
 use crate::models::*;
 
 /// Options for the find_pets_by_status operation.

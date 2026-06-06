@@ -1,4 +1,3 @@
-#[allow(unused_imports)]
 use crate::models::*;
 
 /// Options for the get_pet_tag operation.

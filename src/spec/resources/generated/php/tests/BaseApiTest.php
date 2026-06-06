@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-/* phpcs:disable PSR1.Classes.ClassDeclaration.MultipleClasses */
-
 namespace PetstoreClient\Test;
 
 use PetstoreClient\Api\BaseApi;

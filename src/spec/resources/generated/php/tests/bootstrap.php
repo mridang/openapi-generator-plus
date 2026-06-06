@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-/* phpcs:disable PSR1.Files.SideEffects */
-
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Testcontainers\Container\GenericContainer;
@@ -91,9 +89,7 @@ $networkName = 'proxy-test-network-' . bin2hex(random_bytes(4));
 function dockerApiRequest(string $socketPath, string $endpoint, string $method = 'POST', ?array $body = null): void
 {
     $ch = curl_init("http://localhost$endpoint");
-    /** @phpstan-ignore argument.type */
     curl_setopt($ch, CURLOPT_UNIX_SOCKET_PATH, $socketPath);
-    /** @phpstan-ignore argument.type */
     curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     if ($body !== null) {

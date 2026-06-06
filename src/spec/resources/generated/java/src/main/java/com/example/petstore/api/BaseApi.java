@@ -199,13 +199,12 @@ public abstract class BaseApi {
         requestBody = body;
       } else if ("text/plain".equals(contentType)) {
         requestBody = body.toString();
-      } else if ("application/x-www-form-urlencoded".equals(contentType) && body instanceof Map) {
-        @SuppressWarnings("unchecked")
-        Map<String, Object> formParams = (Map<String, Object>) body;
+      } else if ("application/x-www-form-urlencoded".equals(contentType)
+          && body instanceof Map<?, ?> formParams) {
         StringJoiner joiner = new StringJoiner("&");
-        for (Map.Entry<String, Object> entry : formParams.entrySet()) {
+        for (Map.Entry<?, ?> entry : formParams.entrySet()) {
           joiner.add(
-              URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8)
+              URLEncoder.encode(String.valueOf(entry.getKey()), StandardCharsets.UTF_8)
                   + "="
                   + URLEncoder.encode(String.valueOf(entry.getValue()), StandardCharsets.UTF_8));
         }
@@ -251,17 +250,21 @@ public abstract class BaseApi {
           rawBytes = response.body().getBytes(StandardCharsets.UTF_8);
         }
         if (returnType.getType() == InputStream.class) {
-          @SuppressWarnings("unchecked")
+          /* Cast to the type variable T is guarded by the runtime
+           * check above (returnType.getType() == InputStream.class),
+           * so it is provably safe; javac cannot see this and the
+           * unchecked lint is disabled project-wide in pom.xml. */
           T streamBody = (T) new ByteArrayInputStream(rawBytes);
           data = streamBody;
         } else {
-          @SuppressWarnings("unchecked")
+          /* Guarded by returnType.getType() == byte[].class above. */
           T bytesBody = (T) rawBytes;
           data = bytesBody;
         }
       } else if (!responseContentType.isEmpty()
           && !headerSelector.isJsonMime(responseContentType)) {
-        @SuppressWarnings("unchecked")
+        /* Non-JSON, non-binary response: the declared return type for
+         * such operations is always String, so this cast is safe. */
         T rawBody = (T) response.body();
         data = rawBody;
       } else {

@@ -29,13 +29,15 @@ public final class TraceContextUtil {
    * @param headers mutable map of request headers
    */
   @SuppressFBWarnings("DE_MIGHT_IGNORE")
-  @SuppressWarnings("EmptyCatch")
   public static void injectTraceContext(Map<String, String> headers) {
     try {
       io.opentelemetry.api.GlobalOpenTelemetry.getPropagators()
           .getTextMapPropagator()
           .inject(io.opentelemetry.context.Context.current(), headers, Map::put);
     } catch (LinkageError | RuntimeException ignored) {
+      /* Trace-context injection is strictly best-effort: when the
+      OpenTelemetry API is absent (LinkageError) or no active context
+      exists (RuntimeException) the request proceeds untraced. */
     }
   }
 }
