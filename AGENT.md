@@ -871,6 +871,34 @@ risky refactor with no observable change). These are decisions, not gaps:
   hierarchy, fields, and behavior are identical across all SDKs; only the
   suffix differs. Accepted (idiomatic, not forced).
 
+- **Residual test-count spread after scenario-union leveling** (507–549): every
+  SDK's test suite was leveled UP to the union of test scenarios — each language
+  now covers the same behaviors (base64/byte serde, enum-on-model, Duration/Time,
+  NaN/Infinity, charset decoding, multipart filename sanitization, discriminator
+  deserialize, typed error body, oauth2 error-swallow guards, a standalone
+  `api_error` test file, `WithHttpInfo` variants, etc.). The remaining count
+  spread is driven by *genuinely* platform-specific tests that have no equivalent
+  elsewhere — e.g. C#'s `System.Diagnostics.Activity`-based trace-injection tests
+  (the only runtime with ambient tracing, no OTel dep), Swift's Linux-vs-non-Linux
+  proxy split, Python's extra redirect edge-cases. Forcing byte-identical totals
+  would require adding can-never-run skip-stubs of those tests in every other
+  language — pure noise. Coverage-union parity is the bar; identical integer
+  counts are not. Accepted.
+
 Genuine wire-correctness divergences in the same areas WERE fixed (locale-
 sensitive decimal separators in java/kotlin/csharp; elixir sub-second
 datetime precision) — equivalence is the bar, not laziness.
+
+## Open behavioral divergences (flagged, not yet decided)
+
+- **Java lenient discriminator deserialization**: Java's `ObjectMapper` is
+  configured with `FAIL_ON_INVALID_SUBTYPE=false`, so a oneOf/anyOf payload with
+  a missing, empty, or unknown discriminator deserializes to `null` rather than
+  throwing. The other 11 SDKs throw on a bad discriminator. Java's existing
+  `ComposedSchemaTest.testUnknownDiscriminator` codifies the lenient null-return;
+  the three union tests asserting strict-throw (`testMissingDiscriminatorThrows`,
+  `testEmptyDiscriminatorThrows`, `testUnknownDiscriminatorErrorNamesValue`) are
+  `@Disabled` pending a decision. Aligning Java to strict-throw means flipping
+  `FAIL_ON_INVALID_SUBTYPE` and inverting the existing test — a behavioral change
+  with blast radius on all oneOf/anyOf deserialization, so it is raised rather
+  than made silently.
