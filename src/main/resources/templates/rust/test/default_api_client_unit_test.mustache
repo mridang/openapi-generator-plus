@@ -59,7 +59,12 @@ fn start_request_id_capture_server(n_requests: usize) -> (String, Arc<Mutex<Vec<
                     captured_clone.lock().unwrap().push(line[13..].trim().to_string());
                 }
             }
-            let response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
+            /* Connection: close forces the client to open a fresh TCP
+             * connection per request. Without it, HTTP/1.1 keep-alive lets the
+             * client reuse one connection for both requests, so the accept loop
+             * only ever sees a single connection and captures one request ID --
+             * the source of the prior parallel-execution flakiness. */
+            let response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
             let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
         }
     });

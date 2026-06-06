@@ -165,35 +165,11 @@ async fn test_default_api_client_injects_request_id_header() {
     assert!(!request_id.is_empty());
 }
 
-// FIXME: flaky under parallel cargo test execution; investigate uniqueness assertion semantics
-#[tokio::test]
-#[ignore]
-async fn test_default_api_client_generates_unique_request_ids() {
-    let chasm_url = testcontainers_helper::chasm_http_url();
-    let transport = TransportOptionsBuilder::new()
-        .inject_request_id(true)
-        .build();
-    let client = DefaultApiClient::new(Some(transport));
-    let headers = HashMap::new();
-
-    let resp1 = client
-        .send_request("GET", &format!("{}/test/echo", chasm_url), &headers, None)
-        .await
-        .expect("unexpected error");
-    let json1: serde_json::Value = serde_json::from_str(&resp1.body).expect("invalid json");
-
-    let resp2 = client
-        .send_request("GET", &format!("{}/test/echo", chasm_url), &headers, None)
-        .await
-        .expect("unexpected error");
-    let json2: serde_json::Value = serde_json::from_str(&resp2.body).expect("invalid json");
-
-    fn rid(v: &serde_json::Value) -> Option<&str> {
-        let h = &v["headers"];
-        h.get("x-request-id").and_then(|x| x.as_str())
-    }
-    assert_ne!(rid(&json1), rid(&json2));
-}
+/* The unique-request-ID guarantee is covered deterministically by
+ * test_default_api_client_generates_unique_request_ids in
+ * default_api_client_unit_test.rs (local capture server, Connection: close).
+ * A duplicate integration variant against chasm was flaky under parallel
+ * execution and added no coverage, so it was removed rather than ignored. */
 
 #[tokio::test]
 async fn test_default_api_client_includes_transport_default_headers() {
