@@ -67,6 +67,35 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
     end
   end
 
+  defmodule NumberingCountingApiClient do
+    @moduledoc """
+    Hands out tok1, tok2, ... on successive calls and counts them, so the
+    single-flight refetch test can assert how many round-trips occurred.
+    """
+
+    defstruct [:agent]
+
+    def new do
+      {:ok, agent} = Agent.start_link(fn -> 0 end)
+      %__MODULE__{agent: agent}
+    end
+
+    def send_request(%__MODULE__{agent: agent}, _method, _url, _headers, _body) do
+      n = Agent.get_and_update(agent, fn count -> {count + 1, count + 1} end)
+      # Simulate a slow OP so concurrent callers genuinely race.
+      Process.sleep(50)
+
+      %PetstoreClient.ApiResponse{
+        status_code: 200,
+        body: Jason.encode!(%{"access_token" => "tok#{n}", "expires_in" => 3600})
+      }
+    end
+
+    def call_count(%__MODULE__{agent: agent}) do
+      Agent.get(agent, & &1)
+    end
+  end
+
   defmodule NoRedirectCapturingClient do
     @moduledoc """
     Exports `send_request/6` so the token manager exercises its
@@ -581,6 +610,98 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
 
       assert_raise PetstoreClient.Auth.OAuth.OAuth2TokenError, ~r/308|redirect|refusing/i, fn ->
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+          manager,
+          "https://auth.example.com/token",
+          %{"grant_type" => "client_credentials"}
+        )
+      end
+    end
+
+    test "token endpoint error response parsed to typed OAuth2ServerError" do
+      # RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a
+      # typed OAuth2ServerError carrying code/description/uri.
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 400,
+            body:
+              Jason.encode!(%{
+                "error" => "invalid_grant",
+                "error_description" => "refresh token expired",
+                "error_uri" => "https://docs.example.com/errors/invalid_grant"
+              })
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      error =
+        assert_raise PetstoreClient.Auth.OAuth.OAuth2ServerError, fn ->
+          PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+            manager,
+            "https://auth.example.com/token",
+            %{"grant_type" => "client_credentials"}
+          )
+        end
+
+      assert error.status_code == 400
+      assert error.code == "invalid_grant"
+      assert error.description == "refresh token expired"
+      assert error.uri == "https://docs.example.com/errors/invalid_grant"
+    end
+
+    test "invalidate_access_token triggers a single refetch under concurrency" do
+      # After invalidation, 10 concurrent callers must coalesce into exactly
+      # ONE additional token-endpoint call (single-flight), all observing the
+      # refreshed token.
+      counting_client = NumberingCountingApiClient.new()
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, counting_client)
+
+      params = %{"grant_type" => "client_credentials"}
+      token_url = "https://auth.example.com/token"
+
+      first = PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+      assert first == "tok1"
+      assert NumberingCountingApiClient.call_count(counting_client) == 1
+
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.invalidate_access_token(manager)
+
+      tokens =
+        1..10
+        |> Enum.map(fn _ ->
+          Task.async(fn ->
+            PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+          end)
+        end)
+        |> Enum.map(&Task.await(&1, 5_000))
+
+      assert Enum.all?(tokens, &(&1 == "tok2"))
+      assert NumberingCountingApiClient.call_count(counting_client) == 2
+    end
+
+    # Gap 3.2: the redirect-refusal error should name the offending Location
+    # header for diagnostics. The Elixir SDK's OAuth2TokenError message embeds
+    # only the status code, not the Location target, so this cannot be asserted
+    # without fabricating behaviour the SDK does not implement.
+    @tag :skip
+    test "redirect-refusal error includes the Location header for diagnostics" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 307,
+            headers: %{"location" => "https://attacker.example/token"},
+            body: ""
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      assert_raise PetstoreClient.Auth.OAuth.OAuth2TokenError, ~r/attacker\.example/, fn ->
         PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
           manager,
           "https://auth.example.com/token",

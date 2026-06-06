@@ -634,3 +634,84 @@ func TestOAuth2TokenManager_TokenEndpointErrorResponseParsedToTypedError(t *test
 		t.Errorf("unexpected URI: %q", typed.URI)
 	}
 }
+
+// numberingSlowTokenClient hands out tok1, tok2, ... on successive calls and
+// stalls briefly so concurrent callers race against a single in-flight refresh.
+type numberingSlowTokenClient struct {
+	callCount int32
+	delay     time.Duration
+}
+
+func (c *numberingSlowTokenClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.HttpResponse, error) {
+	return c.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (c *numberingSlowTokenClient) SendRequestWithOptions(_, _ string, _ map[string]string, _ any, _ *auth.RequestOptions) (*auth.HttpResponse, error) {
+	n := atomic.AddInt32(&c.callCount, 1)
+	if c.delay > 0 {
+		time.Sleep(c.delay)
+	}
+	body := `{"access_token":"tok` + string(rune('0'+n)) + `","expires_in":3600}`
+	return &auth.HttpResponse{StatusCode: 200, Body: body, Headers: map[string]string{}}, nil
+}
+
+func TestOAuth2TokenManager_InvalidateTriggersSingleRefetchUnderConcurrency(t *testing.T) {
+	t.Parallel()
+	// After invalidation, 10 goroutines must coalesce into exactly ONE
+	// additional token request (single-flight), all observing the refreshed
+	// token.
+	client := &numberingSlowTokenClient{delay: 50 * time.Millisecond}
+
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	params := map[string]string{"grant_type": "client_credentials"}
+
+	first, err := manager.GetAccessToken("https://auth.example.com/token", params)
+	if err != nil {
+		t.Fatalf("unexpected error on first call: %v", err)
+	}
+	if first != "tok1" {
+		t.Errorf("expected first token 'tok1', got %q", first)
+	}
+	if got := atomic.LoadInt32(&client.callCount); got != 1 {
+		t.Fatalf("expected 1 call before invalidate, got %d", got)
+	}
+
+	manager.InvalidateAccessToken()
+
+	const goroutines = 10
+	tokens := make([]string, goroutines)
+	var wg sync.WaitGroup
+	for i := 0; i < goroutines; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			token, err := manager.GetAccessToken("https://auth.example.com/token", params)
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+			tokens[idx] = token
+		}(i)
+	}
+	wg.Wait()
+
+	if got := atomic.LoadInt32(&client.callCount); got != 2 {
+		t.Errorf("invalidate + concurrent callers must produce one refetch; got %d calls", got)
+	}
+	for _, token := range tokens {
+		if token != "tok2" {
+			t.Errorf("all callers must observe the refreshed token 'tok2'; got %q", token)
+		}
+	}
+}
+
+func TestOAuth2TokenManager_RedirectRefusalErrorIncludesLocation(t *testing.T) {
+	t.Parallel()
+	// Gap 3.2: the redirect-refusal error should name the offending Location
+	// header for diagnostics. The Go SDK's *OAuth2TokenError message embeds the
+	// status code and token endpoint URL only, not the Location target, so this
+	// cannot be asserted without fabricating behaviour the SDK does not provide.
+	t.Skip("Go OAuth2TokenManager redirect-refusal error does not surface the Location header")
+}

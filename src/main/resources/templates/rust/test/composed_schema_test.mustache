@@ -76,6 +76,18 @@ fn test_pet_food_missing_discriminator_field_errors() {
 }
 
 #[test]
+fn test_pet_food_empty_discriminator_field_errors() {
+    /* An empty discriminator value matches no listed variant and must be
+     * rejected rather than dispatched to a structurally-fitting struct. */
+    let json_data = r#"{"foodType":"","weightKg":2.5}"#;
+    let result = serde_json::from_str::<PetFood>(json_data);
+    assert!(
+        result.is_err(),
+        "expected error for empty discriminator value"
+    );
+}
+
+#[test]
 fn test_pet_food_serialize_dry_food() {
     let json_data = r#"{"foodType":"dry","weightKg":2.5}"#;
     let food: PetFood =
@@ -106,6 +118,20 @@ fn test_pet_treatment_deserialize_surgery() {
     let treatment: PetTreatment =
         serde_json::from_str(json_data).expect("failed to deserialize PetTreatment as Surgery");
     let _ = treatment;
+}
+
+#[test]
+fn test_pet_treatment_no_match_errors() {
+    /* oneof-nondiscriminator-no-match-silent: a payload matching neither
+     * Medication nor Surgery must surface as a deserialization error. With
+     * `#[serde(untagged)]` serde tries every variant and returns Err when
+     * none deserialize. */
+    let json_data = r#"{"unrelatedKey":"value","anotherUnknown":123}"#;
+    let result = serde_json::from_str::<PetTreatment>(json_data);
+    assert!(
+        result.is_err(),
+        "expected error for anyOf payload matching no variant"
+    );
 }
 
 #[test]

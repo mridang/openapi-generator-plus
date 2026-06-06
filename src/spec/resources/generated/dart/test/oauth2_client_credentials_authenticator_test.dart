@@ -121,6 +121,39 @@ void main() {
       expect(auth.host(), equals('https://api.example.com'));
     });
 
+    test('token fetch error is surfaced not swallowed', () async {
+      // oauth-cc-authheaders-error-swallow: a failed client-credentials token
+      // exchange must surface to the caller as a thrown error — NOT be
+      // swallowed into an empty header map that would send the API request
+      // unauthenticated and produce a confusing downstream 401.
+      final client = _FakeApiClient();
+      client.enqueue('{"error":"invalid_client"}', statusCode: 401);
+
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await expectLater(auth.authHeadersAsync(), throwsA(isA<Object>()));
+    });
+
+    test('caches token across calls', () async {
+      // The token manager caches the access token until expiry, so two
+      // consecutive header requests reuse the same token and issue only a
+      // single token request. Only one response is enqueued; a second token
+      // fetch would removeAt(0) from an empty list and throw, proving
+      // single-flight.
+      final client = _FakeApiClient();
+      client.enqueue('{"access_token":"cached-cc-token","expires_in":3600}');
+
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      final headers1 = await auth.authHeadersAsync();
+      final headers2 = await auth.authHeadersAsync();
+
+      expect(headers1['Authorization'], equals('Bearer cached-cc-token'));
+      expect(headers2['Authorization'], equals('Bearer cached-cc-token'));
+    });
+
     test('basic auth url-encodes client id and secret', () async {
       // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
       // client_id and client_secret MUST be application/x-www-form-

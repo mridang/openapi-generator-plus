@@ -10,6 +10,8 @@ import threading
 import time
 from unittest.mock import MagicMock
 
+import pytest
+
 from petstore_client.auth.oauth.oauth2_token_manager import (
     OAuth2ServerError,
     OAuth2TokenError,
@@ -522,3 +524,70 @@ class TestOAuth2TokenManager:
                 assert False, f'Expected OAuth2TokenError for status {status}'
             except OAuth2TokenError:
                 pass
+
+    def test_invalidate_triggers_single_refetch_under_concurrency(self) -> None:
+        # After invalidation, 10 threads must coalesce into exactly ONE
+        # additional network round-trip (single-flight), all observing the
+        # refreshed token.
+        network_calls = [0]
+        call_lock = threading.Lock()
+
+        def numbering_send_request(*_args: object, **_kwargs: object) -> ApiResponse:
+            with call_lock:
+                network_calls[0] += 1
+                n = network_calls[0]
+            time.sleep(0.05)
+            return ApiResponse(
+                status_code=200,
+                body=json.dumps({'access_token': f'tok{n}', 'expires_in': 3600}),
+                headers={'content-type': 'application/json'},
+            )
+
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.side_effect = numbering_send_request
+        manager.set_api_client(mock_client)
+
+        params = {'grant_type': 'client_credentials'}
+        first = manager.get_access_token('https://auth.example.com/token', params)
+        assert first == 'tok1'
+        assert network_calls[0] == 1
+
+        manager.invalidate_access_token()
+
+        tokens: list[str] = [''] * 10
+
+        def worker(idx: int) -> None:
+            tokens[idx] = manager.get_access_token('https://auth.example.com/token', params)
+
+        threads = [threading.Thread(target=worker, args=(i,)) for i in range(10)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        assert network_calls[0] == 2, 'invalidate + concurrent callers must produce one refetch'
+        assert all(token == 'tok2' for token in tokens), 'all callers must observe the refreshed token'
+
+    @pytest.mark.skip(reason='Python OAuth2TokenManager redirect-refusal error does not surface the Location header')
+    def test_redirect_refusal_error_includes_location(self) -> None:
+        # Gap 3.2: the redirect-refusal error should name the offending Location
+        # for diagnostics. The Python SDK's OAuth2TokenError message embeds only
+        # the status code and token endpoint URL, not the Location target.
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiResponse(
+            status_code=307,
+            body='',
+            headers={'location': 'https://attacker.example/steal'},
+        )
+        manager.set_api_client(mock_client)
+
+        try:
+            manager.get_access_token(
+                'https://auth.example.com/token',
+                {'grant_type': 'client_credentials'},
+            )
+            assert False, 'Expected OAuth2TokenError'
+        except OAuth2TokenError as err:
+            assert 'attacker.example' in str(err)

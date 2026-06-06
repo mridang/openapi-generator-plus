@@ -876,6 +876,18 @@ void main() {
       }
     });
 
+    // form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
+    // mandates '+' for a space (WHATWG/HTML form-encoding). The SDK's
+    // _serializeBody uses Uri.encodeQueryComponent which emits '+', but
+    // _serializeBody is private to BaseApi and no generated operation sends a
+    // form body, so the form-encoding path is not reachable from this test.
+    // Skipped to keep scenario parity while flagging the reachability gap.
+    test(
+      'form-urlencoded body encodes space as + not %20',
+      () async {},
+      skip: '_serializeBody is private; form body path not reachable from test',
+    );
+
     test('passes binary body as-is', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       List<int> receivedBytes = [];

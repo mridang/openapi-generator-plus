@@ -87,6 +87,15 @@ import Testing
         }
     }
 
+    @Test func testPetFoodEmptyDiscriminatorThrows() {
+        // An empty discriminator value matches no listed subtype and must
+        // fail decoding rather than route to a structurally-fitting variant.
+        let jsonData = Data("{\"foodType\":\"\",\"weightKg\":2.5}".utf8)
+        #expect(throws: (any Error).self) {
+            try JSONDecoder().decode(PetFood.self, from: jsonData)
+        }
+    }
+
     @Test func testPetFoodSerializeDryFood() throws {
         let jsonData = Data("{\"foodType\":\"dry\",\"weightKg\":2.5}".utf8)
         let food = try JSONDecoder().decode(PetFood.self, from: jsonData)
@@ -113,6 +122,16 @@ import Testing
         let treatment = try JSONDecoder().decode(PetTreatment.self, from: jsonData)
         let val = treatment.value()
         #expect(val != nil)
+    }
+
+    @Test func testPetTreatmentNoMatchThrows() {
+        // oneof-nondiscriminator-no-match-silent: a payload matching neither
+        // Medication nor Surgery must surface as a decoding error rather than
+        // a silently-empty union.
+        let jsonData = Data("{\"unrelatedKey\":\"value\",\"anotherUnknown\":123}".utf8)
+        #expect(throws: (any Error).self) {
+            try JSONDecoder().decode(PetTreatment.self, from: jsonData)
+        }
     }
 
     @Test func testPetTreatmentSerializeRoundTrip() throws {

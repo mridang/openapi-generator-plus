@@ -811,6 +811,19 @@ public class ObjectSerializerTest
             var json = _serializer.Serialize(wet);
             Assert.Contains("\"foodType\":\"wet\"", json);
         }
+
+        [Fact]
+        public void DeserializeParentRoutesToSubtype()
+        {
+            // A discriminator-tagged payload deserialized against the parent
+            // PetFood type must come back as the concrete DryFood subtype via
+            // the PetFoodConverter routing on foodType="dry".
+            var json = "{\"foodType\":\"dry\",\"weightKg\":2.5}";
+            var food = _serializer.Deserialize<PetFood>(json);
+            Assert.NotNull(food);
+            var dry = Assert.IsType<DryFood>(food);
+            Assert.Equal(2.5, dry.WeightKg);
+        }
     }
 
     {{! Gap 2.2 — a Guid field carried inside a model object must round-trip }}

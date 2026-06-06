@@ -552,4 +552,100 @@ class OAuth2TokenManagerTest {
             || ex instanceof OAuth2TokenManager.OAuth2TokenError,
         "expected redirect-refusal failure for status " + status + ", got " + ex);
   }
+
+  @Test
+  void invalidateAccessTokenTriggersSingleRefetchUnderConcurrency() throws InterruptedException {
+    // After invalidation, 10 concurrent callers must coalesce into exactly
+    // ONE additional network round-trip (single-flight), all observing the
+    // same freshly fetched token.
+    AtomicInteger callCount = new AtomicInteger(0);
+    ApiClient client =
+        (method, url, headers, body) -> {
+          int n = callCount.incrementAndGet();
+          try {
+            Thread.sleep(50);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+          return new ApiResponse(
+              200, "{\"access_token\":\"tok" + n + "\",\"expires_in\":3600}", Map.of());
+        };
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "client_credentials");
+
+    String first = manager.getAccessToken("https://auth.example.com/token", params);
+    assertEquals("tok1", first);
+    assertEquals(1, callCount.get());
+
+    manager.invalidateAccessToken();
+
+    int threadCount = 10;
+    String[] tokens = new String[threadCount];
+    Thread[] threads = new Thread[threadCount];
+    for (int i = 0; i < threadCount; i++) {
+      final int idx = i;
+      threads[i] =
+          new Thread(
+              () -> tokens[idx] = manager.getAccessToken("https://auth.example.com/token", params));
+    }
+    for (Thread t : threads) {
+      t.start();
+    }
+    for (Thread t : threads) {
+      t.join();
+    }
+
+    // Exactly one additional network call (callCount went 1 -> 2).
+    assertEquals(2, callCount.get(), "invalidate + concurrent callers must produce one refetch");
+    for (String token : tokens) {
+      assertEquals("tok2", token, "all callers must observe the same refreshed token");
+    }
+  }
+
+  /*
+   * Bucket 3.2 — the redirect-refusal error should include the offending
+   * Location header for diagnostics. The Java SDK's OAuth2TokenError only
+   * carries the status code and token endpoint URL, not the Location target,
+   * so this scenario cannot be asserted without fabricating behaviour the
+   * SDK does not implement.
+   */
+  @org.junit.jupiter.api.Disabled(
+      "Java OAuth2TokenManager redirect-refusal error does not surface the Location header")
+  @Test
+  void redirectRefusalErrorIncludesLocationHeader() {
+    ApiClient client =
+        new ApiClient() {
+          @Override
+          public ApiResponse sendRequest(
+              String method, String url, Map<String, String> headers, @Nullable Object body) {
+            return sendRequest(method, url, headers, body, false);
+          }
+
+          @Override
+          public ApiResponse sendRequest(
+              String method,
+              String url,
+              Map<String, String> headers,
+              @Nullable Object body,
+              boolean noRedirect) {
+            return new ApiResponse(307, "", Map.of("location", "https://attacker.example/steal"));
+          }
+        };
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "client_credentials");
+
+    RuntimeException ex =
+        assertThrows(
+            RuntimeException.class,
+            () -> manager.getAccessToken("https://auth.example.com/token", params));
+    assertTrue(
+        ex.getMessage() != null && ex.getMessage().contains("attacker.example"),
+        "redirect-refusal error should name the Location target for diagnostics");
+  }
 }

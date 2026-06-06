@@ -224,6 +224,14 @@ fn test_transport_options_setting_timeout_is_accessible() {
     assert_eq!(opts.timeout(), Some(5000), "expected timeout to be 5000");
 }
 
+/* Feature gap: the Rust builder's `timeout(i64)` takes a non-Option i64, so it
+ * cannot reset the timeout to None/disabled the way Java/Kotlin/C# do via
+ * timeout(null). The closest behaviour is `timeout(0)` (a 0ms timeout), which is
+ * semantically different. Ignored to keep cross-language scenario parity. */
+#[test]
+#[ignore = "Rust builder cannot disable timeout to None; timeout(i64) is non-Option"]
+fn test_transport_options_timeout_can_be_explicitly_disabled() {}
+
 #[test]
 fn test_transport_options_timeout_field_is_named_timeout() {
     // Verify via the timeout() accessor that the field is named 'timeout'

@@ -16,6 +16,7 @@ class _FakeApiClient implements ApiClient {
   String? lastBody;
   String? lastUrl;
   String? lastMethod;
+  int getCount = 0;
 
   void enqueue(String body, {int statusCode = 200}) {
     _responses.add(
@@ -33,6 +34,9 @@ class _FakeApiClient implements ApiClient {
   }) async {
     lastMethod = method;
     lastUrl = url;
+    if (method == 'GET') {
+      getCount++;
+    }
     if (body != null) {
       lastBody = utf8.decode(body as List<int>);
     }
@@ -170,6 +174,39 @@ void main() {
       final auth = _createAuthenticator();
 
       expect(auth.host(), equals('https://api.example.com'));
+    });
+
+    // oauth-oidc-discovery-no-status-check: a non-2xx discovery response (e.g.
+    // a 500 HTML error page) must surface as a clear error, not a downstream
+    // "invalid JSON" parse failure of the body.
+    test('throws when discovery returns a non-2xx status', () async {
+      final client = _FakeApiClient();
+      client.enqueue('<html>internal server error</html>', statusCode: 500);
+
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await expectLater(
+        auth.buildAuthorizationUrl(),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('fetches discovery document only once', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+        '{"authorization_endpoint":"https://auth.example.com/authorize",'
+        '"token_endpoint":"https://auth.example.com/token"}',
+      );
+
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await auth.buildAuthorizationUrl();
+      await auth.buildAuthorizationUrl();
+
+      // The cached discovery document must be reused on the second call.
+      expect(client.getCount, equals(1));
     });
   });
 }

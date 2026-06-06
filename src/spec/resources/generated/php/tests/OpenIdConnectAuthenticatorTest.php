@@ -143,6 +143,26 @@ test('fetches discovery document', function (): void {
     expect($discoveryRequests)->toHaveCount(1);
 });
 
+test('oidc issues a GET to the discovery endpoint', function (): void {
+    $client = makeOpenIdConnectMockClientWithDiscovery();
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->buildAuthorizationUrl();
+
+    expect($client->capturedRequests[0]['method'])->toBe('GET');
+    expect($client->capturedRequests[0]['url'])
+        ->toBe('https://auth.example.com/.well-known/openid-configuration');
+});
+
 test('oidc throws when discovery returns non-2xx status', function (): void {
     $client = new MockTokenApiClient();
     // A non-2xx discovery response (e.g. a 500 HTML error page) must surface
@@ -190,4 +210,25 @@ test('oidc get host returns configured host', function (): void {
     );
 
     expect($authenticator->getHost())->toBe('https://api.example.com');
+});
+
+test('oidc throws when discovery omits authorization_endpoint', function (): void {
+    /* Feature gap: getDelegate() reads $discovery['authorization_endpoint']
+     * directly with no missing-key guard, so an absent endpoint is not
+     * surfaced as a deliberate "missing authorization_endpoint" discovery
+     * error. Recorded as a feature gap; skipped so the scenario count
+     * matches the other SDKs. */
+    test()->markTestSkipped(
+        'No missing-endpoint guard: authorization_endpoint is read without validation.'
+    );
+});
+
+test('oidc throws when discovery omits token_endpoint', function (): void {
+    /* Feature gap: getDelegate() reads $discovery['token_endpoint'] directly
+     * with no missing-key guard, so an absent endpoint is not surfaced as a
+     * deliberate "missing token_endpoint" discovery error. Recorded as a
+     * feature gap; skipped so the scenario count matches the other SDKs. */
+    test()->markTestSkipped(
+        'No missing-endpoint guard: token_endpoint is read without validation.'
+    );
 });

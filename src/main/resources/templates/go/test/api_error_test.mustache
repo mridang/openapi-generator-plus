@@ -1,0 +1,121 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"testing"
+
+	apierrors "{{packageName}}/pkg/errors"
+	"{{packageName}}/pkg/models"
+)
+
+func TestApiError_ExposesStatusMessageBodyHeadersErrorBody(t *testing.T) {
+	t.Parallel()
+	err := &apierrors.ApiError{
+		StatusCode:      404,
+		Msg:             "not found",
+		ResponseHeaders: map[string]string{"content-type": "application/json"},
+		ResponseBody:    `{"id":7,"name":"missing"}`,
+		ErrorBody:       nil,
+	}
+
+	if err.StatusCode != 404 {
+		t.Errorf("expected status 404, got %d", err.StatusCode)
+	}
+	if err.Msg != "not found" {
+		t.Errorf("expected message 'not found', got %q", err.Msg)
+	}
+	if err.ResponseBody != `{"id":7,"name":"missing"}` {
+		t.Errorf("unexpected response body %q", err.ResponseBody)
+	}
+	if err.ResponseHeaders["content-type"] != "application/json" {
+		t.Errorf("unexpected content-type header %q", err.ResponseHeaders["content-type"])
+	}
+	if err.ErrorBody != nil {
+		t.Errorf("expected nil error body, got %v", err.ErrorBody)
+	}
+}
+
+func TestApiError_NilHeadersAndBodyMarkTransportNoResponse(t *testing.T) {
+	t.Parallel()
+	/* apierror-responsebody-headers-nullable-split: nil is distinct from an
+	 * empty header map / empty body, so a pre-response transport failure can
+	 * be encoded. */
+	err := &apierrors.ApiError{
+		StatusCode:      0,
+		Msg:             "connection reset",
+		ResponseHeaders: nil,
+		ResponseBody:    "",
+	}
+
+	if err.ResponseHeaders != nil {
+		t.Errorf("expected nil response headers, got %v", err.ResponseHeaders)
+	}
+	if err.ResponseBody != "" {
+		t.Errorf("expected empty response body, got %q", err.ResponseBody)
+	}
+}
+
+func TestApiError_ImplementsErrorInterface(t *testing.T) {
+	t.Parallel()
+	var err error = &apierrors.ApiError{StatusCode: 500, Msg: "boom"}
+
+	if err.Error() == "" {
+		t.Error("expected non-empty Error() string")
+	}
+	if _, ok := err.(*apierrors.ApiError); !ok {
+		t.Error("expected value to be assertable to *ApiError")
+	}
+}
+
+func TestApiError_GetTypedErrorBodyDeserializesBody(t *testing.T) {
+	t.Parallel()
+	err := &apierrors.ApiError{
+		StatusCode:   400,
+		Msg:          "bad request",
+		ResponseBody: `{"id":42,"name":"Dogs"}`,
+	}
+
+	var typed models.Category
+	if deErr := err.GetTypedErrorBody(&typed); deErr != nil {
+		t.Fatalf("GetTypedErrorBody returned error: %v", deErr)
+	}
+	if typed.Id == nil || *typed.Id != 42 {
+		t.Errorf("expected id 42, got %v", typed.Id)
+	}
+	if typed.Name == nil || *typed.Name != "Dogs" {
+		t.Errorf("expected name 'Dogs', got %v", typed.Name)
+	}
+}
+
+func TestApiError_GetTypedErrorBodyReturnsNilWhenNoBody(t *testing.T) {
+	t.Parallel()
+	err := &apierrors.ApiError{StatusCode: 500, Msg: "oops", ResponseBody: ""}
+
+	var typed models.Category
+	if deErr := err.GetTypedErrorBody(&typed); deErr != nil {
+		t.Fatalf("expected nil error for empty body, got %v", deErr)
+	}
+	if typed.Id != nil || typed.Name != nil {
+		t.Errorf("expected unset Category for empty body, got %+v", typed)
+	}
+}
+
+func TestApiError_GetTypedErrorBodyIgnoresExtraneousFields(t *testing.T) {
+	t.Parallel()
+	err := &apierrors.ApiError{
+		StatusCode:   422,
+		Msg:          "unprocessable",
+		ResponseBody: `{"id":1,"name":"Cat","extra":"drop-me"}`,
+	}
+
+	var typed models.Category
+	if deErr := err.GetTypedErrorBody(&typed); deErr != nil {
+		t.Fatalf("GetTypedErrorBody returned error: %v", deErr)
+	}
+	if typed.Id == nil || *typed.Id != 1 {
+		t.Errorf("expected id 1, got %v", typed.Id)
+	}
+	if typed.Name == nil || *typed.Name != "Cat" {
+		t.Errorf("expected name 'Cat', got %v", typed.Name)
+	}
+}

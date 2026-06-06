@@ -390,6 +390,11 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                             "test/ClientTest.mustache",
                             testFolder,
                             "ClientTest.kt"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ApiExceptionTest.mustache",
+                            testFolder,
+                            "ApiExceptionTest.kt"));
             final String testModelsFolder = Path.of(testFolder, "models").toString();
             supportingFiles.add(
                     new SupportingFile(

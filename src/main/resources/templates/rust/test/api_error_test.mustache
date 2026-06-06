@@ -1,0 +1,91 @@
+{{>api_info}}
+
+use std::collections::HashMap;
+
+use {{packageName}}::models::Category;
+use {{packageName}}::ApiError;
+
+#[test]
+fn test_api_error_exposes_status_message_body_headers_error_body() {
+    let mut headers = HashMap::new();
+    headers.insert("content-type".to_string(), "application/json".to_string());
+
+    let err = ApiError::new(
+        404,
+        "not found".to_string(),
+        Some(r#"{"id":7,"name":"missing"}"#.to_string()),
+        Some(headers),
+        None,
+    );
+
+    assert_eq!(err.status_code, 404);
+    assert_eq!(err.message, "not found");
+    assert_eq!(
+        err.response_body.as_deref(),
+        Some(r#"{"id":7,"name":"missing"}"#)
+    );
+    assert_eq!(
+        err.response_headers.as_ref().unwrap().get("content-type").unwrap(),
+        "application/json"
+    );
+    assert!(err.error_body.is_none());
+}
+
+#[test]
+fn test_api_error_none_headers_and_body_mark_transport_no_response() {
+    // apierror-responsebody-headers-nullable-split: None is distinct from an
+    // empty header map / empty body so a pre-response transport failure can
+    // be encoded.
+    let err = ApiError::new(0, "connection reset".to_string(), None, None, None);
+
+    assert!(err.response_headers.is_none());
+    assert!(err.response_body.is_none());
+}
+
+#[test]
+fn test_api_error_implements_std_error_and_display() {
+    let err = ApiError::new(500, "boom".to_string(), None, None, None);
+
+    let _as_error: &dyn std::error::Error = &err;
+    assert!(!err.to_string().is_empty());
+}
+
+#[test]
+fn test_api_error_typed_body_deserializes_body() {
+    let err = ApiError::new(
+        400,
+        "bad request".to_string(),
+        Some(r#"{"id":42,"name":"Dogs"}"#.to_string()),
+        None,
+        None,
+    );
+
+    let typed: Option<Category> = err.typed_body().expect("deserialization should succeed");
+    let cat = typed.expect("expected Some(Category)");
+    assert_eq!(cat.id, Some(42));
+    assert_eq!(cat.name.as_deref(), Some("Dogs"));
+}
+
+#[test]
+fn test_api_error_typed_body_returns_none_when_no_body() {
+    let err = ApiError::new(500, "oops".to_string(), None, None, None);
+
+    let typed: Option<Category> = err.typed_body().expect("empty body should not error");
+    assert!(typed.is_none());
+}
+
+#[test]
+fn test_api_error_typed_body_ignores_extraneous_fields() {
+    let err = ApiError::new(
+        422,
+        "unprocessable".to_string(),
+        Some(r#"{"id":1,"name":"Cat","extra":"drop-me"}"#.to_string()),
+        None,
+        None,
+    );
+
+    let typed: Option<Category> = err.typed_body().expect("deserialization should succeed");
+    let cat = typed.expect("expected Some(Category)");
+    assert_eq!(cat.id, Some(1));
+    assert_eq!(cat.name.as_deref(), Some("Cat"));
+}

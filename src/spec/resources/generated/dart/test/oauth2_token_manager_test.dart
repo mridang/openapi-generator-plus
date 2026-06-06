@@ -16,6 +16,7 @@ class _FakeApiClient implements ApiClient {
   final List<HttpApiResponse> _responses = [];
   String? lastBody;
   String? lastUrl;
+  bool? lastNoRedirect;
   int requestCount = 0;
 
   void enqueue(String body, {int statusCode = 200}) {
@@ -33,6 +34,7 @@ class _FakeApiClient implements ApiClient {
     bool noRedirect = false,
   }) async {
     lastUrl = url;
+    lastNoRedirect = noRedirect;
     if (body != null) {
       lastBody = utf8.decode(body as List<int>);
     }
@@ -468,6 +470,96 @@ void main() {
           ),
         );
       },
+    );
+
+    test('token POST sets noRedirect=true on the transport', () async {
+      // Gap 3.2: the token POST carries credentials in the form body; the
+      // manager must pass noRedirect: true so the transport refuses any 3xx
+      // instead of silently replaying the body to a redirect target.
+      final client = _FakeApiClient();
+      client.enqueue('{"access_token":"tok","expires_in":3600}');
+
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+
+      await manager.getAccessToken(
+        'https://auth.example.com/token',
+        {'grant_type': 'client_credentials'},
+      );
+
+      expect(client.lastNoRedirect, isTrue);
+    });
+
+    test(
+      'invalidateAccessToken triggers a single refetch under concurrency',
+      () async {
+        // After invalidation, 10 concurrent callers must coalesce into exactly
+        // ONE additional HTTP request (single-flight), all observing the
+        // refreshed token.
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok1","expires_in":3600}');
+
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        final params = {'grant_type': 'client_credentials'};
+        const tokenUrl = 'https://auth.example.com/token';
+
+        final first = await manager.getAccessToken(tokenUrl, params);
+        expect(first, equals('tok1'));
+        expect(client.requestCount, equals(1));
+
+        manager.invalidateAccessToken();
+        client.enqueue('{"access_token":"tok2","expires_in":3600}');
+
+        final futures = List.generate(
+          10,
+          (_) => manager.getAccessToken(tokenUrl, params),
+        );
+        final results = await Future.wait(futures);
+
+        // Exactly one additional request (requestCount went 1 -> 2).
+        expect(
+          client.requestCount,
+          equals(2),
+          reason:
+              'invalidate + concurrent callers should share a single refetch',
+        );
+        for (final token in results) {
+          expect(token, equals('tok2'));
+        }
+      },
+    );
+
+    test(
+      'redirect-refusal error includes the Location header for diagnostics',
+      () async {
+        // Gap 3.2: the redirect-refusal error should name the offending Location
+        // for diagnostics. The Dart SDK's OAuth2TokenError message embeds only
+        // the status code, not the Location target, so this cannot be asserted
+        // without fabricating behaviour the SDK does not implement.
+        final client = _FakeApiClient();
+        client.enqueue('', statusCode: 307);
+
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        await expectLater(
+          () => manager.getAccessToken(
+            'https://auth.example.com/token',
+            {'grant_type': 'client_credentials'},
+          ),
+          throwsA(
+            isA<OAuth2TokenError>().having(
+              (e) => e.toString(),
+              'message',
+              contains('attacker.example'),
+            ),
+          ),
+        );
+      },
+      skip:
+          'Dart OAuth2TokenManager redirect-refusal error does not surface the Location header',
     );
   });
 }

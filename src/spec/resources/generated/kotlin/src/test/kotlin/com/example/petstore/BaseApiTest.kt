@@ -64,6 +64,23 @@ class BaseApiTest {
         ): ApiResult<T> = invokeApiForResult<T>(method, path, queryParams, headerParams, body, accepts, contentType, auth)
     }
 
+    class TestableApiWithAuth(
+        client: CapturingApiClient,
+        baseUrl: String,
+        authenticator: Authenticator?,
+    ) : com.example.petstore.api.BaseApi(client, Configuration.builder().baseUrl(baseUrl).build(), authenticator) {
+        suspend fun call(
+            method: String,
+            path: String,
+            queryParams: MutableMap<String, Any?> = mutableMapOf(),
+            headerParams: MutableMap<String, String> = mutableMapOf(),
+            body: Any? = null,
+            accepts: Array<String> = arrayOf("application/json"),
+            contentType: String = "application/json",
+            auth: Authenticator? = null,
+        ): ApiResponse = invokeApi(method, path, queryParams, headerParams, body, accepts, contentType, auth)
+    }
+
     open class CapturingApiClient : ApiClient {
         var capturedUrl: String = ""
         var capturedHeaders: Map<String, String> = emptyMap()
@@ -313,6 +330,46 @@ class BaseApiTest {
                 )
             }
         }
+
+        @Test
+        @DisplayName("falls back to client-level authenticator when no per-call auth is supplied")
+        fun fallsBackToClientLevelAuthenticator() {
+            val client = CapturingApiClient()
+            val clientAuth =
+                TestAuthenticator(
+                    mapOf("X-Client-Auth" to "client-level-token"),
+                    emptyMap(),
+                    emptyMap(),
+                )
+            val testApi = TestableApiWithAuth(client, "http://localhost", clientAuth)
+            runBlocking {
+                testApi.call("GET", "/test/echo")
+            }
+            assertEquals("client-level-token", client.capturedHeaders["X-Client-Auth"])
+        }
+
+        @Test
+        @DisplayName("per-call auth overrides the client-level authenticator")
+        fun perCallAuthOverridesClientLevel() {
+            val client = CapturingApiClient()
+            val clientAuth =
+                TestAuthenticator(
+                    mapOf("X-Client-Auth" to "client-level-token"),
+                    emptyMap(),
+                    emptyMap(),
+                )
+            val perCallAuth =
+                TestAuthenticator(
+                    mapOf("X-Client-Auth" to "per-call-token"),
+                    emptyMap(),
+                    emptyMap(),
+                )
+            val testApi = TestableApiWithAuth(client, "http://localhost", clientAuth)
+            runBlocking {
+                testApi.call("GET", "/test/echo", auth = perCallAuth)
+            }
+            assertEquals("per-call-token", client.capturedHeaders["X-Client-Auth"])
+        }
     }
 
     @Nested
@@ -438,6 +495,28 @@ class BaseApiTest {
             }
             assertNotNull(client.capturedBody)
             assertTrue(client.capturedBody.toString().contains("name=alice"))
+        }
+
+        @Test
+        @DisplayName("form-urlencoded body encodes space as + not %20")
+        fun formUrlencodedBodyEncodesSpaceAsPlus() {
+            // form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
+            // mandates '+' for a space (WHATWG/HTML form-encoding), not '%20'.
+            // The encoder uses encodeURLQueryComponent(spaceToPlus = true).
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            runBlocking {
+                testApi.call(
+                    "POST",
+                    "/test/echo",
+                    body = mapOf("full name" to "Ada Lovelace"),
+                    contentType = "application/x-www-form-urlencoded",
+                )
+            }
+            assertNotNull(client.capturedBody)
+            val wire = client.capturedBody.toString()
+            assertEquals("full+name=Ada+Lovelace", wire)
+            assertFalse(wire.contains("%20"))
         }
 
         @Test

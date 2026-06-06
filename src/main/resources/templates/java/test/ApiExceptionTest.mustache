@@ -1,0 +1,74 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+
+class ApiExceptionTest {
+
+    @Test
+    void exposesStatusCodeMessageBodyHeadersErrorBody() {
+        ApiException ex = new ApiException(
+                404,
+                "not found",
+                Map.of("content-type", "application/json"),
+                "{\"id\":7,\"name\":\"missing\"}",
+                null);
+
+        assertEquals(404, ex.getStatusCode());
+        assertEquals("{\"id\":7,\"name\":\"missing\"}", ex.getResponseBody());
+        assertEquals("application/json", ex.getResponseHeaders().get("content-type"));
+        assertNull(ex.getErrorBody());
+    }
+
+    @Test
+    void nullHeadersAndBodyMarkTransportNoResponse() {
+        // apierror-responsebody-headers-nullable-split: null is distinct from an
+        // empty header map / empty body so a pre-response transport failure can
+        // be encoded.
+        ApiException ex = new ApiException(0, "connection reset", null, null);
+
+        assertNull(ex.getResponseHeaders());
+        assertNull(ex.getResponseBody());
+    }
+
+    @Test
+    void isAnExceptionWithStatusInMessage() {
+        ApiException ex = new ApiException(500, "boom", null, null);
+
+        assertInstanceOf(Exception.class, ex);
+        assertTrue(ex.getMessage().contains("500"));
+    }
+
+    @Test
+    void getTypedErrorBodyReturnsTheTypedErrorBody() {
+        {{modelPackage}}.Category body = new {{modelPackage}}.Category();
+        body.id = 42L;
+        body.name = "Dogs";
+        ApiException ex = new ApiException(
+                400, "bad request", Map.of(), "{\"id\":42,\"name\":\"Dogs\"}", body);
+
+        {{modelPackage}}.Category typed = ex.getTypedErrorBody({{modelPackage}}.Category.class);
+        assertNotNull(typed);
+        assertEquals(42L, typed.id);
+        assertEquals("Dogs", typed.name);
+    }
+
+    @Test
+    void getTypedErrorBodyReturnsNullWhenNoErrorBody() {
+        ApiException ex = new ApiException(500, "oops", Map.of(), null, null);
+
+        assertNull(ex.getTypedErrorBody({{modelPackage}}.Category.class));
+    }
+
+    @Test
+    void getTypedErrorBodyReturnsNullForMismatchedType() {
+        ApiException ex = new ApiException(
+                422, "unprocessable", Map.of(), null, "not-a-category");
+
+        assertNull(ex.getTypedErrorBody({{modelPackage}}.Category.class));
+    }
+}

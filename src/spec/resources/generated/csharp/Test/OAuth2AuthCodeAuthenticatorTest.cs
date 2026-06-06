@@ -121,6 +121,21 @@ public class OAuth2AuthCodeAuthenticatorTest
     }
 
     [Fact]
+    public async Task ExchangeCodeRejectsWhitespaceOnlyCode()
+    {
+        // oauth-exchangecode-no-empty-code-guard: a whitespace-only code is
+        // distinct from the empty-string case and must also be rejected before
+        // any token POST is issued (IsNullOrWhiteSpace guard).
+        var client = new FakeApiClient();
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => auth.ExchangeCodeAsync("   "));
+        // No request should have been sent for the rejected code.
+        Assert.Null(client.LastBody);
+    }
+
+    [Fact]
     public async Task IncludesRefreshTokenOnRefresh()
     {
         var client = new FakeApiClient();

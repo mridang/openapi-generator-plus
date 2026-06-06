@@ -369,6 +369,11 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                             "test/test_client.mustache",
                             "test",
                             "test_client.py"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/test_api_error.mustache",
+                            "test",
+                            "test_api_error.py"));
         }
     }
 

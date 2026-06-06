@@ -8,6 +8,7 @@
 package petstore_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -764,5 +765,36 @@ func TestFormatDatePathParam_StringPassesThrough(t *testing.T) {
 	t.Parallel()
 	if got := petstore.StringifyDate("2024-01-15"); got != "2024-01-15" {
 		t.Errorf("expected '2024-01-15', got %q", got)
+	}
+}
+
+func TestFormatDatePathParam_MidnightUtcReturnsDateOnly(t *testing.T) {
+	t.Parallel()
+	// UTC/midnight edge: a time.Time at exactly midnight UTC must still emit
+	// the bare date with no time/offset suffix, matching Node/Swift/Dart.
+	when := time.Date(2024, time.January, 15, 0, 0, 0, 0, time.UTC)
+	if got := petstore.StringifyDate(when); got != "2024-01-15" {
+		t.Errorf("expected '2024-01-15', got %q", got)
+	}
+}
+
+func TestSerializeStyled_PathEncodedExactlyOnce(t *testing.T) {
+	t.Parallel()
+	// path-double-encoding: SerializeStyled already percent-encodes the path
+	// segment, so the api template must NOT wrap it again. A space must become
+	// %20 (never %2520) and a slash %2F (never %252F).
+	space := petstore.SerializeStyled("id", "a b", "path", "string", "", "simple", false)
+	if space != "a%20b" {
+		t.Errorf("expected 'a%%20b', got %v", space)
+	}
+	if s, ok := space.(string); ok && strings.Contains(s, "%2520") {
+		t.Errorf("space was double-encoded: %v", space)
+	}
+	slash := petstore.SerializeStyled("id", "a/b", "path", "string", "", "simple", false)
+	if slash != "a%2Fb" {
+		t.Errorf("expected 'a%%2Fb', got %v", slash)
+	}
+	if s, ok := slash.(string); ok && strings.Contains(s, "%252F") {
+		t.Errorf("slash was double-encoded: %v", slash)
 	}
 }

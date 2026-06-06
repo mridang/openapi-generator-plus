@@ -467,4 +467,94 @@ import Testing
             Issue.record("expected OAuth2ServerError, got \(error)")
         }
     }
+
+    /// Counts requests and hands out tok1, tok2, ... so the single-flight
+    /// refetch test can assert how many round-trips actually occurred.
+    private final class NumberingMockApiClient: ApiClient, @unchecked Sendable {
+        private let lock = NSLock()
+        private var _callCount = 0
+        private let delayNanos: UInt64
+
+        var callCount: Int {
+            lock.withLock { _callCount }
+        }
+
+        init(delayNanos: UInt64 = 50_000_000) {
+            self.delayNanos = delayNanos
+        }
+
+        func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool) async throws -> HttpResponse {
+            let n = lock.withLock { () -> Int in
+                _callCount += 1
+                return _callCount
+            }
+            if delayNanos > 0 {
+                try? await Task.sleep(nanoseconds: delayNanos)
+            }
+            return HttpResponse(statusCode: 200, body: "{\"access_token\":\"tok\(n)\",\"expires_in\":3600}", headers: [:])
+        }
+    }
+
+    @Test func testInvalidateTriggersSingleRefetchUnderConcurrency() async throws {
+        /* After invalidation, 10 concurrent callers must coalesce into exactly
+         * ONE additional token-endpoint call, all observing the refreshed
+         * token. */
+        let client = NumberingMockApiClient(delayNanos: 100_000_000)
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let params = ["grant_type": "client_credentials"]
+        let tokenURL = "https://auth.example.com/token"
+
+        let first = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        #expect(first == "tok1")
+        #expect(client.callCount == 1)
+
+        manager.invalidateAccessToken()
+
+        let tokens = await withTaskGroup(of: String?.self) { group -> [String] in
+            for _ in 0..<10 {
+                group.addTask {
+                    return try? await manager.getAccessToken(tokenURL: tokenURL, params: params)
+                }
+            }
+            var collected: [String] = []
+            for await value in group {
+                if let v = value { collected.append(v) }
+            }
+            return collected
+        }
+
+        #expect(tokens.count == 10, "all 10 concurrent callers should receive a token")
+        #expect(tokens.allSatisfy { $0 == "tok2" }, "all callers should observe the refreshed token")
+        #expect(client.callCount == 2, "invalidate + concurrent callers must produce one refetch, got \(client.callCount)")
+    }
+
+    /// Gap 3.2: the redirect-refusal error should name the offending Location
+    /// header for diagnostics. The Swift SDK's OAuth2TokenError.redirectRefused
+    /// carries the status code and token endpoint URL only, not the Location
+    /// target, so this scenario cannot be asserted without fabricating
+    /// behaviour the SDK does not implement.
+    @Test(.disabled("Swift OAuth2TokenManager redirect-refusal error does not surface the Location header"))
+    func testRedirectRefusalErrorIncludesLocation() async {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "", statusCode: 307))
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        do {
+            _ = try await manager.getAccessToken(
+                tokenURL: "https://auth.example.com/token",
+                params: ["grant_type": "client_credentials"]
+            )
+            Issue.record("Expected OAuth2TokenError for 307")
+        } catch let error as OAuth2TokenError {
+            #expect("\(error)".contains("attacker.example"),
+                "redirect-refusal error should name the Location target for diagnostics")
+        } catch {
+            Issue.record("expected OAuth2TokenError, got \(error)")
+        }
+    }
 }

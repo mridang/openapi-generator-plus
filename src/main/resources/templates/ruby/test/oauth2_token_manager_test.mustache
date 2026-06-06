@@ -51,6 +51,27 @@ class SlowCountingTokenClient
   end
 end
 
+# Thread-safe client that hands out tok1, tok2, ... on successive calls and
+# stalls briefly so concurrent callers race against a single in-flight refresh.
+class NumberingSlowTokenClient
+  attr_reader :call_count
+
+  def initialize
+    @call_count = 0
+    @mutex = Mutex.new
+  end
+
+  def send_request(_method, _url, _headers, _body, **_kwargs)
+    n = @mutex.synchronize { @call_count += 1 }
+    sleep 0.05
+    {{moduleName}}::ApiResponse.new(
+      status_code: 200,
+      body: { 'access_token' => "tok#{n}", 'expires_in' => 3600 }.to_json,
+      headers: { 'content-type' => 'application/json' }
+    )
+  end
+end
+
 describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
   parallelize_me!
 
@@ -368,5 +389,39 @@ describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
         )
       end
     end
+  end
+
+  it 'invalidate_access_token triggers a single refetch under concurrency' do
+    # After invalidation, 10 threads must coalesce into exactly ONE additional
+    # network round-trip (single-flight), all observing the refreshed token.
+    client = NumberingSlowTokenClient.new
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    params = { 'grant_type' => 'client_credentials' }
+    first = manager.get_access_token('https://auth.example.com/token', params)
+    _(first).must_equal 'tok1'
+    _(client.call_count).must_equal 1
+
+    manager.invalidate_access_token
+
+    tokens = Array.new(10)
+    threads = (0...10).map do |i|
+      Thread.new do
+        tokens[i] = manager.get_access_token('https://auth.example.com/token', params)
+      end
+    end
+    threads.each(&:join)
+
+    _(client.call_count).must_equal 2
+    _(tokens.all? { |t| t == 'tok2' }).must_equal true
+  end
+
+  it 'redirect-refusal error includes the Location header for diagnostics' do
+    # Gap 3.2: the redirect-refusal error should name the offending Location
+    # for diagnostics. The Ruby SDK's OAuth2TokenError message embeds only the
+    # status code, not the Location target, so this cannot be asserted without
+    # fabricating behaviour the SDK does not implement.
+    skip 'Ruby OAuth2TokenManager redirect-refusal error does not surface the Location header'
   end
 end

@@ -25,6 +25,7 @@ from petstore_client.errors.conflict_exception import ConflictException
 from petstore_client.errors.unprocessable_entity_exception import UnprocessableEntityException
 from petstore_client.errors.internal_server_error_exception import InternalServerErrorException
 from petstore_client.api_response import ApiResponse
+from petstore_client.models import Category
 from petstore_client import servers as Servers
 
 
@@ -300,6 +301,18 @@ class TestBodySerialization:
         assert client.captured_body is not None
         assert 'name=alice' in str(client.captured_body)
 
+    async def test_form_urlencoded_body_encodes_space_as_plus(self) -> None:
+        # form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
+        # mandates '+' for a space (WHATWG/HTML form-encoding), not '%20'.
+        # urllib.parse.urlencode emits '+', matching the other SDKs.
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('POST', '/test/echo', {}, {}, {'full name': 'Ada Lovelace'}, ['application/json'], 'application/x-www-form-urlencoded', None)
+        wire = str(client.captured_body)
+        assert wire == 'full+name=Ada+Lovelace'
+        assert '%20' not in wire
+
     async def test_passes_binary_body_as_is(self) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url='http://localhost')
@@ -556,3 +569,20 @@ class TestNullBodyContentType:
         await stub.call('POST', '/test/echo', {}, {}, {}, ['application/json'], 'application/json', None)
         assert 'Content-Type' in client.captured_headers, 'Content-Type must be sent when body is {}'
         assert client.captured_headers['Content-Type'] == 'application/json'
+
+
+class TestTypedErrorBody:
+    def test_get_typed_error_body_deserializes_into_given_type(self) -> None:
+        err = BadRequestException(
+            message='boom',
+            response_headers={},
+            response_body='{"id":42,"name":"Dogs"}',
+        )
+        typed = err.get_typed_error_body(Category)
+        assert isinstance(typed, Category)
+        assert typed.id == 42
+        assert typed.name == 'Dogs'
+
+    def test_get_typed_error_body_returns_none_for_empty_body(self) -> None:
+        err = BadRequestException(message='boom', response_headers={}, response_body='')
+        assert err.get_typed_error_body(Category) is None

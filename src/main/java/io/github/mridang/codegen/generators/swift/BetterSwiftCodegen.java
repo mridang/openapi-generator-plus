@@ -377,6 +377,11 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                             "ClientTests.swift"));
             supportingFiles.add(
                     new SupportingFile(
+                            "test/ApiErrorTests.mustache",
+                            testDir,
+                            "ApiErrorTests.swift"));
+            supportingFiles.add(
+                    new SupportingFile(
                             "test/MetadataTests.mustache", testDir, "MetadataTests.swift"));
             supportingFiles.add(
                     new SupportingFile(

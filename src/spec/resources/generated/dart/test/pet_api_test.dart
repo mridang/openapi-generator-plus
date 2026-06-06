@@ -24,6 +24,19 @@ class _TestAuth implements Authenticator {
   Map<String, String> cookieParams() => {};
 }
 
+class _PerCallAuth implements Authenticator {
+  @override
+  String host() => '';
+  @override
+  Map<String, String> authHeaders() => {
+    'Authorization': 'Bearer per-call-token',
+  };
+  @override
+  Map<String, String> queryParams() => {};
+  @override
+  Map<String, String> cookieParams() => {};
+}
+
 PetApi _newPetApiForIntegration() {
   final config = ConfigurationBuilder()
       .baseUrl(chasmUrl)
@@ -328,6 +341,44 @@ void main() {
           api.getPetById(1, null),
           throwsA(isA<ApiError>()),
         );
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* per-call-auth-override: an Authenticator passed to the BASE operation
+     * method (not just WithHTTPInfo) must be applied to the outgoing request.
+     * The default header carries one token; the per-call authenticator carries
+     * a different one and must win on the wire. */
+    test('addPet per-call auth override', () async {
+      String? capturedAuth;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedAuth = request.headers.value('authorization');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"x","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .defaultHeader('Authorization', 'Bearer default-token')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+        final auth = _PerCallAuth();
+
+        await api.addPet(
+          Pet(
+            name: 'OverrideDog',
+            photoUrls: <String>{'http://example.com/p.jpg'},
+          ),
+          auth: auth,
+        );
+
+        expect(capturedAuth, equals('Bearer per-call-token'));
       } finally {
         await server.close();
       }

@@ -47,6 +47,17 @@ void main() {
         throwsArgumentError,
       );
     });
+
+    test('password is not leaked in default toString', () {
+      // authenticator-secret-in-default-string-repr: the default toString()
+      // must never expose the stored password.
+      final auth = BasicAuthenticator(
+        host: 'https://api.example.com',
+        username: 'alice',
+        password: 's3cret',
+      );
+      expect(auth.toString(), isNot(contains('s3cret')));
+    });
   });
 }
 {{/generateTests}}

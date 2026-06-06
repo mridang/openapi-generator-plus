@@ -47,6 +47,16 @@ class ValueSerializerTest {
                 ),
             )
         }
+
+        @Test
+        @DisplayName("LocalDate at a day/year boundary still emits date-only (no time/offset leak)")
+        fun localDateBoundaryEmitsDateOnly() {
+            // UTC/midnight edge: a date sitting on the year boundary must
+            // serialise as a bare YYYY-MM-DD with no T00:00:00/offset suffix,
+            // matching the stringifyDate UTC behaviour of Go/Node/Swift/Dart.
+            val date = LocalDate.of(2024, 12, 31)
+            assertEquals("2024-12-31", ValueSerializer.serialize(date, "path", "string", null))
+        }
     }
 
     /**
@@ -185,6 +195,20 @@ class ValueSerializerTest {
         @DisplayName("null returns empty string in path location")
         fun nullReturnsEmptyInPath() {
             assertEquals("", ValueSerializer.serialize(null, "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("path value is encoded exactly once (no double-encoding)")
+        fun pathValueEncodedExactlyOnce() {
+            // path-double-encoding: serializeStyled already percent-encodes the
+            // path segment, so the api template must NOT wrap it again. A space
+            // must become %20 (never %2520) and a slash %2F (never %252F).
+            val space = ValueSerializer.serializeStyled("id", "a b", "path", "string", null, "simple", false)
+            assertEquals("a%20b", space)
+            assertFalse((space as String).contains("%2520"))
+            val slash = ValueSerializer.serializeStyled("id", "a/b", "path", "string", null, "simple", false)
+            assertEquals("a%2Fb", slash)
+            assertFalse((slash as String).contains("%252F"))
         }
     }
 

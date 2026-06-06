@@ -582,6 +582,24 @@ class ObjectSerializerTest {
           json.contains("\"foodType\":\"wet\""),
           "serialized JSON must contain auto-injected discriminator, got: " + json);
     }
+
+    @Test
+    @DisplayName("deserializing the oneOf parent routes to the subtype by discriminator")
+    void deserializeParentRoutesToSubtype() {
+      // A discriminator-tagged payload deserialized against the parent
+      // PetFood type must come back as the concrete DryFood subtype via
+      // Jackson @JsonSubTypes routing on foodType="dry".
+      String json = "{\"foodType\":\"dry\",\"weightKg\":2.5}";
+      com.example.petstore.models.PetFood food =
+          serializer.deserialize(
+              json,
+              new com.fasterxml.jackson.core.type.TypeReference<
+                  com.example.petstore.models.PetFood>() {});
+      assertTrue(
+          food instanceof com.example.petstore.models.DryFood,
+          "deserialized PetFood should be a DryFood, got: " + food.getClass());
+      assertEquals(2.5, ((com.example.petstore.models.DryFood) food).weightKg);
+    }
   }
 
   @Nested

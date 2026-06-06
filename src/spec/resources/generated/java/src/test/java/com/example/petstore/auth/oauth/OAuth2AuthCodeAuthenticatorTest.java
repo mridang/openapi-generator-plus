@@ -138,6 +138,19 @@ class OAuth2AuthCodeAuthenticatorTest {
   }
 
   @Test
+  void exchangeCodeRejectsWhitespaceOnlyCode() {
+    // oauth-exchangecode-no-empty-code-guard: a whitespace-only code is
+    // distinct from the empty-string case and must also be rejected before
+    // any token POST is issued (trim().isEmpty() guard).
+    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+    auth.setApiClient(
+        (method, url, headers, body) ->
+            new ApiResponse(200, "{\"access_token\":\"at\"}", Map.of()));
+
+    assertThrows(IllegalArgumentException.class, () -> auth.exchangeCode("   "));
+  }
+
+  @Test
   void auth_headers_before_exchange_returns_recoverable_error() {
     OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
 

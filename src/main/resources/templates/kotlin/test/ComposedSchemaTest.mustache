@@ -6,6 +6,7 @@ import {{modelPackage}}.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -66,6 +67,28 @@ class ComposedSchemaTest {
         }
 
         @Test
+        @DisplayName("fails to deserialize when discriminator value is empty")
+        fun testEmptyDiscriminator() {
+            // An empty discriminator value matches no listed subtype and must
+            // not be silently routed; kotlinx fails the decode (null here).
+            val jsonString = """{"foodType":"","weightKg":2.5}"""
+
+            val result = runCatching { json.decodeFromString<PetFood>(jsonString) }.getOrNull()
+            assertNull(result)
+        }
+
+        @Test
+        @DisplayName("unknown discriminator error names the offending value")
+        @Disabled("kotlinx polymorphic decode returns no caller-facing message naming the offending value (feature gap)")
+        fun testUnknownDiscriminatorErrorNamesValue() {
+            val jsonString = """{"foodType":"raw","calories":300}"""
+            val ex = assertThrows(Exception::class.java) {
+                json.decodeFromString<PetFood>(jsonString)
+            }
+            assertTrue(ex.message!!.contains("raw"))
+        }
+
+        @Test
         @DisplayName("serializes DryFood back to JSON")
         fun testSerializeDryFood() {
             val encodingJson = Json {
@@ -116,6 +139,29 @@ class ComposedSchemaTest {
 
             assertNotNull(treatment.actualInstance)
             assertTrue(treatment.actualInstance is Surgery)
+        }
+
+        @Test
+        @DisplayName("serializes round-trip for anyOf")
+        fun testSerializeRoundTrip() {
+            // Round-trip the matched anyOf member: encode a Medication and
+            // decode it back, asserting the payload survives intact.
+            val original = Medication(drugName = "Amoxicillin", dosage = "500mg")
+            val encoded = json.encodeToString(original)
+            val restored = json.decodeFromString<Medication>(encoded)
+
+            assertEquals(original.drugName, restored.drugName)
+            assertEquals(original.dosage, restored.dosage)
+        }
+
+        @Test
+        @DisplayName("anyOf with no matching variant throws")
+        @Disabled("kotlinx anyOf wrapper performs no variant validation; a non-matching payload is not rejected (feature gap)")
+        fun testNoMatchThrows() {
+            val jsonString = """{"unrelatedKey":"value","anotherUnknown":123}"""
+            assertThrows(Exception::class.java) {
+                json.decodeFromString<PetTreatment>(jsonString)
+            }
         }
     }
 

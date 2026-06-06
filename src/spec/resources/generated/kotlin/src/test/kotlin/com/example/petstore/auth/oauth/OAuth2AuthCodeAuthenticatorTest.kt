@@ -110,6 +110,22 @@ class OAuth2AuthCodeAuthenticatorTest {
     }
 
     @Test
+    fun `exchange_code_rejects_whitespace_only_code`() {
+        // oauth-exchangecode-no-empty-code-guard: a whitespace-only code is
+        // distinct from the empty-string case and must also be rejected before
+        // the token POST (isNotBlank guard), with no request sent.
+        val client = FakeApiClient()
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { auth.exchangeCode("   ") }
+        }
+        // No token request should have been dispatched.
+        assertNull(client.lastBody, "no token request should be sent for a whitespace-only code")
+    }
+
+    @Test
     fun includesRefreshTokenOnRefresh() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":1}""")

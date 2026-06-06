@@ -41,4 +41,12 @@ class BasicAuthenticatorTest {
         IllegalArgumentException.class,
         () -> new BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret"));
   }
+
+  @Test
+  void passwordIsNotLeakedInDefaultToString() {
+    // authenticator-secret-in-default-string-repr: the default toString()
+    // must never expose the stored password.
+    BasicAuthenticator auth = new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
+    assertFalse(auth.toString().contains("s3cret"));
+  }
 }

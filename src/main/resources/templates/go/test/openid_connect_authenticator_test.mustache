@@ -14,6 +14,7 @@ import (
 type fakeOIDCClient struct {
 	responses  []fakeOIDCResponse
 	index      int32
+	getCount   int32
 	LastBody   string
 	LastURL    string
 	LastMethod string
@@ -32,6 +33,9 @@ func (c *fakeOIDCClient) SendRequestWithOptions(method, url string, headers map[
 	_ = opts
 	c.LastMethod = method
 	c.LastURL = url
+	if method == "GET" {
+		atomic.AddInt32(&c.getCount, 1)
+	}
 	if body != nil {
 		if b, ok := body.([]byte); ok {
 			c.LastBody = string(b)
@@ -244,5 +248,29 @@ func TestOpenIdConnect_GetHostReturnsConfiguredHost(t *testing.T) {
 
 	if authObj.Host() != "https://api.example.com" {
 		t.Errorf("expected host 'https://api.example.com', got %q", authObj.Host())
+	}
+}
+
+func TestOpenIdConnect_FetchesDiscoveryDocumentOnlyOnce(t *testing.T) {
+	t.Parallel()
+	client := &fakeOIDCClient{
+		responses: []fakeOIDCResponse{
+			{body: `{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}`, statusCode: 200},
+		},
+	}
+
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	if _, err := authObj.BuildAuthorizationURL(""); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, err := authObj.BuildAuthorizationURL(""); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// The cached discovery document must be reused on the second call.
+	if got := atomic.LoadInt32(&client.getCount); got != 1 {
+		t.Errorf("expected discovery to be fetched once, got %d GET requests", got)
 	}
 }

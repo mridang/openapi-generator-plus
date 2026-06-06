@@ -108,6 +108,21 @@ func TestOAuth2AuthCode_ExchangeCodeRejectsEmptyCode(t *testing.T) {
 	}
 }
 
+func TestOAuth2AuthCode_ExchangeCodeRejectsWhitespaceOnlyCode(t *testing.T) {
+	t.Parallel()
+	// oauth-exchangecode-no-empty-code-guard: a whitespace-only code is distinct
+	// from the empty-string case and must also be rejected (TrimSpace guard)
+	// before any token POST is issued.
+	authObj := createAuthCodeAuthenticator()
+	err := authObj.ExchangeCode("   ")
+	if err == nil {
+		t.Fatalf("expected error for whitespace-only code")
+	}
+	if !errors.Is(err, oauth.ErrAuthCodeEmpty) {
+		t.Errorf("expected ErrAuthCodeEmpty for whitespace-only code, got %v", err)
+	}
+}
+
 func TestOAuth2AuthCode_ExchangesCodeWithCorrectGrantType(t *testing.T) {
 	t.Parallel()
 	client := &fakeAuthCodeClient{

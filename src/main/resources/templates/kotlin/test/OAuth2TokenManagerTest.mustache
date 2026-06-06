@@ -402,4 +402,167 @@ class OAuth2TokenManagerTest {
         assertEquals("refresh token expired", ex.description)
         assertEquals("https://docs.example.com/errors/invalid_grant", ex.uri)
     }
+
+    @Test
+    fun expiresInShortLivedTokenDoesNotStorm() {
+        // Gap CM: short-lived token (expires_in < safety buffer) must produce
+        // exactly ONE network request from a single getAccessToken call, with
+        // no inner refresh storm.
+        val networkCalls = AtomicInteger(0)
+        val client = object : ApiClient {
+            override suspend fun sendRequest(
+                method: String,
+                url: String,
+                headers: Map<String, String>,
+                body: Any?,
+                noRedirect: Boolean
+            ): ApiResponse {
+                networkCalls.incrementAndGet()
+                return ApiResponse(200, """{"access_token":"short","expires_in":10}""", emptyMap())
+            }
+        }
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val token = runBlocking {
+            manager.getAccessToken(
+                "https://auth.example.com/token",
+                mapOf("grant_type" to "client_credentials")
+            )
+        }
+
+        assertEquals("short", token)
+        assertEquals(1, networkCalls.get())
+    }
+
+    @Test
+    fun expiresInLongLivedTokenAppliesFullBuffer() {
+        // Gap CM: long-lived token gets the full 30s buffer clamped by
+        // min(expires_in, 30). With expires_in=3600 the token stays cached on a
+        // second call within the same instant.
+        val networkCalls = AtomicInteger(0)
+        val client = object : ApiClient {
+            override suspend fun sendRequest(
+                method: String,
+                url: String,
+                headers: Map<String, String>,
+                body: Any?,
+                noRedirect: Boolean
+            ): ApiResponse {
+                networkCalls.incrementAndGet()
+                return ApiResponse(200, """{"access_token":"long","expires_in":3600}""", emptyMap())
+            }
+        }
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val params = mapOf("grant_type" to "client_credentials")
+        val tokenUrl = "https://auth.example.com/token"
+
+        val first = runBlocking { manager.getAccessToken(tokenUrl, params) }
+        val second = runBlocking { manager.getAccessToken(tokenUrl, params) }
+
+        assertEquals("long", first)
+        assertEquals("long", second)
+        assertEquals(1, networkCalls.get())
+    }
+
+    @Test
+    fun expiresInExactlyBufferReturnsZeroBuffer() {
+        // Gap CM: expires_in == 30 (the buffer) collapses expiry to now, forcing
+        // the next getAccessToken call to refetch.
+        val networkCalls = AtomicInteger(0)
+        val client = object : ApiClient {
+            override suspend fun sendRequest(
+                method: String,
+                url: String,
+                headers: Map<String, String>,
+                body: Any?,
+                noRedirect: Boolean
+            ): ApiResponse {
+                val n = networkCalls.incrementAndGet()
+                return ApiResponse(200, """{"access_token":"edge$n","expires_in":30}""", emptyMap())
+            }
+        }
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val params = mapOf("grant_type" to "client_credentials")
+        val tokenUrl = "https://auth.example.com/token"
+
+        val first = runBlocking { manager.getAccessToken(tokenUrl, params) }
+        val second = runBlocking { manager.getAccessToken(tokenUrl, params) }
+
+        assertEquals("edge1", first)
+        assertEquals("edge2", second)
+        assertEquals(2, networkCalls.get())
+    }
+
+    @Test
+    fun invalidateAccessTokenTriggersSingleRefetchUnderConcurrency() {
+        // After invalidation, 10 concurrent coroutines must coalesce into
+        // exactly ONE additional network round-trip (single-flight), all
+        // observing the same freshly fetched token.
+        val networkCalls = AtomicInteger(0)
+        val client = object : ApiClient {
+            override suspend fun sendRequest(
+                method: String,
+                url: String,
+                headers: Map<String, String>,
+                body: Any?,
+                noRedirect: Boolean
+            ): ApiResponse {
+                val n = networkCalls.incrementAndGet()
+                delay(50)
+                return ApiResponse(200, """{"access_token":"tok$n","expires_in":3600}""", emptyMap())
+            }
+        }
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val params = mapOf("grant_type" to "client_credentials")
+        val tokenUrl = "https://auth.example.com/token"
+
+        val first = runBlocking { manager.getAccessToken(tokenUrl, params) }
+        assertEquals("tok1", first)
+        assertEquals(1, networkCalls.get())
+
+        manager.invalidateAccessToken()
+
+        val tokens = runBlocking {
+            coroutineScope {
+                (1..10).map {
+                    async { manager.getAccessToken(tokenUrl, params) }
+                }.awaitAll()
+            }
+        }
+
+        assertEquals(2, networkCalls.get(),
+            "invalidate + concurrent callers must produce one refetch")
+        assertTrue(tokens.all { it == "tok2" }, "all callers must observe the refreshed token")
+    }
+
+    @org.junit.jupiter.api.Disabled(
+        "Kotlin OAuth2TokenManager redirect-refusal error does not surface the Location header")
+    @Test
+    fun redirectRefusalErrorIncludesLocationHeader() {
+        // Bucket 3.2: the redirect-refusal error should name the offending
+        // Location for diagnostics. The Kotlin SDK only embeds the status code
+        // and token endpoint URL in the message, not the Location target.
+        val client = FakeApiClient()
+        client.enqueue("", statusCode = 307)
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val ex = assertThrows(OAuth2TokenError::class.java) {
+            runBlocking {
+                manager.getAccessToken(
+                    "https://auth.example.com/token",
+                    mapOf("grant_type" to "client_credentials")
+                )
+            }
+        }
+        assertTrue(ex.message?.contains("attacker.example") == true,
+            "redirect-refusal error should name the Location target for diagnostics")
+    }
 }

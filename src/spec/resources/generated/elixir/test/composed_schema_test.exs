@@ -40,6 +40,29 @@ defmodule PetstoreClient.ComposedSchemaTest do
       end
     end
 
+    test "raises ArgumentError for empty discriminator value" do
+      # An empty discriminator value matches no listed mapping and must raise
+      # rather than route to a structurally-fitting variant.
+      json = ~s({"foodType":"","weightKg":2.5})
+
+      assert_raise ArgumentError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
+      end
+    end
+
+    test "unknown discriminator error names the offending value" do
+      # CS4: the error message must surface the offending discriminator value
+      # so callers can diagnose server/spec drift.
+      json = ~s({"foodType":"raw","calories":300})
+
+      err =
+        assert_raise ArgumentError, fn ->
+          PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
+        end
+
+      assert err.message =~ "raw"
+    end
+
     test "serializes DryFood back to JSON" do
       json = ~s({"foodType":"dry","weightKg":2.5})
       result = PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
@@ -88,6 +111,17 @@ defmodule PetstoreClient.ComposedSchemaTest do
       serialized = PetstoreClient.ObjectSerializer.serialize(result)
 
       assert byte_size(serialized) > 0
+    end
+
+    test "raises for anyOf payload matching no variant" do
+      # oneof-nondiscriminator-no-match-silent: a body matching neither
+      # Medication nor Surgery must raise rather than return a silently-empty
+      # union. resolve_any_of raises SchemaMismatchError on union no-match.
+      json = ~s({"unrelatedKey":"value","anotherUnknown":123})
+
+      assert_raise PetstoreClient.SchemaMismatchError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize(json, "PetTreatment")
+      end
     end
   end
 

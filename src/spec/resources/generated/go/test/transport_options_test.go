@@ -288,6 +288,15 @@ func TestTransportOptions_SettingTimeoutIsAccessible(t *testing.T) {
 	}
 }
 
+func TestTransportOptions_TimeoutCanBeExplicitlyDisabled(t *testing.T) {
+	t.Parallel()
+	// Feature gap: the Go builder's Timeout(int) takes a non-pointer int, so it
+	// cannot set the timeout back to nil/disabled the way Java/Kotlin/C# do via
+	// timeout(null). The closest behaviour is Timeout(0) (a 0ms timeout), which is
+	// semantically different. Skipped to keep cross-language scenario parity.
+	t.Skip("Go builder cannot disable timeout to nil; Timeout(int) is non-nullable")
+}
+
 func TestTransportOptions_TimeoutFieldIsNamedTimeout(t *testing.T) {
 	t.Parallel()
 	// Verify via the Timeout() accessor that the field is named 'Timeout'

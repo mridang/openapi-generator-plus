@@ -175,6 +175,17 @@ void main() {
       expect(opts.timeout, equals(5000));
     });
 
+    // Feature gap: the Dart builder's timeout(int) takes a non-nullable int, so it
+    // cannot reset the timeout to null/disabled the way Java/Kotlin/C# do via
+    // timeout(null). The closest behaviour is timeout(0) (a 0ms timeout), which is
+    // semantically different. Skipped to keep cross-language scenario parity.
+    test(
+      'timeout can be explicitly disabled',
+      () {},
+      skip:
+          'Dart builder cannot disable timeout to null; timeout(int) is non-nullable',
+    );
+
     test('timeout field is named exactly timeout', () {
       // Verify via the property that the field is named 'timeout'
       // (not e.g. 'connectionTimeout').

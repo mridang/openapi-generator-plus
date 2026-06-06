@@ -173,3 +173,26 @@ test('client credentials sends request to token url', function (): void {
     $request = $client->capturedRequests[0];
     expect($request['url'])->toBe('https://auth.example.com/token');
 });
+
+test('client credentials token fetch error is surfaced not swallowed', function (): void {
+    /* oauth-cc-authheaders-error-swallow: a failed client-credentials token
+     * exchange must surface to the caller as a thrown error — NOT be
+     * swallowed into an empty header map that would send the API request
+     * unauthenticated and produce a confusing downstream 401. */
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiResponse(401, (string) json_encode([
+        'error' => 'invalid_client',
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OAuth2ClientCredentialsAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/token',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect(fn (): mixed => $authenticator->getAuthHeaders())
+        ->toThrow(\RuntimeException::class);
+});

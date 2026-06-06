@@ -349,5 +349,100 @@ describe PetstoreClient::Api::PetApi do
         _(result.data).wont_be_nil
       end
     end
+
+    describe '#update_pet_with_http_info' do
+      it 'returns HTTP info on successful update' do
+        pet = PetstoreClient::Models::Pet.new(
+          id: 1,
+          name: 'UpdatedDog',
+          photo_urls: Set['http://example.com/updated.jpg'],
+          status: 'pending'
+        )
+
+        result = @api.update_pet_with_http_info(1, pet)
+
+        _(result).wont_be_nil
+        _(result.status_code).must_be :>=, 200
+        _(result.status_code).must_be :<, 300
+      end
+    end
+
+    describe '#delete_pet_with_http_info' do
+      it 'returns HTTP info on successful deletion' do
+        result = @api.delete_pet_with_http_info(1, auth: @auth)
+
+        _(result).wont_be_nil
+        _(result.status_code).must_be :>=, 200
+        _(result.status_code).must_be :<, 300
+      end
+    end
+
+    describe '#find_pets_by_status_with_http_info' do
+      it 'returns HTTP info along with the list' do
+        result = @api.find_pets_by_status_with_http_info(
+          PetstoreClient::Api::Options::FindPetsByStatusOptions.new(status: 'available')
+        )
+
+        _(result).wont_be_nil
+        _(result.status_code).must_equal 200
+      end
+    end
+
+    describe '#get_pet_passport_with_http_info' do
+      it 'returns HTTP info along with the passport' do
+        result = @api.get_pet_passport_with_http_info(1)
+
+        _(result).wont_be_nil
+        _(result.status_code).must_equal 200
+        _(result.data).wont_be_nil
+      end
+    end
+  end
+
+  describe 'per-call auth override' do
+    # per-call-auth-override: an authenticator passed to the BASE operation
+    # method (not just _with_http_info) must be applied to the outgoing
+    # request. The default header carries one token; the per-call
+    # authenticator carries a different one and must win on the wire.
+    it 'applies the per-call authenticator on the base method' do
+      server = TCPServer.new('127.0.0.1', 0)
+      port = server.addr[1]
+      captured = Queue.new
+      thread = Thread.new do
+        client = server.accept rescue next
+        client.gets # request line
+        while (line = client.gets)
+          captured << line if line.downcase.start_with?('authorization:')
+          break if line.strip.empty?
+        end
+        body = '{"id":1,"name":"x","photoUrls":[]}'
+        response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
+                   "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
+        client.print(response)
+        client.close
+      end
+
+      begin
+        config = PetstoreClient::Configuration.new(
+          base_url: "http://127.0.0.1:#{port}",
+          default_headers: { 'Authorization' => 'Bearer default-token' }
+        )
+        api = PetstoreClient::Api::PetApi.new(nil, config)
+        per_call_auth = PetstoreClient::Auth::BearerAuthenticator.new("http://127.0.0.1:#{port}", 'per-call-token')
+
+        pet = PetstoreClient::Models::Pet.new(
+          id: 1,
+          name: 'OverrideDog',
+          photo_urls: Set['http://example.com/p.jpg']
+        )
+        api.add_pet(pet, auth: per_call_auth)
+
+        header_line = captured.pop
+        _(header_line).must_include 'Bearer per-call-token'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
   end
 end

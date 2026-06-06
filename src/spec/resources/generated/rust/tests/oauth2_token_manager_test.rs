@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 
 use petstore::api_client::{ApiClient, RequestBody, RequestOptions};
 use petstore::api_response::ApiResponse;
-use petstore::auth::oauth::{OAuth2TokenError, OAuth2TokenManager};
+use petstore::auth::oauth::{OAuth2ServerError, OAuth2TokenError, OAuth2TokenManager};
 
 struct FakeApiClient {
     responses: Mutex<Vec<ApiResponse>>,
@@ -601,4 +601,138 @@ async fn test_throws_when_token_request_fails() {
         .get_access_token("https://auth.example.com/token", &params)
         .await;
     assert!(result.is_err(), "expected error when token request fails");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_token_response_missing_access_token_throws_typed_error() {
+    // A 2xx response whose body omits access_token must surface as the typed
+    // OAuth2TokenError, not silently cache an empty token.
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"refresh_token":"x"}"#, 200);
+
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client);
+
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let err = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect_err("missing access_token must error");
+    assert!(
+        err.downcast_ref::<OAuth2TokenError>().is_some(),
+        "expected OAuth2TokenError, got: {err}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_token_endpoint_error_response_parsed_to_typed_error() {
+    // RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a
+    // typed OAuth2ServerError carrying code/description/uri.
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"error":"invalid_grant","error_description":"refresh token expired","error_uri":"https://docs.example.com/errors/invalid_grant"}"#,
+        400,
+    );
+
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client);
+
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let err = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect_err("4xx error response must error");
+    let server_err = err
+        .downcast_ref::<OAuth2ServerError>()
+        .expect("expected OAuth2ServerError");
+    assert_eq!(400, server_err.status_code);
+    assert_eq!(Some("invalid_grant"), server_err.code.as_deref());
+    assert_eq!(
+        Some("refresh token expired"),
+        server_err.description.as_deref()
+    );
+    assert_eq!(
+        Some("https://docs.example.com/errors/invalid_grant"),
+        server_err.uri.as_deref()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_invalidate_triggers_single_refetch_under_concurrency() {
+    // After invalidation, 10 concurrent callers must coalesce into exactly ONE
+    // additional token request (single-flight), all observing the refreshed
+    // token. The manager holds its inner mutex across the network call so only
+    // the first waiter performs the round-trip.
+    let client = Arc::new(CountingApiClient::new(
+        r#"{"access_token":"tok-refetched","expires_in":3600}"#,
+        50,
+    ));
+
+    let manager = Arc::new(OAuth2TokenManager::new());
+    manager.set_api_client(client.clone());
+
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let first = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect("first call should succeed");
+    assert_eq!("tok-refetched", first);
+    assert_eq!(1, client.calls());
+
+    manager.invalidate_access_token().await;
+
+    let mut handles = Vec::new();
+    for _ in 0..10 {
+        let manager = manager.clone();
+        handles.push(tokio::spawn(async move {
+            let mut params = HashMap::new();
+            params.insert("grant_type".to_string(), "client_credentials".to_string());
+            manager
+                .get_access_token("https://auth.example.com/token", &params)
+                .await
+                .expect("refetch should succeed")
+        }));
+    }
+    for handle in handles {
+        let token = handle.await.expect("task should not panic");
+        assert_eq!("tok-refetched", token);
+    }
+
+    assert_eq!(
+        2,
+        client.calls(),
+        "invalidate + concurrent callers must collapse onto a single refetch"
+    );
+}
+
+/// Gap 3.2: the redirect-refusal error should name the offending Location
+/// header for diagnostics. The Rust SDK's OAuth2TokenError message embeds the
+/// status code and token endpoint URL only, not the Location target, so this
+/// scenario cannot be asserted without fabricating behaviour the SDK lacks.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "Rust OAuth2TokenManager redirect-refusal error does not surface the Location header"]
+async fn test_redirect_refusal_error_includes_location() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue("", 307);
+
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client);
+
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let err = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect_err("redirect must be refused");
+    assert!(
+        err.to_string().contains("attacker.example"),
+        "redirect-refusal error should name the Location target for diagnostics"
+    );
 }

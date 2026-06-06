@@ -389,6 +389,63 @@ async fn test_pet_api_get_pet_by_id_empty_body_throws_api_error() {
     );
 }
 
+/// Starts a mock server that records the raw request bytes (so the test can
+/// assert on request headers) and returns them alongside the PetApi.
+fn new_pet_api_for_capture() -> (PetApi, std::sync::mpsc::Receiver<String>, String) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().unwrap();
+    let base_url = format!("http://{}", addr);
+    let (tx, rx) = std::sync::mpsc::channel::<String>();
+
+    thread::spawn(move || {
+        for stream in listener.incoming() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let n = std::io::Read::read(&mut stream, &mut buf).unwrap_or(0);
+            let _ = tx.send(String::from_utf8_lossy(&buf[..n]).to_string());
+            let body = r#"{"id":1,"name":"x","photoUrls":[]}"#;
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+            break;
+        }
+    });
+
+    thread::sleep(std::time::Duration::from_millis(50));
+
+    let config = ConfigurationBuilder::new()
+        .base_url(&base_url)
+        .default_header("Authorization", "Bearer default-token")
+        .build();
+    let client = DefaultApiClient::new(None);
+    (PetApi::new(Arc::new(client), config, None), rx, base_url)
+}
+
+/// per-call-auth-override: an Authenticator passed to the BASE operation method
+/// (not just `with_http_info`) must be applied to the outgoing request. The
+/// default header carries one token; the per-call authenticator carries a
+/// different one and must win on the wire.
+#[tokio::test]
+async fn test_pet_api_add_pet_per_call_auth_override() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let auth = bearer_auth();
+    let pet = Pet::new(
+        "OverrideDog".to_string(),
+        HashSet::from(["http://example.com/p.jpg".to_string()]),
+    );
+    let _ = api.add_pet(Some(&auth), pet).await;
+
+    let request = rx.recv().expect("expected a captured request");
+    assert!(
+        request.contains("Authorization: Bearer test-token"),
+        "expected per-call auth header on the wire, got request: {}",
+        request
+    );
+}
+
 #[tokio::test]
 async fn test_pet_api_error_handling_server_error() {
     let (api, _) = new_pet_api_for_mock(

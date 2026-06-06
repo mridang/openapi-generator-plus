@@ -91,6 +91,27 @@ test('exchange code rejects empty code', function (): void {
     expect($client->capturedRequests)->toHaveCount(0);
 });
 
+test('exchange code rejects whitespace only code', function (): void {
+    /* oauth-exchangecode-no-empty-code-guard: a whitespace-only code is
+     * distinct from the empty-string case and must also be rejected before
+     * issuing the token POST (trim($code) === '' guard). */
+    $client = makeOAuth2AuthCodeMockClient();
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect(fn (): mixed => $authenticator->exchangeCode('   '))
+        ->toThrow(\InvalidArgumentException::class);
+    expect($client->capturedRequests)->toHaveCount(0);
+});
+
 test('includes refresh token on refresh', function (): void {
     $client = new MockTokenApiClient();
     // First call (exchangeCode) returns a refresh token with an expired access token

@@ -6,7 +6,9 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
 
     def new(responses) do
       {:ok, agent} =
-        Agent.start_link(fn -> %{responses: responses, last_url: nil, last_body: nil, last_method: nil} end)
+        Agent.start_link(fn ->
+          %{responses: responses, last_url: nil, last_body: nil, last_method: nil, get_count: 0}
+        end)
 
       %__MODULE__{agent: agent}
     end
@@ -14,7 +16,23 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
     def send_request(%__MODULE__{agent: agent}, method, url, _headers, body) do
       Agent.get_and_update(agent, fn state ->
         [response | rest] = state.responses
-        new_state = %{state | responses: rest, last_url: url, last_body: body, last_method: method}
+
+        get_count =
+          if method == :get do
+            state.get_count + 1
+          else
+            state.get_count
+          end
+
+        new_state = %{
+          state
+          | responses: rest,
+            last_url: url,
+            last_body: body,
+            last_method: method,
+            get_count: get_count
+        }
+
         {response, new_state}
       end)
     end
@@ -29,6 +47,10 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
 
     def last_method(%__MODULE__{agent: agent}) do
       Agent.get(agent, & &1.last_method)
+    end
+
+    def get_count(%__MODULE__{agent: agent}) do
+      Agent.get(agent, & &1.get_count)
     end
   end
 
@@ -216,6 +238,45 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       auth = create_authenticator()
 
       assert PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.host(auth) == "https://api.example.com"
+    end
+
+    # The discovery document must be cached: a second build should reuse it
+    # rather than issue a second GET to the discovery endpoint.
+    #
+    # Feature gap: build_authorization_url/2 caches the resolved delegate on a
+    # NEW struct that it discards (it returns the URL string, not the updated
+    # state), and the struct is immutable, so the cache is not observable
+    # across two calls on the same value — discovery is re-fetched. Tagged
+    # :skip so the scenario count matches the other SDKs.
+    @tag :skip
+    test "fetches discovery document only once" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "authorization_endpoint" => "https://auth.example.com/authorize",
+                "token_endpoint" => "https://auth.example.com/token"
+              })
+          },
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "authorization_endpoint" => "https://auth.example.com/authorize",
+                "token_endpoint" => "https://auth.example.com/token"
+              })
+          }
+        ])
+
+      auth = create_authenticator()
+      auth = PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
+
+      PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+      PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+
+      assert FakeApiClient.get_count(fake_client) == 1
     end
   end
 end

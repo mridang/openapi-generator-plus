@@ -687,6 +687,16 @@ describe PetstoreClient::ObjectSerializer do
       data = JSON.parse(PetstoreClient::ObjectSerializer.serialize(wet))
       _(data['foodType']).must_equal('wet')
     end
+
+    it 'deserializing the oneOf parent routes to the subtype by discriminator' do
+      # A discriminator-tagged payload deserialized against the parent
+      # PetFood oneOf must come back as the concrete DryFood subtype, not
+      # the raw data — PetFood.build resolves foodType="dry" to DryFood.
+      json = '{"foodType":"dry","weightKg":2.5}'
+      result = PetstoreClient::ObjectSerializer.deserialize(json, 'PetFood')
+      _(result).must_be_kind_of(PetstoreClient::Models::DryFood)
+      _(result.weight_kg).must_equal(2.5)
+    end
   end
 
   describe 'oneOf/anyOf no-match' do

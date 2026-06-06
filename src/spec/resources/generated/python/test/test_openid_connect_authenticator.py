@@ -159,6 +159,16 @@ class TestOpenIdConnectAuthenticator:
         with pytest.raises(OAuth2TokenError):
             auth.build_authorization_url()
 
+    def test_fetches_discovery_document_only_once(self) -> None:
+        # The discovery document must be cached: a second build must reuse it
+        # rather than issue a second GET to the discovery endpoint.
+        auth, mock_client = _create_authenticator_with_discovery()
+
+        auth.build_authorization_url()
+        auth.build_authorization_url()
+
+        assert mock_client.send_request.call_count == 1
+
     def test_discovery_empty_token_endpoint_raises(self) -> None:
         auth = _create_authenticator()
         mock_client = MagicMock()

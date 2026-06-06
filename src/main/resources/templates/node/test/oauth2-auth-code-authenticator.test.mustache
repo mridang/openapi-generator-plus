@@ -122,6 +122,15 @@ describe('OAuth2AuthorizationCodeAuthenticator', () => {
     expect(mockClient.lastMethod).toBe('');
   });
 
+  test('exchangeCode rejects a whitespace-only code without hitting the token endpoint', async () => {
+    // oauth-exchangecode-no-empty-code-guard: a whitespace-only code is
+    // distinct from the empty-string case and must also be rejected before
+    // any token POST is issued (code.trim().length === 0 guard).
+    await expect(authenticator.exchangeCode('   ')).rejects.toThrow();
+    // No token request should have been issued for the invalid code.
+    expect(mockClient.lastMethod).toBe('');
+  });
+
   test('getHost returns configured host', () => {
     expect(authenticator.getHost()).toBe('https://api.example.com');
   });

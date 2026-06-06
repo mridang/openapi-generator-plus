@@ -10,6 +10,7 @@ import { PetApi, UploadPetDocumentDocumentTypeEnum } from '../../src/api/pet-api
 import { BearerAuthenticator } from '../../src/auth/bearer-authenticator.js';
 import { Configuration } from '../../src/configuration.js';
 import { Pet, PetStatusEnum, PhotoMetadata, SetPetAvatarThumbnailRequest } from '../../src/models/index.js';
+import { ApiError } from '../../src/api-error.js';
 
 const baseUrl = process.env.API_BASE_URL || 'http://localhost:4010';
 const config = Configuration.builder().baseUrl(baseUrl).defaultHeader('Authorization', 'Bearer test-token').build();
@@ -164,6 +165,63 @@ describe('PetApi', () => {
     expect(result.thumbnail).toBeDefined();
     expect(result.scans).toBeDefined();
   });
+
+  test('addPetWithHttpInfo', async () => {
+    const pet: Pet = {
+      id: 99,
+      name: 'HttpInfoDog',
+      photoUrls: new Set(['http://example.com/photo.jpg']),
+      status: PetStatusEnum.Available
+    };
+
+    const result = await api.addPetWithHttpInfo(auth, pet);
+
+    expect(result.statusCode).toBeGreaterThanOrEqual(200);
+    expect(result.statusCode).toBeLessThan(300);
+    expect(result.data).toBeDefined();
+  });
+
+  test('getPetByIdWithHttpInfo', async () => {
+    const result = await api.getPetByIdWithHttpInfo(1);
+
+    expect(result.statusCode).toBe(200);
+    expect(result.data).toBeDefined();
+    expect(result.rawBody).toBeDefined();
+  });
+
+  test('updatePetWithHttpInfo', async () => {
+    const pet: Pet = {
+      id: 1,
+      name: 'UpdatedDog',
+      photoUrls: new Set(['http://example.com/updated.jpg']),
+      status: PetStatusEnum.Pending
+    };
+
+    const result = await api.updatePetWithHttpInfo(1, pet);
+
+    expect(result.statusCode).toBeGreaterThanOrEqual(200);
+    expect(result.statusCode).toBeLessThan(300);
+  });
+
+  test('deletePetWithHttpInfo', async () => {
+    const result = await api.deletePetWithHttpInfo(auth, 1, undefined);
+
+    expect(result.statusCode).toBeGreaterThanOrEqual(200);
+    expect(result.statusCode).toBeLessThan(300);
+  });
+
+  test('findPetsByStatusWithHttpInfo', async () => {
+    const result = await api.findPetsByStatusWithHttpInfo({ status: PetStatusEnum.Available });
+
+    expect(result.statusCode).toBe(200);
+  });
+
+  test('getPetPassportWithHttpInfo', async () => {
+    const result = await api.getPetPassportWithHttpInfo(1);
+
+    expect(result.statusCode).toBe(200);
+    expect(result.data).toBeDefined();
+  });
 });
 
 function createMockServer(
@@ -230,6 +288,53 @@ describe('PetApi error handling', () => {
       expect(result).toBeDefined();
     } finally {
       close();
+    }
+  });
+
+  // convenience-empty-body-handling: a body-returning operation that receives a
+  // 200 with an empty body must surface a typed ApiError from the plain
+  // convenience method, never a silently-cast undefined.
+  test('empty body on a body-returning op throws ApiError', async () => {
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', '');
+    try {
+      await expect(mockApi.getPetById(1)).rejects.toBeInstanceOf(ApiError);
+    } finally {
+      close();
+    }
+  });
+
+  // per-call-auth-override: an authenticator passed to the BASE operation method
+  // (not just WithHttpInfo) must be applied to the outgoing request. The default
+  // header carries one token; the per-call authenticator carries a different one
+  // and must win on the wire.
+  test('addPet per-call auth override', async () => {
+    let capturedAuth: string | undefined;
+    const server = http.createServer((req, res) => {
+      capturedAuth = req.headers['authorization'];
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end('{"id":1,"name":"x","photoUrls":[]}');
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const addr = server.address() as { port: number };
+      const overrideUrl = `http://127.0.0.1:${addr.port}`;
+      const overrideConfig = Configuration.builder()
+        .baseUrl(overrideUrl)
+        .defaultHeader('Authorization', 'Bearer default-token')
+        .build();
+      const overrideApi = new PetApi(undefined, overrideConfig);
+      const perCallAuth = new BearerAuthenticator(overrideUrl, 'per-call-token');
+
+      const pet: Pet = {
+        id: 1,
+        name: 'OverrideDog',
+        photoUrls: new Set(['http://example.com/p.jpg'])
+      };
+      await overrideApi.addPet(perCallAuth, pet);
+
+      expect(capturedAuth).toBe('Bearer per-call-token');
+    } finally {
+      server.close();
     }
   });
 });

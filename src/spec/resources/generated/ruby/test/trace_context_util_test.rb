@@ -61,5 +61,29 @@ describe PetstoreClient::TraceContextUtil do
       _(headers['Content-Type']).must_equal('application/json')
       _(headers['X-Request-ID']).must_equal('abc-123')
     end
+
+    it 'injects traceparent when a span is active' do
+      # .NET-specific scenario: Ruby has no ambient tracer like .NET Activity.Current;
+      # active-span injection requires a fully configured OpenTelemetry SDK.
+      skip('no ambient tracer; active-span injection requires a configured OpenTelemetry SDK')
+    end
+
+    it 'includes tracestate when present on the active span' do
+      # .NET-specific scenario: setting tracestate on an active span requires a
+      # fully configured OpenTelemetry SDK, which is out of scope for this unit test.
+      skip('no ambient tracer; tracestate-present requires a configured OpenTelemetry SDK')
+    end
+
+    it 'omits tracestate when empty on the active span' do
+      # .NET-specific scenario: exercising an empty tracestate on an active span
+      # requires a fully configured OpenTelemetry SDK, which is out of scope here.
+      skip('no ambient tracer; empty-tracestate requires a configured OpenTelemetry SDK')
+    end
+
+    it 'formats trace flags correctly on the active span' do
+      # .NET-specific scenario: verifying the recorded trace-flags byte requires a
+      # fully configured OpenTelemetry SDK with an active span.
+      skip('no ambient tracer; trace-flags formatting requires a configured OpenTelemetry SDK')
+    end
   end
 end

@@ -222,6 +222,13 @@ describe PetstoreClient::Api::BaseApi do
     _(config.base_url).must_equal('https://api.example.com/api/v3')
   end
 
+  it 'default server variables produce correct base URL' do
+    config = PetstoreClient::Configuration.builder
+      .server(PetstoreClient::Servers::SERVER_1)
+      .build
+    _(config.base_url).must_equal('https://api.example.com/api/v3')
+  end
+
   it 'invalid enum value raises ArgumentError' do
     assert_raises(ArgumentError) do
       PetstoreClient::Configuration.builder
@@ -352,6 +359,19 @@ describe PetstoreClient::Api::BaseApi do
       ['application/json'], 'application/x-www-form-urlencoded', nil)
     _(client.captured_body).wont_be_nil
     _(client.captured_body.to_s).must_include 'name=alice'
+  end
+
+  it 'form-urlencoded body encodes space as + not %20' do
+    # form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
+    # mandates '+' for a space (WHATWG/HTML form-encoding), not '%20'.
+    # URI.encode_www_form emits '+', matching the other SDKs.
+    client = CapturingApiClient.new
+    config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('POST', '/test', {}, {}, { 'full name' => 'Ada Lovelace' },
+      ['application/json'], 'application/x-www-form-urlencoded', nil)
+    _(client.captured_body.to_s).must_equal 'full+name=Ada+Lovelace'
+    _(client.captured_body.to_s).wont_include '%20'
   end
 
   it 'passes binary body as-is' do

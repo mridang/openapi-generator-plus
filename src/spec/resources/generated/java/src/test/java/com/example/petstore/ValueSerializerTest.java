@@ -647,6 +647,22 @@ class ValueSerializerTest {
           IllegalArgumentException.class,
           () -> ValueSerializer.serializeStyled("id", "", "path", "string", null, "simple", false));
     }
+
+    @Test
+    @DisplayName("path value is encoded exactly once (no double-encoding)")
+    void pathValueEncodedExactlyOnce() {
+      // path-double-encoding: serializeStyled already percent-encodes the
+      // path segment, so the api template must NOT wrap it again. A space
+      // must become %20 (never %2520) and a slash %2F (never %252F).
+      String space =
+          ValueSerializer.serializeStyled("id", "a b", "path", "string", null, "simple", false);
+      assertEquals("a%20b", space);
+      assertFalse(space.contains("%2520"));
+      String slash =
+          ValueSerializer.serializeStyled("id", "a/b", "path", "string", null, "simple", false);
+      assertEquals("a%2Fb", slash);
+      assertFalse(slash.contains("%252F"));
+    }
   }
 
   @Nested
@@ -691,6 +707,16 @@ class ValueSerializerTest {
       assertEquals(
           "2024-01-15",
           ValueSerializer.serializeStyled("since", date, "path", "string", null, "simple", false));
+    }
+
+    @Test
+    @DisplayName("LocalDate at a day/year boundary still emits date-only (no time/offset leak)")
+    void localDateBoundaryEmitsDateOnly() {
+      // UTC/midnight edge: a date sitting on the year boundary must
+      // serialise as a bare YYYY-MM-DD with no T00:00:00/offset suffix,
+      // matching the stringifyDate UTC behaviour of Go/Node/Swift/Dart.
+      LocalDate date = LocalDate.of(2024, 12, 31);
+      assertEquals("2024-12-31", ValueSerializer.serialize(date, "path", "string", null));
     }
   }
 

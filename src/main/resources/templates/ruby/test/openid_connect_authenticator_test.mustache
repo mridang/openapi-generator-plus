@@ -142,6 +142,25 @@ describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
     _(auth.host).must_equal 'https://api.example.com'
   end
 
+  # The discovery document must be cached: a second build must reuse it rather
+  # than issue a second GET to the discovery endpoint.
+  it 'fetches discovery document only once' do
+    client = FakeOidcClient.new([discovery_response])
+    auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id', 'my_client_secret',
+      'https://app.example.com/callback', %w[openid]
+    )
+    auth.api_client = client
+
+    auth.build_authorization_url
+    auth.build_authorization_url
+
+    get_requests = client.requests.select { |r| r[:method] == :get }
+    _(get_requests.length).must_equal 1
+  end
+
   # oauth-oidc-discovery-no-status-check: a non-2xx discovery response must
   # surface as a typed ApiError, not as a downstream "invalid JSON" error.
   it 'raises ApiError when discovery returns a non-2xx status' do

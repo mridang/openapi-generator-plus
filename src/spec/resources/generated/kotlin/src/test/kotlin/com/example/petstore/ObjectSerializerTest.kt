@@ -14,6 +14,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -599,6 +600,26 @@ class ObjectSerializerTest {
             assertThrows(ObjectSerializer.SerializationException::class.java) {
                 serializer.resolveAnyOf("{}", candidates)
             }
+        }
+    }
+
+    @Nested
+    @DisplayName("DiscriminatorDeserializationTests")
+    inner class DiscriminatorDeserializationTests {
+        @Test
+        @Disabled(
+            "Feature gap: the Kotlin SDK generates PetFood as a plain `abstract` " +
+                "class and its DryFood/WetFood subtypes as standalone @Serializable " +
+                "data classes that are NOT registered as polymorphic subclasses " +
+                "(no `: PetFood`, no class-level @SerialName, no SerializersModule). " +
+                "kotlinx.serialization therefore cannot route a discriminator-tagged " +
+                "payload to the concrete subtype on deserialize, unlike Java/Go/Node.",
+        )
+        @DisplayName("deserializing the oneOf parent routes to the subtype by discriminator")
+        fun deserializeParentRoutesToSubtype() {
+            val json = "{\"foodType\":\"dry\",\"weightKg\":2.5}"
+            val food = serializer.deserialize<com.example.petstore.models.PetFood>(json)
+            assertTrue(food is com.example.petstore.models.DryFood)
         }
     }
 }

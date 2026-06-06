@@ -418,3 +418,23 @@ test('empty string path param throws', function (): void {
     expect(fn () => ValueSerializer::serializeStyled('id', '', 'path', 'string', null, 'simple', false))
         ->toThrow(\InvalidArgumentException::class);
 });
+
+test('path value is encoded exactly once not double encoded', function (): void {
+    // path-double-encoding: serializeStyled already percent-encodes the path
+    // segment, so the operation template must NOT wrap it again. A space must
+    // become %20 (never %2520) and a slash %2F (never %252F).
+    $space = ValueSerializer::serializeStyled('id', 'a b', 'path', 'string', null, 'simple', false);
+    expect($space)->toBe('a%20b');
+    expect($space)->not->toContain('%2520');
+    $slash = ValueSerializer::serializeStyled('id', 'a/b', 'path', 'string', null, 'simple', false);
+    expect($slash)->toBe('a%2Fb');
+    expect($slash)->not->toContain('%252F');
+});
+
+test('path date only at year boundary emits yyyy mm dd', function (): void {
+    // UTC/midnight edge: a format: date value on the year boundary must emit a
+    // bare YYYY-MM-DD with no time/offset suffix, matching the stringifyDate
+    // UTC behaviour of Go/Node/Swift/Dart.
+    $dt = new \DateTime('2024-12-31T00:00:00+00:00');
+    expect(ValueSerializer::serialize($dt, 'path', '\\DateTime|date'))->toBe('2024-12-31');
+});

@@ -9,6 +9,8 @@ import base64
 import json
 from unittest.mock import MagicMock
 
+import pytest
+
 from petstore_client.auth.oauth.client_auth_method import ClientAuthMethod
 from petstore_client.auth.oauth.oauth2_client_credentials_authenticator import OAuth2ClientCredentialsAuthenticator
 from petstore_client.api_response import ApiResponse
@@ -101,6 +103,36 @@ class TestOAuth2ClientCredentialsAuthenticator:
         auth = _create_authenticator()
 
         assert auth.get_host() == 'https://api.example.com'
+
+    def test_token_fetch_error_is_surfaced_not_swallowed(self) -> None:
+        # oauth-cc-authheaders-error-swallow: a failed client-credentials token
+        # exchange must surface to the caller as a raised error — NOT be
+        # swallowed into an empty header map that would send the API request
+        # unauthenticated and produce a confusing downstream 401.
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiResponse(
+            status_code=401,
+            body=json.dumps({'error': 'invalid_client'}),
+            headers={'content-type': 'application/json'},
+        )
+        auth.set_api_client(mock_client)
+
+        with pytest.raises(Exception):
+            auth.get_auth_headers()
+
+    def test_caches_token_across_calls(self) -> None:
+        # The token manager caches the access token until expiry, so two
+        # consecutive header requests reuse the same token and issue only a
+        # single token request to the endpoint.
+        auth, mock_client = _create_authenticator_with_mock()
+
+        headers1 = auth.get_auth_headers()
+        headers2 = auth.get_auth_headers()
+
+        assert headers1['Authorization'] == 'Bearer tok1'
+        assert headers2['Authorization'] == 'Bearer tok1'
+        assert mock_client.send_request.call_count == 1
 
     def test_basic_auth_url_encodes_client_id_and_secret(self) -> None:
         # Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both

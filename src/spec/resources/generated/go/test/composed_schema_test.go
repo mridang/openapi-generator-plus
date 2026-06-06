@@ -88,6 +88,35 @@ func TestPetFood_DeserializeMissingDiscriminator(t *testing.T) {
 	}
 }
 
+func TestPetFood_DeserializeEmptyDiscriminator(t *testing.T) {
+	t.Parallel()
+	// An empty discriminator value matches no listed variant and must error
+	// rather than silently leaving the union nil.
+	jsonData := []byte(`{"foodType":"","weightKg":2.5}`)
+
+	var food models.PetFood
+	err := json.Unmarshal(jsonData, &food)
+	if err == nil {
+		t.Fatalf("expected error for empty discriminator value, got nil")
+	}
+}
+
+func TestPetFood_UnknownDiscriminatorErrorNamesValue(t *testing.T) {
+	t.Parallel()
+	// CS4: the error message must surface the offending discriminator value
+	// so callers can diagnose server/spec drift.
+	jsonData := []byte(`{"foodType":"raw","calories":300}`)
+
+	var food models.PetFood
+	err := json.Unmarshal(jsonData, &food)
+	if err == nil {
+		t.Fatalf("expected error for unknown discriminator value 'raw', got nil")
+	}
+	if !strings.Contains(err.Error(), "raw") {
+		t.Errorf("expected offending value 'raw' in error message, got: %v", err)
+	}
+}
+
 func TestPetFood_SerializeDryFood(t *testing.T) {
 	t.Parallel()
 	food := models.PetFood{}
@@ -142,6 +171,20 @@ func TestPetTreatment_DeserializeSurgery(t *testing.T) {
 	val := treatment.Value()
 	if val == nil {
 		t.Fatal("expected non-nil value")
+	}
+}
+
+func TestPetTreatment_NoMatchThrows(t *testing.T) {
+	t.Parallel()
+	// oneof-nondiscriminator-no-match-silent: a payload matching neither
+	// Medication nor Surgery must surface as an error rather than silently
+	// leaving the union nil.
+	jsonData := []byte(`{"unrelatedKey":"value","anotherUnknown":123}`)
+
+	var treatment models.PetTreatment
+	err := json.Unmarshal(jsonData, &treatment)
+	if err == nil {
+		t.Fatalf("expected error for anyOf payload matching no variant, got nil")
 	}
 }
 

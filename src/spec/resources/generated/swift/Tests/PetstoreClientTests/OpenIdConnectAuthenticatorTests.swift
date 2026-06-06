@@ -20,6 +20,7 @@ import Testing
         var lastURL: String = ""
         var lastHeaders: [String: String] = [:]
         var lastBody: Data? = nil
+        var getCount: Int = 0
 
         func sendRequest(
             method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
@@ -28,6 +29,9 @@ import Testing
             lastURL = url
             lastHeaders = headers
             lastBody = body as? Data
+            if method == "GET" {
+                getCount += 1
+            }
             return responses.removeFirst()
         }
     }
@@ -183,6 +187,20 @@ import Testing
         } catch {
             #expect(error != nil)
         }
+    }
+
+    @Test func testFetchesDiscoveryDocumentOnlyOnce() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: Self.discoveryJSON))
+
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        _ = try await auth.buildAuthorizationURL()
+        _ = try await auth.buildAuthorizationURL()
+
+        // The cached discovery document must be reused on the second call.
+        #expect(client.getCount == 1)
     }
 
     @Test func testGetHostReturnsConfiguredHost() {

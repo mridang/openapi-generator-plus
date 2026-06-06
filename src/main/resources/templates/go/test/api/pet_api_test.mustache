@@ -25,6 +25,14 @@ func (a *petAuth) AuthHeaders() map[string]string  { return map[string]string{"A
 func (a *petAuth) QueryParams() map[string]string  { return map[string]string{} }
 func (a *petAuth) CookieParams() map[string]string { return map[string]string{} }
 
+// perCallPetAuth carries a distinct token for the per-call auth override test.
+type perCallPetAuth struct{}
+
+func (a *perCallPetAuth) Host() string                    { return "" }
+func (a *perCallPetAuth) AuthHeaders() map[string]string  { return map[string]string{"Authorization": "Bearer per-call-token"} }
+func (a *perCallPetAuth) QueryParams() map[string]string  { return map[string]string{} }
+func (a *perCallPetAuth) CookieParams() map[string]string { return map[string]string{} }
+
 func newPetApiForIntegration(t *testing.T) *{{packageName}}.PetApi {
 	t.Helper()
 	config := {{packageName}}.NewConfigurationBuilder().
@@ -526,6 +534,40 @@ func TestPetApi_EmptyBodyConvenienceReturnsApiError(t *testing.T) {
 	}
 	if result.Data != nil {
 		t.Errorf("expected nil Data on empty body, got %v", result.Data)
+	}
+}
+
+// per-call-auth-override: an Authenticator passed to the BASE operation method
+// (not just WithHTTPInfo) must be applied to the outgoing request. The default
+// header carries one token; the per-call authenticator carries a different one
+// and must win on the wire.
+func TestPetApi_AddPetPerCallAuthOverride(t *testing.T) {
+	t.Parallel()
+	var capturedAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
+	}))
+	defer server.Close()
+
+	config := {{packageName}}.NewConfigurationBuilder().
+		BaseURL(server.URL).
+		DefaultHeader("Authorization", "Bearer default-token").
+		Build()
+	client := {{packageName}}.NewDefaultApiClient(nil)
+	api := {{packageName}}.NewPetApi(client, config, nil)
+
+	perCallAuth := &perCallPetAuth{}
+	pet := models.NewPet("OverrideDog", models.Set[string]{"http://example.com/p.jpg"})
+
+	_, err := api.AddPet(perCallAuth, *pet)
+	if err != nil {
+		t.Fatalf("AddPet failed: %v", err)
+	}
+	if capturedAuth != "Bearer per-call-token" {
+		t.Errorf("expected per-call auth header, got %q", capturedAuth)
 	}
 }
 

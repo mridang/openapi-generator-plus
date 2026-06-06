@@ -92,6 +92,14 @@ describe('Composed Schema', () => {
     }
   });
 
+  test('oneOf: empty discriminator throws DeserializationError', () => {
+    // An empty discriminator value is present but not listed in the schema
+    // mapping; it must throw rather than route to a structurally-fitting
+    // variant. Aligns Node with Python / PHP on empty-discriminator rejection.
+    const data = { foodType: '', weightKg: 2.5 };
+    expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(DeserializationError);
+  });
+
   test('oneOf: serializes DryFood back to JSON', () => {
     const data = { foodType: 'dry', weightKg: 2.5 };
     const result = ObjectSerializer.deserialize(data, PetFood);

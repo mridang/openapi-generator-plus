@@ -339,3 +339,22 @@ test('token post refuses 3xx redirect', function (int $status): void {
         ['grant_type' => 'client_credentials', 'client_secret' => 'topsecret']
     ))->toThrow(OAuth2TokenError::class);
 })->with([301, 302, 303, 307, 308]);
+
+test('single-flight refresh coalesces concurrent callers', function (): void {
+    // PHP has no shared-memory threads in the standard runtime, so genuine
+    // concurrent callers racing into one in-flight token refresh cannot be
+    // exercised here. The single-flight contract is verified in the
+    // thread-capable languages (java/kotlin/go/rust/node/python/etc.).
+})->skip('PHP has no threads; single-flight concurrency cannot be exercised');
+
+test('invalidate access token triggers a single refetch under concurrency', function (): void {
+    // Same limitation as the single-flight test above: no threads means no
+    // concurrent post-invalidation refetch to coalesce.
+})->skip('PHP has no threads; concurrent post-invalidate refetch cannot be exercised');
+
+test('redirect-refusal error includes the Location header for diagnostics', function (): void {
+    // Gap 3.2: the redirect-refusal error should name the offending Location
+    // for diagnostics. The PHP SDK's OAuth2TokenError message embeds only the
+    // status code, not the Location target, so this cannot be asserted without
+    // fabricating behaviour the SDK does not implement.
+})->skip('PHP OAuth2TokenManager redirect-refusal error does not surface the Location header');

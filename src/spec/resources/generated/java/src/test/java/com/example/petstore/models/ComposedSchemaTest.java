@@ -69,6 +69,46 @@ class ComposedSchemaTest {
       assertThat(serialized).contains("dry");
       assertThat(serialized).contains("2.5");
     }
+
+    @Test
+    @DisplayName("throws when discriminator field is missing")
+    void testMissingDiscriminatorThrows() {
+      // A payload omitting the discriminator property entirely cannot
+      // route to any subtype; Jackson's EXISTING_PROPERTY type resolution
+      // fails. Aligns Java with Python / Swift / PHP / Ruby / Dart / Rust.
+      String json = "{\"weightKg\":2.5}";
+      assertThatThrownBy(() -> serializer.deserialize(json, PET_FOOD_TYPE))
+          .isInstanceOf(Exception.class);
+    }
+
+    @Test
+    @DisplayName("throws when discriminator value is empty")
+    void testEmptyDiscriminatorThrows() {
+      // An empty discriminator value matches no listed subtype and must
+      // be rejected rather than silently routed.
+      String json = "{\"foodType\":\"\",\"weightKg\":2.5}";
+      assertThatThrownBy(() -> serializer.deserialize(json, PET_FOOD_TYPE))
+          .isInstanceOf(Exception.class);
+    }
+
+    @Test
+    @DisplayName("unknown discriminator error names the offending value")
+    void testUnknownDiscriminatorErrorNamesValue() {
+      // The deserialization failure must surface the offending
+      // discriminator value so callers can diagnose server/spec drift.
+      // Jackson reports the unresolved type id in the root cause message.
+      String json = "{\"foodType\":\"raw\",\"calories\":300}";
+      assertThatThrownBy(() -> serializer.deserialize(json, PET_FOOD_TYPE))
+          .hasRootCauseInstanceOf(Exception.class)
+          .satisfies(
+              thrown -> {
+                Throwable root = thrown;
+                while (root.getCause() != null) {
+                  root = root.getCause();
+                }
+                assertThat(root.getMessage()).contains("raw");
+              });
+    }
   }
 
   @Nested

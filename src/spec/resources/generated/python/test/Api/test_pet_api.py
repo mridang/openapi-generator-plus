@@ -254,3 +254,30 @@ class TestPetApiWithHttpInfo:
         assert result is not None
         assert 200 <= result.status_code < 300
         assert result.data is not None
+
+    async def test_update_pet_with_http_info(self) -> None:
+        pet = Pet(id=1, name='UpdatedDog', photoUrls={'http://example.com/updated.jpg'}, status=PetStatusEnum.PENDING)
+
+        result = await self.api.update_pet_with_http_info(1, pet)
+
+        assert result is not None
+        assert 200 <= result.status_code < 300
+
+    async def test_delete_pet_with_http_info(self) -> None:
+        result = await self.api.delete_pet_with_http_info(1, None, auth=self.auth)
+
+        assert result is not None
+        assert 200 <= result.status_code < 300
+
+    async def test_find_pets_by_status_with_http_info(self) -> None:
+        result = await self.api.find_pets_by_status_with_http_info(FindPetsByStatusOptions(status='available'))
+
+        assert result is not None
+        assert result.status_code == 200
+
+    async def test_get_pet_passport_with_http_info(self) -> None:
+        result = await self.api.get_pet_passport_with_http_info(1)
+
+        assert result is not None
+        assert result.status_code == 200
+        assert result.data is not None

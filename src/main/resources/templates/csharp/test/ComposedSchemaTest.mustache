@@ -54,6 +54,26 @@ public class ComposedSchemaTest
     }
 
     [Fact]
+    public void OneOfEmptyDiscriminatorThrows()
+    {
+        // An empty discriminator value matches no listed subtype and must be
+        // rejected rather than silently routed.
+        var json = "{\"foodType\":\"\",\"weightKg\":2.5}";
+        Assert.Throws<System.Text.Json.JsonException>(() => _serializer.Deserialize<PetFood>(json));
+    }
+
+    [Fact]
+    public void OneOfUnknownDiscriminatorErrorNamesValue()
+    {
+        // The failure message must surface the offending discriminator value
+        // so callers can diagnose server/spec drift.
+        var json = "{\"foodType\":\"raw\",\"calories\":300}";
+        var ex = Assert.Throws<System.Text.Json.JsonException>(
+            () => _serializer.Deserialize<PetFood>(json));
+        Assert.Contains("raw", ex.Message);
+    }
+
+    [Fact]
     public void OneOfSerializesDryFood()
     {
         var json = "{\"foodType\":\"dry\",\"weightKg\":2.5}";
@@ -96,6 +116,18 @@ public class ComposedSchemaTest
         var serialized = _serializer.Serialize(result!);
         Assert.NotNull(serialized);
         Assert.NotEmpty(serialized);
+    }
+
+    [Fact]
+    public void AnyOfNoMatchThrows()
+    {
+        // oneof-nondiscriminator-no-match-silent: a payload matching neither
+        // Medication nor Surgery must surface as a deserialize error rather
+        // than silently storing a raw value. Aligns C# with the throw-on-
+        // no-match canonical (Java/Dart/Node/Go/Rust/...).
+        var json = "{\"unrelatedKey\":\"value\",\"anotherUnknown\":123}";
+        Assert.Throws<System.Text.Json.JsonException>(
+            () => _serializer.Deserialize<PetTreatment>(json));
     }
 
     // -- oneOf without discriminator: SetPetAvatarThumbnailRequest --

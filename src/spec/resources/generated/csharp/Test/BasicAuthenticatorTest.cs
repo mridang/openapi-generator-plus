@@ -46,4 +46,13 @@ public class BasicAuthenticatorTest
             new BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret")
         );
     }
+
+    [Fact]
+    public void PasswordIsNotLeakedInDefaultToString()
+    {
+        // authenticator-secret-in-default-string-repr: the default ToString()
+        // must never expose the stored password.
+        var auth = new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
+        Assert.DoesNotContain("s3cret", auth.ToString());
+    }
 }

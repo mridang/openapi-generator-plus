@@ -445,6 +445,18 @@ defmodule PetstoreClient.ValueSerializerTest do
         PetstoreClient.ValueSerializer.serialize_styled("id", "", :path, "string", nil, "simple", false)
       end
     end
+
+    test "path value is encoded exactly once (no double-encoding)" do
+      # path-double-encoding: serialize_styled already percent-encodes the path
+      # segment, so the api template must NOT wrap it again. A space must become
+      # %20 (never %2520) and a slash %2F (never %252F).
+      space = PetstoreClient.ValueSerializer.serialize_styled("id", "a b", :path, "string", nil, "simple", false)
+      assert space == "a%20b"
+      refute String.contains?(space, "%2520")
+      slash = PetstoreClient.ValueSerializer.serialize_styled("id", "a/b", :path, "string", nil, "simple", false)
+      assert slash == "a%2Fb"
+      refute String.contains?(slash, "%252F")
+    end
   end
 
   # N3/W3 parity: `format: date` path parameters must emit a date-only
@@ -461,6 +473,14 @@ defmodule PetstoreClient.ValueSerializerTest do
       date = ~D[2024-01-15]
       result = PetstoreClient.ValueSerializer.serialize_styled("since", date, :path, "string", nil, "simple", false)
       assert result == "2024-01-15"
+    end
+
+    test "Date at a day/year boundary still emits date-only (no time/offset leak)" do
+      # UTC/midnight edge: a date on the year boundary must serialize as a bare
+      # YYYY-MM-DD with no time/offset suffix, matching the stringifyDate UTC
+      # behaviour of Go/Node/Swift/Dart.
+      date = ~D[2024-12-31]
+      assert PetstoreClient.ValueSerializer.serialize(date, :path, "string") == "2024-12-31"
     end
   end
 end

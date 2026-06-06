@@ -413,6 +413,11 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                             "test/client_test.mustache",
                             "test",
                             "client_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api_error_test.mustache",
+                            "test",
+                            "api_error_test.go"));
             if (hasBasicAuth) {
                 supportingFiles.add(
                         new SupportingFile(

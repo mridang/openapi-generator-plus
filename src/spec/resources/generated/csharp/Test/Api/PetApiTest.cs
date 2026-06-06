@@ -231,6 +231,51 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task TestUpdatePetWithHttpInfo()
+    {
+        var pet = new Pet("UpdatedDog", new HashSet<string> { "http://example.com/updated.jpg" })
+        {
+            Id = 1L,
+            Status = Pet.StatusEnum.Pending,
+        };
+
+        var result = await _api.UpdatePetWithHttpInfoAsync(1L, pet);
+
+        Assert.NotNull(result);
+        Assert.True(result.StatusCode >= 200 && result.StatusCode < 300);
+    }
+
+    [Fact]
+    public async Task TestDeletePetWithHttpInfo()
+    {
+        var result = await _api.DeletePetWithHttpInfoAsync(_auth, 1L);
+
+        Assert.NotNull(result);
+        Assert.True(result.StatusCode >= 200 && result.StatusCode < 300);
+    }
+
+    [Fact]
+    public async Task TestFindPetsByStatusWithHttpInfo()
+    {
+        var result = await _api.FindPetsByStatusWithHttpInfoAsync(
+            new FindPetsByStatusOptions { Status = "available" }
+        );
+
+        Assert.NotNull(result);
+        Assert.Equal(200, result.StatusCode);
+    }
+
+    [Fact]
+    public async Task TestGetPetPassportWithHttpInfo()
+    {
+        var result = await _api.GetPetPassportWithHttpInfoAsync(1L);
+
+        Assert.NotNull(result);
+        Assert.Equal(200, result.StatusCode);
+        Assert.NotNull(result.Data);
+    }
+
+    [Fact]
     public async Task TestGetPetTagStyledParams()
     {
         var result = await _api.GetPetTagAsync(
@@ -306,6 +351,54 @@ public class PetApiTest
                 )
             );
         }
+    }
+
+    private sealed class HeaderCapturingApiClient : IApiClient
+    {
+        public Dictionary<string, string> CapturedHeaders { get; private set; } = new();
+
+        public Task<PetstoreClient.ApiResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body,
+            bool noRedirect = false
+        )
+        {
+            CapturedHeaders = new Dictionary<string, string>(headers);
+            return Task.FromResult(
+                new PetstoreClient.ApiResponse(
+                    200,
+                    "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}",
+                    new Dictionary<string, string> { { "Content-Type", "application/json" } }
+                )
+            );
+        }
+    }
+
+    [Fact]
+    public async Task TestAddPetPerCallAuthOverride()
+    {
+        // Verify the auth argument on the BASE operation method (not just the
+        // WithHttpInfo variant) is applied to the outgoing request. The default
+        // header carries one token; the per-call authenticator carries a
+        // different one and must win on the wire.
+        var client = new HeaderCapturingApiClient();
+        var config = Configuration
+            .Builder()
+            .BaseUrl("http://localhost")
+            .DefaultHeader("Authorization", "Bearer default-token")
+            .Build();
+        var api = new PetApi(client, config);
+        var perCallAuth = new BearerAuthenticator("http://localhost", "per-call-token");
+
+        var pet = new Pet("OverrideDog", new HashSet<string> { "http://example.com/p.jpg" })
+        {
+            Id = 1L,
+        };
+        await api.AddPetAsync(perCallAuth, pet);
+
+        Assert.Equal("Bearer per-call-token", client.CapturedHeaders["Authorization"]);
     }
 
     [Fact]

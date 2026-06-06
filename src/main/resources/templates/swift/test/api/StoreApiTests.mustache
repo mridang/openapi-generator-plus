@@ -78,4 +78,75 @@ import Testing
         let result = try await api.getInventoryWithHTTPInfo()
         #expect(result.statusCode == 200)
     }
+
+    // MARK: - Mock Helpers
+
+    private func storeApiForMock(
+        statusCode: Int,
+        body: String,
+        contentType: String = "application/json"
+    ) -> StoreApi {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = statusCode
+        mockClient.responseBody = body
+        mockClient.responseHeaders = ["Content-Type": contentType]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        return StoreApi(apiClient: mockClient, config: config)
+    }
+
+    // MARK: - Mock Tests
+
+    @Test func testGetOrderNotFound() async throws {
+        let mockApi = storeApiForMock(statusCode: 404, body: "{\"message\":\"Order not found\"}")
+        do {
+            _ = try await mockApi.getOrderById(orderId: 99999)
+            Issue.record("Expected error for status 404")
+        } catch {
+            #expect(error != nil)
+        }
+    }
+
+    @Test func testPlaceOrderServerError() async throws {
+        let mockApi = storeApiForMock(statusCode: 500, body: "{\"message\":\"Internal server error\"}")
+        do {
+            _ = try await mockApi.placeOrder(order: Order())
+            Issue.record("Expected error for status 500")
+        } catch {
+            #expect(error != nil)
+        }
+    }
+
+    @Test func testDeleteOrderNotFound() async throws {
+        let mockApi = storeApiForMock(statusCode: 404, body: "{\"message\":\"Order not found\"}")
+        do {
+            try await mockApi.deleteOrder(orderId: 99999)
+            Issue.record("Expected error for status 404")
+        } catch {
+            #expect(error != nil)
+        }
+    }
+}
+
+private final class MockApiClient: ApiClient, @unchecked Sendable {
+    var lastMethod: String = ""
+    var lastURL: String = ""
+    var lastHeaders: [String: String] = [:]
+    var lastBody: Data? = nil
+    var responseStatusCode: Int = 200
+    var responseBody: String = "{}"
+    var responseHeaders: [String: String] = ["Content-Type": "application/json"]
+
+    func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool)
+        async throws -> HttpResponse
+    {
+        lastMethod = method
+        lastURL = url
+        lastHeaders = headers
+        lastBody = body as? Data
+        return HttpResponse(
+            statusCode: responseStatusCode,
+            body: responseBody,
+            headers: responseHeaders
+        )
+    }
 }

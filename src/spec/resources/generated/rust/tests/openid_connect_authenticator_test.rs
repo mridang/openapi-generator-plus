@@ -21,6 +21,7 @@ struct FakeApiClient {
     last_url: Mutex<Option<String>>,
     last_body: Mutex<Option<String>>,
     last_method: Mutex<Option<String>>,
+    get_count: Mutex<u32>,
 }
 
 impl FakeApiClient {
@@ -30,7 +31,12 @@ impl FakeApiClient {
             last_url: Mutex::new(None),
             last_body: Mutex::new(None),
             last_method: Mutex::new(None),
+            get_count: Mutex::new(0),
         }
+    }
+
+    fn get_count(&self) -> u32 {
+        *self.get_count.lock().unwrap()
     }
 
     fn enqueue(&self, body: &str, status_code: u16) {
@@ -72,6 +78,10 @@ impl ApiClient for FakeApiClient {
         {
             let mut last_method = self.last_method.lock().unwrap();
             *last_method = Some(method.to_string());
+        }
+        if method == "GET" {
+            let mut get_count = self.get_count.lock().unwrap();
+            *get_count += 1;
         }
         {
             let mut last_url = self.last_url.lock().unwrap();
@@ -269,6 +279,28 @@ async fn test_throws_when_no_api_client_injected() {
     let result = auth.build_authorization_url("").await;
 
     assert!(result.is_err());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_fetches_discovery_document_only_once() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"#,
+        200,
+    );
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.build_authorization_url("")
+        .await
+        .expect("should succeed");
+    auth.build_authorization_url("")
+        .await
+        .expect("should succeed");
+
+    // The cached discovery document must be reused on the second call.
+    assert_eq!(1, client.get_count());
 }
 
 #[test]

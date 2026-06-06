@@ -441,6 +441,17 @@ class TestDiscriminatorAutoInjection:
         data = json.loads(ObjectSerializer().serialize(wet))
         assert data['foodType'] == 'wet'
 
+    def test_deserialize_parent_routes_to_subtype_by_discriminator(self) -> None:
+        # A discriminator-tagged payload deserialized against the parent
+        # PetFood oneOf must resolve to the concrete DryFood subtype rather
+        # than the raw dict. get_discriminator_value maps foodType="dry" to
+        # DryFood, which the composed deserializer wraps in PetFood.
+        from {{packageName}}.models.dry_food import DryFood
+        json_str = '{"foodType": "dry", "weightKg": 2.5}'
+        result = ObjectSerializer().deserialize(json_str, 'PetFood')
+        assert isinstance(result.actual_instance, DryFood)
+        assert result.actual_instance.weight_kg == 2.5
+
 
 class TestResolveOneOf:
     def test_resolve_one_of_returns_first_matching_variant(self) -> None:

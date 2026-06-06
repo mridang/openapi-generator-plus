@@ -78,6 +78,15 @@ test('any of serialize round trip', function (): void {
     expect($serialized)->not->toBeEmpty();
 });
 
+test('any of no matching variant throws', function (): void {
+    // oneof-nondiscriminator-no-match-silent: a body matching neither
+    // Medication nor Surgery must throw rather than yield a silently-empty
+    // union. resolveAnyOf throws UnexpectedValueException on union no-match.
+    $data = ['unrelatedKey' => 'value', 'anotherUnknown' => 123];
+    expect(fn () => PetTreatment::build($data))
+        ->toThrow(\UnexpectedValueException::class);
+});
+
 // -- allOf: PetWithOwner --
 
 test('all of deserializes pet with owner', function (): void {

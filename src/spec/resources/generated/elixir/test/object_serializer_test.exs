@@ -510,6 +510,16 @@ defmodule PetstoreClient.ObjectSerializerTest do
       data = Jason.decode!(PetstoreClient.ObjectSerializer.serialize(wet))
       assert data["foodType"] == "wet"
     end
+
+    test "deserializing the oneOf parent routes to the subtype by discriminator" do
+      # A discriminator-tagged payload deserialized against the parent
+      # PetFood oneOf must come back as the concrete DryFood subtype, not
+      # the raw map — PetFood.build resolves foodType="dry" to DryFood.
+      json = ~s({"foodType":"dry","weightKg":2.5})
+      result = PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
+      assert %PetstoreClient.Models.DryFood{} = result
+      assert result.weight_kg == 2.5
+    end
   end
 
   # ── Gap #13 — null fields omitted on serialize ──

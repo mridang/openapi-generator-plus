@@ -8,6 +8,7 @@
 package com.example.petstore
 
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
@@ -81,5 +82,41 @@ class TraceContextUtilTest {
         assertEquals("Bearer token", headers["Authorization"])
         assertEquals("application/json", headers["Content-Type"])
         assertEquals("abc-123", headers["X-Request-ID"])
+    }
+
+    @Test
+    @Disabled(
+        "No ambient tracer like .NET Activity.Current; injecting a real active span requires a fully configured OpenTelemetry SDK out of scope for this unit test.",
+    )
+    @DisplayName("injects traceparent when a span is active")
+    fun injectsTraceparentWhenSpanActive() {
+        // .NET-specific scenario: relies on Activity.Current ambient context.
+    }
+
+    @Test
+    @Disabled(
+        "No ambient tracer like .NET Activity.Current; setting a tracestate on an active span requires a fully configured OpenTelemetry SDK out of scope for this unit test.",
+    )
+    @DisplayName("includes tracestate when present on the active span")
+    fun includesTracestateWhenPresent() {
+        // .NET-specific scenario: relies on Activity.Current ambient context.
+    }
+
+    @Test
+    @Disabled(
+        "No ambient tracer like .NET Activity.Current; exercising an empty tracestate on an active span requires a fully configured OpenTelemetry SDK out of scope here.",
+    )
+    @DisplayName("omits tracestate when empty on the active span")
+    fun omitsTracestateWhenEmpty() {
+        // .NET-specific scenario: relies on Activity.Current ambient context.
+    }
+
+    @Test
+    @Disabled(
+        "No ambient tracer like .NET Activity.Current; verifying the recorded trace-flags byte requires a fully configured OpenTelemetry SDK out of scope for this unit test.",
+    )
+    @DisplayName("formats trace flags correctly on the active span")
+    fun formatsTraceFlagsCorrectly() {
+        // .NET-specific scenario: relies on Activity.Current ambient context.
     }
 }

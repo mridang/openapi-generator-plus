@@ -1504,6 +1504,33 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert is_binary(resp.body)
   end
 
+  # Typed error body accessor (item #7)
+
+  test "typed_error_body deserializes the error body into the typed model" do
+    err =
+      PetstoreClient.ApiError.exception(
+        status_code: 400,
+        response_body: ~s({"id":42,"name":"Dogs"}),
+        response_headers: %{}
+      )
+
+    body = PetstoreClient.ApiError.typed_error_body(err, "Category")
+    assert %PetstoreClient.Models.Category{} = body
+    assert body.id == 42
+    assert body.name == "Dogs"
+  end
+
+  test "typed_error_body returns nil for an empty error body" do
+    err =
+      PetstoreClient.ApiError.exception(
+        status_code: 500,
+        response_body: "",
+        response_headers: %{}
+      )
+
+    assert PetstoreClient.ApiError.typed_error_body(err, "Category") == nil
+  end
+
   # Proxy authentication (item #29)
 
   @tag :skip

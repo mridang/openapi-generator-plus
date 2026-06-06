@@ -253,6 +253,28 @@ final class PetApiTests {
         }
     }
 
+    // per-call-auth-override: an Authenticator passed to the BASE operation
+    // method (not just WithHTTPInfo) must be applied to the outgoing request.
+    // The default header carries one token; the per-call authenticator carries
+    // a different one and must win on the wire.
+    @Test func testAddPetPerCallAuthOverride() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder()
+            .baseURL("https://example.com")
+            .defaultHeader(name: "Authorization", value: "Bearer default-token")
+            .build()
+        let api = PetApi(apiClient: mockClient, config: config)
+        let perCallAuth = PerCallAuthenticator()
+
+        let pet = Pet(name: "OverrideDog", photoUrls: ["http://example.com/p.jpg"])
+        _ = try await api.addPet(pet: pet, auth: perCallAuth)
+
+        #expect(mockClient.lastHeaders["Authorization"] == "Bearer per-call-token")
+    }
+
     // go-swift-path-styles-ignored: path params now route through
     // ValueSerializer.serializeStyled (matching Java and the other 10 SDKs)
     // instead of raw "\(value)" substitution. This regression-guards that the
@@ -294,6 +316,14 @@ private final class TestAuthenticator: BaseAuthenticator, @unchecked Sendable {
     override func host() -> String { return "" }
     override func authHeaders() async -> [String: String] {
         return ["Authorization": "Bearer test-token"]
+    }
+}
+
+/// Authenticator carrying a distinct token for the per-call auth override test.
+private final class PerCallAuthenticator: BaseAuthenticator, @unchecked Sendable {
+    override func host() -> String { return "" }
+    override func authHeaders() async -> [String: String] {
+        return ["Authorization": "Bearer per-call-token"]
     }
 }
 

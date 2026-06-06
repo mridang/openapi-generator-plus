@@ -144,6 +144,26 @@ async fn test_exchange_code_rejects_empty_code() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn test_exchange_code_rejects_whitespace_only_code() {
+    // oauth-exchangecode-no-empty-code-guard: a whitespace-only code is
+    // distinct from the empty-string case and must also be rejected before the
+    // token POST (code.trim().is_empty() guard).
+    let client = Arc::new(FakeApiClient::new());
+    // No response enqueued: if the guard fails and a POST is attempted, the
+    // FakeApiClient would panic on the empty queue — proving no request issued.
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let result = auth.exchange_code("   ").await;
+    assert!(result.is_err(), "whitespace-only code must be rejected before the token POST");
+
+    assert!(
+        client.last_body().is_none(),
+        "no token request must be issued for a whitespace-only code"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn test_includes_refresh_token_on_refresh() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(

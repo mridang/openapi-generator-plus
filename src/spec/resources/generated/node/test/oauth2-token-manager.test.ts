@@ -145,6 +145,36 @@ describe('OAuth2TokenManager', () => {
     ).rejects.toThrow();
   });
 
+  test('invalidateAccessToken forces refetch', async () => {
+    // After invalidate the cached token must be discarded so the next call
+    // performs a fresh network round-trip.
+    let n = 0;
+    const stepClient: ApiClient = {
+      async sendRequest(): Promise<ApiResponse> {
+        n++;
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ access_token: `tok${n}`, expires_in: 3600 }),
+          headers: { 'content-type': 'application/json' }
+        };
+      }
+    };
+    const manager = new OAuth2TokenManager();
+    manager.setApiClient(stepClient);
+
+    const first = await manager.getAccessToken('https://auth.example.com/token', {
+      grant_type: 'client_credentials'
+    });
+    manager.invalidateAccessToken();
+    const second = await manager.getAccessToken('https://auth.example.com/token', {
+      grant_type: 'client_credentials'
+    });
+
+    expect(first).toBe('tok1');
+    expect(second).toBe('tok2');
+    expect(n).toBe(2);
+  });
+
   test('refresh_token empty string preserves existing', async () => {
     // Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
     // MUST NOT clobber the cached refresh_token.

@@ -453,4 +453,77 @@ public class OAuth2TokenManagerTest
         Assert.Equal(statusCode, ex.StatusCode);
         Assert.Equal("redirect_refused", ex.Code);
     }
+
+    [Fact]
+    public async Task InvalidateAccessTokenTriggersSingleRefetchUnderConcurrency()
+    {
+        // After invalidation, 10 concurrent callers must coalesce into exactly
+        // ONE additional HTTP call (single-flight), all observing the same
+        // freshly fetched token.
+        var client = new CountingNumberingApiClient();
+
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
+        var tokenUrl = new Uri("https://auth.example.com/token");
+
+        string first = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        Assert.Equal("tok1", first);
+        Assert.Equal(1, client.CallCount);
+
+        manager.InvalidateAccessToken();
+
+        Task<string>[] tasks = new Task<string>[10];
+        for (int i = 0; i < tasks.Length; i++)
+        {
+            tasks[i] = manager.GetAccessTokenAsync(tokenUrl, parameters);
+        }
+        string[] tokens = await Task.WhenAll(tasks);
+
+        // Exactly one additional network call (CallCount went 1 -> 2).
+        Assert.Equal(2, client.CallCount);
+        foreach (string t in tokens)
+        {
+            Assert.Equal("tok2", t);
+        }
+    }
+
+    private sealed class CountingNumberingApiClient : IApiClient
+    {
+        private int _callCount;
+
+        public int CallCount => _callCount;
+
+        public async Task<ApiResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
+        {
+            int n = System.Threading.Interlocked.Increment(ref _callCount);
+            // Hold the request in flight so concurrent callers pile up behind
+            // the single-flight lock.
+            await Task.Delay(50).ConfigureAwait(false);
+            return new ApiResponse(
+                200, "{\"access_token\":\"tok" + n + "\",\"expires_in\":3600}", new Dictionary<string, string>());
+        }
+    }
+
+    {{! Bucket 3.2: the redirect-refusal error should name the offending }}
+    {{! Location header for diagnostics. The C# SDK raises OAuth2ServerError }}
+    {{! with code "redirect_refused" but does not surface the Location target, }}
+    {{! so this scenario cannot be asserted without fabricating behaviour. }}
+    [Fact(Skip = "C# OAuth2TokenManager redirect-refusal error does not surface the Location header")]
+    public async Task RedirectRefusalErrorIncludesLocationHeader()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("", statusCode: 307);
+
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<OAuth2ServerError>(
+            () => manager.GetAccessTokenAsync(
+                new Uri("https://auth.example.com/token"),
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }));
+        Assert.Contains("attacker.example", ex.Message);
+    }
 }

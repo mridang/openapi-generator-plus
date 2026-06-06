@@ -24,6 +24,7 @@ import type { ApiClient } from '../src/api-client.js';
 import type { ApiResponse } from '../src/api-response.js';
 import type { ApiResult } from '../src/api-result.js';
 import { PetApi } from '../src/api/pet-api.js';
+import { Category } from '../src/models/index.js';
 
 class CapturingApiClient implements ApiClient {
   capturedUrl = '';
@@ -390,6 +391,27 @@ describe('BaseApi body serialization', () => {
     expect(client.capturedBody).toContain('name=alice');
   });
 
+  test('form-urlencoded body encodes space as + not %20', async () => {
+    // form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
+    // mandates '+' for a space (WHATWG/HTML form-encoding), not '%20'.
+    // URLSearchParams.toString() emits '+', matching the other SDKs.
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    await testApi.call(
+      'POST',
+      '/test/echo',
+      {},
+      {},
+      { 'full name': 'Ada Lovelace' },
+      ['application/json'],
+      'application/x-www-form-urlencoded',
+      null
+    );
+    expect(client.capturedBody).toBe('full+name=Ada+Lovelace');
+    expect(client.capturedBody).not.toContain('%20');
+  });
+
   test('passes binary body as-is', async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: 'http://localhost' });
@@ -726,5 +748,21 @@ describe('BaseApi per-call auth optional', () => {
     const testApi = new TestableApi(client, config, clientAuth);
     await testApi.call('GET', '/test/echo', {}, {}, null, ['application/json'], 'application/json', null, perCallAuth);
     expect(client.capturedHeaders['X-Client-Auth']).toBe('per-call-token');
+  });
+});
+
+describe('TypedErrorBodyTests', () => {
+  test('getTypedErrorBody deserializes the raw body into the requested class', () => {
+    const err = new BadRequestError('boom', {}, '{"id":42,"name":"Dogs"}');
+    const typed = err.getTypedErrorBody(Category);
+    expect(typed).not.toBeNull();
+    expect(typed).toBeInstanceOf(Category);
+    expect(typed!.id).toBe(42);
+    expect(typed!.name).toBe('Dogs');
+  });
+
+  test('getTypedErrorBody returns null when there is no response body', () => {
+    const err = new BadRequestError('boom', {}, null);
+    expect(err.getTypedErrorBody(Category)).toBeNull();
   });
 });

@@ -553,6 +553,18 @@ test('wet subtype serialize auto-emits discriminator', function (): void {
     expect($data['foodType'])->toBe('wet');
 });
 
+test('deserialize parent routes to subtype by discriminator', function (): void {
+    /* Feature gap: ObjectSerializer::deserialize() dispatches object classes
+     * through Symfony's denormalize(), which builds an empty PetFood oneOf
+     * wrapper rather than invoking PetFood::build() to route foodType="dry"
+     * to a DryFood instance. The discriminator routing lives on the model's
+     * static build() method and is not wired into the generic deserialize
+     * entry point, unlike Java/Go/Rust/Node. */
+    $json = '{"foodType":"dry","weightKg":2.5}';
+    $food = ObjectSerializer::deserialize($json, \{{invokerPackage}}\Models\PetFood::class);
+    expect($food->getActualInstance())->toBeInstanceOf(\{{invokerPackage}}\Models\DryFood::class);
+})->skip('PHP deserialize() does not route oneOf parents through PetFood::build()');
+
 // -- Gap #13: null fields omitted on serialize --
 
 test('serialize omits model fields that are null', function (): void {

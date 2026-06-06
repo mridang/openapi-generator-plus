@@ -70,6 +70,21 @@ class PetApiTest {
     }
 
     @Test
+    void testAddPetWithHttpInfo() throws Exception {
+        Pet pet = new Pet();
+        pet.id = 99L;
+        pet.name = "HttpInfoDog";
+        pet.photoUrls = Set.of("http://example.com/photo.jpg");
+        pet.status = Pet.StatusEnum.AVAILABLE;
+
+        var result = api.addPetWithHttpInfo(bearerAuth, pet);
+        assertNotNull(result);
+
+        assertThat(result.statusCode()).isBetween(200, 299);
+        assertThat(result.data()).isNotNull();
+    }
+
+    @Test
     void testFindPetsByStatus() throws Exception {
         List<Pet> result = api.findPetsByStatus(new FindPetsByStatusOptions().status("available"));
         assertNotNull(result);
@@ -79,12 +94,29 @@ class PetApiTest {
     }
 
     @Test
+    void testFindPetsByStatusWithHttpInfo() throws Exception {
+        var result = api.findPetsByStatusWithHttpInfo(new FindPetsByStatusOptions().status("available"));
+        assertNotNull(result);
+
+        assertThat(result.statusCode()).isEqualTo(200);
+    }
+
+    @Test
     void testGetPetById() throws Exception {
         Pet result = api.getPetById(1L);
         assertNotNull(result);
 
         assertThat(result.id).isNotNull();
         assertThat(result.name).isNotNull();
+    }
+
+    @Test
+    void testGetPetByIdWithHttpInfo() throws Exception {
+        var result = api.getPetByIdWithHttpInfo(1L);
+        assertNotNull(result);
+
+        assertThat(result.statusCode()).isEqualTo(200);
+        assertThat(result.data()).isNotNull();
     }
 
     @Test
@@ -100,10 +132,32 @@ class PetApiTest {
     }
 
     @Test
+    void testUpdatePetWithHttpInfo() throws Exception {
+        Pet pet = new Pet();
+        pet.id = 1L;
+        pet.name = "UpdatedDog";
+        pet.photoUrls = Set.of("http://example.com/updated.jpg");
+        pet.status = Pet.StatusEnum.PENDING;
+
+        var result = api.updatePetWithHttpInfo(1L, pet);
+        assertNotNull(result);
+
+        assertThat(result.statusCode()).isBetween(200, 299);
+    }
+
+    @Test
     void testDeletePet() throws Exception {
         api.deletePet(basicAuth, 1L, null);
 
         assertThat(true).isTrue();
+    }
+
+    @Test
+    void testDeletePetWithHttpInfo() throws Exception {
+        var result = api.deletePetWithHttpInfo(basicAuth, 1L, null);
+        assertNotNull(result);
+
+        assertThat(result.statusCode()).isBetween(200, 299);
     }
 
     @Test
@@ -200,6 +254,15 @@ class PetApiTest {
         assertThat(result.issuedAt).isNotNull();
     }
 
+    @Test
+    void testGetPetPassportWithHttpInfo() throws Exception {
+        var result = api.getPetPassportWithHttpInfo(1L);
+        assertNotNull(result);
+
+        assertThat(result.statusCode()).isEqualTo(200);
+        assertThat(result.data()).isNotNull();
+    }
+
     private PetApi newPetApiForMock(int status, String contentType, String body) throws Exception {
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
         server.createContext("/", exchange -> {
@@ -257,5 +320,39 @@ class PetApiTest {
         InputStream fakeFile = new ByteArrayInputStream("fake-cert-data".getBytes(StandardCharsets.UTF_8));
         ApiResponse result = mockApi.uploadPetCertificate(1L, new UploadPetCertificateOptions(fakeFile));
         assertNotNull(result);
+    }
+
+    @Test
+    void testAddPetPerCallAuthOverride() throws Exception {
+        // Verify the auth argument on the BASE operation method (not just the
+        // WithHttpInfo variant) is applied to the outgoing request. The default
+        // header carries one token; the per-call authenticator carries a
+        // different one and must win on the wire.
+        final String[] capturedAuthHeader = new String[1];
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/", exchange -> {
+            capturedAuthHeader[0] = exchange.getRequestHeaders().getFirst("Authorization");
+            byte[] responseBytes = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, responseBytes.length);
+            exchange.getResponseBody().write(responseBytes);
+            exchange.getResponseBody().close();
+        });
+        server.start();
+        String baseUrl = "http://localhost:" + server.getAddress().getPort();
+        Configuration overrideConfig = Configuration.builder()
+                .baseUrl(baseUrl)
+                .defaultHeader("Authorization", "Bearer default-token")
+                .build();
+        PetApi overrideApi = new PetApi(new DefaultApiClient(), overrideConfig);
+        PetStoreBearerAuthenticator perCallAuth = new PetStoreBearerAuthenticator(baseUrl, "per-call-token");
+
+        Pet pet = new Pet();
+        pet.id = 1L;
+        pet.name = "OverrideDog";
+        pet.photoUrls = Set.of("http://example.com/p.jpg");
+        overrideApi.addPet(perCallAuth, pet);
+
+        assertThat(capturedAuthHeader[0]).isEqualTo("Bearer per-call-token");
     }
 }

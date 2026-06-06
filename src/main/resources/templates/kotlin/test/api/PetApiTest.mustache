@@ -410,6 +410,64 @@ class PetApiTest {
         }
 
         @Test
+        @DisplayName("empty 200 body on a body-returning op throws ApiException")
+        fun testEmptyBodyOnBodyReturningOpThrows() {
+            // convenience-empty-body-handling: a body-returning operation that
+            // receives a 2xx with an empty body must surface a typed
+            // ApiException from the plain convenience method, never a silent null.
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            assertThrows(ApiException::class.java) {
+                runBlocking { api.getPetById(1L) }
+            }
+        }
+
+        @Test
+        @DisplayName("per-call auth override on base method wins on the wire")
+        fun testAddPetPerCallAuthOverride() {
+            // Verify the auth argument on the BASE operation method (not just the
+            // WithHttpInfo variant) is applied to the outgoing request. The
+            // default header carries one token; the per-call authenticator
+            // carries a different one and must win on the wire.
+            var capturedAuth: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedAuth = request.headers["Authorization"]
+                    respond(
+                        content = """{"id":1,"name":"x","photoUrls":[]}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .defaultHeader("Authorization", "Bearer default-token")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+            val perCallAuth = PetStoreBearerAuthenticator("http://localhost", "per-call-token")
+
+            val pet = Pet(name = "OverrideDog", photoUrls = setOf("http://example.com/p.jpg"))
+            runBlocking { api.addPet(perCallAuth, pet) }
+
+            assertEquals("Bearer per-call-token", capturedAuth)
+        }
+
+        @Test
         @DisplayName("binary download returns data from mock")
         fun testDownloadBinaryMock() {
             val engine =

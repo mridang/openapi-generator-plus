@@ -22,6 +22,8 @@ class OpenIdConnectAuthenticatorTest {
             private set
         var lastMethod: String? = null
             private set
+        var getCount: Int = 0
+            private set
 
         fun enqueue(
             body: String,
@@ -40,6 +42,9 @@ class OpenIdConnectAuthenticatorTest {
             lastMethod = method
             lastUrl = url
             lastBody = body?.toString()
+            if (method == "GET") {
+                getCount++
+            }
             return responses.poll() ?: throw IllegalStateException("No responses queued")
         }
     }
@@ -185,5 +190,24 @@ class OpenIdConnectAuthenticatorTest {
         val auth = createAuthenticator()
 
         assertEquals("https://api.example.com", auth.getHost())
+    }
+
+    @Test
+    fun fetchesDiscoveryDocumentOnlyOnce() {
+        val client = FakeApiClient()
+        client.enqueue(
+            """{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
+        )
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking {
+            auth.buildAuthorizationUrl()
+            auth.buildAuthorizationUrl()
+        }
+
+        // The cached discovery document must be reused on the second call.
+        assertEquals(1, client.getCount)
     }
 }

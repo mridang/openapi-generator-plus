@@ -679,6 +679,17 @@ func TestBaseApi_SerializesFormUrlencodedBody(t *testing.T) {
 	}
 }
 
+func TestBaseApi_FormUrlencodedBodyEncodesSpaceAsPlus(t *testing.T) {
+	/* form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
+	 * mandates '+' for a space (WHATWG/HTML form-encoding). The SDK's
+	 * serializeBody uses url.Values.Encode() which emits '+', but
+	 * serializeBody is unexported and this is an external (_test) package,
+	 * and generated operations only send JSON bodies — so the form-encoding
+	 * path cannot be exercised from here. Skipped to keep scenario parity
+	 * while flagging the reachability gap. */
+	t.Skip("serializeBody is unexported; form body path not reachable from external test package")
+}
+
 func TestBaseApi_PassesBinaryBody(t *testing.T) {
 	t.Parallel()
 	client := &bodyCapturingApiClient{}
@@ -1015,6 +1026,28 @@ func TestAuth_NilPerCallFallsBackToClientLevelAuthenticator(t *testing.T) {
 	_, _ = api.AddPet(nil, pet)
 	if got := client.headers["X-Client-Auth"]; got != "client-level-token" {
 		t.Errorf("expected client-level auth header to be used when per-call auth is nil, got %q", got)
+	}
+}
+
+func TestAuth_PerCallOverridesClientLevelAuthenticator(t *testing.T) {
+	t.Parallel()
+	client := &authHeaderCapturingClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	clientLevelAuth := &baseApiAuth{
+		headers: map[string]string{"X-Client-Auth": "client-level-token"},
+		query:   map[string]string{},
+		cookies: map[string]string{},
+	}
+	perCallAuth := &baseApiAuth{
+		headers: map[string]string{"X-Client-Auth": "per-call-token"},
+		query:   map[string]string{},
+		cookies: map[string]string{},
+	}
+	api := petstore.NewPetApi(client, config, clientLevelAuth)
+	pet := *models.NewPet("AuthTest", []string{})
+	_, _ = api.AddPet(perCallAuth, pet)
+	if got := client.headers["X-Client-Auth"]; got != "per-call-token" {
+		t.Errorf("expected per-call auth header to override client-level auth, got %q", got)
 	}
 }
 

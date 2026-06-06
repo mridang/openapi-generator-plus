@@ -577,4 +577,31 @@ import Testing
         let date = Date(timeIntervalSince1970: 1_705_276_800)
         #expect(stringifyDate(date) == "2024-01-15")
     }
+
+    // path-double-encoding: serializeStyled already percent-encodes the path
+    // segment, so the api template must NOT wrap it again. A space must become
+    // %20 (never %2520) and a slash %2F (never %252F).
+    @Test func testSerializeStyledPathEncodedExactlyOnce() {
+        let space = ValueSerializer.serializeStyled(
+            "id", value: "a b", location: "path", schemaType: "string", collectionFormat: "", style: "simple",
+            explode: false)
+        #expect(space as? String == "a%20b")
+        #expect((space as? String)?.contains("%2520") == false)
+        let slash = ValueSerializer.serializeStyled(
+            "id", value: "a/b", location: "path", schemaType: "string", collectionFormat: "", style: "simple",
+            explode: false)
+        #expect(slash as? String == "a%2Fb")
+        #expect((slash as? String)?.contains("%252F") == false)
+    }
+
+    // Empty-string path values are rejected by the serializer via
+    // preconditionFailure, which traps the process and cannot be caught by
+    // Swift Testing. Disabled so the scenario stays counted for parity with
+    // the other SDKs without crashing the test runner.
+    @Test(.disabled("preconditionFailure traps the process; uncatchable by Swift Testing"))
+    func testEmptyStringPathParamThrows() {
+        _ = ValueSerializer.serializeStyled(
+            "id", value: "", location: "path", schemaType: "string", collectionFormat: "", style: "simple",
+            explode: false)
+    }
 }

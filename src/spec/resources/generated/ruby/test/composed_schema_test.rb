@@ -36,6 +36,23 @@ describe 'Composed Schema' do
         .must_raise PetstoreClient::SerializationError
     end
 
+    it 'raises SerializationError for empty discriminator value' do
+      # An empty discriminator value matches no listed mapping and must raise
+      # rather than route to a structurally-fitting variant.
+      json = '{"foodType":"","weightKg":2.5}'
+      _ { PetstoreClient::ObjectSerializer.deserialize(json, 'PetFood') }
+        .must_raise PetstoreClient::SerializationError
+    end
+
+    it 'unknown discriminator error names the offending value' do
+      # CS4: the error message must surface the offending discriminator value
+      # so callers can diagnose server/spec drift.
+      json = '{"foodType":"raw","calories":300}'
+      err = _ { PetstoreClient::ObjectSerializer.deserialize(json, 'PetFood') }
+        .must_raise PetstoreClient::SerializationError
+      _(err.message).must_include('raw')
+    end
+
     it 'serializes DryFood back to JSON' do
       json = '{"foodType":"dry","weightKg":2.5}'
       result = PetstoreClient::ObjectSerializer.deserialize(json, 'PetFood')
@@ -67,6 +84,15 @@ describe 'Composed Schema' do
       serialized = PetstoreClient::ObjectSerializer.serialize(result)
 
       _(serialized).wont_be_empty
+    end
+
+    it 'raises for anyOf payload matching no variant' do
+      # oneof-nondiscriminator-no-match-silent: a body matching neither
+      # Medication nor Surgery must raise rather than return a silently-empty
+      # union. The anyOf build raises ArgumentError on union no-match.
+      json = '{"unrelatedKey":"value","anotherUnknown":123}'
+      _ { PetstoreClient::ObjectSerializer.deserialize(json, 'PetTreatment') }
+        .must_raise ArgumentError
     end
   end
 

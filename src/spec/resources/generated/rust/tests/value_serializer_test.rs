@@ -925,3 +925,74 @@ fn test_format_date_path_param_via_serialize_styled_simple() {
     );
     assert_eq!(unwrap_single(result), "2024-01-15");
 }
+
+// UTC/midnight edge: a caller-formatted date-only string (the wire form the
+// codegen produces for a `format: date` value at midnight UTC) passes through
+// the path serializer unchanged, matching the StringifyDate UTC behaviour of
+// Go/Node/Swift/Dart.
+#[test]
+fn test_format_date_path_param_midnight_utc_string_passes_through() {
+    let result = value_serializer::serialize_value(Some("2024-01-15"), "path", "string", "");
+    assert_eq!(result.unwrap(), "2024-01-15");
+}
+
+// path-double-encoding: serialize_styled already percent-encodes the path
+// segment, so the operation template must NOT wrap it again. A space must
+// become %20 (never %2520) and a slash %2F (never %252F).
+#[test]
+fn test_serialize_styled_path_encoded_exactly_once() {
+    let space = value_serializer::serialize_styled(
+        "id",
+        Some("a b"),
+        None,
+        "path",
+        "string",
+        "",
+        "simple",
+        false,
+    );
+    let space = unwrap_single(space);
+    assert_eq!(space, "a%20b");
+    assert!(
+        !space.contains("%2520"),
+        "space was double-encoded: {space}"
+    );
+
+    let slash = value_serializer::serialize_styled(
+        "id",
+        Some("a/b"),
+        None,
+        "path",
+        "string",
+        "",
+        "simple",
+        false,
+    );
+    let slash = unwrap_single(slash);
+    assert_eq!(slash, "a%2Fb");
+    assert!(
+        !slash.contains("%252F"),
+        "slash was double-encoded: {slash}"
+    );
+}
+
+// FEATURE GAP — empty-string path values are NOT rejected by the Rust value
+// serializer (it has no empty-path guard, unlike the Java/Python/PHP/Ruby/
+// Elixir/Go/C#/Dart SDKs). Ignored until the serializer grows an empty-path
+// check; kept for scenario parity with the other 11 SDKs.
+#[test]
+#[ignore = "Rust value serializer lacks an empty-string path guard (feature gap)"]
+fn test_empty_string_path_param_rejected() {
+    let result = value_serializer::serialize_styled(
+        "id",
+        Some(""),
+        None,
+        "path",
+        "string",
+        "",
+        "simple",
+        false,
+    );
+    // When the guard is added this should be an error/None rather than "".
+    assert_ne!(unwrap_single(result), "");
+}

@@ -533,6 +533,55 @@ async fn test_base_api_op_auth_none_falls_back_to_client_authenticator() {
     );
 }
 
+// -- Header-emitting authenticator for per-call override verification --
+
+struct HeaderAuthenticator {
+    value: String,
+}
+
+impl petstore::auth::Authenticator for HeaderAuthenticator {
+    fn host(&self) -> &str {
+        "http://localhost"
+    }
+
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>>
+    {
+        let value = self.value.clone();
+        Box::pin(async move {
+            let mut headers = HashMap::new();
+            headers.insert("X-Client-Auth".to_string(), value);
+            headers
+        })
+    }
+}
+
+#[tokio::test]
+async fn test_base_api_per_call_auth_overrides_client_authenticator() {
+    /* When a per-call authenticator is supplied it must take precedence over
+     * the client-level authenticator wired in at construction time. */
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let client_auth: Arc<dyn petstore::auth::Authenticator> = Arc::new(HeaderAuthenticator {
+        value: "client-level-token".to_string(),
+    });
+    let api = PetApi::new(client.clone(), config, Some(client_auth));
+    let per_call = HeaderAuthenticator {
+        value: "per-call-token".to_string(),
+    };
+    let pet = Pet::new("OverridePet".to_string(), HashSet::new());
+    let _ = api.add_pet(Some(&per_call), pet).await;
+    let headers = client.captured_headers.lock().unwrap();
+    assert_eq!(
+        headers.get("X-Client-Auth").map(|s| s.as_str()),
+        Some("per-call-token"),
+        "per-call authenticator must override the client-level authenticator"
+    );
+}
+
 #[tokio::test]
 async fn test_base_api_op_auth_none_with_no_client_authenticator_still_sends() {
     /* Passing None for both the op auth and the client authenticator is
@@ -587,6 +636,26 @@ fn test_serialize_body_form_urlencoded() {
     assert!(
         body_str.contains("name=alice"),
         "expected URL-encoded form data, got: {}",
+        body_str
+    );
+}
+
+#[test]
+fn test_serialize_body_form_urlencoded_space_as_plus() {
+    /* form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
+     * mandates '+' for a space (WHATWG/HTML form-encoding), not '%20'.
+     * The shared form_url_encode helper emits '+', matching the other SDKs. */
+    let mut params = HashMap::new();
+    params.insert("full name".to_string(), "Ada Lovelace".to_string());
+    let json_bytes = serde_json::to_vec(&params).unwrap();
+    let result =
+        petstore::api::serialize_body(Some(json_bytes), "application/x-www-form-urlencoded")
+            .unwrap();
+    let body_str = String::from_utf8(result.unwrap()).unwrap();
+    assert_eq!(body_str, "full+name=Ada+Lovelace");
+    assert!(
+        !body_str.contains("%20"),
+        "space must encode as +, not %20: {}",
         body_str
     );
 }

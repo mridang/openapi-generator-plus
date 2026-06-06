@@ -216,6 +216,34 @@ async fn test_auth_headers_collapses_error_to_empty_map() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn test_caches_token_across_calls() {
+    // The token manager caches the access token until expiry, so two
+    // consecutive header requests reuse the same token and issue only a single
+    // token request. Only one response is enqueued; a second token fetch would
+    // remove(0) from an empty vec and panic, proving single-flight.
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"access_token":"cached-cc-token","expires_in":3600}"#,
+        200,
+    );
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let headers1 = auth.auth_headers().await;
+    let headers2 = auth.auth_headers().await;
+
+    assert_eq!(
+        "Bearer cached-cc-token",
+        headers1.get("Authorization").unwrap()
+    );
+    assert_eq!(
+        "Bearer cached-cc-token",
+        headers2.get("Authorization").unwrap()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn test_basic_auth_url_encodes_client_id_and_secret() {
     // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
     // client_id and client_secret MUST be application/x-www-form-

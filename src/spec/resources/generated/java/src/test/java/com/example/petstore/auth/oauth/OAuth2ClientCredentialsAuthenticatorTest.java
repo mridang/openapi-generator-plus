@@ -124,6 +124,47 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
+  void tokenFetchErrorIsSurfacedNotSwallowed() {
+    // oauth-cc-authheaders-error-swallow: a failed client-credentials token
+    // exchange must surface to the caller as a thrown error — NOT be
+    // swallowed into an empty header map that would send the API request
+    // unauthenticated and produce a confusing downstream 401.
+    ApiClient client =
+        (method, url, headers, body) ->
+            new ApiResponse(401, "{\"error\":\"invalid_client\"}", Map.of());
+
+    OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    assertThrows(RuntimeException.class, auth::getAuthHeaders);
+  }
+
+  @Test
+  void cachesTokenAcrossCalls() {
+    // The token manager caches the access token until expiry, so two
+    // consecutive header requests must reuse the same token and issue only
+    // a single token request to the endpoint.
+    java.util.concurrent.atomic.AtomicInteger calls =
+        new java.util.concurrent.atomic.AtomicInteger();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          calls.incrementAndGet();
+          return new ApiResponse(
+              200, "{\"access_token\":\"cached-cc-token\",\"expires_in\":3600}", Map.of());
+        };
+
+    OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    Map<String, String> headers1 = auth.getAuthHeaders();
+    Map<String, String> headers2 = auth.getAuthHeaders();
+
+    assertEquals("Bearer cached-cc-token", headers1.get("Authorization"));
+    assertEquals("Bearer cached-cc-token", headers2.get("Authorization"));
+    assertEquals(1, calls.get());
+  }
+
+  @Test
   void basicAuthUrlEncodesClientIdAndSecret() {
     // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
     // client_id and client_secret MUST be application/x-www-form-

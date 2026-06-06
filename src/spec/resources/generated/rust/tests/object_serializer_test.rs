@@ -7,7 +7,7 @@
 
 use petstore::models::Category;
 use petstore::models::Pet;
-use petstore::models::{DryFood, WetFood};
+use petstore::models::{DryFood, PetFood, WetFood};
 use petstore::object_serializer;
 use petstore::object_serializer::SerializationError;
 
@@ -765,6 +765,21 @@ fn test_wet_subtype_auto_emits_discriminator() {
         json.contains("\"foodType\":\"wet\""),
         "expected auto-injected discriminator, got: {json}"
     );
+}
+
+// A discriminator-tagged payload deserialized against the parent PetFood
+// oneOf enum must resolve to the concrete DryFood variant via PetFood's
+// custom Deserialize routing on foodType="dry", not fall through to a
+// silent untagged match.
+#[test]
+fn test_deserialize_parent_routes_to_subtype() {
+    let payload = br#"{"foodType":"dry","weightKg":2.5}"#;
+    let result: Option<PetFood> =
+        object_serializer::deserialize(payload).expect("deserialize must succeed");
+    match result.expect("expected Some(PetFood)") {
+        PetFood::DryFood(dry) => assert_eq!(dry.weight_kg, 2.5),
+        other => panic!("expected PetFood::DryFood, got: {other:?}"),
+    }
 }
 
 fn variant_miss(_data: &serde_json::Value) -> Result<Box<dyn std::any::Any>, SerializationError> {

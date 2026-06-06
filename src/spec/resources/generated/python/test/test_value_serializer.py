@@ -323,3 +323,10 @@ class TestValueSerializerFormatDatePath:
     def test_date_via_serialize_styled_simple_returns_yyyy_mm_dd(self) -> None:
         date = datetime.date(2024, 1, 15)
         assert ValueSerializer.serialize_styled('since', date, 'path', 'string', None, 'simple', False) == '2024-01-15'
+
+    def test_date_at_year_boundary_emits_date_only(self) -> None:
+        # UTC/midnight edge: a date on the year boundary must serialize as a
+        # bare YYYY-MM-DD with no time/offset suffix, matching the
+        # stringifyDate UTC behaviour of Go/Node/Swift/Dart.
+        date = datetime.date(2024, 12, 31)
+        assert ValueSerializer.serialize(date, 'path', 'string') == '2024-12-31'

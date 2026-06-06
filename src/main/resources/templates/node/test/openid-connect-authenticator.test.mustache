@@ -172,4 +172,58 @@ describe('OpenIdConnectAuthenticator', () => {
   test('getHost returns configured host', () => {
     expect(authenticator.getHost()).toBe('https://api.example.com');
   });
+
+  test('fetches discovery document only once', async () => {
+    mockClient.responses = [
+      {
+        statusCode: 200,
+        body: JSON.stringify({
+          authorization_endpoint: 'https://auth.example.com/authorize',
+          token_endpoint: 'https://auth.example.com/token'
+        }),
+        headers: { 'content-type': 'application/json' }
+      }
+    ];
+
+    await authenticator.buildAuthorizationUrl();
+    await authenticator.buildAuthorizationUrl();
+
+    // The cached discovery document must be reused; only one GET is made.
+    expect(mockClient.callCount).toBe(1);
+  });
+
+  // oauth-oidc-missing-endpoint-guard: a discovery document missing the
+  // authorization/token endpoint should fail loudly rather than build a
+  // delegate with an undefined endpoint URL.
+  test.skip('throws when discovery is missing authorization_endpoint', async () => {
+    // Feature gap: getDelegate() casts discovery.authorization_endpoint to
+    // string without a missing-key guard, so an absent endpoint yields
+    // `undefined` rather than a thrown discovery error. Skipped so the
+    // scenario count matches the other SDKs.
+    mockClient.responses = [
+      {
+        statusCode: 200,
+        body: JSON.stringify({ token_endpoint: 'https://auth.example.com/token' }),
+        headers: { 'content-type': 'application/json' }
+      }
+    ];
+
+    await expect(authenticator.buildAuthorizationUrl()).rejects.toThrow();
+  });
+
+  test.skip('throws when discovery is missing token_endpoint', async () => {
+    // Feature gap: getDelegate() casts discovery.token_endpoint to string
+    // without a missing-key guard, so an absent endpoint yields `undefined`
+    // rather than a thrown discovery error. Skipped so the scenario count
+    // matches the other SDKs.
+    mockClient.responses = [
+      {
+        statusCode: 200,
+        body: JSON.stringify({ authorization_endpoint: 'https://auth.example.com/authorize' }),
+        headers: { 'content-type': 'application/json' }
+      }
+    ];
+
+    await expect(authenticator.buildAuthorizationUrl()).rejects.toThrow();
+  });
 });

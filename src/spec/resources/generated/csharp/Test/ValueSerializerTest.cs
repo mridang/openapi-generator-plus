@@ -824,4 +824,14 @@ public class ValueSerializerTest
             ValueSerializer.SerializeStyled("since", date, "path", "string", null, "simple", false)
         );
     }
+
+    [Fact]
+    public void FormatDatePathParamDateOnlyBoundaryEmitsDateOnly()
+    {
+        // UTC/midnight edge: a date on the year boundary must serialise as a
+        // bare YYYY-MM-DD with no T00:00:00/offset suffix, matching the
+        // stringifyDate UTC behaviour of Go/Node/Swift/Dart.
+        var date = new DateOnly(2024, 12, 31);
+        Assert.Equal("2024-12-31", ValueSerializer.Serialize(date, "path", "string"));
+    }
 }

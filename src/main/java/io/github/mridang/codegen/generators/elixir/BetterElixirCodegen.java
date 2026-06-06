@@ -386,6 +386,9 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                             "client_test.exs"));
             supportingFiles.add(
                     new SupportingFile(
+                            "test/api_error_test.mustache", "test", "api_error_test.exs"));
+            supportingFiles.add(
+                    new SupportingFile(
                             "test/metadata_test.mustache", "test", "metadata_test.exs"));
             supportingFiles.add(
                     new SupportingFile(

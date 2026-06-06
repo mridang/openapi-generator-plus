@@ -165,4 +165,24 @@ class OpenIdConnectAuthenticatorTest {
 
         assertThrows(RuntimeException.class, () -> auth.buildAuthorizationUrl(null));
     }
+
+    @Test
+    void fetchesDiscoveryDocumentOnlyOnce() {
+        var getCalls = new java.util.concurrent.atomic.AtomicInteger(0);
+        ApiClient client = (method, url, headers, body) -> {
+            if ("GET".equals(method)) {
+                getCalls.incrementAndGet();
+            }
+            return new ApiResponse(200, DISCOVERY_RESPONSE, Map.of());
+        };
+
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
+
+        auth.buildAuthorizationUrl(null);
+        auth.buildAuthorizationUrl(null);
+
+        // The cached discovery document must be reused on the second call.
+        assertEquals(1, getCalls.get());
+    }
 }

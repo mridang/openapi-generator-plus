@@ -1,0 +1,68 @@
+<?php
+
+declare(strict_types=1);
+
+use {{invokerPackage}}\ApiException;
+use {{modelPackage}}\Category;
+
+test('exposes status code, message, body, headers and error body', function (): void {
+    $ex = new ApiException(
+        'not found',
+        404,
+        ['content-type' => 'application/json'],
+        '{"id":7,"name":"missing"}',
+        null,
+    );
+
+    expect($ex->getStatusCode())->toBe(404);
+    expect($ex->getMessage())->toBe('not found');
+    expect($ex->getResponseBody())->toBe('{"id":7,"name":"missing"}');
+    expect($ex->getResponseHeaders())->toBe(['content-type' => 'application/json']);
+    expect($ex->getErrorBody())->toBeNull();
+});
+
+test('null headers and body mark transport-no-response', function (): void {
+    // apierror-responsebody-headers-nullable-split: null is distinct from an
+    // empty header map / empty body so a pre-response transport failure can
+    // be encoded.
+    $ex = new ApiException(
+        'connection reset',
+        0,
+        null,
+        null,
+    );
+
+    expect($ex->getResponseHeaders())->toBeNull();
+    expect($ex->getResponseBody())->toBeNull();
+});
+
+test('is an Exception subclass', function (): void {
+    $ex = new ApiException('boom', 500);
+
+    expect($ex)->toBeInstanceOf(Exception::class);
+    expect($ex->getMessage())->not->toBeEmpty();
+});
+
+test('getTypedErrorBody deserializes the body into the given class', function (): void {
+    $ex = new ApiException('bad request', 400, [], '{"id":42,"name":"Dogs"}');
+
+    $typed = $ex->getTypedErrorBody(Category::class);
+    expect($typed)->toBeInstanceOf(Category::class);
+    expect($typed->id)->toBe(42);
+    expect($typed->name)->toBe('Dogs');
+});
+
+test('getTypedErrorBody returns null when there is no response body', function (): void {
+    $ex = new ApiException('oops', 500, [], null);
+
+    expect($ex->getTypedErrorBody(Category::class))->toBeNull();
+});
+
+test('getTypedErrorBody ignores extraneous fields not on the model', function (): void {
+    $ex = new ApiException('unprocessable', 422, [], '{"id":1,"name":"Cat","extra":"drop-me"}');
+
+    $typed = $ex->getTypedErrorBody(Category::class);
+    expect($typed)->toBeInstanceOf(Category::class);
+    expect($typed->id)->toBe(1);
+    expect($typed->name)->toBe('Cat');
+});

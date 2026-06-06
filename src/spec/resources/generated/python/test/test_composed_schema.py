@@ -77,6 +77,15 @@ class TestAnyOfPetTreatment:
         assert serialized is not None
         assert len(serialized) > 0
 
+    def test_no_matching_variant_raises(self) -> None:
+        """oneof-nondiscriminator-no-match-silent: a payload matching neither
+        Medication nor Surgery must raise rather than yield a silently-empty
+        union.
+        """
+        json_str = '{"unrelatedKey":"value","anotherUnknown":123}'
+        with pytest.raises(Exception):
+            ObjectSerializer().deserialize(json_str, 'PetTreatment')
+
 
 class TestAllOfPetWithOwner:
     """allOf: PetWithOwner"""

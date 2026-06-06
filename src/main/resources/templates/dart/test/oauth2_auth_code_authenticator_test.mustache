@@ -99,6 +99,19 @@ void main() {
       );
     });
 
+    test('exchangeCode rejects whitespace-only code', () async {
+      // oauth-exchangecode-no-empty-code-guard: a whitespace-only code is
+      // distinct from the empty-string case and must also be rejected before
+      // any token POST is issued (code.trim().isEmpty guard).
+      final auth = _createAuthenticator();
+      auth.setApiClient(_FakeApiClient());
+
+      await expectLater(
+        auth.exchangeCode('   '),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
     test('includes refresh token on refresh', () async {
       final client = _FakeApiClient();
       client.enqueue(

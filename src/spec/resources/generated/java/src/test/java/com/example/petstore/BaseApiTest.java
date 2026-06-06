@@ -765,6 +765,33 @@ class BaseApiTest {
     }
 
     @Test
+    @DisplayName("form-urlencoded body encodes space as + not %20")
+    void formUrlencodedBodyEncodesSpaceAsPlus() throws ApiException {
+      // form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
+      // is defined by the WHATWG/HTML form-encoding standard, which mandates
+      // '+' for a space (not RFC-3986 '%20'). URLEncoder.encode emits '+',
+      // keeping the wire bytes identical across all SDKs.
+      var client = new CapturingApiClient();
+      var testApi = new TestableApi(client, "http://localhost");
+      Map<String, String> formParams = new java.util.LinkedHashMap<>();
+      formParams.put("full name", "Ada Lovelace");
+      testApi.call(
+          "POST",
+          "/test/echo",
+          new HashMap<>(),
+          new HashMap<>(),
+          formParams,
+          new String[] {"application/json"},
+          "application/x-www-form-urlencoded",
+          null,
+          null);
+      assertNotNull(client.capturedBody);
+      String wire = client.capturedBody.toString();
+      assertEquals("full+name=Ada+Lovelace", wire);
+      assertFalse(wire.contains("%20"));
+    }
+
+    @Test
     @DisplayName("passes binary body as-is")
     void passesBinaryBody() throws ApiException {
       var client = new CapturingApiClient();
@@ -1341,6 +1368,32 @@ class BaseApiTest {
 
       assertEquals(200, response.statusCode());
       assertTrue(response.body().contains("success"));
+    }
+  }
+
+  @Nested
+  @DisplayName("TypedErrorBodyTests")
+  class TypedErrorBodyTests {
+
+    @Test
+    @DisplayName("getTypedErrorBody returns the error body cast to the requested type")
+    void returnsCastErrorBody() {
+      var category = new com.example.petstore.models.Category();
+      category.id = 42L;
+      category.name = "Dogs";
+      var ex = new BadRequestException("boom", Map.of(), "{\"id\":42,\"name\":\"Dogs\"}", category);
+      com.example.petstore.models.Category typed =
+          ex.getTypedErrorBody(com.example.petstore.models.Category.class);
+      assertNotNull(typed);
+      assertEquals(42L, typed.id);
+      assertEquals("Dogs", typed.name);
+    }
+
+    @Test
+    @DisplayName("getTypedErrorBody returns null when the error body is of a different type")
+    void returnsNullForMismatchedType() {
+      var ex = new BadRequestException("boom", Map.of(), "", null);
+      assertNull(ex.getTypedErrorBody(com.example.petstore.models.Category.class));
     }
   }
 }

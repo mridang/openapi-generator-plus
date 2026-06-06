@@ -394,6 +394,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             "tests/ClientTest.mustache",
                             "tests",
                             "ClientTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/ApiExceptionTest.mustache",
+                            "tests",
+                            "ApiExceptionTest.php"));
         }
     }
 

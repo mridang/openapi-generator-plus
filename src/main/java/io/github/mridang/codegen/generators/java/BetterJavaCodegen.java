@@ -411,6 +411,11 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                             "test/ClientTest.mustache",
                             testFolder,
                             "ClientTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ApiExceptionTest.mustache",
+                            testFolder,
+                            "ApiExceptionTest.java"));
             final String testModelsFolder = Path.of(testFolder, "models").toString();
             supportingFiles.add(
                     new SupportingFile(

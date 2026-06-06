@@ -52,6 +52,34 @@ void main() {
       );
     });
 
+    test('PetFood empty discriminator throws SerializationError', () {
+      // An empty discriminator value matches no listed mapping and must
+      // surface as a SerializationError, not route to a fitting variant.
+      final json = <String, dynamic>{'foodType': '', 'weightKg': 2.5};
+
+      expect(
+        () => PetFood.fromJson(json),
+        throwsA(isA<SerializationError>()),
+      );
+    });
+
+    test('PetFood unknown discriminator error names the offending value', () {
+      // CS4: the error message must surface the offending discriminator value
+      // so callers can diagnose server/spec drift.
+      final json = <String, dynamic>{'foodType': 'raw', 'calories': 300};
+
+      expect(
+        () => PetFood.fromJson(json),
+        throwsA(
+          isA<SerializationError>().having(
+            (e) => e.toString(),
+            'message',
+            contains('raw'),
+          ),
+        ),
+      );
+    });
+
     test('PetFood serialize dry food', () {
       final json = <String, dynamic>{'foodType': 'dry', 'weightKg': 2.5};
       final food = PetFood.fromJson(json);
