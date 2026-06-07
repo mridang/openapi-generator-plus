@@ -123,39 +123,22 @@ describe PetstoreClient::HeaderSelector do
       _(headers['Accept']).must_equal('text/html')
     end
 
-    it 'returns comma-separated list when no JSON types present' do
+    it 'joins media types in declaration order' do
       headers = @header_selector.select_headers(
-        ['text/html', 'text/plain'],
+        ['image/jpeg', 'image/png', 'application/json'],
         'application/json',
         false
       )
-      _(headers['Accept']).must_equal('text/html,text/plain')
+      _(headers['Accept']).must_equal('image/jpeg, image/png, application/json')
     end
 
-    it 'prioritizes application/json with quality weight' do
-      headers = @header_selector.select_headers(
-        ['text/html', 'application/json'],
-        'application/json',
-        false
-      )
-      accept = headers['Accept']
-      assert(accept.start_with?('application/json'), "Expected Accept to start with application/json, got: #{accept}")
-      _(accept).must_include('text/html')
-    end
-
-    it 'handles multiple JSON types with priority' do
+    it 'does not reorder or prioritize JSON types' do
       headers = @header_selector.select_headers(
         ['text/html', 'application/vnd.api+json', 'application/json'],
         'application/json',
         false
       )
-      accept = headers['Accept']
-      assert(accept.start_with?('application/json'), "Expected Accept to start with application/json, got: #{accept}")
-      json_index = accept.index('application/json')
-      vendor_json_index = accept.index('application/vnd.api+json')
-      html_index = accept.index('text/html')
-      assert(json_index < vendor_json_index, 'application/json should come before application/vnd.api+json')
-      assert(vendor_json_index < html_index, 'application/vnd.api+json should come before text/html')
+      _(headers['Accept']).must_equal('text/html, application/vnd.api+json, application/json')
     end
 
     it 'filters out empty entries' do
@@ -166,16 +149,6 @@ describe PetstoreClient::HeaderSelector do
       )
       _(headers['Accept']).must_equal('application/json')
     end
-
-    it 'preserves existing quality weights in order' do
-      headers = @header_selector.select_headers(
-        ['text/html;q=0.9', 'application/json', 'text/plain;q=0.8'],
-        'application/json',
-        false
-      )
-      accept = headers['Accept']
-      assert(accept.start_with?('application/json'), "Expected Accept to start with application/json, got: #{accept}")
-    end
   end
 
   describe '#select_accept_header (private)' do
@@ -183,8 +156,12 @@ describe PetstoreClient::HeaderSelector do
       _(@header_selector.send(:select_accept_header, nil)).must_be_nil
     end
 
-    it 'returns nil for empty array' do
-      _(@header_selector.send(:select_accept_header, [])).must_be_nil
+    it 'returns empty string when all entries are filtered out' do
+      _(@header_selector.send(:select_accept_header, ['', nil])).must_equal('')
+    end
+
+    it 'returns empty string for empty array' do
+      _(@header_selector.send(:select_accept_header, [])).must_equal('')
     end
 
     it 'returns single accept as-is' do
@@ -195,81 +172,14 @@ describe PetstoreClient::HeaderSelector do
       _(@header_selector.send(:select_accept_header, ['text/html'])).must_equal('text/html')
     end
 
-    it 'returns comma-separated list when no JSON types present' do
+    it 'joins media types in declaration order with ", "' do
+      result = @header_selector.send(:select_accept_header, ['image/jpeg', 'image/png', 'application/json'])
+      _(result).must_equal('image/jpeg, image/png, application/json')
+    end
+
+    it 'does not reorder or apply quality weights' do
       result = @header_selector.send(:select_accept_header, ['text/html', 'text/plain'])
-      _(result).must_equal('text/html,text/plain')
-    end
-  end
-
-  describe '#get_next_weight' do
-    it 'returns standard weight sequence for <= 28 headers' do
-      _(@header_selector.get_next_weight(1000, false)).must_equal(900)
-      _(@header_selector.get_next_weight(900, false)).must_equal(800)
-      _(@header_selector.get_next_weight(800, false)).must_equal(700)
-      _(@header_selector.get_next_weight(700, false)).must_equal(600)
-      _(@header_selector.get_next_weight(600, false)).must_equal(500)
-      _(@header_selector.get_next_weight(500, false)).must_equal(400)
-      _(@header_selector.get_next_weight(400, false)).must_equal(300)
-      _(@header_selector.get_next_weight(300, false)).must_equal(200)
-      _(@header_selector.get_next_weight(200, false)).must_equal(100)
-      _(@header_selector.get_next_weight(100, false)).must_equal(90)
-      _(@header_selector.get_next_weight(90, false)).must_equal(80)
-    end
-
-    it 'returns 1-by-1 decrement for > 28 headers' do
-      _(@header_selector.get_next_weight(1000, true)).must_equal(999)
-      _(@header_selector.get_next_weight(999, true)).must_equal(998)
-      _(@header_selector.get_next_weight(998, true)).must_equal(997)
-    end
-
-    it 'returns 1 when weight is 1 or less' do
-      _(@header_selector.get_next_weight(1, false)).must_equal(1)
-      _(@header_selector.get_next_weight(0, false)).must_equal(1)
-      _(@header_selector.get_next_weight(-1, false)).must_equal(1)
-    end
-
-    it 'produces exactly 27 steps from 1000 to 1' do
-      weight = 1000
-      count = 0
-      while weight > 1
-        weight = @header_selector.get_next_weight(weight, false)
-        count += 1
-      end
-      _(count).must_equal(27)
-    end
-  end
-
-  describe 'quality weight formatting' do
-    it 'does not add quality weight for weight 1000' do
-      headers = @header_selector.select_headers(
-        ['application/json', 'text/html'],
-        'application/json',
-        false
-      )
-      accept = headers['Accept']
-      assert(accept.start_with?('application/json,') || accept == 'application/json',
-        "Expected Accept to start with application/json, got: #{accept}")
-    end
-
-    it 'formats quality weight correctly' do
-      headers = @header_selector.select_headers(
-        ['application/json', 'text/html'],
-        'application/json',
-        false
-      )
-      accept = headers['Accept']
-      assert(accept.include?('text/html;q=0.9') || accept.include?('text/html;q=0.'),
-        "Expected Accept to include text/html with quality weight, got: #{accept}")
-    end
-
-    it 'removes trailing zeros from quality weight' do
-      headers = @header_selector.select_headers(
-        ['application/json', 'text/html'],
-        'application/json',
-        false
-      )
-      accept = headers['Accept']
-      _(accept).wont_include(';q=0.900')
+      _(result).must_equal('text/html, text/plain')
     end
   end
 end

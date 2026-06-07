@@ -14,9 +14,6 @@ module PetstoreClient
   # @api private
   class HeaderSelector # :nodoc:
     JSON_MIME_PATTERN = %r{^application/(json|[\w!\#$&.+\-^_]+\+json)\s*(;|$)}i
-    WEIGHT_PATTERN = /(.*)\s*;\s*q=(1(?:\.0+)?|0\.\d+)$/
-
-    HeaderData = Struct.new(:header, :weight).freeze
 
     # Select headers for an API request.
     #
@@ -29,7 +26,7 @@ module PetstoreClient
       headers = {}
 
       accept_header = select_accept_header(accept)
-      headers['Accept'] = accept_header unless accept_header.nil?
+      headers['Accept'] = accept_header unless accept_header.nil? || accept_header.empty?
 
       unless is_multipart
         content_type = 'application/json' if content_type.nil? || content_type.empty?
@@ -53,158 +50,20 @@ module PetstoreClient
 
     # Return the header 'Accept' based on an array of Accept provided.
     #
+    # Filters out nil and empty entries, then joins the remaining media
+    # types in their original declaration order with ", ". No quality
+    # weights are applied and no reordering is performed.
+    #
     # @param accept [Array<String>] Array of header
-    # @return [String, nil] Accept (e.g. application/json)
+    # @return [String, nil] Accept (e.g. "image/jpeg, image/png, application/json")
     def select_accept_header(accept)
       return nil if accept.nil?
 
       filtered_accept = accept.select { |s| !s.nil? && !s.empty? }
 
-      return nil if filtered_accept.empty?
-      return filtered_accept[0] if filtered_accept.size == 1
+      return '' if filtered_accept.empty?
 
-      headers_with_json = select_json_mime_list(filtered_accept)
-      return filtered_accept.join(',') if headers_with_json.empty?
-
-      get_accept_header_with_adjusted_weight(filtered_accept, headers_with_json)
-    end
-
-    # Select all items from a list containing a JSON mime type.
-    #
-    # @param mime_list [Array<String>] list of MIME types to filter
-    # @return [Array<String>] list containing only JSON MIME types
-    def select_json_mime_list(mime_list)
-      mime_list.select { |mime| json_mime?(mime) }
-    end
-
-    # Create an Accept header string from the given "Accept" headers array, recalculating all weights.
-    #
-    # @param accept [Array<String>] Array of Accept Headers
-    # @param headers_with_json [Array<String>] Array of Accept Headers of type "json"
-    # @return [String] "Accept" Header (e.g. "application/json, text/html; q=0.9")
-    def get_accept_header_with_adjusted_weight(accept, headers_with_json)
-      # @type var with_application_json: Array[untyped]
-      with_application_json = []
-      # @type var with_json: Array[untyped]
-      with_json = []
-      # @type var without_json: Array[untyped]
-      without_json = []
-
-      accept.each do |header|
-        header_data = get_header_and_weight(header)
-
-        if header_data.header.downcase.start_with?('application/json')
-          with_application_json << header_data
-        elsif headers_with_json.include?(header)
-          with_json << header_data
-        else
-          without_json << header_data
-        end
-      end
-
-      # @type var accept_headers: Array[String]
-      accept_headers = []
-      current_weight = [1000]
-
-      has_more_than_28_headers = accept.size > 28
-
-      [with_application_json, with_json, without_json].each do |group|
-        accept_headers.concat(adjust_weight(group, current_weight, has_more_than_28_headers)) unless group.empty?
-      end
-
-      accept_headers.join(',')
-    end
-
-    # Given an Accept header, returns the header and its weight.
-    #
-    # @param header [String] "Accept" Header
-    # @return [HeaderData] with the header and its weight
-    def get_header_and_weight(header)
-      match = WEIGHT_PATTERN.match(header)
-      if match
-        header_value = match[1]
-        weight = (match[2].to_f * 1000).to_i
-        HeaderData.new(header_value, weight)
-      else
-        HeaderData.new(header.strip, 1000)
-      end
-    end
-
-    # Adjust weights for a group of headers.
-    #
-    # @param headers [Array<HeaderData>] list of headers to process
-    # @param current_weight [Array<Integer>] array containing current weight (modified in place)
-    # @param has_more_than_28_headers [Boolean] whether there are more than 28 total headers
-    # @return [Array<String>] array of adjusted "Accept" headers
-    def adjust_weight(headers, current_weight, has_more_than_28_headers)
-      headers.sort_by! { |h| -h.weight }
-
-      # @type var accept_headers: Array[String]
-      accept_headers = []
-      headers.each_with_index do |header, index|
-        if index.positive? && headers[index - 1].weight > header.weight
-          current_weight[0] = get_next_weight(current_weight[0], has_more_than_28_headers)
-        end
-
-        weight = current_weight[0]
-        accept_headers << build_accept_header(header.header, weight)
-      end
-
-      current_weight[0] = get_next_weight(current_weight[0], has_more_than_28_headers)
-
-      accept_headers
-    end
-
-    # Build a single Accept header string with optional quality weight.
-    #
-    # @param header [String] the MIME type
-    # @param weight [Integer] the quality weight (scaled by 1000)
-    # @return [String] formatted header string
-    def build_accept_header(header, weight)
-      return header if weight == 1000
-
-      clean_header = header.gsub(/[;\s]+$/, '')
-      weight_str = format('%0.3f', weight / 1000.0).sub(/0+$/, '')
-      weight_str = weight_str[0..-2] if weight_str.end_with?('.')
-
-      "#{clean_header};q=#{weight_str}"
-    end
-
-    public
-
-    # Calculate the next weight, based on the current one.
-    #
-    # If there are less than 28 "Accept" headers, the weights will be
-    # decreased by 1 on its highest significant digit, using the
-    # following formula:
-    #
-    #    next weight = current weight - 10 ^ (floor(log(current weight - 1)))
-    #
-    #    ( current weight minus ( 10 raised to the power of
-    #      ( floor of (log to the base 10 of ( current weight - 1 ) ) ) ) )
-    #
-    # Starting from 1000, this generates the following series:
-    #
-    # 1000, 900, 800, 700, 600, 500, 400, 300, 200, 100,
-    # 90, 80, 70, 60, 50, 40, 30, 20, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
-    #
-    # The resulting quality codes are closer to the average "normal"
-    # usage of them (like "q=0.9", "q=0.8" and so on), but it only
-    # works if there is a maximum of 28 "Accept" headers. If we have
-    # more than that (which is extremely unlikely), then we fall back
-    # to a 1-by-1 decrement rule, which will result in quality codes
-    # like "q=0.999", "q=0.998" etc.
-    #
-    # @param current_weight [Integer] varying from 1 to 1000 (will be divided by 1000 to build the quality value)
-    # @param has_more_than_28_headers [Boolean] whether there are more than 28 headers
-    # @return [Integer] the next weight
-    def get_next_weight(current_weight, has_more_than_28_headers)
-      return 1 if current_weight <= 1
-      return current_weight - 1 if has_more_than_28_headers
-
-      # @type var step: Integer
-      step = (10**Math.log10(current_weight - 1).floor)
-      current_weight - step
+      filtered_accept.join(', ')
     end
   end
 end

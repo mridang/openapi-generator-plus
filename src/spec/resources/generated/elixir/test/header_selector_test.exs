@@ -86,113 +86,47 @@ defmodule PetstoreClient.HeaderSelectorTest do
       assert headers["Accept"] == "text/html"
     end
 
-    test "returns comma-separated list when no JSON types present" do
+    test "joins media types in declaration order with comma and space" do
+      headers =
+        PetstoreClient.HeaderSelector.select_headers(
+          ["image/jpeg", "image/png", "application/json"],
+          "application/json",
+          false
+        )
+
+      assert headers["Accept"] == "image/jpeg, image/png, application/json"
+    end
+
+    test "does not reorder or weight JSON types" do
+      headers =
+        PetstoreClient.HeaderSelector.select_headers(
+          ["text/html", "application/json"],
+          "application/json",
+          false
+        )
+
+      assert headers["Accept"] == "text/html, application/json"
+    end
+
+    test "joins media types when no JSON types present" do
       headers = PetstoreClient.HeaderSelector.select_headers(["text/html", "text/plain"], "application/json", false)
-      assert headers["Accept"] == "text/html,text/plain"
+      assert headers["Accept"] == "text/html, text/plain"
     end
 
-    test "prioritizes application/json with quality weight" do
+    test "filters out empty entries before joining" do
       headers =
-        PetstoreClient.HeaderSelector.select_headers(["text/html", "application/json"], "application/json", false)
+        PetstoreClient.HeaderSelector.select_headers(
+          ["", "image/png", nil, "application/json"],
+          "application/json",
+          false
+        )
 
-      accept = headers["Accept"]
-      assert String.starts_with?(accept, "application/json")
-      assert String.contains?(accept, "text/html")
+      assert headers["Accept"] == "image/png, application/json"
     end
 
-    test "filters out empty entries" do
-      headers = PetstoreClient.HeaderSelector.select_headers(["", "application/json", nil], "application/json", false)
+    test "returns single entry without separator" do
+      headers = PetstoreClient.HeaderSelector.select_headers(["application/json"], "application/json", false)
       assert headers["Accept"] == "application/json"
-    end
-
-    test "application/json has no quality suffix" do
-      headers =
-        PetstoreClient.HeaderSelector.select_headers(["application/json", "text/html"], "application/json", false)
-
-      accept = headers["Accept"]
-      assert accept != nil
-      assert String.starts_with?(accept, "application/json,") or accept == "application/json"
-    end
-
-    test "non-JSON types get lower quality weight" do
-      headers =
-        PetstoreClient.HeaderSelector.select_headers(["application/json", "text/html"], "application/json", false)
-
-      accept = headers["Accept"]
-      assert accept != nil
-      assert String.contains?(accept, "text/html;q=0.") or String.contains?(accept, "text/html;q=")
-    end
-
-    test "removes trailing zeros from quality weight" do
-      headers =
-        PetstoreClient.HeaderSelector.select_headers(["application/json", "text/html"], "application/json", false)
-
-      accept = headers["Accept"]
-      assert accept != nil
-      refute String.contains?(accept, ";q=0.900")
-    end
-
-    test "multiple JSON types ordered before non-JSON" do
-      headers =
-        PetstoreClient.HeaderSelector.select_headers(
-          ["text/html", "application/vnd.api+json", "application/json"],
-          "application/json",
-          false
-        )
-
-      accept = headers["Accept"]
-      assert accept != nil
-      json_idx = :binary.match(accept, "application/json") |> elem(0)
-      vendor_idx = :binary.match(accept, "application/vnd.api+json") |> elem(0)
-      html_idx = :binary.match(accept, "text/html") |> elem(0)
-      assert json_idx < vendor_idx
-      assert vendor_idx < html_idx
-    end
-
-    test "vendor JSON prioritized over non-JSON in accept header" do
-      headers =
-        PetstoreClient.HeaderSelector.select_headers(
-          ["text/plain", "application/vnd.api+json"],
-          "application/json",
-          false
-        )
-
-      accept = headers["Accept"]
-      assert accept != nil
-      vendor_idx = :binary.match(accept, "application/vnd.api+json") |> elem(0)
-      plain_idx = :binary.match(accept, "text/plain") |> elem(0)
-      assert vendor_idx < plain_idx
-    end
-  end
-
-  describe "get_next_weight/2" do
-    test "returns standard weight sequence for <= 28 headers" do
-      assert PetstoreClient.HeaderSelector.get_next_weight(1000, false) == 900
-      assert PetstoreClient.HeaderSelector.get_next_weight(900, false) == 800
-      assert PetstoreClient.HeaderSelector.get_next_weight(100, false) == 90
-    end
-
-    test "returns 1-by-1 decrement for > 28 headers" do
-      assert PetstoreClient.HeaderSelector.get_next_weight(1000, true) == 999
-      assert PetstoreClient.HeaderSelector.get_next_weight(999, true) == 998
-    end
-
-    test "returns 1 when weight is 1 or less" do
-      assert PetstoreClient.HeaderSelector.get_next_weight(1, false) == 1
-      assert PetstoreClient.HeaderSelector.get_next_weight(0, false) == 1
-    end
-
-    test "produces exactly 27 steps from 1000 to 1" do
-      {count, _} =
-        Enum.reduce_while(1..100, {0, 1000}, fn _, {count, weight} ->
-          if weight > 1 do
-            {:cont, {count + 1, PetstoreClient.HeaderSelector.get_next_weight(weight, false)}}
-          else
-            {:halt, {count, weight}}
-          end
-        end)
-
-      assert count == 27
     end
   end
 end

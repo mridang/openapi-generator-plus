@@ -12,7 +12,6 @@ defmodule PetstoreClient.HeaderSelector do
   # public API.
 
   @json_mime_pattern ~r/^application\/(json|[\w!\#$&.+\-^_]+\+json)\s*(;|$)/i
-  @weight_pattern ~r/(.*)\s*;\s*q=(1(?:\.0+)?|0\.\d+)$/
 
   @doc """
   Select headers for an API request.
@@ -78,130 +77,8 @@ defmodule PetstoreClient.HeaderSelector do
     filtered = Enum.filter(accept, fn s -> not is_nil(s) and s != "" end)
 
     case filtered do
-      [] ->
-        nil
-
-      [single] ->
-        single
-
-      _ ->
-        headers_with_json = Enum.filter(filtered, &json_mime?/1)
-
-        if headers_with_json == [] do
-          Enum.join(filtered, ",")
-        else
-          get_accept_header_with_adjusted_weight(filtered, headers_with_json)
-        end
+      [] -> nil
+      _ -> Enum.join(filtered, ", ")
     end
-  end
-
-  defp get_accept_header_with_adjusted_weight(accept, headers_with_json) do
-    {with_application_json, with_json, without_json} =
-      Enum.reduce(accept, {[], [], []}, fn header, {app_json, json, no_json} ->
-        header_data = get_header_and_weight(header)
-
-        cond do
-          String.starts_with?(String.downcase(header_data.header), "application/json") ->
-            {app_json ++ [header_data], json, no_json}
-
-          header in headers_with_json ->
-            {app_json, json ++ [header_data], no_json}
-
-          true ->
-            {app_json, json, no_json ++ [header_data]}
-        end
-      end)
-
-    has_more_than_28 = length(accept) > 28
-
-    {accept_headers, _weight} =
-      [with_application_json, with_json, without_json]
-      |> Enum.reject(&(&1 == []))
-      |> Enum.reduce({[], 1000}, fn group, {acc, current_weight} ->
-        {adjusted, new_weight} = adjust_weight(group, current_weight, has_more_than_28)
-        {acc ++ adjusted, new_weight}
-      end)
-
-    Enum.join(accept_headers, ",")
-  end
-
-  defp get_header_and_weight(header) do
-    case Regex.run(@weight_pattern, header) do
-      [_, header_value, weight_str] ->
-        weight = (String.to_float(ensure_float_format(weight_str)) * 1000) |> trunc()
-        %{header: header_value, weight: weight}
-
-      _ ->
-        %{header: String.trim(header), weight: 1000}
-    end
-  end
-
-  defp ensure_float_format(str) do
-    if String.contains?(str, ".") do
-      str
-    else
-      str <> ".0"
-    end
-  end
-
-  defp adjust_weight(headers, current_weight, has_more_than_28) do
-    sorted = Enum.sort_by(headers, & &1.weight, :desc)
-
-    {accept_headers, weight} =
-      sorted
-      |> Enum.with_index()
-      |> Enum.reduce({[], current_weight}, fn {header, index}, {acc, w} ->
-        w =
-          if index > 0 do
-            prev = Enum.at(sorted, index - 1)
-
-            if prev.weight > header.weight do
-              get_next_weight(w, has_more_than_28)
-            else
-              w
-            end
-          else
-            w
-          end
-
-        {acc ++ [build_accept_header(header.header, w)], w}
-      end)
-
-    {accept_headers, get_next_weight(weight, has_more_than_28)}
-  end
-
-  defp build_accept_header(header, 1000) do
-    header
-  end
-
-  defp build_accept_header(header, weight) do
-    clean_header = String.replace(header, ~r/[;\s]+$/, "")
-    weight_str = :erlang.float_to_binary(weight / 1000.0, decimals: 3)
-    weight_str = String.replace_trailing(weight_str, "0", "")
-    weight_str = String.replace_trailing(weight_str, ".", "")
-    "#{clean_header};q=#{weight_str}"
-  end
-
-  @doc """
-  Calculate the next weight, based on the current one.
-
-  If there are fewer than 28 "Accept" headers, the weights will be
-  decreased by 1 on the highest significant digit. Starting from 1000,
-  this generates the series: 1000, 900, 800, ..., 100, 90, 80, ..., 10, 9, 8, ..., 1.
-
-  For more than 28 headers, falls back to 1-by-1 decrement.
-  """
-  @spec get_next_weight(integer(), boolean()) :: integer()
-  def get_next_weight(current_weight, _has_more_than_28) when current_weight <= 1 do
-    1
-  end
-
-  def get_next_weight(current_weight, true) do
-    current_weight - 1
-  end
-
-  def get_next_weight(current_weight, false) do
-    step = :math.pow(10, :math.log10(current_weight - 1) |> floor()) |> trunc()
-    current_weight - step
   end
 end

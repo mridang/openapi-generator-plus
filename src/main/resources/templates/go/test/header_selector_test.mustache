@@ -2,7 +2,6 @@
 package {{packageName}}
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -35,6 +34,51 @@ func TestHeaderSelector_IsJSONMIME(t *testing.T) {
 	}
 }
 
+func TestHeaderSelector_SelectAcceptHeaderJoinsInDeclarationOrder(t *testing.T) {
+	t.Parallel()
+	hs := newHeaderSelector()
+
+	accept := hs.selectAcceptHeader([]string{"image/jpeg", "image/png", "application/json"})
+
+	if accept != "image/jpeg, image/png, application/json" {
+		t.Errorf("expected 'image/jpeg, image/png, application/json', got %q", accept)
+	}
+}
+
+func TestHeaderSelector_SelectAcceptHeaderSingleElement(t *testing.T) {
+	t.Parallel()
+	hs := newHeaderSelector()
+
+	accept := hs.selectAcceptHeader([]string{"application/json"})
+
+	if accept != "application/json" {
+		t.Errorf("expected 'application/json', got %q", accept)
+	}
+}
+
+func TestHeaderSelector_SelectAcceptHeaderFiltersEmptyEntries(t *testing.T) {
+	t.Parallel()
+	hs := newHeaderSelector()
+
+	accept := hs.selectAcceptHeader([]string{"", "application/json", ""})
+
+	if accept != "application/json" {
+		t.Errorf("expected 'application/json', got %q", accept)
+	}
+}
+
+func TestHeaderSelector_SelectAcceptHeaderEmptyWhenNothingRemains(t *testing.T) {
+	t.Parallel()
+	hs := newHeaderSelector()
+
+	if accept := hs.selectAcceptHeader([]string{"", ""}); accept != "" {
+		t.Errorf("expected empty Accept header, got %q", accept)
+	}
+	if accept := hs.selectAcceptHeader([]string{}); accept != "" {
+		t.Errorf("expected empty Accept header, got %q", accept)
+	}
+}
+
 func TestHeaderSelector_SelectHeadersWithSingleAccept(t *testing.T) {
 	t.Parallel()
 	hs := newHeaderSelector()
@@ -55,9 +99,8 @@ func TestHeaderSelector_SelectHeadersWithMultipleAccepts(t *testing.T) {
 
 	headers := hs.selectHeaders([]string{"application/json", "application/xml"}, "application/json", false)
 
-	accept := headers["Accept"]
-	if !strings.Contains(accept, "application/json") {
-		t.Errorf("expected Accept to contain 'application/json', got %q", accept)
+	if headers["Accept"] != "application/json, application/xml" {
+		t.Errorf("expected Accept 'application/json, application/xml', got %q", headers["Accept"])
 	}
 }
 
@@ -94,53 +137,6 @@ func TestHeaderSelector_SelectHeadersDefaultContentType(t *testing.T) {
 	}
 }
 
-func TestHeaderSelector_QualityWeighting(t *testing.T) {
-	t.Parallel()
-	hs := newHeaderSelector()
-
-	// When multiple JSON and non-JSON types are provided, JSON types should be
-	// preferred with higher quality weights
-	headers := hs.selectHeaders(
-		[]string{"application/json", "application/xml", "text/plain"},
-		"application/json",
-		false,
-	)
-
-	accept := headers["Accept"]
-	if accept == "" {
-		t.Fatal("expected non-empty Accept header")
-	}
-
-	// application/json should appear first (highest priority)
-	jsonIdx := strings.Index(accept, "application/json")
-	xmlIdx := strings.Index(accept, "application/xml")
-	if jsonIdx < 0 {
-		t.Error("expected application/json in Accept header")
-	}
-	if xmlIdx < 0 {
-		t.Error("expected application/xml in Accept header")
-	}
-	if jsonIdx > xmlIdx {
-		t.Error("expected application/json to appear before application/xml")
-	}
-}
-
-func TestHeaderSelector_SelectHeadersWithVendorJSON(t *testing.T) {
-	t.Parallel()
-	hs := newHeaderSelector()
-
-	headers := hs.selectHeaders(
-		[]string{"application/vnd.api+json", "application/xml"},
-		"application/json",
-		false,
-	)
-
-	accept := headers["Accept"]
-	if !strings.Contains(accept, "application/vnd.api+json") {
-		t.Errorf("expected Accept to contain vendor JSON MIME, got %q", accept)
-	}
-}
-
 func TestHeaderSelector_SelectHeadersSingleNonJSONAcceptAsIs(t *testing.T) {
 	t.Parallel()
 	hs := newHeaderSelector()
@@ -152,42 +148,6 @@ func TestHeaderSelector_SelectHeadersSingleNonJSONAcceptAsIs(t *testing.T) {
 	}
 }
 
-func TestHeaderSelector_SelectHeadersCommaSeparatedWhenNoJSON(t *testing.T) {
-	t.Parallel()
-	hs := newHeaderSelector()
-
-	headers := hs.selectHeaders([]string{"text/html", "text/plain"}, "application/json", false)
-
-	if headers["Accept"] != "text/html,text/plain" {
-		t.Errorf("expected Accept 'text/html,text/plain', got %q", headers["Accept"])
-	}
-}
-
-func TestHeaderSelector_SelectHeadersMultipleJSONTypesWithPriority(t *testing.T) {
-	t.Parallel()
-	hs := newHeaderSelector()
-
-	headers := hs.selectHeaders(
-		[]string{"text/html", "application/vnd.api+json", "application/json"},
-		"application/json",
-		false,
-	)
-
-	accept := headers["Accept"]
-	if !strings.HasPrefix(accept, "application/json") {
-		t.Errorf("expected Accept to start with application/json, got %q", accept)
-	}
-	jsonIdx := strings.Index(accept, "application/json")
-	vendorIdx := strings.Index(accept, "application/vnd.api+json")
-	htmlIdx := strings.Index(accept, "text/html")
-	if !(jsonIdx < vendorIdx) {
-		t.Error("expected application/json to appear before application/vnd.api+json")
-	}
-	if !(vendorIdx < htmlIdx) {
-		t.Error("expected application/vnd.api+json to appear before text/html")
-	}
-}
-
 func TestHeaderSelector_SelectHeadersFiltersOutEmptyEntries(t *testing.T) {
 	t.Parallel()
 	hs := newHeaderSelector()
@@ -196,132 +156,5 @@ func TestHeaderSelector_SelectHeadersFiltersOutEmptyEntries(t *testing.T) {
 
 	if headers["Accept"] != "application/json" {
 		t.Errorf("expected Accept 'application/json', got %q", headers["Accept"])
-	}
-}
-
-func TestHeaderSelector_SelectHeadersPreservesExistingQualityWeightsInOrder(t *testing.T) {
-	t.Parallel()
-	hs := newHeaderSelector()
-
-	headers := hs.selectHeaders(
-		[]string{"text/html;q=0.9", "application/json", "text/plain;q=0.8"},
-		"application/json",
-		false,
-	)
-
-	accept := headers["Accept"]
-	if !strings.HasPrefix(accept, "application/json") {
-		t.Errorf("expected Accept to start with application/json, got %q", accept)
-	}
-}
-
-func TestHeaderSelector_SelectHeadersFormatsQualityWeightCorrectly(t *testing.T) {
-	t.Parallel()
-	hs := newHeaderSelector()
-
-	headers := hs.selectHeaders([]string{"application/json", "text/html"}, "application/json", false)
-
-	accept := headers["Accept"]
-	if !strings.Contains(accept, "text/html;q=0.9") && !strings.Contains(accept, "text/html;q=0.") {
-		t.Errorf("expected Accept to contain text/html with quality weight, got %q", accept)
-	}
-}
-
-func TestHeaderSelector_SelectHeadersRemovesTrailingZeros(t *testing.T) {
-	t.Parallel()
-	hs := newHeaderSelector()
-
-	headers := hs.selectHeaders([]string{"application/json", "text/html"}, "application/json", false)
-
-	accept := headers["Accept"]
-	if strings.Contains(accept, ";q=0.900") {
-		t.Errorf("expected no trailing-zero quality weight, got %q", accept)
-	}
-}
-
-func TestHeaderSelector_GetNextWeight_StandardSequence(t *testing.T) {
-	t.Parallel()
-	hs := newHeaderSelector()
-
-	testCases := []struct {
-		input    int
-		expected int
-	}{
-		{1000, 900},
-		{900, 800},
-		{800, 700},
-		{700, 600},
-		{600, 500},
-		{500, 400},
-		{400, 300},
-		{300, 200},
-		{200, 100},
-		{100, 90},
-		{90, 80},
-	}
-
-	for _, tc := range testCases {
-		result := hs.getNextWeight(tc.input, false)
-		if result != tc.expected {
-			t.Errorf("GetNextWeight(%d, false) = %d, want %d", tc.input, result, tc.expected)
-		}
-	}
-}
-
-func TestHeaderSelector_GetNextWeight_MoreThan28Headers(t *testing.T) {
-	t.Parallel()
-	hs := newHeaderSelector()
-
-	testCases := []struct {
-		input    int
-		expected int
-	}{
-		{1000, 999},
-		{999, 998},
-		{998, 997},
-	}
-
-	for _, tc := range testCases {
-		result := hs.getNextWeight(tc.input, true)
-		if result != tc.expected {
-			t.Errorf("GetNextWeight(%d, true) = %d, want %d", tc.input, result, tc.expected)
-		}
-	}
-}
-
-func TestHeaderSelector_GetNextWeight_MinimumWeight(t *testing.T) {
-	t.Parallel()
-	hs := newHeaderSelector()
-
-	testCases := []struct {
-		input    int
-		expected int
-	}{
-		{1, 1},
-		{0, 1},
-		{-1, 1},
-	}
-
-	for _, tc := range testCases {
-		result := hs.getNextWeight(tc.input, false)
-		if result != tc.expected {
-			t.Errorf("GetNextWeight(%d, false) = %d, want %d", tc.input, result, tc.expected)
-		}
-	}
-}
-
-func TestHeaderSelector_GetNextWeight_Produces27Steps(t *testing.T) {
-	t.Parallel()
-	hs := newHeaderSelector()
-
-	weight := 1000
-	count := 0
-	for weight > 1 {
-		weight = hs.getNextWeight(weight, false)
-		count++
-	}
-
-	if count != 27 {
-		t.Errorf("expected 27 steps from 1000 to 1, got %d", count)
 	}
 }

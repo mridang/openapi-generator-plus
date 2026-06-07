@@ -11,16 +11,10 @@ use std::sync::OnceLock;
 use regex::Regex;
 
 static JSON_MIME_RE: OnceLock<Regex> = OnceLock::new();
-static WEIGHT_RE: OnceLock<Regex> = OnceLock::new();
 
 /// HeaderSelector selects Accept and Content-Type headers for API requests
 /// based on the MIME types declared in the OpenAPI specification.
 pub struct HeaderSelector;
-
-struct HeaderData {
-    header: String,
-    weight: i32,
-}
 
 impl HeaderSelector {
     /// Creates a new HeaderSelector instance.
@@ -71,145 +65,18 @@ impl HeaderSelector {
         pattern.is_match(search_string)
     }
 
+    /// Builds the `Accept` request header by joining the acceptable media types
+    /// in their original declaration order, separated by `", "`. Empty entries
+    /// are filtered out. No quality weights are applied and no reordering is
+    /// performed.
     fn select_accept_header(&self, accept: &[&str]) -> String {
-        if accept.is_empty() {
-            return String::new();
-        }
-
         let filtered: Vec<&str> = accept.iter().filter(|s| !s.is_empty()).copied().collect();
 
         if filtered.is_empty() {
             return String::new();
         }
-        if filtered.len() == 1 {
-            return filtered[0].to_string();
-        }
 
-        let headers_with_json = self.select_json_mime_list(&filtered);
-        if headers_with_json.is_empty() {
-            return filtered.join(",");
-        }
-
-        self.get_accept_header_with_adjusted_weight(&filtered, &headers_with_json)
-    }
-
-    fn select_json_mime_list(&self, mime_list: &[&str]) -> Vec<String> {
-        mime_list
-            .iter()
-            .filter(|mime| self.is_json_mime(mime))
-            .map(|s| s.to_string())
-            .collect()
-    }
-
-    fn get_accept_header_with_adjusted_weight(
-        &self,
-        accept: &[&str],
-        headers_with_json: &[String],
-    ) -> String {
-        let json_set: std::collections::HashSet<&str> =
-            headers_with_json.iter().map(|s| s.as_str()).collect();
-
-        let mut with_application_json: Vec<HeaderData> = Vec::new();
-        let mut with_json: Vec<HeaderData> = Vec::new();
-        let mut without_json: Vec<HeaderData> = Vec::new();
-
-        for header in accept {
-            let hd = self.get_header_and_weight(header);
-            let lower_header = hd.header.to_lowercase();
-
-            if lower_header.starts_with("application/json") {
-                with_application_json.push(hd);
-            } else if json_set.contains(*header) {
-                with_json.push(hd);
-            } else {
-                without_json.push(hd);
-            }
-        }
-
-        let mut accept_headers: Vec<String> = Vec::new();
-        let mut current_weight: i32 = 1000;
-        let has_more_than_28_headers = accept.len() > 28;
-
-        let groups = vec![
-            &mut with_application_json,
-            &mut with_json,
-            &mut without_json,
-        ];
-        for group in groups {
-            if !group.is_empty() {
-                let adjusted =
-                    self.adjust_weight(group, &mut current_weight, has_more_than_28_headers);
-                accept_headers.extend(adjusted);
-            }
-        }
-
-        accept_headers.join(",")
-    }
-
-    fn get_header_and_weight(&self, header: &str) -> HeaderData {
-        let weight_pattern =
-            WEIGHT_RE.get_or_init(|| Regex::new(r"(.*)\s*;\s*q=(1(?:\.0+)?|0\.\d+)$").unwrap());
-        if let Some(caps) = weight_pattern.captures(header) {
-            let weight: f64 = caps[2].parse().unwrap_or(1.0);
-            HeaderData {
-                header: caps[1].to_string(),
-                weight: (weight * 1000.0) as i32,
-            }
-        } else {
-            HeaderData {
-                header: header.trim().to_string(),
-                weight: 1000,
-            }
-        }
-    }
-
-    fn adjust_weight(
-        &self,
-        headers: &mut Vec<HeaderData>,
-        current_weight: &mut i32,
-        has_more_than_28_headers: bool,
-    ) -> Vec<String> {
-        /* Sort by weight descending (stable sort) */
-        headers.sort_by_key(|h| std::cmp::Reverse(h.weight));
-
-        let mut accept_headers: Vec<String> = Vec::new();
-        for i in 0..headers.len() {
-            if i > 0 && headers[i - 1].weight > headers[i].weight {
-                *current_weight = self.get_next_weight(*current_weight, has_more_than_28_headers);
-            }
-
-            accept_headers.push(self.build_accept_header(&headers[i].header, *current_weight));
-        }
-
-        *current_weight = self.get_next_weight(*current_weight, has_more_than_28_headers);
-        accept_headers
-    }
-
-    fn build_accept_header(&self, header: &str, weight: i32) -> String {
-        if weight == 1000 {
-            return header.to_string();
-        }
-
-        let clean_header = header.trim_end_matches(|c| c == ';' || c == ' ');
-        let weight_val = weight as f64 / 1000.0;
-        let weight_str = format!("{:.3}", weight_val)
-            .trim_end_matches('0')
-            .trim_end_matches('.')
-            .to_string();
-
-        format!("{};q={}", clean_header, weight_str)
-    }
-
-    pub fn get_next_weight(&self, current_weight: i32, has_more_than_28_headers: bool) -> i32 {
-        if current_weight <= 1 {
-            return 1;
-        }
-        if has_more_than_28_headers {
-            return current_weight - 1;
-        }
-
-        let step = 10_f64.powf(((current_weight - 1) as f64).log10().floor()) as i32;
-        current_weight - step
+        filtered.join(", ")
     }
 }
 
@@ -295,47 +162,44 @@ mod tests {
     }
 
     #[test]
-    fn test_header_selector_quality_weighting() {
+    fn test_header_selector_joins_in_declaration_order() {
         let hs = HeaderSelector::new();
 
         let headers = hs.select_headers(
-            &["application/json", "application/xml", "text/plain"],
+            &["image/jpeg", "image/png", "application/json"],
             "application/json",
             false,
         );
 
-        let accept = headers.get("Accept").unwrap();
-        assert!(!accept.is_empty(), "expected non-empty Accept header");
-
-        // application/json should appear first (highest priority)
-        let json_idx = accept.find("application/json");
-        let xml_idx = accept.find("application/xml");
-        assert!(
-            json_idx.is_some(),
-            "expected application/json in Accept header"
-        );
-        assert!(
-            xml_idx.is_some(),
-            "expected application/xml in Accept header"
-        );
-        assert!(
-            json_idx.unwrap() < xml_idx.unwrap(),
-            "expected application/json to appear before application/xml"
+        assert_eq!(
+            headers.get("Accept").unwrap(),
+            "image/jpeg, image/png, application/json"
         );
     }
 
     #[test]
-    fn test_header_selector_with_vendor_json() {
+    fn test_header_selector_single_element() {
+        let hs = HeaderSelector::new();
+
+        let headers = hs.select_headers(&["application/json"], "application/json", false);
+
+        assert_eq!(headers.get("Accept").unwrap(), "application/json");
+    }
+
+    #[test]
+    fn test_header_selector_does_not_reorder_or_weight() {
         let hs = HeaderSelector::new();
 
         let headers = hs.select_headers(
-            &["application/vnd.api+json", "application/xml"],
+            &["text/html", "application/vnd.api+json", "application/json"],
             "application/json",
             false,
         );
 
-        let accept = headers.get("Accept").unwrap();
-        assert!(accept.contains("application/vnd.api+json"));
+        assert_eq!(
+            headers.get("Accept").unwrap(),
+            "text/html, application/vnd.api+json, application/json"
+        );
     }
 
     #[test]
@@ -355,127 +219,36 @@ mod tests {
     }
 
     #[test]
-    fn test_header_selector_comma_separated_when_no_json() {
+    fn test_header_selector_comma_space_separated() {
         let hs = HeaderSelector::new();
 
         let headers = hs.select_headers(&["text/html", "text/plain"], "application/json", false);
 
-        assert_eq!(headers.get("Accept").unwrap(), "text/html,text/plain");
-    }
-
-    #[test]
-    fn test_header_selector_multiple_json_types_with_priority() {
-        let hs = HeaderSelector::new();
-
-        let headers = hs.select_headers(
-            &["text/html", "application/vnd.api+json", "application/json"],
-            "application/json",
-            false,
-        );
-
-        let accept = headers.get("Accept").unwrap();
-        assert!(accept.starts_with("application/json"));
-        let json_idx = accept.find("application/json").unwrap();
-        let vendor_idx = accept.find("application/vnd.api+json").unwrap();
-        let html_idx = accept.find("text/html").unwrap();
-        assert!(json_idx < vendor_idx);
-        assert!(vendor_idx < html_idx);
+        assert_eq!(headers.get("Accept").unwrap(), "text/html, text/plain");
     }
 
     #[test]
     fn test_header_selector_filters_out_empty_entries() {
         let hs = HeaderSelector::new();
 
-        let headers = hs.select_headers(&["", "application/json"], "application/json", false);
-
-        assert_eq!(headers.get("Accept").unwrap(), "application/json");
-    }
-
-    #[test]
-    fn test_header_selector_preserves_existing_quality_weights_in_order() {
-        let hs = HeaderSelector::new();
-
         let headers = hs.select_headers(
-            &["text/html;q=0.9", "application/json", "text/plain;q=0.8"],
+            &["", "application/json", "", "application/xml"],
             "application/json",
             false,
         );
 
-        assert!(
-            headers
-                .get("Accept")
-                .unwrap()
-                .starts_with("application/json")
+        assert_eq!(
+            headers.get("Accept").unwrap(),
+            "application/json, application/xml"
         );
     }
 
     #[test]
-    fn test_header_selector_formats_quality_weight_correctly() {
+    fn test_header_selector_all_empty_omits_accept() {
         let hs = HeaderSelector::new();
 
-        let headers = hs.select_headers(
-            &["application/json", "text/html"],
-            "application/json",
-            false,
-        );
+        let headers = hs.select_headers(&["", ""], "application/json", false);
 
-        let accept = headers.get("Accept").unwrap();
-        assert!(
-            accept.contains("text/html;q=0.9") || accept.contains("text/html;q=0."),
-            "expected text/html with quality weight, got {accept}"
-        );
-    }
-
-    #[test]
-    fn test_header_selector_removes_trailing_zeros_from_quality_weight() {
-        let hs = HeaderSelector::new();
-
-        let headers = hs.select_headers(
-            &["application/json", "text/html"],
-            "application/json",
-            false,
-        );
-
-        assert!(!headers.get("Accept").unwrap().contains(";q=0.900"));
-    }
-
-    #[test]
-    fn test_get_next_weight_standard_sequence() {
-        let hs = HeaderSelector::new();
-
-        assert_eq!(hs.get_next_weight(1000, false), 900);
-        assert_eq!(hs.get_next_weight(900, false), 800);
-        assert_eq!(hs.get_next_weight(200, false), 100);
-        assert_eq!(hs.get_next_weight(100, false), 90);
-        assert_eq!(hs.get_next_weight(90, false), 80);
-    }
-
-    #[test]
-    fn test_get_next_weight_more_than_28_headers() {
-        let hs = HeaderSelector::new();
-
-        assert_eq!(hs.get_next_weight(1000, true), 999);
-        assert_eq!(hs.get_next_weight(999, true), 998);
-        assert_eq!(hs.get_next_weight(998, true), 997);
-    }
-
-    #[test]
-    fn test_get_next_weight_minimum() {
-        let hs = HeaderSelector::new();
-
-        assert_eq!(hs.get_next_weight(1, false), 1);
-        assert_eq!(hs.get_next_weight(0, false), 1);
-        assert_eq!(hs.get_next_weight(-1, false), 1);
-    }
-
-    #[test]
-    fn test_get_next_weight_27_steps() {
-        let hs = HeaderSelector::new();
-
-        let mut weight = 1000;
-        for _ in 0..27 {
-            weight = hs.get_next_weight(weight, false);
-        }
-        assert_eq!(weight, 1);
+        assert!(!headers.contains_key("Accept"));
     }
 }

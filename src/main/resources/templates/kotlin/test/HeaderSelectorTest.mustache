@@ -100,32 +100,21 @@ class HeaderSelectorTest {
         }
 
         @Test
-        @DisplayName("joins multiple non-JSON accepts with comma")
-        fun joinsMultipleNonJsonAccepts() {
+        @DisplayName("joins media types in declaration order with comma-space")
+        fun joinsInDeclarationOrder() {
             val headers = selector.selectHeaders(
-                arrayOf("text/html", "text/plain"),
+                arrayOf("image/jpeg", "image/png", "application/json"),
                 "application/json",
                 false
             )
-            assertEquals("text/html,text/plain", headers["Accept"])
+            assertEquals("image/jpeg, image/png, application/json", headers["Accept"])
         }
 
         @Test
-        @DisplayName("returns single non-JSON accept as-is")
-        fun returnsSingleNonJsonAcceptAsIs() {
+        @DisplayName("returns single accept as-is")
+        fun returnsSingleAcceptAsIs() {
             val headers = selector.selectHeaders(
-                arrayOf("text/html"),
-                "application/json",
-                false
-            )
-            assertEquals("text/html", headers["Accept"])
-        }
-
-        @Test
-        @DisplayName("filters out empty entries")
-        fun filtersOutEmptyEntries() {
-            val headers = selector.selectHeaders(
-                arrayOf("", "application/json"),
+                arrayOf("application/json"),
                 "application/json",
                 false
             )
@@ -133,16 +122,50 @@ class HeaderSelectorTest {
         }
 
         @Test
-        @DisplayName("preserves existing quality weights in order")
-        fun preservesExistingQualityWeightsInOrder() {
+        @DisplayName("does not reorder or JSON-prioritize")
+        fun doesNotReorderOrPrioritizeJson() {
             val headers = selector.selectHeaders(
-                arrayOf("text/html;q=0.9", "application/json", "text/plain;q=0.8"),
+                arrayOf("text/html", "application/json", "text/plain"),
+                "application/json",
+                false
+            )
+            assertEquals("text/html, application/json, text/plain", headers["Accept"])
+        }
+
+        @Test
+        @DisplayName("does not add quality weights")
+        fun doesNotAddQualityWeights() {
+            val headers = selector.selectHeaders(
+                arrayOf("application/json", "text/html"),
                 "application/json",
                 false
             )
             val accept = headers["Accept"]
             assertNotNull(accept)
-            assertTrue(accept!!.startsWith("application/json"))
+            assertFalse(accept!!.contains("q="))
+            assertEquals("application/json, text/html", accept)
+        }
+
+        @Test
+        @DisplayName("filters out empty and blank entries")
+        fun filtersOutEmptyAndBlankEntries() {
+            val headers = selector.selectHeaders(
+                arrayOf("", "image/jpeg", "   ", "application/json"),
+                "application/json",
+                false
+            )
+            assertEquals("image/jpeg, application/json", headers["Accept"])
+        }
+
+        @Test
+        @DisplayName("returns null Accept when only blank entries")
+        fun returnsNullAcceptWhenOnlyBlank() {
+            val headers = selector.selectHeaders(
+                arrayOf("", "   "),
+                "application/json",
+                false
+            )
+            assertNull(headers["Accept"])
         }
 
         @Test
@@ -213,146 +236,32 @@ class HeaderSelectorTest {
     }
 
     @Nested
-    @DisplayName("quality weighting")
-    inner class QualityWeighting {
+    @DisplayName("declaration-order Accept join")
+    inner class DeclarationOrderJoin {
 
         @Test
-        @DisplayName("prioritizes application/json with quality weight")
-        fun prioritizesApplicationJsonWithQualityWeight() {
-            val headers = selector.selectHeaders(
-                arrayOf("text/html", "application/json"),
-                "application/json",
-                false
-            )
-            val accept = headers["Accept"]
-            assertNotNull(accept)
-            assertTrue(accept!!.startsWith("application/json"))
-            assertTrue(accept.contains("text/html"))
-        }
-
-        @Test
-        @DisplayName("application/json has no quality suffix at weight 1000")
-        fun applicationJsonHasNoQualitySuffix() {
-            val headers = selector.selectHeaders(
-                arrayOf("application/json", "text/html"),
-                "application/json",
-                false
-            )
-            val accept = headers["Accept"]
-            assertNotNull(accept)
-            assertTrue(
-                accept!!.startsWith("application/json,") || accept == "application/json"
-            )
-        }
-
-        @Test
-        @DisplayName("non-JSON types get lower quality weight")
-        fun nonJsonTypesGetLowerWeight() {
-            val headers = selector.selectHeaders(
-                arrayOf("application/json", "text/html"),
-                "application/json",
-                false
-            )
-            val accept = headers["Accept"]
-            assertNotNull(accept)
-            assertTrue(accept!!.contains("text/html;q=0.9") || accept.contains("text/html;q=0."))
-        }
-
-        @Test
-        @DisplayName("removes trailing zeros from quality weight")
-        fun removesTrailingZeros() {
-            val headers = selector.selectHeaders(
-                arrayOf("application/json", "text/html"),
-                "application/json",
-                false
-            )
-            val accept = headers["Accept"]
-            assertNotNull(accept)
-            assertFalse(accept!!.contains(";q=0.900"))
-        }
-
-        @Test
-        @DisplayName("multiple JSON types ordered before non-JSON types")
-        fun multipleJsonTypesOrderedBeforeNonJson() {
+        @DisplayName("joins mixed types in declaration order without weights")
+        fun joinsMixedTypesInDeclarationOrder() {
             val headers = selector.selectHeaders(
                 arrayOf("text/html", "application/vnd.api+json", "application/json"),
                 "application/json",
                 false
             )
-            val accept = headers["Accept"]
-            assertNotNull(accept)
-            val jsonIndex = accept!!.indexOf("application/json")
-            val vendorIndex = accept.indexOf("application/vnd.api+json")
-            val htmlIndex = accept.indexOf("text/html")
-            assertTrue(jsonIndex < vendorIndex)
-            assertTrue(vendorIndex < htmlIndex)
-        }
-    }
-
-    @Nested
-    @DisplayName("vendor JSON")
-    inner class VendorJson {
-
-        @Test
-        @DisplayName("vendor JSON type is recognized as JSON")
-        fun vendorJsonIsRecognized() {
-            assertTrue(selector.isJsonMime("application/vnd.api+json"))
+            assertEquals(
+                "text/html, application/vnd.api+json, application/json",
+                headers["Accept"]
+            )
         }
 
         @Test
-        @DisplayName("vendor JSON prioritized over non-JSON in accept header")
-        fun vendorJsonPrioritizedOverNonJson() {
+        @DisplayName("does not prioritize vendor JSON over non-JSON")
+        fun doesNotPrioritizeVendorJson() {
             val headers = selector.selectHeaders(
                 arrayOf("text/plain", "application/vnd.api+json"),
                 "application/json",
                 false
             )
-            val accept = headers["Accept"]
-            assertNotNull(accept)
-            val vendorIndex = accept!!.indexOf("application/vnd.api+json")
-            val plainIndex = accept.indexOf("text/plain")
-            assertTrue(vendorIndex < plainIndex)
-        }
-    }
-
-    @Nested
-    @DisplayName("getNextWeight")
-    inner class GetNextWeightTests {
-
-        @Test
-        @DisplayName("standard weight sequence for <= 28 headers")
-        fun standardWeightSequence() {
-            assertEquals(900, selector.getNextWeight(1000, false))
-            assertEquals(800, selector.getNextWeight(900, false))
-            assertEquals(100, selector.getNextWeight(200, false))
-            assertEquals(90, selector.getNextWeight(100, false))
-            assertEquals(80, selector.getNextWeight(90, false))
-        }
-
-        @Test
-        @DisplayName("1-by-1 decrement for > 28 headers")
-        fun oneByOneDecrement() {
-            assertEquals(999, selector.getNextWeight(1000, true))
-            assertEquals(998, selector.getNextWeight(999, true))
-        }
-
-        @Test
-        @DisplayName("returns 1 when weight is 1 or less")
-        fun returnsOneWhenWeightIsOneOrLess() {
-            assertEquals(1, selector.getNextWeight(1, false))
-            assertEquals(1, selector.getNextWeight(0, false))
-        }
-
-        @Test
-        @DisplayName("produces exactly 27 steps from 1000 to 1")
-        fun producesExactly27Steps() {
-            var weight = 1000
-            var count = 0
-            while (weight > 1) {
-                weight = selector.getNextWeight(weight, false)
-                count++
-            }
-            assertEquals(27, count)
+            assertEquals("text/plain, application/vnd.api+json", headers["Accept"])
         }
     }
 }

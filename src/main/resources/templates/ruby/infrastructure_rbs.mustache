@@ -217,18 +217,10 @@ module {{moduleName}}
 
   class HeaderSelector
     JSON_MIME_PATTERN: Regexp
-    WEIGHT_PATTERN: Regexp
-    HeaderData: untyped
     def select_headers: (Array[String], String, bool) -> Hash[String, String]
     def json_mime?: (String?) -> bool
-    def get_next_weight: (Integer, bool) -> Integer
     private
     def select_accept_header: (Array[String]?) -> String?
-    def select_json_mime_list: (Array[String]) -> Array[String]
-    def get_accept_header_with_adjusted_weight: (Array[String], Array[String]) -> String
-    def get_header_and_weight: (String) -> untyped
-    def adjust_weight: (Array[untyped], Array[Integer], bool) -> Array[String]
-    def build_accept_header: (String, Integer) -> String
   end
 
   module Auth

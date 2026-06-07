@@ -2,17 +2,11 @@
 package {{packageName}}
 
 import (
-	"fmt"
-	"math"
 	"regexp"
-	"sort"
-	"strconv"
 	"strings"
 )
 
 var jsonMIMEPattern = regexp.MustCompile(`(?i)^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)`)
-var weightPattern = regexp.MustCompile(`(.*)\s*;\s*q=(1(?:\.0+)?|0\.\d+)$`)
-var trailingSemicolonPattern = regexp.MustCompile(`[;\s]+$`)
 
 // headerSelector selects Accept and Content-Type headers for API requests
 // based on the MIME types declared in the OpenAPI specification.
@@ -21,11 +15,6 @@ type headerSelector struct{}
 // newHeaderSelector creates a new headerSelector instance.
 func newHeaderSelector() *headerSelector {
 	return &headerSelector{}
-}
-
-type headerData struct {
-	header string
-	weight int
 }
 
 // selectHeaders selects the Accept and Content-Type headers for an API request.
@@ -62,11 +51,9 @@ func (h *headerSelector) isJSONMIME(searchString string) bool {
 	return jsonMIMEPattern.MatchString(searchString)
 }
 
+// selectAcceptHeader builds the Accept request header by joining the declared
+// media types in their original order, after filtering out empty entries.
 func (h *headerSelector) selectAcceptHeader(accept []string) string {
-	if len(accept) == 0 {
-		return ""
-	}
-
 	var filtered []string
 	for _, s := range accept {
 		if s != "" {
@@ -77,121 +64,6 @@ func (h *headerSelector) selectAcceptHeader(accept []string) string {
 	if len(filtered) == 0 {
 		return ""
 	}
-	if len(filtered) == 1 {
-		return filtered[0]
-	}
 
-	headersWithJSON := h.selectJSONMIMEList(filtered)
-	if len(headersWithJSON) == 0 {
-		return strings.Join(filtered, ",")
-	}
-
-	return h.getAcceptHeaderWithAdjustedWeight(filtered, headersWithJSON)
-}
-
-func (h *headerSelector) selectJSONMIMEList(mimeList []string) []string {
-	var result []string
-	for _, mime := range mimeList {
-		if h.isJSONMIME(mime) {
-			result = append(result, mime)
-		}
-	}
-	return result
-}
-
-func (h *headerSelector) getAcceptHeaderWithAdjustedWeight(accept []string, headersWithJSON []string) string {
-	jsonSet := make(map[string]bool)
-	for _, j := range headersWithJSON {
-		jsonSet[j] = true
-	}
-
-	var withApplicationJSON []headerData
-	var withJSON []headerData
-	var withoutJSON []headerData
-
-	for _, header := range accept {
-		hd := h.getHeaderAndWeight(header)
-		lowerHeader := strings.ToLower(hd.header)
-
-		if strings.HasPrefix(lowerHeader, "application/json") {
-			withApplicationJSON = append(withApplicationJSON, hd)
-		} else if jsonSet[header] {
-			withJSON = append(withJSON, hd)
-		} else {
-			withoutJSON = append(withoutJSON, hd)
-		}
-	}
-
-	var acceptHeaders []string
-	currentWeight := 1000
-	hasMoreThan28Headers := len(accept) > 28
-
-	groups := [][]headerData{withApplicationJSON, withJSON, withoutJSON}
-	for _, group := range groups {
-		if len(group) > 0 {
-			adjusted := h.adjustWeight(group, &currentWeight, hasMoreThan28Headers)
-			acceptHeaders = append(acceptHeaders, adjusted...)
-		}
-	}
-
-	return strings.Join(acceptHeaders, ",")
-}
-
-func (h *headerSelector) getHeaderAndWeight(header string) headerData {
-	match := weightPattern.FindStringSubmatch(header)
-	if match != nil {
-		weight, _ := strconv.ParseFloat(match[2], 64)
-		return headerData{header: match[1], weight: int(weight * 1000)}
-	}
-	return headerData{header: strings.TrimSpace(header), weight: 1000}
-}
-
-func (h *headerSelector) adjustWeight(headers []headerData, currentWeight *int, hasMoreThan28Headers bool) []string {
-	/* Sort by weight descending (stable sort) */
-	sort.SliceStable(headers, func(i, j int) bool {
-		return headers[i].weight > headers[j].weight
-	})
-
-	var acceptHeaders []string
-	for i, hd := range headers {
-		if i > 0 && headers[i-1].weight > hd.weight {
-			*currentWeight = h.getNextWeight(*currentWeight, hasMoreThan28Headers)
-		}
-
-		acceptHeaders = append(acceptHeaders, h.buildAcceptHeader(hd.header, *currentWeight))
-	}
-
-	*currentWeight = h.getNextWeight(*currentWeight, hasMoreThan28Headers)
-	return acceptHeaders
-}
-
-func (h *headerSelector) buildAcceptHeader(header string, weight int) string {
-	if weight == 1000 {
-		return header
-	}
-
-	cleanHeader := trailingSemicolonPattern.ReplaceAllString(header, "")
-	weightStr := fmt.Sprintf("%0.3f", float64(weight)/1000.0)
-	weightStr = strings.TrimRight(weightStr, "0")
-	weightStr = strings.TrimRight(weightStr, ".")
-
-	return fmt.Sprintf("%s;q=%s", cleanHeader, weightStr)
-}
-
-// getNextWeight calculates the next weight based on the current one.
-//
-// If there are fewer than 28 "Accept" headers, the weights are decreased
-// by 1 on the highest significant digit. Starting from 1000, this generates:
-// 1000, 900, 800, 700, 600, 500, 400, 300, 200, 100,
-// 90, 80, 70, 60, 50, 40, 30, 20, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
-func (h *headerSelector) getNextWeight(currentWeight int, hasMoreThan28Headers bool) int {
-	if currentWeight <= 1 {
-		return 1
-	}
-	if hasMoreThan28Headers {
-		return currentWeight - 1
-	}
-
-	step := int(math.Pow(10, math.Floor(math.Log10(float64(currentWeight-1)))))
-	return currentWeight - step
+	return strings.Join(filtered, ", ")
 }

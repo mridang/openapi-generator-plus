@@ -143,50 +143,28 @@ public class HeaderSelectorTest
         }
 
         [Fact]
-        public void ShouldReturnCommaSeparatedListWhenNoJsonTypes()
+        public void ShouldJoinInDeclarationOrderWithCommaSpace()
         {
             var headers = HeaderSelector.SelectHeaders(
-                ["text/html", "text/plain"],
+                ["image/jpeg", "image/png", "application/json"],
                 "application/json",
                 false
             );
-            Assert.Equal("text/html,text/plain", headers["Accept"]);
+            Assert.Equal("image/jpeg, image/png, application/json", headers["Accept"]);
         }
 
         [Fact]
-        public void ShouldPrioritizeApplicationJsonWithQualityWeight()
-        {
-            var headers = HeaderSelector.SelectHeaders(
-                ["text/html", "application/json"],
-                "application/json",
-                false
-            );
-            string accept = headers["Accept"];
-            // application/json should come first with highest weight
-            Assert.StartsWith("application/json", accept);
-            Assert.Contains("text/html", accept);
-        }
-
-        [Fact]
-        public void ShouldHandleMultipleJsonTypesWithPriority()
+        public void ShouldNotReorderOrPrioritizeJson()
         {
             var headers = HeaderSelector.SelectHeaders(
                 ["text/html", "application/vnd.api+json", "application/json"],
                 "application/json",
                 false
             );
-            string accept = headers["Accept"];
-            // application/json should come first
-            Assert.StartsWith("application/json", accept);
-            // application/vnd.api+json should come before text/html
-            int jsonIndex = accept.IndexOf("application/json", StringComparison.Ordinal);
-            int vendorJsonIndex = accept.IndexOf(
-                "application/vnd.api+json",
-                StringComparison.Ordinal
+            Assert.Equal(
+                "text/html, application/vnd.api+json, application/json",
+                headers["Accept"]
             );
-            int htmlIndex = accept.IndexOf("text/html", StringComparison.Ordinal);
-            Assert.True(jsonIndex < vendorJsonIndex);
-            Assert.True(vendorJsonIndex < htmlIndex);
         }
 
         [Fact]
@@ -201,114 +179,21 @@ public class HeaderSelectorTest
         }
 
         [Fact]
-        public void ShouldPreserveExistingQualityWeightsInOrder()
+        public void ShouldFilterOutBlankEntries()
         {
             var headers = HeaderSelector.SelectHeaders(
-                ["text/html;q=0.9", "application/json", "text/plain;q=0.8"],
+                ["   ", "text/html", "", "text/plain"],
                 "application/json",
                 false
             );
-            string accept = headers["Accept"];
-            // application/json should still come first (JSON priority)
-            Assert.StartsWith("application/json", accept);
-        }
-    }
-
-    public class GetNextWeightTests
-    {
-        [Fact]
-        public void ShouldReturnStandardWeightSequence()
-        {
-            // Starting from 1000, should get: 1000, 900, 800, 700, ...
-            Assert.Equal(900, HeaderSelector.GetNextWeight(1000, false));
-            Assert.Equal(800, HeaderSelector.GetNextWeight(900, false));
-            Assert.Equal(700, HeaderSelector.GetNextWeight(800, false));
-            Assert.Equal(600, HeaderSelector.GetNextWeight(700, false));
-            Assert.Equal(500, HeaderSelector.GetNextWeight(600, false));
-            Assert.Equal(400, HeaderSelector.GetNextWeight(500, false));
-            Assert.Equal(300, HeaderSelector.GetNextWeight(400, false));
-            Assert.Equal(200, HeaderSelector.GetNextWeight(300, false));
-            Assert.Equal(100, HeaderSelector.GetNextWeight(200, false));
-            // After 100, goes to 90, 80, ...
-            Assert.Equal(90, HeaderSelector.GetNextWeight(100, false));
-            Assert.Equal(80, HeaderSelector.GetNextWeight(90, false));
+            Assert.Equal("text/html, text/plain", headers["Accept"]);
         }
 
         [Fact]
-        public void ShouldReturnOneByOneDecrementForMoreThan28Headers()
+        public void ShouldReturnEmptyAcceptWhenAllEntriesBlank()
         {
-            Assert.Equal(999, HeaderSelector.GetNextWeight(1000, true));
-            Assert.Equal(998, HeaderSelector.GetNextWeight(999, true));
-            Assert.Equal(997, HeaderSelector.GetNextWeight(998, true));
-        }
-
-        [Fact]
-        public void ShouldReturnOneWhenWeightIsOneOrLess()
-        {
-            Assert.Equal(1, HeaderSelector.GetNextWeight(1, false));
-            Assert.Equal(1, HeaderSelector.GetNextWeight(0, false));
-            Assert.Equal(1, HeaderSelector.GetNextWeight(-1, false));
-        }
-
-        [Fact]
-        public void ShouldProduceExactly27Steps()
-        {
-            // The formula should produce exactly 27 steps from 1000 to 1
-            int weight = 1000;
-            int count = 0;
-            while (weight > 1)
-            {
-                weight = HeaderSelector.GetNextWeight(weight, false);
-                count++;
-            }
-            // 1000 -> 900 -> 800 -> ... -> 100 -> 90 -> ... -> 10 -> 9 -> ... -> 1
-            // That's 9 (1000 to 100) + 9 (100 to 10) + 9 (10 to 1) = 27 steps
-            Assert.Equal(27, count);
-        }
-    }
-
-    public class QualityWeightFormattingTests
-    {
-        [Fact]
-        public void ShouldNotAddQualityWeightForWeight1000()
-        {
-            var headers = HeaderSelector.SelectHeaders(
-                ["application/json", "text/html"],
-                "application/json",
-                false
-            );
-            string accept = headers["Accept"];
-            // First header should not have ;q= because it's weight 1000
-            Assert.True(
-                accept.StartsWith("application/json,", StringComparison.Ordinal)
-                    || accept == "application/json"
-            );
-        }
-
-        [Fact]
-        public void ShouldFormatQualityWeightCorrectly()
-        {
-            var headers = HeaderSelector.SelectHeaders(
-                ["application/json", "text/html"],
-                "application/json",
-                false
-            );
-            string accept = headers["Accept"];
-            // text/html should have quality weight like ;q=0.9
-            Assert.True(accept.Contains("text/html;q=0.9") || accept.Contains("text/html;q=0."));
-        }
-
-        [Fact]
-        public void ShouldRemoveTrailingZerosFromQualityWeight()
-        {
-            var headers = HeaderSelector.SelectHeaders(
-                ["application/json", "text/html"],
-                "application/json",
-                false
-            );
-            string accept = headers["Accept"];
-            // Should be ;q=0.9 not ;q=0.900
-            Assert.DoesNotContain(";q=0.900", accept);
+            var headers = HeaderSelector.SelectHeaders(["", "   "], "application/json", false);
+            Assert.Equal(string.Empty, headers["Accept"]);
         }
     }
 }

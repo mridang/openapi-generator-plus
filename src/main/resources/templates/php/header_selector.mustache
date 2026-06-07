@@ -12,8 +12,6 @@ class HeaderSelector
 {
     private const string JSON_MIME_PATTERN = '/^application\/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)/i';
 
-    private const string WEIGHT_PATTERN = '/(.*)\s*;\s*q=(1(?:\.0+)?|0\.\d+)$/';
-
     /**
      * Select headers for an API request.
      *
@@ -27,7 +25,7 @@ class HeaderSelector
         $headers = [];
 
         $acceptHeader = $this->selectAcceptHeader($accept);
-        if ($acceptHeader !== null) {
+        if ($acceptHeader !== '') {
             $headers['Accept'] = $acceptHeader;
         }
 
@@ -44,27 +42,22 @@ class HeaderSelector
     /**
      * Return the header 'Accept' based on an array of Accept provided.
      *
+     * Empty entries are dropped and the remaining media types are joined in
+     * their original declaration order with ", ". No quality weights are
+     * applied and no reordering is performed.
+     *
      * @param string[] $accept Array of header
-     * @return null|string Accept (e.g. application/json)
+     * @return string Accept (e.g. "application/json" or "image/jpeg, image/png")
      */
-    private function selectAcceptHeader(array $accept): ?string
+    private function selectAcceptHeader(array $accept): string
     {
-        $filteredAccept = array_values(array_filter($accept, fn (string $s): bool => $s !== ''));
+        $filteredAccept = array_filter($accept, fn (string $s): bool => $s !== '');
 
         if (count($filteredAccept) === 0) {
-            return null;
+            return '';
         }
 
-        if (count($filteredAccept) === 1) {
-            return $filteredAccept[0];
-        }
-
-        $headersWithJson = $this->selectJsonMimeList($filteredAccept);
-        if (count($headersWithJson) === 0) {
-            return implode(',', $filteredAccept);
-        }
-
-        return $this->getAcceptHeaderWithAdjustedWeight($filteredAccept, $headersWithJson);
+        return implode(', ', $filteredAccept);
     }
 
     /**
@@ -76,168 +69,5 @@ class HeaderSelector
     public function isJsonMime(string $searchString): bool
     {
         return preg_match(self::JSON_MIME_PATTERN, $searchString) === 1;
-    }
-
-    /**
-     * Select all items from a list containing a JSON mime type.
-     *
-     * @param string[] $mimeList list of MIME types to filter
-     * @return string[] list containing only JSON MIME types
-     */
-    private function selectJsonMimeList(array $mimeList): array
-    {
-        return array_values(array_filter($mimeList, $this->isJsonMime(...)));
-    }
-
-    /**
-     * Create an Accept header string from the given "Accept" headers array, recalculating all weights.
-     *
-     * @param string[] $accept          Array of Accept Headers
-     * @param string[] $headersWithJson Array of Accept Headers of type "json"
-     * @return string "Accept" Header (e.g. "application/json, text/html; q=0.9")
-     */
-    private function getAcceptHeaderWithAdjustedWeight(array $accept, array $headersWithJson): string
-    {
-        $withApplicationJson = [];
-        $withJson = [];
-        $withoutJson = [];
-
-        foreach ($accept as $header) {
-            $headerData = $this->getHeaderAndWeight($header);
-
-            if (str_starts_with(strtolower($headerData['header']), 'application/json')) {
-                $withApplicationJson[] = $headerData;
-            } elseif (in_array($header, $headersWithJson, true)) {
-                $withJson[] = $headerData;
-            } else {
-                $withoutJson[] = $headerData;
-            }
-        }
-
-        $acceptHeaders = [];
-        $currentWeight = 1000;
-
-        $hasMoreThan28Headers = count($accept) > 28;
-
-        if (count($withApplicationJson) > 0) {
-            $adjusted = $this->adjustWeight($withApplicationJson, $currentWeight, $hasMoreThan28Headers);
-            $acceptHeaders = array_merge($acceptHeaders, $adjusted);
-        }
-        if (count($withJson) > 0) {
-            $adjusted = $this->adjustWeight($withJson, $currentWeight, $hasMoreThan28Headers);
-            $acceptHeaders = array_merge($acceptHeaders, $adjusted);
-        }
-        if (count($withoutJson) > 0) {
-            $adjusted = $this->adjustWeight($withoutJson, $currentWeight, $hasMoreThan28Headers);
-            $acceptHeaders = array_merge($acceptHeaders, $adjusted);
-        }
-
-        return implode(',', $acceptHeaders);
-    }
-
-    /**
-     * Given an Accept header, returns the header and its weight.
-     *
-     * @param string $header "Accept" Header
-     * @return array{header: string, weight: int} with the header and its weight
-     */
-    private function getHeaderAndWeight(string $header): array
-    {
-        if (preg_match(self::WEIGHT_PATTERN, $header, $matches) === 1) {
-            return [
-                'header' => $matches[1],
-                'weight' => (int) ((float) $matches[2] * 1000),
-            ];
-        }
-        return [
-            'header' => trim($header),
-            'weight' => 1000,
-        ];
-    }
-
-    /**
-     * Adjust weights for a group of headers.
-     *
-     * @param array<int, array{header: string, weight: int}> $headers list of headers to process
-     * @param int  &$currentWeight      current weight (modified in place)
-     * @param bool $hasMoreThan28Headers whether there are more than 28 total headers
-     * @return string[] array of adjusted "Accept" headers
-     */
-    private function adjustWeight(array $headers, int &$currentWeight, bool $hasMoreThan28Headers): array
-    {
-        usort($headers, fn (array $a, array $b): int => $b['weight'] - $a['weight']);
-
-        $acceptHeaders = [];
-        foreach ($headers as $index => $header) {
-            if ($index > 0 && $headers[$index - 1]['weight'] > $header['weight']) {
-                $currentWeight = $this->getNextWeight($currentWeight, $hasMoreThan28Headers);
-            }
-
-            $weight = $currentWeight;
-            $acceptHeaders[] = $this->buildAcceptHeader($header['header'], $weight);
-        }
-
-        $currentWeight = $this->getNextWeight($currentWeight, $hasMoreThan28Headers);
-
-        return $acceptHeaders;
-    }
-
-    /**
-     * Build a single Accept header string with optional quality weight.
-     *
-     * @param string $header the MIME type
-     * @param int    $weight the quality weight (scaled by 1000)
-     * @return string formatted header string
-     */
-    private function buildAcceptHeader(string $header, int $weight): string
-    {
-        if ($weight === 1000) {
-            return $header;
-        }
-
-        $cleanHeader = preg_replace('/[;\s]+$/', '', $header);
-        $weightStr = rtrim(sprintf('%0.3f', $weight / 1000), '0');
-        if (str_ends_with($weightStr, '.')) {
-            $weightStr = substr($weightStr, 0, -1);
-        }
-
-        return $cleanHeader . ';q=' . $weightStr;
-    }
-
-    /**
-     * Calculate the next weight, based on the current one.
-     *
-     * If there are less than 28 "Accept" headers, the weights will be
-     * decreased by 1 on its highest significant digit, using the formula:
-     *
-     *    next weight = current weight - 10 ^ (floor(log(current weight - 1)))
-     *
-     * Starting from 1000, this generates the following series:
-     *
-     * 1000, 900, 800, 700, 600, 500, 400, 300, 200, 100,
-     * 90, 80, 70, 60, 50, 40, 30, 20, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
-     *
-     * The resulting quality codes are closer to the average "normal"
-     * usage of them (like "q=0.9", "q=0.8" and so on), but it only
-     * works if there is a maximum of 28 "Accept" headers. If we have
-     * more than that (which is extremely unlikely), then we fall back
-     * to a 1-by-1 decrement rule, which will result in quality codes
-     * like "q=0.999", "q=0.998" etc.
-     *
-     * @param int  $currentWeight varying from 1 to 1000 (will be divided by 1000 to build the quality value)
-     * @param bool $hasMoreThan28Headers whether there are more than 28 headers
-     * @return int the next weight
-     */
-    public function getNextWeight(int $currentWeight, bool $hasMoreThan28Headers): int
-    {
-        if ($currentWeight <= 1) {
-            return 1;
-        }
-
-        if ($hasMoreThan28Headers) {
-            return $currentWeight - 1;
-        }
-
-        return $currentWeight - (int) (10 ** floor(log10($currentWeight - 1)));
     }
 }

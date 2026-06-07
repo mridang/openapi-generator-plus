@@ -18,6 +18,12 @@ void main() {
       expect(hs.isJsonMime('application/hal+json'), isTrue);
     });
 
+    test('isJsonMime case insensitive', () {
+      final hs = HeaderSelector();
+
+      expect(hs.isJsonMime('APPLICATION/JSON'), isTrue);
+    });
+
     test('selectHeaders with single accept', () {
       final hs = HeaderSelector();
 
@@ -31,22 +37,60 @@ void main() {
       expect(headers['Content-Type'], equals('application/json'));
     });
 
-    test('selectHeaders with multiple accepts', () {
+    test('selectHeaders joins multiple accepts in declaration order', () {
       final hs = HeaderSelector();
 
       final headers = hs.selectHeaders(
-        ['application/json', 'application/xml'],
+        ['image/jpeg', 'image/png', 'application/json'],
         'application/json',
         false,
       );
 
-      expect(headers['Accept'], contains('application/json'));
+      expect(
+        headers['Accept'],
+        equals('image/jpeg, image/png, application/json'),
+      );
+    });
+
+    test('selectHeaders does not reorder or weight JSON types', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders(
+        ['text/html', 'application/vnd.api+json', 'application/json'],
+        'application/json',
+        false,
+      );
+
+      expect(
+        headers['Accept'],
+        equals('text/html, application/vnd.api+json, application/json'),
+      );
     });
 
     test('selectHeaders with empty accepts', () {
       final hs = HeaderSelector();
 
       final headers = hs.selectHeaders([], 'application/json', false);
+
+      expect(headers.containsKey('Accept'), isFalse);
+    });
+
+    test('selectHeaders filters out empty entries', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders(
+        ['', 'application/json', ''],
+        'application/json',
+        false,
+      );
+
+      expect(headers['Accept'], equals('application/json'));
+    });
+
+    test('selectHeaders returns no Accept when all entries empty', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders(['', ''], 'application/json', false);
 
       expect(headers.containsKey('Accept'), isFalse);
     });
@@ -75,43 +119,6 @@ void main() {
       expect(headers['Content-Type'], equals('application/json'));
     });
 
-    test('quality weighting', () {
-      final hs = HeaderSelector();
-
-      final headers = hs.selectHeaders(
-        ['application/json', 'application/xml', 'text/plain'],
-        'application/json',
-        false,
-      );
-
-      final accept = headers['Accept']!;
-      expect(accept, isNotEmpty);
-
-      final jsonIdx = accept.indexOf('application/json');
-      final xmlIdx = accept.indexOf('application/xml');
-      expect(jsonIdx, greaterThanOrEqualTo(0));
-      expect(xmlIdx, greaterThanOrEqualTo(0));
-      expect(jsonIdx, lessThan(xmlIdx));
-    });
-
-    test('selectHeaders with vendor JSON', () {
-      final hs = HeaderSelector();
-
-      final headers = hs.selectHeaders(
-        ['application/vnd.api+json', 'application/xml'],
-        'application/json',
-        false,
-      );
-
-      expect(headers['Accept'], contains('application/vnd.api+json'));
-    });
-
-    test('isJsonMime case insensitive', () {
-      final hs = HeaderSelector();
-
-      expect(hs.isJsonMime('APPLICATION/JSON'), isTrue);
-    });
-
     test('selectHeaders single non-JSON accept as-is', () {
       final hs = HeaderSelector();
 
@@ -120,7 +127,7 @@ void main() {
       expect(headers['Accept'], equals('text/html'));
     });
 
-    test('selectHeaders comma-separated list when no JSON types', () {
+    test('selectHeaders joins non-JSON types in order', () {
       final hs = HeaderSelector();
 
       final headers = hs.selectHeaders(
@@ -129,113 +136,7 @@ void main() {
         false,
       );
 
-      expect(headers['Accept'], equals('text/html,text/plain'));
-    });
-
-    test('selectHeaders multiple JSON types with priority', () {
-      final hs = HeaderSelector();
-
-      final headers = hs.selectHeaders(
-        ['text/html', 'application/vnd.api+json', 'application/json'],
-        'application/json',
-        false,
-      );
-
-      final accept = headers['Accept']!;
-      expect(accept.startsWith('application/json'), isTrue);
-      final jsonIdx = accept.indexOf('application/json');
-      final vendorIdx = accept.indexOf('application/vnd.api+json');
-      final htmlIdx = accept.indexOf('text/html');
-      expect(jsonIdx, lessThan(vendorIdx));
-      expect(vendorIdx, lessThan(htmlIdx));
-    });
-
-    test('selectHeaders filters out empty entries', () {
-      final hs = HeaderSelector();
-
-      final headers = hs.selectHeaders(
-        ['', 'application/json'],
-        'application/json',
-        false,
-      );
-
-      expect(headers['Accept'], equals('application/json'));
-    });
-
-    test('selectHeaders preserves existing quality weights in order', () {
-      final hs = HeaderSelector();
-
-      final headers = hs.selectHeaders(
-        ['text/html;q=0.9', 'application/json', 'text/plain;q=0.8'],
-        'application/json',
-        false,
-      );
-
-      expect(headers['Accept']!.startsWith('application/json'), isTrue);
-    });
-
-    test('selectHeaders formats quality weight correctly', () {
-      final hs = HeaderSelector();
-
-      final headers = hs.selectHeaders(
-        ['application/json', 'text/html'],
-        'application/json',
-        false,
-      );
-
-      final accept = headers['Accept']!;
-      expect(
-        accept.contains('text/html;q=0.9') || accept.contains('text/html;q=0.'),
-        isTrue,
-      );
-    });
-
-    test('selectHeaders removes trailing zeros from quality weight', () {
-      final hs = HeaderSelector();
-
-      final headers = hs.selectHeaders(
-        ['application/json', 'text/html'],
-        'application/json',
-        false,
-      );
-
-      expect(headers['Accept'], isNot(contains(';q=0.900')));
-    });
-
-    test('getNextWeight standard sequence', () {
-      final hs = HeaderSelector();
-
-      expect(hs.getNextWeight(1000, false), equals(900));
-      expect(hs.getNextWeight(900, false), equals(800));
-      expect(hs.getNextWeight(200, false), equals(100));
-      expect(hs.getNextWeight(100, false), equals(90));
-      expect(hs.getNextWeight(90, false), equals(80));
-    });
-
-    test('getNextWeight more than 28 headers', () {
-      final hs = HeaderSelector();
-
-      expect(hs.getNextWeight(1000, true), equals(999));
-      expect(hs.getNextWeight(999, true), equals(998));
-      expect(hs.getNextWeight(998, true), equals(997));
-    });
-
-    test('getNextWeight minimum', () {
-      final hs = HeaderSelector();
-
-      expect(hs.getNextWeight(1, false), equals(1));
-      expect(hs.getNextWeight(0, false), equals(1));
-      expect(hs.getNextWeight(-1, false), equals(1));
-    });
-
-    test('getNextWeight 27 steps from 1000 to 1', () {
-      final hs = HeaderSelector();
-
-      var weight = 1000;
-      for (var i = 0; i < 27; i++) {
-        weight = hs.getNextWeight(weight, false);
-      }
-      expect(weight, equals(1));
+      expect(headers['Accept'], equals('text/html, text/plain'));
     });
   });
 }

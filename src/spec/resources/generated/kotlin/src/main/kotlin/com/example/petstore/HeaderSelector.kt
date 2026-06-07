@@ -7,10 +7,6 @@
 
 package com.example.petstore
 
-import kotlin.math.floor
-import kotlin.math.log10
-import kotlin.math.pow
-
 /**
  * Content negotiation logic for Accept and Content-Type headers.
  *
@@ -23,8 +19,6 @@ internal class HeaderSelector {
             "^application/(json|[\\w!#\$&.+\\-^_]+\\+json)\\s*(;|$)",
             RegexOption.IGNORE_CASE,
         )
-
-    private val weightPattern = Regex("(.*)\\s*;\\s*q=(1(?:\\.0+)?|0\\.\\d+)$")
 
     fun selectHeaders(
         accept: Array<String>?,
@@ -53,100 +47,8 @@ internal class HeaderSelector {
 
     private fun selectAcceptHeader(accept: Array<String>?): String? {
         if (accept == null) return null
-        val filtered = accept.filter { it.isNotEmpty() }
+        val filtered = accept.filter { it.isNotBlank() }
         if (filtered.isEmpty()) return null
-        if (filtered.size == 1) return filtered[0]
-
-        val jsonHeaders = filtered.filter { isJsonMime(it) }
-        if (jsonHeaders.isEmpty()) return filtered.joinToString(",")
-
-        return getAcceptHeaderWithAdjustedWeight(filtered, jsonHeaders)
+        return filtered.joinToString(", ")
     }
-
-    private fun getAcceptHeaderWithAdjustedWeight(
-        accept: List<String>,
-        headersWithJson: List<String>,
-    ): String {
-        val withApplicationJson = mutableListOf<HeaderData>()
-        val withJson = mutableListOf<HeaderData>()
-        val withoutJson = mutableListOf<HeaderData>()
-
-        for (header in accept) {
-            val headerData = getHeaderAndWeight(header)
-            when {
-                headerData.header.lowercase().startsWith("application/json") -> withApplicationJson.add(headerData)
-                header in headersWithJson -> withJson.add(headerData)
-                else -> withoutJson.add(headerData)
-            }
-        }
-
-        val acceptHeaders = mutableListOf<String>()
-        val currentWeight = intArrayOf(1000)
-        val hasMoreThan28 = accept.size > 28
-
-        if (withApplicationJson.isNotEmpty()) {
-            acceptHeaders.addAll(adjustWeight(withApplicationJson, currentWeight, hasMoreThan28))
-        }
-        if (withJson.isNotEmpty()) {
-            acceptHeaders.addAll(adjustWeight(withJson, currentWeight, hasMoreThan28))
-        }
-        if (withoutJson.isNotEmpty()) {
-            acceptHeaders.addAll(adjustWeight(withoutJson, currentWeight, hasMoreThan28))
-        }
-
-        return acceptHeaders.joinToString(",")
-    }
-
-    private fun getHeaderAndWeight(header: String): HeaderData {
-        val match = weightPattern.matchEntire(header)
-        return if (match != null) {
-            HeaderData(match.groupValues[1], (match.groupValues[2].toDouble() * 1000).toInt())
-        } else {
-            HeaderData(header.trim(), 1000)
-        }
-    }
-
-    private fun adjustWeight(
-        headers: MutableList<HeaderData>,
-        currentWeight: IntArray,
-        hasMoreThan28: Boolean,
-    ): List<String> {
-        headers.sortByDescending { it.weight }
-        val result = mutableListOf<String>()
-
-        for (index in headers.indices) {
-            if (index > 0 && headers[index - 1].weight > headers[index].weight) {
-                currentWeight[0] = getNextWeight(currentWeight[0], hasMoreThan28)
-            }
-            result.add(buildAcceptHeader(headers[index].header, currentWeight[0]))
-        }
-
-        currentWeight[0] = getNextWeight(currentWeight[0], hasMoreThan28)
-        return result
-    }
-
-    private fun buildAcceptHeader(
-        header: String,
-        weight: Int,
-    ): String {
-        if (weight == 1000) return header
-        val cleanHeader = header.replace(Regex("[;\\s]+$"), "")
-        var weightStr = String.format(java.util.Locale.ROOT, "%.3f", weight / 1000.0).trimEnd('0')
-        if (weightStr.endsWith(".")) weightStr = weightStr.dropLast(1)
-        return "$cleanHeader;q=$weightStr"
-    }
-
-    fun getNextWeight(
-        currentWeight: Int,
-        hasMoreThan28Headers: Boolean,
-    ): Int {
-        if (currentWeight <= 1) return 1
-        if (hasMoreThan28Headers) return currentWeight - 1
-        return currentWeight - 10.0.pow(floor(log10((currentWeight - 1).toDouble()))).toInt()
-    }
-
-    private data class HeaderData(
-        val header: String,
-        val weight: Int,
-    )
 }
