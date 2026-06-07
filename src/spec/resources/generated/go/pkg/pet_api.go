@@ -458,7 +458,7 @@ func (a *PetApi) DeletePetWithHTTPInfo(auth Authenticator, petId int64, options 
 // DownloadPetDocument Download a vet document
 // Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
 
-func (a *PetApi) DownloadPetDocument(petId int64, documentId int64) (**os.File, error) {
+func (a *PetApi) DownloadPetDocument(petId int64, documentId int64) (*[]byte, error) {
 	result, err := a.DownloadPetDocumentWithHTTPInfo(petId, documentId)
 	if err != nil {
 		return nil, err
@@ -474,7 +474,7 @@ func (a *PetApi) DownloadPetDocument(petId int64, documentId int64) (**os.File, 
 }
 
 // DownloadPetDocumentWithHTTPInfo performs the DownloadPetDocument operation and returns the full API result.
-func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) (*ApiResult[*os.File], error) {
+func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) (*ApiResult[[]byte], error) {
 
 	path := "/pet/{petId}/documents/{documentId}"
 	/* Path params route through serializeStyled so OAS path styles
@@ -502,18 +502,18 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) 
 		body:         requestBody,
 		accepts:      []string{"application/octet-stream"},
 		contentType:  "application/json",
-		returnType:   "*os.File",
+		returnType:   "[]byte",
 		auth:         nil,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	var data *os.File
+	var data []byte
 	/* dataPtr stays nil when the response carried no body, so the convenience
 	 * method can distinguish "no content" from a zero-valued struct and raise
 	 * the typed empty-body ApiError (convenience-empty-body-handling). */
-	var dataPtr **os.File
+	var dataPtr *[]byte
 	if response.Body != "" {
 		respContentType := ""
 		// Headers are lowercase-normalised per Gap BE.
@@ -538,7 +538,7 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) 
 		dataPtr = &data
 	}
 
-	return &ApiResult[*os.File]{
+	return &ApiResult[[]byte]{
 		StatusCode: response.StatusCode,
 		Data:       dataPtr,
 		RawBody:    response.Body,
@@ -831,7 +831,7 @@ func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(petId int64, server GetMultiS
 // GetPetAvatar Get the pet's profile photo
 // Returns the raw image bytes of the pet's current avatar.
 
-func (a *PetApi) GetPetAvatar(petId int64) (**os.File, error) {
+func (a *PetApi) GetPetAvatar(petId int64) (*[]byte, error) {
 	result, err := a.GetPetAvatarWithHTTPInfo(petId)
 	if err != nil {
 		return nil, err
@@ -847,7 +847,7 @@ func (a *PetApi) GetPetAvatar(petId int64) (**os.File, error) {
 }
 
 // GetPetAvatarWithHTTPInfo performs the GetPetAvatar operation and returns the full API result.
-func (a *PetApi) GetPetAvatarWithHTTPInfo(petId int64) (*ApiResult[*os.File], error) {
+func (a *PetApi) GetPetAvatarWithHTTPInfo(petId int64) (*ApiResult[[]byte], error) {
 
 	path := "/pet/{petId}/avatar"
 	/* Path params route through serializeStyled so OAS path styles
@@ -870,18 +870,18 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(petId int64) (*ApiResult[*os.File], er
 		body:         requestBody,
 		accepts:      []string{"image/jpeg", "image/png"},
 		contentType:  "application/json",
-		returnType:   "*os.File",
+		returnType:   "[]byte",
 		auth:         nil,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	var data *os.File
+	var data []byte
 	/* dataPtr stays nil when the response carried no body, so the convenience
 	 * method can distinguish "no content" from a zero-valued struct and raise
 	 * the typed empty-body ApiError (convenience-empty-body-handling). */
-	var dataPtr **os.File
+	var dataPtr *[]byte
 	if response.Body != "" {
 		respContentType := ""
 		// Headers are lowercase-normalised per Gap BE.
@@ -906,7 +906,7 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(petId int64) (*ApiResult[*os.File], er
 		dataPtr = &data
 	}
 
-	return &ApiResult[*os.File]{
+	return &ApiResult[[]byte]{
 		StatusCode: response.StatusCode,
 		Data:       dataPtr,
 		RawBody:    response.Body,
@@ -1187,7 +1187,7 @@ func (a *PetApi) GetPetPassportWithHTTPInfo(petId int64) (*ApiResult[PetPassport
 // GetPetPhoto Get a photo or its metadata
 // Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
 
-func (a *PetApi) GetPetPhoto(petId int64, photoId int64) (**os.File, error) {
+func (a *PetApi) GetPetPhoto(petId int64, photoId int64) (*[]byte, error) {
 	result, err := a.GetPetPhotoWithHTTPInfo(petId, photoId)
 	if err != nil {
 		return nil, err
@@ -1203,7 +1203,7 @@ func (a *PetApi) GetPetPhoto(petId int64, photoId int64) (**os.File, error) {
 }
 
 // GetPetPhotoWithHTTPInfo performs the GetPetPhoto operation and returns the full API result.
-func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult[*os.File], error) {
+func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult[[]byte], error) {
 
 	path := "/pet/{petId}/photos/{photoId}"
 	/* Path params route through serializeStyled so OAS path styles
@@ -1231,18 +1231,18 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult
 		body:         requestBody,
 		accepts:      []string{"image/jpeg", "image/png", "application/json"},
 		contentType:  "application/json",
-		returnType:   "*os.File",
+		returnType:   "[]byte",
 		auth:         nil,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	var data *os.File
+	var data []byte
 	/* dataPtr stays nil when the response carried no body, so the convenience
 	 * method can distinguish "no content" from a zero-valued struct and raise
 	 * the typed empty-body ApiError (convenience-empty-body-handling). */
-	var dataPtr **os.File
+	var dataPtr *[]byte
 	if response.Body != "" {
 		respContentType := ""
 		// Headers are lowercase-normalised per Gap BE.
@@ -1267,7 +1267,7 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult
 		dataPtr = &data
 	}
 
-	return &ApiResult[*os.File]{
+	return &ApiResult[[]byte]{
 		StatusCode: response.StatusCode,
 		Data:       dataPtr,
 		RawBody:    response.Body,

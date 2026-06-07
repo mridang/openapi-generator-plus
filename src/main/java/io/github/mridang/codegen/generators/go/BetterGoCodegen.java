@@ -24,6 +24,8 @@ import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
+import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -762,5 +764,50 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     @Override
     protected boolean demotesDiscriminatorFromRequiredVars() {
         return true;
+    }
+
+    /**
+     * Rewrites binary ({@code format: binary}) response bodies from
+     * {@code *os.File} to the idiomatic {@code []byte}.
+     *
+     * <p>OpenAPI's {@code DefaultCodegen} resolves a
+     * {@code type: string, format: binary} schema to the {@code file}
+     * type, which {@link #typeMapping} maps to {@code *os.File}. For a
+     * response body the codegen then sets {@code op.returnType} to that
+     * pointer type and the api template wraps the convenience variant in
+     * a further pointer ({@code *T}), yielding a non-idiomatic
+     * {@code **os.File} double pointer (and {@code ApiResult[*os.File]}
+     * for the WithHTTPInfo variant).
+     *
+     * <p>The transport layer carries the response body as a base64
+     * string in {@code HttpResponse.Body} and the api template's
+     * deserialization path already decodes a {@code *[]byte} return type
+     * via {@code decodeBinaryResponse}, so {@code []byte} is the single
+     * type the transport can cleanly produce. Rewriting the return type
+     * here (rather than globally in {@code getSchemaType}) leaves binary
+     * <em>request</em> bodies and multipart file uploads as {@code *os.File},
+     * which is the idiomatic Go type for streaming a file from disk.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public OperationsMap postProcessOperationsWithModels(
+            OperationsMap objs, List<ModelMap> allModels) {
+        final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
+        if (operations != null) {
+            final List<CodegenOperation> ops =
+                    (List<CodegenOperation>) operations.get("operation");
+            if (ops != null) {
+                for (final CodegenOperation op : ops) {
+                    if ("os.File".equals(op.returnBaseType)
+                            || (op.returnType != null && op.returnType.contains("os.File"))) {
+                        op.returnType = "[]byte";
+                        op.returnBaseType = "byte";
+                        op.returnContainer = "array";
+                        op.isArray = true;
+                    }
+                }
+            }
+        }
+        return super.postProcessOperationsWithModels(objs, allModels);
     }
 }
