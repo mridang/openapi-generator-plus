@@ -15,18 +15,13 @@ namespace PetstoreClient;
 /// <summary>
 /// Handles JSON serialization and deserialization for API requests and responses.
 /// </summary>
-public class ObjectSerializer
+internal class ObjectSerializer
 {
     private readonly JsonSerializerOptions _options;
 
     public ObjectSerializer()
     {
         _options = CreateDefaultOptions();
-    }
-
-    public ObjectSerializer(JsonSerializerOptions options)
-    {
-        _options = options ?? throw new ArgumentNullException(nameof(options));
     }
 
     /// <summary>
@@ -179,7 +174,7 @@ public class ObjectSerializer
     /// satisfies none of the declared variants is a contract violation and must
     /// fail loudly rather than be silently dropped to null.
     /// </summary>
-    public static object ResolveOneOf(
+    internal static object ResolveOneOf(
         JsonElement json,
         params Func<JsonElement, object?>[] candidates
     )
@@ -210,7 +205,7 @@ public class ObjectSerializer
     /// Returns the first successful deserialization result, or throws a
     /// <see cref="JsonException"/> when no candidate matches.
     /// </summary>
-    public static object ResolveAnyOf(
+    internal static object ResolveAnyOf(
         JsonElement json,
         params Func<JsonElement, object?>[] candidates
     )
@@ -287,7 +282,7 @@ public class ObjectSerializer
 /// (<c>Y</c>, month <c>M</c>) are rejected because <see cref="TimeSpan"/>
 /// has no concept of calendar months / years.
 /// </summary>
-public sealed class Iso8601DurationConverter : JsonConverter<TimeSpan>
+internal sealed class Iso8601DurationConverter : JsonConverter<TimeSpan>
 {
     public override TimeSpan Read(
         ref Utf8JsonReader reader,

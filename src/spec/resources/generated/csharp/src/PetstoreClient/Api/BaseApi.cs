@@ -24,7 +24,7 @@ public abstract class BaseApi
     protected Configuration Config { get; }
 
     /// <summary>Serializer for request/response body conversion.</summary>
-    protected ObjectSerializer Serializer { get; }
+    private ObjectSerializer Serializer { get; }
 
     /// <summary>Optional authenticator used as fallback when no per-call auth is provided.</summary>
     protected IAuthenticator? Authenticator { get; }

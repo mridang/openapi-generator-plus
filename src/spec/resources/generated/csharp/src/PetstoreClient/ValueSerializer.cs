@@ -12,7 +12,7 @@ namespace PetstoreClient;
 /// <summary>
 /// Serializes parameter values for HTTP requests based on their location.
 /// </summary>
-public static class ValueSerializer
+internal static class ValueSerializer
 {
     /// <summary>
     /// Percent-encodes a value for use as a URL path segment, preserving

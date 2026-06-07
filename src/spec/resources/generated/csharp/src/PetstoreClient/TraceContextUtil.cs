@@ -16,7 +16,7 @@ namespace PetstoreClient;
 ///
 /// If no <see cref="Activity.Current"/> is present, this class silently no-ops.
 /// </summary>
-public static class TraceContextUtil
+internal static class TraceContextUtil
 {
     /// <summary>
     /// Inject <c>traceparent</c> and optionally <c>tracestate</c> headers into

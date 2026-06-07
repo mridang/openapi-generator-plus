@@ -24,6 +24,17 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
   <ItemGroup>
+    <!-- The spec test project is a separate assembly. Expose the SDK's
+         `internal` members (the test-only DefaultApiClient(HttpClient[,
+         TransportOptions]) seams, the internal serde/transport helpers such as
+         ObjectSerializer/ValueSerializer/HeaderSelector/TraceContextUtil) to it
+         so existing coverage keeps compiling without those types leaking into
+         the public API surface. -->
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>PetstoreClient.Test</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.100">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>

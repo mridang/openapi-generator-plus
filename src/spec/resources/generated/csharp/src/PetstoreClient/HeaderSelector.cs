@@ -13,7 +13,7 @@ namespace PetstoreClient;
 /// <summary>
 /// Selects appropriate Content-Type and Accept headers for API requests.
 /// </summary>
-public static partial class HeaderSelector
+internal static partial class HeaderSelector
 {
     [GeneratedRegex(@"^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)", RegexOptions.IgnoreCase)]
     private static partial Regex JsonMimePattern();
