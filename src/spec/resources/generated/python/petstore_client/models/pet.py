@@ -43,42 +43,7 @@ class Pet(BaseModel):
     thumbnail_ref: Optional[StrictStr] = Field(default=None, alias='thumbnailRef', description='Optionally-relative thumbnail location')
     link_template: Optional[StrictStr] = Field(default=None, alias='linkTemplate', description='RFC 6570 template for related-resource links')
     owner_email: Optional[EmailStr] = Field(default=None, alias='ownerEmail', description="Contact email for the pet's owner")
-    weight_kg: Optional[StrictFloat] = Field(default=None, alias='weightKg', description='Pet weight in kilograms (decimal precision)')
-    additional_properties: Dict[str, Any] = Field(default_factory=dict)
-
-    @model_validator(mode='before')
-    @classmethod
-    def _capture_additional_properties(cls, values: Any) -> Any:
-        """Collect JSON keys not declared as fields into additional_properties.
-
-        Pydantic v2 doesn't auto-merge unknown keys into a typed dict
-        field. Here we walk the incoming mapping, split known-vs-extra
-        based on the model's declared fields (by alias and by name), and
-        funnel extras into `additional_properties`. This makes the
-        Metadata-style schema (fixed fields + additionalProperties: {...})
-        round-trip without dropping data, matching the cross-language
-        contract.
-        """
-        if not isinstance(values, dict):
-            return values
-        known: Set[str] = set()
-        for fname, finfo in cls.model_fields.items():
-            known.add(fname)
-            if finfo.alias is not None:
-                known.add(finfo.alias)
-        extras: Dict[str, Any] = values.get('additional_properties') or {}
-        if not isinstance(extras, dict):
-            extras = {}
-        merged: Dict[str, Any] = {}
-        for key, value in values.items():
-            if key == 'additional_properties':
-                continue
-            if key in known:
-                merged[key] = value
-            else:
-                extras[key] = value
-        merged['additional_properties'] = extras
-        return merged
+    weight_kg: Optional[Decimal] = Field(default=None, alias='weightKg', description='Pet weight in kilograms (decimal precision)')
 
     @field_validator('status')
     def status_warn_deprecated(cls, value: Any) -> Any:
@@ -102,11 +67,11 @@ class Pet(BaseModel):
     )
 
 
+from decimal import Decimal
 from petstore_client.models.category import Category
 from petstore_client.models.tag import Tag
 from pydantic import EmailStr
 from pydantic import HttpUrl
-from pydantic import StrictFloat
 from pydantic import StrictInt
 from pydantic import StrictStr
 

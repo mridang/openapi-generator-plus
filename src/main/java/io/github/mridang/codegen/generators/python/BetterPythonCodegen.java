@@ -89,7 +89,11 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         typeMapping.put("long", "StrictInt");
         typeMapping.put("float", "StrictFloat");
         typeMapping.put("double", "StrictFloat");
-        typeMapping.put("number", "StrictFloat");
+        // A bare `type: number` (no `format`) is a decimal-precision surface
+        // per the typed-everywhere policy: decimal.Decimal in Python (matching
+        // BigDecimal in Java/Kotlin and branded Decimal in Node). `format:
+        // float`/`format: double` keep StrictFloat above for IEEE-754 fields.
+        typeMapping.put("number", "Decimal");
         typeMapping.put("boolean", "StrictBool");
         typeMapping.put("string", "StrictStr");
         typeMapping.put("byte", "bytes");
@@ -111,7 +115,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         typeMapping.put("map", "Dict");
         typeMapping.put("file", "bytes");
         typeMapping.put("File", "bytes");
-        typeMapping.put("decimal", "StrictFloat");
+        typeMapping.put("decimal", "Decimal");
 
         languageSpecificPrimitives =
                 new HashSet<>(
@@ -125,11 +129,19 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                                 // `from petstore_client.models.HttpUrl import HttpUrl`.
                                 "HttpUrl", "EmailStr", "SecretStr", "AwareDatetime",
                                 "StrictInt", "StrictStr", "StrictBool", "StrictFloat",
-                                "IPv4Address", "IPv6Address"));
+                                "Decimal", "IPv4Address", "IPv6Address"));
 
         reservedWords = loadReservedWords("/reserved-words/python.txt");
 
-        this.setDisallowAdditionalPropertiesIfNotPresent(false);
+        // Only carry an extras bag (`additional_properties` + capture
+        // validator) on models whose schema *explicitly* declares
+        // `additionalProperties`, matching every other SDK in this repo.
+        // With this set to `true` (the upstream default), `isAdditionalProp-
+        // ertiesTrue` is true only for those models (e.g. Metadata) and false
+        // for plain object models (Pet, Order, Tag, Category) and for strict
+        // models (StrictTag: unevaluatedProperties:false), which then get
+        // pure `extra='forbid'` rejection with no contradictory capture bag.
+        this.setDisallowAdditionalPropertiesIfNotPresent(true);
         this.setLegacyDiscriminatorBehavior(false);
 
         cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_NAME,
@@ -534,7 +546,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     /** {@inheritDoc} */
     @Override
     protected Set<String> getNumericDataTypes() {
-        return Set.of("int", "float", "StrictInt", "StrictFloat");
+        return Set.of("int", "float", "StrictInt", "StrictFloat", "Decimal");
     }
 
     /**

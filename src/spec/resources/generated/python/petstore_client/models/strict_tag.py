@@ -21,41 +21,6 @@ class StrictTag(BaseModel):
 
     id: Optional[StrictInt] = Field(default=None, alias='id')
     name: Optional[StrictStr] = Field(default=None, alias='name')
-    additional_properties: Dict[str, Any] = Field(default_factory=dict)
-
-    @model_validator(mode='before')
-    @classmethod
-    def _capture_additional_properties(cls, values: Any) -> Any:
-        """Collect JSON keys not declared as fields into additional_properties.
-
-        Pydantic v2 doesn't auto-merge unknown keys into a typed dict
-        field. Here we walk the incoming mapping, split known-vs-extra
-        based on the model's declared fields (by alias and by name), and
-        funnel extras into `additional_properties`. This makes the
-        Metadata-style schema (fixed fields + additionalProperties: {...})
-        round-trip without dropping data, matching the cross-language
-        contract.
-        """
-        if not isinstance(values, dict):
-            return values
-        known: Set[str] = set()
-        for fname, finfo in cls.model_fields.items():
-            known.add(fname)
-            if finfo.alias is not None:
-                known.add(finfo.alias)
-        extras: Dict[str, Any] = values.get('additional_properties') or {}
-        if not isinstance(extras, dict):
-            extras = {}
-        merged: Dict[str, Any] = {}
-        for key, value in values.items():
-            if key == 'additional_properties':
-                continue
-            if key in known:
-                merged[key] = value
-            else:
-                extras[key] = value
-        merged['additional_properties'] = extras
-        return merged
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
     # per-field strictness, so the model-wide ConfigDict no longer needs
