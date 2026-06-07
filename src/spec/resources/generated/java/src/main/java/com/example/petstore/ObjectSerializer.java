@@ -238,7 +238,9 @@ public final class ObjectSerializer {
     mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     mapper.enable(SerializationFeature.WRITE_ENUMS_USING_TO_STRING);
     mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    mapper.configure(DeserializationFeature.FAIL_ON_INVALID_SUBTYPE, false);
+    /* Strict discriminator resolution: an unknown/invalid oneOf subtype must
+    fail loudly rather than deserialize to null, matching the other 11 SDKs. */
+    mapper.configure(DeserializationFeature.FAIL_ON_INVALID_SUBTYPE, true);
     mapper.enable(DeserializationFeature.READ_ENUMS_USING_TO_STRING);
     mapper.registerModule(new JavaTimeModule());
     mapper.setDateFormat(new StdDateFormat().withColonInTimeZone(true));

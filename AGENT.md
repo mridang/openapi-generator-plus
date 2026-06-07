@@ -887,18 +887,17 @@ risky refactor with no observable change). These are decisions, not gaps:
 
 Genuine wire-correctness divergences in the same areas WERE fixed (locale-
 sensitive decimal separators in java/kotlin/csharp; elixir sub-second
-datetime precision) — equivalence is the bar, not laziness.
+datetime precision; **Java strict discriminator resolution** — see below) —
+equivalence is the bar, not laziness.
 
-## Open behavioral divergences (flagged, not yet decided)
+## Resolved behavioral divergences
 
-- **Java lenient discriminator deserialization**: Java's `ObjectMapper` is
-  configured with `FAIL_ON_INVALID_SUBTYPE=false`, so a oneOf/anyOf payload with
-  a missing, empty, or unknown discriminator deserializes to `null` rather than
-  throwing. The other 11 SDKs throw on a bad discriminator. Java's existing
-  `ComposedSchemaTest.testUnknownDiscriminator` codifies the lenient null-return;
-  the three union tests asserting strict-throw (`testMissingDiscriminatorThrows`,
-  `testEmptyDiscriminatorThrows`, `testUnknownDiscriminatorErrorNamesValue`) are
-  `@Disabled` pending a decision. Aligning Java to strict-throw means flipping
-  `FAIL_ON_INVALID_SUBTYPE` and inverting the existing test — a behavioral change
-  with blast radius on all oneOf/anyOf deserialization, so it is raised rather
-  than made silently.
+- **Java discriminator deserialization (now strict)**: Java's `ObjectMapper`
+  previously used `FAIL_ON_INVALID_SUBTYPE=false`, so a oneOf payload with a
+  missing/empty/unknown discriminator deserialized to `null` instead of throwing
+  — the lone lenient outlier among the 12 SDKs. Flipped to
+  `FAIL_ON_INVALID_SUBTYPE=true` so Java now throws like the other 11; the
+  formerly-lenient `testUnknownDiscriminator` was inverted to assert the throw,
+  and the three strict-discriminator union tests are active. Blast radius is
+  confined to invalid-subtype resolution (valid subtypes and `resolveOneOf`/
+  anyOf candidate matching are unaffected).
