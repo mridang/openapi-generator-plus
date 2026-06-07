@@ -17,6 +17,9 @@ import java.util.Map;
  */
 public abstract class BaseAuthenticator implements Authenticator {
 
+  /** Creates a new authenticator. */
+  protected BaseAuthenticator() {}
+
   @Override
   public abstract String getHost();
 

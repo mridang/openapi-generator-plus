@@ -502,9 +502,9 @@ export class DefaultApiClient implements ApiClient {
 
   /**
    * Decode response bytes using the charset declared in the
-   * {@code Content-Type} header. Defaults to UTF-8 when no charset is
+   * `Content-Type` header. Defaults to UTF-8 when no charset is
    * present, and falls back to UTF-8 if the declared charset is not
-   * recognised by the runtime's {@link TextDecoder}.
+   * recognised by the runtime's `TextDecoder`.
    *
    * @param buf the raw response bytes
    * @param contentType the response Content-Type header value
@@ -522,8 +522,8 @@ export class DefaultApiClient implements ApiClient {
 
   /**
    * Map common file extensions to their canonical MIME types for use
-   * as the per-part {@code Content-Type} in multipart uploads.
-   * Falls back to {@code application/octet-stream} when the extension
+   * as the per-part `Content-Type` in multipart uploads.
+   * Falls back to `application/octet-stream` when the extension
    * is unknown.
    */
   private static readonly EXTENSION_MIME_TYPES: Record<string, string> = {
@@ -564,7 +564,7 @@ export class DefaultApiClient implements ApiClient {
    * Look up the MIME type for the given filename based on its extension.
    *
    * @param filename the filename to inspect
-   * @returns the matching MIME type, or {@code application/octet-stream}
+   * @returns the matching MIME type, or `application/octet-stream`
    */
   static mimeTypeForFilename(filename: string): string {
     const dot = filename.lastIndexOf('.');
@@ -576,14 +576,14 @@ export class DefaultApiClient implements ApiClient {
   }
 
   /**
-   * Build a {@code Content-Disposition} header value for a multipart
+   * Build a `Content-Disposition` header value for a multipart
    * file part, sanitising the supplied filename to prevent CRLF header
    * injection and ensuring non-ASCII filenames are transmitted via the
-   * RFC 5987 {@code filename*} parameter alongside an ASCII fallback.
+   * RFC 5987 `filename*` parameter alongside an ASCII fallback.
    *
    * @param name the form field name
    * @param filename the file name to advertise
-   * @returns the assembled {@code Content-Disposition} value
+   * @returns the assembled `Content-Disposition` value
    * @throws Error when the filename contains control characters
    */
   static buildContentDisposition(name: string, filename: string): string {
@@ -613,7 +613,7 @@ export class DefaultApiClient implements ApiClient {
 
   /**
    * Reject strings containing CR, LF, or NUL bytes which could otherwise
-   * split the {@code Content-Disposition} header and inject arbitrary
+   * split the `Content-Disposition` header and inject arbitrary
    * additional headers or a forged body.
    *
    * @param value the candidate string

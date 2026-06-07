@@ -9,9 +9,16 @@ package com.example.petstore.auth;
 
 import java.util.Map;
 
+/** Authenticator for the {@code serviceToken} security scheme. */
 public final class ServiceTokenAuthenticator extends BaseAuthenticator {
   private final BearerAuthenticator delegate;
 
+  /**
+   * Creates an authenticator for the {@code serviceToken} security scheme.
+   *
+   * @param host the host credential
+   * @param token the token credential
+   */
   public ServiceTokenAuthenticator(String host, String token) {
     this.delegate = new BearerAuthenticator(host, token);
   }

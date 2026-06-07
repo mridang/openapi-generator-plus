@@ -12,6 +12,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.time.OffsetDateTime;
 import javax.annotation.Nullable;
 
+/** PhotoMetadata. */
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2", "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"})
 public class PhotoMetadata {
 
@@ -34,6 +35,9 @@ public class PhotoMetadata {
   @JsonProperty("location")
   @Nullable
   public PhotoMetadataLocation location;
+
+  /** Creates an empty instance. */
+  public PhotoMetadata() {}
 
   /* Value-equality based on all declared fields. Generated so model
    * instances work correctly as Set/Map keys and in test assertions.

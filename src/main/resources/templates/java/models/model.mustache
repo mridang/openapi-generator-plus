@@ -14,9 +14,13 @@ import javax.annotation.Nullable;
 {{#description}}
 /** {{{.}}} */
 {{/description}}
+{{^description}}
+/** {{classname}}. */
+{{/description}}
 public enum {{classname}} {
   {{#allowableValues}}
   {{#enumVars}}
+  /** The {@code {{{value}}}} value. */
   {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
   {{/enumVars}}
   {{/allowableValues}}
@@ -27,11 +31,23 @@ public enum {{classname}} {
     this.value = value;
   }
 
+  /**
+   * Returns the wire value of this enum constant.
+   *
+   * @return the wire value
+   */
   @JsonValue
   public String getValue() {
     return value;
   }
 
+  /**
+   * Returns the enum constant for the given wire value.
+   *
+   * @param value the wire value
+   * @return the matching enum constant
+   * @throws IllegalArgumentException if no constant matches
+   */
   @JsonCreator
   public static {{classname}} fromValue(String value) {
     for ({{classname}} b : values()) {
@@ -80,6 +96,9 @@ public enum {{classname}} {
  * @see <a href="{{url}}">{{description}}</a>
  */
 {{/externalDocumentation}}
+{{^externalDocumentation}}
+/** {{classname}}. */
+{{/externalDocumentation}}
 {{/description}}
 {{/isDeprecated}}
 {{#discriminator}}
@@ -93,7 +112,11 @@ public enum {{classname}} {
   @JsonSubTypes.Type(value = {{modelName}}.class, name = "{{mappingName}}"){{^-last}},{{/-last}}
 {{/mappedModels}}
 })
-public abstract class {{classname}} {}
+public abstract class {{classname}} {
+
+  /** Creates a new instance. */
+  protected {{classname}}() {}
+}
 {{/discriminator}}
 {{^discriminator}}
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
@@ -111,10 +134,20 @@ public class {{classname}} {
 
   private Object actualInstance;
 
+  /**
+   * Wraps a concrete variant of this union.
+   *
+   * @param value the concrete variant instance
+   */
   public {{classname}}(Object value) {
     this.actualInstance = value;
   }
 
+  /**
+   * Returns the wrapped concrete variant instance.
+   *
+   * @return the concrete variant instance
+   */
   @JsonValue
   public Object getActualInstance() {
     return actualInstance;
@@ -191,6 +224,9 @@ public class {{classname}} {
  * @see <a href="{{url}}">{{description}}</a>
  */
 {{/externalDocumentation}}
+{{^externalDocumentation}}
+/** {{classname}}. */
+{{/externalDocumentation}}
 {{/description}}
 {{/isDeprecated}}
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
@@ -203,10 +239,20 @@ public class {{classname}} {
 
   private Object actualInstance;
 
+  /**
+   * Wraps a concrete variant of this union.
+   *
+   * @param value the concrete variant instance
+   */
   public {{classname}}(Object value) {
     this.actualInstance = value;
   }
 
+  /**
+   * Returns the wrapped concrete variant instance.
+   *
+   * @return the concrete variant instance
+   */
   @JsonValue
   public Object getActualInstance() {
     return actualInstance;
@@ -286,6 +332,9 @@ public class {{classname}} {
  * @see <a href="{{url}}">{{description}}</a>
  */
 {{/externalDocumentation}}
+{{^externalDocumentation}}
+/** {{classname}}. */
+{{/externalDocumentation}}
 {{/description}}
 {{/isDeprecated}}
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2", "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"})
@@ -293,9 +342,11 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{#vars}}
 {{#isEnum}}
 
+  /** Allowed values for the {@code {{name}}} property. */
   public enum {{enumName}} {
     {{#allowableValues}}
     {{#enumVars}}
+    /** The {@code {{{value}}}} value. */
     {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
     {{/enumVars}}
     {{/allowableValues}}
@@ -306,11 +357,23 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
       this.value = value;
     }
 
+    /**
+     * Returns the wire value of this enum constant.
+     *
+     * @return the wire value
+     */
     @JsonValue
     public String getValue() {
       return value;
     }
 
+    /**
+     * Returns the enum constant for the given wire value.
+     *
+     * @param value the wire value
+     * @return the matching enum constant
+     * @throws IllegalArgumentException if no constant matches
+     */
     @JsonCreator
     public static {{enumName}} fromValue(String value) {
       for ({{enumName}} b : values()) {
@@ -368,6 +431,11 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   {{#example}}
   /** Example: {@code {{{.}}}} */
   {{/example}}
+  {{^example}}
+  {{^vendorExtensions.pluralExamples}}
+  /** The {@code {{name}}} property. */
+  {{/vendorExtensions.pluralExamples}}
+  {{/example}}
   {{/description}}
   {{/deprecated}}
   {{#vendorExtensions.pluralExamples}}
@@ -396,11 +464,22 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 
   private java.util.Map<String, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}}> additionalProperties = new java.util.LinkedHashMap<>();
 
+  /**
+   * Stores an additional, undeclared property.
+   *
+   * @param key the property name
+   * @param value the property value
+   */
   @com.fasterxml.jackson.annotation.JsonAnySetter
   public void setAdditionalProperty(String key, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}} value) {
     this.additionalProperties.put(key, value);
   }
 
+  /**
+   * Returns the additional, undeclared properties.
+   *
+   * @return the additional properties, keyed by property name
+   */
   @com.fasterxml.jackson.annotation.JsonAnyGetter
   public java.util.Map<String, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}}> getAdditionalProperties() {
     return this.additionalProperties;
@@ -410,6 +489,13 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 
   /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false:
    * any JSON key not declared above must be rejected at deserialization time. */
+  /**
+   * Rejects any undeclared property during deserialization.
+   *
+   * @param key the property name
+   * @param value the property value
+   * @throws IllegalArgumentException always, since unknown properties are not allowed
+   */
   @com.fasterxml.jackson.annotation.JsonAnySetter
   public void setUnknownProperty(String key, Object value) {
     throw new IllegalArgumentException(
@@ -427,15 +513,28 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
    * unannotated (disabling null-safety on the model entirely); both weaken a
    * real correctness rule, so the suppression is kept here, scoped to this
    * single framework-mandated constructor. */
+  /** Creates an empty instance for deserialization; required fields are populated later. */
   @SuppressWarnings("NullAway.Init")
   public {{classname}}() {}
 
+  /**
+   * Creates an instance with all required properties.
+   *
+{{#requiredVars}}
+   * @param {{name}} the {@code {{baseName}}} property
+{{/requiredVars}}
+   */
   @com.fasterxml.jackson.annotation.JsonCreator
   public {{classname}}({{#requiredVars}}@JsonProperty(value = "{{baseName}}", required = true) {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{^-last}}, {{/-last}}{{/requiredVars}}) {
 {{#requiredVars}}
     this.{{name}} = java.util.Objects.requireNonNull({{name}}, "{{name}} is required");
 {{/requiredVars}}
   }
+{{/hasRequired}}
+{{^hasRequired}}
+
+  /** Creates an empty instance. */
+  public {{classname}}() {}
 {{/hasRequired}}
 
   /* Value-equality based on all declared fields{{#isAdditionalPropertiesTrue}} (including

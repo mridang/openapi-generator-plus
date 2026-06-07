@@ -11,6 +11,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nullable;
 
+/** Category. */
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2", "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"})
 public class Category {
 
@@ -33,6 +34,9 @@ public class Category {
   @JsonProperty("name")
   @Nullable
   public String name;
+
+  /** Creates an empty instance. */
+  public Category() {}
 
   /* Value-equality based on all declared fields. Generated so model
    * instances work correctly as Set/Map keys and in test assertions.

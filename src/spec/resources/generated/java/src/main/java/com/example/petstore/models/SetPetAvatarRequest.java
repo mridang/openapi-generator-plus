@@ -10,6 +10,7 @@ package com.example.petstore.models;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
+/** SetPetAvatarRequest. */
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2", "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"})
 public class SetPetAvatarRequest {
 
@@ -34,9 +35,16 @@ public class SetPetAvatarRequest {
    * unannotated (disabling null-safety on the model entirely); both weaken a
    * real correctness rule, so the suppression is kept here, scoped to this
    * single framework-mandated constructor. */
+  /** Creates an empty instance for deserialization; required fields are populated later. */
   @SuppressWarnings("NullAway.Init")
   public SetPetAvatarRequest() {}
 
+  /**
+   * Creates an instance with all required properties.
+   *
+   * @param data the {@code data} property
+   * @param mimeType the {@code mimeType} property
+   */
   @com.fasterxml.jackson.annotation.JsonCreator
   public SetPetAvatarRequest(
       @JsonProperty(value = "data", required = true) byte[] data,

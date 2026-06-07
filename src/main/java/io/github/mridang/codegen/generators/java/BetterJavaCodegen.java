@@ -803,6 +803,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         for (final CodegenParameter p : optionsParams) {
             final Map<String, Object> param = new HashMap<>();
             param.put("paramName", p.paramName);
+            param.put("baseName", p.baseName);
             param.put("dataType", p.dataType);
             param.put("required", p.required);
             params.add(param);

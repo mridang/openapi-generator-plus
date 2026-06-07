@@ -90,7 +90,7 @@ function jsonMaxDepth(s: string): number {
 export class ObjectSerializer {
   /**
    * Parse a JSON text into a plain JS value, refusing payloads that exceed
-   * the {@link MAX_JSON_DEPTH} nesting cap (DoS guard for malicious
+   * the `MAX_JSON_DEPTH` nesting cap (DoS guard for malicious
    * deeply-nested payloads — F5 follow-up, parity with Go/Java/Python).
    *
    * @param json the raw JSON text

@@ -9,9 +9,16 @@ package com.example.petstore.auth;
 
 import java.util.Map;
 
+/** Authenticator for the {@code petStoreBearer} security scheme. */
 public final class PetStoreBearerAuthenticator extends BaseAuthenticator {
   private final BearerAuthenticator delegate;
 
+  /**
+   * Creates an authenticator for the {@code petStoreBearer} security scheme.
+   *
+   * @param host the host credential
+   * @param token the token credential
+   */
   public PetStoreBearerAuthenticator(String host, String token) {
     this.delegate = new BearerAuthenticator(host, token);
   }

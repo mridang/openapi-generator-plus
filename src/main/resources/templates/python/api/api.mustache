@@ -125,10 +125,12 @@ class {{classname}}(BaseApi):
 {{/returnType}}
         :raises ApiException: if fails to make API call
 {{#isDeprecated}}
+
         .. deprecated::
             This operation is deprecated.
 {{/isDeprecated}}
 {{#externalDocs}}
+
         .. seealso::
             `{{description}} <{{url}}>`_
 {{/externalDocs}}

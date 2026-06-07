@@ -19,8 +19,8 @@ use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
 use crate::auth::oauth::oauth2_token_manager::OAuth2TokenManager;
 
 /// Error returned by [`OAuth2AuthorizationCodeAuthenticator::try_auth_headers`]
-/// when the caller invokes it before [`exchange_code`]
-/// (struct.OAuth2AuthorizationCodeAuthenticator.html#method.exchange_code).
+/// when the caller invokes it before
+/// [`exchange_code`](OAuth2AuthorizationCodeAuthenticator::exchange_code).
 ///
 /// Callers can downcast to this type so they can distinguish a usage error
 /// from a network/token-endpoint failure and recover instead of being

@@ -16,11 +16,21 @@ import javax.annotation.Nullable;
 public class ApiException extends Exception {
   private static final long serialVersionUID = 1L;
 
+  /** The HTTP status code. */
   private final int statusCode;
+
   @Nullable private final transient Map<String, String> responseHeaders;
+
+  /** The raw HTTP response body, if available. */
   @Nullable private final String responseBody;
+
   @Nullable private final transient Object errorBody;
 
+  /**
+   * Construct an exception with a detail message and no response context.
+   *
+   * @param message the detail message
+   */
   public ApiException(String message) {
     super(message);
     this.statusCode = 0;
@@ -47,6 +57,14 @@ public class ApiException extends Exception {
     this.errorBody = null;
   }
 
+  /**
+   * Construct an exception with response context but no deserialized error body.
+   *
+   * @param statusCode the HTTP status code
+   * @param message the detail message
+   * @param responseHeaders the HTTP response headers, if available
+   * @param responseBody the raw HTTP response body, if available
+   */
   public ApiException(
       int statusCode,
       String message,
@@ -55,6 +73,15 @@ public class ApiException extends Exception {
     this(statusCode, message, responseHeaders, responseBody, null);
   }
 
+  /**
+   * Construct an exception with full response context.
+   *
+   * @param statusCode the HTTP status code
+   * @param message the detail message
+   * @param responseHeaders the HTTP response headers, if available
+   * @param responseBody the raw HTTP response body, if available
+   * @param errorBody the deserialized error body, if available
+   */
   public ApiException(
       int statusCode,
       String message,

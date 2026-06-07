@@ -23,9 +23,13 @@ import javax.annotation.Nullable;
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2", "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"})
 public class PetWithOwner {
 
+  /** Allowed values for the {@code status} property. */
   public enum StatusEnum {
+    /** The {@code "available"} value. */
     AVAILABLE("available"),
+    /** The {@code "pending"} value. */
     PENDING("pending"),
+    /** The {@code "sold"} value. */
     SOLD("sold");
 
     private final String value;
@@ -34,11 +38,23 @@ public class PetWithOwner {
       this.value = value;
     }
 
+    /**
+     * Returns the wire value of this enum constant.
+     *
+     * @return the wire value
+     */
     @JsonValue
     public String getValue() {
       return value;
     }
 
+    /**
+     * Returns the enum constant for the given wire value.
+     *
+     * @param value the wire value
+     * @return the matching enum constant
+     * @throws IllegalArgumentException if no constant matches
+     */
     @JsonCreator
     public static StatusEnum fromValue(String value) {
       for (StatusEnum b : values()) {
@@ -144,9 +160,17 @@ public class PetWithOwner {
    * unannotated (disabling null-safety on the model entirely); both weaken a
    * real correctness rule, so the suppression is kept here, scoped to this
    * single framework-mandated constructor. */
+  /** Creates an empty instance for deserialization; required fields are populated later. */
   @SuppressWarnings("NullAway.Init")
   public PetWithOwner() {}
 
+  /**
+   * Creates an instance with all required properties.
+   *
+   * @param name the {@code name} property
+   * @param photoUrls the {@code photoUrls} property
+   * @param ownerName the {@code ownerName} property
+   */
   @com.fasterxml.jackson.annotation.JsonCreator
   public PetWithOwner(
       @JsonProperty(value = "name", required = true) String name,

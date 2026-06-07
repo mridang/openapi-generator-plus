@@ -262,6 +262,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("rector.mustache", "", "rector.php"),
             new SupportingFileSpec("phpcs_xml.mustache", "", "phpcs.xml"),
             new SupportingFileSpec("php_cs_fixer.mustache", "", ".php-cs-fixer.dist.php"),
+            new SupportingFileSpec("phpdoc_dist_xml.mustache", "", "phpdoc.dist.xml"),
             new SupportingFileSpec("makefile.mustache", "", "Makefile"),
             new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
             new SupportingFileSpec("gitignore.mustache", "", ".gitignore")

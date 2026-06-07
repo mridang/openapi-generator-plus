@@ -9,7 +9,14 @@ package com.example.petstore.auth.oauth;
 
 import java.util.List;
 
+/** Authenticator for the {@code browserAuth} security scheme. */
 public final class BrowserAuthImplicitAuthenticator extends OAuth2ImplicitAuthenticator {
+  /**
+   * Creates an authenticator for the {@code browserAuth} security scheme.
+   *
+   * @param host the host credential
+   * @param clientId the clientId credential
+   */
   public BrowserAuthImplicitAuthenticator(String host, String clientId) {
     super(host, clientId, "https://auth.example.com/authorize", List.of("read"));
   }

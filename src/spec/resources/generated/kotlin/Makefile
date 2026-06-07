@@ -16,4 +16,4 @@ lint:
 	./gradlew ktlintCheck detekt
 
 docs:
-	./gradlew dokkaHtml
+	./gradlew dokkaGenerate

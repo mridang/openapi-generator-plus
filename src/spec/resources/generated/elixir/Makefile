@@ -24,7 +24,7 @@ format: install
 	mix format
 
 docs: install
-	mix docs
+	mix docs --warnings-as-errors
 
 clean:
 	mix clean

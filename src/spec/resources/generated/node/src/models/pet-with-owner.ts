@@ -138,9 +138,6 @@ export class PetWithOwner {
   }
 }
 
-/**
- * @export
- */
 export enum PetWithOwnerStatusEnum {
   Available = 'available',
   Pending = 'pending',

@@ -21,6 +21,14 @@ public final class ApiKeyAuthenticator extends BaseAuthenticator {
   private final String apiKey;
   private final ApiKeyLocation location;
 
+  /**
+   * Creates an API key authenticator.
+   *
+   * @param host the base URL of the API
+   * @param keyParamName the name of the header, query parameter, or cookie carrying the key
+   * @param apiKey the API key value
+   * @param location where the API key is sent on each request
+   */
   public ApiKeyAuthenticator(
       String host, String keyParamName, String apiKey, ApiKeyLocation location) {
     this.host = host;

@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
 
+/** PetPassport. */
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2", "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"})
 public class PetPassport {
 
@@ -53,6 +54,9 @@ public class PetPassport {
   @JsonProperty("biometricChip")
   @Nullable
   public String biometricChip;
+
+  /** Creates an empty instance. */
+  public PetPassport() {}
 
   /* Value-equality based on all declared fields. Generated so model
    * instances work correctly as Set/Map keys and in test assertions.

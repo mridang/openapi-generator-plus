@@ -11,6 +11,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nullable;
 
+/** PhotoMetadataLocation. */
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2", "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"})
 public class PhotoMetadataLocation {
 
@@ -23,6 +24,9 @@ public class PhotoMetadataLocation {
   @JsonProperty("lng")
   @Nullable
   public Double lng;
+
+  /** Creates an empty instance. */
+  public PhotoMetadataLocation() {}
 
   /* Value-equality based on all declared fields. Generated so model
    * instances work correctly as Set/Map keys and in test assertions.

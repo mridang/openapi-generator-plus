@@ -169,3 +169,16 @@ kover {
         }
     }
 }
+
+// API documentation: Dokka is the standard Kotlin documentation engine.
+// Dokka 2.x runs in "V2" mode, where the generation task is `dokkaGenerate`
+// (the legacy `dokkaHtml`/`dokkaGfm` V1 tasks are disabled). Output is
+// pinned to `.out/docs` and `failOnWarning` is enabled so any undocumented
+// public member or unresolved KDoc link fails the build rather than passing
+// silently.
+dokka {
+    dokkaPublications.html {
+        outputDirectory.set(layout.projectDirectory.dir(".out/docs"))
+        failOnWarning.set(true)
+    }
+}

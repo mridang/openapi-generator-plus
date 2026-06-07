@@ -520,8 +520,10 @@ class PetApi(BaseApi):
 
         :return: List[Pet]
         :raises ApiException: if fails to make API call
+
         .. deprecated::
             This operation is deprecated.
+
         .. seealso::
             `Find out more about filtering <https://example.com/docs/filtering>`_
         """
@@ -844,6 +846,7 @@ class PetApi(BaseApi):
 
         :return: Pet
         :raises ApiException: if fails to make API call
+
         .. deprecated::
             This operation is deprecated.
         """

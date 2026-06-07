@@ -13,16 +13,22 @@ public interface Authenticator {
 
     /**
      * Returns the base URL of the API.
+     *
+     * @return the base URL of the API
      */
     String getHost();
 
     /**
      * Returns the authentication headers to include in every request.
+     *
+     * @return the authentication headers, keyed by header name
      */
     Map<String, String> getAuthHeaders();
 
     /**
      * Returns query parameters to include for authentication.
+     *
+     * @return the authentication query parameters, keyed by parameter name
      */
     default Map<String, String> getQueryParams() {
         return Collections.emptyMap();
@@ -30,6 +36,8 @@ public interface Authenticator {
 
     /**
      * Returns cookie parameters to include for authentication.
+     *
+     * @return the authentication cookie parameters, keyed by cookie name
      */
     default Map<String, String> getCookieParams() {
         return Collections.emptyMap();

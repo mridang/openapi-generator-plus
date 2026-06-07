@@ -285,6 +285,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             new SupportingFileSpec("makefile.mustache", "", "Makefile"),
             new SupportingFileSpec("rakefile.mustache", "", "Rakefile"),
             new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
+            new SupportingFileSpec("yardopts.mustache", "", ".yardopts"),
             new SupportingFileSpec("gitignore.mustache", "", ".gitignore")
         );
     }

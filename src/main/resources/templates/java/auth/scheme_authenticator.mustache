@@ -6,7 +6,17 @@ package {{package}};
 import {{.}};
 {{/imports}}
 
+/**
+ * Authenticator for the {@code {{schemeName}}} security scheme.
+ */
 public final class {{className}} extends {{baseClass}} {
+    /**
+     * Creates an authenticator for the {@code {{schemeName}}} security scheme.
+     *
+{{#constructorParams}}
+     * @param {{name}} the {{name}} credential
+{{/constructorParams}}
+     */
     public {{className}}({{#constructorParams}}{{type}} {{name}}{{^-last}}, {{/-last}}{{/constructorParams}}) {
         super({{#superArgs}}{{.}}{{^-last}}, {{/-last}}{{/superArgs}});
     }
@@ -23,9 +33,19 @@ import java.util.Map;
 {{! BaseAuthenticator to remain a valid Authenticator for the client, and }}
 {{! delegates to a held final instance of the concrete base. The base is }}
 {{! constructed here, so eager validation still happens at construction. }}
+/**
+ * Authenticator for the {@code {{schemeName}}} security scheme.
+ */
 public final class {{className}} extends BaseAuthenticator {
     private final {{baseClass}} delegate;
 
+    /**
+     * Creates an authenticator for the {@code {{schemeName}}} security scheme.
+     *
+{{#constructorParams}}
+     * @param {{name}} the {{name}} credential
+{{/constructorParams}}
+     */
     public {{className}}({{#constructorParams}}{{type}} {{name}}{{^-last}}, {{/-last}}{{/constructorParams}}) {
         this.delegate = new {{baseClass}}({{#superArgs}}{{.}}{{^-last}}, {{/-last}}{{/superArgs}});
     }

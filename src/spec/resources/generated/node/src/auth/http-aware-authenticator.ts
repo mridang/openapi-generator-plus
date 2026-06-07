@@ -30,7 +30,7 @@ export interface HttpAwareAuthenticator extends Authenticator {
    * Inject the shared API client for making HTTP requests.
    *
    * Called by the `Client` constructor after the {@link ApiClient} has been
-   * created with the user's {@link TransportOptions}. Implementations should
+   * created with the user's `TransportOptions`. Implementations should
    * store this reference and use it for all outbound HTTP calls (token
    * exchange, discovery, etc.).
    *

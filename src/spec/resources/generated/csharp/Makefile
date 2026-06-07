@@ -21,7 +21,9 @@ analyze:
 	dotnet build --no-restore /warnaserror
 
 docs:
-	dotnet build /p:DocumentationFile=docs/api.xml
+	dotnet tool restore
+	dotnet docfx metadata docfx.json --warningsAsErrors
+	dotnet docfx build docfx.json --warningsAsErrors
 
 clean:
 	dotnet clean

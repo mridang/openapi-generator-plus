@@ -11,6 +11,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nullable;
 
+/** StrictTag. */
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2", "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"})
 public class StrictTag {
 
@@ -26,11 +27,21 @@ public class StrictTag {
 
   /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false:
    * any JSON key not declared above must be rejected at deserialization time. */
+  /**
+   * Rejects any undeclared property during deserialization.
+   *
+   * @param key the property name
+   * @param value the property value
+   * @throws IllegalArgumentException always, since unknown properties are not allowed
+   */
   @com.fasterxml.jackson.annotation.JsonAnySetter
   public void setUnknownProperty(String key, Object value) {
     throw new IllegalArgumentException(
         "Unknown property '" + key + "' on StrictTag (unevaluatedProperties:false)");
   }
+
+  /** Creates an empty instance. */
+  public StrictTag() {}
 
   /* Value-equality based on all declared fields. Generated so model
    * instances work correctly as Set/Map keys and in test assertions.

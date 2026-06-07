@@ -341,9 +341,6 @@ export class {{classname}} extends BaseApi {
 {{#allParams}}
 {{#isEnum}}
 {{^stringEnums}}
-/**
- * @export
- */
 export const {{operationIdCamelCase}}{{enumName}} = {
 {{#allowableValues}}
   {{#enumVars}}
@@ -354,10 +351,6 @@ export const {{operationIdCamelCase}}{{enumName}} = {
 export type {{operationIdCamelCase}}{{enumName}} = (typeof {{operationIdCamelCase}}{{enumName}})[keyof typeof {{operationIdCamelCase}}{{enumName}}];
 {{/stringEnums}}
 {{#stringEnums}}
-/**
- * @export
- * @enum {string}
- */
 export enum {{operationIdCamelCase}}{{enumName}} {
 {{#allowableValues}}
   {{#enumVars}}

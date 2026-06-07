@@ -53,7 +53,7 @@ module PetstoreClient
 
         # Inject the shared API client for making discovery and token requests.
         #
-        # @param client [ApiClient] the shared API client instance
+        # @param value [ApiClient] the shared API client instance
         # @return [void]
         attr_writer :api_client
 

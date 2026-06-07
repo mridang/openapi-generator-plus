@@ -20,4 +20,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
   @JsonSubTypes.Type(value = DryFood.class, name = "dry"),
   @JsonSubTypes.Type(value = WetFood.class, name = "wet")
 })
-public abstract class PetFood {}
+public abstract class PetFood {
+
+  /** Creates a new instance. */
+  protected PetFood() {}
+}

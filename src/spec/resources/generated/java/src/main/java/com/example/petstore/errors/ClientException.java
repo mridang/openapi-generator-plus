@@ -15,6 +15,15 @@ import javax.annotation.Nullable;
 public class ClientException extends ApiException {
   private static final long serialVersionUID = 1L;
 
+  /**
+   * Creates a new exception.
+   *
+   * @param statusCode the HTTP status code
+   * @param message the error message
+   * @param responseHeaders the HTTP response headers, if available
+   * @param responseBody the raw HTTP response body, if available
+   * @param errorBody the deserialized error body, if available
+   */
   public ClientException(
       int statusCode,
       String message,

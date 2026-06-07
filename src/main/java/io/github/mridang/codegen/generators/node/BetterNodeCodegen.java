@@ -289,6 +289,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("header_selector.mustache", "src", "header-selector.ts"),
             new SupportingFileSpec("trace_context_util.mustache", "src", "trace-context-util.ts"),
             new SupportingFileSpec("tsconfig.mustache", "", "tsconfig.json"),
+            new SupportingFileSpec("typedoc.mustache", "", "typedoc.json"),
             new SupportingFileSpec("models/index.mustache", "src/models", "index.ts"),
             new SupportingFileSpec("api/index.mustache", "src/api", "index.ts"),
             new SupportingFileSpec("package.mustache", "", "package.json"),

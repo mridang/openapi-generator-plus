@@ -16,6 +16,12 @@ public final class BearerAuthenticator extends BaseAuthenticator {
   private final String host;
   private final String token;
 
+  /**
+   * Creates an HTTP Bearer token authenticator.
+   *
+   * @param host the base URL of the API
+   * @param token the bearer token
+   */
   public BearerAuthenticator(String host, String token) {
     if (token == null || token.isEmpty()) {
       throw new IllegalArgumentException("Bearer token must not be empty");

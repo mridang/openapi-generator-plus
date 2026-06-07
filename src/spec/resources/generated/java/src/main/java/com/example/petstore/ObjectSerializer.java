@@ -293,10 +293,21 @@ public final class ObjectSerializer {
 
     private static final long serialVersionUID = 1L;
 
+    /**
+     * Creates an exception with a detail message and cause.
+     *
+     * @param message the detail message
+     * @param cause the underlying cause
+     */
     public SerializationException(String message, Throwable cause) {
       super(message, cause);
     }
 
+    /**
+     * Creates an exception with a detail message.
+     *
+     * @param message the detail message
+     */
     public SerializationException(String message) {
       super(message);
     }

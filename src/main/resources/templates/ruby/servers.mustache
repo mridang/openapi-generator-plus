@@ -18,7 +18,7 @@ module {{moduleName}}
   #     url = {{moduleName}}::Servers::SERVER_1.url('environment' => 'staging')
   module Servers
 {{#serverConfigs}}
-    # Server {{serverIndex}}: {{serverUrl}}{{#serverDescription}}
+    # Server {{serverIndex}}: +{{serverUrl}}+{{#serverDescription}}
     #
     # {{serverDescription}}{{/serverDescription}}
     SERVER_{{serverIndex}} = ServerConfiguration.new(

@@ -536,11 +536,15 @@ pub(crate) fn same_origin(a: &reqwest::Url, b: &reqwest::Url) -> bool {
 /// replayed verbatim across 307/308 redirects per RFC 7231 §6.4.7 / RFC 7538.
 ///
 /// Each field is emitted as:
-///   --<boundary>CRLF
-///   Content-Disposition: form-data; name="<name>"[; filename="<name>"]CRLF
-///   Content-Type: <mime>CRLF       (only for bytes parts)
-///   CRLF
-///   <value bytes>CRLF
+///
+/// ```text
+/// --<boundary>CRLF
+/// Content-Disposition: form-data; name="<name>"[; filename="<name>"]CRLF
+/// Content-Type: <mime>CRLF       (only for bytes parts)
+/// CRLF
+/// <value bytes>CRLF
+/// ```
+///
 /// followed by the closing `--<boundary>--CRLF` delimiter.
 pub fn serialize_multipart_body(
     fields: &HashMap<String, MultipartValue>,

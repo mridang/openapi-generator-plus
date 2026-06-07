@@ -9,7 +9,16 @@ package com.example.petstore.auth.oauth;
 
 import java.util.List;
 
+/** Authenticator for the {@code ssoAuth} security scheme. */
 public final class SsoAuthAuthenticator extends OpenIdConnectAuthenticator {
+  /**
+   * Creates an authenticator for the {@code ssoAuth} security scheme.
+   *
+   * @param host the host credential
+   * @param clientId the clientId credential
+   * @param clientSecret the clientSecret credential
+   * @param redirectUri the redirectUri credential
+   */
   public SsoAuthAuthenticator(
       String host, String clientId, String clientSecret, String redirectUri) {
     super(

@@ -60,9 +60,6 @@ export class Order {
   }
 }
 
-/**
- * @export
- */
 export enum OrderStatusEnum {
   Placed = 'placed',
   Approved = 'approved',

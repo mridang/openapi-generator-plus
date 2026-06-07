@@ -27,6 +27,13 @@ public final class {{className}} {
 {{/required}}
 {{/params}}
 
+    /**
+     * Creates an options instance with the required parameters.
+     *
+{{#requiredParams}}
+     * @param {{paramName}} the {@code {{baseName}}} parameter
+{{/requiredParams}}
+     */
     public {{className}}({{#requiredParams}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/requiredParams}}) {
 {{#requiredParams}}
         this.{{paramName}} = {{paramName}};
@@ -35,12 +42,30 @@ public final class {{className}} {
 {{#params}}
 {{^required}}
 
+    /**
+     * Sets the {@code {{baseName}}} parameter.
+     *
+     * @param {{paramName}} the {@code {{baseName}}} parameter
+     * @return this options instance for chaining
+     */
     public {{className}} {{paramName}}({{{dataType}}} {{paramName}}) {
         this.{{paramName}} = {{paramName}};
         return this;
     }
 
+    /**
+     * Returns the {@code {{baseName}}} parameter.
+     *
+     * @return the {@code {{baseName}}} parameter, or {@code null} if unset
+     */
     @Nullable
+{{/required}}
+{{#required}}
+    /**
+     * Returns the {@code {{baseName}}} parameter.
+     *
+     * @return the {@code {{baseName}}} parameter
+     */
 {{/required}}
     public {{{dataType}}} {{paramName}}() {
         return {{paramName}};

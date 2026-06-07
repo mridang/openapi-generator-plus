@@ -16,18 +16,34 @@ import java.util.Map;
  */
 public interface Authenticator {
 
-  /** Returns the base URL of the API. */
+  /**
+   * Returns the base URL of the API.
+   *
+   * @return the base URL of the API
+   */
   String getHost();
 
-  /** Returns the authentication headers to include in every request. */
+  /**
+   * Returns the authentication headers to include in every request.
+   *
+   * @return the authentication headers, keyed by header name
+   */
   Map<String, String> getAuthHeaders();
 
-  /** Returns query parameters to include for authentication. */
+  /**
+   * Returns query parameters to include for authentication.
+   *
+   * @return the authentication query parameters, keyed by parameter name
+   */
   default Map<String, String> getQueryParams() {
     return Collections.emptyMap();
   }
 
-  /** Returns cookie parameters to include for authentication. */
+  /**
+   * Returns cookie parameters to include for authentication.
+   *
+   * @return the authentication cookie parameters, keyed by cookie name
+   */
   default Map<String, String> getCookieParams() {
     return Collections.emptyMap();
   }

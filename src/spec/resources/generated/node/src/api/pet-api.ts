@@ -1362,9 +1362,6 @@ export class PetApi extends BaseApi {
   }
 }
 
-/**
- * @export
- */
 export const FindPetsByStatusStatusEnum = {
   Available: 'available',
   Pending: 'pending',
@@ -1372,9 +1369,6 @@ export const FindPetsByStatusStatusEnum = {
   UnknownDefaultOpenApi: '11184809'
 } as const;
 export type FindPetsByStatusStatusEnum = (typeof FindPetsByStatusStatusEnum)[keyof typeof FindPetsByStatusStatusEnum];
-/**
- * @export
- */
 export const UploadPetDocumentDocumentTypeEnum = {
   HealthCertificate: 'health_certificate',
   VaccinationRecord: 'vaccination_record',

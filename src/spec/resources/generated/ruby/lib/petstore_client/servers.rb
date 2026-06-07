@@ -22,7 +22,7 @@ module PetstoreClient
   #
   #     url = PetstoreClient::Servers::SERVER_1.url('environment' => 'staging')
   module Servers
-    # Server 0: /api/v3
+    # Server 0: +/api/v3+
     #
     # Relative URL (no variables)
     SERVER_0 = ServerConfiguration.new(
@@ -31,7 +31,7 @@ module PetstoreClient
       variables: {}
     ).freeze
 
-    # Server 1: https://{environment}.example.com/api/{version}
+    # Server 1: +https://{environment}.example.com/api/{version}+
     #
     # Main API server with variables
     SERVER_1 = ServerConfiguration.new(

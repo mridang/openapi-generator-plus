@@ -132,9 +132,6 @@ export class Pet {
   }
 }
 
-/**
- * @export
- */
 export enum PetStatusEnum {
   Available = 'available',
   Pending = 'pending',

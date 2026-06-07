@@ -529,11 +529,11 @@ defmodule PetstoreClient.DefaultApiClient do
     "x-internal-key"
   ]
 
-  defp do_request_with_redirects(client, method, url, headers, body, max_redirects, no_redirect \\ false) do
+  defp do_request_with_redirects(client, method, url, headers, body, max_redirects, no_redirect) do
     do_request_with_redirects(client, method, url, url, headers, body, max_redirects, 0, no_redirect)
   end
 
-  defp do_request_with_redirects(client, _method, _url, _orig_url, _headers, _body, max, hops, _no_redirect)
+  defp do_request_with_redirects(_client, _method, _url, _orig_url, _headers, _body, max, hops, _no_redirect)
        when hops > max do
     raise PetstoreClient.ApiError, message: "too many redirects", status_code: 0
   end

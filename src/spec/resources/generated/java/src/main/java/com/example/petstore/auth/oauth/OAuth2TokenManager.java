@@ -302,6 +302,11 @@ public class OAuth2TokenManager {
   public static class OAuth2TokenError extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
+    /**
+     * Creates a token error with the given detail message.
+     *
+     * @param message the detail message
+     */
     public OAuth2TokenError(String message) {
       super(message);
     }
@@ -317,12 +322,30 @@ public class OAuth2TokenManager {
   public static class OAuth2ServerError extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
+    /** The HTTP status code of the error response. */
     private final int statusCode;
+
+    /** The RFC 6749 §5.2 error code, if present. */
     @Nullable private final String code;
+
+    /** The human-readable error description, if present. */
     @Nullable private final String description;
+
+    /** A URI describing the error, if present. */
     @Nullable private final String uri;
+
+    /** The original response payload. */
     private final String rawBody;
 
+    /**
+     * Creates a typed OAuth2 error response.
+     *
+     * @param statusCode the HTTP status code of the error response
+     * @param code the RFC 6749 §5.2 error code, if present
+     * @param description the human-readable error description, if present
+     * @param uri a URI describing the error, if present
+     * @param rawBody the original response payload
+     */
     public OAuth2ServerError(
         int statusCode,
         @Nullable String code,
@@ -337,25 +360,50 @@ public class OAuth2TokenManager {
       this.rawBody = rawBody;
     }
 
+    /**
+     * Returns the HTTP status code of the error response.
+     *
+     * @return the HTTP status code
+     */
     public int getStatusCode() {
       return statusCode;
     }
 
+    /**
+     * Returns the RFC 6749 §5.2 error code, if present.
+     *
+     * @return the error code, or {@code null} if absent
+     */
     @Nullable
     public String getCode() {
       return code;
     }
 
+    /**
+     * Returns the human-readable error description, if present.
+     *
+     * @return the error description, or {@code null} if absent
+     */
     @Nullable
     public String getDescription() {
       return description;
     }
 
+    /**
+     * Returns a URI describing the error, if present.
+     *
+     * @return the error URI, or {@code null} if absent
+     */
     @Nullable
     public String getUri() {
       return uri;
     }
 
+    /**
+     * Returns the original response payload.
+     *
+     * @return the raw response body
+     */
     public String getRawBody() {
       return rawBody;
     }

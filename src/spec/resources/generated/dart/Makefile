@@ -19,7 +19,15 @@ format:
 	dart format .
 
 docs:
-	dart doc
+	@set -e; \
+	out=$$(dart doc --output .out/docs --validate-links 2>&1); \
+	status=$$?; \
+	printf '%s\n' "$$out"; \
+	if [ $$status -ne 0 ]; then exit $$status; fi; \
+	if printf '%s\n' "$$out" | grep -i 'warning:' | grep -vi 'deprecated' | grep -q .; then \
+		echo 'docs: dartdoc emitted warnings (see above)'; \
+		exit 1; \
+	fi
 
 clean:
 	rm -rf .dart_tool/

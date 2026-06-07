@@ -14,12 +14,17 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.time.OffsetDateTime;
 import javax.annotation.Nullable;
 
+/** Order. */
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2", "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"})
 public class Order {
 
+  /** Allowed values for the {@code status} property. */
   public enum StatusEnum {
+    /** The {@code "placed"} value. */
     PLACED("placed"),
+    /** The {@code "approved"} value. */
     APPROVED("approved"),
+    /** The {@code "delivered"} value. */
     DELIVERED("delivered");
 
     private final String value;
@@ -28,11 +33,23 @@ public class Order {
       this.value = value;
     }
 
+    /**
+     * Returns the wire value of this enum constant.
+     *
+     * @return the wire value
+     */
     @JsonValue
     public String getValue() {
       return value;
     }
 
+    /**
+     * Returns the enum constant for the given wire value.
+     *
+     * @param value the wire value
+     * @return the matching enum constant
+     * @throws IllegalArgumentException if no constant matches
+     */
     @JsonCreator
     public static StatusEnum fromValue(String value) {
       for (StatusEnum b : values()) {
@@ -77,6 +94,9 @@ public class Order {
   @JsonProperty("complete")
   @Nullable
   public Boolean complete;
+
+  /** Creates an empty instance. */
+  public Order() {}
 
   /* Value-equality based on all declared fields. Generated so model
    * instances work correctly as Set/Map keys and in test assertions.

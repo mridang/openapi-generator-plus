@@ -167,7 +167,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
     end)
   end
 
-  defp fetch_token(state, token_url, params, extra_headers \\ %{}) do
+  defp fetch_token(state, token_url, params, extra_headers) do
     client = state.api_client
 
     if is_nil(client) do

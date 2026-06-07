@@ -14,7 +14,12 @@ require 'dry-struct'
 
 # :nodoc:
 module Types
-  include Dry.Types()
+  # The dry-types module built dynamically by +Dry.Types()+. Bound to a
+  # constant first so YARD resolves the mixin statically (it cannot resolve
+  # the bare +include Dry.Types()+ method-call form and would otherwise emit
+  # an "Undocumentable mixin" warning).
+  Builder = Dry.Types()
+  include Builder
 
   Required = Types::Any.constructor do |v|
     raise Dry::Types::CoercionError, 'value cannot be nil' if v.nil?

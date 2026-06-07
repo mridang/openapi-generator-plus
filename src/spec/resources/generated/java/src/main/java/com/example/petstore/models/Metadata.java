@@ -12,6 +12,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.time.OffsetDateTime;
 import javax.annotation.Nullable;
 
+/** Metadata. */
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2", "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"})
 public class Metadata {
 
@@ -22,15 +23,29 @@ public class Metadata {
 
   private java.util.Map<String, Object> additionalProperties = new java.util.LinkedHashMap<>();
 
+  /**
+   * Stores an additional, undeclared property.
+   *
+   * @param key the property name
+   * @param value the property value
+   */
   @com.fasterxml.jackson.annotation.JsonAnySetter
   public void setAdditionalProperty(String key, Object value) {
     this.additionalProperties.put(key, value);
   }
 
+  /**
+   * Returns the additional, undeclared properties.
+   *
+   * @return the additional properties, keyed by property name
+   */
   @com.fasterxml.jackson.annotation.JsonAnyGetter
   public java.util.Map<String, Object> getAdditionalProperties() {
     return this.additionalProperties;
   }
+
+  /** Creates an empty instance. */
+  public Metadata() {}
 
   /* Value-equality based on all declared fields (including
    * the additionalProperties map). Generated so model

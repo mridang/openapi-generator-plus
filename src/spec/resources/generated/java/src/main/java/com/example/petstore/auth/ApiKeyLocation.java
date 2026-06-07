@@ -7,8 +7,12 @@
 
 package com.example.petstore.auth;
 
+/** Location where an API key credential is sent on a request. */
 public enum ApiKeyLocation {
+  /** The API key is sent as an HTTP request header. */
   HEADER,
+  /** The API key is sent as a query parameter. */
   QUERY,
+  /** The API key is sent as a cookie. */
   COOKIE
 }

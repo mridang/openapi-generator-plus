@@ -33,8 +33,6 @@ defmodule {{moduleName}}.ObjectSerializer do
   URL path, query string, header, and form parameters.
   """
 
-  @default_datetime_format "{ISO:Extended}"
-
   # Maximum allowed JSON nesting depth. Elixir's Jason.decode recurses
   # through the BEAM call stack; while BEAM stacks are heap-allocated and
   # don't overflow as quickly as native ones, a 100k-deep payload still
@@ -191,7 +189,9 @@ defmodule {{moduleName}}.ObjectSerializer do
   Convert a value to a representation suitable for use as a query parameter.
   """
   @spec to_query_value(term(), atom() | nil) :: String.t() | [String.t()] | nil
-  def to_query_value(nil, _collection_format \\ nil), do: nil
+  def to_query_value(value, collection_format \\ nil)
+
+  def to_query_value(nil, _collection_format), do: nil
 
   def to_query_value(value, collection_format) when is_list(value) do
     items = Enum.map(value, &stringify/1)
@@ -290,6 +290,13 @@ defmodule {{moduleName}}.ObjectSerializer do
     end
   end
 
+  def sanitize_for_serialization(%{} = map) do
+    Map.new(map, fn {k, v} -> {k, sanitize_for_serialization(v)} end)
+  end
+
+  def sanitize_for_serialization(value) when is_atom(value), do: to_string(value)
+  def sanitize_for_serialization(value), do: to_string(value)
+
   # 2.1 format: byte — encode the native `binary()` bytes back to a
   # base64 string before they hit the JSON encoder. The struct's
   # openapi_types map tells us which fields carry byte semantics.
@@ -298,13 +305,6 @@ defmodule {{moduleName}}.ObjectSerializer do
   end
 
   defp sanitize_field_value(value, _type), do: sanitize_for_serialization(value)
-
-  def sanitize_for_serialization(%{} = map) do
-    Map.new(map, fn {k, v} -> {k, sanitize_for_serialization(v)} end)
-  end
-
-  def sanitize_for_serialization(value) when is_atom(value), do: to_string(value)
-  def sanitize_for_serialization(value), do: to_string(value)
 
   @doc """
   Convert data to the specified type.

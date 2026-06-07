@@ -1,0 +1,41 @@
+    /**
+     * {{summary}}
+{{#notes}}
+     * {{.}}
+{{/notes}}
+{{#hasAuthMethods}}
+     * @param auth the authenticator providing credentials for this request
+{{/hasAuthMethods}}
+{{#pathParams}}
+     * @param {{paramName}} {{description}}{{vendorExtensions.requiredLabelWithDefault}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.pluralExamples}}
+     * <p>Example — {{summary}}: {@code {{value}}}
+{{/vendorExtensions.pluralExamples}}
+{{/pathParams}}
+{{#bodyParam}}
+     * @param {{paramName}} {{description}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.pluralExamples}}
+     * <p>Example — {{summary}}: {@code {{value}}}
+{{/vendorExtensions.pluralExamples}}
+{{/bodyParam}}
+{{#queryParams}}{{#-first}}
+     * @param options options for query, header, form, and cookie parameters
+{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
+     * @param options options for query, header, form, and cookie parameters
+{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
+     * @param options options for query, header, form, and cookie parameters
+{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
+     * @param options options for query, header, form, and cookie parameters
+{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+{{#returnType}}
+     * @return {@code {{{returnType}}}}
+{{/returnType}}
+     * @throws ApiException if fails to make API call
+{{#isDeprecated}}
+     * @deprecated This operation is deprecated.
+{{/isDeprecated}}
+{{#externalDocs}}
+     * {{description}}
+     * @see <a href="{{url}}">{{summary}} Documentation</a>
+{{/externalDocs}}
+     */

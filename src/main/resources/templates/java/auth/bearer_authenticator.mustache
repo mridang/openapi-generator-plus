@@ -13,6 +13,12 @@ public final class BearerAuthenticator extends BaseAuthenticator {
     private final String host;
     private final String token;
 
+    /**
+     * Creates an HTTP Bearer token authenticator.
+     *
+     * @param host the base URL of the API
+     * @param token the bearer token
+     */
     public BearerAuthenticator(String host, String token) {
         {{! RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text. }}
         {{! Reject anything outside printable ASCII + TAB so callers see a }}

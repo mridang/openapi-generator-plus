@@ -18,7 +18,7 @@ typecheck: install
 	bundle exec steep check
 
 docs: install
-	bundle exec yard doc
+	bundle exec yard doc --output-dir .out/docs --fail-on-warning
 
 clean:
-	rm -rf .bundle vendor doc
+	rm -rf .bundle vendor doc .out .yardoc

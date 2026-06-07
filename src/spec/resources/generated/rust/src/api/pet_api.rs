@@ -164,7 +164,7 @@ impl GetStagingPetInfoServer for GetStagingPetInfoServerStagingServer {
 
 /// PetApi provides methods for the Pet API group.
 /// Everything about your Pets
-/// See https://example.com/docs/pets Find out more about pets
+/// See <https://example.com/docs/pets> Find out more about pets
 pub struct PetApi {
     base: BaseApi,
 }
@@ -722,7 +722,7 @@ impl PetApi {
 
     /// Finds Pets by status
     #[deprecated]
-    /// See https://example.com/docs/filtering Find out more about filtering
+    /// See <https://example.com/docs/filtering> Find out more about filtering
     /// * `status`: Status values that need to be considered for filter
     /// * `filter`: Filter criteria as key-value pairs
     /// ### `status` — Available only

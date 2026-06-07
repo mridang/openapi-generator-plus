@@ -11,6 +11,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nullable;
 
+/** Surgery. */
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2", "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"})
 public class Surgery {
 
@@ -32,9 +33,15 @@ public class Surgery {
    * unannotated (disabling null-safety on the model entirely); both weaken a
    * real correctness rule, so the suppression is kept here, scoped to this
    * single framework-mandated constructor. */
+  /** Creates an empty instance for deserialization; required fields are populated later. */
   @SuppressWarnings("NullAway.Init")
   public Surgery() {}
 
+  /**
+   * Creates an instance with all required properties.
+   *
+   * @param procedureName the {@code procedureName} property
+   */
   @com.fasterxml.jackson.annotation.JsonCreator
   public Surgery(@JsonProperty(value = "procedureName", required = true) String procedureName) {
     this.procedureName =

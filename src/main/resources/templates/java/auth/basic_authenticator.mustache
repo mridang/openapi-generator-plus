@@ -15,6 +15,13 @@ public final class BasicAuthenticator extends BaseAuthenticator {
     private final String username;
     private final String password;
 
+    /**
+     * Creates an HTTP Basic authenticator.
+     *
+     * @param host the base URL of the API
+     * @param username the Basic auth user-id
+     * @param password the Basic auth password
+     */
     public BasicAuthenticator(String host, String username, String password) {
         {{! RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field }}
         {{! separator) and neither user-id nor password may carry CR/LF/NUL }}

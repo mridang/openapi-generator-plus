@@ -79,7 +79,7 @@ impl {{serverTypeName}} for {{serverTypeName}}{{variantName}} {
 /// {{.}}
 {{/tagDescription}}
 {{#tagExternalDocs}}
-/// See {{url}} {{description}}
+/// See <{{url}}> {{description}}
 {{/tagExternalDocs}}
 pub struct {{classname}} {
     base: BaseApi,
@@ -104,7 +104,7 @@ impl {{classname}} {
     #[deprecated]
 {{/isDeprecated}}
 {{#externalDocs}}
-    /// See {{url}} {{description}}
+    /// See <{{url}}> {{description}}
 {{/externalDocs}}
 {{#allParams}}
 {{#description}}

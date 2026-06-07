@@ -9,6 +9,7 @@ defmodule PetstoreClient.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       package: package(),
+      docs: docs(),
       test_coverage: [tool: ExCoveralls],
       dialyzer: [
         plt_add_apps: [:mix, :ex_unit],
@@ -45,6 +46,12 @@ defmodule PetstoreClient.MixProject do
     ]
   end
 
+  defp docs do
+    [
+      output: ".out/docs"
+    ]
+  end
+
   def application do
     [
       extra_applications: [:logger, :crypto]
@@ -61,7 +68,7 @@ defmodule PetstoreClient.MixProject do
       {:junit_formatter, "~> 3.4", only: :test},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
-      {:ex_doc, "~> 0.30", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.34", only: :dev, runtime: false},
       {:testcontainers, "~> 1.12", only: :test},
       # `fs` is a transitive dep of `testcontainers` (used only by the
       # `mix testcontainers.run`/`.test` helper task that we don't call).

@@ -9,8 +9,16 @@ package com.example.petstore.auth.oauth;
 
 import java.util.List;
 
+/** Authenticator for the {@code machineAuth} security scheme. */
 public final class MachineAuthClientCredentialsAuthenticator
     extends OAuth2ClientCredentialsAuthenticator {
+  /**
+   * Creates an authenticator for the {@code machineAuth} security scheme.
+   *
+   * @param host the host credential
+   * @param clientId the clientId credential
+   * @param clientSecret the clientSecret credential
+   */
   public MachineAuthClientCredentialsAuthenticator(
       String host, String clientId, String clientSecret) {
     super(

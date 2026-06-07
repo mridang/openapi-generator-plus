@@ -12,7 +12,7 @@ import { ServerConfiguration } from './server-configuration.js';
  *
  * Holds the base URL and default headers that are applied to every API
  * request. Transport-level settings (TLS, proxy, timeouts) belong in
- * {@link TransportOptions} and are configured on the {@link DefaultApiClient}.
+ * `TransportOptions` and are configured on the `DefaultApiClient`.
  *
  * This class is immutable. Use {@link Configuration.builder} to create instances:
  *

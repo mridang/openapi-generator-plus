@@ -47,7 +47,7 @@ module PetstoreClient
   # 4. {TransportOptions#inject_request_id} -- injected if not already set
   class DefaultApiClient < ApiClient
     # Bucket 3.1: extra header names stripped on cross-origin redirects in
-    # addition to the static {Authorization, Cookie, Proxy-Authorization}
+    # addition to the static +{Authorization, Cookie, Proxy-Authorization}+
     # set. Populated at codegen time from `securitySchemes` entries whose
     # `type` is `apiKey` and `in` is `header`, so a malicious 302 cannot
     # leak the API key to a different host. Entries are already lowercase

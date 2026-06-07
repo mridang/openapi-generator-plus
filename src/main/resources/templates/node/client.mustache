@@ -20,7 +20,7 @@ import { {{classname}} } from './api/{{classFilename}}{{importFileExtension}}';
  *
  * Takes an {@link Authenticator} and optionally {@link TransportOptions},
  * then exposes each API group as a typed property. If the authenticator
- * implements {@link HttpAwareAuthenticator}, the shared {@link ApiClient}
+ * implements `HttpAwareAuthenticator`, the shared {@link ApiClient}
  * is injected so that authentication HTTP calls (token exchange, discovery)
  * use the same transport configuration as regular API calls.
  *
@@ -58,7 +58,7 @@ export class {{clientClassName}} {
   /**
    * Creates a new client with the given authenticator and transport options.
    *
-   * If the authenticator implements {@link HttpAwareAuthenticator}, the
+   * If the authenticator implements `HttpAwareAuthenticator`, the
    * shared {@link ApiClient} is injected so that token exchange and
    * discovery requests use the same proxy, TLS, and timeout settings.
    *

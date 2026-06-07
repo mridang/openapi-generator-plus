@@ -9,9 +9,16 @@ package com.example.petstore.auth;
 
 import java.util.Map;
 
+/** Authenticator for the {@code apiKeyQuery} security scheme. */
 public final class ApiKeyQueryAuthenticator extends BaseAuthenticator {
   private final ApiKeyAuthenticator delegate;
 
+  /**
+   * Creates an authenticator for the {@code apiKeyQuery} security scheme.
+   *
+   * @param host the host credential
+   * @param apiKey the apiKey credential
+   */
   public ApiKeyQueryAuthenticator(String host, String apiKey) {
     this.delegate = new ApiKeyAuthenticator(host, "api_key", apiKey, ApiKeyLocation.QUERY);
   }

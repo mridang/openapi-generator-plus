@@ -9,8 +9,17 @@ package com.example.petstore.auth.oauth;
 
 import java.util.List;
 
+/** Authenticator for the {@code userAuth} security scheme. */
 public final class UserAuthAuthorizationCodeAuthenticator
     extends OAuth2AuthorizationCodeAuthenticator {
+  /**
+   * Creates an authenticator for the {@code userAuth} security scheme.
+   *
+   * @param host the host credential
+   * @param clientId the clientId credential
+   * @param clientSecret the clientSecret credential
+   * @param redirectUri the redirectUri credential
+   */
   public UserAuthAuthorizationCodeAuthenticator(
       String host, String clientId, String clientSecret, String redirectUri) {
     super(

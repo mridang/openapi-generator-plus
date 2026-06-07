@@ -18,8 +18,11 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
-/** HeaderSelector */
+/** Selects {@code Accept} and {@code Content-Type} headers for API requests. */
 public final class HeaderSelector {
+
+  /** Creates a new header selector. */
+  public HeaderSelector() {}
 
   private static final Pattern JSON_MIME_PATTERN =
       Pattern.compile(

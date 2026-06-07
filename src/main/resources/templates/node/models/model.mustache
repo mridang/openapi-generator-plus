@@ -9,9 +9,6 @@ import { {{classname}} } from './{{filename}}{{importFileExtension}}';
 {{/hasTsImports}}
 {{#isEnum}}
 
-/**
- * @export
- */
 export enum {{classname}} {
 {{#allowableValues}}
   {{#enumVars}}
@@ -549,9 +546,6 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 
 {{#vars}}
 {{#isEnum}}
-/**
- * @export
- */
 export enum {{classname}}{{enumName}} {
 {{#allowableValues}}
   {{#enumVars}}

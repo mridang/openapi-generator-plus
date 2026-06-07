@@ -9,7 +9,17 @@ package com.example.petstore.auth.oauth;
 
 import java.util.List;
 
+/** Authenticator for the {@code legacyAuth} security scheme. */
 public final class LegacyAuthPasswordAuthenticator extends OAuth2PasswordAuthenticator {
+  /**
+   * Creates an authenticator for the {@code legacyAuth} security scheme.
+   *
+   * @param host the host credential
+   * @param clientId the clientId credential
+   * @param clientSecret the clientSecret credential
+   * @param username the username credential
+   * @param password the password credential
+   */
   public LegacyAuthPasswordAuthenticator(
       String host, String clientId, String clientSecret, String username, String password) {
     super(

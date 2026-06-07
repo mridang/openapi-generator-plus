@@ -8,13 +8,25 @@ import javax.annotation.Nullable;
 public final class DeletePetOptions {
   @Nullable private String apiKey;
 
+  /** Creates an options instance with the required parameters. */
   public DeletePetOptions() {}
 
+  /**
+   * Sets the {@code api_key} parameter.
+   *
+   * @param apiKey the {@code api_key} parameter
+   * @return this options instance for chaining
+   */
   public DeletePetOptions apiKey(String apiKey) {
     this.apiKey = apiKey;
     return this;
   }
 
+  /**
+   * Returns the {@code api_key} parameter.
+   *
+   * @return the {@code api_key} parameter, or {@code null} if unset
+   */
   @Nullable
   public String apiKey() {
     return apiKey;

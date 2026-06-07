@@ -232,6 +232,24 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <!-- 3.6.3 is the last line that exposes reportOutputDirectory
+                     and destDir on the javadoc:javadoc goal, letting docs land
+                     at exactly .out/docs. Newer releases (3.11+/3.12) dropped
+                     those params and 3.12.0 has a reproducible-build timestamp
+                     bug that breaks the goal outright. -->
+                <version>3.6.3</version>
+                <configuration>
+                    <failOnWarnings>true</failOnWarnings>
+                    <doclint>all</doclint>
+                    <reportOutputDirectory>${project.basedir}/.out</reportOutputDirectory>
+                    <destDir>docs</destDir>
+                    <quiet>true</quiet>
+                    <notimestamp>true</notimestamp>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 

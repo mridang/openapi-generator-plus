@@ -22,7 +22,7 @@ upgrade:
 	mvn rewrite:run -q -B
 
 docs:
-	mvn javadoc:javadoc -q -B
+	mvn javadoc:javadoc -q -B -DfailOnWarnings=true -Ddoclint=all -DreportOutputDirectory=.out -DdestDir=docs
 
 clean:
 	mvn clean -q -B

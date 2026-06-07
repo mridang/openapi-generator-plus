@@ -19,11 +19,15 @@ module {{moduleName}}
         # race against the server clock.
         EXPIRY_SAFETY_MARGIN_S = 60
 
-        # Inject the shared API client for making token requests.
+        # The refresh token last issued by the authorization server.
         #
-        # @param client [ApiClient] the shared API client instance
-        # @return [void]
+        # @return [String, nil] the current refresh token, if any
         attr_reader :refresh_token
+
+        # Inject the shared API client used for making token requests.
+        #
+        # @param value [ApiClient] the shared API client instance
+        # @return [void]
         attr_writer :api_client
 
         # Create a new token manager.

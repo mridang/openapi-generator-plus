@@ -11,6 +11,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nullable;
 
+/** Medication. */
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2", "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"})
 public class Medication {
 
@@ -32,9 +33,15 @@ public class Medication {
    * unannotated (disabling null-safety on the model entirely); both weaken a
    * real correctness rule, so the suppression is kept here, scoped to this
    * single framework-mandated constructor. */
+  /** Creates an empty instance for deserialization; required fields are populated later. */
   @SuppressWarnings("NullAway.Init")
   public Medication() {}
 
+  /**
+   * Creates an instance with all required properties.
+   *
+   * @param drugName the {@code drugName} property
+   */
   @com.fasterxml.jackson.annotation.JsonCreator
   public Medication(@JsonProperty(value = "drugName", required = true) String drugName) {
     this.drugName = java.util.Objects.requireNonNull(drugName, "drugName is required");

@@ -10,6 +10,7 @@ package com.example.petstore.models;
 import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.List;
 
+/** SetPetAvatarThumbnailRequest. */
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
     using = SetPetAvatarThumbnailRequest.SetPetAvatarThumbnailRequestDeserializer.class)
 public class SetPetAvatarThumbnailRequest {
@@ -25,10 +26,20 @@ public class SetPetAvatarThumbnailRequest {
 
   private Object actualInstance;
 
+  /**
+   * Wraps a concrete variant of this union.
+   *
+   * @param value the concrete variant instance
+   */
   public SetPetAvatarThumbnailRequest(Object value) {
     this.actualInstance = value;
   }
 
+  /**
+   * Returns the wrapped concrete variant instance.
+   *
+   * @return the concrete variant instance
+   */
   @JsonValue
   public Object getActualInstance() {
     return actualInstance;

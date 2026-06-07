@@ -9,9 +9,16 @@ package com.example.petstore.auth;
 
 import java.util.Map;
 
+/** Authenticator for the {@code internalApiKey} security scheme. */
 public final class InternalApiKeyAuthenticator extends BaseAuthenticator {
   private final ApiKeyAuthenticator delegate;
 
+  /**
+   * Creates an authenticator for the {@code internalApiKey} security scheme.
+   *
+   * @param host the host credential
+   * @param apiKey the apiKey credential
+   */
   public InternalApiKeyAuthenticator(String host, String apiKey) {
     this.delegate = new ApiKeyAuthenticator(host, "X-Internal-Key", apiKey, ApiKeyLocation.HEADER);
   }

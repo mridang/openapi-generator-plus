@@ -38,8 +38,6 @@ defmodule PetstoreClient.ObjectSerializer do
   URL path, query string, header, and form parameters.
   """
 
-  @default_datetime_format "{ISO:Extended}"
-
   # Maximum allowed JSON nesting depth. Elixir's Jason.decode recurses
   # through the BEAM call stack; while BEAM stacks are heap-allocated and
   # don't overflow as quickly as native ones, a 100k-deep payload still
@@ -240,7 +238,9 @@ defmodule PetstoreClient.ObjectSerializer do
   Convert a value to a representation suitable for use as a query parameter.
   """
   @spec to_query_value(term(), atom() | nil) :: String.t() | [String.t()] | nil
-  def to_query_value(nil, _collection_format \\ nil) do
+  def to_query_value(value, collection_format \\ nil)
+
+  def to_query_value(nil, _collection_format) do
     nil
   end
 
@@ -378,17 +378,6 @@ defmodule PetstoreClient.ObjectSerializer do
     end
   end
 
-  # 2.1 format: byte — encode the native `binary()` bytes back to a
-  # base64 string before they hit the JSON encoder. The struct's
-  # openapi_types map tells us which fields carry byte semantics.
-  defp sanitize_field_value(value, "ByteArray") when is_binary(value) do
-    Base.encode64(value)
-  end
-
-  defp sanitize_field_value(value, _type) do
-    sanitize_for_serialization(value)
-  end
-
   def sanitize_for_serialization(%{} = map) do
     Map.new(map, fn {k, v} -> {k, sanitize_for_serialization(v)} end)
   end
@@ -399,6 +388,17 @@ defmodule PetstoreClient.ObjectSerializer do
 
   def sanitize_for_serialization(value) do
     to_string(value)
+  end
+
+  # 2.1 format: byte — encode the native `binary()` bytes back to a
+  # base64 string before they hit the JSON encoder. The struct's
+  # openapi_types map tells us which fields carry byte semantics.
+  defp sanitize_field_value(value, "ByteArray") when is_binary(value) do
+    Base.encode64(value)
+  end
+
+  defp sanitize_field_value(value, _type) do
+    sanitize_for_serialization(value)
   end
 
   @doc """

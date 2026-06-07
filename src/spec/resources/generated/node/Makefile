@@ -19,7 +19,7 @@ typecheck: install
 	npx tsc --noEmit
 
 docs: install
-	npx typedoc --out docs src/
+	npx typedoc --out .out/docs --treatWarningsAsErrors
 
 clean:
-	rm -rf node_modules dist coverage docs
+	rm -rf node_modules dist coverage .out/docs

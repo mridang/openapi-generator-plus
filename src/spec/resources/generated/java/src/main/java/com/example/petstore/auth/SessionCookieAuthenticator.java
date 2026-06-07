@@ -9,9 +9,16 @@ package com.example.petstore.auth;
 
 import java.util.Map;
 
+/** Authenticator for the {@code sessionCookie} security scheme. */
 public final class SessionCookieAuthenticator extends BaseAuthenticator {
   private final ApiKeyAuthenticator delegate;
 
+  /**
+   * Creates an authenticator for the {@code sessionCookie} security scheme.
+   *
+   * @param host the host credential
+   * @param apiKey the apiKey credential
+   */
   public SessionCookieAuthenticator(String host, String apiKey) {
     this.delegate = new ApiKeyAuthenticator(host, "SESSION_ID", apiKey, ApiKeyLocation.COOKIE);
   }

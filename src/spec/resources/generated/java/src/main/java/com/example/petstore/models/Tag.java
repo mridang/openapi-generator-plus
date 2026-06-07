@@ -30,6 +30,9 @@ public class Tag {
   @Nullable
   public String name;
 
+  /** Creates an empty instance. */
+  public Tag() {}
+
   /* Value-equality based on all declared fields. Generated so model
    * instances work correctly as Set/Map keys and in test assertions.
    * Uses pattern-matching `instanceof other` (Java 16+) — required by

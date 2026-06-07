@@ -29,14 +29,28 @@ public class StoreApi extends BaseApi {
 
   private static final TypeReference<Order> placeOrderTypeRef = new TypeReference<>() {};
 
+  /** Creates an instance with the default client and configuration. */
   public StoreApi() {
     super();
   }
 
+  /**
+   * Creates an instance with the given client and configuration.
+   *
+   * @param apiClient the API client used to execute requests
+   * @param config the client configuration
+   */
   public StoreApi(ApiClient apiClient, Configuration config) {
     super(apiClient, config);
   }
 
+  /**
+   * Creates an instance with the given client, configuration, and authenticator.
+   *
+   * @param apiClient the API client used to execute requests
+   * @param config the client configuration
+   * @param authenticator the default authenticator, or {@code null} for none
+   */
   public StoreApi(
       ApiClient apiClient, Configuration config, @Nullable Authenticator authenticator) {
     super(apiClient, config, authenticator);
@@ -52,6 +66,13 @@ public class StoreApi extends BaseApi {
     deleteOrderWithHttpInfo(orderId);
   }
 
+  /**
+   * Delete purchase order by ID
+   *
+   * @param orderId ID of the order to delete (required)
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   */
   public ApiResult<Void> deleteOrderWithHttpInfo(Long orderId) throws ApiException {
     if (orderId == null) {
       throw new IllegalArgumentException(
@@ -81,13 +102,19 @@ public class StoreApi extends BaseApi {
   /**
    * Returns pet inventories by status
    *
-   * @return Map<String, Integer>
+   * @return {@code Map<String, Integer>}
    * @throws ApiException if fails to make API call
    */
   public Map<String, Integer> getInventory() throws ApiException {
     return requireBody(getInventoryWithHttpInfo(), "getInventory");
   }
 
+  /**
+   * Returns pet inventories by status
+   *
+   * @return the API result wrapping {@code Map<String, Integer>}
+   * @throws ApiException if fails to make API call
+   */
   public ApiResult<Map<String, Integer>> getInventoryWithHttpInfo() throws ApiException {
     String path = "/store/inventory";
     Map<String, Object> queryParams = new HashMap<>();
@@ -108,13 +135,20 @@ public class StoreApi extends BaseApi {
    * Find purchase order by ID
    *
    * @param orderId ID of order to return (required)
-   * @return Order
+   * @return {@code Order}
    * @throws ApiException if fails to make API call
    */
   public Order getOrderById(Long orderId) throws ApiException {
     return requireBody(getOrderByIdWithHttpInfo(orderId), "getOrderById");
   }
 
+  /**
+   * Find purchase order by ID
+   *
+   * @param orderId ID of order to return (required)
+   * @return the API result wrapping {@code Order}
+   * @throws ApiException if fails to make API call
+   */
   public ApiResult<Order> getOrderByIdWithHttpInfo(Long orderId) throws ApiException {
     if (orderId == null) {
       throw new IllegalArgumentException(
@@ -145,13 +179,20 @@ public class StoreApi extends BaseApi {
    * Place an order for a pet
    *
    * @param order (optional)
-   * @return Order
+   * @return {@code Order}
    * @throws ApiException if fails to make API call
    */
   public Order placeOrder(@Nullable Order order) throws ApiException {
     return requireBody(placeOrderWithHttpInfo(order), "placeOrder");
   }
 
+  /**
+   * Place an order for a pet
+   *
+   * @param order (optional)
+   * @return the API result wrapping {@code Order}
+   * @throws ApiException if fails to make API call
+   */
   public ApiResult<Order> placeOrderWithHttpInfo(@Nullable Order order) throws ApiException {
     String path = "/store/order";
     Map<String, Object> queryParams = new HashMap<>();

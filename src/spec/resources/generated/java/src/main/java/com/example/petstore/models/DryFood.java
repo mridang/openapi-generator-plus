@@ -10,6 +10,7 @@ package com.example.petstore.models;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
+/** DryFood. */
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2", "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"})
 public class DryFood extends PetFood {
 
@@ -30,9 +31,15 @@ public class DryFood extends PetFood {
    * unannotated (disabling null-safety on the model entirely); both weaken a
    * real correctness rule, so the suppression is kept here, scoped to this
    * single framework-mandated constructor. */
+  /** Creates an empty instance for deserialization; required fields are populated later. */
   @SuppressWarnings("NullAway.Init")
   public DryFood() {}
 
+  /**
+   * Creates an instance with all required properties.
+   *
+   * @param weightKg the {@code weightKg} property
+   */
   @com.fasterxml.jackson.annotation.JsonCreator
   public DryFood(@JsonProperty(value = "weightKg", required = true) Double weightKg) {
     this.weightKg = java.util.Objects.requireNonNull(weightKg, "weightKg is required");

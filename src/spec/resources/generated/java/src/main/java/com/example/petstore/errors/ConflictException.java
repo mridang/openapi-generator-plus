@@ -14,6 +14,14 @@ import javax.annotation.Nullable;
 public class ConflictException extends ClientException {
   private static final long serialVersionUID = 1L;
 
+  /**
+   * Creates a new exception.
+   *
+   * @param message the error message
+   * @param responseHeaders the HTTP response headers, if available
+   * @param responseBody the raw HTTP response body, if available
+   * @param errorBody the deserialized error body, if available
+   */
   public ConflictException(
       String message,
       @Nullable Map<String, String> responseHeaders,

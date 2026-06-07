@@ -21,7 +21,13 @@ analyse:
 	swift build -Xswiftc -warnings-as-errors -Xswiftc -strict-concurrency=complete
 
 docs:
-	swift package generate-documentation
+	mkdir -p .out/docs
+	swift package --allow-writing-to-directory .out/docs \
+		generate-documentation \
+		--target {{packageName}} \
+		--output-path .out/docs \
+		--transform-for-static-hosting \
+		--warnings-as-errors
 
 clean:
 	swift package clean

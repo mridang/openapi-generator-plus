@@ -9,9 +9,17 @@ package com.example.petstore.auth;
 
 import java.util.Map;
 
+/** Authenticator for the {@code petStoreBasic} security scheme. */
 public final class PetStoreBasicAuthenticator extends BaseAuthenticator {
   private final BasicAuthenticator delegate;
 
+  /**
+   * Creates an authenticator for the {@code petStoreBasic} security scheme.
+   *
+   * @param host the host credential
+   * @param username the username credential
+   * @param password the password credential
+   */
   public PetStoreBasicAuthenticator(String host, String username, String password) {
     this.delegate = new BasicAuthenticator(host, username, password);
   }

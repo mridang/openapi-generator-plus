@@ -18,6 +18,13 @@ public final class BasicAuthenticator extends BaseAuthenticator {
   private final String username;
   private final String password;
 
+  /**
+   * Creates an HTTP Basic authenticator.
+   *
+   * @param host the base URL of the API
+   * @param username the Basic auth user-id
+   * @param password the Basic auth password
+   */
   public BasicAuthenticator(String host, String username, String password) {
     if (username != null) {
       for (int i = 0; i < username.length(); i++) {
