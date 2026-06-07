@@ -230,7 +230,7 @@ test('get pet photo', function (): void {
     $result = $this->api->getPetPhoto(1, 1);
 
     expect($result)->not->toBeNull();
-    expect($result)->toBeInstanceOf(\SplFileObject::class);
+    expect($result)->toBeString();
 });
 
 test('get external pet info uses per operation server url', function (): void {

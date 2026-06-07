@@ -24,6 +24,8 @@ import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
+import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -895,5 +897,43 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     @Override
     protected boolean demotesDiscriminatorFromRequiredVars() {
         return true;
+    }
+
+    /**
+     * Rewrites binary <em>response</em> return types from
+     * {@code \SplFileObject} to {@code string}.
+     *
+     * <p>openapi-generator special-cases {@code format: binary} response
+     * bodies to the PHP file type {@code \SplFileObject}, but the transport
+     * delivers the response body as an in-memory string and the deserialize
+     * path hands that string back verbatim — so the declared
+     * {@code \SplFileObject} return type never matched the actual returned
+     * value. Returning the raw bytes as a {@code string} makes the declared
+     * type honest and aligns PHP with the other byte-oriented SDKs (Go
+     * {@code []byte}, Node {@code Buffer}, Python {@code bytes}, Dart
+     * {@code Uint8List}).
+     *
+     * <p>Only the response type is rewritten; binary <em>request</em> bodies
+     * and multipart file uploads continue to use {@code \SplFileObject}, the
+     * idiomatic PHP type for streaming a file from disk.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public OperationsMap postProcessOperationsWithModels(
+            OperationsMap objs, List<ModelMap> allModels) {
+        final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
+        if (operations != null) {
+            final List<CodegenOperation> ops =
+                    (List<CodegenOperation>) operations.get("operation");
+            if (ops != null) {
+                for (final CodegenOperation op : ops) {
+                    if (op.returnType != null && op.returnType.contains("SplFileObject")) {
+                        op.returnType = "string";
+                        op.returnBaseType = "string";
+                    }
+                }
+            }
+        }
+        return super.postProcessOperationsWithModels(objs, allModels);
     }
 }

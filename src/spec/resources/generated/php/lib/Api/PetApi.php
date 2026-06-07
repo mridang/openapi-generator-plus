@@ -416,7 +416,7 @@ class PetApi extends BaseApi
      * Download a vet document
      * Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
 
-     * @return \SplFileObject
+     * @return string
      * @throws ApiException
      */
     public function downloadPetDocument(int $petId, int $documentId)
@@ -435,14 +435,14 @@ class PetApi extends BaseApi
                 $apiResult->rawBody
             );
         }
-        /** @var \SplFileObject $result */
+        /** @var string $result */
         $result = $apiResult->data;
         return $result;
     }
 
     /**
 
-     * @return ApiResult<\SplFileObject>
+     * @return ApiResult<string>
      * @throws ApiException
      */
     public function downloadPetDocumentWithHttpInfo(int $petId, int $documentId): ApiResult
@@ -474,7 +474,7 @@ class PetApi extends BaseApi
         $headerParams = [];
         $requestBody = null;
 
-        /** @var ApiResult<\SplFileObject> $result */
+        /** @var ApiResult<string> $result */
         $result = $this->invokeApiForResult(
             'GET',
             $path,
@@ -483,7 +483,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/octet-stream'],
             'application/json',
-            '\SplFileObject'
+            'string'
         );
         return $result;
     }
@@ -699,7 +699,7 @@ class PetApi extends BaseApi
      * Get the pet&#39;s profile photo
      * Returns the raw image bytes of the pet&#39;s current avatar.
 
-     * @return \SplFileObject
+     * @return string
      * @throws ApiException
      */
     public function getPetAvatar(int $petId)
@@ -718,14 +718,14 @@ class PetApi extends BaseApi
                 $apiResult->rawBody
             );
         }
-        /** @var \SplFileObject $result */
+        /** @var string $result */
         $result = $apiResult->data;
         return $result;
     }
 
     /**
 
-     * @return ApiResult<\SplFileObject>
+     * @return ApiResult<string>
      * @throws ApiException
      */
     public function getPetAvatarWithHttpInfo(int $petId): ApiResult
@@ -746,7 +746,7 @@ class PetApi extends BaseApi
         $headerParams = [];
         $requestBody = null;
 
-        /** @var ApiResult<\SplFileObject> $result */
+        /** @var ApiResult<string> $result */
         $result = $this->invokeApiForResult(
             'GET',
             $path,
@@ -755,7 +755,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['image/jpeg', 'image/png'],
             'application/json',
-            '\SplFileObject'
+            'string'
         );
         return $result;
     }
@@ -970,7 +970,7 @@ class PetApi extends BaseApi
      * Get a photo or its metadata
      * Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
 
-     * @return \SplFileObject
+     * @return string
      * @throws ApiException
      */
     public function getPetPhoto(int $petId, int $photoId)
@@ -989,14 +989,14 @@ class PetApi extends BaseApi
                 $apiResult->rawBody
             );
         }
-        /** @var \SplFileObject $result */
+        /** @var string $result */
         $result = $apiResult->data;
         return $result;
     }
 
     /**
 
-     * @return ApiResult<\SplFileObject>
+     * @return ApiResult<string>
      * @throws ApiException
      */
     public function getPetPhotoWithHttpInfo(int $petId, int $photoId): ApiResult
@@ -1028,7 +1028,7 @@ class PetApi extends BaseApi
         $headerParams = [];
         $requestBody = null;
 
-        /** @var ApiResult<\SplFileObject> $result */
+        /** @var ApiResult<string> $result */
         $result = $this->invokeApiForResult(
             'GET',
             $path,
@@ -1037,7 +1037,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['image/jpeg', 'image/png', 'application/json'],
             'application/json',
-            '\SplFileObject'
+            'string'
         );
         return $result;
     }
