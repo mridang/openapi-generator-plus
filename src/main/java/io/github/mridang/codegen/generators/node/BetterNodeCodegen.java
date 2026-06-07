@@ -214,6 +214,22 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         return NamingConvention.CAMEL_CASE;
     }
 
+    /**
+     * Derives the per-API-group accessor property name on the client
+     * facade. Node uses {@link NamingConvention#IDENTITY} for general
+     * variables to preserve spec-defined property names, but instance
+     * properties on the client must follow the TypeScript camelCase
+     * convention (e.g. {@code PetApi} → {@code pet}), so this overrides
+     * the default {@link #getVarCasing()}-based derivation.
+     */
+    @Override
+    protected String deriveClientPropertyName(String apiClassName) {
+        final String name = apiClassName.replaceAll("Api$", "");
+        return name.isEmpty()
+                ? NamingConvention.CAMEL_CASE.apply("api")
+                : NamingConvention.CAMEL_CASE.apply(name);
+    }
+
     /** {@inheritDoc} */
     @Override
     protected String getUniqueItemsSetType() {

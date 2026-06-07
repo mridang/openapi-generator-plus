@@ -74,7 +74,7 @@ describe('Client', () => {
   test('API groups are accessible', () => {
     const client = new Client(authenticator);
 
-    expect(client.Pet).toBeDefined();
-    expect(client.Store).toBeDefined();
+    expect(client.pet).toBeDefined();
+    expect(client.store).toBeDefined();
   });
 });
