@@ -9,7 +9,7 @@ import Foundation
 
 /// HeaderSelector selects Accept and Content-Type headers for API requests
 /// based on the MIME types declared in the OpenAPI specification.
-public final class HeaderSelector: Sendable {
+internal final class HeaderSelector: Sendable {
     private static let jsonMIMEPattern = try! NSRegularExpression(
         pattern: #"^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)"#,
         options: .caseInsensitive
@@ -18,7 +18,7 @@ public final class HeaderSelector: Sendable {
         pattern: #"(.*)\s*;\s*q=(1(?:\.0+)?|0\.\d+)$"#
     )
 
-    public init() {}
+    init() {}
 
     private struct HeaderData {
         let header: String
@@ -32,7 +32,7 @@ public final class HeaderSelector: Sendable {
     ///   - contentType: The Content-Type for the request body.
     ///   - isMultipart: Whether this is a multipart request.
     /// - Returns: A dictionary of header names to values.
-    public func selectHeaders(accept: [String], contentType: String, isMultipart: Bool) -> [String: String] {
+    func selectHeaders(accept: [String], contentType: String, isMultipart: Bool) -> [String: String] {
         var headers: [String: String] = [:]
 
         let acceptHeader = selectAcceptHeader(accept)
@@ -49,7 +49,7 @@ public final class HeaderSelector: Sendable {
     }
 
     /// Detects whether a string contains a valid JSON MIME type.
-    public func isJsonMime(_ searchString: String) -> Bool {
+    func isJsonMime(_ searchString: String) -> Bool {
         if searchString.isEmpty { return false }
         let range = NSRange(searchString.startIndex..., in: searchString)
         return Self.jsonMIMEPattern.firstMatch(in: searchString, range: range) != nil
@@ -145,7 +145,7 @@ public final class HeaderSelector: Sendable {
         return "\(cleanHeader);q=\(weightStr)"
     }
 
-    public func getNextWeight(_ currentWeight: Int, hasMoreThan28Headers: Bool) -> Int {
+    func getNextWeight(_ currentWeight: Int, hasMoreThan28Headers: Bool) -> Int {
         if currentWeight <= 1 { return 1 }
         if hasMoreThan28Headers { return currentWeight - 1 }
 

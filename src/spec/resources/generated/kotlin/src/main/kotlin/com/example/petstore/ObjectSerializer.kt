@@ -46,7 +46,7 @@ import kotlin.uuid.Uuid
  * base64 strings. Register it via `@file:UseSerializers(Base64ByteArraySerializer::class)`
  * in model files.
  */
-object Base64ByteArraySerializer : KSerializer<ByteArray> {
+internal object Base64ByteArraySerializer : KSerializer<ByteArray> {
     override val descriptor = PrimitiveSerialDescriptor("ByteArray", PrimitiveKind.STRING)
 
     override fun serialize(
@@ -59,10 +59,28 @@ object Base64ByteArraySerializer : KSerializer<ByteArray> {
 
 /**
  * Handles JSON serialization and deserialization for API requests and responses.
+ *
+ * This type is internal transport machinery and is not part of the public API.
+ * The underlying kotlinx-serialization [Json] instance is never exposed publicly.
  */
-class ObjectSerializer(
-    val json: Json = createDefaultJson(),
+@PublishedApi
+internal class ObjectSerializer(
+    // Marked @PublishedApi internal (not private) because the inline reified
+    // deserialize() below references it from its body; an internal inline
+    // function may only touch declarations that are at least @PublishedApi.
+    // The class itself is internal, so Json is never part of the public API.
+    //
+    // No default value is given here on purpose: a default-value expression on
+    // a @PublishedApi member would have to reference createDefaultJson(), which
+    // is private, and a published signature may not expose a private
+    // declaration. The no-arg secondary constructor below supplies the default.
+    @PublishedApi internal val json: Json,
 ) {
+    // Primary entry point for callers: constructs the serializer with the
+    // default Json configuration. Internal, so createDefaultJson() may stay
+    // private.
+    internal constructor() : this(createDefaultJson())
+
     fun serialize(obj: Any?): String {
         if (obj == null) return "null"
         val unwrapped =
@@ -80,7 +98,15 @@ class ObjectSerializer(
 
     private fun toJsonElement(value: Any?): JsonElement = toJsonElementStatic(value)
 
-    inline fun <reified T> deserialize(jsonString: String?): T? {
+    /**
+     * Parse a raw JSON string into a [JsonElement] using the configured [Json]
+     * instance. Exposed so callers (e.g. error-body parsing) do not need direct
+     * access to the underlying kotlinx-serialization [Json].
+     */
+    fun parseToJsonElement(jsonString: String): JsonElement = json.parseToJsonElement(jsonString)
+
+    @PublishedApi
+    internal inline fun <reified T> deserialize(jsonString: String?): T? {
         if (jsonString.isNullOrEmpty()) return null
         // RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text,
         // but Windows-generated payloads often include one and kotlinx-
@@ -337,7 +363,7 @@ class ObjectSerializer(
                 is JsonArray -> element.map { fromJsonElement(it) }
             }
 
-        fun createDefaultJson(): Json =
+        private fun createDefaultJson(): Json =
             Json {
                 ignoreUnknownKeys = true
                 encodeDefaults = false
@@ -361,9 +387,18 @@ class ObjectSerializer(
                     }
             }
     }
+}
 
-    class SerializationException : RuntimeException {
-        constructor(message: String, cause: Throwable) : super(message, cause)
-        constructor(message: String) : super(message)
-    }
+/**
+ * Thrown when a response body cannot be deserialized into any declared
+ * oneOf/anyOf variant.
+ *
+ * Declared at the top level (rather than nested inside [ObjectSerializer])
+ * so it remains part of the public API even though [ObjectSerializer] itself
+ * is internal transport machinery. Catchable by callers alongside the typed
+ * [ApiException] hierarchy.
+ */
+class SerializationException : RuntimeException {
+    constructor(message: String, cause: Throwable) : super(message, cause)
+    constructor(message: String) : super(message)
 }

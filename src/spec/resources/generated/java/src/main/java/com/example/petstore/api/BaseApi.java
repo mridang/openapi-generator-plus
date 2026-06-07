@@ -13,9 +13,7 @@ import com.example.petstore.ApiResponse;
 import com.example.petstore.ApiResult;
 import com.example.petstore.Configuration;
 import com.example.petstore.DefaultApiClient;
-import com.example.petstore.HeaderSelector;
 import com.example.petstore.ObjectSerializer;
-import com.example.petstore.TraceContextUtil;
 import com.example.petstore.auth.Authenticator;
 import com.example.petstore.errors.BadRequestException;
 import com.example.petstore.errors.ClientException;
@@ -26,9 +24,9 @@ import com.example.petstore.errors.NotFoundException;
 import com.example.petstore.errors.ServerException;
 import com.example.petstore.errors.UnauthorizedException;
 import com.example.petstore.errors.UnprocessableEntityException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.lang.reflect.Type;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -43,7 +41,7 @@ import javax.annotation.Nullable;
  */
 public abstract class BaseApi {
 
-  private static final TypeReference<Object> OBJECT_TYPE_REF = new TypeReference<>() {};
+  private static final Type OBJECT_TYPE = Object.class;
 
   /** The HTTP transport client used for sending requests. */
   protected final ApiClient apiClient;
@@ -52,10 +50,10 @@ public abstract class BaseApi {
   protected final Configuration config;
 
   /** Serializer for request/response body conversion. */
-  protected final ObjectSerializer objectSerializer;
+  private final ObjectSerializer objectSerializer;
 
   /** Content negotiation logic for Accept and Content-Type headers. */
-  protected final HeaderSelector headerSelector;
+  private final HeaderSelector headerSelector;
 
   /** Default authenticator used when no per-operation auth is provided. */
   @Nullable protected final Authenticator authenticator;
@@ -124,7 +122,7 @@ public abstract class BaseApi {
       @Nullable Object body,
       String[] accepts,
       String contentType,
-      @Nullable TypeReference<T> returnType,
+      @Nullable Type returnType,
       @Nullable Authenticator auth)
       throws ApiException {
 
@@ -235,8 +233,7 @@ public abstract class BaseApi {
           }
         }
       }
-      boolean binaryReturnType =
-          returnType.getType() == InputStream.class || returnType.getType() == byte[].class;
+      boolean binaryReturnType = returnType == InputStream.class || returnType == byte[].class;
       if (binaryReturnType) {
         /* Binary return types (InputStream / byte[]) must never be
          * JSON-deserialized. The transport base64-encodes the body
@@ -249,15 +246,15 @@ public abstract class BaseApi {
         } else {
           rawBytes = response.body().getBytes(StandardCharsets.UTF_8);
         }
-        if (returnType.getType() == InputStream.class) {
+        if (returnType == InputStream.class) {
           /* Cast to the type variable T is guarded by the runtime
-           * check above (returnType.getType() == InputStream.class),
+           * check above (returnType == InputStream.class),
            * so it is provably safe; javac cannot see this and the
            * unchecked lint is disabled project-wide in pom.xml. */
           T streamBody = (T) new ByteArrayInputStream(rawBytes);
           data = streamBody;
         } else {
-          /* Guarded by returnType.getType() == byte[].class above. */
+          /* Guarded by returnType == byte[].class above. */
           T bytesBody = (T) rawBytes;
           data = bytesBody;
         }
@@ -303,10 +300,10 @@ public abstract class BaseApi {
       @Nullable Object body,
       String[] accepts,
       String contentType,
-      @Nullable TypeReference<T> returnType,
+      @Nullable Type returnType,
       @Nullable Authenticator auth)
       throws ApiException {
-    return invokeApiForResult(
+    return this.<T>invokeApiForResult(
             method, path, queryParams, headerParams, body, accepts, contentType, returnType, auth)
         .data();
   }
@@ -329,7 +326,7 @@ public abstract class BaseApi {
     Object errorBody = null;
     if (body != null && !body.isEmpty()) {
       try {
-        errorBody = objectSerializer.deserialize(body, OBJECT_TYPE_REF);
+        errorBody = objectSerializer.deserialize(body, OBJECT_TYPE);
       } catch (Exception e) {
         errorBody = null;
       }

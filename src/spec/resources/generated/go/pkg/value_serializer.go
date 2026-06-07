@@ -13,12 +13,12 @@ import (
 	"strings"
 )
 
-// EncodePathSegment percent-encodes a string for use as a URL path segment,
+// encodePathSegment percent-encodes a string for use as a URL path segment,
 // while preserving the RFC 3986 sub-delimiters that OAS 3.0 parameter styles
 // use as structural separators: ; = , : @ ! $ & ' ( ) * +
 //
 // This matches the canonical encoding used by Java, Node, C#, Swift, etc.
-func EncodePathSegment(value string) string {
+func encodePathSegment(value string) string {
 	if value == "" {
 		return value
 	}
@@ -41,7 +41,7 @@ func EncodePathSegment(value string) string {
 	return encoded
 }
 
-// SerializeValue serializes a parameter value for HTTP requests based on its location.
+// serializeValue serializes a parameter value for HTTP requests based on its location.
 //
 // Parameters:
 //   - value: the value to serialize
@@ -50,7 +50,7 @@ func EncodePathSegment(value string) string {
 //   - collectionFormat: legacy collection format (e.g. "csv", "ssv", "tsv", "pipes", "multi")
 //
 // Returns the serialized string value.
-func SerializeValue(value any, location, schemaType, collectionFormat string) any {
+func serializeValue(value any, location, schemaType, collectionFormat string) any {
 	if value == nil {
 		return serializeNil(location)
 	}
@@ -73,18 +73,18 @@ func SerializeValue(value any, location, schemaType, collectionFormat string) an
 		return strings.Join(items, ",")
 	}
 
-	strVal := Stringify(value)
+	strVal := stringify(value)
 	if location == "path" {
-		return EncodePathSegment(strVal)
+		return encodePathSegment(strVal)
 	}
 	return strVal
 }
 
-// SerializeDeepObject serializes a deepObject-style query parameter.
+// serializeDeepObject serializes a deepObject-style query parameter.
 //
 // Produces a map of flattened keys in the form paramName[key] to stringified values.
 // Accepts map[string]any, map[string]string, or pointers to these types.
-func SerializeDeepObject(paramName string, value any) map[string]string {
+func serializeDeepObject(paramName string, value any) map[string]string {
 	result := make(map[string]string)
 	if value == nil {
 		return result
@@ -93,7 +93,7 @@ func SerializeDeepObject(paramName string, value any) map[string]string {
 	switch m := value.(type) {
 	case map[string]any:
 		for key, val := range m {
-			result[fmt.Sprintf("%s[%s]", paramName, key)] = Stringify(val)
+			result[fmt.Sprintf("%s[%s]", paramName, key)] = stringify(val)
 		}
 	case map[string]string:
 		for key, val := range m {
@@ -102,7 +102,7 @@ func SerializeDeepObject(paramName string, value any) map[string]string {
 	case *map[string]any:
 		if m != nil {
 			for key, val := range *m {
-				result[fmt.Sprintf("%s[%s]", paramName, key)] = Stringify(val)
+				result[fmt.Sprintf("%s[%s]", paramName, key)] = stringify(val)
 			}
 		}
 	case *map[string]string:
@@ -115,7 +115,7 @@ func SerializeDeepObject(paramName string, value any) map[string]string {
 	return result
 }
 
-// SerializeStyled serializes a parameter value according to OAS 3.0 style and explode rules.
+// serializeStyled serializes a parameter value according to OAS 3.0 style and explode rules.
 //
 // Parameters:
 //   - paramName: the parameter name
@@ -125,7 +125,7 @@ func SerializeDeepObject(paramName string, value any) map[string]string {
 //   - collectionFormat: legacy collection format
 //   - style: OAS 3.0 style (e.g. "matrix", "label", "form", "simple", "spaceDelimited", "pipeDelimited")
 //   - explode: whether to explode array values
-func SerializeStyled(paramName string, value any, location, schemaType, collectionFormat, style string, explode bool) any {
+func serializeStyled(paramName string, value any, location, schemaType, collectionFormat, style string, explode bool) any {
 	/* Path parameters are required components of the URL — accepting an
 	 * empty string would silently produce a malformed URL like
 	 * `/pet//details`, which most servers route to 404 instead of
@@ -140,7 +140,7 @@ func SerializeStyled(paramName string, value any, location, schemaType, collecti
 	}
 
 	if style == "" {
-		return SerializeValue(value, location, schemaType, collectionFormat)
+		return serializeValue(value, location, schemaType, collectionFormat)
 	}
 
 	items, isArray := toStringSlice(value)
@@ -152,11 +152,11 @@ func SerializeStyled(paramName string, value any, location, schemaType, collecti
 	if location == "path" {
 		encoded := make([]string, len(items))
 		for i, item := range items {
-			encoded[i] = EncodePathSegment(item)
+			encoded[i] = encodePathSegment(item)
 		}
 		items = encoded
 		if !isArray && value != nil {
-			value = EncodePathSegment(Stringify(value))
+			value = encodePathSegment(stringify(value))
 		}
 	}
 
@@ -178,7 +178,7 @@ func SerializeStyled(paramName string, value any, location, schemaType, collecti
 			}
 			return fmt.Sprintf(";%s=%s", paramName, strings.Join(items, ","))
 		}
-		return fmt.Sprintf(";%s=%s", paramName, Stringify(value))
+		return fmt.Sprintf(";%s=%s", paramName, stringify(value))
 
 	case "label":
 		if value == nil {
@@ -193,7 +193,7 @@ func SerializeStyled(paramName string, value any, location, schemaType, collecti
 			}
 			return "." + strings.Join(items, ",")
 		}
-		return "." + Stringify(value)
+		return "." + stringify(value)
 
 	case "spaceDelimited":
 		if value == nil {
@@ -205,7 +205,7 @@ func SerializeStyled(paramName string, value any, location, schemaType, collecti
 		if isArray {
 			return strings.Join(items, " ")
 		}
-		return Stringify(value)
+		return stringify(value)
 
 	case "pipeDelimited":
 		if value == nil {
@@ -217,7 +217,7 @@ func SerializeStyled(paramName string, value any, location, schemaType, collecti
 		if isArray {
 			return strings.Join(items, "|")
 		}
-		return Stringify(value)
+		return stringify(value)
 
 	case "form":
 		if value == nil {
@@ -232,7 +232,7 @@ func SerializeStyled(paramName string, value any, location, schemaType, collecti
 			}
 			return strings.Join(items, ",")
 		}
-		return Stringify(value)
+		return stringify(value)
 
 	case "simple":
 		if value == nil {
@@ -244,10 +244,10 @@ func SerializeStyled(paramName string, value any, location, schemaType, collecti
 		if isArray {
 			return strings.Join(items, ",")
 		}
-		return Stringify(value)
+		return stringify(value)
 
 	default:
-		return SerializeValue(value, location, schemaType, collectionFormat)
+		return serializeValue(value, location, schemaType, collectionFormat)
 	}
 }
 
@@ -267,7 +267,7 @@ func toStringSlice(value any) ([]string, bool) {
 	case []any:
 		items := make([]string, len(v))
 		for i, item := range v {
-			items[i] = Stringify(item)
+			items[i] = stringify(item)
 		}
 		return items, true
 	default:

@@ -24,6 +24,12 @@ use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
  * Construction of a \Ds\Set from an array dedupes, matching OAS
  * uniqueItems:true semantics implicitly. On encode we iterate so nested
  * normalization runs through the parent serializer.
+ *
+ * @internal This class is part of the SDK's internal serialization plumbing
+ *           and is not part of the public API. The Symfony Serializer
+ *           interface types on its normalize/denormalize methods are forced
+ *           by the Symfony contract. It may change or be removed in any
+ *           release without notice.
  */
 final class DsSetNormalizer implements NormalizerInterface, DenormalizerInterface, NormalizerAwareInterface
 {

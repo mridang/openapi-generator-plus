@@ -11,13 +11,14 @@ import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.util.StdDateFormat;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.lang.reflect.Type;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
 import java.util.Date;
@@ -40,18 +41,6 @@ public final class ObjectSerializer {
   /** Creates a new ObjectSerializer with default configuration. */
   public ObjectSerializer() {
     this.objectMapper = createDefaultObjectMapper();
-  }
-
-  /**
-   * Creates a new ObjectSerializer with a custom ObjectMapper.
-   *
-   * @param objectMapper the ObjectMapper to use for serialization
-   */
-  public ObjectSerializer(ObjectMapper objectMapper) {
-    if (objectMapper == null) {
-      throw new IllegalArgumentException("ObjectMapper cannot be null");
-    }
-    this.objectMapper = objectMapper;
   }
 
   /**
@@ -82,23 +71,27 @@ public final class ObjectSerializer {
   /**
    * Deserialize a JSON string to an object of the specified type.
    *
+   * <p>The target type is given as a {@link java.lang.reflect.Type} (a JDK reflection type) rather
+   * than a Jackson {@code TypeReference} so that no serde-library type leaks across the call
+   * boundary. Generic types are captured at the call site via {@code new
+   * TypeReference<...>(){}.getType()}.
+   *
    * @param <T> the type to deserialize to
    * @param jsonString the JSON string to deserialize (may be null or empty)
-   * @param typeReference the type reference for the target type
+   * @param type the target type
    * @return the deserialized object, or null if jsonString is null or empty
    * @throws SerializationException if deserialization fails
    */
   @Nullable
-  public <T> T deserialize(@Nullable String jsonString, TypeReference<T> typeReference)
-      throws SerializationException {
+  public <T> T deserialize(@Nullable String jsonString, Type type) throws SerializationException {
     if (jsonString == null || jsonString.isEmpty()) {
       return null;
     }
     try {
-      return objectMapper.readValue(jsonString, typeReference);
+      JavaType javaType = objectMapper.getTypeFactory().constructType(type);
+      return objectMapper.readValue(jsonString, javaType);
     } catch (JsonProcessingException e) {
-      throw new SerializationException(
-          "Failed to deserialize JSON to " + typeReference.getType(), e);
+      throw new SerializationException("Failed to deserialize JSON to " + type, e);
     }
   }
 

@@ -12,7 +12,9 @@ require 'uri'
 
 module PetstoreClient
   # Serializes parameter values for HTTP requests based on their location.
-  class ValueSerializer
+  #
+  # @api private
+  class ValueSerializer # :nodoc:
     # Percent-encodes a string for use as a path segment, preserving
     # sub-delimiters that OAS 3.0 path styles use as structural separators.
     PRESERVE_ENCODED = {

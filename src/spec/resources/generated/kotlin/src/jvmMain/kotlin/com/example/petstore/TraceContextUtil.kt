@@ -8,7 +8,7 @@
 package com.example.petstore
 
 /** JVM actual: injects W3C Trace Context headers using OpenTelemetry when available. */
-actual object TraceContextUtil {
+internal actual object TraceContextUtil {
     @JvmStatic
     actual fun injectTraceContext(headers: MutableMap<String, String>) {
         try {

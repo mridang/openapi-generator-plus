@@ -11,7 +11,7 @@ use petstore::ApiError;
 use petstore::models::Category;
 
 #[test]
-fn test_api_error_exposes_status_message_body_headers_error_body() {
+fn test_api_error_exposes_status_message_body_headers() {
     let mut headers = HashMap::new();
     headers.insert("content-type".to_string(), "application/json".to_string());
 
@@ -20,7 +20,6 @@ fn test_api_error_exposes_status_message_body_headers_error_body() {
         "not found".to_string(),
         Some(r#"{"id":7,"name":"missing"}"#.to_string()),
         Some(headers),
-        None,
     );
 
     assert_eq!(err.status_code, 404);
@@ -37,7 +36,10 @@ fn test_api_error_exposes_status_message_body_headers_error_body() {
             .unwrap(),
         "application/json"
     );
-    assert!(err.error_body.is_none());
+    // The parsed-JSON view of the body is a crate-internal detail; the public
+    // surface is `typed_body`, which deserializes the raw body on demand.
+    let typed: Option<Category> = err.typed_body().expect("body is valid JSON");
+    assert_eq!(typed.expect("expected Some(Category)").id, Some(7));
 }
 
 #[test]
@@ -45,7 +47,7 @@ fn test_api_error_none_headers_and_body_mark_transport_no_response() {
     // apierror-responsebody-headers-nullable-split: None is distinct from an
     // empty header map / empty body so a pre-response transport failure can
     // be encoded.
-    let err = ApiError::new(0, "connection reset".to_string(), None, None, None);
+    let err = ApiError::new(0, "connection reset".to_string(), None, None);
 
     assert!(err.response_headers.is_none());
     assert!(err.response_body.is_none());
@@ -53,7 +55,7 @@ fn test_api_error_none_headers_and_body_mark_transport_no_response() {
 
 #[test]
 fn test_api_error_implements_std_error_and_display() {
-    let err = ApiError::new(500, "boom".to_string(), None, None, None);
+    let err = ApiError::new(500, "boom".to_string(), None, None);
 
     let _as_error: &dyn std::error::Error = &err;
     assert!(!err.to_string().is_empty());
@@ -66,7 +68,6 @@ fn test_api_error_typed_body_deserializes_body() {
         "bad request".to_string(),
         Some(r#"{"id":42,"name":"Dogs"}"#.to_string()),
         None,
-        None,
     );
 
     let typed: Option<Category> = err.typed_body().expect("deserialization should succeed");
@@ -77,7 +78,7 @@ fn test_api_error_typed_body_deserializes_body() {
 
 #[test]
 fn test_api_error_typed_body_returns_none_when_no_body() {
-    let err = ApiError::new(500, "oops".to_string(), None, None, None);
+    let err = ApiError::new(500, "oops".to_string(), None, None);
 
     let typed: Option<Category> = err.typed_body().expect("empty body should not error");
     assert!(typed.is_none());
@@ -89,7 +90,6 @@ fn test_api_error_typed_body_ignores_extraneous_fields() {
         422,
         "unprocessable".to_string(),
         Some(r#"{"id":1,"name":"Cat","extra":"drop-me"}"#.to_string()),
-        None,
         None,
     );
 

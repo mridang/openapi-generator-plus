@@ -66,9 +66,13 @@ class DefaultApiClient internal constructor(
      *
      * Uses default [TransportOptions] for header injection settings.
      *
+     * Internal test-only seam: a Ktor [HttpClient] is an internal transport
+     * type and must not appear in the public API. Production callers construct
+     * via the [TransportOptions] constructor.
+     *
      * @param httpClient the Ktor client to use
      */
-    constructor(httpClient: HttpClient) : this(httpClient, TransportOptions.builder().build())
+    internal constructor(httpClient: HttpClient) : this(httpClient, TransportOptions.builder().build())
 
     /**
      * Create a client configured from the given [TransportOptions].
@@ -521,7 +525,7 @@ internal fun isTextContentType(contentType: String): Boolean {
  * binary path, because the name is interpolated directly into the
  * `Content-Disposition: form-data; name="..."` header.
  */
-fun validateMultipartFieldName(fieldName: String?) {
+internal fun validateMultipartFieldName(fieldName: String?) {
     if (fieldName == null) return
     for (c in fieldName) {
         if (c == '\r' || c == '\n' || c == '\u0000') {
@@ -537,7 +541,7 @@ fun validateMultipartFieldName(fieldName: String?) {
  * injection or smuggling. Throws [IllegalArgumentException] when the filename
  * contains CR, LF, or NUL.
  */
-fun validateMultipartFilename(filename: String?) {
+internal fun validateMultipartFilename(filename: String?) {
     if (filename == null) return
     for (c in filename) {
         if (c == '\r' || c == '\n' || c == '\u0000') {
@@ -555,7 +559,7 @@ fun validateMultipartFilename(filename: String?) {
  * `filename*=UTF-8''<percent-encoded>` parameter alongside an ASCII fallback
  * (non-ASCII bytes replaced with `_`).
  */
-fun buildFilenameDirective(filename: String): String {
+internal fun buildFilenameDirective(filename: String): String {
     val escaped = filename.replace("\\", "\\\\").replace("\"", "\\\"")
     val ascii = filename.all { it.code <= 0x7F }
     if (ascii) {
@@ -578,7 +582,7 @@ fun buildFilenameDirective(filename: String): String {
  * Percent-encodes every byte that is not an RFC 3986 §2.3 unreserved character,
  * producing the value-chars production of RFC 5987 §3.2.1.
  */
-fun rfc5987EncodeValue(s: String): String {
+internal fun rfc5987EncodeValue(s: String): String {
     val hex = "0123456789ABCDEF"
     val bytes = s.toByteArray(Charsets.UTF_8)
     val out = StringBuilder(bytes.size * 3)

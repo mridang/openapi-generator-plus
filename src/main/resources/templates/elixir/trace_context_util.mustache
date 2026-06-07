@@ -1,13 +1,11 @@
 {{>api_info}}
 
 defmodule {{moduleName}}.TraceContextUtil do
-  @moduledoc """
-  Utility for injecting W3C Trace Context headers (traceparent, tracestate)
-  into outgoing API requests when OpenTelemetry is available.
-
-  If the `:opentelemetry_api` application is not installed, this module
-  silently returns the headers unchanged.
-  """
+  @moduledoc false
+  # Internal: injects W3C Trace Context headers (traceparent, tracestate) into
+  # outgoing API requests when OpenTelemetry is available. If the
+  # `:opentelemetry_api` application is not installed, returns the headers
+  # unchanged. Not part of the public API.
 
   @doc """
   Inject the current OpenTelemetry trace context into the given headers map.

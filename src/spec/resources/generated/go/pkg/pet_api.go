@@ -129,13 +129,13 @@ func (s GetStagingPetInfoServerStagingServer) GetUrl() string {
 // Everything about your Pets
 // See https://example.com/docs/pets Find out more about pets
 type PetApi struct {
-	*BaseApi
+	*baseApi
 }
 
 // NewPetApi creates a new PetApi instance.
 func NewPetApi(apiClient ApiClient, config *Configuration, authenticator Authenticator) *PetApi {
 	return &PetApi{
-		BaseApi: NewBaseApi(apiClient, config, authenticator),
+		baseApi: newBaseApi(apiClient, config, authenticator),
 	}
 }
 
@@ -194,9 +194,9 @@ func (a *PetApi) AddPetWithHTTPInfo(auth Authenticator, pet Pet) (*ApiResult[Pet
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
-		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
-			if err := Deserialize([]byte(response.Body), &data); err != nil {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -242,11 +242,11 @@ func (a *PetApi) AddPetPhotos(petId int64, options *AddPetPhotosOptions) (*[]Pho
 func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *AddPetPhotosOptions) (*ApiResult[[]Photo], error) {
 
 	path := "/pet/{petId}/photos"
-	/* Path params route through SerializeStyled so OAS path styles
+	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
-	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -285,9 +285,9 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *AddPetPhotosOpti
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
-		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
-			if err := Deserialize([]byte(response.Body), &data); err != nil {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -332,11 +332,11 @@ func (a *PetApi) AddPetTreatment(auth Authenticator, petId int64, petTreatment P
 func (a *PetApi) AddPetTreatmentWithHTTPInfo(auth Authenticator, petId int64, petTreatment PetTreatment) (*ApiResult[PetTreatment], error) {
 
 	path := "/pet/{petId}/treatment"
-	/* Path params route through SerializeStyled so OAS path styles
+	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
-	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -370,9 +370,9 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(auth Authenticator, petId int64, pe
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
-		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
-			if err := Deserialize([]byte(response.Body), &data); err != nil {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -413,18 +413,18 @@ func (a *PetApi) DeletePet(auth Authenticator, petId int64, options *DeletePetOp
 func (a *PetApi) DeletePetWithHTTPInfo(auth Authenticator, petId int64, options *DeletePetOptions) (*ApiResult[any], error) {
 
 	path := "/pet/{petId}"
-	/* Path params route through SerializeStyled so OAS path styles
+	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
-	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
 	headerParams := make(map[string]string)
 	var cookieParts []string
 	if options != nil && options.ApiKey != nil {
-		cookieParts = append(cookieParts, fmt.Sprintf("api_key=%v", SerializeStyled("api_key", options.ApiKey, "cookie", "string", "", "form", true)))
+		cookieParts = append(cookieParts, fmt.Sprintf("api_key=%v", serializeStyled("api_key", options.ApiKey, "cookie", "string", "", "form", true)))
 	}
 	if len(cookieParts) > 0 {
 		headerParams["Cookie"] = strings.Join(cookieParts, "; ")
@@ -477,16 +477,16 @@ func (a *PetApi) DownloadPetDocument(petId int64, documentId int64) (**os.File, 
 func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) (*ApiResult[*os.File], error) {
 
 	path := "/pet/{petId}/documents/{documentId}"
-	/* Path params route through SerializeStyled so OAS path styles
+	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
-	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
-	/* Path params route through SerializeStyled so OAS path styles
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
-	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "documentId", fmt.Sprintf("%v", SerializeStyled("documentId", documentId, "path", "int64", "", "simple", false)))
+	path = replacePathParam(path, "documentId", fmt.Sprintf("%v", serializeStyled("documentId", documentId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -520,9 +520,9 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) 
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
-		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
-			if err := Deserialize([]byte(response.Body), &data); err != nil {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -579,13 +579,13 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *FindPetsByStatusOptions) 
 	queryParams := make(map[string]any)
 	if options != nil {
 		if options.Status != nil {
-			queryParams["status"] = SerializeStyled("status", options.Status, "query", "string", "", "form", true)
+			queryParams["status"] = serializeStyled("status", options.Status, "query", "string", "", "form", true)
 		} else {
 			queryParams["status"] = ""
 		}
 	}
 	if options != nil && options.Filter != nil {
-		for k, v := range SerializeDeepObject("filter", options.Filter) {
+		for k, v := range serializeDeepObject("filter", options.Filter) {
 			queryParams[k] = v
 		}
 	}
@@ -620,9 +620,9 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *FindPetsByStatusOptions) 
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
-		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
-			if err := Deserialize([]byte(response.Body), &data); err != nil {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -667,11 +667,11 @@ func (a *PetApi) GetExternalPetInfo(petId int64, server GetExternalPetInfoServer
 func (a *PetApi) GetExternalPetInfoWithHTTPInfo(petId int64, server GetExternalPetInfoServer) (*ApiResult[Pet], error) {
 
 	path := "/pet/{petId}/external"
-	/* Path params route through SerializeStyled so OAS path styles
+	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
-	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 	if server != nil {
 		serverUrl := server.GetUrl()
 		if strings.HasPrefix(serverUrl, "http://") || strings.HasPrefix(serverUrl, "https://") {
@@ -711,9 +711,9 @@ func (a *PetApi) GetExternalPetInfoWithHTTPInfo(petId int64, server GetExternalP
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
-		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
-			if err := Deserialize([]byte(response.Body), &data); err != nil {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -758,11 +758,11 @@ func (a *PetApi) GetMultiServerPetInfo(petId int64, server GetMultiServerPetInfo
 func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(petId int64, server GetMultiServerPetInfoServer) (*ApiResult[Pet], error) {
 
 	path := "/pet/{petId}/multi"
-	/* Path params route through SerializeStyled so OAS path styles
+	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
-	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 	if server != nil {
 		serverUrl := server.GetUrl()
 		if strings.HasPrefix(serverUrl, "http://") || strings.HasPrefix(serverUrl, "https://") {
@@ -802,9 +802,9 @@ func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(petId int64, server GetMultiS
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
-		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
-			if err := Deserialize([]byte(response.Body), &data); err != nil {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -850,11 +850,11 @@ func (a *PetApi) GetPetAvatar(petId int64) (**os.File, error) {
 func (a *PetApi) GetPetAvatarWithHTTPInfo(petId int64) (*ApiResult[*os.File], error) {
 
 	path := "/pet/{petId}/avatar"
-	/* Path params route through SerializeStyled so OAS path styles
+	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
-	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -888,9 +888,9 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(petId int64) (*ApiResult[*os.File], er
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
-		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
-			if err := Deserialize([]byte(response.Body), &data); err != nil {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -936,11 +936,11 @@ func (a *PetApi) GetPetAvatarThumbnail(petId int64) (*[]byte, error) {
 func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(petId int64) (*ApiResult[[]byte], error) {
 
 	path := "/pet/{petId}/avatar/thumbnail"
-	/* Path params route through SerializeStyled so OAS path styles
+	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
-	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -974,9 +974,9 @@ func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(petId int64) (*ApiResult[[]by
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
-		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
-			if err := Deserialize([]byte(response.Body), &data); err != nil {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -1028,11 +1028,11 @@ func (a *PetApi) GetPetById(petId int64, server GetPetByIdServer) (*Pet, error) 
 func (a *PetApi) GetPetByIdWithHTTPInfo(petId int64, server GetPetByIdServer) (*ApiResult[Pet], error) {
 
 	path := "/pet/{petId}"
-	/* Path params route through SerializeStyled so OAS path styles
+	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
-	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 	if server != nil {
 		serverUrl := server.GetUrl()
 		if strings.HasPrefix(serverUrl, "http://") || strings.HasPrefix(serverUrl, "https://") {
@@ -1072,9 +1072,9 @@ func (a *PetApi) GetPetByIdWithHTTPInfo(petId int64, server GetPetByIdServer) (*
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
-		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
-			if err := Deserialize([]byte(response.Body), &data); err != nil {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -1120,11 +1120,11 @@ func (a *PetApi) GetPetPassport(petId int64) (*PetPassport, error) {
 func (a *PetApi) GetPetPassportWithHTTPInfo(petId int64) (*ApiResult[PetPassport], error) {
 
 	path := "/pet/{petId}/passport"
-	/* Path params route through SerializeStyled so OAS path styles
+	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
-	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -1158,9 +1158,9 @@ func (a *PetApi) GetPetPassportWithHTTPInfo(petId int64) (*ApiResult[PetPassport
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
-		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
-			if err := Deserialize([]byte(response.Body), &data); err != nil {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -1206,16 +1206,16 @@ func (a *PetApi) GetPetPhoto(petId int64, photoId int64) (**os.File, error) {
 func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult[*os.File], error) {
 
 	path := "/pet/{petId}/photos/{photoId}"
-	/* Path params route through SerializeStyled so OAS path styles
+	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
-	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
-	/* Path params route through SerializeStyled so OAS path styles
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
-	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "photoId", fmt.Sprintf("%v", SerializeStyled("photoId", photoId, "path", "int64", "", "simple", false)))
+	path = replacePathParam(path, "photoId", fmt.Sprintf("%v", serializeStyled("photoId", photoId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -1249,9 +1249,9 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
-		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
-			if err := Deserialize([]byte(response.Body), &data); err != nil {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -1299,27 +1299,27 @@ func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *Get
 	}
 
 	path := "/pet/{petId}/tag/{tagName}"
-	/* Path params route through SerializeStyled so OAS path styles
+	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
-	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "matrix", false)))
-	/* Path params route through SerializeStyled so OAS path styles
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "matrix", false)))
+	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
-	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "tagName", fmt.Sprintf("%v", SerializeStyled("tagName", tagName, "path", "string", "", "label", false)))
+	path = replacePathParam(path, "tagName", fmt.Sprintf("%v", serializeStyled("tagName", tagName, "path", "string", "", "label", false)))
 
 	queryParams := make(map[string]any)
 	if options != nil && options.Colors != nil {
-		queryParams["colors"] = SerializeStyled("colors", options.Colors, "query", "[]string", "pipes", "pipeDelimited", false)
+		queryParams["colors"] = serializeStyled("colors", options.Colors, "query", "[]string", "pipes", "pipeDelimited", false)
 	}
 	if options != nil && options.Sizes != nil {
-		queryParams["sizes"] = SerializeStyled("sizes", options.Sizes, "query", "[]string", "ssv", "spaceDelimited", false)
+		queryParams["sizes"] = serializeStyled("sizes", options.Sizes, "query", "[]string", "ssv", "spaceDelimited", false)
 	}
 	if options != nil {
 		if options.Filter != nil {
-			queryParams["filter"] = SerializeStyled("filter", options.Filter, "query", "string", "", "form", true)
+			queryParams["filter"] = serializeStyled("filter", options.Filter, "query", "string", "", "form", true)
 		} else {
 			queryParams["filter"] = ""
 		}
@@ -1355,9 +1355,9 @@ func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *Get
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
-		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
-			if err := Deserialize([]byte(response.Body), &data); err != nil {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -1402,11 +1402,11 @@ func (a *PetApi) GetStagingPetInfo(petId int64, server GetStagingPetInfoServer) 
 func (a *PetApi) GetStagingPetInfoWithHTTPInfo(petId int64, server GetStagingPetInfoServer) (*ApiResult[Pet], error) {
 
 	path := "/pet/{petId}/staging"
-	/* Path params route through SerializeStyled so OAS path styles
+	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
-	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 	if server != nil {
 		serverUrl := server.GetUrl()
 		if strings.HasPrefix(serverUrl, "http://") || strings.HasPrefix(serverUrl, "https://") {
@@ -1446,9 +1446,9 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(petId int64, server GetStagingPet
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
-		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
-			if err := Deserialize([]byte(response.Body), &data); err != nil {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -1488,11 +1488,11 @@ func (a *PetApi) SetPetAvatar(petId int64, body *os.File) error {
 func (a *PetApi) SetPetAvatarWithHTTPInfo(petId int64, body *os.File) (*ApiResult[any], error) {
 
 	path := "/pet/{petId}/avatar"
-	/* Path params route through SerializeStyled so OAS path styles
+	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
-	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -1539,11 +1539,11 @@ func (a *PetApi) SetPetAvatarThumbnail(petId int64, setPetAvatarThumbnailRequest
 func (a *PetApi) SetPetAvatarThumbnailWithHTTPInfo(petId int64, setPetAvatarThumbnailRequest SetPetAvatarThumbnailRequest) (*ApiResult[any], error) {
 
 	path := "/pet/{petId}/avatar/thumbnail"
-	/* Path params route through SerializeStyled so OAS path styles
+	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
-	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -1597,11 +1597,11 @@ func (a *PetApi) UpdatePet(petId int64, pet Pet) (*Pet, error) {
 func (a *PetApi) UpdatePetWithHTTPInfo(petId int64, pet Pet) (*ApiResult[Pet], error) {
 
 	path := "/pet/{petId}"
-	/* Path params route through SerializeStyled so OAS path styles
+	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
-	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -1635,9 +1635,9 @@ func (a *PetApi) UpdatePetWithHTTPInfo(petId int64, pet Pet) (*ApiResult[Pet], e
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
-		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
-			if err := Deserialize([]byte(response.Body), &data); err != nil {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -1683,11 +1683,11 @@ func (a *PetApi) UploadPetCertificate(petId int64, options *UploadPetCertificate
 func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *UploadPetCertificateOptions) (*ApiResult[ApiResponse], error) {
 
 	path := "/pet/{petId}/certificate"
-	/* Path params route through SerializeStyled so OAS path styles
+	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
-	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -1725,9 +1725,9 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *UploadPe
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
-		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
-			if err := Deserialize([]byte(response.Body), &data); err != nil {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -1773,11 +1773,11 @@ func (a *PetApi) UploadPetDocument(petId int64, options *UploadPetDocumentOption
 func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *UploadPetDocumentOptions) (*ApiResult[ApiResponse], error) {
 
 	path := "/pet/{petId}/documents"
-	/* Path params route through SerializeStyled so OAS path styles
+	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
-	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", SerializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -1821,9 +1821,9 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *UploadPetDo
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
-		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
-			if err := Deserialize([]byte(response.Body), &data); err != nil {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {

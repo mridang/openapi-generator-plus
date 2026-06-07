@@ -221,7 +221,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     /// Uses default <see cref="TransportOptions"/> for header injection settings.
     /// </summary>
     /// <param name="httpClient">The HTTP client to use.</param>
-    public DefaultApiClient(HttpClient httpClient)
+    internal DefaultApiClient(HttpClient httpClient)
     {
         _httpClient = httpClient;
         _transportOptions = TransportOptions.Builder().Build();
@@ -235,7 +235,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     /// </summary>
     /// <param name="httpClient">The HTTP client to use.</param>
     /// <param name="transportOptions">Transport configuration to apply.</param>
-    public DefaultApiClient(HttpClient httpClient, TransportOptions transportOptions)
+    internal DefaultApiClient(HttpClient httpClient, TransportOptions transportOptions)
     {
         ArgumentNullException.ThrowIfNull(transportOptions);
         _httpClient = httpClient;

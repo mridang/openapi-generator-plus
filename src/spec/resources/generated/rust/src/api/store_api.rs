@@ -143,7 +143,6 @@ impl StoreApi {
                 "empty response body for an operation that declares a response type".to_string(),
                 Some(result.raw_body),
                 Some(result.headers),
-                None,
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -197,7 +196,6 @@ impl StoreApi {
                 "empty response body for an operation that declares a response type".to_string(),
                 Some(result.raw_body),
                 Some(result.headers),
-                None,
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -295,7 +293,6 @@ impl StoreApi {
                 "empty response body for an operation that declares a response type".to_string(),
                 Some(result.raw_body),
                 Some(result.headers),
-                None,
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }

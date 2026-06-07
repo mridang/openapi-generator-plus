@@ -356,7 +356,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             supportingFiles.add(
                     new SupportingFile(
                             "test/default_api_client_unit_test.mustache",
-                            "test",
+                            "pkg",
                             "default_api_client_unit_test.go"));
             supportingFiles.add(
                     new SupportingFile(
@@ -366,12 +366,12 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             supportingFiles.add(
                     new SupportingFile(
                             "test/header_selector_test.mustache",
-                            "test",
+                            "pkg",
                             "header_selector_test.go"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/object_serializer_test.mustache",
-                            "test",
+                            "pkg",
                             "object_serializer_test.go"));
             supportingFiles.add(
                     new SupportingFile(
@@ -381,12 +381,12 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             supportingFiles.add(
                     new SupportingFile(
                             "test/value_serializer_test.mustache",
-                            "test",
+                            "pkg",
                             "value_serializer_test.go"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/trace_context_util_test.mustache",
-                            "test",
+                            "pkg",
                             "trace_context_util_test.go"));
             supportingFiles.add(
                     new SupportingFile(

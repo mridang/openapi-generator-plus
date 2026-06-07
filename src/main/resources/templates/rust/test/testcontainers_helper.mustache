@@ -1,5 +1,17 @@
 {{>api_info}}
 
+// This module is included via `mod testcontainers_helper;` into every
+// integration-test binary under `tests/`. Each test binary is compiled as its
+// own crate and links the whole module, but a given binary only calls the
+// subset of URL accessors its scenarios need (e.g. `store_api_test` uses only
+// `chasm_url`, while `default_api_client_test` exercises the HTTPS/proxy/CA
+// accessors). The unused accessors and their backing fields are therefore
+// genuinely dead *in that binary* even though every accessor is live in at
+// least one binary. Cargo offers no way to share a single compilation of this
+// helper across the separate test binaries, so the per-binary `dead_code` is
+// structural rather than a code smell. Scoped to this shared module only.
+#![allow(dead_code)]
+
 use std::path::PathBuf;
 use std::sync::OnceLock;
 

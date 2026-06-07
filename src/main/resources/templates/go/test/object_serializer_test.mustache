@@ -1,5 +1,5 @@
 {{>api_info}}
-package {{packageName}}_test
+package {{packageName}}
 
 import (
 	"encoding/json"
@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"{{packageName}}/pkg"
 	"{{packageName}}/pkg/models"
 )
 
@@ -19,7 +18,7 @@ func TestSerialize_MapToJSON(t *testing.T) {
 		"age":  3,
 	}
 
-	data, err := {{packageName}}.Serialize(input)
+	data, err := serialize(input)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -41,7 +40,7 @@ func TestDeserialize_JSONToMap(t *testing.T) {
 	input := []byte(`{"name":"Fido","age":3}`)
 
 	var result map[string]any
-	err := {{packageName}}.Deserialize(input, &result)
+	err := deserialize(input, &result)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -53,7 +52,7 @@ func TestDeserialize_JSONToMap(t *testing.T) {
 func TestDeserialize_EmptyData(t *testing.T) {
 	t.Parallel()
 	var result map[string]any
-	err := {{packageName}}.Deserialize([]byte{}, &result)
+	err := deserialize([]byte{}, &result)
 	if err != nil {
 		t.Fatalf("unexpected error for empty data: %v", err)
 	}
@@ -62,7 +61,7 @@ func TestDeserialize_EmptyData(t *testing.T) {
 func TestDeserialize_InvalidJSON(t *testing.T) {
 	t.Parallel()
 	var result map[string]any
-	err := {{packageName}}.Deserialize([]byte("not json"), &result)
+	err := deserialize([]byte("not json"), &result)
 	if err == nil {
 		t.Fatal("expected error for invalid JSON")
 	}
@@ -72,7 +71,7 @@ func TestSerialize_InvalidType(t *testing.T) {
 	t.Parallel()
 	// Channels cannot be serialized to JSON
 	ch := make(chan int)
-	_, err := {{packageName}}.Serialize(ch)
+	_, err := serialize(ch)
 	if err == nil {
 		t.Fatal("expected error for non-serializable type")
 	}
@@ -80,7 +79,7 @@ func TestSerialize_InvalidType(t *testing.T) {
 
 func TestToPathValue_String(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.ToPathValue("hello")
+	result := toPathValue("hello")
 	if result != "hello" {
 		t.Errorf("expected 'hello', got %q", result)
 	}
@@ -88,7 +87,7 @@ func TestToPathValue_String(t *testing.T) {
 
 func TestToPathValue_Int(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.ToPathValue(42)
+	result := toPathValue(42)
 	if result != "42" {
 		t.Errorf("expected '42', got %q", result)
 	}
@@ -96,12 +95,12 @@ func TestToPathValue_Int(t *testing.T) {
 
 func TestToPathValue_Bool(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.ToPathValue(true)
+	result := toPathValue(true)
 	if result != "true" {
 		t.Errorf("expected 'true', got %q", result)
 	}
 
-	result = {{packageName}}.ToPathValue(false)
+	result = toPathValue(false)
 	if result != "false" {
 		t.Errorf("expected 'false', got %q", result)
 	}
@@ -109,7 +108,7 @@ func TestToPathValue_Bool(t *testing.T) {
 
 func TestToPathValue_Nil(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.ToPathValue(nil)
+	result := toPathValue(nil)
 	if result != "" {
 		t.Errorf("expected empty string for nil, got %q", result)
 	}
@@ -117,7 +116,7 @@ func TestToPathValue_Nil(t *testing.T) {
 
 func TestToQueryValue_String(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.ToQueryValue("hello", "")
+	result := toQueryValue("hello", "")
 	if result != "hello" {
 		t.Errorf("expected 'hello', got %v", result)
 	}
@@ -125,7 +124,7 @@ func TestToQueryValue_String(t *testing.T) {
 
 func TestToQueryValue_StringSliceCSV(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.ToQueryValue([]string{"a", "b", "c"}, "csv")
+	result := toQueryValue([]string{"a", "b", "c"}, "csv")
 	if result != "a,b,c" {
 		t.Errorf("expected 'a,b,c', got %v", result)
 	}
@@ -133,7 +132,7 @@ func TestToQueryValue_StringSliceCSV(t *testing.T) {
 
 func TestToQueryValue_StringSliceSSV(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.ToQueryValue([]string{"a", "b", "c"}, "ssv")
+	result := toQueryValue([]string{"a", "b", "c"}, "ssv")
 	if result != "a b c" {
 		t.Errorf("expected 'a b c', got %v", result)
 	}
@@ -141,7 +140,7 @@ func TestToQueryValue_StringSliceSSV(t *testing.T) {
 
 func TestToQueryValue_StringSliceTSV(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.ToQueryValue([]string{"a", "b", "c"}, "tsv")
+	result := toQueryValue([]string{"a", "b", "c"}, "tsv")
 	str, ok := result.(string)
 	if !ok {
 		t.Fatalf("expected string result, got %T", result)
@@ -153,7 +152,7 @@ func TestToQueryValue_StringSliceTSV(t *testing.T) {
 
 func TestToQueryValue_StringSlicePipes(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.ToQueryValue([]string{"a", "b", "c"}, "pipes")
+	result := toQueryValue([]string{"a", "b", "c"}, "pipes")
 	str, ok := result.(string)
 	if !ok {
 		t.Fatalf("expected string result, got %T", result)
@@ -165,7 +164,7 @@ func TestToQueryValue_StringSlicePipes(t *testing.T) {
 
 func TestToQueryValue_StringSliceMulti(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.ToQueryValue([]string{"a", "b", "c"}, "multi")
+	result := toQueryValue([]string{"a", "b", "c"}, "multi")
 	slice, ok := result.([]string)
 	if !ok {
 		t.Fatalf("expected []string result, got %T", result)
@@ -183,7 +182,7 @@ func TestToQueryValue_StringSliceMulti(t *testing.T) {
 
 func TestToQueryValue_Int(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.ToQueryValue(42, "")
+	result := toQueryValue(42, "")
 	if result != "42" {
 		t.Errorf("expected '42', got %v", result)
 	}
@@ -191,7 +190,7 @@ func TestToQueryValue_Int(t *testing.T) {
 
 func TestToQueryValue_BoolTrue(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.ToQueryValue(true, "")
+	result := toQueryValue(true, "")
 	if result != "true" {
 		t.Errorf("expected 'true', got %v", result)
 	}
@@ -199,7 +198,7 @@ func TestToQueryValue_BoolTrue(t *testing.T) {
 
 func TestToQueryValue_BoolFalse(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.ToQueryValue(false, "")
+	result := toQueryValue(false, "")
 	if result != "false" {
 		t.Errorf("expected 'false', got %v", result)
 	}
@@ -207,7 +206,7 @@ func TestToQueryValue_BoolFalse(t *testing.T) {
 
 func TestToQueryValue_Nil(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.ToQueryValue(nil, "")
+	result := toQueryValue(nil, "")
 	if result != nil {
 		t.Errorf("expected nil for nil input, got %v", result)
 	}
@@ -215,7 +214,7 @@ func TestToQueryValue_Nil(t *testing.T) {
 
 func TestToHeaderValue_String(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.ToHeaderValue("hello")
+	result := toHeaderValue("hello")
 	if result != "hello" {
 		t.Errorf("expected 'hello', got %q", result)
 	}
@@ -223,7 +222,7 @@ func TestToHeaderValue_String(t *testing.T) {
 
 func TestToHeaderValue_StringSlice(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.ToHeaderValue([]string{"a", "b", "c"})
+	result := toHeaderValue([]string{"a", "b", "c"})
 	if result != "a,b,c" {
 		t.Errorf("expected 'a,b,c', got %q", result)
 	}
@@ -231,7 +230,7 @@ func TestToHeaderValue_StringSlice(t *testing.T) {
 
 func TestToHeaderValue_Int(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.ToHeaderValue(42)
+	result := toHeaderValue(42)
 	if result != "42" {
 		t.Errorf("expected '42', got %q", result)
 	}
@@ -239,7 +238,7 @@ func TestToHeaderValue_Int(t *testing.T) {
 
 func TestToHeaderValue_Nil(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.ToHeaderValue(nil)
+	result := toHeaderValue(nil)
 	if result != "" {
 		t.Errorf("expected empty string for nil, got %q", result)
 	}
@@ -247,7 +246,7 @@ func TestToHeaderValue_Nil(t *testing.T) {
 
 func TestToCookieValue_String(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.ToCookieValue("hello")
+	result := toCookieValue("hello")
 	if result != "hello" {
 		t.Errorf("expected 'hello', got %q", result)
 	}
@@ -255,7 +254,7 @@ func TestToCookieValue_String(t *testing.T) {
 
 func TestToCookieValue_Nil(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.ToCookieValue(nil)
+	result := toCookieValue(nil)
 	if result != "" {
 		t.Errorf("expected empty string for nil, got %q", result)
 	}
@@ -263,7 +262,7 @@ func TestToCookieValue_Nil(t *testing.T) {
 
 func TestToCookieValue_Int(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.ToCookieValue(42)
+	result := toCookieValue(42)
 	if result != "42" {
 		t.Errorf("expected '42', got %q", result)
 	}
@@ -271,7 +270,7 @@ func TestToCookieValue_Int(t *testing.T) {
 
 func TestToFormValue_String(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.ToFormValue("hello")
+	result := toFormValue("hello")
 	if result != "hello" {
 		t.Errorf("expected 'hello', got %q", result)
 	}
@@ -279,7 +278,7 @@ func TestToFormValue_String(t *testing.T) {
 
 func TestToFormValue_Int(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.ToFormValue(123)
+	result := toFormValue(123)
 	if result != "123" {
 		t.Errorf("expected '123', got %q", result)
 	}
@@ -287,7 +286,7 @@ func TestToFormValue_Int(t *testing.T) {
 
 func TestToFormValue_Nil(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.ToFormValue(nil)
+	result := toFormValue(nil)
 	if result != "" {
 		t.Errorf("expected empty string for nil, got %q", result)
 	}
@@ -295,7 +294,7 @@ func TestToFormValue_Nil(t *testing.T) {
 
 func TestToFormValue_BoolTrue(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.ToFormValue(true)
+	result := toFormValue(true)
 	if result != "true" {
 		t.Errorf("expected 'true', got %q", result)
 	}
@@ -303,7 +302,7 @@ func TestToFormValue_BoolTrue(t *testing.T) {
 
 func TestToFormValue_BoolFalse(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.ToFormValue(false)
+	result := toFormValue(false)
 	if result != "false" {
 		t.Errorf("expected 'false', got %q", result)
 	}
@@ -311,7 +310,7 @@ func TestToFormValue_BoolFalse(t *testing.T) {
 
 func TestStringify_String(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.Stringify("hello")
+	result := stringify("hello")
 	if result != "hello" {
 		t.Errorf("expected 'hello', got %q", result)
 	}
@@ -319,7 +318,7 @@ func TestStringify_String(t *testing.T) {
 
 func TestStringify_Int(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.Stringify(42)
+	result := stringify(42)
 	if result != "42" {
 		t.Errorf("expected '42', got %q", result)
 	}
@@ -327,7 +326,7 @@ func TestStringify_Int(t *testing.T) {
 
 func TestStringify_Int64(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.Stringify(int64(9999999999))
+	result := stringify(int64(9999999999))
 	if result != "9999999999" {
 		t.Errorf("expected '9999999999', got %q", result)
 	}
@@ -335,7 +334,7 @@ func TestStringify_Int64(t *testing.T) {
 
 func TestStringify_Float64(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.Stringify(3.14)
+	result := stringify(3.14)
 	if result != "3.14" {
 		t.Errorf("expected '3.14', got %q", result)
 	}
@@ -343,10 +342,10 @@ func TestStringify_Float64(t *testing.T) {
 
 func TestStringify_Bool(t *testing.T) {
 	t.Parallel()
-	if {{packageName}}.Stringify(true) != "true" {
+	if stringify(true) != "true" {
 		t.Error("expected 'true'")
 	}
-	if {{packageName}}.Stringify(false) != "false" {
+	if stringify(false) != "false" {
 		t.Error("expected 'false'")
 	}
 }
@@ -354,7 +353,7 @@ func TestStringify_Bool(t *testing.T) {
 func TestStringify_Time(t *testing.T) {
 	t.Parallel()
 	ts := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
-	result := {{packageName}}.Stringify(ts)
+	result := stringify(ts)
 	if result == "" {
 		t.Error("expected non-empty string for time.Time")
 	}
@@ -362,7 +361,7 @@ func TestStringify_Time(t *testing.T) {
 
 func TestStringify_Nil(t *testing.T) {
 	t.Parallel()
-	result := {{packageName}}.Stringify(nil)
+	result := stringify(nil)
 	if result != "" {
 		t.Errorf("expected empty string for nil, got %q", result)
 	}
@@ -371,7 +370,7 @@ func TestStringify_Nil(t *testing.T) {
 func TestStringify_StringPointer(t *testing.T) {
 	t.Parallel()
 	s := "hello"
-	result := {{packageName}}.Stringify(&s)
+	result := stringify(&s)
 	if result != "hello" {
 		t.Errorf("expected 'hello', got %q", result)
 	}
@@ -380,7 +379,7 @@ func TestStringify_StringPointer(t *testing.T) {
 func TestStringify_NilStringPointer(t *testing.T) {
 	t.Parallel()
 	var s *string
-	result := {{packageName}}.Stringify(s)
+	result := stringify(s)
 	if result != "" {
 		t.Errorf("expected empty string for nil *string, got %q", result)
 	}
@@ -391,7 +390,7 @@ func TestStringify_NilStringPointer(t *testing.T) {
 func TestDateTimeOffset_UTCPreservesOffset(t *testing.T) {
 	t.Parallel()
 	ts := time.Date(2024, 1, 1, 12, 30, 45, 0, time.UTC)
-	result := {{packageName}}.Stringify(ts)
+	result := stringify(ts)
 	if !strings.Contains(result, "2024-01-01") {
 		t.Errorf("should contain date: %q", result)
 	}
@@ -404,7 +403,7 @@ func TestDateTimeOffset_PositiveOffsetPreserved(t *testing.T) {
 	t.Parallel()
 	loc := time.FixedZone("IST", 5*60*60+30*60)
 	ts := time.Date(2024, 1, 1, 12, 30, 45, 0, loc)
-	result := {{packageName}}.Stringify(ts)
+	result := stringify(ts)
 	if !strings.Contains(result, "+05:30") {
 		t.Errorf("should contain +05:30 offset: %q", result)
 	}
@@ -414,7 +413,7 @@ func TestDateTimeOffset_NegativeOffsetPreserved(t *testing.T) {
 	t.Parallel()
 	loc := time.FixedZone("PST", -8*60*60)
 	ts := time.Date(2024, 1, 1, 12, 30, 45, 0, loc)
-	result := {{packageName}}.Stringify(ts)
+	result := stringify(ts)
 	if !strings.Contains(result, "-08:00") {
 		t.Errorf("should contain -08:00 offset: %q", result)
 	}
@@ -423,7 +422,7 @@ func TestDateTimeOffset_NegativeOffsetPreserved(t *testing.T) {
 func TestDateTimeOffset_NoSubseconds(t *testing.T) {
 	t.Parallel()
 	ts := time.Date(2024, 1, 1, 12, 30, 45, 123000000, time.UTC)
-	result := {{packageName}}.Stringify(ts)
+	result := stringify(ts)
 	if strings.Contains(result, ".123") {
 		t.Errorf("subseconds should not appear in output: %q", result)
 	}
@@ -432,7 +431,7 @@ func TestDateTimeOffset_NoSubseconds(t *testing.T) {
 func TestDateTimeOffset_DateOnlyFormatted(t *testing.T) {
 	t.Parallel()
 	ts := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-	result := {{packageName}}.Stringify(ts)
+	result := stringify(ts)
 	if result == "" {
 		t.Error("expected non-empty string for date time")
 	}
@@ -441,7 +440,7 @@ func TestDateTimeOffset_DateOnlyFormatted(t *testing.T) {
 func TestDateTimeOffset_EndsWithOffset(t *testing.T) {
 	t.Parallel()
 	ts := time.Date(2024, 1, 1, 12, 30, 45, 0, time.UTC)
-	result := {{packageName}}.Stringify(ts)
+	result := stringify(ts)
 	if result == "" {
 		t.Fatal("expected non-empty string")
 	}
@@ -458,7 +457,7 @@ func TestDateTimeOffset_RoundTrip(t *testing.T) {
 	t.Parallel()
 	loc := time.FixedZone("IST", 5*60*60+30*60)
 	original := time.Date(2024, 1, 1, 12, 30, 45, 0, loc)
-	serialized := {{packageName}}.Stringify(original)
+	serialized := stringify(original)
 	parsed, err := time.Parse("2006-01-02T15:04:05-07:00", serialized)
 	if err != nil {
 		t.Fatalf("failed to parse serialized datetime %q: %v", serialized, err)
@@ -473,7 +472,7 @@ func TestDateTimeOffset_RoundTrip(t *testing.T) {
 func TestNonAscii_AccentedCharacterNotEscaped(t *testing.T) {
 	t.Parallel()
 	input := map[string]any{"key": "café"}
-	data, err := {{packageName}}.Serialize(input)
+	data, err := serialize(input)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -485,7 +484,7 @@ func TestNonAscii_AccentedCharacterNotEscaped(t *testing.T) {
 func TestNonAscii_CjkCharactersNotEscaped(t *testing.T) {
 	t.Parallel()
 	input := map[string]any{"key": "日本"}
-	data, err := {{packageName}}.Serialize(input)
+	data, err := serialize(input)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -497,7 +496,7 @@ func TestNonAscii_CjkCharactersNotEscaped(t *testing.T) {
 func TestNonAscii_TabCharacterEscapedProperly(t *testing.T) {
 	t.Parallel()
 	input := map[string]any{"key": "a\tb"}
-	data, err := {{packageName}}.Serialize(input)
+	data, err := serialize(input)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -511,40 +510,40 @@ func TestNonAscii_TabCharacterEscapedProperly(t *testing.T) {
 func TestDeserializationError_TruncatedJsonReturnsSerializationError(t *testing.T) {
 	t.Parallel()
 	var result map[string]any
-	err := {{packageName}}.Deserialize([]byte("{"), &result)
+	err := deserialize([]byte("{"), &result)
 	if err == nil {
 		t.Fatal("expected error for truncated JSON")
 	}
-	if _, ok := err.(*{{packageName}}.SerializationError); !ok {
-		t.Errorf("expected *SerializationError, got %T: %v", err, err)
+	if _, ok := err.(*serializationError); !ok {
+		t.Errorf("expected *serializationError, got %T: %v", err, err)
 	}
 }
 
 func TestDeserializationError_InvalidJsonReturnsSerializationError(t *testing.T) {
 	t.Parallel()
 	var result map[string]any
-	err := {{packageName}}.Deserialize([]byte(`"hello"`), &result)
+	err := deserialize([]byte(`"hello"`), &result)
 	if err == nil {
 		t.Fatal("expected error for invalid JSON for map target")
 	}
-	if _, ok := err.(*{{packageName}}.SerializationError); !ok {
-		t.Errorf("expected *SerializationError, got %T: %v", err, err)
+	if _, ok := err.(*serializationError); !ok {
+		t.Errorf("expected *serializationError, got %T: %v", err, err)
 	}
 }
 
 func TestDeserializationError_ErrorHasCause(t *testing.T) {
 	t.Parallel()
 	var result map[string]any
-	err := {{packageName}}.Deserialize([]byte("{"), &result)
+	err := deserialize([]byte("{"), &result)
 	if err == nil {
 		t.Fatal("expected error for truncated JSON")
 	}
-	serErr, ok := err.(*{{packageName}}.SerializationError)
+	serErr, ok := err.(*serializationError)
 	if !ok {
-		t.Fatalf("expected *SerializationError, got %T", err)
+		t.Fatalf("expected *serializationError, got %T", err)
 	}
 	if serErr.Cause == nil {
-		t.Error("SerializationError should have a non-nil Cause")
+		t.Error("serializationError should have a non-nil Cause")
 	}
 }
 
@@ -553,7 +552,7 @@ func TestSerialize_IncludesFieldsSetToDefaultValues(t *testing.T) {
 	id := int64(0)
 	name := ""
 	category := models.Category{Id: &id, Name: &name}
-	data, err := {{packageName}}.Serialize(category)
+	data, err := serialize(category)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -568,7 +567,7 @@ func TestSerialize_IncludesFieldsSetToDefaultValues(t *testing.T) {
 func TestDiscriminator_DrySubtypeAutoInjectsFoodType(t *testing.T) {
 	t.Parallel()
 	dry := models.NewDryFood(2.5)
-	data, err := {{packageName}}.Serialize(dry)
+	data, err := serialize(dry)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -583,7 +582,7 @@ func TestDiscriminator_DrySubtypeAutoInjectsFoodType(t *testing.T) {
 func TestDiscriminator_WetSubtypeAutoInjectsFoodType(t *testing.T) {
 	t.Parallel()
 	wet := models.NewWetFood(350)
-	data, err := {{packageName}}.Serialize(wet)
+	data, err := serialize(wet)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -599,7 +598,7 @@ func TestDiscriminator_CallerCanOverrideDefault(t *testing.T) {
 	t.Parallel()
 	dry := models.NewDryFood(1)
 	dry.FoodType = "custom"
-	data, err := {{packageName}}.Serialize(dry)
+	data, err := serialize(dry)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -612,7 +611,7 @@ func TestDiscriminator_DeserializeReturnsSubtype(t *testing.T) {
 	t.Parallel()
 	input := []byte(`{"foodType":"dry","weightKg":2.5}`)
 	var dry models.DryFood
-	if err := {{packageName}}.Deserialize(input, &dry); err != nil {
+	if err := deserialize(input, &dry); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if dry.FoodType != "dry" {
@@ -627,23 +626,23 @@ func TestDiscriminator_DeserializeReturnsSubtype(t *testing.T) {
 
 func TestStringify_WholeNumberFloatKeepsDotZero(t *testing.T) {
 	t.Parallel()
-	if got := {{packageName}}.Stringify(float64(1.0)); got != "1.0" {
+	if got := stringify(float64(1.0)); got != "1.0" {
 		t.Errorf("expected '1.0' for float64(1.0), got %q", got)
 	}
-	if got := {{packageName}}.Stringify(float64(42)); got != "42.0" {
+	if got := stringify(float64(42)); got != "42.0" {
 		t.Errorf("expected '42.0' for float64(42), got %q", got)
 	}
-	if got := {{packageName}}.Stringify(float32(2)); got != "2.0" {
+	if got := stringify(float32(2)); got != "2.0" {
 		t.Errorf("expected '2.0' for float32(2), got %q", got)
 	}
 }
 
 func TestStringify_FractionalFloatRendersAsDecimal(t *testing.T) {
 	t.Parallel()
-	if got := {{packageName}}.Stringify(float64(1.5)); got != "1.5" {
+	if got := stringify(float64(1.5)); got != "1.5" {
 		t.Errorf("expected '1.5' for 1.5, got %q", got)
 	}
-	if got := {{packageName}}.Stringify(float64(-3.14)); got != "-3.14" {
+	if got := stringify(float64(-3.14)); got != "-3.14" {
 		t.Errorf("expected '-3.14', got %q", got)
 	}
 }
@@ -653,21 +652,21 @@ func TestStringify_FractionalFloatRendersAsDecimal(t *testing.T) {
 func TestStringifyDate_TimeValueReturnsDateOnly(t *testing.T) {
 	t.Parallel()
 	when := time.Date(2024, 1, 15, 13, 45, 22, 0, time.UTC)
-	if got := {{packageName}}.StringifyDate(when); got != "2024-01-15" {
+	if got := stringifyDate(when); got != "2024-01-15" {
 		t.Errorf("expected '2024-01-15', got %q", got)
 	}
 }
 
 func TestStringifyDate_StringPassesThrough(t *testing.T) {
 	t.Parallel()
-	if got := {{packageName}}.StringifyDate("2024-12-31"); got != "2024-12-31" {
+	if got := stringifyDate("2024-12-31"); got != "2024-12-31" {
 		t.Errorf("expected '2024-12-31', got %q", got)
 	}
 }
 
 func TestStringifyDate_NilReturnsEmpty(t *testing.T) {
 	t.Parallel()
-	if got := {{packageName}}.StringifyDate(nil); got != "" {
+	if got := stringifyDate(nil); got != "" {
 		t.Errorf("expected empty string for nil, got %q", got)
 	}
 }
@@ -677,7 +676,7 @@ func TestStringifyDate_NilReturnsEmpty(t *testing.T) {
 func TestSerialize_OmitsNilFields(t *testing.T) {
 	t.Parallel()
 	pet := models.NewPet("OmitTest", []string{"http://example.com/a.png"})
-	data, err := {{packageName}}.Serialize(pet)
+	data, err := serialize(pet)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -694,7 +693,7 @@ func TestDeserialize_RequiredFieldNullThrows(t *testing.T) {
 	t.Parallel()
 	raw := []byte(`{"name":null,"photoUrls":["x"]}`)
 	var pet models.Pet
-	err := {{packageName}}.Deserialize(raw, &pet)
+	err := deserialize(raw, &pet)
 	if err == nil {
 		t.Fatal("expected error when required non-nullable field 'name' is null")
 	}
@@ -708,7 +707,7 @@ func TestDeserialize_RequiredFieldMissingThrows(t *testing.T) {
 	t.Parallel()
 	raw := []byte(`{"photoUrls":["x"]}`)
 	var pet models.Pet
-	err := {{packageName}}.Deserialize(raw, &pet)
+	err := deserialize(raw, &pet)
 	if err == nil {
 		t.Fatal("expected error when required non-nullable field 'name' is missing")
 	}
@@ -726,7 +725,7 @@ func TestDeserialize_IgnoresUnknownFields(t *testing.T) {
 	// silently drop it (no error, no mangled value).
 	raw := []byte(`{"id":99,"name":"Skip","photoUrls":[],"bogusExtra":"keep-going"}`)
 	var pet models.Pet
-	if err := {{packageName}}.Deserialize(raw, &pet); err != nil {
+	if err := deserialize(raw, &pet); err != nil {
 		t.Fatalf("expected unknown fields to be ignored, got %v", err)
 	}
 	if pet.Name != "Skip" {
@@ -796,7 +795,7 @@ func TestResolveOneOf_ReturnsFirstMatch(t *testing.T) {
 		func(any) (any, error) { return nil, errors.New("variant A does not match") },
 		func(data any) (any, error) { return data, nil },
 	}
-	result, err := {{packageName}}.ResolveOneOf("payload", candidates)
+	result, err := resolveOneOf("payload", candidates)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -813,7 +812,7 @@ func TestResolveOneOf_ThrowsOnNoMatch(t *testing.T) {
 		func(any) (any, error) { return nil, errors.New("variant A does not match") },
 		func(any) (any, error) { return nil, errors.New("variant B does not match") },
 	}
-	_, err := {{packageName}}.ResolveOneOf(map[string]any{"unexpected": true}, candidates)
+	_, err := resolveOneOf(map[string]any{"unexpected": true}, candidates)
 	if err == nil {
 		t.Errorf("expected a non-nil error when no oneOf variant matched")
 	}
@@ -824,7 +823,7 @@ func TestResolveAnyOf_ThrowsOnNoMatch(t *testing.T) {
 	candidates := []func(any) (any, error){
 		func(any) (any, error) { return nil, errors.New("no match") },
 	}
-	_, err := {{packageName}}.ResolveAnyOf(map[string]any{}, candidates)
+	_, err := resolveAnyOf(map[string]any{}, candidates)
 	if err == nil {
 		t.Errorf("expected a non-nil error when no anyOf variant matched")
 	}

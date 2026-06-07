@@ -86,7 +86,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
 
     /// Creates a client with the given transport settings and a pre-built URLSession.
     /// Used primarily for testing with stub URL protocols.
-    public init(transportOptions: TransportOptions? = nil, session: URLSession) {
+    internal init(transportOptions: TransportOptions? = nil, session: URLSession) {
         let opts = transportOptions ?? TransportOptionsBuilder().build()
         self.transportOptions = opts
         self.proxyAuthHeader = DefaultApiClient.buildProxyAuthHeader(opts.proxy)

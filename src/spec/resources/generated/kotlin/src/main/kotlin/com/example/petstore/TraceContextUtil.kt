@@ -7,7 +7,11 @@
 
 package com.example.petstore
 
-/** Utility for injecting W3C Trace Context headers into outgoing requests. */
-expect object TraceContextUtil {
+/**
+ * Utility for injecting W3C Trace Context headers into outgoing requests.
+ *
+ * Internal transport machinery; not part of the public API.
+ */
+internal expect object TraceContextUtil {
     fun injectTraceContext(headers: MutableMap<String, String>)
 }

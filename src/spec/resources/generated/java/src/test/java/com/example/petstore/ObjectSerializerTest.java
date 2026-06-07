@@ -401,7 +401,7 @@ class ObjectSerializerTest {
               serializer.deserialize(
                   "{",
                   new com.fasterxml.jackson.core.type.TypeReference<
-                      com.example.petstore.models.Category>() {}));
+                      com.example.petstore.models.Category>() {}.getType()));
     }
 
     @Test
@@ -413,7 +413,7 @@ class ObjectSerializerTest {
               serializer.deserialize(
                   "{\"id\":\"not-a-number\",\"name\":123}",
                   new com.fasterxml.jackson.core.type.TypeReference<
-                      com.example.petstore.models.Category>() {}));
+                      com.example.petstore.models.Category>() {}.getType()));
     }
 
     @Test
@@ -426,7 +426,7 @@ class ObjectSerializerTest {
                   serializer.deserialize(
                       "{",
                       new com.fasterxml.jackson.core.type.TypeReference<
-                          com.example.petstore.models.Category>() {}));
+                          com.example.petstore.models.Category>() {}.getType()));
       assertNotNull(ex.getCause(), "exception should have a cause");
     }
   }
@@ -493,7 +493,7 @@ class ObjectSerializerTest {
           serializer.deserialize(
               json,
               new com.fasterxml.jackson.core.type.TypeReference<
-                  com.example.petstore.models.Category>() {});
+                  com.example.petstore.models.Category>() {}.getType());
       assertNotNull(category);
       assertEquals(1L, category.id);
       assertEquals("Dogs", category.name);
@@ -506,7 +506,7 @@ class ObjectSerializerTest {
           serializer.deserialize(
               "",
               new com.fasterxml.jackson.core.type.TypeReference<
-                  com.example.petstore.models.Category>() {}));
+                  com.example.petstore.models.Category>() {}.getType()));
     }
 
     @Test
@@ -516,7 +516,7 @@ class ObjectSerializerTest {
           serializer.deserialize(
               null,
               new com.fasterxml.jackson.core.type.TypeReference<
-                  com.example.petstore.models.Category>() {}));
+                  com.example.petstore.models.Category>() {}.getType()));
     }
 
     @Test
@@ -532,7 +532,7 @@ class ObjectSerializerTest {
                       serializer.deserialize(
                           json,
                           new com.fasterxml.jackson.core.type.TypeReference<
-                              com.example.petstore.models.Category>() {}),
+                              com.example.petstore.models.Category>() {}.getType()),
                       "deserialized category must not be null"));
       assertNotNull(category);
       assertEquals(42L, category.id);
@@ -595,7 +595,7 @@ class ObjectSerializerTest {
               serializer.deserialize(
                   json,
                   new com.fasterxml.jackson.core.type.TypeReference<
-                      com.example.petstore.models.PetFood>() {}));
+                      com.example.petstore.models.PetFood>() {}.getType()));
       assertTrue(
           food instanceof com.example.petstore.models.DryFood,
           "deserialized PetFood should be a DryFood, got: " + food.getClass());
@@ -617,7 +617,7 @@ class ObjectSerializerTest {
           "UUID field should serialize as canonical string, got: " + json);
       UuidHolder decoded =
           serializer.deserialize(
-              json, new com.fasterxml.jackson.core.type.TypeReference<UuidHolder>() {});
+              json, new com.fasterxml.jackson.core.type.TypeReference<UuidHolder>() {}.getType());
       assertNotNull(decoded);
       assertEquals(holder.id, decoded.id);
     }
@@ -630,7 +630,7 @@ class ObjectSerializerTest {
           () ->
               serializer.deserialize(
                   "{\"id\":\"not-a-uuid\"}",
-                  new com.fasterxml.jackson.core.type.TypeReference<UuidHolder>() {}));
+                  new com.fasterxml.jackson.core.type.TypeReference<UuidHolder>() {}.getType()));
     }
   }
 

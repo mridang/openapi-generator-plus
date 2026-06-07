@@ -8,10 +8,13 @@ use std::thread;
 
 use {{packageName}}::*;
 use {{packageName}}::api_client::{RequestBody, RequestOptions};
-use {{packageName}}::default_api_client::{
-    build_filename_directive, decode_text_body, is_https_to_http_body_replay, mime_for_filename,
-    parse_charset, validate_multipart_filename, SENSITIVE_HEADER_NAMES,
-};
+// The `default_api_client` module is crate-private, so its free helpers
+// (build_filename_directive, decode_text_body, is_https_to_http_body_replay,
+// mime_for_filename, parse_charset, validate_multipart_filename,
+// SENSITIVE_HEADER_NAMES) cannot be imported here. Their unit tests have been
+// moved into an in-crate `#[cfg(test)] mod tests` block inside
+// `src/default_api_client.rs`. The tests below exercise only the public
+// `DefaultApiClient` surface.
 
 /// Starts a minimal HTTP server that captures request headers and responds
 /// with a 200. Returns the base URL.
@@ -358,28 +361,10 @@ fn start_307_redirect_server(target_url: String) -> (String, Arc<Mutex<Vec<Strin
     (base_url, captured)
 }
 
-/// Gap 3.1: API-key header names declared in the OpenAPI spec must be added
-/// to the cross-origin redirect strip allowlist. The static base set
-/// (authorization / cookie / proxy-authorization) must always be present.
-#[test]
-fn test_sensitive_header_allowlist_contains_fixed_credential_headers() {
-    let names: Vec<&str> = SENSITIVE_HEADER_NAMES.to_vec();
-    assert!(
-        names.iter().any(|n| *n == "authorization"),
-        "expected 'authorization' in {:?}", names
-    );
-    assert!(
-        names.iter().any(|n| *n == "cookie"),
-        "expected 'cookie' in {:?}", names
-    );
-    assert!(
-        names.iter().any(|n| *n == "proxy-authorization"),
-        "expected 'proxy-authorization' in {:?}", names
-    );
-    for n in SENSITIVE_HEADER_NAMES {
-        assert_eq!(*n, n.to_lowercase(), "all entries must be lowercase: {}", n);
-    }
-}
+// The Gap 3.1 sensitive-header allowlist test was moved in-crate (see
+// `src/default_api_client.rs`'s `#[cfg(test)] mod tests`) because
+// `SENSITIVE_HEADER_NAMES` lives in the crate-private `default_api_client`
+// module.
 
 /// Gap 3.2: `send_request_with_options(no_redirect=true)` must NOT follow a
 /// 307 redirect; the 3xx response is returned to the caller verbatim rather
@@ -425,37 +410,9 @@ async fn test_no_redirect_returns_307_verbatim() {
     );
 }
 
-/// Gap 3.3: predicate-level tests for the HTTPS->HTTP body-replay refusal.
-/// Spinning up an HTTPS server in a unit test is impractical, so we exercise
-/// the predicate directly. The predicate is the only branch that gates the
-/// guard in `send_request_with_options`, so this gives full coverage of the
-/// guard's decision logic.
-#[test]
-fn test_is_https_to_http_body_replay_predicate() {
-    let https = reqwest::Url::parse("https://example.com/x").unwrap();
-    let http = reqwest::Url::parse("http://example.com/x").unwrap();
-    let https2 = reqwest::Url::parse("https://example.com/y").unwrap();
-    let http2 = reqwest::Url::parse("http://example.com/y").unwrap();
-
-    // 307 + body + https->http: must refuse.
-    assert!(is_https_to_http_body_replay(307, Some(&https), &http, true));
-    // 308 + body + https->http: must refuse.
-    assert!(is_https_to_http_body_replay(308, Some(&https), &http, true));
-    // 307 + NO body: nothing to leak, must NOT refuse.
-    assert!(!is_https_to_http_body_replay(307, Some(&https), &http, false));
-    // 307 + body + http->http (no downgrade): must NOT refuse.
-    assert!(!is_https_to_http_body_replay(307, Some(&http), &http2, true));
-    // 307 + body + https->https (no downgrade): must NOT refuse.
-    assert!(!is_https_to_http_body_replay(307, Some(&https), &https2, true));
-    // 302 (drops body anyway): must NOT refuse.
-    assert!(!is_https_to_http_body_replay(302, Some(&https), &http, true));
-    // 303 (drops body anyway): must NOT refuse.
-    assert!(!is_https_to_http_body_replay(303, Some(&https), &http, true));
-    // 301 (drops body anyway): must NOT refuse.
-    assert!(!is_https_to_http_body_replay(301, Some(&https), &http, true));
-    // Missing current_url: cannot prove downgrade, must NOT refuse.
-    assert!(!is_https_to_http_body_replay(307, None, &http, true));
-}
+// The Gap 3.3 HTTPS->HTTP body-replay predicate test was moved in-crate (see
+// `src/default_api_client.rs`'s `#[cfg(test)] mod tests`): the predicate is a
+// crate-private helper that traffics in `reqwest::Url`.
 
 /// Gap 3.2: with `no_redirect=false` the same 307 must be followed normally —
 /// confirms the guard fires only when explicitly requested. The redirect
@@ -881,117 +838,10 @@ fn test_nonexistent_ca_cert_path_fails_fast() {
     let _client = DefaultApiClient::new(Some(transport));
 }
 
-// ── Per-part MIME sniffing (Gap J) ──
-
-#[test]
-fn test_mime_for_filename_png() {
-    assert_eq!(mime_for_filename("image.png"), "image/png");
-}
-
-#[test]
-fn test_mime_for_filename_pdf() {
-    assert_eq!(mime_for_filename("doc.pdf"), "application/pdf");
-}
-
-#[test]
-fn test_mime_for_filename_no_extension_defaults_to_octet_stream() {
-    assert_eq!(mime_for_filename("blob"), "application/octet-stream");
-}
-
-// ── Multipart filename directive (Gap BI / Gap F) ──
-
-#[test]
-fn test_build_filename_directive_non_ascii_emits_rfc5987() {
-    let directive = build_filename_directive("日本.pdf");
-    assert!(
-        directive.contains("filename*=UTF-8''"),
-        "non-ASCII filename must emit RFC 5987 filename*= form, got: {}",
-        directive
-    );
-    assert!(
-        directive.contains("%E6%97%A5%E6%9C%AC"),
-        "RFC 5987 value must be percent-encoded UTF-8, got: {}",
-        directive
-    );
-    assert!(
-        directive.starts_with("filename=\""),
-        "must still include an ASCII fallback filename=\"...\", got: {}",
-        directive
-    );
-}
-
-#[test]
-fn test_build_filename_directive_ascii_only_omits_filename_star() {
-    let directive = build_filename_directive("pet.png");
-    assert_eq!(directive, "filename=\"pet.png\"");
-    assert!(
-        !directive.contains("filename*="),
-        "ASCII-only filename must not emit filename*=, got: {}",
-        directive
-    );
-}
-
-#[test]
-fn test_build_filename_directive_backslash_escapes_quotes() {
-    let directive = build_filename_directive("a\"b.txt");
-    assert!(
-        directive.contains("a\\\"b.txt"),
-        "embedded quote must be backslash-escaped, got: {}",
-        directive
-    );
-}
-
-#[test]
-fn test_validate_multipart_filename_rejects_crlf() {
-    assert!(validate_multipart_filename("a\rb.pdf").is_err());
-    assert!(validate_multipart_filename("a\nb.pdf").is_err());
-    assert!(validate_multipart_filename("a\r\nb.pdf").is_err());
-    // ASCII filename is accepted.
-    assert!(validate_multipart_filename("pet.png").is_ok());
-}
-
-#[test]
-fn test_validate_multipart_filename_rejects_nul() {
-    assert!(validate_multipart_filename("a\u{0}b.pdf").is_err());
-}
-
-// ── Response charset decoding (Gap H) ──
-
-#[test]
-fn test_decode_text_body_iso_8859_1() {
-    // 0xE9 is "é" in ISO-8859-1.
-    let decoded = decode_text_body(&[0xE9], "text/plain; charset=ISO-8859-1");
-    assert_eq!(decoded, "é");
-}
-
-#[test]
-fn test_decode_text_body_defaults_to_utf8_when_no_charset() {
-    let decoded = decode_text_body("héllo".as_bytes(), "text/plain");
-    assert_eq!(decoded, "héllo");
-}
-
-#[test]
-fn test_decode_text_body_unknown_charset_falls_back_to_utf8() {
-    // Unknown charset must not panic and must fall back to UTF-8.
-    let decoded = decode_text_body("héllo".as_bytes(), "text/plain; charset=not-a-real-charset");
-    assert_eq!(decoded, "héllo");
-    // parse_charset still surfaces the raw label.
-    assert_eq!(
-        parse_charset("text/plain; charset=not-a-real-charset").as_deref(),
-        Some("not-a-real-charset")
-    );
-}
-{{#hasApiKeyHeaderNames}}
-
-// ── Gap 3.1: spec-declared API-key header names are sensitive ──
-
-#[test]
-fn test_sensitive_header_allowlist_includes_spec_api_key_headers() {
-    let names: Vec<&str> = SENSITIVE_HEADER_NAMES.to_vec();
-{{#apiKeyHeaderNames}}    assert!(
-        names.iter().any(|n| *n == "{{nameLower}}"),
-        "expected spec apiKey header '{{nameLower}}' in {:?}",
-        names
-    );
-{{/apiKeyHeaderNames}}}
-{{/hasApiKeyHeaderNames}}
+// The per-part MIME sniffing (Gap J), multipart filename-directive (Gap BI /
+// Gap F), response charset-decoding (Gap H), and spec-declared API-key
+// sensitive-header (Gap 3.1) unit tests were moved in-crate (see
+// `src/default_api_client.rs`'s `#[cfg(test)] mod tests`) because the helpers
+// they exercise (mime_for_filename, build_filename_directive,
+// validate_multipart_filename, decode_text_body, parse_charset,
+// SENSITIVE_HEADER_NAMES) live in the crate-private `default_api_client` module.

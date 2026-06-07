@@ -10,6 +10,31 @@ use {{invokerPackage}}\TransportOptions;
 use {{invokerPackage}}\TransportOptionsBuilder;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
+
+/**
+ * Test-only subclass that overrides the protected {@see
+ * DefaultApiClient::createHttpClient()} transport seam to return a caller-
+ * supplied stub client. The production constructor no longer accepts an HTTP
+ * client argument (it would leak the Symfony transport type onto the public
+ * API), so unit tests inject their MockHttpClient by overriding the factory
+ * via this subclass — mirroring how the Ruby SDK stubs its private
+ * build_connection.
+ */
+final class StubbedDefaultApiClient extends DefaultApiClient
+{
+    public function __construct(
+        private readonly HttpClientInterface $stubClient,
+        ?TransportOptions $transportOptions = null,
+    ) {
+        parent::__construct($transportOptions);
+    }
+
+    protected function createHttpClient(): HttpClientInterface
+    {
+        return $this->stubClient;
+    }
+}
 
 /**
  * Collect a Symfony HttpClient request body into a single string.
@@ -52,7 +77,7 @@ test('sends get request and returns response', function (): void {
         'http_code' => 200,
         'response_headers' => ['X-Test-Header' => 'test-value'],
     ]);
-    $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
 
     $response = $client->sendRequest('GET', 'http://example.com/echo', [], null);
 
@@ -64,7 +89,7 @@ test('sends post with json body', function (): void {
     $mockResponse = new MockResponse('{"method":"POST","body":"key"}', [
         'http_code' => 200,
     ]);
-    $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
 
     $response = $client->sendRequest(
         'POST',
@@ -83,7 +108,7 @@ test('returns response headers', function (): void {
         'http_code' => 200,
         'response_headers' => ['X-Test-Header' => 'test-value'],
     ]);
-    $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
 
     $response = $client->sendRequest('GET', 'http://example.com/echo', [], null);
 
@@ -95,7 +120,7 @@ test('returns non 2xx status code', function (): void {
     $mockResponse = new MockResponse('not found', [
         'http_code' => 404,
     ]);
-    $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
 
     $response = $client->sendRequest('GET', 'http://example.com/not-found', [], null);
 
@@ -107,7 +132,7 @@ test('sends put request', function (): void {
     $mockResponse = new MockResponse('{"method":"PUT"}', [
         'http_code' => 200,
     ]);
-    $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
 
     $response = $client->sendRequest('PUT', 'http://example.com/echo', [], 'update');
 
@@ -119,7 +144,7 @@ test('sends delete request', function (): void {
     $mockResponse = new MockResponse('{"method":"DELETE"}', [
         'http_code' => 200,
     ]);
-    $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
 
     $response = $client->sendRequest('DELETE', 'http://example.com/echo', [], null);
 
@@ -132,7 +157,7 @@ test('returns json body for vendor json content type', function (): void {
         'http_code' => 200,
         'response_headers' => ['Content-Type' => 'application/vnd.api+json'],
     ]);
-    $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
 
     $response = $client->sendRequest('GET', 'http://example.com/vendor-json', [], null);
 
@@ -145,7 +170,7 @@ test('joins multi value response headers', function (): void {
         'http_code' => 200,
         'response_headers' => ['X-Custom-Value' => ['val1', 'val2']],
     ]);
-    $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
 
     $response = $client->sendRequest('GET', 'http://example.com/multi-header', [], null);
 
@@ -171,7 +196,7 @@ test('injects custom user agent', function (): void {
     $transport = (new TransportOptionsBuilder())
         ->userAgent('MyApp/1.0')
         ->build();
-    $client = new DefaultApiClient($transport, $mockClient);
+    $client = new StubbedDefaultApiClient($mockClient, $transport);
     $client->sendRequest('GET', 'http://example.com/test', [], null);
 
     expect($capturedHeaders['User-Agent'] ?? null)->toBe('MyApp/1.0');
@@ -190,7 +215,7 @@ test('injects default user agent when not explicitly set', function (): void {
         }
     );
 
-    $client = new DefaultApiClient(null, $mockClient);
+    $client = new StubbedDefaultApiClient($mockClient);
     $client->sendRequest('GET', 'http://example.com/test', [], null);
 
     expect($capturedHeaders['User-Agent'] ?? null)->not->toBeEmpty();
@@ -212,7 +237,7 @@ test('injects request id', function (): void {
     $transport = (new TransportOptionsBuilder())
         ->injectRequestId(true)
         ->build();
-    $client = new DefaultApiClient($transport, $mockClient);
+    $client = new StubbedDefaultApiClient($mockClient, $transport);
     $client->sendRequest('GET', 'http://example.com/test', [], null);
 
     $requestId = $capturedHeaders['X-Request-ID'] ?? null;
@@ -236,7 +261,7 @@ test('does not inject request id when disabled', function (): void {
     $transport = (new TransportOptionsBuilder())
         ->injectRequestId(false)
         ->build();
-    $client = new DefaultApiClient($transport, $mockClient);
+    $client = new StubbedDefaultApiClient($mockClient, $transport);
     $client->sendRequest('GET', 'http://example.com/test', [], null);
 
     expect($capturedHeaders)->not->toHaveKey('X-Request-ID');
@@ -258,7 +283,7 @@ test('does not override caller request id', function (): void {
     $transport = (new TransportOptionsBuilder())
         ->injectRequestId(true)
         ->build();
-    $client = new DefaultApiClient($transport, $mockClient);
+    $client = new StubbedDefaultApiClient($mockClient, $transport);
     $client->sendRequest('GET', 'http://example.com/test', ['X-Request-ID' => 'caller-id'], null);
 
     expect($capturedHeaders['X-Request-ID'] ?? null)->toBe('caller-id');
@@ -294,10 +319,10 @@ test('generates unique request ids', function (): void {
         ->injectRequestId(true)
         ->build();
 
-    $client1 = new DefaultApiClient($transport, $mockClient1);
+    $client1 = new StubbedDefaultApiClient($mockClient1, $transport);
     $client1->sendRequest('GET', 'http://example.com/test', [], null);
 
-    $client2 = new DefaultApiClient($transport, $mockClient2);
+    $client2 = new StubbedDefaultApiClient($mockClient2, $transport);
     $client2->sendRequest('GET', 'http://example.com/test', [], null);
 
     expect($capturedIds)->toHaveCount(2);
@@ -320,7 +345,7 @@ test('unit includes transport default headers', function (): void {
     $transport = (new TransportOptionsBuilder())
         ->defaultHeader('X-Custom', 'custom-value')
         ->build();
-    $client = new DefaultApiClient($transport, $mockClient);
+    $client = new StubbedDefaultApiClient($mockClient, $transport);
     $client->sendRequest('GET', 'http://example.com/test', [], null);
 
     expect($capturedHeaders['X-Custom'] ?? null)->toBe('custom-value');
@@ -342,7 +367,7 @@ test('caller headers override defaults', function (): void {
     $transport = (new TransportOptionsBuilder())
         ->defaultHeader('Accept', 'text/plain')
         ->build();
-    $client = new DefaultApiClient($transport, $mockClient);
+    $client = new StubbedDefaultApiClient($mockClient, $transport);
     $client->sendRequest('GET', 'http://example.com/test', ['Accept' => 'application/json'], null);
 
     expect($capturedHeaders['Accept'] ?? null)->toBe('application/json');
@@ -354,7 +379,7 @@ test('decodes iso 8859 1 body to utf 8 when charset declared', function (): void
         'http_code' => 200,
         'response_headers' => ['Content-Type' => 'text/plain; charset=ISO-8859-1'],
     ]);
-    $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
 
     $response = $client->sendRequest('GET', 'http://example.com/iso', [], null);
 
@@ -368,7 +393,7 @@ test('treats absent charset as utf 8', function (): void {
         'http_code' => 200,
         'response_headers' => ['Content-Type' => 'text/plain'],
     ]);
-    $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
 
     $response = $client->sendRequest('GET', 'http://example.com/utf8', [], null);
 
@@ -381,7 +406,7 @@ test('falls back to utf 8 on unknown charset without throwing', function (): voi
         'http_code' => 200,
         'response_headers' => ['Content-Type' => 'text/plain; charset=not-a-real-charset'],
     ]);
-    $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
 
     $response = $client->sendRequest('GET', 'http://example.com/unknown', [], null);
 
@@ -405,7 +430,7 @@ test('multipart png file gets image png content type', function (): void {
     );
 
     try {
-        $client = new DefaultApiClient(null, $mockClient);
+        $client = new StubbedDefaultApiClient($mockClient);
         $client->sendRequest(
             'POST',
             'http://example.com/upload',
@@ -435,7 +460,7 @@ test('multipart pdf file gets application pdf content type', function (): void {
     );
 
     try {
-        $client = new DefaultApiClient(null, $mockClient);
+        $client = new StubbedDefaultApiClient($mockClient);
         $client->sendRequest(
             'POST',
             'http://example.com/upload',
@@ -463,7 +488,7 @@ test('multipart resource falls back to octet stream', function (): void {
         }
     );
 
-    $client = new DefaultApiClient(null, $mockClient);
+    $client = new StubbedDefaultApiClient($mockClient);
     $client->sendRequest(
         'POST',
         'http://example.com/upload',
@@ -480,7 +505,7 @@ test('decodes iso 8859 1 error body to utf 8', function (): void {
         'http_code' => 500,
         'response_headers' => ['Content-Type' => 'text/plain; charset=ISO-8859-1'],
     ]);
-    $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
 
     $response = $client->sendRequest('GET', 'http://example.com/err', [], null);
 
@@ -593,7 +618,7 @@ test('cross origin redirect strips api key header', function (): void {
         }
         return $hop2;
     });
-    $client = new DefaultApiClient($transport, $mock);
+    $client = new StubbedDefaultApiClient($mock, $transport);
 
     $client->sendRequest('GET', 'https://api.example.com/start', ['X-API-Key' => 'secret-key'], null);
 
@@ -612,7 +637,7 @@ test('no redirect arg surfaces 302 to caller', function (): void {
         'response_headers' => ['Location' => 'https://attacker.example.com/token'],
     ]);
     $transport = TransportOptions::builder()->followRedirects(true)->build();
-    $client = new DefaultApiClient($transport, new MockHttpClient([$redirect]));
+    $client = new StubbedDefaultApiClient(new MockHttpClient([$redirect]), $transport);
 
     $response = $client->sendRequest('POST', 'https://auth.example.com/token', [], 'grant_type=x', noRedirect: true);
 
@@ -626,7 +651,7 @@ test('no redirect false still follows redirects', function (): void {
     ]);
     $hop2 = new MockResponse('ok', ['http_code' => 200]);
     $transport = TransportOptions::builder()->followRedirects(true)->build();
-    $client = new DefaultApiClient($transport, new MockHttpClient([$hop1, $hop2]));
+    $client = new StubbedDefaultApiClient(new MockHttpClient([$hop1, $hop2]), $transport);
 
     $response = $client->sendRequest('GET', 'https://auth.example.com/start', [], null);
 
@@ -645,7 +670,7 @@ test('https to http downgrade refuses body replay on 307', function (): void {
         'response_headers' => ['Location' => 'http://insecure.example.com/sink'],
     ]);
     $transport = TransportOptions::builder()->followRedirects(true)->build();
-    $client = new DefaultApiClient($transport, new MockHttpClient([$downgrade]));
+    $client = new StubbedDefaultApiClient(new MockHttpClient([$downgrade]), $transport);
 
     expect(fn (): mixed => $client->sendRequest('POST', 'https://api.example.com/secret', [], 'sensitive=payload'))
         ->toThrow(ApiException::class);
@@ -657,7 +682,7 @@ test('https to http downgrade refuses body replay on 308', function (): void {
         'response_headers' => ['Location' => 'http://insecure.example.com/sink'],
     ]);
     $transport = TransportOptions::builder()->followRedirects(true)->build();
-    $client = new DefaultApiClient($transport, new MockHttpClient([$downgrade]));
+    $client = new StubbedDefaultApiClient(new MockHttpClient([$downgrade]), $transport);
 
     expect(fn (): mixed => $client->sendRequest('PUT', 'https://api.example.com/secret', [], 'k=v'))
         ->toThrow(ApiException::class);
@@ -673,7 +698,7 @@ test('https to http downgrade on get without body still follows', function (): v
     ]);
     $final = new MockResponse('ok', ['http_code' => 200]);
     $transport = TransportOptions::builder()->followRedirects(true)->build();
-    $client = new DefaultApiClient($transport, new MockHttpClient([$downgrade, $final]));
+    $client = new StubbedDefaultApiClient(new MockHttpClient([$downgrade, $final]), $transport);
 
     $response = $client->sendRequest('GET', 'https://api.example.com/start', [], null);
 
@@ -689,7 +714,7 @@ test('https to https with body still follows on 307', function (): void {
     ]);
     $final = new MockResponse('ok', ['http_code' => 200]);
     $transport = TransportOptions::builder()->followRedirects(true)->build();
-    $client = new DefaultApiClient($transport, new MockHttpClient([$hop, $final]));
+    $client = new StubbedDefaultApiClient(new MockHttpClient([$hop, $final]), $transport);
 
     $response = $client->sendRequest('POST', 'https://api.example.com/start', [], 'k=v');
 
@@ -710,7 +735,7 @@ test('exceeding max redirects throws too many redirects', function (): void {
         ]);
     }
     $transport = TransportOptions::builder()->followRedirects(true)->maxRedirects(3)->build();
-    $client = new DefaultApiClient($transport, new MockHttpClient($loop));
+    $client = new StubbedDefaultApiClient(new MockHttpClient($loop), $transport);
 
     expect(fn (): mixed => $client->sendRequest('GET', 'https://api.example.com/start', [], null))
         ->toThrow(ApiException::class);
@@ -726,7 +751,7 @@ test('redirect to non http scheme throws', function (): void {
         'response_headers' => ['Location' => 'file:///etc/passwd'],
     ]);
     $transport = TransportOptions::builder()->followRedirects(true)->build();
-    $client = new DefaultApiClient($transport, new MockHttpClient([$redirect]));
+    $client = new StubbedDefaultApiClient(new MockHttpClient([$redirect]), $transport);
 
     expect(fn (): mixed => $client->sendRequest('GET', 'https://api.example.com/start', [], null))
         ->toThrow(ApiException::class);
@@ -739,7 +764,7 @@ test('send after close throws api exception', function (): void {
      * an SDK-typed ApiException, giving a uniform use-after-close contract
      * instead of silently reusing the reset client. */
     $mockResponse = new MockResponse('ok', ['http_code' => 200]);
-    $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
     $client->close();
 
     expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/after-close', [], null))
@@ -747,7 +772,7 @@ test('send after close throws api exception', function (): void {
 });
 
 test('close is idempotent', function (): void {
-    $client = new DefaultApiClient(null, new MockHttpClient(new MockResponse('ok', ['http_code' => 200])));
+    $client = new StubbedDefaultApiClient(new MockHttpClient(new MockResponse('ok', ['http_code' => 200])));
     $client->close();
     $client->close();
 

@@ -29,8 +29,10 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 class BaseApiTest {
 
-  private static final TypeReference<JsonNode> JSON_NODE_TYPE = new TypeReference<>() {};
-  private static final TypeReference<String> STRING_TYPE = new TypeReference<>() {};
+  private static final java.lang.reflect.Type JSON_NODE_TYPE =
+      new TypeReference<JsonNode>() {}.getType();
+  private static final java.lang.reflect.Type STRING_TYPE =
+      new TypeReference<String>() {}.getType();
 
   static class TestableApi extends com.example.petstore.api.BaseApi {
 
@@ -54,7 +56,7 @@ class BaseApiTest {
         @Nullable Object body,
         String[] accepts,
         String contentType,
-        @Nullable TypeReference<T> returnType,
+        @Nullable java.lang.reflect.Type returnType,
         @Nullable Authenticator auth)
         throws ApiException {
       return invokeApi(
@@ -69,7 +71,7 @@ class BaseApiTest {
         @Nullable Object body,
         String[] accepts,
         String contentType,
-        @Nullable TypeReference<T> returnType,
+        @Nullable java.lang.reflect.Type returnType,
         @Nullable Authenticator auth)
         throws ApiException {
       return invokeApiForResult(

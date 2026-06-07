@@ -19,6 +19,10 @@ namespace PetstoreClient;
  *
  * If the OpenTelemetry API package is not installed, this class silently no-ops.
  *
+ * @internal This class is part of the SDK's internal request plumbing and is
+ *           not part of the public API. It may change or be removed in any
+ *           release without notice.
+ *
  * @category Class
  * @package  PetstoreClient
  */

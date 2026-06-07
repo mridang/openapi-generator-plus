@@ -154,7 +154,6 @@ impl ApiClient for DefaultApiClient {
                     "ApiClient is closed".to_string(),
                     None,
                     None,
-                    None,
                 ))
                     as Box<dyn std::error::Error + Send + Sync>);
             }
@@ -235,14 +234,8 @@ impl ApiClient for DefaultApiClient {
 
             let mut response = request_builder.send().await.map_err(|e| {
                 let message = e.to_string();
-                Box::new(ApiError::with_source(
-                    0,
-                    message,
-                    None,
-                    None,
-                    None,
-                    Arc::new(e),
-                )) as Box<dyn std::error::Error + Send + Sync>
+                Box::new(ApiError::with_source(0, message, None, None, Arc::new(e)))
+                    as Box<dyn std::error::Error + Send + Sync>
             })?;
 
             // Gap BH: manual redirect loop with cross-origin header strip.
@@ -289,7 +282,6 @@ impl ApiClient for DefaultApiClient {
                             ),
                             None,
                             None,
-                            None,
                         ))
                             as Box<dyn std::error::Error + Send + Sync>);
                     }
@@ -318,7 +310,6 @@ impl ApiClient for DefaultApiClient {
                                     .unwrap_or_else(|| url.clone()),
                                 next_url
                             ),
-                            None,
                             None,
                             None,
                         ))
@@ -367,14 +358,8 @@ impl ApiClient for DefaultApiClient {
                     }
                     response = redirect_builder.send().await.map_err(|e| {
                         let message = e.to_string();
-                        Box::new(ApiError::with_source(
-                            0,
-                            message,
-                            None,
-                            None,
-                            None,
-                            Arc::new(e),
-                        )) as Box<dyn std::error::Error + Send + Sync>
+                        Box::new(ApiError::with_source(0, message, None, None, Arc::new(e)))
+                            as Box<dyn std::error::Error + Send + Sync>
                     })?;
                     current_url = Some(next_url);
                     current_method = next_method;
@@ -390,7 +375,6 @@ impl ApiClient for DefaultApiClient {
                     return Err(Box::new(ApiError::new(
                         response.status().as_u16(),
                         format!("too many redirects (exceeded {})", max),
-                        None,
                         None,
                         None,
                     ))
@@ -432,14 +416,8 @@ impl ApiClient for DefaultApiClient {
             // gets — rather than escaping as a raw reqwest::Error.
             let resp_bytes = response.bytes().await.map_err(|e| {
                 let message = e.to_string();
-                Box::new(ApiError::with_source(
-                    0,
-                    message,
-                    None,
-                    None,
-                    None,
-                    Arc::new(e),
-                )) as Box<dyn std::error::Error + Send + Sync>
+                Box::new(ApiError::with_source(0, message, None, None, Arc::new(e)))
+                    as Box<dyn std::error::Error + Send + Sync>
             })?;
             let resp_body = if is_text_content_type(&content_type) {
                 decode_text_body(&resp_bytes, &content_type)
@@ -510,7 +488,7 @@ fn is_redirect_status(code: u16) -> bool {
 /// in-flight request body across an HTTPS->HTTP downgrade. Only 307/308
 /// preserve the body per RFC 7231 §6.4.7 / RFC 7538, so the predicate is
 /// false for 301/302/303 even when the schemes differ.
-pub fn is_https_to_http_body_replay(
+pub(crate) fn is_https_to_http_body_replay(
     status_code: u16,
     current_url: Option<&reqwest::Url>,
     next_url: &reqwest::Url,
@@ -780,4 +758,368 @@ fn is_text_content_type(content_type: &str) -> bool {
         "application/json" | "application/xml" | "application/javascript"
     ) || media_type.ends_with("+json")
         || media_type.ends_with("+xml")
+}
+
+// These unit tests live in-crate (rather than under tests/) because the
+// `default_api_client` module is crate-private: its free helpers traffic in
+// `reqwest` types and other internal details and are not part of the public
+// API. The behavioural integration tests that drive the public
+// `DefaultApiClient` surface (real-HTTP round-trips, redirect handling,
+// decompression, etc.) remain in `tests/default_api_client_test.rs` and
+// `tests/default_api_client_unit_test.rs`.
+#[cfg(test)]
+mod tests {
+    use super::{
+        SENSITIVE_HEADER_NAMES, build_filename_directive, decode_text_body,
+        is_https_to_http_body_replay, mime_for_filename, parse_charset, serialize_multipart_body,
+        validate_multipart_field_name, validate_multipart_filename,
+    };
+    use crate::api_client::MultipartValue;
+
+    // ── HTTPS->HTTP body-replay predicate (Gap 3.3) ──
+    //
+    // The predicate gates the body-replay guard in `send_request_with_options`
+    // and traffics in `reqwest::Url`, so it can only be exercised in-crate.
+    #[test]
+    fn test_is_https_to_http_body_replay_predicate() {
+        let https = reqwest::Url::parse("https://example.com/x").unwrap();
+        let http = reqwest::Url::parse("http://example.com/x").unwrap();
+        let https2 = reqwest::Url::parse("https://example.com/y").unwrap();
+        let http2 = reqwest::Url::parse("http://example.com/y").unwrap();
+
+        // 307 + body + https->http: must refuse.
+        assert!(is_https_to_http_body_replay(307, Some(&https), &http, true));
+        // 308 + body + https->http: must refuse.
+        assert!(is_https_to_http_body_replay(308, Some(&https), &http, true));
+        // 307 + NO body: nothing to leak, must NOT refuse.
+        assert!(!is_https_to_http_body_replay(
+            307,
+            Some(&https),
+            &http,
+            false
+        ));
+        // 307 + body + http->http (no downgrade): must NOT refuse.
+        assert!(!is_https_to_http_body_replay(
+            307,
+            Some(&http),
+            &http2,
+            true
+        ));
+        // 307 + body + https->https (no downgrade): must NOT refuse.
+        assert!(!is_https_to_http_body_replay(
+            307,
+            Some(&https),
+            &https2,
+            true
+        ));
+        // 302 (drops body anyway): must NOT refuse.
+        assert!(!is_https_to_http_body_replay(
+            302,
+            Some(&https),
+            &http,
+            true
+        ));
+        // 303 (drops body anyway): must NOT refuse.
+        assert!(!is_https_to_http_body_replay(
+            303,
+            Some(&https),
+            &http,
+            true
+        ));
+        // 301 (drops body anyway): must NOT refuse.
+        assert!(!is_https_to_http_body_replay(
+            301,
+            Some(&https),
+            &http,
+            true
+        ));
+        // Missing current_url: cannot prove downgrade, must NOT refuse.
+        assert!(!is_https_to_http_body_replay(307, None, &http, true));
+    }
+
+    // ── Per-part MIME sniffing (Gap J) ──
+
+    #[test]
+    fn test_mime_for_filename_png() {
+        assert_eq!(mime_for_filename("image.png"), "image/png");
+    }
+
+    #[test]
+    fn test_mime_for_filename_pdf() {
+        assert_eq!(mime_for_filename("doc.pdf"), "application/pdf");
+    }
+
+    #[test]
+    fn test_mime_for_filename_no_extension_defaults_to_octet_stream() {
+        assert_eq!(mime_for_filename("blob"), "application/octet-stream");
+    }
+
+    #[test]
+    fn test_mime_for_filename_image_extensions() {
+        assert_eq!(mime_for_filename("photo.png"), "image/png");
+        assert_eq!(mime_for_filename("photo.JPG"), "image/jpeg");
+        assert_eq!(mime_for_filename("photo.jpeg"), "image/jpeg");
+        assert_eq!(mime_for_filename("anim.gif"), "image/gif");
+    }
+
+    #[test]
+    fn test_mime_for_filename_document_extensions() {
+        assert_eq!(mime_for_filename("doc.pdf"), "application/pdf");
+        assert_eq!(mime_for_filename("payload.json"), "application/json");
+        assert_eq!(mime_for_filename("notes.txt"), "text/plain");
+        assert_eq!(mime_for_filename("index.html"), "text/html");
+    }
+
+    #[test]
+    fn test_mime_for_filename_unknown_extension_falls_back() {
+        assert_eq!(mime_for_filename("blob.xyz"), "application/octet-stream");
+        assert_eq!(mime_for_filename("noextension"), "application/octet-stream");
+    }
+
+    // ── Multipart filename directive (Gap BI / Gap F) ──
+
+    #[test]
+    fn test_build_filename_directive_non_ascii_emits_rfc5987() {
+        let directive = build_filename_directive("日本.pdf");
+        assert!(
+            directive.contains("filename*=UTF-8''"),
+            "non-ASCII filename must emit RFC 5987 filename*= form, got: {}",
+            directive
+        );
+        assert!(
+            directive.contains("%E6%97%A5%E6%9C%AC"),
+            "RFC 5987 value must be percent-encoded UTF-8, got: {}",
+            directive
+        );
+        assert!(
+            directive.starts_with("filename=\""),
+            "must still include an ASCII fallback filename=\"...\", got: {}",
+            directive
+        );
+    }
+
+    #[test]
+    fn test_build_filename_directive_ascii_only_omits_filename_star() {
+        let directive = build_filename_directive("pet.png");
+        assert_eq!(directive, "filename=\"pet.png\"");
+        assert!(
+            !directive.contains("filename*="),
+            "ASCII-only filename must not emit filename*=, got: {}",
+            directive
+        );
+    }
+
+    #[test]
+    fn test_build_filename_directive_backslash_escapes_quotes() {
+        let directive = build_filename_directive("a\"b.txt");
+        assert!(
+            directive.contains("a\\\"b.txt"),
+            "embedded quote must be backslash-escaped, got: {}",
+            directive
+        );
+    }
+
+    /// Gap BI: non-ASCII multipart filenames must use RFC 5987 filename*=UTF-8''<pct>
+    /// rather than raw UTF-8 inside the quoted filename="" form.
+    #[test]
+    fn test_multipart_filename_non_ascii_emits_rfc5987() {
+        let directive = build_filename_directive("日本.pdf");
+        assert!(
+            directive.contains("filename*=UTF-8''"),
+            "expected RFC 5987 filename*=UTF-8'' directive, got: {}",
+            directive
+        );
+        assert!(
+            directive.contains("%E6%97%A5%E6%9C%AC"),
+            "expected percent-encoded UTF-8 bytes for 日本, got: {}",
+            directive
+        );
+        assert!(
+            directive.starts_with("filename=\""),
+            "expected ASCII fallback filename=\"...\" prefix, got: {}",
+            directive
+        );
+    }
+
+    /// Gap BI: ASCII-only filenames must NOT emit a filename*= parameter.
+    #[test]
+    fn test_multipart_filename_ascii_only_omits_filename_star() {
+        let directive = build_filename_directive("pet.png");
+        assert_eq!(directive, "filename=\"pet.png\"");
+        assert!(
+            !directive.contains("filename*="),
+            "ASCII-only filename must not emit filename*=, got: {}",
+            directive
+        );
+    }
+
+    // ── Multipart filename / field-name validation (Gap F / W-new-2) ──
+
+    #[test]
+    fn test_validate_multipart_filename_rejects_crlf() {
+        assert!(validate_multipart_filename("a\rb.pdf").is_err());
+        assert!(validate_multipart_filename("a\nb.pdf").is_err());
+        assert!(validate_multipart_filename("a\r\nb.pdf").is_err());
+        // ASCII filename is accepted.
+        assert!(validate_multipart_filename("pet.png").is_ok());
+    }
+
+    #[test]
+    fn test_validate_multipart_filename_rejects_nul() {
+        assert!(validate_multipart_filename("a\u{0}b.pdf").is_err());
+    }
+
+    /// Gap F: filenames containing CR/LF/NUL must be rejected to prevent
+    /// Content-Disposition header injection.
+    #[test]
+    fn test_multipart_filename_crlf_rejected() {
+        for bad in &["a\rb.pdf", "a\nb.pdf", "a\r\nb.pdf", "a\0b.pdf"] {
+            assert!(
+                validate_multipart_filename(bad).is_err(),
+                "expected error for {:?}",
+                bad
+            );
+        }
+        assert!(validate_multipart_filename("pet.png").is_ok());
+    }
+
+    /// W-new-2: multipart field-name validation must run on every branch (text
+    /// and bytes), not just the binary branch. Previously the text branch wrote
+    /// the raw field name into Content-Disposition, opening a header-smuggling
+    /// hole. This test asserts the validator rejects CR/LF/NUL for a String value
+    /// scenario.
+    #[test]
+    fn test_multipart_field_name_with_crlf_rejected_on_string_value() {
+        for bad in &[
+            "name\rInjected: yes",
+            "name\nInjected: yes",
+            "name\r\nInjected: yes",
+            "name\0Injected",
+        ] {
+            assert!(
+                validate_multipart_field_name(bad).is_err(),
+                "expected validate_multipart_field_name to reject {:?}",
+                bad
+            );
+        }
+        assert!(validate_multipart_field_name("description").is_ok());
+
+        /* End-to-end: when a String (text) multipart field has a CR/LF in its
+         * name, serialize_multipart_body must NOT emit a part with the bad name
+         * embedded in Content-Disposition. The current implementation drops the
+         * bad field silently rather than panic. */
+        let mut fields = std::collections::HashMap::new();
+        fields.insert(
+            "name\r\nInjected: yes".to_string(),
+            MultipartValue::Text("value".to_string()),
+        );
+        let body = serialize_multipart_body(&fields, "boundary");
+        let body_str = String::from_utf8_lossy(&body);
+        assert!(
+            !body_str.contains("Injected: yes"),
+            "serialize_multipart_body must not emit the injected header: {}",
+            body_str
+        );
+    }
+
+    // ── Response charset decoding (Gap H) ──
+
+    #[test]
+    fn test_decode_text_body_iso_8859_1() {
+        // 0xE9 is "é" in ISO-8859-1.
+        let decoded = decode_text_body(&[0xE9], "text/plain; charset=ISO-8859-1");
+        assert_eq!(decoded, "é");
+    }
+
+    #[test]
+    fn test_decode_text_body_defaults_to_utf8_when_no_charset() {
+        let decoded = decode_text_body("héllo".as_bytes(), "text/plain");
+        assert_eq!(decoded, "héllo");
+    }
+
+    #[test]
+    fn test_decode_text_body_unknown_charset_falls_back_to_utf8() {
+        // Unknown charset must not panic and must fall back to UTF-8.
+        let decoded =
+            decode_text_body("héllo".as_bytes(), "text/plain; charset=not-a-real-charset");
+        assert_eq!(decoded, "héllo");
+        // parse_charset still surfaces the raw label.
+        assert_eq!(
+            parse_charset("text/plain; charset=not-a-real-charset").as_deref(),
+            Some("not-a-real-charset")
+        );
+    }
+
+    #[test]
+    fn test_decode_text_body_honours_iso_8859_1_charset() {
+        /* 0xE9 in ISO-8859-1 is "é"; UTF-8 lossy would yield U+FFFD. */
+        let decoded = decode_text_body(&[0xE9], "text/plain; charset=ISO-8859-1");
+        assert_eq!(decoded, "é");
+    }
+
+    #[test]
+    fn test_decode_text_body_defaults_to_utf8_when_charset_absent() {
+        let decoded = decode_text_body("hello world".as_bytes(), "text/plain");
+        assert_eq!(decoded, "hello world");
+    }
+
+    #[test]
+    fn test_decode_text_body_falls_back_to_utf8_for_unknown_charset() {
+        /* Unknown charset must not panic; the helper falls back to UTF-8. */
+        let decoded = decode_text_body("abc".as_bytes(), "text/plain; charset=windows-9999");
+        assert_eq!(decoded, "abc");
+    }
+
+    #[test]
+    fn test_parse_charset_extracts_quoted_value() {
+        assert_eq!(
+            parse_charset("text/plain; charset=\"UTF-8\""),
+            Some("UTF-8".to_string())
+        );
+    }
+
+    // ── Sensitive-header allowlist (Gap 3.1) ──
+
+    /// Gap 3.1: API-key header names declared in the OpenAPI spec must be added
+    /// to the cross-origin redirect strip allowlist. The static base set
+    /// (authorization / cookie / proxy-authorization) must always be present.
+    #[test]
+    fn test_sensitive_header_allowlist_contains_fixed_credential_headers() {
+        let names: Vec<&str> = SENSITIVE_HEADER_NAMES.to_vec();
+        assert!(
+            names.iter().any(|n| *n == "authorization"),
+            "expected 'authorization' in {:?}",
+            names
+        );
+        assert!(
+            names.iter().any(|n| *n == "cookie"),
+            "expected 'cookie' in {:?}",
+            names
+        );
+        assert!(
+            names.iter().any(|n| *n == "proxy-authorization"),
+            "expected 'proxy-authorization' in {:?}",
+            names
+        );
+        for n in SENSITIVE_HEADER_NAMES {
+            assert_eq!(*n, n.to_lowercase(), "all entries must be lowercase: {}", n);
+        }
+    }
+
+    // ── Gap 3.1: spec-declared API-key header names are sensitive ──
+
+    #[test]
+    fn test_sensitive_header_allowlist_includes_spec_api_key_headers() {
+        let names: Vec<&str> = SENSITIVE_HEADER_NAMES.to_vec();
+        assert!(
+            names.iter().any(|n| *n == "x-api-key"),
+            "expected spec apiKey header 'x-api-key' in {:?}",
+            names
+        );
+        assert!(
+            names.iter().any(|n| *n == "x-internal-key"),
+            "expected spec apiKey header 'x-internal-key' in {:?}",
+            names
+        );
+    }
 }

@@ -77,13 +77,13 @@ func (s {{serverTypeName}}{{variantName}}) GetUrl() string {
 // See {{url}} {{description}}
 {{/tagExternalDocs}}
 type {{classname}} struct {
-	*BaseApi
+	*baseApi
 }
 
 // New{{classname}} creates a new {{classname}} instance.
 func New{{classname}}(apiClient ApiClient, config *Configuration, authenticator Authenticator) *{{classname}} {
 	return &{{classname}}{
-		BaseApi: NewBaseApi(apiClient, config, authenticator),
+		baseApi: newBaseApi(apiClient, config, authenticator),
 	}
 }
 {{#operation}}
@@ -145,14 +145,14 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 	path := "{{{path}}}"
 {{#pathParams}}
 {{#isDate}}
-	path = replacePathParam(path, "{{baseName}}", EncodePathSegment(StringifyDate({{paramName}})))
+	path = replacePathParam(path, "{{baseName}}", encodePathSegment(stringifyDate({{paramName}})))
 {{/isDate}}
 {{^isDate}}
-	/* Path params route through SerializeStyled so OAS path styles
+	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
-	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "{{baseName}}", fmt.Sprintf("%v", SerializeStyled("{{baseName}}", {{paramName}}, "path", "{{{dataType}}}", "", "{{style}}", {{isExplode}})))
+	path = replacePathParam(path, "{{baseName}}", fmt.Sprintf("%v", serializeStyled("{{baseName}}", {{paramName}}, "path", "{{{dataType}}}", "", "{{style}}", {{isExplode}})))
 {{/isDate}}
 {{/pathParams}}
 {{#servers}}
@@ -171,7 +171,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
 	if options != nil {
 		if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
-			queryParams["{{baseName}}"] = SerializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}})
+			queryParams["{{baseName}}"] = serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}})
 		} else {
 			queryParams["{{baseName}}"] = ""
 		}
@@ -179,7 +179,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryDeepObject}}
 	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
-		for k, v := range SerializeDeepObject("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}) {
+		for k, v := range serializeDeepObject("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}) {
 			queryParams[k] = v
 		}
 	}
@@ -192,7 +192,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 {{/vendorExtensions.param.queryContent}}
 {{#vendorExtensions.param.queryStyled}}
 	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
-		queryParams["{{baseName}}"] = SerializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}})
+		queryParams["{{baseName}}"] = serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}})
 	}
 {{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}
@@ -200,14 +200,14 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 	headerParams := make(map[string]string)
 {{#headerParams}}
 	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
-		headerParams["{{baseName}}"] = fmt.Sprintf("%v", SerializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "header", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
+		headerParams["{{baseName}}"] = fmt.Sprintf("%v", serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "header", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
 	}
 {{/headerParams}}
 {{#hasCookieParams}}
 	var cookieParts []string
 {{#cookieParams}}
 	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
-		cookieParts = append(cookieParts, fmt.Sprintf("{{baseName}}=%v", SerializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "cookie", "{{{dataType}}}", "", "{{style}}", {{isExplode}})))
+		cookieParts = append(cookieParts, fmt.Sprintf("{{baseName}}=%v", serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "cookie", "{{{dataType}}}", "", "{{style}}", {{isExplode}})))
 	}
 {{/cookieParams}}
 	if len(cookieParts) > 0 {
@@ -267,9 +267,9 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
-		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
-			if err := Deserialize([]byte(response.Body), &data); err != nil {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {

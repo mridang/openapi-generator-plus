@@ -12,9 +12,17 @@
 //   emitted unconditionally but a given spec may not exercise every symbol.
 // `unused_mut`: some request-builder paths only mutate locals when the spec
 //   declares matching parameters, so `mut` is conditionally unused.
+// `dead_code`: the internal serializer modules (`object_serializer`,
+//   `value_serializer`) are crate-private and expose a complete set of
+//   parameter-encoding helpers (`to_query_value`, `to_header_value`,
+//   `to_cookie_value`, `to_form_value`, `serialize_value`,
+//   `serialize_array_value`, …). A given spec only exercises the subset its
+//   parameter styles require, so the unused helpers would otherwise read as
+//   dead code now that the modules no longer form part of the public API.
 #![allow(deprecated)]
 #![allow(unused_imports)]
 #![allow(unused_mut)]
+#![allow(dead_code)]
 // Clippy style lints that fire on machine-generated code where the "idiomatic"
 // rewrite is not expressible from a template that must cover every spec shape:
 // `new_without_default`: generated `new()` takes required fields, so a blanket
@@ -52,18 +60,29 @@ pub mod api_result;
 pub mod auth;
 pub mod client;
 pub mod configuration;
-pub mod default_api_client;
+// Internal transport implementation. The public seam is the `ApiClient` trait
+// (re-exported below) plus `DefaultApiClient` (re-exported below); the module's
+// free functions traffic in `reqwest` types and must not leak into the public
+// API, so the module itself is crate-private.
+pub(crate) mod default_api_client;
 pub mod errors;
-pub mod header_selector;
+// Internal content-negotiation helper used by `base_api`; not part of the
+// public surface.
+pub(crate) mod header_selector;
 pub mod iso8601_duration;
 pub mod models;
-pub mod object_serializer;
+// Internal (de)serialization helpers used by the generated API modules. These
+// traffic in `serde_json` types and must not appear in the public API.
+pub(crate) mod object_serializer;
 pub mod server_configuration;
 pub mod servers;
-pub mod trace_context_util;
+// Internal W3C trace-context propagation helper used by `base_api`.
+pub(crate) mod trace_context_util;
 pub mod transport_options;
 pub mod utils;
-pub mod value_serializer;
+// Internal parameter-style serialization helpers used by the generated API
+// modules; `SerializedValue` and friends are an implementation detail.
+pub(crate) mod value_serializer;
 
 pub use api_client::ApiClient;
 pub use api_error::ApiError;
@@ -74,5 +93,8 @@ pub use client::Client;
 pub use configuration::{Configuration, ConfigurationBuilder};
 pub use default_api_client::DefaultApiClient;
 pub use errors::*;
+// `SerializationError` is part of the public error surface even though its
+// defining module (`object_serializer`) is crate-private.
+pub use object_serializer::SerializationError;
 pub use server_configuration::{ServerConfiguration, ServerVariable};
 pub use transport_options::{TransportOptions, TransportOptionsBuilder};

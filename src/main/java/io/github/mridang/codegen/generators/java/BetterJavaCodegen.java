@@ -267,9 +267,9 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("server_variable.mustache", invokerFolder, "ServerVariable.java"),
             new SupportingFileSpec("servers.mustache", invokerFolder, "Servers.java"),
             new SupportingFileSpec("object_serializer.mustache", invokerFolder, "ObjectSerializer.java"),
-            new SupportingFileSpec("value_serializer.mustache", invokerFolder, "ValueSerializer.java"),
-            new SupportingFileSpec("header_selector.mustache", invokerFolder, "HeaderSelector.java"),
-            new SupportingFileSpec("trace_context_util.mustache", invokerFolder, "TraceContextUtil.java"),
+            new SupportingFileSpec("value_serializer.mustache", Path.of(invokerFolder, "api").toString(), "ValueSerializer.java"),
+            new SupportingFileSpec("header_selector.mustache", Path.of(invokerFolder, "api").toString(), "HeaderSelector.java"),
+            new SupportingFileSpec("trace_context_util.mustache", Path.of(invokerFolder, "api").toString(), "TraceContextUtil.java"),
             new SupportingFileSpec("pom.mustache", "", "pom.xml"),
             new SupportingFileSpec("authenticator.mustache", Path.of(invokerFolder, "auth").toString(), "Authenticator.java"),
             new SupportingFileSpec("makefile.mustache", "", "Makefile"),
@@ -373,7 +373,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             supportingFiles.add(
                     new SupportingFile(
                             "test/HeaderSelectorTest.mustache",
-                            testFolder,
+                            testApiFolder,
                             "HeaderSelectorTest.java"));
             supportingFiles.add(
                     new SupportingFile(
@@ -383,12 +383,12 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             supportingFiles.add(
                     new SupportingFile(
                             "test/ValueSerializerTest.mustache",
-                            testFolder,
+                            testApiFolder,
                             "ValueSerializerTest.java"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/TraceContextUtilTest.mustache",
-                            testFolder,
+                            testApiFolder,
                             "TraceContextUtilTest.java"));
             supportingFiles.add(
                     new SupportingFile(

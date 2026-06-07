@@ -31,7 +31,7 @@ use crate::trace_context_util;
 use crate::utils::form_url_encode;
 
 /// InvokeApiParams holds parameters for the invoke_api call.
-pub struct InvokeApiParams<'a> {
+pub(crate) struct InvokeApiParams<'a> {
     pub method: &'a str,
     pub path: &'a str,
     pub query_params: Vec<(String, String)>,
@@ -44,7 +44,7 @@ pub struct InvokeApiParams<'a> {
 }
 
 /// BaseApi provides common functionality for all API classes.
-pub struct BaseApi {
+pub(crate) struct BaseApi {
     config: Configuration,
     api_client: Arc<dyn ApiClient>,
     header_selector: HeaderSelector,
@@ -419,7 +419,7 @@ fn append_multipart_field(
 /// header injection or smuggling. Returns Err for names containing CR, LF, or
 /// NUL. Must run on every branch of `append_multipart_field` because the name
 /// is interpolated directly into `Content-Disposition: form-data; name="..."`.
-pub fn validate_multipart_field_name(name: &str) -> Result<(), String> {
+pub(crate) fn validate_multipart_field_name(name: &str) -> Result<(), String> {
     for c in name.chars() {
         if c == '\r' || c == '\n' || c == '\0' {
             return Err(
@@ -433,11 +433,11 @@ pub fn validate_multipart_field_name(name: &str) -> Result<(), String> {
 /// Backslash-escapes embedded `"` and `\` in a multipart field name so a
 /// malicious name cannot break out of the `name="..."` parameter. Caller must
 /// have already validated CR/LF/NUL via `validate_multipart_field_name`.
-pub fn escape_multipart_field_name(name: &str) -> String {
+pub(crate) fn escape_multipart_field_name(name: &str) -> String {
     name.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
-pub fn serialize_body(
+pub(crate) fn serialize_body(
     body: Option<Vec<u8>>,
     content_type: &str,
 ) -> Result<Option<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
@@ -486,19 +486,7 @@ fn throw_api_error(response: &ApiResponse) -> Box<dyn std::error::Error + Send +
     let msg = format!("API returned status code {}", code);
     let body = response.body.clone();
 
-    let error_body: Option<serde_json::Value> = if !body.is_empty() {
-        serde_json::from_str(&body).ok()
-    } else {
-        None
-    };
-
-    let base_err = ApiError::new(
-        code,
-        msg,
-        Some(body),
-        Some(response.headers.clone()),
-        error_body,
-    );
+    let base_err = ApiError::new(code, msg, Some(body), Some(response.headers.clone()));
 
     if code >= 400 && code < 500 {
         let client_err = ClientError::from(base_err);
@@ -543,4 +531,78 @@ fn is_valid_cookie_value(value: &str) -> bool {
             || (0x3C..=0x5B).contains(&v)
             || (0x5D..=0x7E).contains(&v)
     })
+}
+
+// These `serialize_body` unit tests live in-crate (rather than under tests/)
+// because `serialize_body` and `BaseApi` are crate-private (internal transport
+// helpers, not part of the public API). The behavioural integration tests that
+// drive the public API surface remain in `tests/base_api_test.rs`.
+#[cfg(test)]
+mod tests {
+    use super::serialize_body;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_serialize_body_form_urlencoded() {
+        let mut params = HashMap::new();
+        params.insert("name".to_string(), "alice".to_string());
+        let json_bytes = serde_json::to_vec(&params).unwrap();
+        let result = serialize_body(Some(json_bytes), "application/x-www-form-urlencoded").unwrap();
+        assert!(result.is_some());
+        let body_str = String::from_utf8(result.unwrap()).unwrap();
+        assert!(
+            body_str.contains("name=alice"),
+            "expected URL-encoded form data, got: {}",
+            body_str
+        );
+    }
+
+    #[test]
+    fn test_serialize_body_form_urlencoded_space_as_plus() {
+        /* form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
+         * mandates '+' for a space (WHATWG/HTML form-encoding), not '%20'.
+         * The shared form_url_encode helper emits '+', matching the other SDKs. */
+        let mut params = HashMap::new();
+        params.insert("full name".to_string(), "Ada Lovelace".to_string());
+        let json_bytes = serde_json::to_vec(&params).unwrap();
+        let result = serialize_body(Some(json_bytes), "application/x-www-form-urlencoded").unwrap();
+        let body_str = String::from_utf8(result.unwrap()).unwrap();
+        assert_eq!(body_str, "full+name=Ada+Lovelace");
+        assert!(
+            !body_str.contains("%20"),
+            "space must encode as +, not %20: {}",
+            body_str
+        );
+    }
+
+    #[test]
+    fn test_serialize_body_text_plain() {
+        let body = b"hello world".to_vec();
+        let result = serialize_body(Some(body), "text/plain").unwrap();
+        assert!(result.is_some());
+        let body_str = String::from_utf8(result.unwrap()).unwrap();
+        assert_eq!(body_str, "hello world");
+    }
+
+    #[test]
+    fn test_serialize_body_binary() {
+        let body = vec![0x01, 0x02, 0x03];
+        let result = serialize_body(Some(body.clone()), "application/octet-stream").unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), body);
+    }
+
+    #[test]
+    fn test_serialize_body_json_passthrough() {
+        let body = b"{\"key\":\"value\"}".to_vec();
+        let result = serialize_body(Some(body.clone()), "application/json").unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), body);
+    }
+
+    #[test]
+    fn test_serialize_body_none() {
+        let result = serialize_body(None, "application/json").unwrap();
+        assert!(result.is_none());
+    }
 }

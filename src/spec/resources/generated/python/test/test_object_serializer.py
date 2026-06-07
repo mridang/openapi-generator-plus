@@ -473,7 +473,7 @@ class TestResolveOneOf:
         def hit(json_string: str) -> object:
             return 'matched:' + json_string
 
-        result = ObjectSerializer().resolve_one_of('payload', [miss, hit])
+        result = ObjectSerializer()._resolve_one_of('payload', [miss, hit])
         assert result == 'matched:payload'
 
     def test_resolve_one_of_throws_on_no_match(self) -> None:
@@ -486,8 +486,8 @@ class TestResolveOneOf:
             raise ValueError('variant B does not match')
 
         with pytest.raises(SerializationError):
-            ObjectSerializer().resolve_one_of('{"unexpected": true}', [miss_a, miss_b])
+            ObjectSerializer()._resolve_one_of('{"unexpected": true}', [miss_a, miss_b])
 
     def test_resolve_any_of_throws_on_no_match(self) -> None:
         with pytest.raises(SerializationError):
-            ObjectSerializer().resolve_any_of('{}', [lambda _: None])
+            ObjectSerializer()._resolve_any_of('{}', [lambda _: None])

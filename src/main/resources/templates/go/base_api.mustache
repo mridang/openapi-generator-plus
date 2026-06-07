@@ -20,26 +20,26 @@ import (
 	. "{{packageName}}/pkg/errors"
 )
 
-// BaseApi provides common functionality for all API classes.
-type BaseApi struct {
+// baseApi provides common functionality for all API classes.
+type baseApi struct {
 	config         *Configuration
 	apiClient      ApiClient
-	headerSelector *HeaderSelector
+	headerSelector *headerSelector
 	authenticator  Authenticator
 }
 
-// NewBaseApi creates a new BaseApi instance.
-func NewBaseApi(apiClient ApiClient, config *Configuration, authenticator Authenticator) *BaseApi {
+// newBaseApi creates a new baseApi instance.
+func newBaseApi(apiClient ApiClient, config *Configuration, authenticator Authenticator) *baseApi {
 	if apiClient == nil {
 		apiClient = NewDefaultApiClient(nil)
 	}
 	if config == nil {
 		config = DefaultConfiguration()
 	}
-	return &BaseApi{
+	return &baseApi{
 		config:         config,
 		apiClient:      apiClient,
-		headerSelector: NewHeaderSelector(),
+		headerSelector: newHeaderSelector(),
 		authenticator:  authenticator,
 	}
 }
@@ -58,7 +58,7 @@ type invokeApiParams struct {
 }
 
 // invokeApiForResult dispatches an API request and returns the full result.
-func (b *BaseApi) invokeApiForResult(params invokeApiParams) (*HttpResponse, error) {
+func (b *baseApi) invokeApiForResult(params invokeApiParams) (*HttpResponse, error) {
 	requestURL := params.path
 	if !strings.HasPrefix(requestURL, "http://") && !strings.HasPrefix(requestURL, "https://") {
 		// Strip trailing slash from baseUrl when path starts with `/` so
@@ -96,7 +96,7 @@ func (b *BaseApi) invokeApiForResult(params invokeApiParams) (*HttpResponse, err
 
 	/* Select headers */
 	isMultipart := params.contentType == "multipart/form-data"
-	headers := b.headerSelector.SelectHeaders(params.accepts, params.contentType, isMultipart)
+	headers := b.headerSelector.selectHeaders(params.accepts, params.contentType, isMultipart)
 
 	/* Merge config default headers */
 	for k, v := range b.config.DefaultHeaders() {
@@ -154,7 +154,7 @@ func (b *BaseApi) invokeApiForResult(params invokeApiParams) (*HttpResponse, err
 	}
 
 	/* Inject trace context */
-	InjectTraceContext(headers)
+	injectTraceContext(headers)
 
 	/* Serialize body -- multipart/form-data is handled here so that
 	 * the boundary can be injected into the Content-Type header. */
@@ -200,7 +200,7 @@ func (b *BaseApi) invokeApiForResult(params invokeApiParams) (*HttpResponse, err
 }
 
 // invokeApi dispatches an API request and returns just the response.
-func (b *BaseApi) invokeApi(params invokeApiParams) (*HttpResponse, error) {
+func (b *baseApi) invokeApi(params invokeApiParams) (*HttpResponse, error) {
 	return b.invokeApiForResult(params)
 }
 
@@ -224,7 +224,7 @@ func buildQueryString(queryParams map[string]any) string {
 		case string:
 			parts = append(parts, fmt.Sprintf("%s=%s", encodedKey, url.QueryEscape(val)))
 		default:
-			parts = append(parts, fmt.Sprintf("%s=%s", encodedKey, url.QueryEscape(Stringify(v))))
+			parts = append(parts, fmt.Sprintf("%s=%s", encodedKey, url.QueryEscape(stringify(v))))
 		}
 	}
 
@@ -264,7 +264,7 @@ func serializeBody(body any, contentType string) ([]byte, error) {
 		}
 	}
 
-	return Serialize(body)
+	return serialize(body)
 }
 
 /* buildMultipartBody constructs a multipart/form-data request body from
@@ -378,7 +378,7 @@ func writeJSONMultipartPart(writer *multipart.Writer, name string, value any) er
 	if err != nil {
 		return fmt.Errorf("failed to marshal multipart field %q as JSON: %w", name, err)
 	}
-	if err := ValidateMultipartFieldName(name); err != nil {
+	if err := validateMultipartFieldName(name); err != nil {
 		return err
 	}
 	header := make(textproto.MIMEHeader)
@@ -439,13 +439,13 @@ func mimeTypeForFilename(filename string) string {
  * RFC 5987 filename*= parameter alongside an ASCII fallback so that servers
  * receive the original filename intact rather than mangled UTF-8. */
 func createMultipartFilePart(writer *multipart.Writer, fieldName, fileName string) (io.Writer, error) {
-	if err := ValidateMultipartFilename(fileName); err != nil {
+	if err := validateMultipartFilename(fileName); err != nil {
 		return nil, err
 	}
 	header := make(textproto.MIMEHeader)
 	header.Set("Content-Disposition",
 		fmt.Sprintf(`form-data; name="%s"; %s`,
-			escapeQuotes(fieldName), BuildFilenameDirective(fileName)))
+			escapeQuotes(fieldName), buildFilenameDirective(fileName)))
 	header.Set("Content-Type", mimeTypeForFilename(fileName))
 	return writer.CreatePart(header)
 }
@@ -457,10 +457,10 @@ func escapeQuotes(s string) string {
 	return r.Replace(s)
 }
 
-/* ValidateMultipartFilename rejects filenames that would allow Content-Disposition
+/* validateMultipartFilename rejects filenames that would allow Content-Disposition
  * header injection or smuggling. Returns an error if the filename contains
  * CR, LF, or NUL characters. */
-func ValidateMultipartFilename(filename string) error {
+func validateMultipartFilename(filename string) error {
 	for _, c := range filename {
 		if c == '\r' || c == '\n' || c == 0 {
 			return fmt.Errorf("multipart filename must not contain CR, LF, or NUL characters")
@@ -469,12 +469,12 @@ func ValidateMultipartFilename(filename string) error {
 	return nil
 }
 
-/* Gap W2: ValidateMultipartFieldName rejects multipart field names that
+/* Gap W2: validateMultipartFieldName rejects multipart field names that
  * would allow Content-Disposition header injection. Returns an error if
  * the name contains CR, LF, or NUL characters. The caller still needs
  * to backslash-escape `"` and `\` via escapeQuotes when interpolating
  * the field name into a quoted-string parameter. */
-func ValidateMultipartFieldName(name string) error {
+func validateMultipartFieldName(name string) error {
 	for _, c := range name {
 		if c == '\r' || c == '\n' || c == 0 {
 			return fmt.Errorf("multipart field name must not contain CR, LF, or NUL characters")
@@ -483,12 +483,12 @@ func ValidateMultipartFieldName(name string) error {
 	return nil
 }
 
-/* BuildFilenameDirective builds the filename=... directive for a multipart part.
+/* buildFilenameDirective builds the filename=... directive for a multipart part.
  * For ASCII-only filenames it emits filename="..." with quote/backslash escaping.
  * For non-ASCII filenames it additionally emits an RFC 5987
  * filename*=UTF-8''<percent-encoded> parameter alongside an ASCII fallback
  * (non-ASCII bytes replaced with '_'). */
-func BuildFilenameDirective(filename string) string {
+func buildFilenameDirective(filename string) string {
 	escaped := escapeQuotes(filename)
 	ascii := true
 	for _, c := range filename {

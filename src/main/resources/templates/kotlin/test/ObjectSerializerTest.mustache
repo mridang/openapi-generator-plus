@@ -573,7 +573,7 @@ class ObjectSerializerTest {
                 { _ -> throw IllegalStateException("variant A does not match") },
                 { _ -> throw IllegalStateException("variant B does not match") },
             )
-            assertThrows(ObjectSerializer.SerializationException::class.java) {
+            assertThrows({{invokerPackage}}.SerializationException::class.java) {
                 serializer.resolveOneOf("{\"unexpected\":true}", candidates)
             }
         }
@@ -595,7 +595,7 @@ class ObjectSerializerTest {
             val candidates: List<(String) -> Any?> = listOf(
                 { _ -> null },
             )
-            assertThrows(ObjectSerializer.SerializationException::class.java) {
+            assertThrows({{invokerPackage}}.SerializationException::class.java) {
                 serializer.resolveAnyOf("{}", candidates)
             }
         }

@@ -36,11 +36,24 @@ abstract class BaseApi {
     /** API-level configuration (base URL and default headers). */
     protected val config: Configuration
 
-    /** Serializer for request/response body conversion. */
-    protected val objectSerializer: ObjectSerializer
+    /**
+     * Serializer for request/response body conversion.
+     *
+     * Marked `@PublishedApi internal` rather than `protected`: it must stay out
+     * of the public API ([ObjectSerializer] is internal transport machinery),
+     * but the public inline [invokeApiForResult] and generated subclasses still
+     * reference it, so it cannot be `private`.
+     */
+    @PublishedApi
+    internal val objectSerializer: ObjectSerializer
 
-    /** Content negotiation logic for Accept and Content-Type headers. */
-    protected val headerSelector: HeaderSelector
+    /**
+     * Content negotiation logic for Accept and Content-Type headers.
+     *
+     * Marked `@PublishedApi internal` for the same reasons as [objectSerializer].
+     */
+    @PublishedApi
+    internal val headerSelector: HeaderSelector
 
     /** Optional authenticator for client-level auth (used as fallback when no per-call auth is provided). */
     protected val authenticator: Authenticator?
@@ -280,7 +293,7 @@ abstract class BaseApi {
         val errorBody: Any? =
             if (body.isNotEmpty()) {
                 try {
-                    objectSerializer.json.parseToJsonElement(body)
+                    objectSerializer.parseToJsonElement(body)
                 } catch (_: Exception) {
                     null
                 }

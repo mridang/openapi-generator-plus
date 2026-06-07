@@ -1,9 +1,9 @@
 {{>api_info}}
 
 defmodule {{moduleName}}.ValueSerializer do
-  @moduledoc """
-  Serializes parameter values for HTTP requests based on their location.
-  """
+  @moduledoc false
+  # Internal: serializes parameter values for HTTP requests based on their
+  # location. Not part of the public API.
 
   @doc """
   Serialize a value for the given location.

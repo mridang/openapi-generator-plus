@@ -217,3 +217,263 @@ impl Default for HeaderSelector {
         Self::new()
     }
 }
+
+// These tests live in-crate (rather than under tests/) because `HeaderSelector`
+// and its module are crate-private (internal content-negotiation detail) and so
+// are not reachable from the external integration-test crate.
+#[cfg(test)]
+mod tests {
+    use super::HeaderSelector;
+
+    #[test]
+    fn test_header_selector_is_json_mime() {
+        let hs = HeaderSelector::new();
+
+        assert!(hs.is_json_mime("application/json"));
+        assert!(hs.is_json_mime("application/json; charset=utf-8"));
+        assert!(hs.is_json_mime("application/vnd.api+json"));
+        assert!(!hs.is_json_mime("application/xml"));
+        assert!(!hs.is_json_mime("text/plain"));
+        assert!(!hs.is_json_mime(""));
+        assert!(!hs.is_json_mime("application/octet-stream"));
+        assert!(hs.is_json_mime("application/hal+json"));
+    }
+
+    #[test]
+    fn test_header_selector_select_headers_with_single_accept() {
+        let hs = HeaderSelector::new();
+
+        let headers = hs.select_headers(
+            &["application/json"],
+            "application/json",
+            false,
+        );
+
+        assert_eq!(headers.get("Accept").unwrap(), "application/json");
+        assert_eq!(headers.get("Content-Type").unwrap(), "application/json");
+    }
+
+    #[test]
+    fn test_header_selector_select_headers_with_multiple_accepts() {
+        let hs = HeaderSelector::new();
+
+        let headers = hs.select_headers(
+            &[
+                "application/json",
+                "application/xml",
+            ],
+            "application/json",
+            false,
+        );
+
+        let accept = headers.get("Accept").unwrap();
+        assert!(accept.contains("application/json"));
+    }
+
+    #[test]
+    fn test_header_selector_select_headers_with_empty_accepts() {
+        let hs = HeaderSelector::new();
+
+        let headers = hs.select_headers(&[], "application/json", false);
+
+        assert!(!headers.contains_key("Accept"));
+    }
+
+    #[test]
+    fn test_header_selector_multipart_omits_content_type() {
+        let hs = HeaderSelector::new();
+
+        let headers = hs.select_headers(
+            &["application/json"],
+            "multipart/form-data",
+            true,
+        );
+
+        assert!(
+            !headers.contains_key("Content-Type"),
+            "expected no Content-Type header for multipart requests"
+        );
+    }
+
+    #[test]
+    fn test_header_selector_default_content_type() {
+        let hs = HeaderSelector::new();
+
+        let headers = hs.select_headers(&["application/json"], "", false);
+
+        assert_eq!(headers.get("Content-Type").unwrap(), "application/json");
+    }
+
+    #[test]
+    fn test_header_selector_quality_weighting() {
+        let hs = HeaderSelector::new();
+
+        let headers = hs.select_headers(
+            &[
+                "application/json",
+                "application/xml",
+                "text/plain",
+            ],
+            "application/json",
+            false,
+        );
+
+        let accept = headers.get("Accept").unwrap();
+        assert!(!accept.is_empty(), "expected non-empty Accept header");
+
+        // application/json should appear first (highest priority)
+        let json_idx = accept.find("application/json");
+        let xml_idx = accept.find("application/xml");
+        assert!(json_idx.is_some(), "expected application/json in Accept header");
+        assert!(xml_idx.is_some(), "expected application/xml in Accept header");
+        assert!(
+            json_idx.unwrap() < xml_idx.unwrap(),
+            "expected application/json to appear before application/xml"
+        );
+    }
+
+    #[test]
+    fn test_header_selector_with_vendor_json() {
+        let hs = HeaderSelector::new();
+
+        let headers = hs.select_headers(
+            &[
+                "application/vnd.api+json",
+                "application/xml",
+            ],
+            "application/json",
+            false,
+        );
+
+        let accept = headers.get("Accept").unwrap();
+        assert!(accept.contains("application/vnd.api+json"));
+    }
+
+    #[test]
+    fn test_header_selector_is_json_mime_case_insensitive() {
+        let hs = HeaderSelector::new();
+
+        assert!(hs.is_json_mime("APPLICATION/JSON"));
+    }
+
+    #[test]
+    fn test_header_selector_single_non_json_accept_as_is() {
+        let hs = HeaderSelector::new();
+
+        let headers = hs.select_headers(&["text/html"], "application/json", false);
+
+        assert_eq!(headers.get("Accept").unwrap(), "text/html");
+    }
+
+    #[test]
+    fn test_header_selector_comma_separated_when_no_json() {
+        let hs = HeaderSelector::new();
+
+        let headers = hs.select_headers(&["text/html", "text/plain"], "application/json", false);
+
+        assert_eq!(headers.get("Accept").unwrap(), "text/html,text/plain");
+    }
+
+    #[test]
+    fn test_header_selector_multiple_json_types_with_priority() {
+        let hs = HeaderSelector::new();
+
+        let headers = hs.select_headers(
+            &["text/html", "application/vnd.api+json", "application/json"],
+            "application/json",
+            false,
+        );
+
+        let accept = headers.get("Accept").unwrap();
+        assert!(accept.starts_with("application/json"));
+        let json_idx = accept.find("application/json").unwrap();
+        let vendor_idx = accept.find("application/vnd.api+json").unwrap();
+        let html_idx = accept.find("text/html").unwrap();
+        assert!(json_idx < vendor_idx);
+        assert!(vendor_idx < html_idx);
+    }
+
+    #[test]
+    fn test_header_selector_filters_out_empty_entries() {
+        let hs = HeaderSelector::new();
+
+        let headers = hs.select_headers(&["", "application/json"], "application/json", false);
+
+        assert_eq!(headers.get("Accept").unwrap(), "application/json");
+    }
+
+    #[test]
+    fn test_header_selector_preserves_existing_quality_weights_in_order() {
+        let hs = HeaderSelector::new();
+
+        let headers = hs.select_headers(
+            &["text/html;q=0.9", "application/json", "text/plain;q=0.8"],
+            "application/json",
+            false,
+        );
+
+        assert!(headers.get("Accept").unwrap().starts_with("application/json"));
+    }
+
+    #[test]
+    fn test_header_selector_formats_quality_weight_correctly() {
+        let hs = HeaderSelector::new();
+
+        let headers = hs.select_headers(&["application/json", "text/html"], "application/json", false);
+
+        let accept = headers.get("Accept").unwrap();
+        assert!(
+            accept.contains("text/html;q=0.9") || accept.contains("text/html;q=0."),
+            "expected text/html with quality weight, got {accept}"
+        );
+    }
+
+    #[test]
+    fn test_header_selector_removes_trailing_zeros_from_quality_weight() {
+        let hs = HeaderSelector::new();
+
+        let headers = hs.select_headers(&["application/json", "text/html"], "application/json", false);
+
+        assert!(!headers.get("Accept").unwrap().contains(";q=0.900"));
+    }
+
+    #[test]
+    fn test_get_next_weight_standard_sequence() {
+        let hs = HeaderSelector::new();
+
+        assert_eq!(hs.get_next_weight(1000, false), 900);
+        assert_eq!(hs.get_next_weight(900, false), 800);
+        assert_eq!(hs.get_next_weight(200, false), 100);
+        assert_eq!(hs.get_next_weight(100, false), 90);
+        assert_eq!(hs.get_next_weight(90, false), 80);
+    }
+
+    #[test]
+    fn test_get_next_weight_more_than_28_headers() {
+        let hs = HeaderSelector::new();
+
+        assert_eq!(hs.get_next_weight(1000, true), 999);
+        assert_eq!(hs.get_next_weight(999, true), 998);
+        assert_eq!(hs.get_next_weight(998, true), 997);
+    }
+
+    #[test]
+    fn test_get_next_weight_minimum() {
+        let hs = HeaderSelector::new();
+
+        assert_eq!(hs.get_next_weight(1, false), 1);
+        assert_eq!(hs.get_next_weight(0, false), 1);
+        assert_eq!(hs.get_next_weight(-1, false), 1);
+    }
+
+    #[test]
+    fn test_get_next_weight_27_steps() {
+        let hs = HeaderSelector::new();
+
+        let mut weight = 1000;
+        for _ in 0..27 {
+            weight = hs.get_next_weight(weight, false);
+        }
+        assert_eq!(weight, 1);
+    }
+}

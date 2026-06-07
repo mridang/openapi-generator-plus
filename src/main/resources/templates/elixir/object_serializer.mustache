@@ -25,13 +25,10 @@ defmodule {{moduleName}}.DeserializationError do
 end
 
 defmodule {{moduleName}}.ObjectSerializer do
-  @moduledoc """
-  Handles JSON serialization and deserialization for API requests and responses.
-
-  All serde operations in the generated client route through this module.
-  The parameter encoding functions provide consistent value conversion for
-  URL path, query string, header, and form parameters.
-  """
+  @moduledoc false
+  # Internal serde plumbing: JSON serialization/deserialization and parameter
+  # value encoding for API requests and responses. Not part of the public API;
+  # all serde routes through here internally.
 
   # Maximum allowed JSON nesting depth. Elixir's Jason.decode recurses
   # through the BEAM call stack; while BEAM stacks are heap-allocated and
@@ -497,12 +494,11 @@ defmodule {{moduleName}}.ObjectSerializer do
 
   defp fields_overlap?(_data, _result), do: true
 
-  @doc """
-  Attempt to deserialize data against a list of candidate schemas, returning
-  the first successful result. Each candidate is an anonymous function that
-  accepts the raw JSON data and returns a deserialized value or raises on failure.
-  Candidates where no JSON key matches any struct field are skipped.
-  """
+  @doc false
+  # Attempt to deserialize data against a list of candidate schemas, returning
+  # the first successful result. Each candidate is an anonymous function that
+  # accepts the raw JSON data and returns a deserialized value or raises on failure.
+  # Candidates where no JSON key matches any struct field are skipped.
   @spec resolve_one_of(term(), [function()]) :: term()
   def resolve_one_of(data, candidates) do
     resolved =
@@ -530,10 +526,9 @@ defmodule {{moduleName}}.ObjectSerializer do
     end
   end
 
-  @doc """
-  Attempt to deserialize data against a list of candidate schemas using
-  anyOf semantics. Delegates to `resolve_one_of/2`.
-  """
+  @doc false
+  # Attempt to deserialize data against a list of candidate schemas using
+  # anyOf semantics. Delegates to `resolve_one_of/2`.
   @spec resolve_any_of(term(), [function()]) :: term()
   def resolve_any_of(data, candidates) do
     resolve_one_of(data, candidates)

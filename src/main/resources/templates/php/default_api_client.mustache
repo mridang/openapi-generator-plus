@@ -65,74 +65,83 @@ class DefaultApiClient implements ApiClient
      * Equivalent to new DefaultApiClient(TransportOptions::builder()->build()).
      */
     public function __construct(
-        ?TransportOptions $transportOptions = null,
-        ?HttpClientInterface $client = null
+        ?TransportOptions $transportOptions = null
     ) {
         $this->transportOptions = $transportOptions ?? TransportOptions::builder()->build();
+        $this->client = $this->createHttpClient();
+    }
 
-        if ($client instanceof HttpClientInterface) {
-            $this->client = $client;
-        } else {
-            $options = [];
+    /**
+     * Builds the underlying HTTP client from the configured
+     * {@see TransportOptions}. This is the single transport seam: tests may
+     * override it via an anonymous subclass to inject a stub client without
+     * the public constructor naming any third-party HTTP-client type.
+     *
+     * @internal This is a transport seam intended only for SDK-internal use
+     *           and test overriding; it is not part of the public API and may
+     *           change or be removed in any release without notice.
+     */
+    protected function createHttpClient(): HttpClientInterface
+    {
+        $options = [];
 
-            if (!$this->transportOptions->verifySsl) {
-                $options['verify_peer'] = false;
-                $options['verify_host'] = false;
-            } elseif ($this->transportOptions->caCertPath !== null) {
-                /* Gap T4: fail fast on a user-supplied CA cert that cannot be
-                 * read or parsed rather than silently falling back to the
-                 * system trust store. If the caller explicitly asked for SSL
-                 * pinning we must not pretend it succeeded -- validate the PEM
-                 * eagerly at construction. */
-                $caCertPath = $this->transportOptions->caCertPath;
-                $pem = @file_get_contents($caCertPath);
-                if ($pem === false) {
-                    throw new ApiException(
-                        sprintf('failed to read CA certificate from "%s"', $caCertPath)
-                    );
-                }
-                if (openssl_x509_read($pem) === false) {
-                    throw new ApiException(
-                        sprintf(
-                            'failed to parse CA certificate from "%s": no PEM blocks found or unparseable',
-                            $caCertPath
-                        )
-                    );
-                }
-                $options['cafile'] = $caCertPath;
+        if (!$this->transportOptions->verifySsl) {
+            $options['verify_peer'] = false;
+            $options['verify_host'] = false;
+        } elseif ($this->transportOptions->caCertPath !== null) {
+            /* Gap T4: fail fast on a user-supplied CA cert that cannot be
+             * read or parsed rather than silently falling back to the
+             * system trust store. If the caller explicitly asked for SSL
+             * pinning we must not pretend it succeeded -- validate the PEM
+             * eagerly at construction. */
+            $caCertPath = $this->transportOptions->caCertPath;
+            $pem = @file_get_contents($caCertPath);
+            if ($pem === false) {
+                throw new ApiException(
+                    sprintf('failed to read CA certificate from "%s"', $caCertPath)
+                );
             }
-
-            if ($this->transportOptions->proxy !== null) {
-                $options['proxy'] = $this->transportOptions->proxy;
+            if (openssl_x509_read($pem) === false) {
+                throw new ApiException(
+                    sprintf(
+                        'failed to parse CA certificate from "%s": no PEM blocks found or unparseable',
+                        $caCertPath
+                    )
+                );
             }
-
-            if ($this->transportOptions->timeout !== null) {
-                $timeoutSeconds = $this->transportOptions->timeout / 1000.0;
-                $options['timeout'] = $timeoutSeconds;
-                /* Also bound the TCP connect phase. Symfony HttpClient's
-                 * `timeout` is an inactivity timer once the socket is
-                 * connected, so without `max_duration` a hung DNS lookup
-                 * or TCP SYN with no response can stall indefinitely. We
-                 * set `max_duration` to bound the total request lifetime.
-                 * (`connect_timeout` is a Guzzle-only option; Symfony
-                 * HttpClient rejects it with an InvalidArgumentException
-                 * and exposes no per-phase connect timeout — bounding the
-                 * total duration is the closest portable equivalent.) */
-                $options['max_duration'] = $timeoutSeconds;
-            }
-
-            /* Gap BH: Symfony HttpClient re-sends Authorization / Cookie /
-             * Proxy-Authorization across cross-origin 3xx redirects by
-             * default, which leaks bearer tokens to attacker-controlled
-             * hosts via malicious 302. We disable Symfony's built-in
-             * redirect following entirely (max_redirects = 0) and implement
-             * a manual loop in sendRequest() that strips sensitive headers
-             * when the redirect target's origin (scheme + host + port)
-             * differs from the original request's origin. */
-            $options['max_redirects'] = 0;
-
-            $this->client = HttpClient::create($options);
+            $options['cafile'] = $caCertPath;
         }
+
+        if ($this->transportOptions->proxy !== null) {
+            $options['proxy'] = $this->transportOptions->proxy;
+        }
+
+        if ($this->transportOptions->timeout !== null) {
+            $timeoutSeconds = $this->transportOptions->timeout / 1000.0;
+            $options['timeout'] = $timeoutSeconds;
+            /* Also bound the TCP connect phase. Symfony HttpClient's
+             * `timeout` is an inactivity timer once the socket is
+             * connected, so without `max_duration` a hung DNS lookup
+             * or TCP SYN with no response can stall indefinitely. We
+             * set `max_duration` to bound the total request lifetime.
+             * (`connect_timeout` is a Guzzle-only option; Symfony
+             * HttpClient rejects it with an InvalidArgumentException
+             * and exposes no per-phase connect timeout — bounding the
+             * total duration is the closest portable equivalent.) */
+            $options['max_duration'] = $timeoutSeconds;
+        }
+
+        /* Gap BH: Symfony HttpClient re-sends Authorization / Cookie /
+         * Proxy-Authorization across cross-origin 3xx redirects by
+         * default, which leaks bearer tokens to attacker-controlled
+         * hosts via malicious 302. We disable Symfony's built-in
+         * redirect following entirely (max_redirects = 0) and implement
+         * a manual loop in sendRequest() that strips sensitive headers
+         * when the redirect target's origin (scheme + host + port)
+         * differs from the original request's origin. */
+        $options['max_redirects'] = 0;
+
+        return HttpClient::create($options);
     }
 
     /**
@@ -780,6 +789,10 @@ class DefaultApiClient implements ApiClient
      * injection or smuggling. Throws InvalidArgumentException when the
      * filename contains CR, LF, or NUL characters.
      *
+     * @internal Not part of the public API; exposed only for SDK-internal use
+     *           and direct unit testing. May change or be removed in any
+     *           release without notice.
+     *
      * @param string|null $filename the filename to validate
      * @throws \InvalidArgumentException when the filename contains CR/LF/NUL
      */
@@ -804,7 +817,7 @@ class DefaultApiClient implements ApiClient
      * @param string $name the field name to validate
      * @throws \InvalidArgumentException when the name contains CR/LF/NUL
      */
-    public static function validateMultipartFieldName(string $name): void
+    private static function validateMultipartFieldName(string $name): void
     {
         if (preg_match("/[\r\n\0]/", $name) === 1) {
             throw new \InvalidArgumentException(
@@ -819,6 +832,10 @@ class DefaultApiClient implements ApiClient
      * `filename="..."`. For non-ASCII filenames additionally emits an RFC 5987
      * `filename*=UTF-8''<percent-encoded>` parameter alongside an ASCII
      * fallback (non-ASCII bytes replaced with `_`).
+     *
+     * @internal Not part of the public API; exposed only for SDK-internal use
+     *           and direct unit testing. May change or be removed in any
+     *           release without notice.
      *
      * @param string $filename the (validated) filename
      * @return string the directive string
@@ -844,7 +861,7 @@ class DefaultApiClient implements ApiClient
      * @param string $s the value to encode
      * @return string the percent-encoded value
      */
-    public static function rfc5987EncodeValue(string $s): string
+    private static function rfc5987EncodeValue(string $s): string
     {
         $hex = '0123456789ABCDEF';
         $bytes = unpack('C*', $s);

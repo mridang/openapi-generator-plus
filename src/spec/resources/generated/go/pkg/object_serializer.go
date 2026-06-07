@@ -19,12 +19,12 @@ import (
 const defaultDateTimeFormat = "2006-01-02T15:04:05-07:00"
 const dateOnlyFormat = "2006-01-02"
 
-// StringifyDate formats a value as a date-only string (YYYY-MM-DD).
+// stringifyDate formats a value as a date-only string (YYYY-MM-DD).
 //
 // Used for `format: date` path/query/header/cookie parameters so the wire value
 // matches what the spec asks for (date-only) rather than a full RFC 3339
 // datetime with offset.
-func StringifyDate(value any) string {
+func stringifyDate(value any) string {
 	if value == nil {
 		return ""
 	}
@@ -48,20 +48,20 @@ func StringifyDate(value any) string {
 	}
 }
 
-// SerializationError is returned when serialization or deserialization fails.
-type SerializationError struct {
+// serializationError is returned when serialization or deserialization fails.
+type serializationError struct {
 	Message string
 	Cause   error
 }
 
-func (e *SerializationError) Error() string {
+func (e *serializationError) Error() string {
 	if e.Cause != nil {
 		return fmt.Sprintf("%s: %v", e.Message, e.Cause)
 	}
 	return e.Message
 }
 
-func (e *SerializationError) Unwrap() error {
+func (e *serializationError) Unwrap() error {
 	return e.Cause
 }
 
@@ -70,15 +70,15 @@ type oneOfUnwrapper interface {
 	GetActualInstance() any
 }
 
-// Serialize converts an object to a JSON byte slice.
+// serialize converts an object to a JSON byte slice.
 // Unwraps oneOf/anyOf wrapper types before serialization.
-func Serialize(object any) ([]byte, error) {
+func serialize(object any) ([]byte, error) {
 	if wrapper, ok := object.(oneOfUnwrapper); ok {
 		object = wrapper.GetActualInstance()
 	}
 	data, err := json.Marshal(object)
 	if err != nil {
-		return nil, &SerializationError{
+		return nil, &serializationError{
 			Message: fmt.Sprintf("failed to serialize object to JSON: %v", err),
 			Cause:   err,
 		}
@@ -86,15 +86,15 @@ func Serialize(object any) ([]byte, error) {
 	return data, nil
 }
 
-// MaxJSONDepth caps how deeply a response JSON document can be nested.
+// maxJSONDepth caps how deeply a response JSON document can be nested.
 // Go's encoding/json has no built-in depth limit and recurses through the
 // host call stack, so a malicious server can crash the process with a
 // 100k-deep `{"a":{"a":...}}` payload (stack overflow → DoS). Matches
 // Java/Kotlin Jackson (~1000), Python json (1000). C# is stricter (64).
-const MaxJSONDepth = 1000
+const maxJSONDepth = 1000
 
-// Deserialize parses a JSON byte slice into the target value.
-func Deserialize(data []byte, target any) error {
+// deserialize parses a JSON byte slice into the target value.
+func deserialize(data []byte, target any) error {
 	if len(data) == 0 {
 		return nil
 	}
@@ -107,15 +107,15 @@ func Deserialize(data []byte, target any) error {
 		data = data[3:]
 	}
 
-	if depth := jsonMaxDepth(data); depth > MaxJSONDepth {
-		return &SerializationError{
-			Message: fmt.Sprintf("JSON nesting depth %d exceeds limit %d", depth, MaxJSONDepth),
+	if depth := jsonMaxDepth(data); depth > maxJSONDepth {
+		return &serializationError{
+			Message: fmt.Sprintf("JSON nesting depth %d exceeds limit %d", depth, maxJSONDepth),
 			Cause:   nil,
 		}
 	}
 
 	if err := json.Unmarshal(data, target); err != nil {
-		return &SerializationError{
+		return &serializationError{
 			Message: fmt.Sprintf("failed to deserialize JSON: %v", err),
 			Cause:   err,
 		}
@@ -175,12 +175,12 @@ func formatFloat(v float64) string {
 	return s
 }
 
-// Stringify converts a single scalar value to its string representation.
+// stringify converts a single scalar value to its string representation.
 //
 // This is the canonical type-conversion method used by all parameter
-// encoding helpers (ToPathValue, ToQueryValue, etc.) and by
-// ValueSerializer for transport formatting.
-func Stringify(value any) string {
+// encoding helpers (toPathValue, toQueryValue, etc.) and by
+// the value serializer for transport formatting.
+func stringify(value any) string {
 	if value == nil {
 		return ""
 	}
@@ -222,14 +222,14 @@ func Stringify(value any) string {
 	}
 }
 
-// ToPathValue converts a value to a string suitable for use as a URL path parameter.
-func ToPathValue(value any) string {
-	return Stringify(value)
+// toPathValue converts a value to a string suitable for use as a URL path parameter.
+func toPathValue(value any) string {
+	return stringify(value)
 }
 
-// ToQueryValue converts a value to a representation suitable for use as a query parameter.
+// toQueryValue converts a value to a representation suitable for use as a query parameter.
 // For collections, joins using the specified collection format delimiter.
-func ToQueryValue(value any, collectionFormat string) any {
+func toQueryValue(value any, collectionFormat string) any {
 	if value == nil {
 		return nil
 	}
@@ -240,16 +240,16 @@ func ToQueryValue(value any, collectionFormat string) any {
 	case []any:
 		items := make([]string, len(v))
 		for i, item := range v {
-			items[i] = Stringify(item)
+			items[i] = stringify(item)
 		}
 		return joinCollection(items, collectionFormat)
 	default:
-		return Stringify(value)
+		return stringify(value)
 	}
 }
 
-// ToHeaderValue converts a value to a string suitable for use as an HTTP header value.
-func ToHeaderValue(value any) string {
+// toHeaderValue converts a value to a string suitable for use as an HTTP header value.
+func toHeaderValue(value any) string {
 	if value == nil {
 		return ""
 	}
@@ -260,44 +260,44 @@ func ToHeaderValue(value any) string {
 	case []any:
 		items := make([]string, len(v))
 		for i, item := range v {
-			items[i] = Stringify(item)
+			items[i] = stringify(item)
 		}
 		return strings.Join(items, ",")
 	default:
-		return Stringify(value)
+		return stringify(value)
 	}
 }
 
-// ToCookieValue converts a value to a string suitable for use as an HTTP cookie value.
+// toCookieValue converts a value to a string suitable for use as an HTTP cookie value.
 // Cookie values follow the same encoding rules as header values.
-func ToCookieValue(value any) string {
-	return ToHeaderValue(value)
+func toCookieValue(value any) string {
+	return toHeaderValue(value)
 }
 
-// ToFormValue converts a value to a representation suitable for use as a form parameter.
-func ToFormValue(value any) string {
-	return Stringify(value)
+// toFormValue converts a value to a representation suitable for use as a form parameter.
+func toFormValue(value any) string {
+	return stringify(value)
 }
 
-// ResolveOneOf attempts deserialization against each candidate factory function.
+// resolveOneOf attempts deserialization against each candidate factory function.
 // Each factory receives parsed JSON (map/slice/primitive) and returns a deserialized
 // value or an error. Returns the first successful result, or a non-nil error when no
 // candidate matches — a payload satisfying none of the declared variants is a
 // contract violation and must fail loudly rather than be silently dropped to nil.
-func ResolveOneOf(data any, candidates []func(any) (any, error)) (any, error) {
+func resolveOneOf(data any, candidates []func(any) (any, error)) (any, error) {
 	for _, candidate := range candidates {
 		result, err := candidate(data)
 		if err == nil {
 			return result, nil
 		}
 	}
-	return nil, &SerializationError{Message: "No oneOf/anyOf variant matched the JSON"}
+	return nil, &serializationError{Message: "No oneOf/anyOf variant matched the JSON"}
 }
 
-// ResolveAnyOf attempts deserialization against each candidate factory function.
+// resolveAnyOf attempts deserialization against each candidate factory function.
 // Returns the first successful result, or a non-nil error when no candidate matches.
-func ResolveAnyOf(data any, candidates []func(any) (any, error)) (any, error) {
-	return ResolveOneOf(data, candidates)
+func resolveAnyOf(data any, candidates []func(any) (any, error)) (any, error) {
+	return resolveOneOf(data, candidates)
 }
 
 func joinCollection(items []string, collectionFormat string) any {

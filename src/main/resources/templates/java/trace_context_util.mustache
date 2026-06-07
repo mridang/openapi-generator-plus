@@ -1,6 +1,6 @@
 {{>api_info}}
 
-package {{invokerPackage}};
+package {{invokerPackage}}.api;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Map;
@@ -11,7 +11,7 @@ import java.util.Map;
  *
  * <p>If the OpenTelemetry API is not present, this class silently no-ops with zero overhead.
  */
-public final class TraceContextUtil {
+final class TraceContextUtil {
 
     private TraceContextUtil() {}
 

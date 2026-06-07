@@ -60,23 +60,16 @@ class DefaultApiClient implements ApiClient {
   /// Creates a client with the given transport settings.
   ///
   /// If [transportOptions] is null, default transport settings are used.
-  /// If [httpClient] is null, an [IOClient] is created and configured
-  /// from [TransportOptions] settings (TLS verification, CA certificates,
-  /// proxy routing). Pass a custom [http.Client] to override this
-  /// automatic configuration.
-  DefaultApiClient({
-    TransportOptions? transportOptions,
-    http.Client? httpClient,
-  }) : _transportOptions =
-           transportOptions ?? TransportOptionsBuilder().build(),
-       _httpClient =
-           httpClient ??
-           _createHttpClient(
-             transportOptions ?? TransportOptionsBuilder().build(),
-           ),
-       _proxyAuthHeader = _buildProxyAuthHeader(
-         (transportOptions ?? TransportOptionsBuilder().build()).proxy,
-       );
+  /// An [IOClient] is created and configured from [TransportOptions]
+  /// settings (TLS verification, CA certificates, proxy routing).
+  DefaultApiClient({TransportOptions? transportOptions})
+    : _transportOptions = transportOptions ?? TransportOptionsBuilder().build(),
+      _httpClient = _createHttpClient(
+        transportOptions ?? TransportOptionsBuilder().build(),
+      ),
+      _proxyAuthHeader = _buildProxyAuthHeader(
+        (transportOptions ?? TransportOptionsBuilder().build()).proxy,
+      );
 
   /// Builds a `Basic <base64>` Proxy-Authorization value from the userinfo
   /// embedded in the proxy URL, or returns null when no credentials are
@@ -144,9 +137,6 @@ class DefaultApiClient implements ApiClient {
 
     return IOClient(ioClient);
   }
-
-  /// Returns the underlying HTTP client for use by HTTP-aware authenticators.
-  http.Client get httpClient => _httpClient;
 
   @override
   Future<HttpApiResponse> sendRequest(

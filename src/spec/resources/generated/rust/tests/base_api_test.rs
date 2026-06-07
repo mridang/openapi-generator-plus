@@ -147,9 +147,17 @@ async fn test_base_api_parses_json_error_body() {
     let bad_request = err
         .downcast_ref::<BadRequestError>()
         .expect("expected BadRequestError");
+    // The parsed-JSON view of the body is a crate-internal detail; assert the
+    // public surface instead — the raw body is present and is valid JSON, so
+    // `typed_body` deserializes it without error.
+    let parsed: Option<serde_json::Value> = bad_request
+        .client_error
+        .api_error
+        .typed_body()
+        .expect("error body should be valid JSON");
     assert!(
-        bad_request.client_error.api_error.error_body.is_some(),
-        "error_body should be Some for JSON responses"
+        parsed.is_some(),
+        "typed_body should yield a parsed JSON value for JSON responses"
     );
 }
 
@@ -621,76 +629,9 @@ async fn test_base_api_serializes_json_body() {
     );
 }
 
-// -- serialize_body unit tests --
-
-#[test]
-fn test_serialize_body_form_urlencoded() {
-    let mut params = HashMap::new();
-    params.insert("name".to_string(), "alice".to_string());
-    let json_bytes = serde_json::to_vec(&params).unwrap();
-    let result =
-        petstore::api::serialize_body(Some(json_bytes), "application/x-www-form-urlencoded")
-            .unwrap();
-    assert!(result.is_some());
-    let body_str = String::from_utf8(result.unwrap()).unwrap();
-    assert!(
-        body_str.contains("name=alice"),
-        "expected URL-encoded form data, got: {}",
-        body_str
-    );
-}
-
-#[test]
-fn test_serialize_body_form_urlencoded_space_as_plus() {
-    /* form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
-     * mandates '+' for a space (WHATWG/HTML form-encoding), not '%20'.
-     * The shared form_url_encode helper emits '+', matching the other SDKs. */
-    let mut params = HashMap::new();
-    params.insert("full name".to_string(), "Ada Lovelace".to_string());
-    let json_bytes = serde_json::to_vec(&params).unwrap();
-    let result =
-        petstore::api::serialize_body(Some(json_bytes), "application/x-www-form-urlencoded")
-            .unwrap();
-    let body_str = String::from_utf8(result.unwrap()).unwrap();
-    assert_eq!(body_str, "full+name=Ada+Lovelace");
-    assert!(
-        !body_str.contains("%20"),
-        "space must encode as +, not %20: {}",
-        body_str
-    );
-}
-
-#[test]
-fn test_serialize_body_text_plain() {
-    let body = b"hello world".to_vec();
-    let result = petstore::api::serialize_body(Some(body), "text/plain").unwrap();
-    assert!(result.is_some());
-    let body_str = String::from_utf8(result.unwrap()).unwrap();
-    assert_eq!(body_str, "hello world");
-}
-
-#[test]
-fn test_serialize_body_binary() {
-    let body = vec![0x01, 0x02, 0x03];
-    let result =
-        petstore::api::serialize_body(Some(body.clone()), "application/octet-stream").unwrap();
-    assert!(result.is_some());
-    assert_eq!(result.unwrap(), body);
-}
-
-#[test]
-fn test_serialize_body_json_passthrough() {
-    let body = b"{\"key\":\"value\"}".to_vec();
-    let result = petstore::api::serialize_body(Some(body.clone()), "application/json").unwrap();
-    assert!(result.is_some());
-    assert_eq!(result.unwrap(), body);
-}
-
-#[test]
-fn test_serialize_body_none() {
-    let result = petstore::api::serialize_body(None, "application/json").unwrap();
-    assert!(result.is_none());
-}
+// The `serialize_body` unit tests were moved in-crate (see
+// `src/api/base_api.rs`'s `#[cfg(test)] mod tests`) because `serialize_body` is
+// crate-private.
 
 // -- 418 Teapot (unrecognized status) --
 
@@ -1419,7 +1360,6 @@ fn make_api_error(code: u16) -> petstore::api_error::ApiError {
         format!("status {}", code),
         Some(format!("{{\"code\":{}}}", code)),
         Some(HashMap::new()),
-        None,
     )
 }
 
@@ -1542,7 +1482,6 @@ fn test_api_error_typed_body_parses_into_target_type() {
         "bad request".to_string(),
         Some(r#"{"title":"Bad Input","status":400}"#.to_string()),
         Some(headers),
-        None,
     );
     let parsed: Option<Problem> = err.typed_body().expect("should deserialize");
     assert_eq!(
@@ -1556,7 +1495,7 @@ fn test_api_error_typed_body_parses_into_target_type() {
 
 #[test]
 fn test_api_error_typed_body_returns_none_when_no_body() {
-    let err = petstore::api_error::ApiError::new(500, "boom".to_string(), None, None, None);
+    let err = petstore::api_error::ApiError::new(500, "boom".to_string(), None, None);
     let parsed: Result<Option<serde_json::Value>, _> = err.typed_body();
     assert!(
         matches!(parsed, Ok(None)),
@@ -1579,7 +1518,6 @@ fn test_api_error_typed_body_returns_err_when_body_invalid() {
         "bad".to_string(),
         Some("not json at all".to_string()),
         None,
-        None,
     );
     let parsed: Result<Option<Strict>, _> = err.typed_body();
     assert!(
@@ -1588,91 +1526,7 @@ fn test_api_error_typed_body_returns_err_when_body_invalid() {
     );
 }
 
-// -- Charset decoding (Gap H) --
-
-#[test]
-fn test_decode_text_body_honours_iso_8859_1_charset() {
-    /* 0xE9 in ISO-8859-1 is "é"; UTF-8 lossy would yield U+FFFD. */
-    let decoded =
-        petstore::default_api_client::decode_text_body(&[0xE9], "text/plain; charset=ISO-8859-1");
-    assert_eq!(decoded, "é");
-}
-
-#[test]
-fn test_decode_text_body_defaults_to_utf8_when_charset_absent() {
-    let decoded =
-        petstore::default_api_client::decode_text_body("hello world".as_bytes(), "text/plain");
-    assert_eq!(decoded, "hello world");
-}
-
-#[test]
-fn test_decode_text_body_falls_back_to_utf8_for_unknown_charset() {
-    /* Unknown charset must not panic; the helper falls back to UTF-8. */
-    let decoded = petstore::default_api_client::decode_text_body(
-        "abc".as_bytes(),
-        "text/plain; charset=windows-9999",
-    );
-    assert_eq!(decoded, "abc");
-}
-
-#[test]
-fn test_parse_charset_extracts_quoted_value() {
-    assert_eq!(
-        petstore::default_api_client::parse_charset("text/plain; charset=\"UTF-8\""),
-        Some("UTF-8".to_string())
-    );
-}
-
-// -- Per-part MIME sniffing (Gap J) --
-
-#[test]
-fn test_mime_for_filename_image_extensions() {
-    assert_eq!(
-        petstore::default_api_client::mime_for_filename("photo.png"),
-        "image/png"
-    );
-    assert_eq!(
-        petstore::default_api_client::mime_for_filename("photo.JPG"),
-        "image/jpeg"
-    );
-    assert_eq!(
-        petstore::default_api_client::mime_for_filename("photo.jpeg"),
-        "image/jpeg"
-    );
-    assert_eq!(
-        petstore::default_api_client::mime_for_filename("anim.gif"),
-        "image/gif"
-    );
-}
-
-#[test]
-fn test_mime_for_filename_document_extensions() {
-    assert_eq!(
-        petstore::default_api_client::mime_for_filename("doc.pdf"),
-        "application/pdf"
-    );
-    assert_eq!(
-        petstore::default_api_client::mime_for_filename("payload.json"),
-        "application/json"
-    );
-    assert_eq!(
-        petstore::default_api_client::mime_for_filename("notes.txt"),
-        "text/plain"
-    );
-    assert_eq!(
-        petstore::default_api_client::mime_for_filename("index.html"),
-        "text/html"
-    );
-}
-
-#[test]
-fn test_mime_for_filename_unknown_extension_falls_back() {
-    assert_eq!(
-        petstore::default_api_client::mime_for_filename("blob.xyz"),
-        "application/octet-stream"
-    );
-    assert_eq!(
-        petstore::default_api_client::mime_for_filename("noextension"),
-        "application/octet-stream"
-    );
-}
+// The charset-decoding (Gap H) and per-part MIME-sniffing (Gap J) unit tests
+// were moved in-crate (see `src/default_api_client.rs`'s `#[cfg(test)] mod
+// tests`) because `decode_text_body`, `parse_charset`, and `mime_for_filename`
+// live in the crate-private `default_api_client` module.

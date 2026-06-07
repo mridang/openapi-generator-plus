@@ -27,11 +27,6 @@ import '../errors/internal_server_error.dart';
 
 /// BaseApi provides common functionality for all API classes.
 class BaseApi {
-  final Configuration config;
-  final ApiClient apiClient;
-  final HeaderSelector _headerSelector;
-  final Authenticator? _authenticator;
-
   BaseApi({
     ApiClient? apiClient,
     Configuration? config,
@@ -40,6 +35,11 @@ class BaseApi {
         config = config ?? Configuration.defaultConfiguration(),
         _headerSelector = HeaderSelector(),
         _authenticator = authenticator;
+
+  final Configuration config;
+  final ApiClient apiClient;
+  final HeaderSelector _headerSelector;
+  final Authenticator? _authenticator;
 
   /// Dispatches an API request and returns the full result.
   Future<HttpApiResponse> invokeApi({

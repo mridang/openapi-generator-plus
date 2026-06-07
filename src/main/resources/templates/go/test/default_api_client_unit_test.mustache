@@ -1,5 +1,5 @@
 {{>api_info}}
-package {{packageName}}_test
+package {{packageName}}
 
 import (
 	"errors"
@@ -9,8 +9,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"{{packageName}}/pkg"
 	pkgerrors "{{packageName}}/pkg/errors"
 )
 
@@ -23,10 +21,10 @@ func TestDefaultApiClient_InjectsCustomUserAgent(t *testing.T) {
 	}))
 	defer server.Close()
 
-	transport := {{packageName}}.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		UserAgent("TestAgent/1.0").
 		Build()
-	client := {{packageName}}.NewDefaultApiClient(transport)
+	client := NewDefaultApiClient(transport)
 
 	_, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
 	if err != nil {
@@ -46,7 +44,7 @@ func TestDefaultApiClient_InjectsDefaultUserAgentWhenNotExplicitlySet(t *testing
 	}))
 	defer server.Close()
 
-	client := {{packageName}}.NewDefaultApiClient(nil)
+	client := NewDefaultApiClient(nil)
 	_, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -65,10 +63,10 @@ func TestDefaultApiClient_InjectsRequestId(t *testing.T) {
 	}))
 	defer server.Close()
 
-	transport := {{packageName}}.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		InjectRequestID(true).
 		Build()
-	client := {{packageName}}.NewDefaultApiClient(transport)
+	client := NewDefaultApiClient(transport)
 
 	_, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
 	if err != nil {
@@ -88,10 +86,10 @@ func TestDefaultApiClient_DoesNotInjectRequestIdWhenDisabled(t *testing.T) {
 	}))
 	defer server.Close()
 
-	transport := {{packageName}}.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		InjectRequestID(false).
 		Build()
-	client := {{packageName}}.NewDefaultApiClient(transport)
+	client := NewDefaultApiClient(transport)
 
 	_, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
 	if err != nil {
@@ -111,10 +109,10 @@ func TestDefaultApiClient_DoesNotOverrideCallerRequestId(t *testing.T) {
 	}))
 	defer server.Close()
 
-	transport := {{packageName}}.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		InjectRequestID(true).
 		Build()
-	client := {{packageName}}.NewDefaultApiClient(transport)
+	client := NewDefaultApiClient(transport)
 
 	headers := map[string]string{"X-Request-ID": "my-custom-id"}
 	_, err := client.SendRequest("GET", server.URL+"/test", headers, nil)
@@ -135,10 +133,10 @@ func TestDefaultApiClient_TransportDefaultHeadersAreForwarded(t *testing.T) {
 	}))
 	defer server.Close()
 
-	transport := {{packageName}}.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		DefaultHeader("X-Default", "default-value").
 		Build()
-	client := {{packageName}}.NewDefaultApiClient(transport)
+	client := NewDefaultApiClient(transport)
 
 	_, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
 	if err != nil {
@@ -158,10 +156,10 @@ func TestDefaultApiClient_CallerHeadersOverrideDefaults(t *testing.T) {
 	}))
 	defer server.Close()
 
-	transport := {{packageName}}.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		DefaultHeader("X-Default", "transport-value").
 		Build()
-	client := {{packageName}}.NewDefaultApiClient(transport)
+	client := NewDefaultApiClient(transport)
 
 	headers := map[string]string{"X-Default": "caller-value"}
 	_, err := client.SendRequest("GET", server.URL+"/test", headers, nil)
@@ -182,10 +180,10 @@ func TestDefaultApiClient_RequestIdsAreUnique(t *testing.T) {
 	}))
 	defer server.Close()
 
-	transport := {{packageName}}.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		InjectRequestID(true).
 		Build()
-	client := {{packageName}}.NewDefaultApiClient(transport)
+	client := NewDefaultApiClient(transport)
 
 	for i := 0; i < 2; i++ {
 		_, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
@@ -210,7 +208,7 @@ func TestDefaultApiClient_SendsGetRequestAndReturnsResponse(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := {{packageName}}.NewDefaultApiClient(nil)
+	client := NewDefaultApiClient(nil)
 	resp, err := client.SendRequest("GET", server.URL+"/echo", map[string]string{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -233,7 +231,7 @@ func TestDefaultApiClient_SendsPostWithJsonBody(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := {{packageName}}.NewDefaultApiClient(nil)
+	client := NewDefaultApiClient(nil)
 	resp, err := client.SendRequest("POST", server.URL+"/echo",
 		map[string]string{"Content-Type": "application/json"},
 		[]byte(`{"key":"value"}`))
@@ -260,7 +258,7 @@ func TestDefaultApiClient_ReturnsResponseHeaders(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := {{packageName}}.NewDefaultApiClient(nil)
+	client := NewDefaultApiClient(nil)
 	resp, err := client.SendRequest("GET", server.URL+"/echo", map[string]string{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -288,7 +286,7 @@ func TestDefaultApiClient_ReturnsNon2xxStatusCode(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := {{packageName}}.NewDefaultApiClient(nil)
+	client := NewDefaultApiClient(nil)
 	resp, err := client.SendRequest("GET", server.URL+"/not-found", map[string]string{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -310,7 +308,7 @@ func TestDefaultApiClient_SendsPutRequest(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := {{packageName}}.NewDefaultApiClient(nil)
+	client := NewDefaultApiClient(nil)
 	resp, err := client.SendRequest("PUT", server.URL+"/echo", map[string]string{}, []byte("update"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -332,7 +330,7 @@ func TestDefaultApiClient_SendsDeleteRequest(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := {{packageName}}.NewDefaultApiClient(nil)
+	client := NewDefaultApiClient(nil)
 	resp, err := client.SendRequest("DELETE", server.URL+"/echo", map[string]string{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -354,7 +352,7 @@ func TestDefaultApiClient_ReturnsJsonBodyForVendorJsonContentType(t *testing.T) 
 	}))
 	defer server.Close()
 
-	client := {{packageName}}.NewDefaultApiClient(nil)
+	client := NewDefaultApiClient(nil)
 	resp, err := client.SendRequest("GET", server.URL+"/vendor-json", map[string]string{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -377,7 +375,7 @@ func TestDefaultApiClient_JoinsMultiValueResponseHeaders(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := {{packageName}}.NewDefaultApiClient(nil)
+	client := NewDefaultApiClient(nil)
 	resp, err := client.SendRequest("GET", server.URL+"/multi-header", map[string]string{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -414,7 +412,7 @@ func TestDefaultApiClient_DecodesIso88591ResponseBody(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := {{packageName}}.NewDefaultApiClient(nil)
+	client := NewDefaultApiClient(nil)
 	resp, err := client.SendRequest("GET", server.URL+"/latin1", map[string]string{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -433,7 +431,7 @@ func TestDefaultApiClient_DefaultsToUtf8WhenCharsetMissing(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := {{packageName}}.NewDefaultApiClient(nil)
+	client := NewDefaultApiClient(nil)
 	resp, err := client.SendRequest("GET", server.URL+"/no-charset", map[string]string{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -453,7 +451,7 @@ func TestDefaultApiClient_FallsBackToUtf8ForUnknownCharset(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := {{packageName}}.NewDefaultApiClient(nil)
+	client := NewDefaultApiClient(nil)
 	resp, err := client.SendRequest("GET", server.URL+"/unknown", map[string]string{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -480,12 +478,12 @@ func TestDefaultApiClient_NoRedirectOptionShortCircuits307(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := {{packageName}}.NewDefaultApiClient(nil)
+	client := NewDefaultApiClient(nil)
 	resp, err := client.SendRequestWithOptions(
 		"POST", server.URL+"/redirect",
 		map[string]string{"Content-Type": "application/x-www-form-urlencoded"},
 		[]byte("client_secret=hunter2"),
-		&{{packageName}}.RequestOptions{NoRedirect: true},
+		&RequestOptions{NoRedirect: true},
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -514,12 +512,12 @@ func TestDefaultApiClient_NoRedirectOptionShortCircuits308(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := {{packageName}}.NewDefaultApiClient(nil)
+	client := NewDefaultApiClient(nil)
 	resp, err := client.SendRequestWithOptions(
 		"POST", server.URL+"/redirect",
 		map[string]string{"Content-Type": "application/x-www-form-urlencoded"},
 		[]byte("client_secret=hunter2"),
-		&{{packageName}}.RequestOptions{NoRedirect: true},
+		&RequestOptions{NoRedirect: true},
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -545,7 +543,7 @@ func TestDefaultApiClient_MultipartPngFieldSetsImagePng(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := {{packageName}}.NewDefaultApiClient(nil)
+	client := NewDefaultApiClient(nil)
 	_, err := client.SendRequest("POST", server.URL+"/upload",
 		map[string]string{}, map[string]any{"image.png": []byte{0x89, 0x50, 0x4E, 0x47}})
 	if err != nil {
@@ -566,7 +564,7 @@ func TestDefaultApiClient_MultipartPdfFieldSetsApplicationPdf(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := {{packageName}}.NewDefaultApiClient(nil)
+	client := NewDefaultApiClient(nil)
 	_, err := client.SendRequest("POST", server.URL+"/upload",
 		map[string]string{}, map[string]any{"doc.pdf": []byte{0x25, 0x50, 0x44, 0x46}})
 	if err != nil {
@@ -587,7 +585,7 @@ func TestDefaultApiClient_MultipartFieldWithoutExtensionDefaultsToOctetStream(t 
 	}))
 	defer server.Close()
 
-	client := {{packageName}}.NewDefaultApiClient(nil)
+	client := NewDefaultApiClient(nil)
 	_, err := client.SendRequest("POST", server.URL+"/upload",
 		map[string]string{}, map[string]any{"blob": []byte{0x00, 0x01, 0x02}})
 	if err != nil {
@@ -602,7 +600,7 @@ func TestDefaultApiClient_MultipartFieldWithoutExtensionDefaultsToOctetStream(t 
 
 func TestDefaultApiClient_BuildFilenameDirectiveNonAsciiEmitsRFC5987(t *testing.T) {
 	t.Parallel()
-	directive := {{packageName}}.BuildFilenameDirective("日本.pdf")
+	directive := buildFilenameDirective("日本.pdf")
 	if !strings.Contains(directive, "filename*=UTF-8''") {
 		t.Errorf("non-ASCII filename must emit RFC 5987 filename*=, got: %q", directive)
 	}
@@ -616,7 +614,7 @@ func TestDefaultApiClient_BuildFilenameDirectiveNonAsciiEmitsRFC5987(t *testing.
 
 func TestDefaultApiClient_BuildFilenameDirectiveAsciiOnlyOmitsFilenameStar(t *testing.T) {
 	t.Parallel()
-	directive := {{packageName}}.BuildFilenameDirective("pet.png")
+	directive := buildFilenameDirective("pet.png")
 	if directive != `filename="pet.png"` {
 		t.Errorf("expected filename=\"pet.png\", got: %q", directive)
 	}
@@ -627,7 +625,7 @@ func TestDefaultApiClient_BuildFilenameDirectiveAsciiOnlyOmitsFilenameStar(t *te
 
 func TestDefaultApiClient_BuildFilenameDirectiveBackslashEscapesQuotes(t *testing.T) {
 	t.Parallel()
-	directive := {{packageName}}.BuildFilenameDirective(`a"b.txt`)
+	directive := buildFilenameDirective(`a"b.txt`)
 	if !strings.Contains(directive, `a\"b.txt`) {
 		t.Errorf("embedded quote must be backslash-escaped, got: %q", directive)
 	}
@@ -636,19 +634,30 @@ func TestDefaultApiClient_BuildFilenameDirectiveBackslashEscapesQuotes(t *testin
 func TestDefaultApiClient_ValidateMultipartFilenameRejectsCRLF(t *testing.T) {
 	t.Parallel()
 	for _, bad := range []string{"a\rb.pdf", "a\nb.pdf", "a\r\nb.pdf"} {
-		if err := {{packageName}}.ValidateMultipartFilename(bad); err == nil {
+		if err := validateMultipartFilename(bad); err == nil {
 			t.Errorf("expected error for filename %q", bad)
 		}
 	}
-	if err := {{packageName}}.ValidateMultipartFilename("pet.png"); err != nil {
+	if err := validateMultipartFilename("pet.png"); err != nil {
 		t.Errorf("ASCII filename must be accepted, got: %v", err)
 	}
 }
 
 func TestDefaultApiClient_ValidateMultipartFilenameRejectsNUL(t *testing.T) {
 	t.Parallel()
-	if err := {{packageName}}.ValidateMultipartFilename("a\x00b.pdf"); err == nil {
+	if err := validateMultipartFilename("a\x00b.pdf"); err == nil {
 		t.Error("expected error for filename containing NUL")
+	}
+}
+
+// Gap W2: multipart field names containing CR/LF/NUL must be rejected to
+// prevent Content-Disposition header injection.
+func TestDefaultApiClient_ValidateMultipartFieldNameRejectsCRLF(t *testing.T) {
+	t.Parallel()
+	for _, bad := range []string{"a\rb", "a\nb", "a\r\nInjected: yes", "a\x00b"} {
+		if err := validateMultipartFieldName(bad); err == nil {
+			t.Errorf("expected error rejecting %q, got nil", bad)
+		}
 	}
 }
 
@@ -668,11 +677,11 @@ func TestDefaultApiClient_RefusesBodyReplayOnHttpsToHttpDowngrade(t *testing.T) 
 	}))
 	defer tlsServer.Close()
 
-	transport := {{packageName}}.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		VerifySSL(false).
 		FollowRedirects(true).
 		Build()
-	client := {{packageName}}.NewDefaultApiClient(transport)
+	client := NewDefaultApiClient(transport)
 	_, err := client.SendRequest(
 		"POST", tlsServer.URL+"/issue",
 		map[string]string{"Content-Type": "application/x-www-form-urlencoded"},
@@ -707,10 +716,10 @@ func TestDefaultApiClient_Drops303ContentLengthOnCoercedGet(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	transport := {{packageName}}.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		FollowRedirects(true).
 		Build()
-	client := {{packageName}}.NewDefaultApiClient(transport)
+	client := NewDefaultApiClient(transport)
 	_, err := client.SendRequest(
 		"POST", server.URL+"/post",
 		map[string]string{"Content-Type": "application/json"},
@@ -749,10 +758,10 @@ func TestDefaultApiClient_StripsAuthorizationAcrossCrossOriginRedirect(t *testin
 	}))
 	defer origin.Close()
 
-	transport := {{packageName}}.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		FollowRedirects(true).
 		Build()
-	client := {{packageName}}.NewDefaultApiClient(transport)
+	client := NewDefaultApiClient(transport)
 	_, err := client.SendRequest("GET", origin.URL+"/start",
 		map[string]string{"Authorization": "Bearer leaked-token"}, nil)
 	if err != nil {
@@ -773,7 +782,7 @@ func TestDefaultApiClient_UseAfterCloseReturnsApiError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := {{packageName}}.NewDefaultApiClient(nil)
+	client := NewDefaultApiClient(nil)
 	if err := client.Close(); err != nil {
 		t.Fatalf("Close returned error: %v", err)
 	}
@@ -806,7 +815,7 @@ func TestDefaultApiClient_BodyReadErrorWrappedInApiError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := {{packageName}}.NewDefaultApiClient(nil)
+	client := NewDefaultApiClient(nil)
 	_, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
 	if err == nil {
 		t.Fatal("expected an error when the response body cannot be decompressed")
@@ -835,8 +844,8 @@ func TestDefaultApiClient_NonexistentCaCertPathFailsFast(t *testing.T) {
 		}
 	}()
 
-	transport := {{packageName}}.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		CACertPath("/nonexistent/ca.pem").
 		Build()
-	_ = {{packageName}}.NewDefaultApiClient(transport)
+	_ = NewDefaultApiClient(transport)
 }

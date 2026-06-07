@@ -10,7 +10,9 @@
 module PetstoreClient
   # Selects Accept and Content-Type headers for API requests based on
   # the MIME types declared in the OpenAPI specification.
-  class HeaderSelector
+  #
+  # @api private
+  class HeaderSelector # :nodoc:
     JSON_MIME_PATTERN = %r{^application/(json|[\w!\#$&.+\-^_]+\+json)\s*(;|$)}i
     WEIGHT_PATTERN = /(.*)\s*;\s*q=(1(?:\.0+)?|0\.\d+)$/
 

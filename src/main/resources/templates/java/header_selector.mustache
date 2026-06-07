@@ -1,6 +1,6 @@
 {{>api_info}}
 
-package {{invokerPackage}};
+package {{invokerPackage}}.api;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -16,7 +16,7 @@ import javax.annotation.Nullable;
 /**
  * Selects {@code Accept} and {@code Content-Type} headers for API requests.
  */
-public final class HeaderSelector {
+final class HeaderSelector {
 
     /** Creates a new header selector. */
     public HeaderSelector() {}

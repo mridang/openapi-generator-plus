@@ -1,0 +1,96 @@
+{{>api_info}}
+
+/*
+ * Public API barrel. This is the package entry point referenced by the
+ * `exports`/`main`/`types` fields in package.json. Only the symbols
+ * re-exported here form the supported public surface; everything else under
+ * `src/` (ObjectSerializer, ValueSerializer, HeaderSelector, the trace-context
+ * helper, SENSITIVE_HEADER_NAMES, the oneOf/anyOf resolve helpers, …) is
+ * internal plumbing and must not be imported by consumers.
+ */
+
+/*
+ * Client entry point and per-group API classes (+ their Options, server, and
+ * inline-enum types, re-exported transitively through the api barrel).
+ */
+export { {{clientClassName}} } from './{{clientClassFile}}{{importFileExtension}}';
+export * from './api/index{{importFileExtension}}';
+
+/* Model types. */
+export * from './models/index{{importFileExtension}}';
+
+/*
+ * Transport-level DTOs and the pluggable HTTP client seam.
+ *
+ * The transport response shape carried by `ApiClient.sendRequest` lives in
+ * `./api-response` and is exposed structurally through the exported
+ * `ApiClient` interface; it is intentionally NOT re-exported by name here so
+ * it cannot collide with a spec model that happens to be named `ApiResponse`
+ * (the model wins via the `./models` star export).
+ */
+export type { ApiClient, SendRequestOptions } from './api-client{{importFileExtension}}';
+export type { ApiResult } from './api-result{{importFileExtension}}';
+export { DefaultApiClient } from './default-api-client{{importFileExtension}}';
+
+/* Configuration and transport tuning. */
+export { Configuration, ConfigurationBuilder } from './configuration{{importFileExtension}}';
+export { TransportOptions, TransportOptionsBuilder } from './transport-options{{importFileExtension}}';
+export { ServerConfiguration, ServerVariable } from './server-configuration{{importFileExtension}}';
+
+/* Branded scalar types and their constructors. */
+export { isUuid, uuid, URI, Email, Decimal } from './brand{{importFileExtension}}';
+export type { UUID } from './brand{{importFileExtension}}';
+
+/* Error hierarchy. */
+export { ApiError } from './api-error{{importFileExtension}}';
+export * from './errors/index{{importFileExtension}}';
+export { SerializationError, DeserializationError } from './object-serializer{{importFileExtension}}';
+
+/*
+ * Authentication: the interface, the HTTP-aware extension, and every
+ * concrete authenticator the spec's security schemes require.
+ */
+export type { Authenticator } from './auth/authenticator{{importFileExtension}}';
+export type { HttpAwareAuthenticator } from './auth/http-aware-authenticator{{importFileExtension}}';
+export { isHttpAwareAuthenticator } from './auth/http-aware-authenticator{{importFileExtension}}';
+{{#hasBasicAuth}}
+export { BasicAuthenticator } from './auth/basic-authenticator{{importFileExtension}}';
+{{/hasBasicAuth}}
+{{#hasBearerAuth}}
+export { BearerAuthenticator } from './auth/bearer-authenticator{{importFileExtension}}';
+{{/hasBearerAuth}}
+{{#hasApiKeyAuth}}
+export { ApiKeyAuthenticator } from './auth/api-key-authenticator{{importFileExtension}}';
+export { ApiKeyLocation } from './auth/api-key-location{{importFileExtension}}';
+{{/hasApiKeyAuth}}
+{{#hasOAuth2ClientCredentials}}
+export { OAuth2ClientCredentialsAuthenticator } from './auth/oauth/oauth2-client-credentials-authenticator{{importFileExtension}}';
+{{/hasOAuth2ClientCredentials}}
+{{#hasOAuth2Password}}
+export { OAuth2PasswordAuthenticator } from './auth/oauth/oauth2-password-authenticator{{importFileExtension}}';
+{{/hasOAuth2Password}}
+{{#hasOAuth2AuthorizationCode}}
+export { OAuth2AuthorizationCodeAuthenticator } from './auth/oauth/oauth2-auth-code-authenticator{{importFileExtension}}';
+{{/hasOAuth2AuthorizationCode}}
+{{#hasOAuth2Implicit}}
+export { OAuth2ImplicitAuthenticator } from './auth/oauth/oauth2-implicit-authenticator{{importFileExtension}}';
+{{/hasOAuth2Implicit}}
+{{#hasOpenIdConnect}}
+export { OpenIdConnectAuthenticator } from './auth/oauth/openid-connect-authenticator{{importFileExtension}}';
+{{/hasOpenIdConnect}}
+{{#hasOAuth2ClientCredentials}}
+export { ClientAuthMethod } from './auth/oauth/client-auth-method{{importFileExtension}}';
+{{/hasOAuth2ClientCredentials}}
+{{^hasOAuth2ClientCredentials}}
+{{#hasOAuth2Password}}
+export { ClientAuthMethod } from './auth/oauth/client-auth-method{{importFileExtension}}';
+{{/hasOAuth2Password}}
+{{/hasOAuth2ClientCredentials}}
+{{#hasAnyOAuth2}}
+export { OAuth2TokenError, OAuth2ServerError } from './auth/oauth/oauth2-token-manager{{importFileExtension}}';
+{{/hasAnyOAuth2}}
+{{^hasAnyOAuth2}}
+{{#hasOpenIdConnect}}
+export { OAuth2TokenError, OAuth2ServerError } from './auth/oauth/oauth2-token-manager{{importFileExtension}}';
+{{/hasOpenIdConnect}}
+{{/hasAnyOAuth2}}

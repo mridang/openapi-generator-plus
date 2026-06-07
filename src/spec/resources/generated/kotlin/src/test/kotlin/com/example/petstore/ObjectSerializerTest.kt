@@ -573,7 +573,7 @@ class ObjectSerializerTest {
                     { _ -> throw IllegalStateException("variant A does not match") },
                     { _ -> throw IllegalStateException("variant B does not match") },
                 )
-            assertThrows(ObjectSerializer.SerializationException::class.java) {
+            assertThrows(com.example.petstore.SerializationException::class.java) {
                 serializer.resolveOneOf("{\"unexpected\":true}", candidates)
             }
         }
@@ -597,7 +597,7 @@ class ObjectSerializerTest {
                 listOf(
                     { _ -> null },
                 )
-            assertThrows(ObjectSerializer.SerializationException::class.java) {
+            assertThrows(com.example.petstore.SerializationException::class.java) {
                 serializer.resolveAnyOf("{}", candidates)
             }
         }

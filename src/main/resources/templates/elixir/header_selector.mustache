@@ -1,10 +1,10 @@
 {{>api_info}}
 
 defmodule {{moduleName}}.HeaderSelector do
-  @moduledoc """
-  Selects Accept and Content-Type headers for API requests based on
-  the MIME types declared in the OpenAPI specification.
-  """
+  @moduledoc false
+  # Internal: selects Accept and Content-Type headers for API requests based on
+  # the MIME types declared in the OpenAPI specification. Not part of the
+  # public API.
 
   @json_mime_pattern ~r/^application\/(json|[\w!\#$&.+\-^_]+\+json)\s*(;|$)/i
   @weight_pattern ~r/(.*)\s*;\s*q=(1(?:\.0+)?|0\.\d+)$/

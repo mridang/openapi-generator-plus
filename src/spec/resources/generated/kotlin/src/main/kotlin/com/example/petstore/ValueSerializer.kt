@@ -12,8 +12,10 @@ import java.nio.charset.StandardCharsets
 
 /**
  * Serializes parameter values for HTTP requests based on their location and format.
+ *
+ * Internal transport machinery; not part of the public API.
  */
-object ValueSerializer {
+internal object ValueSerializer {
     private val serializer = ObjectSerializer()
 
     @JvmStatic

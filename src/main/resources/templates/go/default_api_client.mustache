@@ -44,7 +44,7 @@ type noRedirectContextKey struct{}
 //
 // Header merge order (lowest to highest priority):
 //  1. TransportOptions.DefaultHeaders -- transport-level defaults
-//  2. Caller-provided headers (from BaseApi -- includes config defaults, auth, operation headers)
+//  2. Caller-provided headers (from baseApi -- includes config defaults, auth, operation headers)
 //  3. TransportOptions.UserAgent -- injected if not already set
 //  4. TransportOptions.InjectRequestID -- injected if not already set
 type DefaultApiClient struct {
@@ -561,18 +561,18 @@ func buildTransportMultipartBody(formFields map[string]any) (*bytes.Buffer, stri
 		// fieldName into a quoted name="..." parameter, so the name
 		// must be validated for CR/LF/NUL and quote-escaped exactly
 		// like the filename has been since Gap BI.
-		if err := ValidateMultipartFieldName(fieldName); err != nil {
+		if err := validateMultipartFieldName(fieldName); err != nil {
 			return nil, "", err
 		}
 		escapedFieldName := escapeQuotes(fieldName)
 		switch v := value.(type) {
 		case []byte:
-			if err := ValidateMultipartFilename(fieldName); err != nil {
+			if err := validateMultipartFilename(fieldName); err != nil {
 				return nil, "", err
 			}
 			partHeader := make(textproto.MIMEHeader)
 			partHeader.Set("Content-Disposition",
-				fmt.Sprintf(`form-data; name="%s"; %s`, escapedFieldName, BuildFilenameDirective(fieldName)))
+				fmt.Sprintf(`form-data; name="%s"; %s`, escapedFieldName, buildFilenameDirective(fieldName)))
 			partHeader.Set("Content-Type", mimeTypeForFilename(fieldName))
 			part, err := writer.CreatePart(partHeader)
 			if err != nil {
@@ -596,12 +596,12 @@ func buildTransportMultipartBody(formFields map[string]any) (*bytes.Buffer, stri
 		case []any:
 			for _, item := range v {
 				if b, ok := item.([]byte); ok {
-					if err := ValidateMultipartFilename(fieldName); err != nil {
+					if err := validateMultipartFilename(fieldName); err != nil {
 						return nil, "", err
 					}
 					partHeader := make(textproto.MIMEHeader)
 					partHeader.Set("Content-Disposition",
-						fmt.Sprintf(`form-data; name="%s"; %s`, escapedFieldName, BuildFilenameDirective(fieldName)))
+						fmt.Sprintf(`form-data; name="%s"; %s`, escapedFieldName, buildFilenameDirective(fieldName)))
 					partHeader.Set("Content-Type", mimeTypeForFilename(fieldName))
 					part, err := writer.CreatePart(partHeader)
 					if err != nil {

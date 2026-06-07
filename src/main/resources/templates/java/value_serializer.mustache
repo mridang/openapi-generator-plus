@@ -1,7 +1,8 @@
 {{>api_info}}
 
-package {{invokerPackage}};
+package {{invokerPackage}}.api;
 
+import {{invokerPackage}}.ObjectSerializer;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -19,7 +20,7 @@ import javax.annotation.Nullable;
  * for inclusion in HTTP request paths, query strings, and headers. It handles null values,
  * collections with various collection formats, temporal types, and URL encoding.</p>
  */
-public final class ValueSerializer {
+final class ValueSerializer {
 
     private ValueSerializer() {}
 

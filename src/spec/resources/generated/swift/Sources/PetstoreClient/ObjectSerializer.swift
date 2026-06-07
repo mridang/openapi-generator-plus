@@ -8,16 +8,16 @@
 import Foundation
 
 /// SerializationError is thrown when serialization or deserialization fails.
-public struct SerializationError: Error, LocalizedError {
-    public let message: String
-    public let cause: Error?
+internal struct SerializationError: Error, LocalizedError {
+    let message: String
+    let cause: Error?
 
-    public init(message: String, cause: Error? = nil) {
+    init(message: String, cause: Error? = nil) {
         self.message = message
         self.cause = cause
     }
 
-    public var errorDescription: String? {
+    var errorDescription: String? {
         if let cause = cause {
             return "\(message): \(cause.localizedDescription)"
         }
@@ -27,7 +27,7 @@ public struct SerializationError: Error, LocalizedError {
 
 /// ObjectSerializer provides JSON serialization and deserialization using
 /// Foundation's JSONEncoder and JSONDecoder.
-public enum ObjectSerializer {
+internal enum ObjectSerializer {
     private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssxxx"
@@ -48,7 +48,7 @@ public enum ObjectSerializer {
     }()
 
     /// Serializes an Encodable object to a JSON string.
-    public static func serialize<T: Encodable>(_ object: T) throws -> String {
+    static func serialize<T: Encodable>(_ object: T) throws -> String {
         do {
             let data = try encoder.encode(object)
             guard let string = String(data: data, encoding: .utf8) else {
@@ -66,7 +66,7 @@ public enum ObjectSerializer {
     }
 
     /// Serializes any value to a JSON string using JSONSerialization.
-    public static func serialize(_ object: Any) throws -> String {
+    static func serialize(_ object: Any) throws -> String {
         if let encodable = object as? Encodable {
             return try serialize(encodable)
         }
@@ -92,13 +92,13 @@ public enum ObjectSerializer {
     /// stack-overflow. Matches the 1000-cap Java/Kotlin Jackson and
     /// Python json stdlib use; Go uses the same. C# is stricter (64).
     /// F5 follow-up.
-    public static let maxJsonDepth = 1000
+    static let maxJsonDepth = 1000
 
     /// Returns the maximum nesting depth of `{`/`[` containers in the
     /// JSON bytes, ignoring characters inside string literals. Cheap
     /// pre-flight scan used to refuse a deeply-nested payload before
     /// invoking JSONDecoder / JSONSerialization.
-    public static func jsonMaxDepth(_ data: Data) -> Int {
+    static func jsonMaxDepth(_ data: Data) -> Int {
         var depth = 0
         var max = 0
         var inString = false
@@ -131,7 +131,7 @@ public enum ObjectSerializer {
 
     /// Deserializes JSON data into a Decodable value.
     /// Returns nil if data is empty.
-    public static func deserialize<T: Decodable>(_ data: Data, as type: T.Type) throws -> T? {
+    static func deserialize<T: Decodable>(_ data: Data, as type: T.Type) throws -> T? {
         if data.isEmpty {
             return nil
         }
@@ -161,7 +161,7 @@ public enum ObjectSerializer {
 
     /// Deserializes a JSON string into a Decodable value.
     /// Returns nil if the string is empty.
-    public static func deserialize<T: Decodable>(_ string: String, as type: T.Type) throws -> T? {
+    static func deserialize<T: Decodable>(_ string: String, as type: T.Type) throws -> T? {
         if string.isEmpty {
             return nil
         }
@@ -175,7 +175,7 @@ public enum ObjectSerializer {
     ///
     /// This is the canonical type-conversion method used by all parameter
     /// encoding helpers and by ``ValueSerializer`` for transport formatting.
-    public static func stringify(_ value: Any?) -> String {
+    static func stringify(_ value: Any?) -> String {
         guard let value = value else { return "" }
 
         switch value {
@@ -203,7 +203,7 @@ public enum ObjectSerializer {
     }
 
     /// Converts a value to a string suitable for use as a URL path parameter.
-    public static func toPathValue(_ value: Any?) -> String {
+    static func toPathValue(_ value: Any?) -> String {
         return stringify(value)
     }
 
@@ -212,7 +212,7 @@ public enum ObjectSerializer {
     /// when a property's OpenAPI schema is ``format: duration`` — the
     /// underlying wire type is a String even though the Swift type is
     /// TimeInterval. See ``ISO8601Duration.swift`` for the parser.
-    public static func encodeDuration(_ interval: TimeInterval) -> String {
+    static func encodeDuration(_ interval: TimeInterval) -> String {
         return formatISO8601Duration(interval)
     }
 
@@ -220,7 +220,7 @@ public enum ObjectSerializer {
     /// Throws ``SerializationError`` (wrapping ``ISO8601DurationError``)
     /// when the literal is malformed, so the call site only needs to
     /// catch a single error type.
-    public static func decodeDuration(_ literal: String) throws -> TimeInterval {
+    static func decodeDuration(_ literal: String) throws -> TimeInterval {
         do {
             return try parseISO8601Duration(literal)
         } catch {
@@ -233,7 +233,7 @@ public enum ObjectSerializer {
 
     /// Converts a value to a representation suitable for use as a query parameter.
     /// For collections, joins using the specified collection format delimiter.
-    public static func toQueryValue(_ value: Any?, collectionFormat: String = "") -> Any? {
+    static func toQueryValue(_ value: Any?, collectionFormat: String = "") -> Any? {
         guard let value = value else { return nil }
 
         if let items = value as? [String] {
@@ -247,7 +247,7 @@ public enum ObjectSerializer {
     }
 
     /// Converts a value to a string suitable for use as an HTTP header value.
-    public static func toHeaderValue(_ value: Any?) -> String {
+    static func toHeaderValue(_ value: Any?) -> String {
         guard let value = value else { return "" }
 
         if let items = value as? [String] {
@@ -261,12 +261,12 @@ public enum ObjectSerializer {
 
     /// Converts a value to a string suitable for use as an HTTP cookie value.
     /// Cookie values follow the same encoding rules as header values.
-    public static func toCookieValue(_ value: Any?) -> String {
+    static func toCookieValue(_ value: Any?) -> String {
         return toHeaderValue(value)
     }
 
     /// Converts a value to a representation suitable for use as a form parameter.
-    public static func toFormValue(_ value: Any?) -> String {
+    static func toFormValue(_ value: Any?) -> String {
         return stringify(value)
     }
 
@@ -275,7 +275,7 @@ public enum ObjectSerializer {
     /// Returns the first successful result, or throws a ``SerializationError`` when no
     /// candidate matches — a payload satisfying none of the declared variants is a
     /// contract violation and must fail loudly rather than be silently dropped to nil.
-    public static func resolveOneOf<T>(_ json: Any, candidates: [(Any) throws -> T]) throws -> T {
+    static func resolveOneOf<T>(_ json: Any, candidates: [(Any) throws -> T]) throws -> T {
         for candidate in candidates {
             if let result = try? candidate(json) {
                 return result
@@ -287,7 +287,7 @@ public enum ObjectSerializer {
     /// Resolve an anyOf schema by attempting deserialization against each candidate.
     /// Returns the first successful result, or throws a ``SerializationError`` when no
     /// candidate matches.
-    public static func resolveAnyOf<T>(_ json: Any, candidates: [(Any) throws -> T]) throws -> T {
+    static func resolveAnyOf<T>(_ json: Any, candidates: [(Any) throws -> T]) throws -> T {
         return try resolveOneOf(json, candidates: candidates)
     }
 

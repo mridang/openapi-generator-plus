@@ -9,7 +9,7 @@ import Foundation
 
 /// ValueSerializer serializes parameter values for HTTP requests based on
 /// their location and style.
-public enum ValueSerializer {
+internal enum ValueSerializer {
 
     /// Serializes a parameter value for HTTP requests based on its location.
     ///
@@ -19,9 +19,7 @@ public enum ValueSerializer {
     ///   - schemaType: The schema type (e.g. "string", "array").
     ///   - collectionFormat: Legacy collection format (e.g. "csv", "ssv", "tsv", "pipes", "multi").
     /// - Returns: The serialized value.
-    public static func serializeValue(
-        _ value: Any?, location: String, schemaType: String, collectionFormat: String
-    ) -> Any? {
+    static func serializeValue(_ value: Any?, location: String, schemaType: String, collectionFormat: String) -> Any? {
         guard let value = value else {
             return serializeNil(location: location)
         }
@@ -40,7 +38,7 @@ public enum ValueSerializer {
     /// Serializes a deepObject-style query parameter.
     ///
     /// Produces a dictionary of flattened keys in the form paramName[key] to stringified values.
-    public static func serializeDeepObject(_ paramName: String, value: [String: Any]?) -> [String: String] {
+    static func serializeDeepObject(_ paramName: String, value: [String: Any]?) -> [String: String] {
         guard let value = value else { return [:] }
 
         var result: [String: String] = [:]
@@ -61,7 +59,7 @@ public enum ValueSerializer {
     ///   - style: OAS 3.0 style (e.g. "matrix", "label", "form", "simple", "spaceDelimited", "pipeDelimited").
     ///   - explode: Whether to explode array values.
     /// - Returns: The serialized value.
-    public static func serializeStyled(
+    static func serializeStyled(
         _ paramName: String,
         value: Any?,
         location: String,

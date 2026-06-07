@@ -11,6 +11,7 @@ import 'dart:typed_data';
 
 import 'package:test/test.dart';
 import 'package:petstore_client/petstore_client.dart';
+import 'package:petstore_client/src/api/base_api.dart';
 
 import 'testcontainers_helper.dart';
 

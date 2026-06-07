@@ -16,13 +16,13 @@ import (
 // StoreApi provides methods for the Store API group.
 // Access to Petstore orders
 type StoreApi struct {
-	*BaseApi
+	*baseApi
 }
 
 // NewStoreApi creates a new StoreApi instance.
 func NewStoreApi(apiClient ApiClient, config *Configuration, authenticator Authenticator) *StoreApi {
 	return &StoreApi{
-		BaseApi: NewBaseApi(apiClient, config, authenticator),
+		baseApi: newBaseApi(apiClient, config, authenticator),
 	}
 }
 
@@ -42,11 +42,11 @@ func (a *StoreApi) DeleteOrder(orderId int64) error {
 func (a *StoreApi) DeleteOrderWithHTTPInfo(orderId int64) (*ApiResult[any], error) {
 
 	path := "/store/order/{orderId}"
-	/* Path params route through SerializeStyled so OAS path styles
+	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
-	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "orderId", fmt.Sprintf("%v", SerializeStyled("orderId", orderId, "path", "int64", "", "simple", false)))
+	path = replacePathParam(path, "orderId", fmt.Sprintf("%v", serializeStyled("orderId", orderId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -131,9 +131,9 @@ func (a *StoreApi) GetInventoryWithHTTPInfo() (*ApiResult[map[string]int32], err
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
-		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
-			if err := Deserialize([]byte(response.Body), &data); err != nil {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -179,11 +179,11 @@ func (a *StoreApi) GetOrderById(orderId int64) (*Order, error) {
 func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], error) {
 
 	path := "/store/order/{orderId}"
-	/* Path params route through SerializeStyled so OAS path styles
+	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
-	 * percent-encoded via EncodePathSegment (escapes `/` to %2F,
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "orderId", fmt.Sprintf("%v", SerializeStyled("orderId", orderId, "path", "int64", "", "simple", false)))
+	path = replacePathParam(path, "orderId", fmt.Sprintf("%v", serializeStyled("orderId", orderId, "path", "int64", "", "simple", false)))
 
 	queryParams := make(map[string]any)
 
@@ -217,9 +217,9 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], e
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
-		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
-			if err := Deserialize([]byte(response.Body), &data); err != nil {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -297,9 +297,9 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(order *Order) (*ApiResult[Order], erro
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
-		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
-			if err := Deserialize([]byte(response.Body), &data); err != nil {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {

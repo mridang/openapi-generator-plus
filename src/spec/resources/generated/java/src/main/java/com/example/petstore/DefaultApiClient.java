@@ -202,9 +202,13 @@ public final class DefaultApiClient implements ApiClient {
    *
    * <p>Uses default {@link TransportOptions} for header injection settings.
    *
+   * <p>Package-private: this is an internal test-only seam for injecting a mock transport and is
+   * not part of the public API. Production callers construct via {@link #DefaultApiClient()} or
+   * {@link #DefaultApiClient(TransportOptions)}.
+   *
    * @param httpClient the HTTP client to use
    */
-  public DefaultApiClient(HttpClient httpClient) {
+  DefaultApiClient(HttpClient httpClient) {
     this.httpClient = httpClient;
     this.transportOptions = TransportOptions.builder().build();
     this.proxyAuthHeader = null;

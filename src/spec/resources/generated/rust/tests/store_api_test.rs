@@ -7,7 +7,6 @@
 
 mod testcontainers_helper;
 
-use std::collections::HashMap;
 use std::io::Read;
 use std::net::TcpListener;
 use std::sync::Arc;

@@ -39,7 +39,9 @@ module PetstoreClient
   # All serde operations in the generated client route through this class.
   # The parameter encoding methods provide consistent value conversion for
   # URL path, query string, header, and form parameters.
-  class ObjectSerializer
+  #
+  # @api private
+  class ObjectSerializer # :nodoc:
     DEFAULT_DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S%:z'
 
     # Serialize an object to a JSON string.
@@ -440,6 +442,7 @@ module PetstoreClient
     # @raise [SchemaMismatchError] if no candidate matches the data. A payload
     #   satisfying none of the declared variants is a contract violation and
     #   must fail loudly rather than be silently dropped to nil.
+    # @api private
     def self.resolve_one_of(data, candidates)
       candidates.each do |candidate|
         return candidate.call(data)
@@ -456,6 +459,7 @@ module PetstoreClient
     # @param candidates [Array<Proc>] lambdas that attempt deserialization
     # @return [Object] the first successfully deserialized result
     # @raise [SchemaMismatchError] if no candidate matches the data
+    # @api private
     def self.resolve_any_of(data, candidates)
       resolve_one_of(data, candidates)
     end

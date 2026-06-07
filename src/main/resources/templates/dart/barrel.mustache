@@ -1,11 +1,12 @@
 {{>api_info}}
+// The generated header comment must precede the `library;` directive, which
+// the analyzer flags; export ordering here is intentional, so silence it.
 // ignore_for_file: directives_ordering
 /// {{#appName}}{{{.}}}{{/appName}} API client library.
 ///
 /// {{#appDescription}}{{{.}}}{{/appDescription}}
 library;
 
-export 'src/api/base_api.dart';
 {{#apiInfo}}
 {{#apis}}
 export 'src/api/{{classFilename}}.dart';
@@ -41,16 +42,13 @@ export 'src/errors/not_found_error.dart';
 export 'src/errors/server_error.dart';
 export 'src/errors/unauthorized_error.dart';
 export 'src/errors/unprocessable_entity_error.dart';
-export 'src/header_selector.dart';
 export 'src/iso8601_duration.dart';
+export 'src/object_serializer.dart' show SerializationError;
 {{#models}}
 {{#model}}
 export 'src/models/{{classFilename}}.dart';
 {{/model}}
 {{/models}}
-export 'src/object_serializer.dart';
 export 'src/server_configuration.dart';
 export 'src/servers.dart';
-export 'src/trace_context_util.dart';
 export 'src/transport_options.dart';
-export 'src/value_serializer.dart';

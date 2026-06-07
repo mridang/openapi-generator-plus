@@ -3,29 +3,35 @@
 defmodule {{moduleName}}.DefaultApiClient do
   import Bitwise
 
-  @moduledoc """
-  Default HTTP client implementation backed by Req.
-
-  Applies transport-level settings from `#{inspect({{moduleName}}.TransportOptions)}`: TLS
-  verification, custom CA certificates, proxy routing, timeouts, redirect
-  handling, User-Agent injection, X-Request-ID injection, and
-  transport-level default headers.
-
-  Header merge order (lowest to highest priority):
-  1. `TransportOptions.default_headers` -- transport-level defaults
-  2. Caller-provided headers (from BaseApi -- includes config defaults, auth, operation headers)
-  3. `TransportOptions.user_agent` -- injected if not already set
-  4. `TransportOptions.inject_request_id` -- injected if not already set
-  """
+  @moduledoc false
+  # Internal: default HTTP client implementation backed by Req. The public
+  # seam is the `{{moduleName}}.ApiClient` behaviour; this concrete impl is
+  # constructed internally by `{{moduleName}}.Client.new/1` and is not part of
+  # the advertised public API.
+  #
+  # Applies transport-level settings from `{{moduleName}}.TransportOptions`: TLS
+  # verification, custom CA certificates, proxy routing, timeouts, redirect
+  # handling, User-Agent injection, X-Request-ID injection, and
+  # transport-level default headers.
+  #
+  # Header merge order (lowest to highest priority):
+  # 1. `TransportOptions.default_headers` -- transport-level defaults
+  # 2. Caller-provided headers (from BaseApi -- includes config defaults, auth, operation headers)
+  # 3. `TransportOptions.user_agent` -- injected if not already set
+  # 4. `TransportOptions.inject_request_id` -- injected if not already set
 
   @behaviour {{moduleName}}.ApiClient
 
-  @type t :: %__MODULE__{
-          transport_options: {{moduleName}}.TransportOptions.t(),
-          base_req: Req.Request.t(),
-          proxy_auth_header: String.t() | nil,
-          closed: :atomics.atomics_ref()
-        }
+  # `base_req` holds a `Req.Request` and `closed` holds an `:atomics`
+  # reference; both are internal transport plumbing. They are typed as
+  # `term()` and the struct type is `@opaque` so the Req/atomics types never
+  # surface in the public typespec.
+  @opaque t :: %__MODULE__{
+            transport_options: {{moduleName}}.TransportOptions.t(),
+            base_req: term(),
+            proxy_auth_header: String.t() | nil,
+            closed: term()
+          }
 
   # `closed` carries an `:atomics` reference — a process-less piece of
   # mutable shared state. `close/1` flips it to 1; `send_request` checks

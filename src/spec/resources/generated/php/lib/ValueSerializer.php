@@ -18,6 +18,10 @@ namespace PetstoreClient;
  * suitable for different HTTP parameter locations (path, query, header).
  * Handles collection format serialization (csv, ssv, tsv, pipes, multi)
  * and URL-encoding for path parameters.
+ *
+ * @internal This class is part of the SDK's internal serialization plumbing
+ *           and is not part of the public API. It may change or be removed
+ *           in any release without notice.
  */
 final class ValueSerializer
 {

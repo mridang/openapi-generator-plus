@@ -2,7 +2,7 @@
 import Foundation
 
 /// BaseApi provides common functionality for all API classes.
-open class BaseApi: @unchecked Sendable {
+public class BaseApi: @unchecked Sendable {
     let config: Configuration
     let apiClient: ApiClient
     let headerSelector: HeaderSelector

@@ -19,11 +19,14 @@ import org.junit.jupiter.api.Test;
 
 class ComposedSchemaTest {
 
-  private static final TypeReference<PetWithOwner> PET_WITH_OWNER_TYPE = new TypeReference<>() {};
-  private static final TypeReference<PetFood> PET_FOOD_TYPE = new TypeReference<>() {};
-  private static final TypeReference<PetTreatment> PET_TREATMENT_TYPE = new TypeReference<>() {};
-  private static final TypeReference<SetPetAvatarThumbnailRequest> ONE_OF_NO_DISCRIMINATOR_TYPE =
-      new TypeReference<>() {};
+  private static final java.lang.reflect.Type PET_WITH_OWNER_TYPE =
+      new TypeReference<PetWithOwner>() {}.getType();
+  private static final java.lang.reflect.Type PET_FOOD_TYPE =
+      new TypeReference<PetFood>() {}.getType();
+  private static final java.lang.reflect.Type PET_TREATMENT_TYPE =
+      new TypeReference<PetTreatment>() {}.getType();
+  private static final java.lang.reflect.Type ONE_OF_NO_DISCRIMINATOR_TYPE =
+      new TypeReference<SetPetAvatarThumbnailRequest>() {}.getType();
   private final ObjectSerializer serializer = new ObjectSerializer();
 
   @Nested
@@ -232,7 +235,7 @@ class ComposedSchemaTest {
   @DisplayName("required-field strictness: Pet (name + photoUrls)")
   class RequiredFieldStrictness {
 
-    private static final TypeReference<Pet> PET_TYPE = new TypeReference<>() {};
+    private static final java.lang.reflect.Type PET_TYPE = new TypeReference<Pet>() {}.getType();
 
     @Test
     @DisplayName("missing required field raises SerializationException")

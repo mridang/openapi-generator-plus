@@ -487,7 +487,7 @@ class ObjectSerializer:
             return ''
         return cls.stringify(value)
 
-    def resolve_one_of(self, json_string: str, candidates: list[Callable[[str], Any]]) -> Any:
+    def _resolve_one_of(self, json_string: str, candidates: list[Callable[[str], Any]]) -> Any:
         """Resolve a oneOf schema by trying each candidate deserializer in order.
 
         Args:
@@ -511,10 +511,10 @@ class ObjectSerializer:
                 continue
         raise SerializationError('No oneOf/anyOf variant matched the JSON')
 
-    def resolve_any_of(self, json_string: str, candidates: list[Callable[[str], Any]]) -> Any:
+    def _resolve_any_of(self, json_string: str, candidates: list[Callable[[str], Any]]) -> Any:
         """Resolve an anyOf schema by trying each candidate deserializer in order.
 
-        Delegates to resolve_one_of.
+        Delegates to _resolve_one_of.
 
         Args:
             json_string: The JSON string to deserialize.
@@ -526,4 +526,4 @@ class ObjectSerializer:
         Raises:
             SerializationError: If no candidate matches the JSON.
         """
-        return self.resolve_one_of(json_string, candidates)
+        return self._resolve_one_of(json_string, candidates)

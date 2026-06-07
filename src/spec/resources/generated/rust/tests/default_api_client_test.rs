@@ -370,92 +370,11 @@ async fn test_default_api_client_close_releases_underlying_client() {
     drop(client);
 }
 
-/// Gap BI: non-ASCII multipart filenames must use RFC 5987 filename*=UTF-8''<pct>
-/// rather than raw UTF-8 inside the quoted filename="" form.
-#[test]
-fn test_multipart_filename_non_ascii_emits_rfc5987() {
-    let directive = petstore::default_api_client::build_filename_directive("日本.pdf");
-    assert!(
-        directive.contains("filename*=UTF-8''"),
-        "expected RFC 5987 filename*=UTF-8'' directive, got: {}",
-        directive
-    );
-    assert!(
-        directive.contains("%E6%97%A5%E6%9C%AC"),
-        "expected percent-encoded UTF-8 bytes for 日本, got: {}",
-        directive
-    );
-    assert!(
-        directive.starts_with("filename=\""),
-        "expected ASCII fallback filename=\"...\" prefix, got: {}",
-        directive
-    );
-}
-
-/// Gap BI: ASCII-only filenames must NOT emit a filename*= parameter.
-#[test]
-fn test_multipart_filename_ascii_only_omits_filename_star() {
-    let directive = petstore::default_api_client::build_filename_directive("pet.png");
-    assert_eq!(directive, "filename=\"pet.png\"");
-    assert!(
-        !directive.contains("filename*="),
-        "ASCII-only filename must not emit filename*=, got: {}",
-        directive
-    );
-}
-
-/// Gap F: filenames containing CR/LF/NUL must be rejected to prevent
-/// Content-Disposition header injection.
-#[test]
-fn test_multipart_filename_crlf_rejected() {
-    for bad in &["a\rb.pdf", "a\nb.pdf", "a\r\nb.pdf", "a\0b.pdf"] {
-        assert!(
-            petstore::default_api_client::validate_multipart_filename(bad).is_err(),
-            "expected error for {:?}",
-            bad
-        );
-    }
-    assert!(petstore::default_api_client::validate_multipart_filename("pet.png").is_ok());
-}
-
-/// W-new-2: multipart field-name validation must run on every branch (text
-/// and bytes), not just the binary branch. Previously the text branch wrote
-/// the raw field name into Content-Disposition, opening a header-smuggling
-/// hole. This test asserts the validator rejects CR/LF/NUL for a String value
-/// scenario.
-#[test]
-fn test_multipart_field_name_with_crlf_rejected_on_string_value() {
-    for bad in &[
-        "name\rInjected: yes",
-        "name\nInjected: yes",
-        "name\r\nInjected: yes",
-        "name\0Injected",
-    ] {
-        assert!(
-            petstore::default_api_client::validate_multipart_field_name(bad).is_err(),
-            "expected validate_multipart_field_name to reject {:?}",
-            bad
-        );
-    }
-    assert!(petstore::default_api_client::validate_multipart_field_name("description").is_ok());
-
-    /* End-to-end: when a String (text) multipart field has a CR/LF in its
-     * name, serialize_multipart_body must NOT emit a part with the bad name
-     * embedded in Content-Disposition. The current implementation drops the
-     * bad field silently rather than panic. */
-    let mut fields = std::collections::HashMap::new();
-    fields.insert(
-        "name\r\nInjected: yes".to_string(),
-        petstore::api_client::MultipartValue::Text("value".to_string()),
-    );
-    let body = petstore::default_api_client::serialize_multipart_body(&fields, "boundary");
-    let body_str = String::from_utf8_lossy(&body);
-    assert!(
-        !body_str.contains("Injected: yes"),
-        "serialize_multipart_body must not emit the injected header: {}",
-        body_str
-    );
-}
+// The Gap BI multipart filename-directive tests, the multipart filename /
+// field-name validation tests, and the `serialize_multipart_body`
+// header-injection test were moved in-crate (see `src/default_api_client.rs`'s
+// `#[cfg(test)] mod tests`) because those helpers live in the crate-private
+// `default_api_client` module.
 
 #[tokio::test]
 async fn test_default_api_client_sends_multipart_form_data() {

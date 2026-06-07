@@ -11,7 +11,6 @@ import com.example.petstore.ApiClient;
 import com.example.petstore.ApiException;
 import com.example.petstore.ApiResult;
 import com.example.petstore.Configuration;
-import com.example.petstore.ValueSerializer;
 import com.example.petstore.auth.Authenticator;
 import com.example.petstore.models.Order;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -22,12 +21,14 @@ import javax.annotation.Nullable;
 /** StoreApi provides methods for the Store API group. Access to Petstore orders */
 public class StoreApi extends BaseApi {
 
-  private static final TypeReference<Map<String, Integer>> getInventoryTypeRef =
-      new TypeReference<>() {};
+  private static final java.lang.reflect.Type getInventoryTypeRef =
+      new TypeReference<Map<String, Integer>>() {}.getType();
 
-  private static final TypeReference<Order> getOrderByIdTypeRef = new TypeReference<>() {};
+  private static final java.lang.reflect.Type getOrderByIdTypeRef =
+      new TypeReference<Order>() {}.getType();
 
-  private static final TypeReference<Order> placeOrderTypeRef = new TypeReference<>() {};
+  private static final java.lang.reflect.Type placeOrderTypeRef =
+      new TypeReference<Order>() {}.getType();
 
   /** Creates an instance with the default client and configuration. */
   public StoreApi() {

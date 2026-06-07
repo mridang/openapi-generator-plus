@@ -13,8 +13,11 @@ import kotlin.math.pow
 
 /**
  * Content negotiation logic for Accept and Content-Type headers.
+ *
+ * Internal transport machinery; not part of the public API.
  */
-class HeaderSelector {
+@PublishedApi
+internal class HeaderSelector {
     private val jsonMimePattern =
         Regex(
             "^application/(json|[\\w!#\$&.+\\-^_]+\\+json)\\s*(;|$)",
@@ -42,7 +45,8 @@ class HeaderSelector {
         return headers
     }
 
-    fun isJsonMime(searchString: String?): Boolean {
+    @PublishedApi
+    internal fun isJsonMime(searchString: String?): Boolean {
         if (searchString == null) return false
         return jsonMimePattern.containsMatchIn(searchString)
     }

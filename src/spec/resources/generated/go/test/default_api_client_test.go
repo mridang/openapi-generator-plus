@@ -13,13 +13,13 @@ import (
 	"strings"
 	"testing"
 
-	petstore "petstore/pkg"
+	. "petstore/pkg"
 )
 
 func TestDefaultApiClient_MakesHttpsRequestWithVerifySslFalse(t *testing.T) {
 	t.Parallel()
-	transport := petstore.NewTransportOptionsBuilder().VerifySSL(false).Build()
-	client := petstore.NewDefaultApiClient(transport)
+	transport := NewTransportOptionsBuilder().VerifySSL(false).Build()
+	client := NewDefaultApiClient(transport)
 	resp, err := client.SendRequest("GET", chasmHTTPSURL+"/test/echo", map[string]string{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -34,11 +34,11 @@ func TestDefaultApiClient_MakesHttpsRequestWithVerifySslFalse(t *testing.T) {
 
 func TestDefaultApiClient_MakesHttpsRequestWithCustomCaCert(t *testing.T) {
 	t.Parallel()
-	transport := petstore.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		VerifySSL(true).
 		CACertPath(caCertPath).
 		Build()
-	client := petstore.NewDefaultApiClient(transport)
+	client := NewDefaultApiClient(transport)
 	resp, err := client.SendRequest("GET", chasmHTTPSURL+"/test/echo", map[string]string{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -53,10 +53,10 @@ func TestDefaultApiClient_MakesHttpsRequestWithCustomCaCert(t *testing.T) {
 
 func TestDefaultApiClient_MakesHttpRequestThroughProxy(t *testing.T) {
 	t.Parallel()
-	transport := petstore.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		Proxy(proxyURL).
 		Build()
-	client := petstore.NewDefaultApiClient(transport)
+	client := NewDefaultApiClient(transport)
 	resp, err := client.SendRequest("GET", chasmInternalHTTPURL+"/test/echo", map[string]string{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -75,7 +75,7 @@ func TestDefaultApiClient_MakesHttpRequestThroughProxy(t *testing.T) {
 // so we assert TransportOptions preserves the userinfo end-to-end.
 func TestDefaultApiClient_ProxyWithCredentialsInjectsBasicAuthorization(t *testing.T) {
 	t.Parallel()
-	transport := petstore.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		Proxy("http://alice:s3cret@127.0.0.1:3128").
 		Build()
 	proxy := transport.Proxy()
@@ -96,11 +96,11 @@ func TestDefaultApiClient_ProxyWithCredentialsInjectsBasicAuthorization(t *testi
 
 func TestDefaultApiClient_MakesHttpsRequestThroughProxyWithVerifySslFalse(t *testing.T) {
 	t.Parallel()
-	transport := petstore.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		Proxy(proxyURL).
 		VerifySSL(false).
 		Build()
-	client := petstore.NewDefaultApiClient(transport)
+	client := NewDefaultApiClient(transport)
 	resp, err := client.SendRequest("GET", chasmInternalHTTPSURL+"/test/echo", map[string]string{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -115,10 +115,10 @@ func TestDefaultApiClient_MakesHttpsRequestThroughProxyWithVerifySslFalse(t *tes
 
 func TestDefaultApiClient_TimesOutOnSlowEndpoint(t *testing.T) {
 	t.Parallel()
-	transport := petstore.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		Timeout(1000).
 		Build()
-	client := petstore.NewDefaultApiClient(transport)
+	client := NewDefaultApiClient(transport)
 	_, err := client.SendRequest("GET", chasmHTTPURL+"/test/slow", map[string]string{}, nil)
 	if err == nil {
 		t.Fatal("expected timeout error, got nil")
@@ -127,10 +127,10 @@ func TestDefaultApiClient_TimesOutOnSlowEndpoint(t *testing.T) {
 
 func TestDefaultApiClient_InjectsCustomUserAgentHeader(t *testing.T) {
 	t.Parallel()
-	transport := petstore.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		UserAgent("MyApp/1.0").
 		Build()
-	client := petstore.NewDefaultApiClient(transport)
+	client := NewDefaultApiClient(transport)
 	resp, err := client.SendRequest("GET", chasmHTTPURL+"/test/echo", map[string]string{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -150,10 +150,10 @@ func TestDefaultApiClient_InjectsCustomUserAgentHeader(t *testing.T) {
 
 func TestDefaultApiClient_InjectsRequestIdHeader(t *testing.T) {
 	t.Parallel()
-	transport := petstore.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		InjectRequestID(true).
 		Build()
-	client := petstore.NewDefaultApiClient(transport)
+	client := NewDefaultApiClient(transport)
 	resp, err := client.SendRequest("GET", chasmHTTPURL+"/test/echo", map[string]string{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -178,10 +178,10 @@ func TestDefaultApiClient_InjectsRequestIdHeader(t *testing.T) {
 
 func TestDefaultApiClient_GeneratesUniqueRequestIds(t *testing.T) {
 	t.Parallel()
-	transport := petstore.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		InjectRequestID(true).
 		Build()
-	client := petstore.NewDefaultApiClient(transport)
+	client := NewDefaultApiClient(transport)
 
 	resp1, err := client.SendRequest("GET", chasmHTTPURL+"/test/echo", map[string]string{}, nil)
 	if err != nil {
@@ -209,10 +209,10 @@ func TestDefaultApiClient_GeneratesUniqueRequestIds(t *testing.T) {
 
 func TestDefaultApiClient_IncludesTransportDefaultHeaders(t *testing.T) {
 	t.Parallel()
-	transport := petstore.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		DefaultHeader("X-Custom", "custom-value").
 		Build()
-	client := petstore.NewDefaultApiClient(transport)
+	client := NewDefaultApiClient(transport)
 	resp, err := client.SendRequest("GET", chasmHTTPURL+"/test/echo", map[string]string{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -227,10 +227,10 @@ func TestDefaultApiClient_IncludesTransportDefaultHeaders(t *testing.T) {
 
 func TestDefaultApiClient_CallerHeadersOverrideTransportDefaults(t *testing.T) {
 	t.Parallel()
-	transport := petstore.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		DefaultHeader("Accept", "text/plain").
 		Build()
-	client := petstore.NewDefaultApiClient(transport)
+	client := NewDefaultApiClient(transport)
 	callerHeaders := map[string]string{"Accept": "application/json"}
 	resp, err := client.SendRequest("GET", chasmHTTPURL+"/test/echo", callerHeaders, nil)
 	if err != nil {
@@ -246,10 +246,10 @@ func TestDefaultApiClient_CallerHeadersOverrideTransportDefaults(t *testing.T) {
 
 func TestDefaultApiClient_FollowsRedirectsWhenEnabled(t *testing.T) {
 	t.Parallel()
-	transport := petstore.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		FollowRedirects(true).
 		Build()
-	client := petstore.NewDefaultApiClient(transport)
+	client := NewDefaultApiClient(transport)
 	resp, err := client.SendRequest("GET", chasmHTTPURL+"/test/redirect/302", map[string]string{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -264,10 +264,10 @@ func TestDefaultApiClient_FollowsRedirectsWhenEnabled(t *testing.T) {
 
 func TestDefaultApiClient_ReturnsRedirectWhenDisabled(t *testing.T) {
 	t.Parallel()
-	transport := petstore.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		FollowRedirects(false).
 		Build()
-	client := petstore.NewDefaultApiClient(transport)
+	client := NewDefaultApiClient(transport)
 	resp, err := client.SendRequest("GET", chasmHTTPURL+"/test/redirect/302", map[string]string{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -281,11 +281,11 @@ func TestDefaultApiClient_ReturnsRedirectWhenDisabled(t *testing.T) {
 // Go's net/http already enforces this; the test pins the behaviour.
 func TestDefaultApiClient_Redirect303SwitchesToGetAndDropsBody(t *testing.T) {
 	t.Parallel()
-	transport := petstore.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		FollowRedirects(true).
 		MaxRedirects(5).
 		Build()
-	client := petstore.NewDefaultApiClient(transport)
+	client := NewDefaultApiClient(transport)
 	resp, err := client.SendRequest(
 		"POST",
 		chasmHTTPURL+"/test/redirect/303",
@@ -315,11 +315,11 @@ func TestDefaultApiClient_Redirect303SwitchesToGetAndDropsBody(t *testing.T) {
 // request after a 307 still carries the multipart form parts.
 func TestDefaultApiClient_MultipartBodyReplayedOn307Redirect(t *testing.T) {
 	t.Parallel()
-	transport := petstore.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		FollowRedirects(true).
 		MaxRedirects(5).
 		Build()
-	client := petstore.NewDefaultApiClient(transport)
+	client := NewDefaultApiClient(transport)
 	headers := map[string]string{
 		"Content-Type": "multipart/form-data; boundary=test-boundary",
 	}
@@ -357,11 +357,11 @@ func TestDefaultApiClient_MultipartBodyReplayedOn307Redirect(t *testing.T) {
 
 func TestDefaultApiClient_RespectsMaxRedirectsLimit(t *testing.T) {
 	t.Parallel()
-	transport := petstore.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		FollowRedirects(true).
 		MaxRedirects(5).
 		Build()
-	client := petstore.NewDefaultApiClient(transport)
+	client := NewDefaultApiClient(transport)
 	if client == nil {
 		t.Fatal("expected non-nil client")
 	}
@@ -374,7 +374,7 @@ func TestDefaultApiClient_SendsMultipartFormData(t *testing.T) {
 	t.Parallel()
 	/* Multipart body construction is now handled by base_api.buildMultipartBody,
 	 * so we test via SendRequest with pre-built multipart bytes. */
-	client := petstore.NewDefaultApiClient(nil)
+	client := NewDefaultApiClient(nil)
 	headers := map[string]string{
 		"Content-Type": "multipart/form-data; boundary=test-boundary",
 	}
@@ -388,63 +388,13 @@ func TestDefaultApiClient_SendsMultipartFormData(t *testing.T) {
 	}
 }
 
-/* Gap BI: non-ASCII multipart filenames must use RFC 5987 filename*=UTF-8''<pct>
- * rather than raw UTF-8 inside the quoted filename="" form. */
-func TestMultipart_MultipartFilenameNonAsciiEmitsRFC5987(t *testing.T) {
-	t.Parallel()
-	directive := petstore.BuildFilenameDirective("日本.pdf")
-	if !strings.Contains(directive, "filename*=UTF-8''") {
-		t.Errorf("expected directive to contain filename*=UTF-8'', got %q", directive)
-	}
-	if !strings.Contains(directive, "%E6%97%A5%E6%9C%AC") {
-		t.Errorf("expected percent-encoded UTF-8 bytes for 日本, got %q", directive)
-	}
-	if !strings.HasPrefix(directive, "filename=\"") {
-		t.Errorf("expected ASCII fallback filename=\"...\" prefix, got %q", directive)
-	}
-}
-
-/* Gap BI: ASCII-only filenames must NOT emit a filename*= parameter. */
-func TestMultipart_MultipartFilenameAsciiOnlyOmitsFilenameStar(t *testing.T) {
-	t.Parallel()
-	directive := petstore.BuildFilenameDirective("pet.png")
-	if directive != `filename="pet.png"` {
-		t.Errorf("expected `filename=\"pet.png\"`, got %q", directive)
-	}
-	if strings.Contains(directive, "filename*=") {
-		t.Errorf("ASCII-only filename must not emit filename*=, got %q", directive)
-	}
-}
-
-/* Gap F: filenames containing CR/LF/NUL must be rejected to prevent
- * Content-Disposition header injection. */
-func TestMultipart_MultipartFilenameCRLFRejected(t *testing.T) {
-	t.Parallel()
-	for _, bad := range []string{"a\rb.pdf", "a\nb.pdf", "a\r\nb.pdf", "a\x00b.pdf"} {
-		if err := petstore.ValidateMultipartFilename(bad); err == nil {
-			t.Errorf("expected error rejecting %q, got nil", bad)
-		}
-	}
-}
-
-/* Gap W2: multipart field names containing CR/LF/NUL must be rejected to
- * prevent Content-Disposition header injection. */
-func TestMultipart_MultipartFieldNameCRLFRejected(t *testing.T) {
-	t.Parallel()
-	for _, bad := range []string{"a\rb", "a\nb", "a\r\nInjected: yes", "a\x00b"} {
-		if err := petstore.ValidateMultipartFieldName(bad); err == nil {
-			t.Errorf("expected error rejecting %q, got nil", bad)
-		}
-	}
-}
-
 /* W-new-2: multipart field-name validation must run on every branch (string,
  * number, boolean, JSON, binary), not just the binary path. Confirm that
  * sending a multipart form whose String-valued field name contains CR/LF
  * fails end-to-end at SendRequest, not just at the helper. */
 func TestMultipart_FieldNameWithCRLFRejectedOnStringValue(t *testing.T) {
 	t.Parallel()
-	client := petstore.NewDefaultApiClient(nil)
+	client := NewDefaultApiClient(nil)
 	badFields := map[string]any{
 		"name\r\nInjected: yes": "string-value",
 	}
@@ -457,7 +407,7 @@ func TestMultipart_FieldNameWithCRLFRejectedOnStringValue(t *testing.T) {
 
 func TestDefaultApiClient_DecompressesGzipResponse(t *testing.T) {
 	t.Parallel()
-	client := petstore.NewDefaultApiClient(nil)
+	client := NewDefaultApiClient(nil)
 	resp, err := client.SendRequest("GET", "https://jsonplaceholder.typicode.com/posts/1",
 		map[string]string{"Accept-Encoding": "gzip"}, nil)
 	if err != nil {
@@ -473,7 +423,7 @@ func TestDefaultApiClient_DecompressesGzipResponse(t *testing.T) {
 
 func TestDefaultApiClient_DecompressesBrotliResponse(t *testing.T) {
 	t.Parallel()
-	client := petstore.NewDefaultApiClient(nil)
+	client := NewDefaultApiClient(nil)
 	resp, err := client.SendRequest("GET", "https://jsonplaceholder.typicode.com/posts/1",
 		map[string]string{"Accept-Encoding": "br"}, nil)
 	if err != nil {
@@ -489,7 +439,7 @@ func TestDefaultApiClient_DecompressesBrotliResponse(t *testing.T) {
 
 func TestDefaultApiClient_DecompressesZstdResponse(t *testing.T) {
 	t.Parallel()
-	client := petstore.NewDefaultApiClient(nil)
+	client := NewDefaultApiClient(nil)
 	resp, err := client.SendRequest("GET", "https://jsonplaceholder.typicode.com/posts/1",
 		map[string]string{"Accept-Encoding": "zstd"}, nil)
 	if err != nil {
@@ -519,13 +469,13 @@ func TestDefaultApiClient_MakesRequestThroughProxyWithBasicAuth(t *testing.T) {
 	// Inject userinfo into the proxy URL — Squid in default config accepts
 	// any credentials (no auth_param basic), so the request should succeed.
 	authProxy := strings.Replace(proxyURL, "http://", "http://user:pass@", 1)
-	transport := petstore.NewTransportOptionsBuilder().
+	transport := NewTransportOptionsBuilder().
 		Proxy(authProxy).
 		Build()
 	if transport.Proxy() == nil || transport.Proxy().User == nil {
 		t.Fatal("expected proxy with userinfo")
 	}
-	client := petstore.NewDefaultApiClient(transport)
+	client := NewDefaultApiClient(transport)
 	resp, err := client.SendRequest("GET", chasmInternalHTTPURL+"/test/echo", map[string]string{}, nil)
 	if err != nil {
 		t.Skipf("proxy basic-auth scenario not supported by this Squid build: %v", err)
@@ -541,7 +491,7 @@ func TestDefaultApiClient_MakesRequestThroughProxyWithBasicAuth(t *testing.T) {
 // bytes.Reader on body-bearing verbs so net/http emits the header.
 func TestDefaultApiClient_PostWithNullBodySendsContentLengthZero(t *testing.T) {
 	t.Parallel()
-	client := petstore.NewDefaultApiClient(petstore.NewTransportOptionsBuilder().Build())
+	client := NewDefaultApiClient(NewTransportOptionsBuilder().Build())
 	resp, err := client.SendRequest("POST", chasmHTTPURL+"/test/echo", map[string]string{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -570,7 +520,7 @@ func TestDefaultApiClient_PostWithNullBodySendsContentLengthZero(t *testing.T) {
 // contract across SDKs.
 func TestDefaultApiClient_CloseReleasesUnderlyingClient(t *testing.T) {
 	t.Parallel()
-	client := petstore.NewDefaultApiClient(petstore.NewTransportOptionsBuilder().Build())
+	client := NewDefaultApiClient(NewTransportOptionsBuilder().Build())
 	if err := client.Close(); err != nil {
 		t.Fatalf("unexpected error from Close: %v", err)
 	}

@@ -6,7 +6,6 @@ import {{invokerPackage}}.ApiClient;
 import {{invokerPackage}}.ApiException;
 import {{invokerPackage}}.ApiResult;
 import {{invokerPackage}}.Configuration;
-import {{invokerPackage}}.ValueSerializer;
 import {{invokerPackage}}.auth.Authenticator;
 {{#operations}}
 {{#operation}}
@@ -56,8 +55,8 @@ public class {{classname}} extends BaseApi {
 {{#operation}}
 {{#returnType}}
 
-    private static final TypeReference<{{{returnType}}}> {{operationId}}TypeRef =
-            new TypeReference<>() {};
+    private static final java.lang.reflect.Type {{operationId}}TypeRef =
+            new TypeReference<{{{returnType}}}>() {}.getType();
 {{/returnType}}
 {{/operation}}
 

@@ -11,7 +11,6 @@ import com.example.petstore.ApiClient;
 import com.example.petstore.ApiException;
 import com.example.petstore.ApiResult;
 import com.example.petstore.Configuration;
-import com.example.petstore.ValueSerializer;
 import com.example.petstore.api.options.AddPetPhotosOptions;
 import com.example.petstore.api.options.DeletePetOptions;
 import com.example.petstore.api.options.FindPetsByStatusOptions;
@@ -44,44 +43,55 @@ import javax.annotation.Nullable;
  */
 public class PetApi extends BaseApi {
 
-  private static final TypeReference<Pet> addPetTypeRef = new TypeReference<>() {};
+  private static final java.lang.reflect.Type addPetTypeRef = new TypeReference<Pet>() {}.getType();
 
-  private static final TypeReference<List<Photo>> addPetPhotosTypeRef = new TypeReference<>() {};
+  private static final java.lang.reflect.Type addPetPhotosTypeRef =
+      new TypeReference<List<Photo>>() {}.getType();
 
-  private static final TypeReference<PetTreatment> addPetTreatmentTypeRef =
-      new TypeReference<>() {};
+  private static final java.lang.reflect.Type addPetTreatmentTypeRef =
+      new TypeReference<PetTreatment>() {}.getType();
 
-  private static final TypeReference<InputStream> downloadPetDocumentTypeRef =
-      new TypeReference<>() {};
+  private static final java.lang.reflect.Type downloadPetDocumentTypeRef =
+      new TypeReference<InputStream>() {}.getType();
 
-  private static final TypeReference<List<Pet>> findPetsByStatusTypeRef = new TypeReference<>() {};
+  private static final java.lang.reflect.Type findPetsByStatusTypeRef =
+      new TypeReference<List<Pet>>() {}.getType();
 
-  private static final TypeReference<Pet> getExternalPetInfoTypeRef = new TypeReference<>() {};
+  private static final java.lang.reflect.Type getExternalPetInfoTypeRef =
+      new TypeReference<Pet>() {}.getType();
 
-  private static final TypeReference<Pet> getMultiServerPetInfoTypeRef = new TypeReference<>() {};
+  private static final java.lang.reflect.Type getMultiServerPetInfoTypeRef =
+      new TypeReference<Pet>() {}.getType();
 
-  private static final TypeReference<InputStream> getPetAvatarTypeRef = new TypeReference<>() {};
+  private static final java.lang.reflect.Type getPetAvatarTypeRef =
+      new TypeReference<InputStream>() {}.getType();
 
-  private static final TypeReference<byte[]> getPetAvatarThumbnailTypeRef =
-      new TypeReference<>() {};
+  private static final java.lang.reflect.Type getPetAvatarThumbnailTypeRef =
+      new TypeReference<byte[]>() {}.getType();
 
-  private static final TypeReference<Pet> getPetByIdTypeRef = new TypeReference<>() {};
+  private static final java.lang.reflect.Type getPetByIdTypeRef =
+      new TypeReference<Pet>() {}.getType();
 
-  private static final TypeReference<PetPassport> getPetPassportTypeRef = new TypeReference<>() {};
+  private static final java.lang.reflect.Type getPetPassportTypeRef =
+      new TypeReference<PetPassport>() {}.getType();
 
-  private static final TypeReference<InputStream> getPetPhotoTypeRef = new TypeReference<>() {};
+  private static final java.lang.reflect.Type getPetPhotoTypeRef =
+      new TypeReference<InputStream>() {}.getType();
 
-  private static final TypeReference<Pet> getPetTagTypeRef = new TypeReference<>() {};
+  private static final java.lang.reflect.Type getPetTagTypeRef =
+      new TypeReference<Pet>() {}.getType();
 
-  private static final TypeReference<Pet> getStagingPetInfoTypeRef = new TypeReference<>() {};
+  private static final java.lang.reflect.Type getStagingPetInfoTypeRef =
+      new TypeReference<Pet>() {}.getType();
 
-  private static final TypeReference<Pet> updatePetTypeRef = new TypeReference<>() {};
+  private static final java.lang.reflect.Type updatePetTypeRef =
+      new TypeReference<Pet>() {}.getType();
 
-  private static final TypeReference<ApiResponse> uploadPetCertificateTypeRef =
-      new TypeReference<>() {};
+  private static final java.lang.reflect.Type uploadPetCertificateTypeRef =
+      new TypeReference<ApiResponse>() {}.getType();
 
-  private static final TypeReference<ApiResponse> uploadPetDocumentTypeRef =
-      new TypeReference<>() {};
+  private static final java.lang.reflect.Type uploadPetDocumentTypeRef =
+      new TypeReference<ApiResponse>() {}.getType();
 
   /** Server type for the getExternalPetInfo operation. */
   public sealed interface GetExternalPetInfoServer {
