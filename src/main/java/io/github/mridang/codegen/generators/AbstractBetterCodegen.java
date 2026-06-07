@@ -1507,8 +1507,33 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
 
             // Gap 11: Filter primitive type names from oneOf/anyOf (Dart)
             if (filtersOneOfAnyOfPrimitives()) {
+                // DATA-LOSS FIX — when a oneOf/anyOf is composed *entirely* of
+                // primitive/array variants (e.g. `oneOf: [string/byte,
+                // array of string/byte]`), filterNonPrimitiveTypeNames empties
+                // the model.oneOf/anyOf Set, which previously dropped the model
+                // into the plain-object template branch and generated a
+                // value-less empty stub that silently discarded the payload.
+                // Flag this case so the template can emit a value-carrying
+                // union instead. The original variants survive untouched on
+                // model.composedSchemas (a List<CodegenProperty> the filter
+                // never touches), so the template iterates those for typed
+                // (de)serialization.
+                final boolean hadOneOf = model.oneOf != null && !model.oneOf.isEmpty();
+                final boolean hadAnyOf = model.anyOf != null && !model.anyOf.isEmpty();
                 model.oneOf = filterNonPrimitiveTypeNames(model.oneOf);
                 model.anyOf = filterNonPrimitiveTypeNames(model.anyOf);
+                final boolean composedOneOf = model.getComposedSchemas() != null
+                        && model.getComposedSchemas().getOneOf() != null
+                        && !model.getComposedSchemas().getOneOf().isEmpty();
+                final boolean composedAnyOf = model.getComposedSchemas() != null
+                        && model.getComposedSchemas().getAnyOf() != null
+                        && !model.getComposedSchemas().getAnyOf().isEmpty();
+                if (hadOneOf && model.oneOf.isEmpty() && composedOneOf) {
+                    modelMap.put("isPrimitiveOneOf", true);
+                }
+                if (hadAnyOf && model.anyOf.isEmpty() && composedAnyOf) {
+                    modelMap.put("isPrimitiveAnyOf", true);
+                }
             }
 
             // Gap 12: Build model import context list (Node → tsImports, Dart → dartImports)

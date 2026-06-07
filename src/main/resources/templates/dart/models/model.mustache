@@ -105,6 +105,8 @@ enum {{classname}} {
 {{^isEnum}}
 {{^oneOf}}
 {{^anyOf}}
+{{^isPrimitiveOneOf}}
+{{^isPrimitiveAnyOf}}
 {{#description}}
 /// {{classname}} {{{.}}}
 {{/description}}
@@ -618,6 +620,206 @@ class {{classname}} {
   }
 {{/isAdditionalPropertiesTrue}}
 }
+{{/isPrimitiveAnyOf}}
+{{/isPrimitiveOneOf}}
+{{#isPrimitiveOneOf}}
+{{#description}}
+/// {{classname}} {{{.}}}
+{{/description}}
+{{^description}}
+/// {{classname}} is a union type (oneOf) of primitive/array variants.
+{{/description}}
+{{#isDeprecated}}
+@Deprecated('This schema is deprecated.')
+{{/isDeprecated}}
+class {{classname}} {
+  /// The decoded payload. For a `string`/`byte` variant this is a
+  /// [Uint8List]; for an array variant a [List]; for an object variant the
+  /// generated model instance. Never null once constructed from the wire.
+  final Object? _value;
+
+  const {{classname}}._(this._value);
+
+  /// Wraps an already-decoded value. The value must match one of the
+  /// declared oneOf variants; it is re-encoded verbatim by [toJson].
+  const {{classname}}.value(Object? value) : _value = value;
+
+  /// Returns the underlying value of the union type.
+  Object? get value => _value;
+
+  /// Converts this union type back to its JSON wire value.
+  Object? toJson() => _encodeValue(_value);
+
+  /// Creates a [{{classname}}] from a decoded JSON value (a base64 [String]
+  /// for a `byte` variant, a [List] for an array variant, or a
+  /// `Map<String, dynamic>` for an object variant).
+  factory {{classname}}.fromJson(Object? json) {
+{{#composedSchemas}}
+{{#oneOf}}
+    try {
+      return {{classname}}._(
+{{#isByteArray}}
+        base64Decode(json as String),
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isArray}}
+{{#items}}
+{{#isByteArray}}
+        (json as List).map((e) => base64Decode(e as String)).{{#uniqueItems}}toSet(){{/uniqueItems}}{{^uniqueItems}}toList(){{/uniqueItems}},
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isPrimitiveType}}
+        (json as List).map((e) => e as {{{dataType}}}).{{#uniqueItems}}toSet(){{/uniqueItems}}{{^uniqueItems}}toList(){{/uniqueItems}},
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+        (json as List).map((e) => {{{dataType}}}.fromJson(e as Map<String, dynamic>)).{{#uniqueItems}}toSet(){{/uniqueItems}}{{^uniqueItems}}toList(){{/uniqueItems}},
+{{/isPrimitiveType}}
+{{/isByteArray}}
+{{/items}}
+{{/isArray}}
+{{^isArray}}
+{{#isPrimitiveType}}
+        json as {{{dataType}}},
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+        {{{dataType}}}.fromJson(json as Map<String, dynamic>),
+{{/isPrimitiveType}}
+{{/isArray}}
+{{/isByteArray}}
+      );
+    } catch (_) {}
+{{/oneOf}}
+{{/composedSchemas}}
+    /* Cross-cutting `oneof-nondiscriminator-no-match-silent`: no variant
+       matched the wire shape. Throw a SerializationError rather than
+       returning a silently-empty union that drops the payload. */
+    throw SerializationError('Data does not match any oneOf schemas for {{classname}}');
+  }
+
+  /// Re-encodes a decoded value to its JSON wire form. Byte values are
+  /// base64-encoded; generated models delegate to their own toJson; plain
+  /// JSON primitives/maps pass through unchanged.
+  static Object? _encodeValue(Object? v) {
+    if (v == null) return null;
+    if (v is Uint8List) return base64Encode(v);
+    if (v is List) return v.map(_encodeValue).toList();
+    if (v is Map) return v;
+    try {
+      return (v as dynamic).toJson();
+    } catch (_) {
+      return v;
+    }
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is {{classname}} && _value == other._value;
+  }
+
+  @override
+  int get hashCode => _value.hashCode;
+}
+{{/isPrimitiveOneOf}}
+{{#isPrimitiveAnyOf}}
+{{#description}}
+/// {{classname}} {{{.}}}
+{{/description}}
+{{^description}}
+/// {{classname}} is a union type (anyOf) of primitive/array variants.
+{{/description}}
+{{#isDeprecated}}
+@Deprecated('This schema is deprecated.')
+{{/isDeprecated}}
+class {{classname}} {
+  /// The decoded payload. For a `string`/`byte` variant this is a
+  /// [Uint8List]; for an array variant a [List]; for an object variant the
+  /// generated model instance. Never null once constructed from the wire.
+  final Object? _value;
+
+  const {{classname}}._(this._value);
+
+  /// Wraps an already-decoded value. The value must match one of the
+  /// declared anyOf variants; it is re-encoded verbatim by [toJson].
+  const {{classname}}.value(Object? value) : _value = value;
+
+  /// Returns the underlying value of the union type.
+  Object? get value => _value;
+
+  /// Converts this union type back to its JSON wire value.
+  Object? toJson() => _encodeValue(_value);
+
+  /// Creates a [{{classname}}] from a decoded JSON value (a base64 [String]
+  /// for a `byte` variant, a [List] for an array variant, or a
+  /// `Map<String, dynamic>` for an object variant).
+  factory {{classname}}.fromJson(Object? json) {
+{{#composedSchemas}}
+{{#anyOf}}
+    try {
+      return {{classname}}._(
+{{#isByteArray}}
+        base64Decode(json as String),
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isArray}}
+{{#items}}
+{{#isByteArray}}
+        (json as List).map((e) => base64Decode(e as String)).{{#uniqueItems}}toSet(){{/uniqueItems}}{{^uniqueItems}}toList(){{/uniqueItems}},
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isPrimitiveType}}
+        (json as List).map((e) => e as {{{dataType}}}).{{#uniqueItems}}toSet(){{/uniqueItems}}{{^uniqueItems}}toList(){{/uniqueItems}},
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+        (json as List).map((e) => {{{dataType}}}.fromJson(e as Map<String, dynamic>)).{{#uniqueItems}}toSet(){{/uniqueItems}}{{^uniqueItems}}toList(){{/uniqueItems}},
+{{/isPrimitiveType}}
+{{/isByteArray}}
+{{/items}}
+{{/isArray}}
+{{^isArray}}
+{{#isPrimitiveType}}
+        json as {{{dataType}}},
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+        {{{dataType}}}.fromJson(json as Map<String, dynamic>),
+{{/isPrimitiveType}}
+{{/isArray}}
+{{/isByteArray}}
+      );
+    } catch (_) {}
+{{/anyOf}}
+{{/composedSchemas}}
+    /* Cross-cutting `oneof-nondiscriminator-no-match-silent`: no variant
+       matched the wire shape — surface a SerializationError rather than
+       a silently-empty union that drops the payload. */
+    throw SerializationError('Data does not match any anyOf schemas for {{classname}}');
+  }
+
+  /// Re-encodes a decoded value to its JSON wire form. Byte values are
+  /// base64-encoded; generated models delegate to their own toJson; plain
+  /// JSON primitives/maps pass through unchanged.
+  static Object? _encodeValue(Object? v) {
+    if (v == null) return null;
+    if (v is Uint8List) return base64Encode(v);
+    if (v is List) return v.map(_encodeValue).toList();
+    if (v is Map) return v;
+    try {
+      return (v as dynamic).toJson();
+    } catch (_) {
+      return v;
+    }
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is {{classname}} && _value == other._value;
+  }
+
+  @override
+  int get hashCode => _value.hashCode;
+}
+{{/isPrimitiveAnyOf}}
 {{/anyOf}}
 {{/oneOf}}
 {{#oneOf}}

@@ -46,8 +46,8 @@ class TransportOptions {
   /// HTTP client's built-in default. A value of 0 means zero redirects.
   final int? maxRedirects;
 
-  /// Custom User-Agent header value.
-  final String userAgent;
+  /// Custom User-Agent header value, or null to omit the User-Agent header.
+  final String? userAgent;
 
   /// Transport-level default headers included in every request.
   /// These have the lowest priority: API-level headers, operation-specific
@@ -83,7 +83,7 @@ class TransportOptionsBuilder {
   int? _timeout = 10000;
   bool _followRedirects = true;
   int? _maxRedirects;
-  String _userAgent = 'petstore_client/1.0.0 (dart)';
+  String? _userAgent = 'petstore_client/1.0.0 (dart)';
   final Map<String, String> _defaultHeaders = {};
   bool _injectRequestId = false;
 
@@ -144,7 +144,9 @@ class TransportOptionsBuilder {
   }
 
   /// Sets a custom User-Agent header value.
-  TransportOptionsBuilder userAgent(String val) {
+  ///
+  /// Pass null to omit the User-Agent header entirely.
+  TransportOptionsBuilder userAgent(String? val) {
     _userAgent = val;
     return this;
   }

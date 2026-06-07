@@ -1,6 +1,7 @@
 {{>api_info}}
 {{#generateTests}}
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:test/test.dart';
 import 'package:{{packageName}}/{{packageName}}.dart';
@@ -174,6 +175,45 @@ void main() {
           PetWithOwner.fromJson(jsonDecode(serialized) as Map<String, dynamic>);
 
       expect(restored, isNotNull);
+    });
+
+    // oneOf of primitive/array variants: SetPetAvatarThumbnailRequest
+    // (oneOf: [string/byte, array of string/byte]). Regression for the
+    // value-less empty-stub that silently dropped the payload.
+
+    test('SetPetAvatarThumbnailRequest carries a single byte value', () {
+      final bytes = Uint8List.fromList(<int>[1, 2, 3, 4]);
+
+      final req = SetPetAvatarThumbnailRequest.value(bytes);
+      expect(req.value, equals(bytes));
+
+      // toJson must emit the base64 of the bytes, not an empty map/object.
+      final encoded = req.toJson();
+      expect(encoded, equals(base64Encode(bytes)));
+    });
+
+    test('SetPetAvatarThumbnailRequest round trips a single byte value', () {
+      final bytes = Uint8List.fromList(<int>[10, 20, 30]);
+      final wire = base64Encode(bytes);
+
+      final req = SetPetAvatarThumbnailRequest.fromJson(wire);
+      expect(req.value, isA<Uint8List>());
+      expect(req.value, equals(bytes));
+      expect(req.toJson(), equals(wire));
+    });
+
+    test('SetPetAvatarThumbnailRequest round trips an array of byte values',
+        () {
+      final a = Uint8List.fromList(<int>[1, 2]);
+      final b = Uint8List.fromList(<int>[3, 4]);
+      final wire = <String>[base64Encode(a), base64Encode(b)];
+
+      final req = SetPetAvatarThumbnailRequest.fromJson(wire);
+      final value = req.value as List;
+      expect(value, hasLength(2));
+      expect(value[0], equals(a));
+      expect(value[1], equals(b));
+      expect(req.toJson(), equals(wire));
     });
   });
 }

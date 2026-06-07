@@ -157,9 +157,11 @@ class DefaultApiClient implements ApiClient {
     merged.addAll(_transportOptions.defaultHeaders);
     merged.addAll(headers);
 
+    final userAgent = _transportOptions.userAgent;
     if (!merged.containsKey('User-Agent') &&
-        _transportOptions.userAgent.isNotEmpty) {
-      merged['User-Agent'] = _transportOptions.userAgent;
+        userAgent != null &&
+        userAgent.isNotEmpty) {
+      merged['User-Agent'] = userAgent;
     }
 
     if (!merged.containsKey('X-Request-ID') &&

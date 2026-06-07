@@ -166,7 +166,12 @@ void main() {
     test('setPetAvatarThumbnail', () async {
       final api = _newPetApiForIntegration();
 
-      await api.setPetAvatarThumbnail(1, const SetPetAvatarThumbnailRequest());
+      await api.setPetAvatarThumbnail(
+        1,
+        SetPetAvatarThumbnailRequest.value(
+          Uint8List.fromList(<int>[1, 2, 3]),
+        ),
+      );
     });
 
     test('uploadPetCertificate', () async {

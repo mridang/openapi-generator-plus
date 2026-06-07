@@ -12,33 +12,68 @@ import 'package:uuid/uuid.dart';
 
 import '../object_serializer.dart';
 
-/// SetPetAvatarThumbnailRequest is a model class generated from the OpenAPI schema.
+/// SetPetAvatarThumbnailRequest is a union type (oneOf) of primitive/array variants.
 class SetPetAvatarThumbnailRequest {
-  const SetPetAvatarThumbnailRequest();
+  /// The decoded payload. For a `string`/`byte` variant this is a
+  /// [Uint8List]; for an array variant a [List]; for an object variant the
+  /// generated model instance. Never null once constructed from the wire.
+  final Object? _value;
 
-  /// Creates a [SetPetAvatarThumbnailRequest] from a JSON map.
-  factory SetPetAvatarThumbnailRequest.fromJson(Map<String, dynamic> json) {
-    return SetPetAvatarThumbnailRequest();
+  const SetPetAvatarThumbnailRequest._(this._value);
+
+  /// Wraps an already-decoded value. The value must match one of the
+  /// declared oneOf variants; it is re-encoded verbatim by [toJson].
+  const SetPetAvatarThumbnailRequest.value(Object? value) : _value = value;
+
+  /// Returns the underlying value of the union type.
+  Object? get value => _value;
+
+  /// Converts this union type back to its JSON wire value.
+  Object? toJson() => _encodeValue(_value);
+
+  /// Creates a [SetPetAvatarThumbnailRequest] from a decoded JSON value (a base64 [String]
+  /// for a `byte` variant, a [List] for an array variant, or a
+  /// `Map<String, dynamic>` for an object variant).
+  factory SetPetAvatarThumbnailRequest.fromJson(Object? json) {
+    try {
+      return SetPetAvatarThumbnailRequest._(
+        base64Decode(json as String),
+      );
+    } catch (_) {}
+    try {
+      return SetPetAvatarThumbnailRequest._(
+        (json as List).map((e) => base64Decode(e as String)).toList(),
+      );
+    } catch (_) {}
+    /* Cross-cutting `oneof-nondiscriminator-no-match-silent`: no variant
+       matched the wire shape. Throw a SerializationError rather than
+       returning a silently-empty union that drops the payload. */
+    throw SerializationError(
+      'Data does not match any oneOf schemas for SetPetAvatarThumbnailRequest',
+    );
   }
 
-  /// Converts this [SetPetAvatarThumbnailRequest] to a JSON map.
-  Map<String, dynamic> toJson() {
-    final json = <String, dynamic>{};
-    return json;
+  /// Re-encodes a decoded value to its JSON wire form. Byte values are
+  /// base64-encoded; generated models delegate to their own toJson; plain
+  /// JSON primitives/maps pass through unchanged.
+  static Object? _encodeValue(Object? v) {
+    if (v == null) return null;
+    if (v is Uint8List) return base64Encode(v);
+    if (v is List) return v.map(_encodeValue).toList();
+    if (v is Map) return v;
+    try {
+      return (v as dynamic).toJson();
+    } catch (_) {
+      return v;
+    }
   }
 
-  /// Value-equality based on all declared fields. Nested List/Map fields are compared
-  /// by reference — callers needing structural equality on those should
-  /// use `package:collection`'s `DeepCollectionEquality`.
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is SetPetAvatarThumbnailRequest;
+    return other is SetPetAvatarThumbnailRequest && _value == other._value;
   }
 
-  /// hashCode emits Object.hashAll which accepts an arbitrary-length
-  /// Iterable (Object.hash requires 2+ positional args, so it can't
-  /// represent the 0-var or 1-var cases without special-casing).
   @override
-  int get hashCode => Object.hashAll([]);
+  int get hashCode => _value.hashCode;
 }

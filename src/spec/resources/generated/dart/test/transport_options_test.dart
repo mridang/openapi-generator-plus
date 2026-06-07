@@ -45,6 +45,11 @@ void main() {
       expect(opts.userAgent, isNotEmpty);
     });
 
+    test('userAgent can be set to null to omit the header', () {
+      final opts = TransportOptionsBuilder().userAgent(null).build();
+      expect(opts.userAgent, isNull);
+    });
+
     test('defaultHeaders defaults to empty map', () {
       final opts = TransportOptionsBuilder().build();
       expect(opts.defaultHeaders, isEmpty);
