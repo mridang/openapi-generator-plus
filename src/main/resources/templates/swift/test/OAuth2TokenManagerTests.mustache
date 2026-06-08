@@ -222,6 +222,33 @@ import Testing
         #expect(client.callCount == 1)
     }
 
+    @Test func testNoExpiresInCachesTokenIndefinitely() async throws {
+        /* Regression: when the token response omits expires_in, the token must
+         * be cached indefinitely. The previous .distantPast expiry sentinel
+         * made the cache check always false, so a no-expiry token was refetched
+         * on EVERY call. A second getAccessToken within the same manager must
+         * serve from cache, hitting the endpoint exactly ONCE. This matches the
+         * other SDKs (Java: null expiry => never expires; Go: zero Date => same). */
+        let client = CountingMockApiClient(
+            responseBody: "{\"access_token\":\"no-expiry-tok\"}",
+            delayNanos: 0
+        )
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let params = ["grant_type": "client_credentials"]
+        let tokenURL = "https://auth.example.com/token"
+
+        let first = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        let second = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+
+        #expect(first == "no-expiry-tok")
+        #expect(second == "no-expiry-tok")
+        #expect(client.callCount == 1,
+            "token without expires_in must be cached indefinitely (1 endpoint hit), got \(client.callCount)")
+    }
+
     @Test func testExpiresInLongLivedTokenAppliesFullBuffer() async throws {
         // Gap CM: long-lived token gets full 30s buffer; second call uses cache.
         let client = CountingMockApiClient(

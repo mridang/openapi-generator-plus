@@ -21,7 +21,13 @@ public final class OAuth2TokenManager: @unchecked Sendable {
     private var apiClient: ApiClient?
     private var accessToken: String = ""
     private var _refreshToken: String = ""
-    private var tokenExpiry: Date = .distantPast
+    /// Cached token expiry instant, or `nil` when the token response omitted
+    /// `expires_in`. A `nil` expiry means "cache indefinitely" (valid until
+    /// explicitly invalidated), matching the other SDKs (Java treats a null
+    /// expiry as never-expiring; Go treats a zero Date the same way). The
+    /// previous `.distantPast` sentinel made every no-expiry token look stale,
+    /// so it was refetched on every request.
+    private var tokenExpiry: Date?
     /// In-flight refresh task, if any. While non-nil, concurrent callers await
     /// its result instead of starting another refresh.
     private var inflightRefresh: Task<String, Error>?
@@ -64,8 +70,18 @@ public final class OAuth2TokenManager: @unchecked Sendable {
             case start(Task<String, Error>)
         }
         let outcome: FastPath = lock.withLock {
-            if !accessToken.isEmpty && Date() < tokenExpiry.addingTimeInterval(-Self.expirySafetyMargin) {
-                return .cached(accessToken)
+            /* A nil tokenExpiry means the token response carried no expires_in,
+             * so the token is cached indefinitely (valid until explicitly
+             * invalidated) -- matching the other SDKs. Only when an expiry is
+             * known do we apply the safety margin and refetch once it lapses. */
+            if !accessToken.isEmpty {
+                if let expiry = tokenExpiry {
+                    if Date() < expiry.addingTimeInterval(-Self.expirySafetyMargin) {
+                        return .cached(accessToken)
+                    }
+                } else {
+                    return .cached(accessToken)
+                }
             }
             if let existing = inflightRefresh {
                 return .existing(existing)
@@ -138,7 +154,9 @@ public final class OAuth2TokenManager: @unchecked Sendable {
     public func setAccessToken(_ token: String) {
         lock.withLock {
             self.accessToken = token
-            self.tokenExpiry = .distantFuture
+            /* A manually-set token has no known expiry, so cache it
+             * indefinitely (nil == never expires). */
+            self.tokenExpiry = nil
         }
     }
 
@@ -148,7 +166,7 @@ public final class OAuth2TokenManager: @unchecked Sendable {
     public func invalidateAccessToken() {
         lock.withLock {
             self.accessToken = ""
-            self.tokenExpiry = .distantPast
+            self.tokenExpiry = nil
         }
     }
 
@@ -268,6 +286,11 @@ public final class OAuth2TokenManager: @unchecked Sendable {
                 } else {
                     self.tokenExpiry = Date()
                 }
+            } else {
+                /* No expires_in in the response: cache the token indefinitely
+                 * (until explicitly invalidated). A nil expiry is the
+                 * "never expires" sentinel honoured by the fast-path check. */
+                self.tokenExpiry = nil
             }
         }
     }

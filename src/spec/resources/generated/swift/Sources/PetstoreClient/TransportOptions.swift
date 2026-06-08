@@ -18,7 +18,7 @@ import Foundation
 ///
 /// ```swift
 /// let transport = TransportOptionsBuilder()
-///     .verifySSL(false)
+///     .verifySsl(false)
 ///     .proxy("http://proxy.example.com:8080")
 ///     .timeout(30000)
 ///     .userAgent("MyApp/1.0")
@@ -26,7 +26,7 @@ import Foundation
 /// ```
 public final class TransportOptions: Sendable {
     /// Controls whether TLS certificate verification is enabled.
-    public let verifySSL: Bool
+    public let verifySsl: Bool
 
     /// Path to a custom CA certificate bundle for TLS verification.
     public let caCertPath: String?
@@ -65,7 +65,7 @@ public final class TransportOptions: Sendable {
     public let injectRequestID: Bool
 
     fileprivate init(
-        verifySSL: Bool,
+        verifySsl: Bool,
         caCertPath: String?,
         proxy: URL?,
         timeout: Int?,
@@ -75,7 +75,7 @@ public final class TransportOptions: Sendable {
         defaultHeaders: [String: String],
         injectRequestID: Bool
     ) {
-        self.verifySSL = verifySSL
+        self.verifySsl = verifySsl
         self.caCertPath = caCertPath
         self.proxy = proxy
         self.timeout = timeout
@@ -89,7 +89,7 @@ public final class TransportOptions: Sendable {
 
 /// TransportOptionsBuilder builds immutable ``TransportOptions`` instances.
 public final class TransportOptionsBuilder {
-    private var verifySSL: Bool = true
+    private var verifySsl: Bool = true
     private var caCertPath: String? = nil
     private var proxy: URL? = nil
     private var timeout: Int? = 10000
@@ -104,8 +104,8 @@ public final class TransportOptionsBuilder {
 
     /// Enables or disables TLS certificate verification.
     @discardableResult
-    public func verifySSL(_ val: Bool) -> TransportOptionsBuilder {
-        self.verifySSL = val
+    public func verifySsl(_ val: Bool) -> TransportOptionsBuilder {
+        self.verifySsl = val
         return self
     }
 
@@ -196,7 +196,7 @@ public final class TransportOptionsBuilder {
     /// Creates and returns an immutable TransportOptions instance.
     public func build() -> TransportOptions {
         return TransportOptions(
-            verifySSL: verifySSL,
+            verifySsl: verifySsl,
             caCertPath: caCertPath,
             proxy: proxy,
             timeout: timeout,

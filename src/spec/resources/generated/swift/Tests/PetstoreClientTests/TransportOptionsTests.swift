@@ -14,7 +14,7 @@ import Testing
 
     @Test func testVerifySslDefaultsToTrue() {
         let opts = TransportOptionsBuilder().build()
-        #expect(opts.verifySSL)
+        #expect(opts.verifySsl)
     }
 
     @Test func testCaCertPathDefaultsToNull() {
@@ -59,7 +59,7 @@ import Testing
 
     @Test func testBuilderSetsAllFields() throws {
         let opts = try TransportOptionsBuilder()
-            .verifySSL(false)
+            .verifySsl(false)
             .caCertPath("/path/to/ca.pem")
             .proxy("http://proxy.example.com:8080")
             .timeout(30000)
@@ -70,7 +70,7 @@ import Testing
             .injectRequestID(true)
             .build()
 
-        #expect(!(opts.verifySSL))
+        #expect(!(opts.verifySsl))
         #expect(opts.caCertPath == "/path/to/ca.pem")
         #expect(opts.proxy != nil)
         #expect(opts.proxy?.absoluteString == "http://proxy.example.com:8080")
@@ -105,7 +105,7 @@ import Testing
 
     @Test func testBuilderMethodsReturnSameInstance() {
         let opts = TransportOptionsBuilder()
-            .verifySSL(true)
+            .verifySsl(true)
             .userAgent("Test/1.0")
             .timeout(10000)
             .build()
@@ -155,11 +155,11 @@ import Testing
 
     @Test func testBuilderProducesIndependentInstances() {
         let builder = TransportOptionsBuilder()
-            .verifySSL(false)
+            .verifySsl(false)
         let first = builder.build()
         let second = builder.build()
 
-        #expect(first.verifySSL == second.verifySSL)
+        #expect(first.verifySsl == second.verifySsl)
         #expect(!(first === second))
     }
 

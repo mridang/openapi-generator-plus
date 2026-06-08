@@ -119,7 +119,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             config.timeoutIntervalForResource = seconds
         }
         let delegate = SessionDelegate(
-            verifySSL: opts.verifySSL,
+            verifySsl: opts.verifySsl,
             caCertPath: opts.caCertPath,
             followRedirects: opts.followRedirects,
             maxRedirects: opts.maxRedirects
@@ -517,14 +517,14 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
          * headers on cross-origin redirects, so it is created
          * unconditionally when followRedirects is enabled. */
         let needsDelegate =
-            !opts.verifySSL
+            !opts.verifySsl
             || opts.caCertPath != nil
             || !opts.followRedirects
             || opts.maxRedirects != nil
             || opts.followRedirects
         if needsDelegate {
             let delegate = SessionDelegate(
-                verifySSL: opts.verifySSL,
+                verifySsl: opts.verifySsl,
                 caCertPath: opts.caCertPath,
                 followRedirects: opts.followRedirects,
                 maxRedirects: opts.maxRedirects
@@ -540,7 +540,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     /// for the OAuth2 token-endpoint POST (Gap 3.2) so a credential-bearing
     /// body is never silently replayed to a Location target — the token
     /// manager inspects and rejects the 3xx itself. TLS settings are
-    /// inherited from ``TransportOptions`` so custom CA / verifySSL flags
+    /// inherited from ``TransportOptions`` so custom CA / verifySsl flags
     /// still apply on the token request.
     func buildNoRedirectSession(_ opts: TransportOptions) -> URLSession {
         let config = URLSessionConfiguration.ephemeral
@@ -556,7 +556,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             config.protocolClasses = primaryProtocols
         }
         let delegate = SessionDelegate(
-            verifySSL: opts.verifySSL,
+            verifySsl: opts.verifySsl,
             caCertPath: opts.caCertPath,
             followRedirects: false,
             maxRedirects: 0
@@ -587,7 +587,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
 /// When ``maxRedirects`` is set, the delegate limits the number of consecutive
 /// redirects before stopping. A value of 0 means no redirects are followed.
 private final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegate, @unchecked Sendable {
-    private let verifySSL: Bool
+    private let verifySsl: Bool
     private let caCertPath: String?
     private let followRedirects: Bool
     private let maxRedirects: Int?
@@ -601,8 +601,8 @@ private final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTas
        on the call side once the task completes. */
     private let redirectError = LockedError()
 
-    init(verifySSL: Bool, caCertPath: String?, followRedirects: Bool, maxRedirects: Int?) {
-        self.verifySSL = verifySSL
+    init(verifySsl: Bool, caCertPath: String?, followRedirects: Bool, maxRedirects: Int?) {
+        self.verifySsl = verifySsl
         self.caCertPath = caCertPath
         self.followRedirects = followRedirects
         self.maxRedirects = maxRedirects
@@ -628,7 +628,7 @@ private final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTas
         }
 
         /* When SSL verification is disabled, accept any certificate. */
-        if !verifySSL {
+        if !verifySsl {
             completionHandler(.useCredential, URLCredential(trust: serverTrust))
             return
         }

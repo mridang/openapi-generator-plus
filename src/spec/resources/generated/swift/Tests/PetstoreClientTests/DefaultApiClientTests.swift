@@ -29,7 +29,7 @@ import Testing
     // MARK: - Integration-equivalent tests
 
     @Test func testMakesHttpsRequestWithVerifySslFalse() async throws {
-        let transport = TransportOptionsBuilder().verifySSL(false).build()
+        let transport = TransportOptionsBuilder().verifySsl(false).build()
         let client = makeClient(transport: transport) { _ in
             return (self.jsonBody(), 200, ["Content-Type": "application/json"])
         }
@@ -83,7 +83,7 @@ import Testing
     @Test func testMakesHttpsRequestThroughProxyWithVerifySslFalse() async throws {
         let transport = try TransportOptionsBuilder()
             .proxy("http://proxy.example.com:8080")
-            .verifySSL(false)
+            .verifySsl(false)
             .build()
         let client = makeClient(transport: transport) { _ in
             return (self.jsonBody(), 200, ["Content-Type": "application/json"])
