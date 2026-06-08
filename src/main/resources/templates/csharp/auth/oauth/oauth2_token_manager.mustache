@@ -132,12 +132,20 @@ public sealed class OAuth2TokenManager
                 }
             }
             catch (Exception ex)
-                when (ex is HttpRequestException or OAuth2ServerError or OAuth2TokenError)
+                when (ex is not OutOfMemoryException and not StackOverflowException)
             {
-                /* Refresh failed (e.g. refresh token revoked or expired, or a
-                 * 2xx refresh response missing access_token -> OAuth2TokenError).
-                 * Fall back to re-running the original grant below — matching the
-                 * other 11 SDKs, which catch any refresh failure here. */
+                /* Refresh failed for ANY recoverable reason — a revoked/expired
+                 * refresh token (OAuth2ServerError), a 2xx refresh body missing
+                 * access_token (OAuth2TokenError), a transport failure
+                 * (HttpRequestException), a malformed JSON body (JsonException),
+                 * a timeout (TaskCanceledException), etc. Fall back to re-running
+                 * the original grant below — matching the other 11 SDKs, which
+                 * all catch any refresh failure here (Java catch (RuntimeException),
+                 * Python except Exception, Ruby rescue StandardError, ...). The
+                 * `when` filter both keeps CA1031 satisfied (no bare catch-all)
+                 * and lets genuinely fatal runtime failures propagate. Scoped to
+                 * the refresh attempt only; the fallback grant below is not
+                 * wrapped, so its failures propagate normally. */
             }
         }
 
@@ -212,23 +220,20 @@ public sealed class OAuth2TokenManager
          * replays the form body (containing the client secret / refresh
          * token) to an attacker-controlled URL. We pass noRedirect: true so
          * the transport surfaces the 3xx verbatim; if the response is any
-         * 3xx we refuse to honour it and raise OAuth2ServerError so the
-         * caller sees an explicit failure rather than a silently leaked
-         * credential. */
+         * 3xx we refuse to honour it. This is a client-side/transport refusal,
+         * not an RFC 6749 §5.2 server error body, so we raise OAuth2TokenError
+         * (reserving OAuth2ServerError for 4xx/5xx error bodies) — matching the
+         * other 11 SDKs, which all throw their token/transport error here. */
         ApiResponse response = await _apiClient
             .SendRequestAsync("POST", tokenUrl, headers, body, noRedirect: true)
             .ConfigureAwait(false);
 
         if (response.StatusCode is >= 300 and < 400)
         {
-            throw new OAuth2ServerError(
-                response.StatusCode,
-                "redirect_refused",
-                "Refusing to follow redirect from OAuth2 token "
-                    + "endpoint; replaying client credentials to the redirect "
-                    + "target would leak them.",
-                null,
-                response.Body);
+            throw new OAuth2TokenError(
+                $"Refusing to follow redirect from OAuth2 token endpoint {tokenUrl} "
+                    + $"(status {response.StatusCode}); replaying client credentials "
+                    + "to the redirect target would leak them.");
         }
 
         if (response.StatusCode is < 200 or >= 300)
