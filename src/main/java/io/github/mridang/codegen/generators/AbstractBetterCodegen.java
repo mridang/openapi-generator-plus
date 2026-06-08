@@ -1520,8 +1520,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 // (de)serialization.
                 final boolean hadOneOf = model.oneOf != null && !model.oneOf.isEmpty();
                 final boolean hadAnyOf = model.anyOf != null && !model.anyOf.isEmpty();
-                model.oneOf = filterNonPrimitiveTypeNames(model.oneOf);
-                model.anyOf = filterNonPrimitiveTypeNames(model.anyOf);
+                if (model.oneOf != null) {
+                    model.oneOf = filterNonPrimitiveTypeNames(model.oneOf);
+                }
+                if (model.anyOf != null) {
+                    model.anyOf = filterNonPrimitiveTypeNames(model.anyOf);
+                }
                 final boolean composedOneOf = model.getComposedSchemas() != null
                         && model.getComposedSchemas().getOneOf() != null
                         && !model.getComposedSchemas().getOneOf().isEmpty();
