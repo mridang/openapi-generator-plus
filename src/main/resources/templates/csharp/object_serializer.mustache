@@ -23,6 +23,12 @@ internal class ObjectSerializer
     /// Serialize an object to a JSON string.
     /// Unwraps oneOf/anyOf wrapper objects by serializing their ActualInstance.
     /// </summary>
+    /// <exception cref="SerializationException">
+    /// Thrown when the value cannot be serialized to JSON. The underlying
+    /// <see cref="JsonException"/> (or other native serializer failure) is
+    /// preserved as the inner exception so the SDK never leaks
+    /// <c>System.Text.Json</c> types out of its public surface.
+    /// </exception>
     public string Serialize(object? value)
     {
         if (value != null)
@@ -35,15 +41,53 @@ internal class ObjectSerializer
                 value = actualProp.GetValue(value);
             }
         }
-        return JsonSerializer.Serialize(value, _options);
+        try
+        {
+            return JsonSerializer.Serialize(value, _options);
+        }
+        catch (JsonException e)
+        {
+            throw new SerializationException("Failed to serialize object to JSON", e);
+        }
+        catch (NotSupportedException e)
+        {
+            throw new SerializationException("Failed to serialize object to JSON", e);
+        }
     }
 
     /// <summary>
     /// Deserialize a JSON string to an object of the specified type.
     /// </summary>
+    /// <exception cref="SerializationException">
+    /// Thrown when the JSON is malformed or does not match the target type.
+    /// The underlying <see cref="JsonException"/> (or other native
+    /// serializer failure) is preserved as the inner exception so the SDK
+    /// never leaks <c>System.Text.Json</c> types out of its public surface.
+    /// </exception>
     public T? Deserialize<T>(string? json)
     {
-        return string.IsNullOrEmpty(json) ? default : JsonSerializer.Deserialize<T>(json, _options);
+        if (string.IsNullOrEmpty(json))
+        {
+            return default;
+        }
+        try
+        {
+            return JsonSerializer.Deserialize<T>(json, _options);
+        }
+        catch (JsonException e)
+        {
+            throw new SerializationException(
+                $"Failed to deserialize JSON to {typeof(T)}",
+                e
+            );
+        }
+        catch (NotSupportedException e)
+        {
+            throw new SerializationException(
+                $"Failed to deserialize JSON to {typeof(T)}",
+                e
+            );
+        }
     }
 
     /// <summary>
@@ -233,6 +277,39 @@ internal class ObjectSerializer
         }
     }
 
+}
+
+/// <summary>
+/// Raised when serialization or deserialization fails. This SDK-owned type
+/// shields callers from the underlying <c>System.Text.Json.JsonException</c>
+/// (and other native serializer exceptions), keeping internal serde types
+/// off the public surface and giving cross-SDK parity with the other
+/// language clients, all of which throw an SDK-owned serialization error.
+/// The original native exception is preserved as <see cref="Exception.InnerException"/>.
+/// </summary>
+public class SerializationException : Exception
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SerializationException"/> class.
+    /// </summary>
+    public SerializationException() { }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SerializationException"/> class
+    /// with a detail message.
+    /// </summary>
+    /// <param name="message">The detail message.</param>
+    public SerializationException(string message)
+        : base(message) { }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SerializationException"/> class
+    /// with a detail message and the underlying cause.
+    /// </summary>
+    /// <param name="message">The detail message.</param>
+    /// <param name="innerException">The underlying native serializer exception.</param>
+    public SerializationException(string message, Exception innerException)
+        : base(message, innerException) { }
 }
 
 /// <summary>

@@ -5,8 +5,41 @@
 
 package org.openapitools.auth;
 
-public final class K2Authenticator extends ApiKeyAuthenticator {
+import java.util.Map;
+
+/**
+ * Authenticator for the {@code k2} security scheme.
+ */
+public final class K2Authenticator extends BaseAuthenticator {
+    private final ApiKeyAuthenticator delegate;
+
+    /**
+     * Creates an authenticator for the {@code k2} security scheme.
+     *
+     * @param host the host credential
+     * @param apiKey the apiKey credential
+     */
     public K2Authenticator(String host, String apiKey) {
-        super(host, "x-token", apiKey, ApiKeyLocation.HEADER);
+        this.delegate = new ApiKeyAuthenticator(host, "x-token", apiKey, ApiKeyLocation.HEADER);
+    }
+
+    @Override
+    public String getHost() {
+        return delegate.getHost();
+    }
+
+    @Override
+    public Map<String, String> getAuthHeaders() {
+        return delegate.getAuthHeaders();
+    }
+
+    @Override
+    public Map<String, String> getQueryParams() {
+        return delegate.getQueryParams();
+    }
+
+    @Override
+    public Map<String, String> getCookieParams() {
+        return delegate.getCookieParams();
     }
 }

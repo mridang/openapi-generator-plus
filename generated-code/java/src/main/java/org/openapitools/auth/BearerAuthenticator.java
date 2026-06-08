@@ -5,8 +5,41 @@
 
 package org.openapitools.auth;
 
-public final class BearerAuthenticator extends BearerAuthenticator {
+import java.util.Map;
+
+/**
+ * Authenticator for the {@code bearer} security scheme.
+ */
+public final class BearerAuthenticator extends BaseAuthenticator {
+    private final BearerAuthenticator delegate;
+
+    /**
+     * Creates an authenticator for the {@code bearer} security scheme.
+     *
+     * @param host the host credential
+     * @param token the token credential
+     */
     public BearerAuthenticator(String host, String token) {
-        super(host, token);
+        this.delegate = new BearerAuthenticator(host, token);
+    }
+
+    @Override
+    public String getHost() {
+        return delegate.getHost();
+    }
+
+    @Override
+    public Map<String, String> getAuthHeaders() {
+        return delegate.getAuthHeaders();
+    }
+
+    @Override
+    public Map<String, String> getQueryParams() {
+        return delegate.getQueryParams();
+    }
+
+    @Override
+    public Map<String, String> getCookieParams() {
+        return delegate.getCookieParams();
     }
 }

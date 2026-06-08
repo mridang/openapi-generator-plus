@@ -520,8 +520,8 @@ func TestDeserializationError_TruncatedJsonReturnsSerializationError(t *testing.
 	if err == nil {
 		t.Fatal("expected error for truncated JSON")
 	}
-	if _, ok := err.(*serializationError); !ok {
-		t.Errorf("expected *serializationError, got %T: %v", err, err)
+	if _, ok := err.(*SerializationError); !ok {
+		t.Errorf("expected *SerializationError, got %T: %v", err, err)
 	}
 }
 
@@ -532,8 +532,8 @@ func TestDeserializationError_InvalidJsonReturnsSerializationError(t *testing.T)
 	if err == nil {
 		t.Fatal("expected error for invalid JSON for map target")
 	}
-	if _, ok := err.(*serializationError); !ok {
-		t.Errorf("expected *serializationError, got %T: %v", err, err)
+	if _, ok := err.(*SerializationError); !ok {
+		t.Errorf("expected *SerializationError, got %T: %v", err, err)
 	}
 }
 
@@ -544,12 +544,32 @@ func TestDeserializationError_ErrorHasCause(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for truncated JSON")
 	}
-	serErr, ok := err.(*serializationError)
+	serErr, ok := err.(*SerializationError)
 	if !ok {
-		t.Fatalf("expected *serializationError, got %T", err)
+		t.Fatalf("expected *SerializationError, got %T", err)
 	}
 	if serErr.Cause == nil {
-		t.Error("serializationError should have a non-nil Cause")
+		t.Error("SerializationError should have a non-nil Cause")
+	}
+}
+
+// SerializationError must be exported so callers in other packages can
+// identify a serialization failure by type via errors.As. A package-private
+// type would be uncatchable across the package boundary, breaking parity with
+// the other SDKs whose serialization error type is public.
+func TestSerializationError_IsCatchableViaErrorsAs(t *testing.T) {
+	t.Parallel()
+	var result map[string]any
+	err := deserialize([]byte("not json"), &result)
+	if err == nil {
+		t.Fatal("expected error for invalid JSON")
+	}
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected error to be identifiable as *SerializationError via errors.As, got %T", err)
+	}
+	if serErr.Error() == "" {
+		t.Error("SerializationError should report a non-empty message via Error()")
 	}
 }
 

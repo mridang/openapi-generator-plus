@@ -308,6 +308,21 @@ import Testing
         }
     }
 
+    // SerializationError must be `public` so callers can catch a deserialize
+    // failure by type rather than by an opaque `any Error`. A `internal` type
+    // would be uncatchable outside the module, breaking parity with the other
+    // SDKs whose serialization error type is public.
+    @Test func testDeserializeFailureThrowsCatchableSerializationError() {
+        do {
+            _ = try ObjectSerializer.deserialize("not json", as: [String: String].self)
+            Issue.record("Expected a SerializationError to be thrown")
+        } catch let error as SerializationError {
+            #expect(!error.message.isEmpty, "SerializationError should carry a message")
+        } catch {
+            Issue.record("expected SerializationError, got: \(error)")
+        }
+    }
+
     // model-equality-swift-go (F-BM-01): generated model structs must conform
     // to Equatable + Hashable so `==` compiles and instances can be used as
     // Set members / dictionary keys, matching the other 10 SDKs.

@@ -326,7 +326,7 @@ public abstract class BaseApi
             {
                 errorBody = Serializer.Deserialize<object>(body);
             }
-            catch (System.Text.Json.JsonException)
+            catch (SerializationException)
             {
                 /* non-JSON body, errorBody stays null */
             }

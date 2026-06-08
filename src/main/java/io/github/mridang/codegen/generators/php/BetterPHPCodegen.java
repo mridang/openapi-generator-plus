@@ -228,6 +228,8 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("configuration.mustache", invokerFolder, "Configuration.php"),
             new SupportingFileSpec("configuration_builder.mustache", invokerFolder, "ConfigurationBuilder.php"),
             new SupportingFileSpec("object_serializer.mustache", invokerFolder, "ObjectSerializer.php"),
+            new SupportingFileSpec(
+                "serialization_exception.mustache", invokerFolder, "SerializationException.php"),
             new SupportingFileSpec("value_serializer.mustache", invokerFolder, "ValueSerializer.php"),
             new SupportingFileSpec("serializer/uri_normalizer.mustache", serializerFolder, "UriNormalizer.php"),
             new SupportingFileSpec("serializer/ds_vector_normalizer.mustache", serializerFolder, "DsVectorNormalizer.php"),

@@ -383,33 +383,58 @@ public class ObjectSerializerTest
         }
     }
 
+    // The public (de)serialize entry points must never leak the native
+    // System.Text.Json.JsonException to callers — they wrap it in the
+    // SDK-owned SerializationException (preserving the native exception as
+    // the inner exception), matching the other 11 language SDKs and keeping
+    // internal serde types off the public surface.
     public class DeserializationErrorWrappingTests
     {
         private readonly ObjectSerializer _serializer = new();
 
         [Fact]
-        public void TruncatedJsonThrowsJsonException()
+        public void TruncatedJsonThrowsSerializationException()
         {
-            Assert.Throws<System.Text.Json.JsonException>(() =>
-                _serializer.Deserialize<Category>("{")
-            );
+            Assert.Throws<SerializationException>(() => _serializer.Deserialize<Category>("{"));
         }
 
         [Fact]
-        public void InvalidJsonStructureThrowsJsonException()
+        public void InvalidJsonStructureThrowsSerializationException()
         {
-            Assert.Throws<System.Text.Json.JsonException>(() =>
+            Assert.Throws<SerializationException>(() =>
                 _serializer.Deserialize<Category>("\"hello\"")
             );
         }
 
         [Fact]
-        public void ThrownJsonExceptionHasMessage()
+        public void ThrownSerializationExceptionHasMessage()
         {
-            var ex = Assert.Throws<System.Text.Json.JsonException>(() =>
+            var ex = Assert.Throws<SerializationException>(() =>
                 _serializer.Deserialize<Category>("{")
             );
             Assert.NotNull(ex.Message);
+        }
+
+        [Fact]
+        public void MalformedJsonDoesNotLeakNativeJsonException()
+        {
+            // The raw System.Text.Json.JsonException must never escape the
+            // public deserialize entry point.
+            var ex = Record.Exception(() => _serializer.Deserialize<Category>("{not valid json"));
+            Assert.IsNotType<System.Text.Json.JsonException>(ex);
+            Assert.IsType<SerializationException>(ex);
+        }
+
+        [Fact]
+        public void SerializationExceptionPreservesNativeInnerException()
+        {
+            // The native JsonException is preserved as the inner exception so
+            // callers who need the gory detail can still drill down.
+            var ex = Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Category>("{")
+            );
+            Assert.NotNull(ex.InnerException);
+            Assert.IsAssignableFrom<System.Text.Json.JsonException>(ex.InnerException);
         }
     }
 
@@ -492,7 +517,7 @@ public class ObjectSerializerTest
         {
             // 'name' is required but absent — [JsonRequired] rejects it.
             var json = "{\"id\":1,\"photoUrls\":[\"https://example.com/fido.jpg\"]}";
-            Assert.Throws<System.Text.Json.JsonException>(() => _serializer.Deserialize<Pet>(json));
+            Assert.Throws<SerializationException>(() => _serializer.Deserialize<Pet>(json));
         }
 
         [Fact]
@@ -500,25 +525,27 @@ public class ObjectSerializerTest
         {
             // 'photoUrls' is required but absent — [JsonRequired] rejects it.
             var json = "{\"id\":1,\"name\":\"Fido\"}";
-            Assert.Throws<System.Text.Json.JsonException>(() => _serializer.Deserialize<Pet>(json));
+            Assert.Throws<SerializationException>(() => _serializer.Deserialize<Pet>(json));
         }
 
         [Fact]
         public void NullRequiredStringFieldThrows()
         {
             // 'name' is present but explicitly null — the model constructor's
-            // null-guard surfaces this as a JsonException.
+            // null-guard surfaces this; the serializer wraps it as a
+            // SerializationException.
             var json = "{\"id\":1,\"name\":null,\"photoUrls\":[\"https://example.com/fido.jpg\"]}";
-            Assert.Throws<System.Text.Json.JsonException>(() => _serializer.Deserialize<Pet>(json));
+            Assert.Throws<SerializationException>(() => _serializer.Deserialize<Pet>(json));
         }
 
         [Fact]
         public void NullRequiredArrayFieldThrows()
         {
             // 'photoUrls' is present but explicitly null — the model
-            // constructor's null-guard surfaces this as a JsonException.
+            // constructor's null-guard surfaces this; the serializer wraps it
+            // as a SerializationException.
             var json = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":null}";
-            Assert.Throws<System.Text.Json.JsonException>(() => _serializer.Deserialize<Pet>(json));
+            Assert.Throws<SerializationException>(() => _serializer.Deserialize<Pet>(json));
         }
 
         [Fact]
@@ -528,7 +555,7 @@ public class ObjectSerializerTest
             // null must hard-fail with the SDK serialization error rather than
             // build a partial object with a null byte array.
             var json = "{\"data\":null,\"mimeType\":\"image/png\"}";
-            Assert.Throws<System.Text.Json.JsonException>(() =>
+            Assert.Throws<SerializationException>(() =>
                 _serializer.Deserialize<SetPetAvatarRequest>(json)
             );
         }
@@ -537,7 +564,7 @@ public class ObjectSerializerTest
         public void MissingRequiredByteArrayFieldThrows()
         {
             var json = "{\"mimeType\":\"image/png\"}";
-            Assert.Throws<System.Text.Json.JsonException>(() =>
+            Assert.Throws<SerializationException>(() =>
                 _serializer.Deserialize<SetPetAvatarRequest>(json)
             );
         }
@@ -875,7 +902,7 @@ public class ObjectSerializerTest
         [Fact]
         public void MalformedGuidFailsWithinModel()
         {
-            Assert.Throws<System.Text.Json.JsonException>(() =>
+            Assert.Throws<SerializationException>(() =>
                 _serializer.Deserialize<GuidHolder>("{\"id\":\"not-a-guid\"}")
             );
         }

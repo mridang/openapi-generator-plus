@@ -45,14 +45,14 @@ public class ComposedSchemaTest
          * Swift / Dart / Go / Rust — surfaces data-shape bugs loudly
          * rather than letting them mask as null. */
         var json = "{\"foodType\":\"raw\",\"calories\":300}";
-        Assert.Throws<System.Text.Json.JsonException>(() => _serializer.Deserialize<PetFood>(json));
+        Assert.Throws<SerializationException>(() => _serializer.Deserialize<PetFood>(json));
     }
 
     [Fact]
     public void OneOfMissingDiscriminatorThrows()
     {
         var json = "{\"weightKg\":2.5}";
-        Assert.Throws<System.Text.Json.JsonException>(() => _serializer.Deserialize<PetFood>(json));
+        Assert.Throws<SerializationException>(() => _serializer.Deserialize<PetFood>(json));
     }
 
     [Fact]
@@ -61,19 +61,22 @@ public class ComposedSchemaTest
         // An empty discriminator value matches no listed subtype and must be
         // rejected rather than silently routed.
         var json = "{\"foodType\":\"\",\"weightKg\":2.5}";
-        Assert.Throws<System.Text.Json.JsonException>(() => _serializer.Deserialize<PetFood>(json));
+        Assert.Throws<SerializationException>(() => _serializer.Deserialize<PetFood>(json));
     }
 
     [Fact]
     public void OneOfUnknownDiscriminatorErrorNamesValue()
     {
         // The failure message must surface the offending discriminator value
-        // so callers can diagnose server/spec drift.
+        // so callers can diagnose server/spec drift. The native JsonException
+        // carrying that detail is preserved as the inner exception of the
+        // SDK-owned SerializationException.
         var json = "{\"foodType\":\"raw\",\"calories\":300}";
-        var ex = Assert.Throws<System.Text.Json.JsonException>(() =>
+        var ex = Assert.Throws<SerializationException>(() =>
             _serializer.Deserialize<PetFood>(json)
         );
-        Assert.Contains("raw", ex.Message);
+        Assert.NotNull(ex.InnerException);
+        Assert.Contains("raw", ex.InnerException!.Message);
     }
 
     [Fact]
@@ -129,9 +132,7 @@ public class ComposedSchemaTest
         // than silently storing a raw value. Aligns C# with the throw-on-
         // no-match canonical (Java/Dart/Node/Go/Rust/...).
         var json = "{\"unrelatedKey\":\"value\",\"anotherUnknown\":123}";
-        Assert.Throws<System.Text.Json.JsonException>(() =>
-            _serializer.Deserialize<PetTreatment>(json)
-        );
+        Assert.Throws<SerializationException>(() => _serializer.Deserialize<PetTreatment>(json));
     }
 
     // -- oneOf without discriminator: SetPetAvatarThumbnailRequest --
@@ -155,7 +156,7 @@ public class ComposedSchemaTest
         // a raw value (Java/C#/Kotlin/Node previously kept it) or — as Dart did
         // — an empty object. Aligns C# with the throw-on-no-match canonical.
         var json = "{\"unexpected\":\"shape\"}";
-        Assert.Throws<System.Text.Json.JsonException>(() =>
+        Assert.Throws<SerializationException>(() =>
             _serializer.Deserialize<SetPetAvatarThumbnailRequest>(json)
         );
     }

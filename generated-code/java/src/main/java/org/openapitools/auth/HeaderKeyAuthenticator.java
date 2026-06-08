@@ -5,8 +5,41 @@
 
 package org.openapitools.auth;
 
-public final class HeaderKeyAuthenticator extends ApiKeyAuthenticator {
+import java.util.Map;
+
+/**
+ * Authenticator for the {@code headerKey} security scheme.
+ */
+public final class HeaderKeyAuthenticator extends BaseAuthenticator {
+    private final ApiKeyAuthenticator delegate;
+
+    /**
+     * Creates an authenticator for the {@code headerKey} security scheme.
+     *
+     * @param host the host credential
+     * @param apiKey the apiKey credential
+     */
     public HeaderKeyAuthenticator(String host, String apiKey) {
-        super(host, "X-Api-Key", apiKey, ApiKeyLocation.HEADER);
+        this.delegate = new ApiKeyAuthenticator(host, "X-Api-Key", apiKey, ApiKeyLocation.HEADER);
+    }
+
+    @Override
+    public String getHost() {
+        return delegate.getHost();
+    }
+
+    @Override
+    public Map<String, String> getAuthHeaders() {
+        return delegate.getAuthHeaders();
+    }
+
+    @Override
+    public Map<String, String> getQueryParams() {
+        return delegate.getQueryParams();
+    }
+
+    @Override
+    public Map<String, String> getCookieParams() {
+        return delegate.getCookieParams();
     }
 }

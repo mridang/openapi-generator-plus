@@ -2,16 +2,20 @@
 import Foundation
 
 /// SerializationError is thrown when serialization or deserialization fails.
-internal struct SerializationError: Error, LocalizedError {
-    let message: String
-    let cause: Error?
+///
+/// It is `public` so callers can catch a serialization failure by type
+/// (`catch let error as SerializationError`), matching the public error types
+/// the other SDKs expose. It conforms to `Error` and `LocalizedError`.
+public struct SerializationError: Error, LocalizedError {
+    public let message: String
+    public let cause: Error?
 
-    init(message: String, cause: Error? = nil) {
+    public init(message: String, cause: Error? = nil) {
         self.message = message
         self.cause = cause
     }
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         if let cause = cause {
             return "\(message): \(cause.localizedDescription)"
         }

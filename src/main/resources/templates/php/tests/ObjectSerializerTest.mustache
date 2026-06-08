@@ -280,15 +280,35 @@ test('tab character escaped properly in json', function (): void {
 });
 
 // -- DeserializationErrorWrapping --
+//
+// The public deserialize() entry point must never leak a framework-native
+// serde exception (\JsonException, \InvalidArgumentException, …) to callers.
+// It wraps them in the SDK-owned SerializationException (preserving the native
+// exception as the previous exception), matching the other 11 language SDKs
+// and keeping internal serde types off the public surface.
 
-test('truncated json throws exception', function (): void {
+test('truncated json throws SerializationException', function (): void {
     expect(fn () => ObjectSerializer::deserialize('{', Category::class))
-        ->toThrow(\Exception::class);
+        ->toThrow(\{{invokerPackage}}\SerializationException::class);
 });
 
-test('invalid json structure throws exception', function (): void {
+test('invalid json structure throws SerializationException', function (): void {
     expect(fn () => ObjectSerializer::deserialize('"hello"', Category::class))
-        ->toThrow(\Exception::class);
+        ->toThrow(\{{invokerPackage}}\SerializationException::class);
+});
+
+test('malformed json does not leak native exception', function (): void {
+    // The native \JsonException must never escape the public entry point.
+    try {
+        ObjectSerializer::deserialize('{not valid json', Category::class);
+        test()->fail('Expected exception was not thrown');
+    } catch (\Throwable $e) {
+        expect($e)->toBeInstanceOf(\{{invokerPackage}}\SerializationException::class);
+        expect($e)->not->toBeInstanceOf(\JsonException::class);
+        // The native exception is preserved as the previous exception so
+        // callers who need the gory detail can still drill down.
+        expect($e->getPrevious())->toBeInstanceOf(\Throwable::class);
+    }
 });
 
 test('thrown exception has message', function (): void {
@@ -361,9 +381,11 @@ test('deserialize throws on int overflow', function (): void {
     /* Int64 max + 1 (9223372036854775808) exceeds PHP_INT_MAX on every
      * supported platform. Without the overflow check, json_decode would
      * silently return a float and settype would truncate to PHP_INT_MAX
-     * — wrong data, no error. With the check, deserialize throws. */
+     * — wrong data, no error. With the check, deserialize throws. The native
+     * \OverflowException is wrapped in the SDK-owned SerializationException by
+     * the public entry point. */
     expect(fn () => ObjectSerializer::deserialize('9223372036854775808', 'int'))
-        ->toThrow(\OverflowException::class);
+        ->toThrow(\{{invokerPackage}}\SerializationException::class);
 });
 
 // -- 2.1 format:byte helpers --
@@ -481,7 +503,7 @@ test('DateInterval round trips through stringify', function (): void {
 
 test('DateInterval invalid string surfaces exception', function (): void {
     expect(fn () => ObjectSerializer::deserialize('"not-a-duration"', 'DateInterval'))
-        ->toThrow(\Exception::class);
+        ->toThrow(\{{invokerPackage}}\SerializationException::class);
 });
 
 // -- F-BM-05: missing required field hard-fails on deserialize --
@@ -492,7 +514,7 @@ test('deserialize throws when a required field is missing', function (): void {
      * rather than silently constructing a partial object. */
     $json = '{"id":1,"photoUrls":["http://x/a.png"]}'; // missing "name"
     expect(fn (): mixed => ObjectSerializer::deserialize($json, Pet::class))
-        ->toThrow(\{{invokerPackage}}\ApiException::class);
+        ->toThrow(\{{invokerPackage}}\SerializationException::class);
 });
 
 test('deserialize throws when a required field is explicitly null', function (): void {
@@ -503,14 +525,14 @@ test('deserialize throws when a required field is explicitly null', function ():
      * hard-fail rather than build a partial object. */
     $json = '{"name":null,"photoUrls":["http://x/a.png"]}';
     expect(fn (): mixed => ObjectSerializer::deserialize($json, Pet::class))
-        ->toThrow(\{{invokerPackage}}\ApiException::class);
+        ->toThrow(\{{invokerPackage}}\SerializationException::class);
 });
 
 test('deserialize throws when a required container field is explicitly null', function (): void {
     /* photoUrls is a required, non-nullable \Ds\Set. Explicit null must fail. */
     $json = '{"name":"doggie","photoUrls":null}';
     expect(fn (): mixed => ObjectSerializer::deserialize($json, Pet::class))
-        ->toThrow(\{{invokerPackage}}\ApiException::class);
+        ->toThrow(\{{invokerPackage}}\SerializationException::class);
 });
 
 test('deserialize succeeds when all required fields are present', function (): void {

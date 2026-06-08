@@ -48,20 +48,24 @@ func stringifyDate(value any) string {
 	}
 }
 
-// serializationError is returned when serialization or deserialization fails.
-type serializationError struct {
+// SerializationError is returned when serialization or deserialization fails.
+//
+// It is exported so callers can identify a serialization failure by type via
+// errors.As(err, new(*SerializationError)), matching the public error types the
+// other SDKs expose. It satisfies the error interface.
+type SerializationError struct {
 	Message string
 	Cause   error
 }
 
-func (e *serializationError) Error() string {
+func (e *SerializationError) Error() string {
 	if e.Cause != nil {
 		return fmt.Sprintf("%s: %v", e.Message, e.Cause)
 	}
 	return e.Message
 }
 
-func (e *serializationError) Unwrap() error {
+func (e *SerializationError) Unwrap() error {
 	return e.Cause
 }
 
@@ -78,7 +82,7 @@ func serialize(object any) ([]byte, error) {
 	}
 	data, err := json.Marshal(object)
 	if err != nil {
-		return nil, &serializationError{
+		return nil, &SerializationError{
 			Message: fmt.Sprintf("failed to serialize object to JSON: %v", err),
 			Cause:   err,
 		}
@@ -108,14 +112,14 @@ func deserialize(data []byte, target any) error {
 	}
 
 	if depth := jsonMaxDepth(data); depth > maxJSONDepth {
-		return &serializationError{
+		return &SerializationError{
 			Message: fmt.Sprintf("JSON nesting depth %d exceeds limit %d", depth, maxJSONDepth),
 			Cause:   nil,
 		}
 	}
 
 	if err := json.Unmarshal(data, target); err != nil {
-		return &serializationError{
+		return &SerializationError{
 			Message: fmt.Sprintf("failed to deserialize JSON: %v", err),
 			Cause:   err,
 		}
@@ -291,7 +295,7 @@ func resolveOneOf(data any, candidates []func(any) (any, error)) (any, error) {
 			return result, nil
 		}
 	}
-	return nil, &serializationError{Message: "No oneOf/anyOf variant matched the JSON"}
+	return nil, &SerializationError{Message: "No oneOf/anyOf variant matched the JSON"}
 }
 
 // resolveAnyOf attempts deserialization against each candidate factory function.

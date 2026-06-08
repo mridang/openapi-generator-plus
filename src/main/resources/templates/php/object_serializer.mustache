@@ -177,18 +177,77 @@ class ObjectSerializer
 
     /**
      * Serialize an object to a JSON string.
+     *
+     * @throws SerializationException when the value cannot be serialized. The
+     *         native serializer exception (\RuntimeException,
+     *         \InvalidArgumentException, …) is preserved as the previous
+     *         exception so the SDK never leaks framework-native serde types
+     *         out of its public surface.
      */
     public static function serialize(mixed $data): string
     {
-        $json = json_encode(self::sanitizeForSerialization($data));
-        if ($json === false) {
-            throw new \RuntimeException('JSON encoding failed: ' . json_last_error_msg());
+        try {
+            $json = json_encode(self::sanitizeForSerialization($data));
+            if ($json === false) {
+                throw new \RuntimeException('JSON encoding failed: ' . json_last_error_msg());
+            }
+            return $json;
+        } catch (SerializationException $e) {
+            throw $e;
+        } catch (\InvalidArgumentException | \RuntimeException | \OverflowException | \JsonException $e) {
+            throw new SerializationException(
+                'Failed to serialize object to JSON: ' . $e->getMessage(),
+                0,
+                $e
+            );
         }
-        return $json;
     }
 
     /**
      * Deserialize a JSON string to an object of the specified type.
+     *
+     * Public entry point: any native serializer exception
+     * (\InvalidArgumentException, \RuntimeException, \OverflowException,
+     * \JsonException, …) raised while parsing or denormalizing is wrapped in
+     * the SDK-owned {@see SerializationException}, with the native exception
+     * preserved as the previous exception. This keeps framework-native serde
+     * types off the public surface and gives cross-SDK parity with the other
+     * language clients.
+     *
+     * @param mixed                     $data        object or primitive to be deserialized
+     * @param string                    $class       class name is passed as a string
+     * @param array<string, string>|null $httpHeaders HTTP headers
+     *
+     * @return mixed a single deserialized instance, an array, or a primitive
+     *
+     * @throws SerializationException when deserialization fails
+     */
+    public static function deserialize(mixed $data, string $class, ?array $httpHeaders = null): mixed
+    {
+        try {
+            return self::deserializeInternal($data, $class, $httpHeaders);
+        } catch (SerializationException $e) {
+            throw $e;
+        } catch (
+            \InvalidArgumentException
+            | \RuntimeException
+            | \OverflowException
+            | \JsonException
+            | \DateException $e
+        ) {
+            throw new SerializationException(
+                'Failed to deserialize JSON to ' . $class . ': ' . $e->getMessage(),
+                0,
+                $e
+            );
+        }
+    }
+
+    /**
+     * Internal recursive deserialization implementation.
+     *
+     * Native serializer exceptions raised here are caught and wrapped by the
+     * public {@see deserialize()} entry point.
      *
      * @param mixed                     $data        object or primitive to be deserialized
      * @param string                    $class       class name is passed as a string
@@ -196,7 +255,7 @@ class ObjectSerializer
      *
      * @return mixed a single deserialized instance, an array, or a primitive
      */
-    public static function deserialize(mixed $data, string $class, ?array $httpHeaders = null): mixed
+    private static function deserializeInternal(mixed $data, string $class, ?array $httpHeaders = null): mixed
     {
         if (null === $data) {
             return null;
@@ -236,7 +295,7 @@ class ObjectSerializer
                 $mapItems = [];
                 /** @var array<array-key, mixed> $data */
                 foreach ($data as $key => $value) {
-                    $mapItems[(string) $key] = self::deserialize($value, $inner);
+                    $mapItems[(string) $key] = self::deserializeInternal($value, $inner);
                 }
                 return new \Ds\Map($mapItems);
             }
@@ -244,7 +303,7 @@ class ObjectSerializer
             $listItems = [];
             /** @var array<array-key, mixed> $data */
             foreach ($data as $value) {
-                $listItems[] = self::deserialize($value, $inner);
+                $listItems[] = self::deserializeInternal($value, $inner);
             }
             return $container === 'Set' ? new \Ds\Set($listItems) : new \Ds\Vector($listItems);
         }
@@ -259,7 +318,7 @@ class ObjectSerializer
             $subClass = substr($class, 0, -2);
             $values = [];
             foreach ($data as $value) {
-                $values[] = self::deserialize($value, $subClass);
+                $values[] = self::deserializeInternal($value, $subClass);
             }
             return $values;
         }
@@ -280,7 +339,7 @@ class ObjectSerializer
                 $subClass = self::qualifySchemaName(trim($subClassArray[1]));
                 /** @var array<string, mixed> $data */
                 foreach ($data as $key => $value) {
-                    $deserialized[$key] = self::deserialize($value, $subClass);
+                    $deserialized[$key] = self::deserializeInternal($value, $subClass);
                 }
             }
             return $deserialized;
@@ -461,10 +520,8 @@ class ObjectSerializer
                 /** @var object $result */
                 $result = self::getSerializer()->denormalize($decoded, $class);
                 return $result;
-            } catch (\JsonException | \InvalidArgumentException $e) {
-                throw new ApiException($e->getMessage());
             } catch (\Throwable $e) {
-                throw new ApiException($e->getMessage());
+                throw new SerializationException($e->getMessage(), 0, $e);
             }
         }
 
@@ -476,10 +533,8 @@ class ObjectSerializer
             /** @var object $result */
             $result = self::getSerializer()->denormalize($data, $class);
             return $result;
-        } catch (\JsonException | \InvalidArgumentException $e) {
-            throw new ApiException($e->getMessage());
         } catch (\Throwable $e) {
-            throw new ApiException($e->getMessage());
+            throw new SerializationException($e->getMessage(), 0, $e);
         }
     }
 
