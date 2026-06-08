@@ -157,7 +157,7 @@ All API errors implement the error interface. The error hierarchy is:
 ```go
 import "petstore/pkg/errors"
 
-result, err := client.PetApi.GetPetById(petId)
+result, err := client.Pet.GetPetById(petId)
 if err != nil {
     var notFound *errors.NotFoundError
     var clientErr *errors.ClientError
@@ -187,7 +187,7 @@ client := petstore.NewClient(authenticator, transport)
 
 ## API Methods
 
-Each API group is exposed as a typed field on the client struct (e.g., `client.PetApi`). API structs have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models along with an error.
+Each API group is exposed as a typed field on the client struct under its short group name (e.g., `client.Pet`). API structs have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models along with an error.
 
 ## Models
 

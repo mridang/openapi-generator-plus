@@ -148,10 +148,28 @@ func TestClient_ApiGroupsAreAccessible(t *testing.T) {
 
 	client := petstore.NewClient(authenticator, nil)
 
-	if client.PetApi == nil {
-		t.Fatal("expected non-nil PetApi")
+	if client.Pet == nil {
+		t.Fatal("expected non-nil Pet")
 	}
-	if client.StoreApi == nil {
-		t.Fatal("expected non-nil StoreApi")
+	if client.Store == nil {
+		t.Fatal("expected non-nil Store")
+	}
+}
+
+// client-subapi-accessor-short-name: sub-API accessors are exposed under the
+// short group name (client.Pet, client.Store) to match the other SDKs, not the
+// type-suffixed name (client.PetApi). Pin the canonical accessors explicitly so
+// a regression in the field naming is caught regardless of the generic loop above.
+func TestClient_SubApiAccessorsUseShortGroupNames(t *testing.T) {
+	t.Parallel()
+	authenticator := auth.NewBearerAuthenticator("/api/v3", "test-token")
+
+	client := petstore.NewClient(authenticator, nil)
+
+	if client.Pet == nil {
+		t.Error("expected non-nil client.Pet accessor")
+	}
+	if client.Store == nil {
+		t.Error("expected non-nil client.Store accessor")
 	}
 }

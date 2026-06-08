@@ -108,8 +108,8 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 	for k, v := range headers {
 		merged[k] = v
 	}
-	if _, ok := merged["User-Agent"]; !ok && c.transportOptions.UserAgent() != "" {
-		merged["User-Agent"] = c.transportOptions.UserAgent()
+	if _, ok := merged["User-Agent"]; !ok && c.transportOptions.UserAgent() != nil {
+		merged["User-Agent"] = *c.transportOptions.UserAgent()
 	}
 	if _, ok := merged["X-Request-ID"]; !ok && c.transportOptions.InjectRequestID() {
 		merged["X-Request-ID"] = uuid.New().String()
@@ -233,7 +233,7 @@ func buildHTTPClient(opts *TransportOptions) *http.Client {
 
 	tlsConfig := &tls.Config{}
 
-	if !opts.VerifySSL() {
+	if !opts.VerifySsl() {
 		tlsConfig.InsecureSkipVerify = true
 	}
 

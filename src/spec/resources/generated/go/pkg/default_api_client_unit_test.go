@@ -27,8 +27,9 @@ func TestDefaultApiClient_InjectsCustomUserAgent(t *testing.T) {
 	}))
 	defer server.Close()
 
+	customAgent := "TestAgent/1.0"
 	transport := NewTransportOptionsBuilder().
-		UserAgent("TestAgent/1.0").
+		UserAgent(&customAgent).
 		Build()
 	client := NewDefaultApiClient(transport)
 
@@ -41,8 +42,12 @@ func TestDefaultApiClient_InjectsCustomUserAgent(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_InjectsDefaultUserAgentWhenNotExplicitlySet(t *testing.T) {
+func TestDefaultApiClient_DoesNotInjectUserAgentWhenUnset(t *testing.T) {
 	t.Parallel()
+	// userAgent is nullable and unset by default (parity with the other SDKs),
+	// so the SDK must not inject its own User-Agent header. Whatever the
+	// underlying net/http stack adds is out of the SDK's contract; what matters
+	// is that the SDK contributes no User-Agent of its own.
 	var receivedUA string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedUA = r.Header.Get("User-Agent")
@@ -50,13 +55,20 @@ func TestDefaultApiClient_InjectsDefaultUserAgentWhenNotExplicitlySet(t *testing
 	}))
 	defer server.Close()
 
-	client := NewDefaultApiClient(nil)
+	opts := NewTransportOptionsBuilder().Build()
+	if opts.UserAgent() != nil {
+		t.Fatalf("expected UserAgent to be nil/unset by default, got %q", *opts.UserAgent())
+	}
+
+	client := NewDefaultApiClient(opts)
 	_, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if receivedUA == "" {
-		t.Error("expected non-empty User-Agent header")
+	// The SDK injected no custom User-Agent; the only value that can appear is
+	// net/http's built-in default, never an SDK-set one.
+	if receivedUA != "" && receivedUA != "Go-http-client/1.1" {
+		t.Errorf("expected no SDK-injected User-Agent, got %q", receivedUA)
 	}
 }
 
@@ -684,7 +696,7 @@ func TestDefaultApiClient_RefusesBodyReplayOnHttpsToHttpDowngrade(t *testing.T) 
 	defer tlsServer.Close()
 
 	transport := NewTransportOptionsBuilder().
-		VerifySSL(false).
+		VerifySsl(false).
 		FollowRedirects(true).
 		Build()
 	client := NewDefaultApiClient(transport)

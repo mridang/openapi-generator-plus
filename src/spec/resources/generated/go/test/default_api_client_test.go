@@ -18,7 +18,7 @@ import (
 
 func TestDefaultApiClient_MakesHttpsRequestWithVerifySslFalse(t *testing.T) {
 	t.Parallel()
-	transport := NewTransportOptionsBuilder().VerifySSL(false).Build()
+	transport := NewTransportOptionsBuilder().VerifySsl(false).Build()
 	client := NewDefaultApiClient(transport)
 	resp, err := client.SendRequest("GET", chasmHTTPSURL+"/test/echo", map[string]string{}, nil)
 	if err != nil {
@@ -35,7 +35,7 @@ func TestDefaultApiClient_MakesHttpsRequestWithVerifySslFalse(t *testing.T) {
 func TestDefaultApiClient_MakesHttpsRequestWithCustomCaCert(t *testing.T) {
 	t.Parallel()
 	transport := NewTransportOptionsBuilder().
-		VerifySSL(true).
+		VerifySsl(true).
 		CACertPath(caCertPath).
 		Build()
 	client := NewDefaultApiClient(transport)
@@ -98,7 +98,7 @@ func TestDefaultApiClient_MakesHttpsRequestThroughProxyWithVerifySslFalse(t *tes
 	t.Parallel()
 	transport := NewTransportOptionsBuilder().
 		Proxy(proxyURL).
-		VerifySSL(false).
+		VerifySsl(false).
 		Build()
 	client := NewDefaultApiClient(transport)
 	resp, err := client.SendRequest("GET", chasmInternalHTTPSURL+"/test/echo", map[string]string{}, nil)
@@ -127,8 +127,9 @@ func TestDefaultApiClient_TimesOutOnSlowEndpoint(t *testing.T) {
 
 func TestDefaultApiClient_InjectsCustomUserAgentHeader(t *testing.T) {
 	t.Parallel()
+	customAgent := "MyApp/1.0"
 	transport := NewTransportOptionsBuilder().
-		UserAgent("MyApp/1.0").
+		UserAgent(&customAgent).
 		Build()
 	client := NewDefaultApiClient(transport)
 	resp, err := client.SendRequest("GET", chasmHTTPURL+"/test/echo", map[string]string{}, nil)

@@ -16,14 +16,14 @@ import (
 // Use NewTransportOptionsBuilder to create instances:
 //
 //	transport := {{packageName}}.NewTransportOptionsBuilder().
-//		VerifySSL(false).
+//		VerifySsl(false).
 //		Proxy("http://proxy.example.com:8080").
 //		Timeout(5000).
-//		UserAgent("MyApp/1.0").
+//		UserAgent(&userAgent).
 //		Build()
 type TransportOptions struct {
-	/* verifySSL controls whether TLS certificate verification is enabled. */
-	verifySSL bool
+	/* verifySsl controls whether TLS certificate verification is enabled. */
+	verifySsl bool
 
 	/* caCertPath is the path to a custom CA certificate bundle for TLS verification. */
 	caCertPath string
@@ -45,8 +45,9 @@ type TransportOptions struct {
 	 * HTTP client's built-in default; a zero value means no redirects. */
 	maxRedirects *int
 
-	/* userAgent is the custom User-Agent header value. */
-	userAgent string
+	/* userAgent is the custom User-Agent header value, or nil to omit the
+	 * User-Agent header entirely. */
+	userAgent *string
 
 	/* defaultHeaders are transport-level default headers included in every request.
 	 * These have the lowest priority: API-level headers, operation-specific headers,
@@ -58,8 +59,8 @@ type TransportOptions struct {
 	injectRequestID bool
 }
 
-// VerifySSL returns whether TLS certificate verification is enabled.
-func (t *TransportOptions) VerifySSL() bool { return t.verifySSL }
+// VerifySsl returns whether TLS certificate verification is enabled.
+func (t *TransportOptions) VerifySsl() bool { return t.verifySsl }
 
 // CACertPath returns the path to a custom CA certificate bundle.
 func (t *TransportOptions) CACertPath() string { return t.caCertPath }
@@ -78,8 +79,9 @@ func (t *TransportOptions) FollowRedirects() bool { return t.followRedirects }
 // or nil if the default should be used.
 func (t *TransportOptions) MaxRedirects() *int { return t.maxRedirects }
 
-// UserAgent returns the custom User-Agent header value.
-func (t *TransportOptions) UserAgent() string { return t.userAgent }
+// UserAgent returns the custom User-Agent header value, or nil if no
+// User-Agent header should be sent.
+func (t *TransportOptions) UserAgent() *string { return t.userAgent }
 
 // DefaultHeaders returns a copy of the transport-level default headers.
 func (t *TransportOptions) DefaultHeaders() map[string]string {
@@ -95,13 +97,13 @@ func (t *TransportOptions) InjectRequestID() bool { return t.injectRequestID }
 
 // TransportOptionsBuilder builds immutable TransportOptions instances.
 type TransportOptionsBuilder struct {
-	verifySSL       bool
+	verifySsl       bool
 	caCertPath      string
 	proxy           *url.URL
 	timeout         *int
 	followRedirects bool
 	maxRedirects    *int
-	userAgent       string
+	userAgent       *string
 	defaultHeaders  map[string]string
 	injectRequestID bool
 }
@@ -109,21 +111,22 @@ type TransportOptionsBuilder struct {
 // NewTransportOptionsBuilder creates a new builder with sensible defaults.
 //
 // The default request timeout is 10 seconds (10000 ms). Use Timeout(0) for no
-// timeout or pass an explicit positive value to override.
+// timeout or pass an explicit positive value to override. The User-Agent header
+// is unset by default; call UserAgent to set one.
 func NewTransportOptionsBuilder() *TransportOptionsBuilder {
 	defaultTimeout := 10000
 	return &TransportOptionsBuilder{
-		verifySSL:       true,
+		verifySsl:       true,
 		followRedirects: true,
-		userAgent:       "{{userAgentDefault}}",
+		userAgent:       nil,
 		defaultHeaders:  make(map[string]string),
 		timeout:         &defaultTimeout,
 	}
 }
 
-// VerifySSL enables or disables TLS certificate verification.
-func (b *TransportOptionsBuilder) VerifySSL(val bool) *TransportOptionsBuilder {
-	b.verifySSL = val
+// VerifySsl enables or disables TLS certificate verification.
+func (b *TransportOptionsBuilder) VerifySsl(val bool) *TransportOptionsBuilder {
+	b.verifySsl = val
 	return b
 }
 
@@ -174,8 +177,9 @@ func (b *TransportOptionsBuilder) MaxRedirects(val int) *TransportOptionsBuilder
 	return b
 }
 
-// UserAgent sets a custom User-Agent header value.
-func (b *TransportOptionsBuilder) UserAgent(val string) *TransportOptionsBuilder {
+// UserAgent sets a custom User-Agent header value. Pass nil to omit the
+// User-Agent header entirely.
+func (b *TransportOptionsBuilder) UserAgent(val *string) *TransportOptionsBuilder {
 	b.userAgent = val
 	return b
 }
@@ -207,7 +211,7 @@ func (b *TransportOptionsBuilder) Build() *TransportOptions {
 		headers[k] = v
 	}
 	return &TransportOptions{
-		verifySSL:       b.verifySSL,
+		verifySsl:       b.verifySsl,
 		caCertPath:      b.caCertPath,
 		proxy:           b.proxy,
 		timeout:         b.timeout,

@@ -28,8 +28,8 @@ type {{clientClassName}} struct {
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-	/* {{classname}} provides methods for the {{baseName}} API group. */
-	{{classname}} *{{classname}}
+	/* {{baseName}} provides methods for the {{baseName}} API group. */
+	{{baseName}} *{{classname}}
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
@@ -58,7 +58,7 @@ func New{{clientClassName}}(authenticator Authenticator, transportOptions *Trans
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-		{{classname}}: New{{classname}}(apiClient, config, authenticator),
+		{{baseName}}: New{{classname}}(apiClient, config, authenticator),
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}

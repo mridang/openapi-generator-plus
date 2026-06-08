@@ -15,8 +15,8 @@ import (
 func TestTransportOptions_VerifySslDefaultsToTrue(t *testing.T) {
 	t.Parallel()
 	opts := petstore.NewTransportOptionsBuilder().Build()
-	if !opts.VerifySSL() {
-		t.Error("expected VerifySSL to be true by default")
+	if !opts.VerifySsl() {
+		t.Error("expected VerifySsl to be true by default")
 	}
 }
 
@@ -63,11 +63,33 @@ func TestTransportOptions_MaxRedirectsDefaultsToNull(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_UserAgentDefaultsToNonEmptyString(t *testing.T) {
+func TestTransportOptions_UserAgentDefaultsToNil(t *testing.T) {
 	t.Parallel()
+	// userAgent is a nullable *string (parity with Java @Nullable String, C#
+	// string?). The default builder leaves it unset (nil) so the User-Agent
+	// header can be omitted entirely rather than always forced.
 	opts := petstore.NewTransportOptionsBuilder().Build()
-	if opts.UserAgent() == "" {
-		t.Error("expected non-empty default UserAgent")
+	if opts.UserAgent() != nil {
+		t.Errorf("expected UserAgent to default to nil/unset, got %q", *opts.UserAgent())
+	}
+}
+
+func TestTransportOptions_UserAgentCanBeLeftUnsetThenSet(t *testing.T) {
+	t.Parallel()
+	// Left unset, UserAgent stays nil; once set via the nullable setter it is
+	// applied and read back through the pointer.
+	unset := petstore.NewTransportOptionsBuilder().Build()
+	if unset.UserAgent() != nil {
+		t.Errorf("expected UserAgent to be nil when left unset, got %q", *unset.UserAgent())
+	}
+
+	ua := "MyApp/1.0"
+	set := petstore.NewTransportOptionsBuilder().UserAgent(&ua).Build()
+	if set.UserAgent() == nil {
+		t.Fatal("expected non-nil UserAgent after setting it")
+	}
+	if *set.UserAgent() != "MyApp/1.0" {
+		t.Errorf("expected UserAgent 'MyApp/1.0', got %q", *set.UserAgent())
 	}
 }
 
@@ -89,20 +111,21 @@ func TestTransportOptions_InjectRequestIdDefaultsToFalse(t *testing.T) {
 
 func TestTransportOptions_BuilderSetsAllFields(t *testing.T) {
 	t.Parallel()
+	customAgent := "CustomAgent/2.0"
 	opts := petstore.NewTransportOptionsBuilder().
-		VerifySSL(false).
+		VerifySsl(false).
 		CACertPath("/path/to/ca.pem").
 		Proxy("http://proxy.example.com:8080").
 		Timeout(30000).
 		FollowRedirects(false).
 		MaxRedirects(5).
-		UserAgent("CustomAgent/2.0").
+		UserAgent(&customAgent).
 		DefaultHeader("X-Custom", "value").
 		InjectRequestID(true).
 		Build()
 
-	if opts.VerifySSL() {
-		t.Error("expected VerifySSL to be false")
+	if opts.VerifySsl() {
+		t.Error("expected VerifySsl to be false")
 	}
 	if opts.CACertPath() != "/path/to/ca.pem" {
 		t.Errorf("expected CACertPath '/path/to/ca.pem', got %q", opts.CACertPath())
@@ -122,8 +145,8 @@ func TestTransportOptions_BuilderSetsAllFields(t *testing.T) {
 	if opts.MaxRedirects() == nil || *opts.MaxRedirects() != 5 {
 		t.Error("expected MaxRedirects to be 5")
 	}
-	if opts.UserAgent() != "CustomAgent/2.0" {
-		t.Errorf("expected UserAgent 'CustomAgent/2.0', got %q", opts.UserAgent())
+	if opts.UserAgent() == nil || *opts.UserAgent() != "CustomAgent/2.0" {
+		t.Errorf("expected UserAgent 'CustomAgent/2.0', got %v", opts.UserAgent())
 	}
 	if opts.DefaultHeaders()["X-Custom"] != "value" {
 		t.Errorf("expected default header X-Custom='value', got %q", opts.DefaultHeaders()["X-Custom"])
@@ -174,9 +197,10 @@ func TestTransportOptions_BuilderMethodsReturnSameInstance(t *testing.T) {
 	t.Parallel()
 	builder := petstore.NewTransportOptionsBuilder()
 
+	testAgent := "Test/1.0"
 	result := builder.
-		VerifySSL(true).
-		UserAgent("Test/1.0").
+		VerifySsl(true).
+		UserAgent(&testAgent).
 		Timeout(10000)
 
 	if result == nil {
@@ -184,8 +208,8 @@ func TestTransportOptions_BuilderMethodsReturnSameInstance(t *testing.T) {
 	}
 
 	opts := result.Build()
-	if opts.UserAgent() != "Test/1.0" {
-		t.Errorf("expected UserAgent 'Test/1.0', got %q", opts.UserAgent())
+	if opts.UserAgent() == nil || *opts.UserAgent() != "Test/1.0" {
+		t.Errorf("expected UserAgent 'Test/1.0', got %v", opts.UserAgent())
 	}
 	if opts.Timeout() == nil || *opts.Timeout() != 10000 {
 		t.Error("expected timeout 10000ms")
@@ -253,12 +277,12 @@ func TestTransportOptions_ModifyingSourceMapDoesNotAffectBuiltOptions(t *testing
 
 func TestTransportOptions_BuilderProducesIndependentInstances(t *testing.T) {
 	t.Parallel()
-	builder := petstore.NewTransportOptionsBuilder().VerifySSL(false)
+	builder := petstore.NewTransportOptionsBuilder().VerifySsl(false)
 	first := builder.Build()
 	second := builder.Build()
 
-	if first.VerifySSL() != second.VerifySSL() {
-		t.Error("expected both instances to have the same VerifySSL value")
+	if first.VerifySsl() != second.VerifySsl() {
+		t.Error("expected both instances to have the same VerifySsl value")
 	}
 	if first == second {
 		t.Error("expected builder to produce independent instances")

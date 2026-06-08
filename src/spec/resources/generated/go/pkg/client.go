@@ -31,10 +31,10 @@ import (
 //		Build()
 //	client := petstore.NewClient(authenticator, transport)
 type Client struct {
-	/* PetApi provides methods for the Pet API group. */
-	PetApi *PetApi
-	/* StoreApi provides methods for the Store API group. */
-	StoreApi *StoreApi
+	/* Pet provides methods for the Pet API group. */
+	Pet *PetApi
+	/* Store provides methods for the Store API group. */
+	Store *StoreApi
 }
 
 // NewClient creates a new client with the given authenticator and optional transport options.
@@ -57,8 +57,8 @@ func NewClient(authenticator Authenticator, transportOptions *TransportOptions) 
 		Build()
 
 	return &Client{
-		PetApi:   NewPetApi(apiClient, config, authenticator),
-		StoreApi: NewStoreApi(apiClient, config, authenticator),
+		Pet:   NewPetApi(apiClient, config, authenticator),
+		Store: NewStoreApi(apiClient, config, authenticator),
 	}
 }
 
