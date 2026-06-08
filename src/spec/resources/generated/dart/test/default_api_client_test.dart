@@ -24,7 +24,7 @@ void main() {
 
   group('DefaultApiClient', () {
     test('makes HTTPS request with verifySsl=false', () async {
-      final transport = TransportOptionsBuilder().verifySSL(false).build();
+      final transport = TransportOptionsBuilder().verifySsl(false).build();
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
         'GET',
@@ -39,7 +39,7 @@ void main() {
 
     test('makes HTTPS request with custom CA cert', () async {
       final transport = TransportOptionsBuilder()
-          .verifySSL(true)
+          .verifySsl(true)
           .caCertPath(caCertPath)
           .build();
       final client = DefaultApiClient(transportOptions: transport);
@@ -82,7 +82,7 @@ void main() {
     test('makes HTTPS request through proxy with verifySsl=false', () async {
       final transport = TransportOptionsBuilder()
           .proxy(proxyUrl)
-          .verifySSL(false)
+          .verifySsl(false)
           .build();
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(

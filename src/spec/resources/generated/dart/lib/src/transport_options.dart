@@ -17,7 +17,7 @@
 ///
 /// ```dart
 /// final transport = TransportOptionsBuilder()
-///   .verifySSL(false)
+///   .verifySsl(false)
 ///   .proxy('http://proxy.example.com:8080')
 ///   .timeout(5000)
 ///   .userAgent('MyApp/1.0')
@@ -25,7 +25,7 @@
 /// ```
 class TransportOptions {
   /// Whether TLS certificate verification is enabled.
-  final bool verifySSL;
+  final bool verifySsl;
 
   /// Path to a custom CA certificate bundle for TLS verification.
   final String? caCertPath;
@@ -59,7 +59,7 @@ class TransportOptions {
   final bool injectRequestId;
 
   TransportOptions._({
-    required this.verifySSL,
+    required this.verifySsl,
     required this.caCertPath,
     required this.proxy,
     required this.timeout,
@@ -77,7 +77,7 @@ class TransportOptions {
 
 /// Builds immutable [TransportOptions] instances.
 class TransportOptionsBuilder {
-  bool _verifySSL = true;
+  bool _verifySsl = true;
   String? _caCertPath;
   Uri? _proxy;
   int? _timeout = 10000;
@@ -88,8 +88,8 @@ class TransportOptionsBuilder {
   bool _injectRequestId = false;
 
   /// Enables or disables TLS certificate verification.
-  TransportOptionsBuilder verifySSL(bool val) {
-    _verifySSL = val;
+  TransportOptionsBuilder verifySsl(bool val) {
+    _verifySsl = val;
     return this;
   }
 
@@ -172,7 +172,7 @@ class TransportOptionsBuilder {
   /// Creates and returns an immutable [TransportOptions] instance.
   TransportOptions build() {
     return TransportOptions._(
-      verifySSL: _verifySSL,
+      verifySsl: _verifySsl,
       caCertPath: _caCertPath,
       proxy: _proxy,
       timeout: _timeout,

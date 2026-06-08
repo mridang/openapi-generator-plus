@@ -646,7 +646,7 @@ void main() {
       });
 
       try {
-        final transport = TransportOptionsBuilder().verifySSL(false).build();
+        final transport = TransportOptionsBuilder().verifySsl(false).build();
         final client = DefaultApiClient(transportOptions: transport);
         // T-D2: the downgrade-replay refusal must surface as a typed
         // ApiError (statusCode 0), not a silently-returned 3xx.

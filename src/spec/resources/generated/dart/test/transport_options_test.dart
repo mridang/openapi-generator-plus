@@ -12,7 +12,7 @@ void main() {
   group('TransportOptions', () {
     test('verifySsl defaults to true', () {
       final opts = TransportOptionsBuilder().build();
-      expect(opts.verifySSL, isTrue);
+      expect(opts.verifySsl, isTrue);
     });
 
     test('caCertPath defaults to null', () {
@@ -62,7 +62,7 @@ void main() {
 
     test('builder sets all fields', () {
       final opts = TransportOptionsBuilder()
-          .verifySSL(false)
+          .verifySsl(false)
           .caCertPath('/path/to/ca.pem')
           .proxy('http://proxy.example.com:8080')
           .timeout(30000)
@@ -73,7 +73,7 @@ void main() {
           .injectRequestId(true)
           .build();
 
-      expect(opts.verifySSL, isFalse);
+      expect(opts.verifySsl, isFalse);
       expect(opts.caCertPath, equals('/path/to/ca.pem'));
       expect(opts.proxy, isNotNull);
       expect(opts.proxy.toString(), contains('proxy.example.com'));
@@ -109,7 +109,7 @@ void main() {
       final builder = TransportOptionsBuilder();
 
       final result = builder
-          .verifySSL(true)
+          .verifySsl(true)
           .userAgent('Test/1.0')
           .timeout(10000);
 
@@ -159,11 +159,11 @@ void main() {
     });
 
     test('builder produces independent instances', () {
-      final builder = TransportOptionsBuilder().verifySSL(false);
+      final builder = TransportOptionsBuilder().verifySsl(false);
       final first = builder.build();
       final second = builder.build();
 
-      expect(first.verifySSL, equals(second.verifySSL));
+      expect(first.verifySsl, equals(second.verifySsl));
       expect(identical(first, second), isFalse);
     });
   });

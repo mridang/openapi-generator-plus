@@ -23,7 +23,7 @@ import 'transport_options.dart';
 /// redirect handling, User-Agent injection, X-Request-ID injection,
 /// and transport-level default headers.
 ///
-/// When [TransportOptions.verifySSL] is false, certificate verification
+/// When [TransportOptions.verifySsl] is false, certificate verification
 /// is disabled. When [TransportOptions.caCertPath] is set, the specified
 /// CA certificate bundle is used for TLS verification. When
 /// [TransportOptions.proxy] is set, all requests are routed through the
@@ -95,7 +95,7 @@ class DefaultApiClient implements ApiClient {
     final ioClient = HttpClient(context: context);
     ioClient.autoUncompress = false;
 
-    if (!options.verifySSL) {
+    if (!options.verifySsl) {
       ioClient.badCertificateCallback = (_, __, ___) => true;
     }
 
