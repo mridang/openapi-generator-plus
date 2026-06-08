@@ -71,10 +71,14 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert {:ok, _result} = PetstoreClient.Api.PetApi.set_pet_avatar(api, pet_id, <<0xFF, 0xD8, 0xFF>>)
   end
 
-  test "get_pet_avatar downloads the pet avatar as binary", %{api: api} do
+  test "get_pet_avatar downloads the pet avatar as decoded binary", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
-    assert {:ok, result} = PetstoreClient.Api.PetApi.get_pet_avatar(api, pet_id)
-    assert result != nil
+    assert {:ok, result} = PetstoreClient.Api.PetApi.get_pet_avatar_with_http_info(api, pet_id)
+    assert is_binary(result.data)
+    # The transport base64-encodes the binary body into `raw_body`; the
+    # decoded `data` must round-trip back to it. This fails if the client
+    # returns the base64 string instead of the decoded bytes.
+    assert Base.encode64(result.data) == result.raw_body
   end
 
   test "get_pet_avatar_thumbnail returns a base64-encoded thumbnail", %{api: api} do

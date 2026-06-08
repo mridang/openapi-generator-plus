@@ -166,7 +166,25 @@ export abstract class BaseApi {
           ?.trim() ?? '';
       const isJson = respContentType === '' || this.headerSelector.isJsonMime(respContentType);
       if (!isJson) {
-        data = response.body as unknown as T;
+        /* The transport stores text bodies verbatim but base64-encodes
+         * binary bodies (DefaultApiClient.isTextContentType decides which).
+         * Mirror that here: text payloads (text/*, application/xml,
+         * application/javascript, *+xml) are returned as the raw string,
+         * while binary payloads are base64-decoded to a Buffer so the
+         * caller receives the actual bytes — matching the Go/Python/Dart
+         * SDKs. JSON/+json content is already handled by the else branch.
+         * rawBody keeps the original (still-encoded) string. */
+        const mediaType = respContentType.split(';')[0].trim().toLowerCase();
+        const isText =
+          mediaType.startsWith('text/') ||
+          mediaType === 'application/xml' ||
+          mediaType === 'application/javascript' ||
+          mediaType.endsWith('+xml');
+        if (isText) {
+          data = response.body as unknown as T;
+        } else {
+          data = Buffer.from(response.body, 'base64') as unknown as T;
+        }
       } else {
         /* RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text,
          * but Windows-generated payloads often include one and JSON.parse

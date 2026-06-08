@@ -158,7 +158,7 @@ class BaseApi
         }
 
         $data = null;
-        if ($returnType !== null && trim($response->body) !== '') {
+        if (trim($response->body) !== '') {
             $respContentType = null;
             foreach ($response->headers as $name => $value) {
                 if (strtolower($name) === 'content-type') {
@@ -168,9 +168,26 @@ class BaseApi
                 }
             }
 
-            if ($respContentType !== null && !$this->headerSelector->isJsonMime($respContentType)) {
-                $data = $response->body;
-            } else {
+            $isBinary = $respContentType !== null
+                && !$this->headerSelector->isJsonMime($respContentType);
+
+            if ($isBinary) {
+                /* The transport (DefaultApiClient) base64-encodes every
+                 * non-text response body so it survives transit as a UTF-8
+                 * string. A binary operation's return type is the raw byte
+                 * string (`string` in PHP), so we must base64-DECODE here to
+                 * hand the caller the original bytes — not the base64 text.
+                 * This mirrors the byte-oriented SDKs (e.g. Python decodes
+                 * when return_type == 'bytes'). Strict decoding rejects any
+                 * non-base64 input; if a test server wrote raw bytes instead
+                 * of base64 (so strict decode returns false), fall back to
+                 * the untouched body. No non-binary text response reaches
+                 * this branch — every non-JSON producible content type in the
+                 * surface is image/* or application/octet-stream — so the
+                 * decode can never corrupt a legitimate text/plain payload. */
+                $decoded = base64_decode($response->body, true);
+                $data = $decoded === false ? $response->body : $decoded;
+            } elseif ($returnType !== null) {
                 $data = ObjectSerializer::deserialize($response->body, $returnType, []);
             }
         }

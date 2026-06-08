@@ -177,15 +177,29 @@ defmodule {{moduleName}}.Api.BaseApi do
                 is_nil(resp_content_type) or
                   {{moduleName}}.HeaderSelector.json_mime?(resp_content_type)
 
-              if is_json do
-                # A 2xx body that does not match the declared schema is a
-                # contract violation; propagate the decode error to the
-                # caller instead of silently substituting the raw body
-                # string (which would yield type confusion). Matches the
-                # fail-loud behaviour of the other 11 SDKs.
-                {{moduleName}}.ObjectSerializer.deserialize(response.body, return_type)
-              else
-                response.body
+              cond do
+                is_json ->
+                  # A 2xx body that does not match the declared schema is a
+                  # contract violation; propagate the decode error to the
+                  # caller instead of silently substituting the raw body
+                  # string (which would yield type confusion). Matches the
+                  # fail-loud behaviour of the other 11 SDKs.
+                  {{moduleName}}.ObjectSerializer.deserialize(response.body, return_type)
+
+                return_type == "binary()" ->
+                  # Binary operations declare `return_type = "binary()"`. The
+                  # transport base64-encodes non-text response bodies into the
+                  # `response.body` string, so decode it back to raw bytes
+                  # here, mirroring the other 11 SDKs. Fall back to the raw
+                  # body if it is not valid base64 (e.g. a test server that
+                  # writes raw bytes), never raising.
+                  case Base.decode64(response.body) do
+                    {:ok, decoded} -> decoded
+                    :error -> response.body
+                  end
+
+                true ->
+                  response.body
               end
             else
               nil

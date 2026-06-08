@@ -80,9 +80,10 @@ describe('PetApi', () => {
   });
 
   test('getPetAvatar', async () => {
-    const result = await api.getPetAvatar(1);
+    const result = await api.getPetAvatarWithHttpInfo(1);
 
-    expect(result).toBeDefined();
+    expect(Buffer.isBuffer(result.data)).toBe(true);
+    expect((result.data as Buffer).toString('base64')).toBe(result.rawBody);
   });
 
   test('getPetAvatarThumbnail', async () => {

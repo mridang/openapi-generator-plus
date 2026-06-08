@@ -151,7 +151,12 @@ public class BaseApi: @unchecked Sendable {
         let responseContentType = response.headers.first(where: { $0.key.caseInsensitiveCompare("content-type") == .orderedSame })?.value ?? ""
         var data: T? = nil
         if type == Data.self {
-            data = (response.body.data(using: .utf8) ?? Data()) as? T
+            /* The transport base64-encodes binary response bodies into the
+               String `response.body`, so decode it back to the original bytes
+               here (mirroring the other SDKs). Fall back to the raw utf8 bytes
+               if the body isn't valid base64 (e.g. a server that wrote raw
+               bytes), so we never lose the payload. */
+            data = (Data(base64Encoded: response.body) ?? response.body.data(using: .utf8) ?? Data()) as? T
         } else if !response.body.isEmpty {
             /* Default to JSON when Content-Type is missing — matches the other
                11 SDKs which all assume JSON for empty/missing Content-Type. Some

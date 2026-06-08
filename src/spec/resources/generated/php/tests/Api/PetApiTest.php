@@ -165,6 +165,20 @@ test('get pet avatar', function (): void {
     expect($result)->toBeString();
 });
 
+test('get pet avatar returns decoded bytes not base64 string', function (): void {
+    /* The transport base64-encodes binary response bodies for transit. A
+     * binary operation must hand back the DECODED raw bytes, so re-encoding
+     * the returned value as base64 must reproduce the raw (still-encoded)
+     * body exposed on the ApiResult. If the decode regressed and the base64
+     * STRING leaked through, base64_encode($data) would double-encode and
+     * never equal $rawBody. */
+    $result = $this->api->getPetAvatarWithHttpInfo(1);
+
+    expect($result->data)->toBeString();
+    expect($result->rawBody)->not->toBeNull();
+    expect(base64_encode($result->data))->toBe($result->rawBody);
+});
+
 test('get pet avatar thumbnail', function (): void {
     $result = $this->api->getPetAvatarThumbnail(1);
 

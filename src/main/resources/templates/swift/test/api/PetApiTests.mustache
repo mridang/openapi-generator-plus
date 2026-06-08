@@ -136,8 +136,12 @@ final class PetApiTests {
     @Test func testGetPetAvatar() async throws {
         let api = petApiForIntegration()
 
-        let result = try await api.getPetAvatar(petId: 1)
-        #expect(result != nil)
+        let r = try await api.getPetAvatarWithHTTPInfo(petId: 1)
+        #expect(r.data != nil)
+        /* The returned bytes must be the decoded binary payload, not the
+           utf8 bytes of the base64 string the transport delivers. Re-encoding
+           the decoded Data as base64 must round-trip back to the raw body. */
+        #expect(r.data?.base64EncodedString() == r.rawBody)
     }
 
     @Test func testGetPetAvatarThumbnail() async throws {
