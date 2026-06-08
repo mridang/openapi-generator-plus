@@ -266,7 +266,8 @@ defmodule PetstoreClient.DefaultApiClient do
 
     headers = normalize_headers(response.headers)
     content_type = Map.get(headers, "content-type") || ""
-    body_binary = response.body || ""
+    content_encoding = Map.get(headers, "content-encoding") || ""
+    body_binary = decompress_body(response.body || "", content_encoding)
 
     response_body =
       if is_text_content_type(content_type) do
@@ -280,6 +281,106 @@ defmodule PetstoreClient.DefaultApiClient do
       body: response_body,
       headers: headers
     }
+  end
+
+  # Explicitly decompress a response body keyed on its Content-Encoding. Req's
+  # auto-decompression is disabled (raw: true) because its behaviour varies
+  # across Req 0.5.x patch releases; doing it here is deterministic and matches
+  # the explicit decompression performed by the other 11 SDKs. A malformed
+  # compressed body surfaces as a typed ApiError rather than a raw library
+  # crash (parity with the cross-SDK "wrap decompression failures" contract).
+  @spec decompress_body(binary(), String.t()) :: binary()
+  defp decompress_body(body, encoding) when is_binary(body) do
+    case encoding |> to_string() |> String.trim() |> String.downcase() do
+      "" ->
+        body
+
+      "identity" ->
+        body
+
+      "gzip" ->
+        gunzip_body(body, "gzip")
+
+      "x-gzip" ->
+        gunzip_body(body, "x-gzip")
+
+      "deflate" ->
+        inflate_body(body)
+
+      "br" ->
+        brotli_body(body)
+
+      other ->
+        raise PetstoreClient.ApiError,
+          message: "Unsupported Content-Encoding '#{other}' in response body",
+          status_code: 0
+    end
+  end
+
+  # Only gunzip when the body actually carries the gzip magic bytes (0x1F 0x8B).
+  # If some transport layer already decompressed it but left the
+  # Content-Encoding header in place, the bytes are plain and we must not
+  # double-decompress.
+  defp gunzip_body(<<0x1F, 0x8B, _rest::binary>> = body, label) do
+    :zlib.gunzip(body)
+  rescue
+    e ->
+      raise PetstoreClient.ApiError,
+        message: "Failed to decompress #{label} response body: #{Exception.message(e)}",
+        status_code: 0,
+        cause: e
+  end
+
+  defp gunzip_body(body, _label) do
+    body
+  end
+
+  # HTTP "deflate" is nominally zlib-wrapped, but some servers emit raw
+  # (headerless) DEFLATE; try zlib first, then fall back to raw inflate.
+  defp inflate_body(body) do
+    try do
+      :zlib.uncompress(body)
+    rescue
+      _ ->
+        try do
+          z = :zlib.open()
+
+          try do
+            :zlib.inflateInit(z, -15)
+            out = :zlib.inflate(z, body)
+            :zlib.inflateEnd(z)
+            IO.iodata_to_binary(out)
+          after
+            :zlib.close(z)
+          end
+        rescue
+          e ->
+            raise PetstoreClient.ApiError,
+              message: "Failed to decompress deflate response body: #{Exception.message(e)}",
+              status_code: 0,
+              cause: e
+        end
+    end
+  end
+
+  # `br` is only advertised in Accept-Encoding when the optional :brotli NIF is
+  # loaded, so a server should never send it otherwise; guard anyway.
+  defp brotli_body(body) do
+    if Code.ensure_loaded?(:brotli) do
+      case :brotli.decode(body) do
+        {:ok, decoded} ->
+          decoded
+
+        _ ->
+          raise PetstoreClient.ApiError,
+            message: "Failed to decompress br response body",
+            status_code: 0
+      end
+    else
+      raise PetstoreClient.ApiError,
+        message: "Received a br-encoded response but the :brotli decoder is unavailable",
+        status_code: 0
+    end
   end
 
   @doc """
@@ -442,8 +543,15 @@ defmodule PetstoreClient.DefaultApiClient do
     # Gap BH: always disable Req's auto-redirect; we follow Location
     # manually in send_request so we can strip Authorization / Cookie /
     # Proxy-Authorization on cross-origin hops.
+    # `raw: true` disables Req's built-in body decoding AND decompression. We
+    # decompress explicitly in send_request keyed on the Content-Encoding
+    # response header (see decompress_body/2). Req 0.5.x patch releases differ
+    # in whether they auto-decompress when body decoding is disabled, which
+    # left gzip bodies undecoded nondeterministically across CI runs; doing it
+    # ourselves is version-independent and matches the explicit decompression
+    # the other 11 SDKs perform.
     req_opts = [
-      decode_body: false,
+      raw: true,
       redirect: false
     ]
 
