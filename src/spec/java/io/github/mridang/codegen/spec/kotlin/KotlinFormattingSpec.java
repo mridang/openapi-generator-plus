@@ -16,10 +16,13 @@ public class KotlinFormattingSpec extends AbstractFormattingSpec implements Kotl
 
     @Override
     protected String[] getBuildCommands() {
-        return new String[] {
-            "curl -sL -o /tmp/ktlint https://github.com/pinterest/ktlint/releases/download/1.5.0/ktlint && chmod +x /tmp/ktlint",
-            "/tmp/ktlint --relative 'src/**/*.kt'"
-        };
+        /* Use the project's own ktlint Gradle plugin
+         * (org.jlleitschuh.gradle.ktlint, pinned to ktlint 1.5.0 in
+         * build.gradle.kts with ignoreFailures=false) rather than
+         * curl-downloading the ktlint binary from GitHub releases. The
+         * plugin already lints the same source on every build, and the
+         * separate download was both redundant and a network-flake source. */
+        return new String[] {"gradle ktlintCheck"};
     }
 
     @Override
