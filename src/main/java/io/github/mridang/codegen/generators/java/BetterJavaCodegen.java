@@ -842,6 +842,8 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         context.put("requiredParams", requiredParams);
         context.put("modelImports", new ArrayList<>(modelTypes));
         context.put("hasModelImports", !modelTypes.isEmpty());
+        injectAuthFieldContext(op, context);
+        context.put("authImport", invokerPackage + ".auth." + getAuthenticatorTypeName());
         return renderOptionsTemplate("api/options.mustache", context);
     }
 

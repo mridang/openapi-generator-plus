@@ -11,18 +11,15 @@ import com.example.petstore.ApiClient;
 import com.example.petstore.ApiException;
 import com.example.petstore.ApiResult;
 import com.example.petstore.Configuration;
+import com.example.petstore.api.options.AddPetOptions;
 import com.example.petstore.api.options.AddPetPhotosOptions;
+import com.example.petstore.api.options.AddPetTreatmentOptions;
 import com.example.petstore.api.options.DeletePetOptions;
 import com.example.petstore.api.options.FindPetsByStatusOptions;
 import com.example.petstore.api.options.GetPetTagOptions;
 import com.example.petstore.api.options.UploadPetCertificateOptions;
 import com.example.petstore.api.options.UploadPetDocumentOptions;
-import com.example.petstore.auth.AdminBasicAuthenticator;
-import com.example.petstore.auth.ApiKeyHeaderAuthenticator;
 import com.example.petstore.auth.Authenticator;
-import com.example.petstore.auth.PetStoreBasicAuthenticator;
-import com.example.petstore.auth.PetStoreBearerAuthenticator;
-import com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator;
 import com.example.petstore.models.ApiResponse;
 import com.example.petstore.models.Pet;
 import com.example.petstore.models.PetPassport;
@@ -296,54 +293,59 @@ public class PetApi extends BaseApi {
   /**
    * Add a new pet to the store
    *
-   * @param auth the authenticator providing credentials for this request
-   * @param pet Create a new pet in the store (required)
+   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
+   * authenticator and optional parameters default to unset and the client's configured credentials
+   * are used.
+   *
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public Pet addPet(PetStoreBearerAuthenticator auth, Pet pet) throws ApiException {
-    return requireBody(addPetWithHttpInfo(auth, pet), "addPet");
+  public Pet addPet(Pet pet) throws ApiException {
+    return addPet(pet, null);
   }
 
   /**
    * Add a new pet to the store
    *
-   * @param auth the authenticator providing credentials for this request
-   * @param pet Create a new pet in the store (required)
+   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
+   * authenticator and optional parameters default to unset and the client's configured credentials
+   * are used.
+   *
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Pet> addPetWithHttpInfo(PetStoreBearerAuthenticator auth, Pet pet)
-      throws ApiException {
-    return addPetInternal(auth, pet);
+  public ApiResult<Pet> addPetWithHttpInfo(Pet pet) throws ApiException {
+    return addPetWithHttpInfo(pet, null);
   }
 
   /**
    * Add a new pet to the store
    *
-   * @param auth the authenticator providing credentials for this request
    * @param pet Create a new pet in the store (required)
+   * @param options options carrying an optional per-call authenticator
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public Pet addPet(ApiKeyHeaderAuthenticator auth, Pet pet) throws ApiException {
-    return requireBody(addPetWithHttpInfo(auth, pet), "addPet");
+  public Pet addPet(Pet pet, @Nullable AddPetOptions options) throws ApiException {
+    return requireBody(addPetWithHttpInfo(pet, options), "addPet");
   }
 
   /**
    * Add a new pet to the store
    *
-   * @param auth the authenticator providing credentials for this request
    * @param pet Create a new pet in the store (required)
+   * @param options options carrying an optional per-call authenticator
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Pet> addPetWithHttpInfo(ApiKeyHeaderAuthenticator auth, Pet pet)
+  public ApiResult<Pet> addPetWithHttpInfo(Pet pet, @Nullable AddPetOptions options)
       throws ApiException {
-    return addPetInternal(auth, pet);
+    return addPetInternal(pet, options);
   }
 
-  private ApiResult<Pet> addPetInternal(Authenticator auth, Pet pet) throws ApiException {
+  private ApiResult<Pet> addPetInternal(Pet pet, @Nullable AddPetOptions options)
+      throws ApiException {
+    Authenticator auth = options != null ? options.auth() : null;
     if (pet == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'pet' when calling addPet");
@@ -368,7 +370,8 @@ public class PetApi extends BaseApi {
    * metadata part is serialised as JSON within the multipart body.
    *
    * @param petId (required)
-   * @param options options for query, header, form, and cookie parameters
+   * @param options options for query, header, form, and cookie parameters, plus an optional
+   *     per-call authenticator
    * @return {@code List<Photo>}
    * @throws ApiException if fails to make API call
    */
@@ -381,7 +384,8 @@ public class PetApi extends BaseApi {
    * metadata part is serialised as JSON within the multipart body.
    *
    * @param petId (required)
-   * @param options options for query, header, form, and cookie parameters
+   * @param options options for query, header, form, and cookie parameters, plus an optional
+   *     per-call authenticator
    * @return the API result wrapping {@code List<Photo>}
    * @throws ApiException if fails to make API call
    */
@@ -419,61 +423,67 @@ public class PetApi extends BaseApi {
   /**
    * Record a treatment for a pet
    *
-   * @param auth the authenticator providing credentials for this request
+   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
+   * authenticator and optional parameters default to unset and the client's configured credentials
+   * are used.
+   *
+   * @return {@code PetTreatment}
+   * @throws ApiException if fails to make API call
+   */
+  public PetTreatment addPetTreatment(Long petId, PetTreatment petTreatment) throws ApiException {
+    return addPetTreatment(petId, petTreatment, null);
+  }
+
+  /**
+   * Record a treatment for a pet
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
+   * authenticator and optional parameters default to unset and the client's configured credentials
+   * are used.
+   *
+   * @return the API result wrapping {@code PetTreatment}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<PetTreatment> addPetTreatmentWithHttpInfo(Long petId, PetTreatment petTreatment)
+      throws ApiException {
+    return addPetTreatmentWithHttpInfo(petId, petTreatment, null);
+  }
+
+  /**
+   * Record a treatment for a pet
+   *
    * @param petId (required)
    * @param petTreatment (required)
+   * @param options options carrying an optional per-call authenticator
    * @return {@code PetTreatment}
    * @throws ApiException if fails to make API call
    */
   public PetTreatment addPetTreatment(
-      PetStoreBasicAuthenticator auth, Long petId, PetTreatment petTreatment) throws ApiException {
-    return requireBody(addPetTreatmentWithHttpInfo(auth, petId, petTreatment), "addPetTreatment");
+      Long petId, PetTreatment petTreatment, @Nullable AddPetTreatmentOptions options)
+      throws ApiException {
+    return requireBody(
+        addPetTreatmentWithHttpInfo(petId, petTreatment, options), "addPetTreatment");
   }
 
   /**
    * Record a treatment for a pet
    *
-   * @param auth the authenticator providing credentials for this request
    * @param petId (required)
    * @param petTreatment (required)
+   * @param options options carrying an optional per-call authenticator
    * @return the API result wrapping {@code PetTreatment}
    * @throws ApiException if fails to make API call
    */
   public ApiResult<PetTreatment> addPetTreatmentWithHttpInfo(
-      PetStoreBasicAuthenticator auth, Long petId, PetTreatment petTreatment) throws ApiException {
-    return addPetTreatmentInternal(auth, petId, petTreatment);
-  }
-
-  /**
-   * Record a treatment for a pet
-   *
-   * @param auth the authenticator providing credentials for this request
-   * @param petId (required)
-   * @param petTreatment (required)
-   * @return {@code PetTreatment}
-   * @throws ApiException if fails to make API call
-   */
-  public PetTreatment addPetTreatment(
-      PetStoreBearerAuthenticator auth, Long petId, PetTreatment petTreatment) throws ApiException {
-    return requireBody(addPetTreatmentWithHttpInfo(auth, petId, petTreatment), "addPetTreatment");
-  }
-
-  /**
-   * Record a treatment for a pet
-   *
-   * @param auth the authenticator providing credentials for this request
-   * @param petId (required)
-   * @param petTreatment (required)
-   * @return the API result wrapping {@code PetTreatment}
-   * @throws ApiException if fails to make API call
-   */
-  public ApiResult<PetTreatment> addPetTreatmentWithHttpInfo(
-      PetStoreBearerAuthenticator auth, Long petId, PetTreatment petTreatment) throws ApiException {
-    return addPetTreatmentInternal(auth, petId, petTreatment);
+      Long petId, PetTreatment petTreatment, @Nullable AddPetTreatmentOptions options)
+      throws ApiException {
+    return addPetTreatmentInternal(petId, petTreatment, options);
   }
 
   private ApiResult<PetTreatment> addPetTreatmentInternal(
-      Authenticator auth, Long petId, PetTreatment petTreatment) throws ApiException {
+      Long petId, PetTreatment petTreatment, @Nullable AddPetTreatmentOptions options)
+      throws ApiException {
+    Authenticator auth = options != null ? options.auth() : null;
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling addPetTreatment");
@@ -506,67 +516,59 @@ public class PetApi extends BaseApi {
   /**
    * Deletes a pet
    *
-   * @param auth the authenticator providing credentials for this request
-   * @param petId Pet id to delete (required)
-   * @param options options for query, header, form, and cookie parameters
+   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
+   * authenticator and optional parameters default to unset and the client's configured credentials
+   * are used.
+   *
    * @throws ApiException if fails to make API call
    */
-  public void deletePet(
-      MachineAuthClientCredentialsAuthenticator auth,
-      Long petId,
-      @Nullable DeletePetOptions options)
-      throws ApiException {
-    deletePetWithHttpInfo(auth, petId, options);
+  public void deletePet(Long petId) throws ApiException {
+    deletePet(petId, null);
   }
 
   /**
    * Deletes a pet
    *
-   * @param auth the authenticator providing credentials for this request
-   * @param petId Pet id to delete (required)
-   * @param options options for query, header, form, and cookie parameters
+   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
+   * authenticator and optional parameters default to unset and the client's configured credentials
+   * are used.
+   *
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Void> deletePetWithHttpInfo(
-      MachineAuthClientCredentialsAuthenticator auth,
-      Long petId,
-      @Nullable DeletePetOptions options)
-      throws ApiException {
-    return deletePetInternal(auth, petId, options);
+  public ApiResult<Void> deletePetWithHttpInfo(Long petId) throws ApiException {
+    return deletePetWithHttpInfo(petId, null);
   }
 
   /**
    * Deletes a pet
    *
-   * @param auth the authenticator providing credentials for this request
    * @param petId Pet id to delete (required)
-   * @param options options for query, header, form, and cookie parameters
+   * @param options options for query, header, form, and cookie parameters, plus an optional
+   *     per-call authenticator
    * @throws ApiException if fails to make API call
    */
-  public void deletePet(
-      AdminBasicAuthenticator auth, Long petId, @Nullable DeletePetOptions options)
-      throws ApiException {
-    deletePetWithHttpInfo(auth, petId, options);
+  public void deletePet(Long petId, @Nullable DeletePetOptions options) throws ApiException {
+    deletePetWithHttpInfo(petId, options);
   }
 
   /**
    * Deletes a pet
    *
-   * @param auth the authenticator providing credentials for this request
    * @param petId Pet id to delete (required)
-   * @param options options for query, header, form, and cookie parameters
+   * @param options options for query, header, form, and cookie parameters, plus an optional
+   *     per-call authenticator
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Void> deletePetWithHttpInfo(
-      AdminBasicAuthenticator auth, Long petId, @Nullable DeletePetOptions options)
+  public ApiResult<Void> deletePetWithHttpInfo(Long petId, @Nullable DeletePetOptions options)
       throws ApiException {
-    return deletePetInternal(auth, petId, options);
+    return deletePetInternal(petId, options);
   }
 
-  private ApiResult<Void> deletePetInternal(
-      Authenticator auth, Long petId, @Nullable DeletePetOptions options) throws ApiException {
+  private ApiResult<Void> deletePetInternal(Long petId, @Nullable DeletePetOptions options)
+      throws ApiException {
+    Authenticator auth = options != null ? options.auth() : null;
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling deletePet");
@@ -663,40 +665,74 @@ public class PetApi extends BaseApi {
   /**
    * Finds Pets by status
    *
-   * @param options options for query, header, form, and cookie parameters
+   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
+   * authenticator and optional parameters default to unset and the client's configured credentials
+   * are used.
+   *
+   * @return {@code List<Pet>}
+   * @throws ApiException if fails to make API call
+   */
+  @Deprecated
+  public List<Pet> findPetsByStatus() throws ApiException {
+    return findPetsByStatus(null);
+  }
+
+  /**
+   * Finds Pets by status
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
+   * authenticator and optional parameters default to unset and the client's configured credentials
+   * are used.
+   *
+   * @return the API result wrapping {@code List<Pet>}
+   * @throws ApiException if fails to make API call
+   */
+  @Deprecated
+  public ApiResult<List<Pet>> findPetsByStatusWithHttpInfo() throws ApiException {
+    return findPetsByStatusWithHttpInfo(null);
+  }
+
+  /**
+   * Finds Pets by status
+   *
+   * @param options options for query, header, form, and cookie parameters, plus an optional
+   *     per-call authenticator
    * @return {@code List<Pet>}
    * @throws ApiException if fails to make API call
    * @deprecated This operation is deprecated. Find out more about filtering
    * @see <a href="https://example.com/docs/filtering">Finds Pets by status Documentation</a>
    */
   @Deprecated
-  public List<Pet> findPetsByStatus(FindPetsByStatusOptions options) throws ApiException {
+  public List<Pet> findPetsByStatus(@Nullable FindPetsByStatusOptions options) throws ApiException {
     return requireBody(findPetsByStatusWithHttpInfo(options), "findPetsByStatus");
   }
 
   /**
    * Finds Pets by status
    *
-   * @param options options for query, header, form, and cookie parameters
+   * @param options options for query, header, form, and cookie parameters, plus an optional
+   *     per-call authenticator
    * @return the API result wrapping {@code List<Pet>}
    * @throws ApiException if fails to make API call
    * @deprecated This operation is deprecated. Find out more about filtering
    * @see <a href="https://example.com/docs/filtering">Finds Pets by status Documentation</a>
    */
   @Deprecated
-  public ApiResult<List<Pet>> findPetsByStatusWithHttpInfo(FindPetsByStatusOptions options)
-      throws ApiException {
+  public ApiResult<List<Pet>> findPetsByStatusWithHttpInfo(
+      @Nullable FindPetsByStatusOptions options) throws ApiException {
     String path = "/pet/findByStatus";
     Map<String, Object> queryParams = new HashMap<>();
-    if (options.status() != null) {
-      queryParams.put(
-          "status",
-          ValueSerializer.serializeStyled(
-              "status", options.status(), "query", "String", null, "form", true));
-    } else {
-      queryParams.put("status", "");
+    if (options != null) {
+      if (options.status() != null) {
+        queryParams.put(
+            "status",
+            ValueSerializer.serializeStyled(
+                "status", options.status(), "query", "String", null, "form", true));
+      } else {
+        queryParams.put("status", "");
+      }
     }
-    if (options.filter() != null) {
+    if (options != null && options.filter() != null) {
       queryParams.putAll(ValueSerializer.serializeDeepObject("filter", options.filter()));
     }
     Map<String, String> headerParams = new HashMap<>();
@@ -1154,13 +1190,43 @@ public class PetApi extends BaseApi {
   /**
    * Get a tag for a pet
    *
-   * @param petId (required)
-   * @param tagName (required)
-   * @param options options for query, header, form, and cookie parameters
+   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
+   * authenticator and optional parameters default to unset and the client's configured credentials
+   * are used.
+   *
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public Pet getPetTag(Long petId, String tagName, GetPetTagOptions options) throws ApiException {
+  public Pet getPetTag(Long petId, String tagName) throws ApiException {
+    return getPetTag(petId, tagName, null);
+  }
+
+  /**
+   * Get a tag for a pet
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
+   * authenticator and optional parameters default to unset and the client's configured credentials
+   * are used.
+   *
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Pet> getPetTagWithHttpInfo(Long petId, String tagName) throws ApiException {
+    return getPetTagWithHttpInfo(petId, tagName, null);
+  }
+
+  /**
+   * Get a tag for a pet
+   *
+   * @param petId (required)
+   * @param tagName (required)
+   * @param options options for query, header, form, and cookie parameters, plus an optional
+   *     per-call authenticator
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
+  public Pet getPetTag(Long petId, String tagName, @Nullable GetPetTagOptions options)
+      throws ApiException {
     return requireBody(getPetTagWithHttpInfo(petId, tagName, options), "getPetTag");
   }
 
@@ -1169,12 +1235,13 @@ public class PetApi extends BaseApi {
    *
    * @param petId (required)
    * @param tagName (required)
-   * @param options options for query, header, form, and cookie parameters
+   * @param options options for query, header, form, and cookie parameters, plus an optional
+   *     per-call authenticator
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Pet> getPetTagWithHttpInfo(Long petId, String tagName, GetPetTagOptions options)
-      throws ApiException {
+  public ApiResult<Pet> getPetTagWithHttpInfo(
+      Long petId, String tagName, @Nullable GetPetTagOptions options) throws ApiException {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling getPetTag");
@@ -1196,7 +1263,7 @@ public class PetApi extends BaseApi {
                     ValueSerializer.serializeStyled(
                         "tagName", tagName, "path", "String", null, "label", false));
     Map<String, Object> queryParams = new HashMap<>();
-    if (options.colors() != null) {
+    if (options != null && options.colors() != null) {
       queryParams.put(
           "colors",
           ValueSerializer.serializeStyled(
@@ -1208,19 +1275,21 @@ public class PetApi extends BaseApi {
               "pipeDelimited",
               false));
     }
-    if (options.sizes() != null) {
+    if (options != null && options.sizes() != null) {
       queryParams.put(
           "sizes",
           ValueSerializer.serializeStyled(
               "sizes", options.sizes(), "query", "List<String>", "ssv", "spaceDelimited", false));
     }
-    if (options.filter() != null) {
-      queryParams.put(
-          "filter",
-          ValueSerializer.serializeStyled(
-              "filter", options.filter(), "query", "String", null, "form", true));
-    } else {
-      queryParams.put("filter", "");
+    if (options != null) {
+      if (options.filter() != null) {
+        queryParams.put(
+            "filter",
+            ValueSerializer.serializeStyled(
+                "filter", options.filter(), "query", "String", null, "form", true));
+      } else {
+        queryParams.put("filter", "");
+      }
     }
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
@@ -1464,7 +1533,8 @@ public class PetApi extends BaseApi {
    * metadata fields are required alongside the file.
    *
    * @param petId (required)
-   * @param options options for query, header, form, and cookie parameters
+   * @param options options for query, header, form, and cookie parameters, plus an optional
+   *     per-call authenticator
    * @return {@code ApiResponse}
    * @throws ApiException if fails to make API call
    */
@@ -1478,7 +1548,8 @@ public class PetApi extends BaseApi {
    * metadata fields are required alongside the file.
    *
    * @param petId (required)
-   * @param options options for query, header, form, and cookie parameters
+   * @param options options for query, header, form, and cookie parameters, plus an optional
+   *     per-call authenticator
    * @return the API result wrapping {@code ApiResponse}
    * @throws ApiException if fails to make API call
    */
@@ -1518,7 +1589,8 @@ public class PetApi extends BaseApi {
    * to stream bytes directly.
    *
    * @param petId (required)
-   * @param options options for query, header, form, and cookie parameters
+   * @param options options for query, header, form, and cookie parameters, plus an optional
+   *     per-call authenticator
    * @return {@code ApiResponse}
    * @throws ApiException if fails to make API call
    */
@@ -1533,7 +1605,8 @@ public class PetApi extends BaseApi {
    * to stream bytes directly.
    *
    * @param petId (required)
-   * @param options options for query, header, form, and cookie parameters
+   * @param options options for query, header, form, and cookie parameters, plus an optional
+   *     per-call authenticator
    * @return the API result wrapping {@code ApiResponse}
    * @throws ApiException if fails to make API call
    */

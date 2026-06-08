@@ -7,25 +7,6 @@ import {{invokerPackage}}.ApiException;
 import {{invokerPackage}}.ApiResult;
 import {{invokerPackage}}.Configuration;
 import {{invokerPackage}}.auth.Authenticator;
-{{#operations}}
-{{#operation}}
-{{#hasAuthMethods}}
-{{#authMethods}}
-{{#isOAuth}}
-import {{invokerPackage}}.auth.oauth.{{vendorExtensions.authenticatorClassName}};
-{{/isOAuth}}
-{{#isOpenId}}
-import {{invokerPackage}}.auth.oauth.{{vendorExtensions.namePascal}}Authenticator;
-{{/isOpenId}}
-{{^isOAuth}}
-{{^isOpenId}}
-import {{invokerPackage}}.auth.{{vendorExtensions.namePascal}}Authenticator;
-{{/isOpenId}}
-{{/isOAuth}}
-{{/authMethods}}
-{{/hasAuthMethods}}
-{{/operation}}
-{{/operations}}
 {{#models.0}}
 import {{modelPackage}}.*;
 {{/models.0}}
@@ -152,45 +133,6 @@ public class {{classname}} extends BaseApi {
     }
     {{#operation}}
 
-{{#hasAuthMethods}}
-    {{#authMethods}}
-{{>api/operation_doc}}
-{{#isDeprecated}}
-    @Deprecated
-{{/isDeprecated}}
-    public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{vendorExtensions.authenticatorClassName}} auth{{#vendorExtensions.op.signatureArgs}}, {{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) throws ApiException {
-        {{#returnType}}return requireBody({{operationId}}WithHttpInfo(auth{{#vendorExtensions.op.signatureArgs}}, {{paramName}}{{/vendorExtensions.op.signatureArgs}}), "{{operationId}}");{{/returnType}}{{^returnType}}{{operationId}}WithHttpInfo(auth{{#vendorExtensions.op.signatureArgs}}, {{paramName}}{{/vendorExtensions.op.signatureArgs}});{{/returnType}}
-    }
-
-{{>api/operation_doc_result}}
-{{#isDeprecated}}
-    @Deprecated
-{{/isDeprecated}}
-    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{vendorExtensions.authenticatorClassName}} auth{{#vendorExtensions.op.signatureArgs}}, {{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) throws ApiException {
-        return {{operationId}}Internal(auth{{#vendorExtensions.op.signatureArgs}}, {{paramName}}{{/vendorExtensions.op.signatureArgs}});
-    }
-
-{{#servers}}{{#-first}}
-{{>api/operation_doc_noserver}}
-{{#isDeprecated}}
-    @Deprecated
-{{/isDeprecated}}
-    public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{vendorExtensions.authenticatorClassName}} auth{{#vendorExtensions.op.signatureArgsNoServer}}, {{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}) throws ApiException {
-        {{#returnType}}return {{operationId}}(auth{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, null);{{/returnType}}{{^returnType}}{{operationId}}(auth{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, null);{{/returnType}}
-    }
-
-{{>api/operation_doc_result_noserver}}
-{{#isDeprecated}}
-    @Deprecated
-{{/isDeprecated}}
-    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{vendorExtensions.authenticatorClassName}} auth{{#vendorExtensions.op.signatureArgsNoServer}}, {{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}) throws ApiException {
-        return {{operationId}}WithHttpInfo(auth{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, null);
-    }
-{{/-first}}{{/servers}}
-    {{/authMethods}}
-    private ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}Internal(Authenticator auth{{#vendorExtensions.op.signatureArgs}}, {{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) throws ApiException {
-{{/hasAuthMethods}}
-{{^hasAuthMethods}}
 {{#servers}}{{#-first}}
 {{>api/operation_doc_noserver}}
 {{#isDeprecated}}
@@ -208,6 +150,43 @@ public class {{classname}} extends BaseApi {
         return {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, null);
     }
 {{/-first}}{{/servers}}
+{{#vendorExtensions.op.optionsArgOptional}}
+    /**
+     * {{summary}}
+     *
+     * <p>Convenience overload that omits the optional {@code options} argument;
+     * any per-call authenticator and optional parameters default to unset and
+     * the client's configured credentials are used.
+     *
+{{#returnType}}
+     * @return {@code {{{returnType}}}}
+{{/returnType}}
+     * @throws ApiException if fails to make API call
+     */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgsNoServerNoOptions}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServerNoOptions}}) throws ApiException {
+        {{#returnType}}return {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isOptions}}null{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}});{{/returnType}}{{^returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isOptions}}null{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}});{{/returnType}}
+    }
+
+    /**
+     * {{summary}}
+     *
+     * <p>Convenience overload that omits the optional {@code options} argument;
+     * any per-call authenticator and optional parameters default to unset and
+     * the client's configured credentials are used.
+     *
+     * @return the API result wrapping {{#returnType}}{@code {{{returnType}}}}{{/returnType}}{{^returnType}}no body{{/returnType}}
+     * @throws ApiException if fails to make API call
+     */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgsNoServerNoOptions}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServerNoOptions}}) throws ApiException {
+        return {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isOptions}}null{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}});
+    }
+{{/vendorExtensions.op.optionsArgOptional}}
 {{>api/operation_doc}}
 {{#isDeprecated}}
     @Deprecated
@@ -220,6 +199,15 @@ public class {{classname}} extends BaseApi {
 {{#isDeprecated}}
     @Deprecated
 {{/isDeprecated}}
+{{#hasAuthMethods}}
+    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) throws ApiException {
+        return {{operationId}}Internal({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}});
+    }
+
+    private ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}Internal({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) throws ApiException {
+        Authenticator auth = {{#vendorExtensions.op.optionsParamRequired}}options.auth(){{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options != null ? options.auth() : null{{/vendorExtensions.op.optionsParamRequired}};
+{{/hasAuthMethods}}
+{{^hasAuthMethods}}
     public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) throws ApiException {
 {{/hasAuthMethods}}
 {{#pathParams}}
@@ -256,31 +244,42 @@ public class {{classname}} extends BaseApi {
         Map<String, Object> queryParams = new HashMap<>();
 {{#queryParams}}
 {{#vendorExtensions.param.queryDeepObject}}
-        if (options.{{paramName}}() != null) {
+        if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
             queryParams.putAll(ValueSerializer.serializeDeepObject("{{baseName}}", options.{{paramName}}()));
         }
 {{/vendorExtensions.param.queryDeepObject}}
 {{#vendorExtensions.param.queryContent}}
-        if (options.{{paramName}}() != null) {
+        if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
             queryParams.put("{{baseName}}", objectSerializer.serialize(options.{{paramName}}()));
         }
 {{/vendorExtensions.param.queryContent}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.op.optionsParamRequired}}
         if (options.{{paramName}}() != null) {
             queryParams.put("{{baseName}}", ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}}));
         } else {
             queryParams.put("{{baseName}}", "");
         }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+        if (options != null) {
+            if (options.{{paramName}}() != null) {
+                queryParams.put("{{baseName}}", ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}}));
+            } else {
+                queryParams.put("{{baseName}}", "");
+            }
+        }
+{{/vendorExtensions.op.optionsParamRequired}}
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryStyled}}
-        if (options.{{paramName}}() != null) {
+        if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
             queryParams.put("{{baseName}}", ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}}));
         }
 {{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}
         Map<String, String> headerParams = new HashMap<>();
 {{#headerParams}}
-        if (options.{{paramName}}() != null) {
+        if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
             headerParams.put(
                     "{{baseName}}", (String) ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "header", "{{{dataType}}}", null, "{{style}}", {{isExplode}}));
         }
@@ -303,7 +302,7 @@ public class {{classname}} extends BaseApi {
         formBody.put("{{baseName}}", options.{{paramName}}());
 {{/required}}
 {{^required}}
-        if (options.{{paramName}}() != null) {
+        if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
             formBody.put("{{baseName}}", options.{{paramName}}());
         }
 {{/required}}

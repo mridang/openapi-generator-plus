@@ -4,35 +4,13 @@ import com.example.petstore.auth.Authenticator;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nullable;
 
-/** Options for the deletePet operation. */
+/** Options for the addPet operation. */
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
-public final class DeletePetOptions {
-  @Nullable private String apiKey;
+public final class AddPetOptions {
   @Nullable private Authenticator auth;
 
   /** Creates an options instance with the required parameters. */
-  public DeletePetOptions() {}
-
-  /**
-   * Sets the {@code api_key} parameter.
-   *
-   * @param apiKey the {@code api_key} parameter
-   * @return this options instance for chaining
-   */
-  public DeletePetOptions apiKey(String apiKey) {
-    this.apiKey = apiKey;
-    return this;
-  }
-
-  /**
-   * Returns the {@code api_key} parameter.
-   *
-   * @return the {@code api_key} parameter, or {@code null} if unset
-   */
-  @Nullable
-  public String apiKey() {
-    return apiKey;
-  }
+  public AddPetOptions() {}
 
   /**
    * Sets the per-operation authenticator. When set, it overrides the client's configured
@@ -41,7 +19,7 @@ public final class DeletePetOptions {
    * @param auth the authenticator to use for this operation
    * @return this options instance for chaining
    */
-  public DeletePetOptions auth(Authenticator auth) {
+  public AddPetOptions auth(Authenticator auth) {
     this.auth = auth;
     return this;
   }

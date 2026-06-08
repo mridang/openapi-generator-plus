@@ -3,9 +3,6 @@
 {{#notes}}
      * {{.}}
 {{/notes}}
-{{#hasAuthMethods}}
-     * @param auth the authenticator providing credentials for this request
-{{/hasAuthMethods}}
 {{#pathParams}}
      * @param {{paramName}} {{description}}{{vendorExtensions.requiredLabelWithDefault}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
@@ -19,14 +16,16 @@
 {{/vendorExtensions.pluralExamples}}
 {{/bodyParam}}
 {{#queryParams}}{{#-first}}
-     * @param options options for query, header, form, and cookie parameters
+     * @param options options for query, header, form, and cookie parameters, plus an optional per-call authenticator
 {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
-     * @param options options for query, header, form, and cookie parameters
+     * @param options options for query, header, form, and cookie parameters, plus an optional per-call authenticator
 {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
-     * @param options options for query, header, form, and cookie parameters
+     * @param options options for query, header, form, and cookie parameters, plus an optional per-call authenticator
 {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
-     * @param options options for query, header, form, and cookie parameters
-{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+     * @param options options for query, header, form, and cookie parameters, plus an optional per-call authenticator
+{{/-first}}{{/cookieParams}}{{^cookieParams}}{{#hasAuthMethods}}
+     * @param options options carrying an optional per-call authenticator
+{{/hasAuthMethods}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
 {{#returnType}}
      * @return {@code {{{returnType}}}}
 {{/returnType}}

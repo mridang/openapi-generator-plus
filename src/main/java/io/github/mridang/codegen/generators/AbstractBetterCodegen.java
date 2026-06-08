@@ -2755,10 +2755,23 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         // language's api template. The auth slot intentionally stays per-template
         // since its type varies per auth method (resolved from the outer
         // {{#authMethods}} scope at render time).
-        d.put("signatureArgs", computeSignatureArgs(op, true, optionsClassName, serverClassName));
-        d.put(
-                "signatureArgsNoServer",
-                computeSignatureArgs(op, false, optionsClassName, serverClassName));
+        final List<Map<String, Object>> sigArgs =
+                computeSignatureArgs(op, true, optionsClassName, serverClassName);
+        final List<Map<String, Object>> sigArgsNoServer =
+                computeSignatureArgs(op, false, optionsClassName, serverClassName);
+        d.put("signatureArgs", sigArgs);
+        d.put("signatureArgsNoServer", sigArgsNoServer);
+
+        // Phase: per-operation auth folded into Options. When the options arg
+        // is OPTIONAL (nullable — i.e. the Options object has no required
+        // field), generate a convenience overload that omits it entirely so
+        // callers can write {@code addPet(pet)} instead of
+        // {@code addPet(pet, null)}. These argument lists strip the synthetic
+        // options entry; the overload body delegates with {@code null} for it.
+        final boolean optionsArgOptional = hasOptionsArg(sigArgs) && !anyRequired;
+        d.put("optionsArgOptional", optionsArgOptional);
+        d.put("signatureArgsNoOptions", stripOptions(sigArgs));
+        d.put("signatureArgsNoServerNoOptions", stripOptions(sigArgsNoServer));
 
         // Phase 1.7+ — Stamp the resolved authenticator class name on each
         // auth method so templates can reference {{vendorExtensions.
@@ -3091,17 +3104,65 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         final boolean hasHeader = op.headerParams != null && !op.headerParams.isEmpty();
         final boolean hasForm = op.formParams != null && !op.formParams.isEmpty();
         final boolean hasCookie = op.cookieParams != null && !op.cookieParams.isEmpty();
-        if (hasQuery || hasHeader || hasForm || hasCookie) {
-            // Matches the existing Java rule: the options param is @Nullable
-            // only when ONLY cookie params populate it; otherwise it's
-            // non-null (because at least one required-eligible kind exists).
-            final boolean nullable = !hasQuery && !hasHeader && !hasForm && hasCookie;
+        // The Options object now also carries the optional per-operation auth
+        // field (the generic Authenticator), so authed operations that have no
+        // query/header/form/cookie params still need a (minted) Options arg.
+        if (hasQuery || hasHeader || hasForm || hasCookie || op.hasAuthMethods) {
+            // The Options arg is REQUIRED (non-nullable) iff the Options object
+            // has at least one required field; otherwise it is optional. The
+            // optional `auth` field never forces the arg to be required.
+            final boolean anyRequired = hasAnyRequiredOptionsField(op);
+            final boolean nullable = !anyRequired;
             args.add(signatureArg("options", "options", optionsClassName, nullable, false));
         }
         if (includeServer && op.servers != null && !op.servers.isEmpty()) {
             args.add(signatureArg("server", "server", serverClassName, true, false));
         }
         return args;
+    }
+
+    /**
+     * Returns {@code true} when the given signature-arg list contains the
+     * synthetic {@code options} entry.
+     */
+    private static boolean hasOptionsArg(List<Map<String, Object>> args) {
+        for (final Map<String, Object> a : args) {
+            if (Boolean.TRUE.equals(a.get("isOptions"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns a copy of the signature-arg list with the synthetic
+     * {@code options} entry removed. Used to emit the convenience overload
+     * that omits an optional Options arg.
+     */
+    private static List<Map<String, Object>> stripOptions(List<Map<String, Object>> args) {
+        final List<Map<String, Object>> out = new ArrayList<>();
+        for (final Map<String, Object> a : args) {
+            if (!Boolean.TRUE.equals(a.get("isOptions"))) {
+                out.add(a);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Returns {@code true} when the operation's Options object has at least
+     * one required field (i.e. a required query/header/form/cookie param).
+     * The optional {@code auth} field is intentionally excluded — it never
+     * forces the Options arg to be required. This is the single source of
+     * truth mirrored by the operation decorator's {@code optionsParamRequired}.
+     */
+    private static boolean hasAnyRequiredOptionsField(CodegenOperation op) {
+        for (final CodegenParameter p : collectOptionsParams(op)) {
+            if (p.required) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static Map<String, Object> signatureArg(
@@ -3741,7 +3802,10 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         final List<Map<String, String>> optionsImports = new ArrayList<>();
         for (final CodegenOperation op : ops) {
             final List<CodegenParameter> optionsParams = collectOptionsParams(op);
-            if (optionsParams.isEmpty()) {
+            // Authed operations always get an Options class minted (even with
+            // no query/header/form/cookie params) because the class carries
+            // the optional per-operation `auth` field.
+            if (optionsParams.isEmpty() && !op.hasAuthMethods) {
                 continue;
             }
             // Whether any Options-class field is required is exposed to
@@ -4157,6 +4221,30 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     protected String generateOptionsFileContent(
             CodegenOperation op, List<CodegenParameter> optionsParams, String className) {
         return null;
+    }
+
+    /**
+     * Returns the language-specific type name of the generic authenticator
+     * interface used for the optional per-operation {@code auth} field on an
+     * Options object. Subclasses override to supply their idiomatic name and
+     * the import it requires. Defaults to {@code "Authenticator"}.
+     */
+    protected String getAuthenticatorTypeName() {
+        return "Authenticator";
+    }
+
+    /**
+     * Injects the optional per-operation {@code auth} field metadata into an
+     * Options-class render context. Authed operations (those with
+     * {@code op.hasAuthMethods}) get {@code hasAuthField = true} and
+     * {@code authFieldType} set to {@link #getAuthenticatorTypeName()};
+     * unsecured operations get {@code hasAuthField = false} and no field.
+     * Lives in the base class so all languages inherit the same behaviour.
+     */
+    protected void injectAuthFieldContext(CodegenOperation op, Map<String, Object> context) {
+        final boolean hasAuthField = op.hasAuthMethods;
+        context.put("hasAuthField", hasAuthField);
+        context.put("authFieldType", getAuthenticatorTypeName());
     }
 
     /**

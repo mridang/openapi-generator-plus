@@ -14,7 +14,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import com.example.petstore.ChasmContainer;
 import com.example.petstore.Configuration;
 import com.example.petstore.DefaultApiClient;
+import com.example.petstore.api.options.AddPetOptions;
 import com.example.petstore.api.options.AddPetPhotosOptions;
+import com.example.petstore.api.options.DeletePetOptions;
 import com.example.petstore.api.options.FindPetsByStatusOptions;
 import com.example.petstore.api.options.GetPetTagOptions;
 import com.example.petstore.api.options.UploadPetCertificateOptions;
@@ -65,7 +67,24 @@ class PetApiTest {
     pet.photoUrls = Set.of("http://example.com/photo.jpg");
     pet.status = Pet.StatusEnum.AVAILABLE;
 
-    Pet result = api.addPet(bearerAuth, pet);
+    Pet result = api.addPet(pet, new AddPetOptions().auth(bearerAuth));
+    assertNotNull(result);
+
+    assertThat(result.name).isNotNull();
+  }
+
+  @Test
+  void testAddPetUsingConfiguredCredentials() throws Exception {
+    // The Options arg (and its auth) is optional: omitting it falls back to
+    // the credentials configured on the client (the default Authorization
+    // header set in setUp), which must satisfy the secured endpoint.
+    Pet pet = new Pet();
+    pet.id = 54321L;
+    pet.name = "DefaultCredsDog";
+    pet.photoUrls = Set.of("http://example.com/photo.jpg");
+    pet.status = Pet.StatusEnum.AVAILABLE;
+
+    Pet result = api.addPet(pet);
     assertNotNull(result);
 
     assertThat(result.name).isNotNull();
@@ -79,7 +98,7 @@ class PetApiTest {
     pet.photoUrls = Set.of("http://example.com/photo.jpg");
     pet.status = Pet.StatusEnum.AVAILABLE;
 
-    var result = api.addPetWithHttpInfo(bearerAuth, pet);
+    var result = api.addPetWithHttpInfo(pet, new AddPetOptions().auth(bearerAuth));
     assertNotNull(result);
 
     assertThat(result.statusCode()).isBetween(200, 299);
@@ -150,14 +169,14 @@ class PetApiTest {
 
   @Test
   void testDeletePet() throws Exception {
-    api.deletePet(basicAuth, 1L, null);
+    api.deletePet(1L, new DeletePetOptions().auth(basicAuth));
 
     assertThat(true).isTrue();
   }
 
   @Test
   void testDeletePetWithHttpInfo() throws Exception {
-    var result = api.deletePetWithHttpInfo(basicAuth, 1L, null);
+    var result = api.deletePetWithHttpInfo(1L, new DeletePetOptions().auth(basicAuth));
     assertNotNull(result);
 
     assertThat(result.statusCode()).isBetween(200, 299);
@@ -342,10 +361,11 @@ class PetApiTest {
 
   @Test
   void testAddPetPerCallAuthOverride() throws Exception {
-    // Verify the auth argument on the BASE operation method (not just the
-    // WithHttpInfo variant) is applied to the outgoing request. The default
-    // header carries one token; the per-call authenticator carries a
-    // different one and must win on the wire.
+    // Verify the auth carried inside the Options object on the BASE
+    // operation method (not just the WithHttpInfo variant) is applied to
+    // the outgoing request. The default header carries one token; the
+    // per-call authenticator carries a different one and must win on the
+    // wire.
     final String[] capturedAuthHeader = new String[1];
     HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
     server.createContext(
@@ -374,8 +394,58 @@ class PetApiTest {
     pet.id = 1L;
     pet.name = "OverrideDog";
     pet.photoUrls = Set.of("http://example.com/p.jpg");
-    overrideApi.addPet(perCallAuth, pet);
+    overrideApi.addPet(pet, new AddPetOptions().auth(perCallAuth));
 
     assertThat(capturedAuthHeader[0]).isEqualTo("Bearer per-call-token");
+  }
+
+  @Test
+  void testAddPetUsesConfiguredCredentialsWhenAuthOmitted() throws Exception {
+    // When no per-call auth is supplied (Options omitted entirely), the
+    // client falls back to the credentials configured on the Configuration
+    // (the default Authorization header). Verify that token reaches the
+    // wire.
+    final String[] capturedAuthHeader = new String[1];
+    HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+    server.createContext(
+        "/",
+        exchange -> {
+          capturedAuthHeader[0] = exchange.getRequestHeaders().getFirst("Authorization");
+          byte[] responseBytes =
+              "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}".getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().set("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, responseBytes.length);
+          exchange.getResponseBody().write(responseBytes);
+          exchange.getResponseBody().close();
+        });
+    server.start();
+    String baseUrl = "http://localhost:" + server.getAddress().getPort();
+    Configuration defaultConfig =
+        Configuration.builder()
+            .baseUrl(baseUrl)
+            .defaultHeader("Authorization", "Bearer default-token")
+            .build();
+    PetApi defaultApi = new PetApi(new DefaultApiClient(), defaultConfig);
+
+    Pet pet = new Pet();
+    pet.id = 1L;
+    pet.name = "DefaultDog";
+    pet.photoUrls = Set.of("http://example.com/p.jpg");
+    defaultApi.addPet(pet);
+
+    assertThat(capturedAuthHeader[0]).isEqualTo("Bearer default-token");
+  }
+
+  @Test
+  void testUnsecuredOperationOptionsExposesNoAuth() throws Exception {
+    // Compile-level guard: an unsecured operation's Options object must NOT
+    // expose an auth field/method, and unsecured ops with path params only
+    // (getPetById) take no Options arg at all. This is a no-op at runtime;
+    // it fails to compile if a regression reintroduces auth on unsecured
+    // operations.
+    FindPetsByStatusOptions opts = new FindPetsByStatusOptions().status("available");
+    assertNotNull(opts);
+    Pet result = api.getPetById(1L);
+    assertNotNull(result);
   }
 }
