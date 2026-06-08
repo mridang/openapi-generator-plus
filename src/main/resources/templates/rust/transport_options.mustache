@@ -43,8 +43,9 @@ pub struct TransportOptions {
     /// Only meaningful when `follow_redirects` is true.
     max_redirects: Option<usize>,
 
-    /// Custom User-Agent header value.
-    user_agent: String,
+    /// Custom User-Agent header value. `None` means no User-Agent header is
+    /// injected by the transport, so the header can be omitted entirely.
+    user_agent: Option<String>,
 
     /// Transport-level default headers included in every request. These have
     /// the lowest priority: API-level headers, operation-specific headers,
@@ -87,9 +88,10 @@ impl TransportOptions {
         self.max_redirects
     }
 
-    /// Returns the custom User-Agent header value.
-    pub fn user_agent(&self) -> &str {
-        &self.user_agent
+    /// Returns the custom User-Agent header value, or `None` if no User-Agent
+    /// header should be injected by the transport.
+    pub fn user_agent(&self) -> Option<&str> {
+        self.user_agent.as_deref()
     }
 
     /// Returns a copy of the transport-level default headers.
@@ -111,7 +113,7 @@ pub struct TransportOptionsBuilder {
     timeout: Option<i64>,
     follow_redirects: bool,
     max_redirects: Option<usize>,
-    user_agent: String,
+    user_agent: Option<String>,
     default_headers: HashMap<String, String>,
     inject_request_id: bool,
 }
@@ -128,7 +130,11 @@ impl TransportOptionsBuilder {
             timeout: Some(10_000),
             follow_redirects: true,
             max_redirects: None,
-            user_agent: "{{userAgentDefault}}".to_string(),
+            // Default `None`: no User-Agent header is injected by the transport
+            // unless the caller sets one explicitly, so the header can be
+            // omitted entirely. Matches the other SDKs that allow a null/absent
+            // User-Agent.
+            user_agent: None,
             default_headers: HashMap::new(),
             inject_request_id: false,
         }
@@ -187,7 +193,14 @@ impl TransportOptionsBuilder {
 
     /// Sets a custom User-Agent header value.
     pub fn user_agent(mut self, val: &str) -> Self {
-        self.user_agent = val.to_string();
+        self.user_agent = Some(val.to_string());
+        self
+    }
+
+    /// Sets (or clears) the custom User-Agent header value. Pass `Some(value)`
+    /// to inject a User-Agent header, or `None` to omit it entirely.
+    pub fn user_agent_opt(mut self, val: Option<&str>) -> Self {
+        self.user_agent = val.map(|v| v.to_string());
         self
     }
 

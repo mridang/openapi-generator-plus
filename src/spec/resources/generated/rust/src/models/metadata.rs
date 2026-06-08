@@ -16,7 +16,7 @@ pub struct Metadata {
     pub created_at: Option<chrono::DateTime<chrono::Utc>>,
     /// Additional properties not defined in the schema.
     #[serde(flatten)]
-    pub additional_properties: std::collections::HashMap<String, serde_json::Value>,
+    pub additional_properties: std::collections::HashMap<String, crate::json_value::JsonValue>,
 }
 
 impl Metadata {

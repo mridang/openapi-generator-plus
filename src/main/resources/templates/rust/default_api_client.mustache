@@ -142,11 +142,14 @@ impl ApiClient for DefaultApiClient {
             for (k, v) in &headers {
                 merged.insert(k.clone(), v.clone());
             }
-            if !merged.contains_key("User-Agent") && !self.transport_options.user_agent().is_empty() {
-                merged.insert(
-                    "User-Agent".to_string(),
-                    self.transport_options.user_agent().to_string(),
-                );
+            if !merged.contains_key("User-Agent") {
+                // Only inject a User-Agent header when one is configured; a
+                // `None` user_agent means the header is omitted entirely.
+                if let Some(ua) = self.transport_options.user_agent() {
+                    if !ua.is_empty() {
+                        merged.insert("User-Agent".to_string(), ua.to_string());
+                    }
+                }
             }
             if !merged.contains_key("Accept-Encoding") {
                 merged.insert(
@@ -445,7 +448,14 @@ fn build_http_client(opts: &TransportOptions) -> Client {
         .deflate(true)
         .zstd(true);
 
+    // Gap AM: `verify_ssl=false` must skip BOTH the certificate-chain check
+    // and the hostname check, matching `curl -k` and the other SDKs. reqwest
+    // gates these independently: `danger_accept_invalid_certs` alone still
+    // enforces hostname verification, so a `verify_ssl=false` client would
+    // reject a self-signed cert whose CN/SAN does not match the host. Disable
+    // both so insecure mode is consistent across the suite.
     builder = builder.danger_accept_invalid_certs(!opts.verify_ssl());
+    builder = builder.danger_accept_invalid_hostnames(!opts.verify_ssl());
 
     if let Some(ca_path) = opts.ca_cert_path() {
         // Gap T4: surface CA-cert load/parse failures rather than silently

@@ -70,6 +70,9 @@ pub mod errors;
 // public surface.
 pub(crate) mod header_selector;
 pub mod iso8601_duration;
+// SDK-owned public wrapper for free-form ("any") JSON values. Keeps the inner
+// `serde_json::Value` private so serde_json never leaks into the public API.
+pub mod json_value;
 pub mod models;
 // Internal (de)serialization helpers used by the generated API modules. These
 // traffic in `serde_json` types and must not appear in the public API.
@@ -93,6 +96,7 @@ pub use client::Client;
 pub use configuration::{Configuration, ConfigurationBuilder};
 pub use default_api_client::DefaultApiClient;
 pub use errors::*;
+pub use json_value::JsonValue;
 // `SerializationError` is part of the public error surface even though its
 // defining module (`object_serializer`) is crate-private.
 pub use object_serializer::SerializationError;

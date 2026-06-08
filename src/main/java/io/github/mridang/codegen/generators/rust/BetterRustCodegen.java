@@ -101,8 +101,11 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         typeMapping.put("List", "Vec");
         typeMapping.put("set", "std::collections::HashSet");
         typeMapping.put("map", "std::collections::HashMap");
-        typeMapping.put("object", "serde_json::Value");
-        typeMapping.put("AnyType", "serde_json::Value");
+        // Free-form ("any") JSON values map to the SDK-owned `JsonValue`
+        // wrapper rather than `serde_json::Value`, so no serde_json type leaks
+        // into a public model field or signature.
+        typeMapping.put("object", "crate::json_value::JsonValue");
+        typeMapping.put("AnyType", "crate::json_value::JsonValue");
         typeMapping.put("file", "Vec<u8>");
         typeMapping.put("binary", "Vec<u8>");
         typeMapping.put("ByteArray", "Vec<u8>");
@@ -251,12 +254,13 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     }
 
     /**
-     * Returns {@code serde_json::Value} as the default map value
-     * type for Rust's dynamic JSON value type.
+     * Returns the SDK-owned {@code JsonValue} wrapper as the default map value
+     * type for free-form JSON, so {@code serde_json} never leaks into a public
+     * map-valued model field.
      */
     @Override
     protected String getMapDefaultValueType() {
-        return "serde_json::Value";
+        return "crate::json_value::JsonValue";
     }
 
     /**
@@ -461,6 +465,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                         "models/base64_serde.mustache", "src/models", "base64_serde.rs"),
                 new SupportingFileSpec(
                         "iso8601_duration.mustache", "src", "iso8601_duration.rs"),
+                new SupportingFileSpec("json_value.mustache", "src", "json_value.rs"),
                 new SupportingFileSpec("header_selector.mustache", "src", "header_selector.rs"),
                 new SupportingFileSpec(
                         "object_serializer.mustache", "src", "object_serializer.rs"),

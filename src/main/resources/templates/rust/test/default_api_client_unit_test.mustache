@@ -95,12 +95,36 @@ async fn test_default_api_client_injects_custom_user_agent() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_injects_default_user_agent_when_not_explicitly_set() {
+async fn test_default_api_client_omits_user_agent_when_not_set() {
+    /* Gap (nullable User-Agent): with the default `None` User-Agent the
+     * transport injects no User-Agent header and the request still succeeds. */
     let base_url = start_echo_server();
 
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
 
+    let resp = client
+        .send_request("GET", &format!("{}/test", base_url), &headers, None)
+        .await
+        .expect("unexpected error");
+
+    assert_eq!(resp.status_code, 200);
+}
+
+#[tokio::test]
+async fn test_default_api_client_builds_with_verify_ssl_false() {
+    /* Gap AM: a client built with verify_ssl(false) must construct without
+     * panic (both danger_accept_invalid_certs and
+     * danger_accept_invalid_hostnames are disabled) and remain usable against
+     * a plain-HTTP endpoint. */
+    let base_url = start_echo_server();
+
+    let transport = TransportOptionsBuilder::new()
+        .verify_ssl(false)
+        .build();
+    let client = DefaultApiClient::new(Some(transport));
+
+    let headers = HashMap::new();
     let resp = client
         .send_request("GET", &format!("{}/test", base_url), &headers, None)
         .await

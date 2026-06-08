@@ -48,7 +48,7 @@ pub struct Pet {
     pub status: Option<PetStatusEnum>,
     /// Example: `null`
     #[serde(rename = "location", skip_serializing_if = "Option::is_none")]
-    pub location: Option<Vec<serde_json::Value>>,
+    pub location: Option<Vec<crate::json_value::JsonValue>>,
     /// Absolute URL to the pet's public profile page
     /// Example: `https://example.com/pets/fido`
     #[serde(rename = "homepageUrl", skip_serializing_if = "Option::is_none")]

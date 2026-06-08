@@ -43,9 +43,30 @@ fn test_transport_options_max_redirects_defaults_to_none() {
 }
 
 #[test]
-fn test_transport_options_user_agent_defaults_to_non_empty_string() {
+fn test_transport_options_user_agent_defaults_to_none() {
+    /* Gap (nullable User-Agent): the default User-Agent is `None` so the
+     * transport omits the header entirely unless the caller sets one. */
     let opts = TransportOptionsBuilder::new().build();
-    assert!(!opts.user_agent().is_empty(), "expected non-empty default user agent");
+    assert!(opts.user_agent().is_none(), "expected user_agent to default to None");
+}
+
+#[test]
+fn test_transport_options_user_agent_set_value_is_applied() {
+    let opts = TransportOptionsBuilder::new().user_agent("CustomAgent/2.0").build();
+    assert_eq!(opts.user_agent(), Some("CustomAgent/2.0"));
+}
+
+#[test]
+fn test_transport_options_user_agent_opt_some_and_none() {
+    let some = TransportOptionsBuilder::new().user_agent_opt(Some("UA/1.0")).build();
+    assert_eq!(some.user_agent(), Some("UA/1.0"));
+
+    /* Passing None explicitly omits the header. */
+    let none = TransportOptionsBuilder::new()
+        .user_agent("UA/1.0")
+        .user_agent_opt(None)
+        .build();
+    assert!(none.user_agent().is_none(), "expected user_agent_opt(None) to clear the User-Agent");
 }
 
 #[test]
@@ -80,7 +101,7 @@ fn test_transport_options_builder_sets_all_fields() {
     assert_eq!(opts.timeout(), Some(30000));
     assert!(!opts.follow_redirects());
     assert_eq!(opts.max_redirects(), Some(5));
-    assert_eq!(opts.user_agent(), "CustomAgent/2.0");
+    assert_eq!(opts.user_agent(), Some("CustomAgent/2.0"));
     assert_eq!(opts.default_headers().get("X-Custom").unwrap(), "value");
     assert!(opts.inject_request_id());
 }
@@ -120,7 +141,7 @@ fn test_transport_options_builder_methods_return_same_instance() {
         .timeout(10000)
         .build();
 
-    assert_eq!(opts.user_agent(), "Test/1.0");
+    assert_eq!(opts.user_agent(), Some("Test/1.0"));
     assert_eq!(opts.timeout(), Some(10000));
 }
 
