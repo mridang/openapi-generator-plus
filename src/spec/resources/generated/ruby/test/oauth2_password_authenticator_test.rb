@@ -197,6 +197,6 @@ describe PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator do
     _(auth.inspect).wont_include 'super_secret_password'
     _(auth.inspect).must_include '***'
     _(auth.to_s).wont_include 'super_secret_value'
-    _("#{auth}").wont_include 'super_secret_password'
+    _(auth.to_s).wont_include 'super_secret_password'
   end
 end

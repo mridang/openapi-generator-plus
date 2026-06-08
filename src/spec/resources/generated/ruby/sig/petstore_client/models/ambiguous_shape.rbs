@@ -1,6 +1,0 @@
-module PetstoreClient::Models
-  module AmbiguousShape
-    def self.openapi_one_of: () -> Array[Symbol]
-    def self.build: (untyped) -> untyped
-  end
-end

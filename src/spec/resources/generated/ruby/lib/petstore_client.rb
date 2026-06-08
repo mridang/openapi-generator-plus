@@ -53,7 +53,6 @@ require 'petstore_client/auth/oauth/openid_connect_authenticator'
 require 'petstore_client/client'
 
 # Models
-require 'petstore_client/models/ambiguous_shape'
 require 'petstore_client/models/api_response'
 require 'petstore_client/models/category'
 require 'petstore_client/models/dry_food'

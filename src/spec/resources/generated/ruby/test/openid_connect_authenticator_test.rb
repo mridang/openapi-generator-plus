@@ -222,6 +222,6 @@ describe PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator do
     _(secret_auth.inspect).wont_include 'super_secret_value'
     _(secret_auth.inspect).must_include '***'
     _(secret_auth.to_s).wont_include 'super_secret_value'
-    _("#{secret_auth}").wont_include 'super_secret_value'
+    _(secret_auth.to_s).wont_include 'super_secret_value'
   end
 end
