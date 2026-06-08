@@ -34,7 +34,13 @@ interface PhpSpec extends LanguageSpec, DockerImageSpec {
   @Override
   default List<String> getSetupCommands() {
     return List.of(
-        "apk add --no-cache $PHPIZE_DEPS > /dev/null 2>&1 && pecl install pcov > /dev/null 2>&1 && docker-php-ext-enable pcov",
+        /* The runtime image (getRuntimeImage = composer:2) is Alpine, so apk
+         * is correct here. Output is intentionally NOT redirected to /dev/null
+         * so an install failure surfaces in the logs (the framework already
+         * fails the spec on a non-zero setup exit, but the prior `> /dev/null
+         * 2>&1` hid the diagnostics that would explain why). pcov is the
+         * coverage driver for the cobertura report configured in phpunit.xml. */
+        "apk add --no-cache $PHPIZE_DEPS && pecl install pcov && docker-php-ext-enable pcov",
         "COMPOSER_PROCESS_TIMEOUT=600 composer install --no-interaction --prefer-dist");
   }
 

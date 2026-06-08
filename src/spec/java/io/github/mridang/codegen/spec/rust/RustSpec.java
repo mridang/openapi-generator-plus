@@ -45,7 +45,8 @@ interface RustSpec extends LanguageSpec, DockerImageSpec {
                 "apt-get update -qq && apt-get install -y -qq --no-install-recommends"
                         + " curl ca-certificates",
                 "rustup component add rustfmt clippy",
-                "mkdir -p $CARGO_HOME/bin && curl -LsSf"
+                "mkdir -p $CARGO_HOME/bin && curl -fLsS --retry 5 --retry-delay 2"
+                        + " --retry-all-errors"
                         + " \"https://get.nexte.st/0.9.137/$(case \"$(uname -m)\" in"
                         + " aarch64|arm64) echo linux-arm ;; *) echo linux ;; esac)\""
                         + " | tar zxf - -C $CARGO_HOME/bin",

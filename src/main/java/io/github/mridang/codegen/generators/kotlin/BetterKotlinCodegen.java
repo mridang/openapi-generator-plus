@@ -194,7 +194,15 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
     @Override
     protected String[] getFormatterCommands() {
         return new String[] {
-            "curl -sL -o /tmp/ktlint https://github.com/pinterest/ktlint/releases/download/1.5.0/ktlint",
+            /* -f: fail (non-zero) on an HTTP error instead of silently saving
+             * the error/redirect page to /tmp/ktlint — that "success with a
+             * garbage file" is what produced the intermittent
+             * "/tmp/ktlint: Syntax error: redirection unexpected" (an HTML
+             * error body executed as a script). --retry rides out transient
+             * GitHub-release hiccups; -S surfaces the curl error on failure. */
+            "curl -fSL --retry 5 --retry-delay 2 --retry-all-errors"
+                + " -o /tmp/ktlint"
+                + " https://github.com/pinterest/ktlint/releases/download/1.5.0/ktlint",
             "chmod +x /tmp/ktlint",
             "/tmp/ktlint --format '**/*.kt'"
         };

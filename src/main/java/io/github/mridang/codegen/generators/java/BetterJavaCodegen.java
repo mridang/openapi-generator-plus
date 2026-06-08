@@ -199,7 +199,11 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     @Override
     protected String[] getFormatterCommands() {
         return new String[] {
-            "curl -sL -o /tmp/gjf.jar https://github.com/google/google-java-format/releases/download/v1.25.2/google-java-format-1.25.2-all-deps.jar",
+            /* -f fails on an HTTP error rather than saving the error page as
+             * /tmp/gjf.jar (which would later fail as a corrupt jar); --retry
+             * rides out transient GitHub-release hiccups; -S shows the error. */
+            "curl -fSL --retry 5 --retry-delay 2 --retry-all-errors -o /tmp/gjf.jar"
+                + " https://github.com/google/google-java-format/releases/download/v1.25.2/google-java-format-1.25.2-all-deps.jar",
             "find . -name '*.java' -print0 | xargs -0 java"
                     + " --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED"
                     + " --add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED"
