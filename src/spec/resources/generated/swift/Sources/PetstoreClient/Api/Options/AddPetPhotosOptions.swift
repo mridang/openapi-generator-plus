@@ -5,7 +5,7 @@ public struct AddPetPhotosOptions: Sendable {
     public var files: [Data]
     public var metadata: PhotoMetadata
 
-    public init(files: [Data], metadata: PhotoMetadata) {
+    public init(files: [Data], metadata: PhotoMetadata, ) {
         self.files = files
         self.metadata = metadata
     }

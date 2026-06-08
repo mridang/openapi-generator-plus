@@ -7,6 +7,10 @@ namespace {{namespace}};
 use {{invokerPackage}}\Models\{{.}};
 {{/modelImports}}
 {{/hasModelImports}}
+{{#hasAuthField}}
+
+use {{authImport}};
+{{/hasAuthField}}
 
 /**
  * Options for the {{operationId}} operation.
@@ -20,6 +24,15 @@ class {{className}}
     public {{^required}}?{{/required}}{{phpType}} ${{paramName}};
 
 {{/params}}
+{{#hasAuthField}}
+    /**
+     * Per-operation authenticator. When set, it overrides the client's
+     * configured credentials for this call only; leave {@code null} to use
+     * the configured credentials.
+     */
+    public ?{{authFieldType}} $auth;
+
+{{/hasAuthField}}
 {{#hasAnyDocTypes}}
     /**
 {{#params}}
@@ -29,10 +42,13 @@ class {{className}}
 {{/params}}
      */
 {{/hasAnyDocTypes}}
-    public function __construct({{#requiredParams}}{{phpType}} ${{paramName}}{{^-last}}, {{/-last}}{{/requiredParams}}{{#hasRequiredParams}}{{#hasOptionalParams}}, {{/hasOptionalParams}}{{/hasRequiredParams}}{{#optionalParams}}?{{phpType}} ${{paramName}} = null{{^-last}}, {{/-last}}{{/optionalParams}})
+    public function __construct({{#requiredParams}}{{phpType}} ${{paramName}}{{^-last}}, {{/-last}}{{/requiredParams}}{{#hasRequiredParams}}{{#hasOptionalParams}}, {{/hasOptionalParams}}{{/hasRequiredParams}}{{#optionalParams}}?{{phpType}} ${{paramName}} = null{{^-last}}, {{/-last}}{{/optionalParams}}{{#hasAuthField}}{{#hasRequiredParams}}, {{/hasRequiredParams}}{{^hasRequiredParams}}{{#hasOptionalParams}}, {{/hasOptionalParams}}{{/hasRequiredParams}}?{{authFieldType}} $auth = null{{/hasAuthField}})
     {
 {{#params}}
         $this->{{paramName}} = ${{paramName}};
 {{/params}}
+{{#hasAuthField}}
+        $this->auth = $auth;
+{{/hasAuthField}}
     }
 }

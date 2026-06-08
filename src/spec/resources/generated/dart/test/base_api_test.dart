@@ -200,7 +200,7 @@ void main() {
       try {
         await api.addPet(
           Pet(name: 'Test', photoUrls: <String>{}),
-          auth: auth,
+          AddPetOptions(auth: auth),
         );
       } catch (_) {}
 
@@ -225,7 +225,7 @@ void main() {
       try {
         await api.addPet(
           Pet(name: 'Test', photoUrls: <String>{}),
-          auth: auth,
+          AddPetOptions(auth: auth),
         );
       } catch (_) {}
     });
@@ -399,43 +399,43 @@ void main() {
       },
     );
 
-    test(
-      'op-level auth overrides client-level auth when passed as named param',
-      () async {
-        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-        String? receivedAuth;
-        server.listen((request) {
-          receivedAuth = request.headers.value('authorization');
-          request.response
-            ..statusCode = 200
-            ..headers.contentType = ContentType.json
-            ..write('{"id":1,"name":"Fido","photoUrls":[]}')
-            ..close();
-        });
+    test('op-level auth in Options overrides client-level auth', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      String? receivedAuth;
+      server.listen((request) {
+        receivedAuth = request.headers.value('authorization');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+          ..close();
+      });
 
-        try {
-          final config = ConfigurationBuilder()
-              .baseUrl('http://localhost:${server.port}')
-              .build();
-          final clientAuth = _BaseApiAuth(
-            headers: {'Authorization': 'Bearer client-level'},
-          );
-          final opAuth = _BaseApiAuth(
-            headers: {'Authorization': 'Bearer op-level'},
-          );
-          final api = PetApi(
-            apiClient: DefaultApiClient(),
-            config: config,
-            authenticator: clientAuth,
-          );
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final clientAuth = _BaseApiAuth(
+          headers: {'Authorization': 'Bearer client-level'},
+        );
+        final opAuth = _BaseApiAuth(
+          headers: {'Authorization': 'Bearer op-level'},
+        );
+        final api = PetApi(
+          apiClient: DefaultApiClient(),
+          config: config,
+          authenticator: clientAuth,
+        );
 
-          await api.getPetById(1, null, auth: opAuth);
-          expect(receivedAuth, equals('Bearer op-level'));
-        } finally {
-          await server.close();
-        }
-      },
-    );
+        await api.addPet(
+          Pet(name: 'Fido', photoUrls: <String>{}),
+          AddPetOptions(auth: opAuth),
+        );
+        expect(receivedAuth, equals('Bearer op-level'));
+      } finally {
+        await server.close();
+      }
+    });
 
     test('returns null data for empty 200 response', () async {
       final client = DefaultApiClient();
@@ -817,7 +817,7 @@ void main() {
 
         await api.addPet(
           Pet(name: 'TestPet', photoUrls: <String>{}),
-          auth: auth,
+          AddPetOptions(auth: auth),
         );
         expect(receivedBody, contains('TestPet'));
       } finally {
@@ -988,7 +988,7 @@ void main() {
 
         final auth = _BaseApiAuth();
         try {
-          await api.deletePet(1, null, auth: auth);
+          await api.deletePet(1, DeletePetOptions(auth: auth));
         } catch (_) {}
       } finally {
         await server.close();
@@ -1021,7 +1021,10 @@ void main() {
          * a body is present. GET endpoints can't exercise this
          * because the client strips Content-Type when body is null
          * (see RFC 7231 §3.1.1.5). */
-          await api.addPet(Pet(name: 'Fido', photoUrls: <String>{}));
+          await api.addPet(
+            Pet(name: 'Fido', photoUrls: <String>{}),
+            const AddPetOptions(),
+          );
           expect(receivedContentType, isNotNull);
           expect(receivedContentType, contains('application/json'));
         } finally {

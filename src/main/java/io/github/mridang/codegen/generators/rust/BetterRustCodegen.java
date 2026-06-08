@@ -709,6 +709,14 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         context.put("packageName", packageName);
         context.put("operationId", op.operationId);
         context.put("params", params);
+        // Folds the optional per-operation authenticator into the Options
+        // struct (mirrors the Java generator). injectAuthFieldContext sets
+        // hasAuthField (= op.hasAuthMethods) and authFieldType. Rust holds the
+        // authenticator as a reference-counted trait object so it can be borrowed
+        // as `&dyn Authenticator` when threaded into the transport call, matching
+        // the constructor's `Option<Arc<dyn Authenticator>>` ownership model.
+        injectAuthFieldContext(op, context);
+        context.put("authFieldType", "Arc<dyn Authenticator>");
         return renderOptionsTemplate("api/options.mustache", context);
     }
 

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace {{invokerPackage}}\Test\Api;
 
+use {{invokerPackage}}\Api\Options\AddPetOptions;
 use {{invokerPackage}}\Api\Options\AddPetPhotosOptions;
+use {{invokerPackage}}\Api\Options\DeletePetOptions;
 use {{invokerPackage}}\Api\Options\FindPetsByStatusOptions;
 use {{invokerPackage}}\Api\Options\GetPetTagOptions;
 use {{invokerPackage}}\Api\Options\UploadPetCertificateOptions;
@@ -52,7 +54,7 @@ test('add pet', function (): void {
     $pet->id = 12345;
     $pet->status = PetStatusEnum::AVAILABLE;
 
-    $result = $this->api->addPet($pet, auth: $this->auth);
+    $result = $this->api->addPet($pet, new AddPetOptions(auth: $this->auth));
 
     expect($result)->toBeInstanceOf(Pet::class);
 });
@@ -62,7 +64,7 @@ test('add pet with http info exposes status and headers', function (): void {
     $pet->id = 67890;
     $pet->status = PetStatusEnum::AVAILABLE;
 
-    $result = $this->api->addPetWithHttpInfo($pet, auth: $this->auth);
+    $result = $this->api->addPetWithHttpInfo($pet, new AddPetOptions(auth: $this->auth));
 
     expect($result->statusCode)->toBe(200);
     expect($result->data)->toBeInstanceOf(Pet::class);
@@ -94,7 +96,7 @@ test('update pet with http info exposes status', function (): void {
 });
 
 test('delete pet with http info exposes status', function (): void {
-    $result = $this->api->deletePetWithHttpInfo(1, auth: $this->auth);
+    $result = $this->api->deletePetWithHttpInfo(1, new DeletePetOptions(auth: $this->auth));
 
     expect($result->statusCode)->toBeGreaterThanOrEqual(200);
     expect($result->statusCode)->toBeLessThan(300);
@@ -142,7 +144,7 @@ test('update pet', function (): void {
 });
 
 test('delete pet', function (): void {
-    $this->api->deletePet(1, auth: $this->auth);
+    $this->api->deletePet(1, new DeletePetOptions(auth: $this->auth));
 
     expect(true)->toBeTrue();
 });
@@ -306,11 +308,14 @@ test('upload multipart mock', function (): void {
     unlink($tmpFile);
 });
 
-test('add pet per call auth override', function (): void {
-    // Verify the auth: kwarg on the BASE operation method (not just the
-    // WithHttpInfo variant) is applied to the outgoing request. The default
-    // header carries one token; the per-call authenticator carries a
-    // different one and must win on the wire.
+/**
+ * Builds a PetApi backed by a header-capturing fake client plus the captured
+ * header bag, so tests can assert which credentials reached the wire.
+ *
+ * @return array{0: PetApi, 1: \stdClass}
+ */
+function newHeaderCapturingPetApi(): array
+{
     $captured = new \stdClass();
     /** @var array<string, string> $hdrs */
     $hdrs = [];
@@ -336,12 +341,51 @@ test('add pet per call auth override', function (): void {
         ->baseUrl('http://localhost:9999')
         ->defaultHeader('Authorization', 'Bearer default-token')
         ->build();
-    $api = new PetApi(apiClient: $client, config: $config);
+
+    return [new PetApi(apiClient: $client, config: $config), $captured];
+}
+
+test('auth supplied inside options wins on the wire', function (): void {
+    // The per-operation authenticator now travels inside the Options object.
+    // The default header carries one token; the Options-borne authenticator
+    // carries a different one and must win on the outgoing request.
+    [$api, $captured] = newHeaderCapturingPetApi();
     $perCallAuth = new BearerAuthenticator('http://localhost:9999', 'per-call-token');
 
     $pet = new Pet(name: 'OverrideDog', photoUrls: new \Ds\Set(['http://example.com/p.jpg']));
     $pet->id = 1;
-    $api->addPet($pet, auth: $perCallAuth);
+    $api->addPet($pet, new AddPetOptions(auth: $perCallAuth));
 
     expect($captured->headers['Authorization'] ?? null)->toBe('Bearer per-call-token');
+});
+
+test('auth omitted from options falls back to configuration credentials', function (): void {
+    // With no Options (or an Options carrying a null auth) the operation must
+    // fall back to the client's configured credentials — here the default
+    // Authorization header set on the Configuration.
+    [$api, $captured] = newHeaderCapturingPetApi();
+
+    $pet = new Pet(name: 'DefaultDog', photoUrls: new \Ds\Set(['http://example.com/p.jpg']));
+    $pet->id = 1;
+    $api->addPet($pet);
+
+    expect($captured->headers['Authorization'] ?? null)->toBe('Bearer default-token');
+});
+
+test('unsecured operation options has no auth field', function (): void {
+    // getPetById is unsecured, so it takes no Options object at all and there
+    // is no GetPetByIdOptions class minted for it — confirming unsecured
+    // operations never gain an auth field.
+    expect(class_exists('\\' . PetApi::class))->toBeTrue();
+    expect(class_exists('{{invokerPackage}}\\Api\\Options\\GetPetByIdOptions'))->toBeFalse();
+
+    // The authed addPet operation, by contrast, mints an all-optional Options
+    // class that DOES expose a nullable auth property.
+    $reflection = new \ReflectionClass(AddPetOptions::class);
+    expect($reflection->hasProperty('auth'))->toBeTrue();
+    $authProp = $reflection->getProperty('auth');
+    $type = $authProp->getType();
+    expect($type)->toBeInstanceOf(\ReflectionNamedType::class);
+    /** @var \ReflectionNamedType $type */
+    expect($type->allowsNull())->toBeTrue();
 });

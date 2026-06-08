@@ -118,9 +118,6 @@ impl {{classname}} {
     /// ```
 {{/vendorExtensions.pluralExamples}}{{/allParams}}    pub async fn {{operationId}}(
         &self,
-{{#hasAuthMethods}}
-        auth: Option<&dyn Authenticator>,
-{{/hasAuthMethods}}
 {{#vendorExtensions.op.signatureArgs}}
 {{#isPath}}        {{paramName}}: {{{dataType}}},
 {{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
@@ -129,9 +126,6 @@ impl {{classname}} {
 {{/isServer}}{{/vendorExtensions.op.signatureArgs}}
     ) -> Result<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.{{operationId}}_with_http_info(
-{{#hasAuthMethods}}
-            auth,
-{{/hasAuthMethods}}
 {{#vendorExtensions.op.signatureArgs}}
             {{paramName}},
 {{/vendorExtensions.op.signatureArgs}}
@@ -159,9 +153,6 @@ impl {{classname}} {
     /// Performs the {{operationId}} operation and returns the full API result.
     pub async fn {{operationId}}_with_http_info(
         &self,
-{{#hasAuthMethods}}
-        auth: Option<&dyn Authenticator>,
-{{/hasAuthMethods}}
 {{#vendorExtensions.op.signatureArgs}}
 {{#isPath}}        {{paramName}}: {{{dataType}}},
 {{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
@@ -169,6 +160,12 @@ impl {{classname}} {
 {{/isOptions}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
 {{/isServer}}{{/vendorExtensions.op.signatureArgs}}
     ) -> Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>> {
+{{#hasAuthMethods}}
+        // Per-operation auth is folded into the Options struct: source the
+        // authenticator from `options.auth` when present, otherwise pass None so
+        // the base client falls back to the Configuration credentials.
+        let auth: Option<&dyn Authenticator> = options.and_then(|o| o.auth.as_deref());
+{{/hasAuthMethods}}
 {{#pathParams}}
 {{#required}}
 {{#isString}}

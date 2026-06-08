@@ -4,4 +4,6 @@ package options
 type DeletePetOptions struct {
 	/* ApiKey Session cookie used for authentication */
 	ApiKey *string
+	/* Auth overrides the client's configured credentials for this call only. */
+	Auth Authenticator
 }

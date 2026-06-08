@@ -33,15 +33,12 @@ class StoreApi extends BaseApi {
   /// Delete purchase order by ID
   /// `orderId` ID of the order to delete
 
-  Future<void> deleteOrder(int orderId, {Authenticator? auth}) async {
-    await deleteOrderWithHTTPInfo(orderId, auth: auth);
+  Future<void> deleteOrder(int orderId) async {
+    await deleteOrderWithHTTPInfo(orderId);
   }
 
   /// Performs the deleteOrder operation and returns the full API result.
-  Future<ApiResult<void>> deleteOrderWithHTTPInfo(
-    int orderId, {
-    Authenticator? auth,
-  }) async {
+  Future<ApiResult<void>> deleteOrderWithHTTPInfo(int orderId) async {
     var path = '/store/order/{orderId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -76,14 +73,14 @@ class StoreApi extends BaseApi {
       accepts: [],
       contentType: 'application/json',
       returnType: '',
-      auth: auth,
+      auth: null,
     );
   }
 
   /// Returns pet inventories by status
 
-  Future<Map<String, int>> getInventory({Authenticator? auth}) async {
-    final result = await getInventoryWithHTTPInfo(auth: auth);
+  Future<Map<String, int>> getInventory() async {
+    final result = await getInventoryWithHTTPInfo();
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -103,9 +100,7 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the getInventory operation and returns the full API result.
-  Future<ApiResult<Map<String, int>>> getInventoryWithHTTPInfo({
-    Authenticator? auth,
-  }) async {
+  Future<ApiResult<Map<String, int>>> getInventoryWithHTTPInfo() async {
     var path = '/store/inventory';
 
     final queryParams = <String, Object?>{};
@@ -123,7 +118,7 @@ class StoreApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'Map<String, int>',
-      auth: auth,
+      auth: null,
       deserialize: (body) => (deserializeRaw(body) as Map).cast<String, int>(),
     );
   }
@@ -131,8 +126,8 @@ class StoreApi extends BaseApi {
   /// Find purchase order by ID
   /// `orderId` ID of order to return
 
-  Future<Order> getOrderById(int orderId, {Authenticator? auth}) async {
-    final result = await getOrderByIdWithHTTPInfo(orderId, auth: auth);
+  Future<Order> getOrderById(int orderId) async {
+    final result = await getOrderByIdWithHTTPInfo(orderId);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -152,10 +147,7 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the getOrderById operation and returns the full API result.
-  Future<ApiResult<Order>> getOrderByIdWithHTTPInfo(
-    int orderId, {
-    Authenticator? auth,
-  }) async {
+  Future<ApiResult<Order>> getOrderByIdWithHTTPInfo(int orderId) async {
     var path = '/store/order/{orderId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -190,15 +182,15 @@ class StoreApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'Order',
-      auth: auth,
+      auth: null,
       deserialize: (body) => deserialize(body, Order.fromJson) as Order,
     );
   }
 
   /// Place an order for a pet
 
-  Future<Order> placeOrder(Order? order, {Authenticator? auth}) async {
-    final result = await placeOrderWithHTTPInfo(order, auth: auth);
+  Future<Order> placeOrder(Order? order) async {
+    final result = await placeOrderWithHTTPInfo(order);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -218,10 +210,7 @@ class StoreApi extends BaseApi {
   }
 
   /// Performs the placeOrder operation and returns the full API result.
-  Future<ApiResult<Order>> placeOrderWithHTTPInfo(
-    Order? order, {
-    Authenticator? auth,
-  }) async {
+  Future<ApiResult<Order>> placeOrderWithHTTPInfo(Order? order) async {
     var path = '/store/order';
 
     final queryParams = <String, Object?>{};
@@ -239,7 +228,7 @@ class StoreApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'Order',
-      auth: auth,
+      auth: null,
       deserialize: (body) => deserialize(body, Order.fromJson) as Order,
     );
   }

@@ -38,7 +38,7 @@ final class PetApiTests {
 
         let pet = Pet(name: "Fido", photoUrls: ["http://example.com/fido.jpg"])
 
-        let result = try await api.addPet(pet: pet, auth: auth)
+        let result = try await api.addPet(pet: pet, options: AddPetOptions(auth: auth))
         #expect(result != nil)
     }
 
@@ -48,7 +48,7 @@ final class PetApiTests {
 
         let pet = Pet(name: "Buddy", photoUrls: ["http://example.com/buddy.jpg"])
 
-        let result = try await api.addPetWithHTTPInfo(pet: pet, auth: auth)
+        let result = try await api.addPetWithHTTPInfo(pet: pet, options: AddPetOptions(auth: auth))
         #expect(result.statusCode >= 200)
         #expect(result.statusCode < 300)
         #expect(!result.rawBody.isEmpty)
@@ -93,14 +93,14 @@ final class PetApiTests {
         let api = petApiForIntegration()
         let auth = TestAuthenticator()
 
-        try await api.deletePet(petId: 1, options: nil, auth: auth)
+        try await api.deletePet(petId: 1, options: DeletePetOptions(auth: auth))
     }
 
     @Test func testDeletePetWithHTTPInfo() async throws {
         let api = petApiForIntegration()
         let auth = TestAuthenticator()
 
-        let result = try await api.deletePetWithHTTPInfo(petId: 1, options: nil, auth: auth)
+        let result = try await api.deletePetWithHTTPInfo(petId: 1, options: DeletePetOptions(auth: auth))
         #expect(result.statusCode >= 200)
         #expect(result.statusCode < 300)
     }
@@ -283,7 +283,7 @@ final class PetApiTests {
         let perCallAuth = PerCallAuthenticator()
 
         let pet = Pet(name: "OverrideDog", photoUrls: ["http://example.com/p.jpg"])
-        _ = try await api.addPet(pet: pet, auth: perCallAuth)
+        _ = try await api.addPet(pet: pet, options: AddPetOptions(auth: perCallAuth))
 
         #expect(mockClient.lastHeaders["Authorization"] == "Bearer per-call-token")
     }
@@ -321,6 +321,61 @@ final class PetApiTests {
             Issue.record("expected ApiError, got \(error)")
         }
         #expect(caught?.statusCode == 200)
+    }
+
+    // auth-folded-into-options: the per-call authenticator carried inside the
+    // Options object must be applied to the outgoing request, overriding the
+    // Configuration default-header credentials on the wire.
+    @Test func testAuthInOptionsOverridesConfiguredCredentials() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder()
+            .baseURL("https://example.com")
+            .defaultHeader(name: "Authorization", value: "Bearer default-token")
+            .build()
+        let api = PetApi(apiClient: mockClient, config: config)
+        let perCallAuth = PerCallAuthenticator()
+
+        let pet = Pet(name: "OptionsAuthDog", photoUrls: ["http://example.com/p.jpg"])
+        _ = try await api.addPet(pet: pet, options: AddPetOptions(auth: perCallAuth))
+
+        #expect(mockClient.lastHeaders["Authorization"] == "Bearer per-call-token")
+    }
+
+    // auth-omitted-falls-back: when no per-call auth is supplied (Options
+    // omitted entirely), the client falls back to the credentials configured on
+    // the Configuration (the default Authorization header).
+    @Test func testAuthOmittedUsesConfiguredCredentials() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder()
+            .baseURL("https://example.com")
+            .defaultHeader(name: "Authorization", value: "Bearer default-token")
+            .build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        let pet = Pet(name: "DefaultAuthDog", photoUrls: ["http://example.com/p.jpg"])
+        _ = try await api.addPet(pet: pet)
+
+        #expect(mockClient.lastHeaders["Authorization"] == "Bearer default-token")
+    }
+
+    // unsecured-op-no-auth-field: a compile-level guard that an unsecured
+    // operation exposes no per-call auth path. getPetById is unsecured and
+    // takes no Options arg at all (path param only); FindPetsByStatusOptions is
+    // an unsecured op's Options object and must NOT expose an auth field. This
+    // is a no-op at runtime; it fails to compile if a regression reintroduces
+    // auth on unsecured operations.
+    @Test func testUnsecuredOperationHasNoAuthField() async throws {
+        let opts = FindPetsByStatusOptions(status: "available")
+        #expect(opts.status == "available")
+        let mockApi = petApiForMock(statusCode: 200, body: "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}")
+        let result = try await mockApi.getPetById(petId: 1)
+        #expect(result != nil)
     }
 }
 

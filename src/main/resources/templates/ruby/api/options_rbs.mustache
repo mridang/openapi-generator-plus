@@ -13,6 +13,9 @@ module {{moduleName}}
         attr_accessor {{paramName}}: {{rbsType}}?
 {{/required}}
 {{/params}}
+{{#hasAuthField}}
+        attr_accessor auth: ::{{moduleName}}::Auth::Authenticator?
+{{/hasAuthField}}
         def initialize: ({{initializeSignature}}) -> void
       end
     end

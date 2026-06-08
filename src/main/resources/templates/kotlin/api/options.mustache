@@ -5,11 +5,14 @@ package {{package}}
 import {{modelPackage}}.{{.}}
 {{/modelImports}}
 {{/hasModelImports}}
+{{#hasAuthField}}
+import {{authImport}}
+{{/hasAuthField}}
 
 /**
  * Options for the {{operationId}} operation.
  */
-class {{className}}({{#requiredParams}}{{paramName}}: {{{dataType}}}{{^-last}}, {{/-last}}{{/requiredParams}}) {
+class {{className}}({{#requiredParams}}{{paramName}}: {{{dataType}}}{{^-last}}, {{/-last}}{{/requiredParams}}{{#hasAuthField}}{{#requiredParams.0}}, {{/requiredParams.0}}val auth: {{authFieldType}}? = null{{/hasAuthField}}) {
 {{#params}}
 {{#required}}
     val {{paramName}}: {{{dataType}}} = {{paramName}}

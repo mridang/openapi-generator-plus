@@ -13,7 +13,7 @@ import (
 	"strings"
 
 	. "petstore/pkg/models"
-	. "petstore/pkg/options"
+	opts "petstore/pkg/options"
 )
 
 // GetExternalPetInfoServer is the interface for per-operation server URLs for GetExternalPetInfo.
@@ -142,8 +142,8 @@ func NewPetApi(apiClient ApiClient, config *Configuration, authenticator Authent
 // AddPet Add a new pet to the store
 // param pet: Create a new pet in the store
 
-func (a *PetApi) AddPet(auth Authenticator, pet Pet) (*Pet, error) {
-	result, err := a.AddPetWithHTTPInfo(auth, pet)
+func (a *PetApi) AddPet(pet Pet, options *opts.AddPetOptions) (*Pet, error) {
+	result, err := a.AddPetWithHTTPInfo(pet, options)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +158,13 @@ func (a *PetApi) AddPet(auth Authenticator, pet Pet) (*Pet, error) {
 }
 
 // AddPetWithHTTPInfo performs the AddPet operation and returns the full API result.
-func (a *PetApi) AddPetWithHTTPInfo(auth Authenticator, pet Pet) (*ApiResult[Pet], error) {
+func (a *PetApi) AddPetWithHTTPInfo(pet Pet, options *opts.AddPetOptions) (*ApiResult[Pet], error) {
+	/* Per-operation auth is sourced from the Options object's Auth field. A nil
+	 * options or a nil Auth falls back to the client's configured credentials. */
+	var auth Authenticator
+	if options != nil {
+		auth = options.Auth
+	}
 
 	path := "/pet"
 
@@ -223,7 +229,7 @@ func (a *PetApi) AddPetWithHTTPInfo(auth Authenticator, pet Pet) (*ApiResult[Pet
 // AddPetPhotos Add photos to the pet's gallery
 // Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
 
-func (a *PetApi) AddPetPhotos(petId int64, options *AddPetPhotosOptions) (*[]Photo, error) {
+func (a *PetApi) AddPetPhotos(petId int64, options *opts.AddPetPhotosOptions) (*[]Photo, error) {
 	result, err := a.AddPetPhotosWithHTTPInfo(petId, options)
 	if err != nil {
 		return nil, err
@@ -239,7 +245,7 @@ func (a *PetApi) AddPetPhotos(petId int64, options *AddPetPhotosOptions) (*[]Pho
 }
 
 // AddPetPhotosWithHTTPInfo performs the AddPetPhotos operation and returns the full API result.
-func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *AddPetPhotosOptions) (*ApiResult[[]Photo], error) {
+func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *opts.AddPetPhotosOptions) (*ApiResult[[]Photo], error) {
 
 	path := "/pet/{petId}/photos"
 	/* Path params route through serializeStyled so OAS path styles
@@ -313,8 +319,8 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *AddPetPhotosOpti
 
 // AddPetTreatment Record a treatment for a pet
 
-func (a *PetApi) AddPetTreatment(auth Authenticator, petId int64, petTreatment PetTreatment) (*PetTreatment, error) {
-	result, err := a.AddPetTreatmentWithHTTPInfo(auth, petId, petTreatment)
+func (a *PetApi) AddPetTreatment(petId int64, petTreatment PetTreatment, options *opts.AddPetTreatmentOptions) (*PetTreatment, error) {
+	result, err := a.AddPetTreatmentWithHTTPInfo(petId, petTreatment, options)
 	if err != nil {
 		return nil, err
 	}
@@ -329,7 +335,13 @@ func (a *PetApi) AddPetTreatment(auth Authenticator, petId int64, petTreatment P
 }
 
 // AddPetTreatmentWithHTTPInfo performs the AddPetTreatment operation and returns the full API result.
-func (a *PetApi) AddPetTreatmentWithHTTPInfo(auth Authenticator, petId int64, petTreatment PetTreatment) (*ApiResult[PetTreatment], error) {
+func (a *PetApi) AddPetTreatmentWithHTTPInfo(petId int64, petTreatment PetTreatment, options *opts.AddPetTreatmentOptions) (*ApiResult[PetTreatment], error) {
+	/* Per-operation auth is sourced from the Options object's Auth field. A nil
+	 * options or a nil Auth falls back to the client's configured credentials. */
+	var auth Authenticator
+	if options != nil {
+		auth = options.Auth
+	}
 
 	path := "/pet/{petId}/treatment"
 	/* Path params route through serializeStyled so OAS path styles
@@ -400,8 +412,8 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(auth Authenticator, petId int64, pe
 // param petId: Pet id to delete
 // param apiKey: Session cookie used for authentication
 
-func (a *PetApi) DeletePet(auth Authenticator, petId int64, options *DeletePetOptions) error {
-	result, err := a.DeletePetWithHTTPInfo(auth, petId, options)
+func (a *PetApi) DeletePet(petId int64, options *opts.DeletePetOptions) error {
+	result, err := a.DeletePetWithHTTPInfo(petId, options)
 	if err != nil {
 		return err
 	}
@@ -410,7 +422,13 @@ func (a *PetApi) DeletePet(auth Authenticator, petId int64, options *DeletePetOp
 }
 
 // DeletePetWithHTTPInfo performs the DeletePet operation and returns the full API result.
-func (a *PetApi) DeletePetWithHTTPInfo(auth Authenticator, petId int64, options *DeletePetOptions) (*ApiResult[any], error) {
+func (a *PetApi) DeletePetWithHTTPInfo(petId int64, options *opts.DeletePetOptions) (*ApiResult[any], error) {
+	/* Per-operation auth is sourced from the Options object's Auth field. A nil
+	 * options or a nil Auth falls back to the client's configured credentials. */
+	var auth Authenticator
+	if options != nil {
+		auth = options.Auth
+	}
 
 	path := "/pet/{petId}"
 	/* Path params route through serializeStyled so OAS path styles
@@ -556,7 +574,7 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) 
 
 // Example for `status` — Sold pets: sold
 
-func (a *PetApi) FindPetsByStatus(options *FindPetsByStatusOptions) (*[]Pet, error) {
+func (a *PetApi) FindPetsByStatus(options *opts.FindPetsByStatusOptions) (*[]Pet, error) {
 	result, err := a.FindPetsByStatusWithHTTPInfo(options)
 	if err != nil {
 		return nil, err
@@ -572,7 +590,7 @@ func (a *PetApi) FindPetsByStatus(options *FindPetsByStatusOptions) (*[]Pet, err
 }
 
 // FindPetsByStatusWithHTTPInfo performs the FindPetsByStatus operation and returns the full API result.
-func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *FindPetsByStatusOptions) (*ApiResult[[]Pet], error) {
+func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *opts.FindPetsByStatusOptions) (*ApiResult[[]Pet], error) {
 
 	path := "/pet/findByStatus"
 
@@ -1277,7 +1295,7 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult
 
 // GetPetTag Get a tag for a pet
 
-func (a *PetApi) GetPetTag(petId int64, tagName string, options *GetPetTagOptions) (*Pet, error) {
+func (a *PetApi) GetPetTag(petId int64, tagName string, options *opts.GetPetTagOptions) (*Pet, error) {
 	result, err := a.GetPetTagWithHTTPInfo(petId, tagName, options)
 	if err != nil {
 		return nil, err
@@ -1293,7 +1311,7 @@ func (a *PetApi) GetPetTag(petId int64, tagName string, options *GetPetTagOption
 }
 
 // GetPetTagWithHTTPInfo performs the GetPetTag operation and returns the full API result.
-func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *GetPetTagOptions) (*ApiResult[Pet], error) {
+func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *opts.GetPetTagOptions) (*ApiResult[Pet], error) {
 	if tagName == "" {
 		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.GetPetTag", "tagName")
 	}
@@ -1664,7 +1682,7 @@ func (a *PetApi) UpdatePetWithHTTPInfo(petId int64, pet Pet) (*ApiResult[Pet], e
 // UploadPetCertificate Upload the pet's adoption certificate
 // Attaches a single adoption certificate document. No metadata fields are required alongside the file.
 
-func (a *PetApi) UploadPetCertificate(petId int64, options *UploadPetCertificateOptions) (*ApiResponse, error) {
+func (a *PetApi) UploadPetCertificate(petId int64, options *opts.UploadPetCertificateOptions) (*ApiResponse, error) {
 	result, err := a.UploadPetCertificateWithHTTPInfo(petId, options)
 	if err != nil {
 		return nil, err
@@ -1680,7 +1698,7 @@ func (a *PetApi) UploadPetCertificate(petId int64, options *UploadPetCertificate
 }
 
 // UploadPetCertificateWithHTTPInfo performs the UploadPetCertificate operation and returns the full API result.
-func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *UploadPetCertificateOptions) (*ApiResult[ApiResponse], error) {
+func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *opts.UploadPetCertificateOptions) (*ApiResult[ApiResponse], error) {
 
 	path := "/pet/{petId}/certificate"
 	/* Path params route through serializeStyled so OAS path styles
@@ -1754,7 +1772,7 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *UploadPe
 // UploadPetDocument Attach a vet document or health record
 // Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
 
-func (a *PetApi) UploadPetDocument(petId int64, options *UploadPetDocumentOptions) (*ApiResponse, error) {
+func (a *PetApi) UploadPetDocument(petId int64, options *opts.UploadPetDocumentOptions) (*ApiResponse, error) {
 	result, err := a.UploadPetDocumentWithHTTPInfo(petId, options)
 	if err != nil {
 		return nil, err
@@ -1770,7 +1788,7 @@ func (a *PetApi) UploadPetDocument(petId int64, options *UploadPetDocumentOption
 }
 
 // UploadPetDocumentWithHTTPInfo performs the UploadPetDocument operation and returns the full API result.
-func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *UploadPetDocumentOptions) (*ApiResult[ApiResponse], error) {
+func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *opts.UploadPetDocumentOptions) (*ApiResult[ApiResponse], error) {
 
 	path := "/pet/{petId}/documents"
 	/* Path params route through serializeStyled so OAS path styles

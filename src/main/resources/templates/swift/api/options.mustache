@@ -13,10 +13,19 @@ public struct {{className}}: Sendable {
     public var {{name}}: {{{dataType}}}?
 {{/required}}
 {{/params}}
+{{#hasAuthField}}
+    /// Per-operation authenticator. When set, it overrides the client's
+    /// configured credentials for this call only; when nil, the configured
+    /// credentials are used.
+    public var auth: {{authFieldType}}?
+{{/hasAuthField}}
 
-    public init({{#params}}{{name}}: {{#required}}{{{dataType}}}{{/required}}{{^required}}{{{dataType}}}? = nil{{/required}}{{^-last}}, {{/-last}}{{/params}}) {
+    public init({{#params}}{{name}}: {{#required}}{{{dataType}}}{{/required}}{{^required}}{{{dataType}}}? = nil{{/required}}, {{/params}}{{#hasAuthField}}auth: {{authFieldType}}? = nil{{/hasAuthField}}) {
 {{#params}}
         self.{{name}} = {{name}}
 {{/params}}
+{{#hasAuthField}}
+        self.auth = auth
+{{/hasAuthField}}
     }
 }

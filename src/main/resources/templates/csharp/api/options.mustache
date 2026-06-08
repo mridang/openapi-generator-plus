@@ -1,3 +1,6 @@
+{{#hasAuthField}}
+using {{packageName}}.Auth;
+{{/hasAuthField}}
 {{#hasModelImports}}
 using {{packageName}}.Models;
 {{/hasModelImports}}
@@ -20,4 +23,12 @@ public sealed class {{className}}
 {{/required}}
 
 {{/params}}
+{{#hasAuthField}}
+    /// <summary>
+    /// Per-operation authenticator. When set, it overrides the client's
+    /// configured credentials for this call only; when null the configured
+    /// credentials are used.
+    /// </summary>
+    public {{authFieldType}}? Auth { get; init; }
+{{/hasAuthField}}
 }

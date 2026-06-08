@@ -512,6 +512,17 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         return "i_http_aware_authenticator";
     }
 
+    /**
+     * The C# generic authenticator interface is named {@code IAuthenticator}
+     * (the leading {@code I} follows the .NET interface convention). This name
+     * is used for the optional per-operation {@code Auth} field folded into each
+     * authed operation's Options object.
+     */
+    @Override
+    protected String getAuthenticatorTypeName() {
+        return "IAuthenticator";
+    }
+
     /** {@inheritDoc} */
     @Override
     protected String getAuthDir() {
@@ -693,6 +704,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         context.put("operationId", op.operationId);
         context.put("params", params);
         context.put("hasModelImports", hasAnyModelImports);
+        injectAuthFieldContext(op, context);
         return renderOptionsTemplate("api/options.mustache", context);
     }
 

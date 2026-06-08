@@ -119,24 +119,24 @@ fn new_pet_api_for_mock(status: u16, content_type: &str, body: &str) -> (PetApi,
 #[tokio::test]
 async fn test_pet_api_add_pet() {
     let api = new_pet_api_for_integration();
-    let auth = bearer_auth();
     let pet = Pet::new(
         "Fido".to_string(),
         HashSet::from(["http://example.com/fido.jpg".to_string()]),
     );
-    let result = api.add_pet(Some(&auth), pet).await;
+    let opts = AddPetOptions::new().auth(Arc::new(bearer_auth()));
+    let result = api.add_pet(pet, Some(&opts)).await;
     assert!(result.is_ok(), "add_pet failed: {:?}", result.err());
 }
 
 #[tokio::test]
 async fn test_pet_api_add_pet_with_http_info() {
     let api = new_pet_api_for_integration();
-    let auth = bearer_auth();
     let pet = Pet::new(
         "Buddy".to_string(),
         HashSet::from(["http://example.com/buddy.jpg".to_string()]),
     );
-    let result = api.add_pet_with_http_info(Some(&auth), pet).await;
+    let opts = AddPetOptions::new().auth(Arc::new(bearer_auth()));
+    let result = api.add_pet_with_http_info(pet, Some(&opts)).await;
     assert!(
         result.is_ok(),
         "add_pet_with_http_info failed: {:?}",
@@ -195,16 +195,16 @@ async fn test_pet_api_update_pet_with_http_info() {
 #[tokio::test]
 async fn test_pet_api_delete_pet() {
     let api = new_pet_api_for_integration();
-    let auth = basic_auth();
-    let result = api.delete_pet(Some(&auth), 1, None).await;
+    let opts = DeletePetOptions::new().auth(Arc::new(basic_auth()));
+    let result = api.delete_pet(1, Some(&opts)).await;
     assert!(result.is_ok(), "delete_pet failed: {:?}", result.err());
 }
 
 #[tokio::test]
 async fn test_pet_api_delete_pet_with_http_info() {
     let api = new_pet_api_for_integration();
-    let auth = basic_auth();
-    let result = api.delete_pet_with_http_info(Some(&auth), 1, None).await;
+    let opts = DeletePetOptions::new().auth(Arc::new(basic_auth()));
+    let result = api.delete_pet_with_http_info(1, Some(&opts)).await;
     assert!(
         result.is_ok(),
         "delete_pet_with_http_info failed: {:?}",
@@ -431,12 +431,12 @@ fn new_pet_api_for_capture() -> (PetApi, std::sync::mpsc::Receiver<String>, Stri
 #[tokio::test]
 async fn test_pet_api_add_pet_per_call_auth_override() {
     let (api, rx, _) = new_pet_api_for_capture();
-    let auth = bearer_auth();
     let pet = Pet::new(
         "OverrideDog".to_string(),
         HashSet::from(["http://example.com/p.jpg".to_string()]),
     );
-    let _ = api.add_pet(Some(&auth), pet).await;
+    let opts = AddPetOptions::new().auth(Arc::new(bearer_auth()));
+    let _ = api.add_pet(pet, Some(&opts)).await;
 
     let request = rx.recv().expect("expected a captured request");
     /* hyper writes HTTP/1.1 header names lowercased, so assert on the VALUE:
@@ -446,6 +446,61 @@ async fn test_pet_api_add_pet_per_call_auth_override() {
         "expected per-call auth (test-token) to override default-token on the wire, got request: {}",
         request
     );
+}
+
+/// auth-in-options: the per-operation authenticator now lives on the Options
+/// struct (AddPetOptions::auth), not as a standalone method argument. When set,
+/// its credentials must win over the Configuration default on the wire.
+#[tokio::test]
+async fn test_pet_api_auth_in_options_overrides_default() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let pet = Pet::new(
+        "OptionsAuthDog".to_string(),
+        HashSet::from(["http://example.com/p.jpg".to_string()]),
+    );
+    let opts = AddPetOptions::new().auth(Arc::new(bearer_auth()));
+    let _ = api.add_pet(pet, Some(&opts)).await;
+
+    let request = rx.recv().expect("expected a captured request");
+    assert!(
+        request.contains("Bearer test-token") && !request.contains("Bearer default-token"),
+        "expected Options auth (test-token) to override default-token on the wire, got request: {}",
+        request
+    );
+}
+
+/// auth-in-options (omitted): when the Options auth field is left unset (or no
+/// Options is passed at all), the request must fall back to the Configuration's
+/// configured credentials rather than sending no auth.
+#[tokio::test]
+async fn test_pet_api_auth_omitted_uses_configuration_default() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let pet = Pet::new(
+        "DefaultAuthDog".to_string(),
+        HashSet::from(["http://example.com/p.jpg".to_string()]),
+    );
+    // No per-operation authenticator: the capture client's Configuration
+    // default header ("Bearer default-token") must be used.
+    let _ = api.add_pet(pet, None).await;
+
+    let request = rx.recv().expect("expected a captured request");
+    assert!(
+        request.contains("Bearer default-token"),
+        "expected Configuration default-token when Options auth is omitted, got request: {}",
+        request
+    );
+}
+
+/// auth-in-options (unsecured op): an operation with no security requirement
+/// (get_pet_by_id) gets NO auth field on its signature/Options — it takes a
+/// Server arg instead. This compile-time check asserts that calling it with a
+/// plain server arg (and no authenticator anywhere) works.
+#[tokio::test]
+async fn test_pet_api_unsecured_op_has_no_auth_field() {
+    let api = new_pet_api_for_integration();
+    let server: Option<&dyn GetPetByIdServer> = None;
+    let result = api.get_pet_by_id(1, server).await;
+    assert!(result.is_ok(), "get_pet_by_id failed: {:?}", result.err());
 }
 
 #[tokio::test]

@@ -11,11 +11,16 @@ module PetstoreClient
   module Api
     module Options
       # Options for the delete_pet operation.
+      #
+      # The optional +auth+ member overrides the client's configured
+      # credentials for this call only; when nil, the base client falls
+      # back to the Configuration credentials.
       class DeletePetOptions
-        attr_accessor :api_key
+        attr_accessor :api_key, :auth
 
-        def initialize(api_key: nil)
+        def initialize(api_key: nil, auth: nil)
           @api_key = api_key
+          @auth = auth
         end
       end
     end

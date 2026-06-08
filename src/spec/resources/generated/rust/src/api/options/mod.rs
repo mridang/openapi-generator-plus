@@ -1,5 +1,9 @@
+mod add_pet_options;
+pub use add_pet_options::*;
 mod add_pet_photos_options;
 pub use add_pet_photos_options::*;
+mod add_pet_treatment_options;
+pub use add_pet_treatment_options::*;
 mod delete_pet_options;
 pub use delete_pet_options::*;
 mod find_pets_by_status_options;

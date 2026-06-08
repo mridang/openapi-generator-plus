@@ -1,0 +1,16 @@
+using PetstoreClient.Auth;
+
+namespace PetstoreClient.Api.Options;
+
+/// <summary>
+/// Options for the AddPetTreatment operation.
+/// </summary>
+public sealed class AddPetTreatmentOptions
+{
+    /// <summary>
+    /// Per-operation authenticator. When set, it overrides the client's
+    /// configured credentials for this call only; when null the configured
+    /// credentials are used.
+    /// </summary>
+    public IAuthenticator? Auth { get; init; }
+}

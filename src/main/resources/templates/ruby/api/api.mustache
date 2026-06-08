@@ -81,9 +81,6 @@ module {{moduleName}}
 {{#notes}}
       # {{.}}
 {{/notes}}
-{{#hasAuthMethods}}
-      # @param auth [Auth::Authenticator] authenticator for this operation
-{{/hasAuthMethods}}
 {{#pathParams}}
       # @param {{paramName}} [{{{dataType}}}]{{#description}} {{.}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
@@ -111,7 +108,7 @@ module {{moduleName}}
 {{#externalDocs}}
       # @see {{url}} {{description}}
 {{/externalDocs}}
-      def {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}} = nil{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}}{{#hasAuthMethods}}, auth: nil{{/hasAuthMethods}})
+      def {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}} = nil{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}})
 {{#pathParams}}
 {{#required}}
         if {{{paramName}}}.nil?
@@ -131,7 +128,7 @@ module {{moduleName}}
 {{/required}}
 {{/bodyParam}}
 {{#returnType}}
-        result = {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}, server: server{{/-first}}{{/servers}}{{#hasAuthMethods}}, auth: auth{{/hasAuthMethods}})
+        result = {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}, server: server{{/-first}}{{/servers}})
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -148,13 +145,13 @@ module {{moduleName}}
         result.data
 {{/returnType}}
 {{^returnType}}
-        {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}, server: server{{/-first}}{{/servers}}{{#hasAuthMethods}}, auth: auth{{/hasAuthMethods}}).data
+        {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}, server: server{{/-first}}{{/servers}}).data
 {{/returnType}}
       end
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}} = nil{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}}{{#hasAuthMethods}}, auth: nil{{/hasAuthMethods}})
+      def {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}} = nil{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}})
 {{#pathParams}}
 {{#required}}
         if {{{paramName}}}.nil?
@@ -253,7 +250,7 @@ module {{moduleName}}
           [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
           '{{vendorExtensions.op.effectiveConsumes}}',
           {{#returnType}}'{{{.}}}'{{/returnType}}{{^returnType}}nil{{/returnType}},
-          {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}nil{{/hasAuthMethods}}
+          {{#hasAuthMethods}}options&.auth{{/hasAuthMethods}}{{^hasAuthMethods}}nil{{/hasAuthMethods}}
         )
       end
     {{/operation}}

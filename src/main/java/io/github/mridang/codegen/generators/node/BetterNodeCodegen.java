@@ -843,6 +843,13 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         context.put("params", params);
         context.put("modelImports", new ArrayList<>(modelTypes));
         context.put("hasModelImports", !modelTypes.isEmpty());
+        // Phase: per-operation auth folded into Options. Authed operations get
+        // an optional `auth?: Authenticator` field on their Options interface;
+        // the relative import path mirrors the other Options-file imports
+        // (Options files live under src/api/options, so Authenticator is two
+        // directories up under src/auth).
+        injectAuthFieldContext(op, context);
+        context.put("authImport", "../../auth/authenticator" + ".js");
         return renderOptionsTemplate("api/options.mustache", context);
     }
 

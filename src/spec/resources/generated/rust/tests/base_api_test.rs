@@ -10,6 +10,7 @@ mod testcontainers_helper;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use petstore::api::options::*;
 use petstore::api::*;
 use petstore::errors::*;
 use petstore::models::*;
@@ -237,7 +238,9 @@ async fn test_base_api_returns_unit_when_return_type_is_void() {
     let api = PetApi::new(client.clone(), config, None);
     let auth = NoopAuthenticator;
     // DeletePet is a void operation -- it should return Ok(()) for a 200 OK response
-    let result = api.delete_pet(Some(&auth), 1, None).await;
+    let result = api
+        .delete_pet(1, Some(&DeletePetOptions::new().auth(Arc::new(auth))))
+        .await;
     assert!(
         result.is_ok(),
         "expected Ok(()) for void operation with 200 response, got: {:?}",
@@ -257,7 +260,9 @@ async fn test_base_api_collapses_double_slash_when_baseurl_has_trailing() {
         .build();
     let api = PetApi::new(client.clone(), config, None);
     let auth = NoopAuthenticator;
-    let _ = api.delete_pet(Some(&auth), 1, None).await;
+    let _ = api
+        .delete_pet(1, Some(&DeletePetOptions::new().auth(Arc::new(auth))))
+        .await;
     let captured = client.captured_url.lock().unwrap().clone();
     assert!(
         captured.starts_with("http://localhost/pet/"),
@@ -507,7 +512,9 @@ async fn test_base_api_all_headers_flow_through() {
     let api = PetApi::new(client.clone(), config, None);
     let pet = Pet::new("TestPet".to_string(), HashSet::new());
     let auth = NoopAuthenticator;
-    let _ = api.add_pet(Some(&auth), pet).await;
+    let _ = api
+        .add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth))))
+        .await;
     let headers = client.captured_headers.lock().unwrap();
     assert!(
         headers.contains_key("Accept"),
@@ -533,7 +540,7 @@ async fn test_base_api_op_auth_none_falls_back_to_client_authenticator() {
     let api = PetApi::new(client.clone(), config, Some(client_auth));
     let pet = Pet::new("FallbackPet".to_string(), HashSet::new());
     /* Passing None must succeed (no panic) and dispatch the request. */
-    let _ = api.add_pet(None, pet).await;
+    let _ = api.add_pet(pet, None).await;
     let body = client.captured_body.lock().unwrap();
     assert!(
         body.is_some(),
@@ -581,7 +588,9 @@ async fn test_base_api_per_call_auth_overrides_client_authenticator() {
         value: "per-call-token".to_string(),
     };
     let pet = Pet::new("OverridePet".to_string(), HashSet::new());
-    let _ = api.add_pet(Some(&per_call), pet).await;
+    let _ = api
+        .add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(per_call))))
+        .await;
     let headers = client.captured_headers.lock().unwrap();
     assert_eq!(
         headers.get("X-Client-Auth").map(|s| s.as_str()),
@@ -600,7 +609,7 @@ async fn test_base_api_op_auth_none_with_no_client_authenticator_still_sends() {
         .build();
     let api = PetApi::new(client.clone(), config, None);
     let pet = Pet::new("Anon".to_string(), HashSet::new());
-    let _ = api.add_pet(None, pet).await;
+    let _ = api.add_pet(pet, None).await;
     let body = client.captured_body.lock().unwrap();
     assert!(
         body.is_some(),
@@ -619,7 +628,9 @@ async fn test_base_api_serializes_json_body() {
     let api = PetApi::new(client.clone(), config, None);
     let pet = Pet::new("TestPet".to_string(), HashSet::new());
     let auth = NoopAuthenticator;
-    let _ = api.add_pet(Some(&auth), pet).await;
+    let _ = api
+        .add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth))))
+        .await;
     let body = client.captured_body.lock().unwrap();
     assert!(body.is_some(), "expected body to be captured");
     let body_str = String::from_utf8(body.as_ref().unwrap().clone()).unwrap();
@@ -729,7 +740,9 @@ async fn test_base_api_sets_cookie_from_auth() {
     let api = PetApi::new(client.clone(), config, None);
     let auth = CookieAuthenticator;
     let pet = Pet::new("TestPet".to_string(), HashSet::new());
-    let _ = api.add_pet(Some(&auth), pet).await;
+    let _ = api
+        .add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth))))
+        .await;
     let headers = client.captured_headers.lock().unwrap();
     if let Some(cookie) = headers.get("Cookie") {
         assert!(
@@ -1120,7 +1133,9 @@ async fn test_binary_response_empty_body_no_panic() {
     let api = PetApi::new(client, config, None);
     let auth = NoopAuthenticator;
     // DeletePet is void -- empty body should not panic
-    let _ = api.delete_pet(Some(&auth), 1, None).await;
+    let _ = api
+        .delete_pet(1, Some(&DeletePetOptions::new().auth(Arc::new(auth))))
+        .await;
 }
 
 // -- CrossOriginRedirectTests --
@@ -1274,7 +1289,9 @@ async fn test_null_body_post_does_not_send_content_type() {
     let api = PetApi::new(client.clone(), config, None);
     let auth = NoopAuthenticator;
     // delete_pet sends no body -- Content-Type should not be present
-    let _ = api.delete_pet(Some(&auth), 1, None).await;
+    let _ = api
+        .delete_pet(1, Some(&DeletePetOptions::new().auth(Arc::new(auth))))
+        .await;
     let headers = client.captured_headers.lock().unwrap();
     assert!(
         headers.get("Content-Type").is_none(),
@@ -1291,7 +1308,9 @@ async fn test_body_present_includes_content_type() {
     let api = PetApi::new(client.clone(), config, None);
     let auth = NoopAuthenticator;
     let pet = Pet::new("TestPet".to_string(), HashSet::new());
-    let _ = api.add_pet(Some(&auth), pet).await;
+    let _ = api
+        .add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth))))
+        .await;
     let headers = client.captured_headers.lock().unwrap();
     assert!(
         headers.get("Content-Type").is_some(),

@@ -1,3 +1,5 @@
+using PetstoreClient.Auth;
+
 namespace PetstoreClient.Api.Options;
 
 /// <summary>
@@ -7,4 +9,11 @@ public sealed class DeletePetOptions
 {
     /// <summary> Session cookie used for authentication</summary>
     public string? ApiKey { get; init; }
+
+    /// <summary>
+    /// Per-operation authenticator. When set, it overrides the client's
+    /// configured credentials for this call only; when null the configured
+    /// credentials are used.
+    /// </summary>
+    public IAuthenticator? Auth { get; init; }
 }

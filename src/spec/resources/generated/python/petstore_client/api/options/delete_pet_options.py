@@ -8,6 +8,7 @@
 from dataclasses import dataclass
 from pydantic import StrictStr
 from typing import Optional
+from petstore_client.auth.authenticator import Authenticator
 
 
 @dataclass
@@ -15,3 +16,4 @@ class DeletePetOptions:
     """Options for the delete_pet operation."""
 
     api_key: Optional[StrictStr] = None
+    auth: Optional[Authenticator] = None

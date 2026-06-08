@@ -95,9 +95,9 @@ class {{classname}} extends BaseApi {
   /// {{value}}
   /// ```
 {{/vendorExtensions.pluralExamples}}{{/allParams}}
-  Future<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}> {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}, {{/vendorExtensions.op.signatureArgs}}{Authenticator? auth}) async {
+  Future<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}> {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}) async {
 {{#returnType}}
-    final result = await {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}, {{/vendorExtensions.op.signatureArgs}}auth: auth);
+    final result = await {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}});
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -115,12 +115,17 @@ class {{classname}} extends BaseApi {
     return data;
 {{/returnType}}
 {{^returnType}}
-    await {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}, {{/vendorExtensions.op.signatureArgs}}auth: auth);
+    await {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}});
 {{/returnType}}
   }
 
   /// Performs the {{operationId}} operation and returns the full API result.
-  Future<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}>> {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}, {{/vendorExtensions.op.signatureArgs}}{Authenticator? auth}) async {
+  Future<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}>> {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}) async {
+{{#hasAuthMethods}}
+    {{! Source the per-operation authenticator from the Options object. When }}
+    {{! null, the base client falls back to the Configuration credentials. }}
+    final Authenticator? auth = options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.auth;
+{{/hasAuthMethods}}
 
     var path = '{{{path}}}';
 {{#pathParams}}
@@ -309,7 +314,7 @@ class {{classname}} extends BaseApi {
       accepts: [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
       contentType: '{{vendorExtensions.op.effectiveConsumes}}',
       returnType: '{{#returnType}}{{{.}}}{{/returnType}}',
-      auth: auth,
+      auth: {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}null{{/hasAuthMethods}},
 {{#returnType}}
 {{#returnTypeIsPrimitive}}
 {{#isMap}}

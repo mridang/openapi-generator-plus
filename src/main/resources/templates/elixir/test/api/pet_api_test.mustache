@@ -24,7 +24,8 @@ defmodule {{moduleName}}.Api.PetApiTest do
       status: "available"
     }
 
-    assert {:ok, result} = {{moduleName}}.Api.PetApi.add_pet(api, pet, auth: auth)
+    options = %{{moduleName}}.Api.Options.AddPetOptions{auth: auth}
+    assert {:ok, result} = {{moduleName}}.Api.PetApi.add_pet(api, pet, options)
     assert result != nil
   end
 
@@ -58,7 +59,8 @@ defmodule {{moduleName}}.Api.PetApiTest do
 
   test "delete_pet deletes a pet", %{api: api, auth: auth} do
     pet_id = :rand.uniform(1_000_000_000)
-    assert {:ok, _result} = {{moduleName}}.Api.PetApi.delete_pet(api, pet_id, %{{moduleName}}.Api.Options.DeletePetOptions{}, auth: auth)
+    options = %{{moduleName}}.Api.Options.DeletePetOptions{auth: auth}
+    assert {:ok, _result} = {{moduleName}}.Api.PetApi.delete_pet(api, pet_id, options)
   end
 
   test "set_pet_avatar uploads binary image data", %{api: api} do
@@ -289,7 +291,8 @@ defmodule {{moduleName}}.Api.PetApiTest do
       status: "available"
     }
 
-    assert {:ok, result} = {{moduleName}}.Api.PetApi.add_pet_with_http_info(api, pet, auth: auth)
+    options = %{{moduleName}}.Api.Options.AddPetOptions{auth: auth}
+    assert {:ok, result} = {{moduleName}}.Api.PetApi.add_pet_with_http_info(api, pet, options)
     assert result.status_code >= 200
     assert result.status_code < 300
     assert result.data != nil
@@ -312,12 +315,13 @@ defmodule {{moduleName}}.Api.PetApiTest do
   test "delete_pet_with_http_info returns http metadata", %{api: api, auth: auth} do
     pet_id = :rand.uniform(1_000_000_000)
 
+    options = %{{moduleName}}.Api.Options.DeletePetOptions{auth: auth}
+
     assert {:ok, result} =
              {{moduleName}}.Api.PetApi.delete_pet_with_http_info(
                api,
                pet_id,
-               %{{moduleName}}.Api.Options.DeletePetOptions{},
-               auth: auth
+               options
              )
 
     assert result.status_code >= 200
@@ -349,6 +353,83 @@ defmodule {{moduleName}}.Api.PetApiTest do
   @tag :skip
   test "per-call auth override is applied on the base method" do
     # Authenticator struct headers are not merged by BaseApi; see comment above.
+  end
+
+  # auth-folded-into-options: the uniform model puts a per-operation `auth`
+  # field on each authed operation's Options struct. These three tests verify
+  # (1) auth supplied via Options reaches the wire, (2) an auth-omitted call
+  # falls back to the API instance's configured authenticator, and (3) an
+  # unsecured operation takes no auth field/opt at all.
+  #
+  # BaseApi merges auth headers only for a plain map carrying an `:auth_headers`
+  # key (`Map.has_key?(effective_auth, :auth_headers)`), so the authenticators
+  # below are plain maps rather than the generated authenticator structs.
+  defmodule HeaderCapturingApiClient do
+    @behaviour {{moduleName}}.ApiClient
+    use Agent
+
+    def start do
+      name = :"#{__MODULE__}-#{System.unique_integer([:positive])}"
+      {:ok, _pid} = Agent.start_link(fn -> %{} end, name: name)
+      Process.put(__MODULE__, name)
+      {:ok, name}
+    end
+
+    def captured_headers(name), do: Agent.get(name, & &1)
+
+    @impl true
+    def send_request(_method, _url, headers, _body) do
+      name = Process.get(__MODULE__)
+      Agent.update(name, fn _ -> headers end)
+      %{{moduleName}}.ApiResponse{status_code: 200, body: "", headers: %{"Content-Type" => "application/json"}}
+    end
+  end
+
+  test "authed op: auth supplied via Options reaches the wire" do
+    {:ok, name} = HeaderCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(HeaderCapturingApiClient, config)
+
+    call_auth = %{auth_headers: %{"Authorization" => "Bearer per-call-token"}}
+
+    options = %{{moduleName}}.Api.Options.DeletePetOptions{auth: call_auth}
+    {:ok, _result} = {{moduleName}}.Api.PetApi.delete_pet_with_http_info(api, 1, options)
+
+    headers = HeaderCapturingApiClient.captured_headers(name)
+    assert headers["Authorization"] == "Bearer per-call-token"
+
+    Agent.stop(name)
+  end
+
+  test "authed op: auth omitted falls back to the configured default credentials" do
+    {:ok, name} = HeaderCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    default_auth = %{auth_headers: %{"Authorization" => "Bearer configured-default"}}
+    api = {{moduleName}}.Api.PetApi.new(HeaderCapturingApiClient, config, default_auth)
+
+    # No Options auth and no :auth opt — must use the api's configured authenticator.
+    {:ok, _result} = {{moduleName}}.Api.PetApi.delete_pet_with_http_info(api, 1)
+
+    headers = HeaderCapturingApiClient.captured_headers(name)
+    assert headers["Authorization"] == "Bearer configured-default"
+
+    Agent.stop(name)
+  end
+
+  test "unsecured op (get_pet_by_id) takes no auth field or opt" do
+    {:ok, name} = HeaderCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    # No configured authenticator: get_pet_by_id declares `security: []`, so it
+    # takes no Options arg and no `:auth` opt — the call below compiles only
+    # because the signature is (api, pet_id, opts) with no auth anywhere.
+    api = {{moduleName}}.Api.PetApi.new(HeaderCapturingApiClient, config)
+
+    {:ok, _result} = {{moduleName}}.Api.PetApi.get_pet_by_id_with_http_info(api, 1)
+
+    headers = HeaderCapturingApiClient.captured_headers(name)
+    refute Map.has_key?(headers, "Authorization")
+
+    Agent.stop(name)
   end
 end
 {{/generateTests}}

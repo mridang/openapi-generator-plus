@@ -8,7 +8,6 @@ use {{invokerPackage}}\ApiResult;
 use {{invokerPackage}}\Configuration;
 use {{invokerPackage}}\DefaultApiClient;
 use {{invokerPackage}}\ValueSerializer;
-use {{invokerPackage}}\Auth\Authenticator;
 {{#optionsImports}}
 use {{invokerPackage}}\Api\Options\{{optionsClassName}};
 {{/optionsImports}}
@@ -94,9 +93,6 @@ class {{classname}} extends BaseApi
 {{#notes}}
      * {{.}}
 {{/notes}}
-{{#hasAuthMethods}}
-     * @param Authenticator $auth Authenticator for this operation
-{{/hasAuthMethods}}
 {{#pathParams}}
 {{#description}}
      * @param {{{dataType}}} ${{paramName}} {{.}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
@@ -144,9 +140,9 @@ class {{classname}} extends BaseApi
 {{/externalDocs}}
      */
 {{#returnType}}
-    public function {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#hasAuthMethods}}, ?Authenticator $auth = null{{/hasAuthMethods}})
+    public function {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}})
     {
-        $apiResult = $this->{{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}${{paramName}}{{/vendorExtensions.op.signatureArgs}}{{#hasAuthMethods}}, $auth{{/hasAuthMethods}});
+        $apiResult = $this->{{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}${{paramName}}{{/vendorExtensions.op.signatureArgs}});
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -198,8 +194,14 @@ class {{classname}} extends BaseApi
      * @return ApiResult<{{{returnType}}}>
      * @throws \{{invokerPackage}}\ApiException
      */
-    public function {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#hasAuthMethods}}, ?Authenticator $auth = null{{/hasAuthMethods}}): ApiResult
+    public function {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}): ApiResult
     {
+{{#hasAuthMethods}}
+        /* Per-operation auth is sourced from the Options object's $auth field.
+         * A null options or a null $auth falls back to the client's configured
+         * credentials. */
+        $auth = $options{{#vendorExtensions.op.optionsParamRequired}}->auth{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}?->auth{{/vendorExtensions.op.optionsParamRequired}};
+{{/hasAuthMethods}}
         $path = '{{{path}}}';
 {{#pathParams}}
         /** @var string $pathValue */
@@ -227,38 +229,49 @@ class {{classname}} extends BaseApi
         $queryParams = [];
 {{#queryParams}}
 {{#vendorExtensions.param.queryContent}}
-        if ($options->{{paramName}} !== null) {
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             $queryParams['{{baseName}}'] = json_encode($options->{{paramName}});
         }
 {{/vendorExtensions.param.queryContent}}
 {{#vendorExtensions.param.queryDeepObject}}
-        if ($options->{{paramName}} !== null) {
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             $queryParams = array_merge($queryParams, ValueSerializer::serializeDeepObject('{{baseName}}', $options->{{paramName}}));
         }
 {{/vendorExtensions.param.queryDeepObject}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.op.optionsParamRequired}}
         if ($options->{{paramName}} !== null) {
             $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
         } else {
             $queryParams['{{baseName}}'] = '';
         }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+        if ($options !== null) {
+            if ($options->{{paramName}} !== null) {
+                $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
+            } else {
+                $queryParams['{{baseName}}'] = '';
+            }
+        }
+{{/vendorExtensions.op.optionsParamRequired}}
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryStyled}}
-        if ($options->{{paramName}} !== null) {
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
         }
 {{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}
         $headerParams = [];
 {{#headerParams}}
-        if ($options->{{paramName}} !== null) {
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             $headerParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'header', '{{dataType}}', null, '{{style}}', {{vendorExtensions.isExplodeStr}});
         }
 {{/headerParams}}
 {{#hasCookieParams}}
         $cookieParts = [];
 {{#cookieParams}}
-        if ($options?->{{paramName}} !== null) {
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             /** @var string $cookieValue */
             $cookieValue = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'cookie', '{{dataType}}', null, '{{style}}', {{vendorExtensions.isExplodeStr}});
             $cookieParts[] = '{{baseName}}=' . $cookieValue;
@@ -275,7 +288,7 @@ class {{classname}} extends BaseApi
         $requestBody['{{baseName}}'] = $options->{{paramName}};
 {{/required}}
 {{^required}}
-        if ($options->{{paramName}} !== null) {
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             $requestBody['{{baseName}}'] = $options->{{paramName}};
         }
 {{/required}}
@@ -306,9 +319,9 @@ class {{classname}} extends BaseApi
     }
 {{/returnType}}
 {{^returnType}}
-    public function {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#hasAuthMethods}}, ?Authenticator $auth = null{{/hasAuthMethods}}): void
+    public function {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}): void
     {
-        $this->{{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}${{paramName}}{{/vendorExtensions.op.signatureArgs}}{{#hasAuthMethods}}, $auth{{/hasAuthMethods}});
+        $this->{{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}${{paramName}}{{/vendorExtensions.op.signatureArgs}});
     }
 
     /**
@@ -344,8 +357,14 @@ class {{classname}} extends BaseApi
      * @return ApiResult<null>
      * @throws \{{invokerPackage}}\ApiException
      */
-    public function {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#hasAuthMethods}}, ?Authenticator $auth = null{{/hasAuthMethods}}): ApiResult
+    public function {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}): ApiResult
     {
+{{#hasAuthMethods}}
+        /* Per-operation auth is sourced from the Options object's $auth field.
+         * A null options or a null $auth falls back to the client's configured
+         * credentials. */
+        $auth = $options{{#vendorExtensions.op.optionsParamRequired}}->auth{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}?->auth{{/vendorExtensions.op.optionsParamRequired}};
+{{/hasAuthMethods}}
         $path = '{{{path}}}';
 {{#pathParams}}
         /** @var string $pathValue */
@@ -373,38 +392,49 @@ class {{classname}} extends BaseApi
         $queryParams = [];
 {{#queryParams}}
 {{#vendorExtensions.param.queryContent}}
-        if ($options->{{paramName}} !== null) {
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             $queryParams['{{baseName}}'] = json_encode($options->{{paramName}});
         }
 {{/vendorExtensions.param.queryContent}}
 {{#vendorExtensions.param.queryDeepObject}}
-        if ($options->{{paramName}} !== null) {
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             $queryParams = array_merge($queryParams, ValueSerializer::serializeDeepObject('{{baseName}}', $options->{{paramName}}));
         }
 {{/vendorExtensions.param.queryDeepObject}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.op.optionsParamRequired}}
         if ($options->{{paramName}} !== null) {
             $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
         } else {
             $queryParams['{{baseName}}'] = '';
         }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+        if ($options !== null) {
+            if ($options->{{paramName}} !== null) {
+                $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
+            } else {
+                $queryParams['{{baseName}}'] = '';
+            }
+        }
+{{/vendorExtensions.op.optionsParamRequired}}
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryStyled}}
-        if ($options->{{paramName}} !== null) {
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
         }
 {{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}
         $headerParams = [];
 {{#headerParams}}
-        if ($options->{{paramName}} !== null) {
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             $headerParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'header', '{{dataType}}', null, '{{style}}', {{vendorExtensions.isExplodeStr}});
         }
 {{/headerParams}}
 {{#hasCookieParams}}
         $cookieParts = [];
 {{#cookieParams}}
-        if ($options?->{{paramName}} !== null) {
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             /** @var string $cookieValue */
             $cookieValue = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'cookie', '{{dataType}}', null, '{{style}}', {{vendorExtensions.isExplodeStr}});
             $cookieParts[] = '{{baseName}}=' . $cookieValue;
@@ -421,7 +451,7 @@ class {{classname}} extends BaseApi
         $requestBody['{{baseName}}'] = $options->{{paramName}};
 {{/required}}
 {{^required}}
-        if ($options->{{paramName}} !== null) {
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             $requestBody['{{baseName}}'] = $options->{{paramName}};
         }
 {{/required}}

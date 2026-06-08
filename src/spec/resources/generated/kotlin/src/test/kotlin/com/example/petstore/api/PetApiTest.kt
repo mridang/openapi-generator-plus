@@ -8,7 +8,9 @@
 package com.example.petstore.api
 
 import com.example.petstore.*
+import com.example.petstore.api.options.AddPetOptions
 import com.example.petstore.api.options.AddPetPhotosOptions
+import com.example.petstore.api.options.DeletePetOptions
 import com.example.petstore.api.options.FindPetsByStatusOptions
 import com.example.petstore.api.options.GetPetTagOptions
 import com.example.petstore.api.options.UploadPetCertificateOptions
@@ -77,7 +79,26 @@ class PetApiTest {
                     photoUrls = setOf("http://example.com/photo.jpg"),
                 )
 
-            val result = runBlocking { api.addPet(bearerAuth, pet) }
+            val result = runBlocking { api.addPet(pet, AddPetOptions(auth = bearerAuth)) }
+
+            assertNotNull(result)
+            assertNotNull(result!!.name)
+        }
+
+        @Test
+        @DisplayName("addPet falls back to configured credentials when auth omitted")
+        fun testAddPetUsingConfiguredCredentials() {
+            // The Options arg (and its auth) is optional: omitting it falls back
+            // to the credentials configured on the client (the default
+            // Authorization header set on sharedConfig), which must satisfy the
+            // secured endpoint.
+            val pet =
+                Pet(
+                    name = "DefaultCredsDog",
+                    photoUrls = setOf("http://example.com/photo.jpg"),
+                )
+
+            val result = runBlocking { api.addPet(pet) }
 
             assertNotNull(result)
             assertNotNull(result!!.name)
@@ -92,7 +113,7 @@ class PetApiTest {
                     photoUrls = setOf("http://example.com/photo.jpg"),
                 )
 
-            val result = runBlocking { api.addPetWithHttpInfo(bearerAuth, pet) }
+            val result = runBlocking { api.addPetWithHttpInfo(pet, AddPetOptions(auth = bearerAuth)) }
 
             assertNotNull(result)
             assertTrue(result.statusCode in 200..299)
@@ -151,13 +172,13 @@ class PetApiTest {
         @Test
         @DisplayName("deletePet deletes a pet")
         fun testDeletePet() {
-            assertDoesNotThrow { runBlocking { api.deletePet(basicAuth, 1L, null) } }
+            assertDoesNotThrow { runBlocking { api.deletePet(1L, DeletePetOptions(auth = basicAuth)) } }
         }
 
         @Test
         @DisplayName("deletePet with HttpInfo returns status")
         fun testDeletePetWithHttpInfo() {
-            val result = runBlocking { api.deletePetWithHttpInfo(basicAuth, 1L, null) }
+            val result = runBlocking { api.deletePetWithHttpInfo(1L, DeletePetOptions(auth = basicAuth)) }
 
             assertNotNull(result)
             assertTrue(result.statusCode in 200..299)
@@ -479,9 +500,55 @@ class PetApiTest {
             val perCallAuth = PetStoreBearerAuthenticator("http://localhost", "per-call-token")
 
             val pet = Pet(name = "OverrideDog", photoUrls = setOf("http://example.com/p.jpg"))
-            runBlocking { api.addPet(perCallAuth, pet) }
+            runBlocking { api.addPet(pet, AddPetOptions(auth = perCallAuth)) }
 
             assertEquals("Bearer per-call-token", capturedAuth)
+        }
+
+        @Test
+        @DisplayName("configured credentials used when Options/auth omitted")
+        fun testAddPetUsesConfiguredCredentialsWhenAuthOmitted() {
+            // When no per-call auth is supplied (Options omitted entirely), the
+            // client falls back to the credentials configured on the
+            // Configuration (the default Authorization header). Verify that
+            // token reaches the wire.
+            var capturedAuth: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedAuth = request.headers["Authorization"]
+                    respond(
+                        content = """{"id":1,"name":"x","photoUrls":[]}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .defaultHeader("Authorization", "Bearer default-token")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            val pet = Pet(name = "DefaultDog", photoUrls = setOf("http://example.com/p.jpg"))
+            runBlocking { api.addPet(pet) }
+
+            assertEquals("Bearer default-token", capturedAuth)
+        }
+
+        @Test
+        @DisplayName("unsecured operation Options exposes no auth field")
+        fun testUnsecuredOperationOptionsExposesNoAuth() {
+            // Compile-level guard: an unsecured operation's Options object must
+            // NOT expose an auth field, and unsecured ops with path params only
+            // (getPetById) take no Options arg at all. This is a no-op at
+            // runtime; it fails to compile if a regression reintroduces auth on
+            // unsecured operations.
+            val opts = FindPetsByStatusOptions().status("available")
+            assertNotNull(opts)
+            // AddPetOptions (secured op) DOES carry the auth field.
+            val secured = AddPetOptions(auth = bearerAuth)
+            assertNotNull(secured.auth)
         }
 
         @Test

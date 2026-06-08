@@ -12,13 +12,22 @@ module {{moduleName}}
   module Api
     module Options
       # Options for the {{operationId}} operation.
+{{#hasAuthField}}
+      #
+      # The optional +auth+ member overrides the client's configured
+      # credentials for this call only; when nil, the base client falls
+      # back to the Configuration credentials.
+{{/hasAuthField}}
       class {{className}}
-        attr_accessor {{#params}}:{{paramName}}{{^-last}}, {{/-last}}{{/params}}
+        attr_accessor {{accessorList}}
 
         def initialize({{initializeSignature}})
 {{#params}}
           @{{paramName}} = {{paramName}}
 {{/params}}
+{{#hasAuthField}}
+          @auth = auth
+{{/hasAuthField}}
         end
       end
     end

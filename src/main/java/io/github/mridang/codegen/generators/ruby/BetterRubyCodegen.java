@@ -813,6 +813,28 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             first = false;
             sig.append(p.paramName).append(": nil");
         }
+        // Authed operations carry an optional per-operation `auth` keyword,
+        // typed as the generic Authenticator. It never has a required value
+        // (defaults to nil → fall back to Configuration credentials) and is
+        // always appended last so it stays out of the required-keyword block.
+        if (op.hasAuthMethods) {
+            if (!first) sig.append(", ");
+            sig.append("auth: nil");
+        }
+
+        // Single grouped attr_accessor line (Style/AccessorGrouping): all
+        // option params plus the optional `auth` member when present.
+        final StringBuilder accessors = new StringBuilder();
+        boolean firstAcc = true;
+        for (final CodegenParameter p : optionsParams) {
+            if (!firstAcc) accessors.append(", ");
+            firstAcc = false;
+            accessors.append(':').append(p.paramName);
+        }
+        if (op.hasAuthMethods) {
+            if (!firstAcc) accessors.append(", ");
+            accessors.append(":auth");
+        }
 
         final Map<String, Object> context = new HashMap<>();
         context.put("className", className);
@@ -821,10 +843,17 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         context.put("params", params);
         context.put("hasAnyRequired", hasAnyRequired);
         context.put("initializeSignature", sig.toString());
+        context.put("accessorList", accessors.toString());
         context.put("modelRequires", modelRequires);
         context.put("hasModelRequires", !modelRequires.isEmpty());
+        injectAuthFieldContext(op, context);
+        // The per-operation auth field is typed as the generic Authenticator
+        // interface. In Ruby it lives in the gem's Auth module; no extra
+        // require is needed because the Auth module is autoloaded via Zeitwerk
+        // and referenced through the gem namespace at runtime.
+        context.put("authImport", moduleName + "::Auth::" + getAuthenticatorTypeName());
 
-        generateOptionsRbsFile(op, optionsParams, className);
+        generateOptionsRbsFile(op, optionsParams, className, op.hasAuthMethods);
 
         return renderOptionsTemplate("api/options.mustache", context);
     }
@@ -852,7 +881,8 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
     private void generateOptionsRbsFile(
             CodegenOperation op,
             List<CodegenParameter> optionsParams,
-            String className) {
+            String className,
+            boolean hasAuthField) {
         final List<Map<String, Object>> params = new ArrayList<>();
         for (final CodegenParameter p : optionsParams) {
             final Map<String, Object> param = new HashMap<>();
@@ -878,12 +908,20 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             final String rbsType = qualifyRbsModelType(toRbsType(p.dataType), p);
             sig.append('?').append(p.paramName).append(": ").append(rbsType).append('?');
         }
+        // Optional per-operation authenticator keyword, typed as the generic
+        // Authenticator interface. Always nullable; always last.
+        if (hasAuthField) {
+            if (!first) sig.append(", ");
+            sig.append("?auth: ::").append(moduleName)
+                    .append("::Auth::").append(getAuthenticatorTypeName()).append('?');
+        }
 
         final Map<String, Object> context = new HashMap<>();
         context.put("className", className);
         context.put("moduleName", moduleName);
         context.put("params", params);
         context.put("initializeSignature", sig.toString());
+        context.put("hasAuthField", hasAuthField);
 
         final String content = renderOptionsTemplate("api/options_rbs.mustache", context);
 

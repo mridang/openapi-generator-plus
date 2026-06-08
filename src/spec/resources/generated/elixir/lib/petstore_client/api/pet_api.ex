@@ -178,6 +178,8 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet` - Pet - Create a new pet in the store
 
+    * `options` - Optional parameters (query, header, form, cookie).
+
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
@@ -186,10 +188,10 @@ defmodule PetstoreClient.Api.PetApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec add_pet(t(), Pet, keyword()) ::
+  @spec add_pet(t(), Pet, Options.t(), keyword()) ::
           {:ok, Pet} | {:error, term()}
-  def add_pet(%__MODULE__{} = api, pet, opts \\ []) do
-    case add_pet_with_http_info(api, pet, opts) do
+  def add_pet(%__MODULE__{} = api, pet, options \\ nil, opts \\ []) do
+    case add_pet_with_http_info(api, pet, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
       # comes back with no decodable body surfaces a typed ApiError rather
       # than silently handing back nil, so callers never get a silent
@@ -214,8 +216,8 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Bang version of `add_pet`. Raises on error.
   """
-  def add_pet!(%__MODULE__{} = api, pet, opts \\ []) do
-    case add_pet(api, pet, opts) do
+  def add_pet!(%__MODULE__{} = api, pet, options \\ nil, opts \\ []) do
+    case add_pet(api, pet, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -224,10 +226,17 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `add_pet` but returns the full `ApiResult`.
   """
-  @spec add_pet_with_http_info(t(), Pet, keyword()) ::
+  @spec add_pet_with_http_info(t(), Pet, Options.t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def add_pet_with_http_info(%__MODULE__{} = api, pet, opts \\ []) do
-    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+  def add_pet_with_http_info(%__MODULE__{} = api, pet, options \\ nil, opts \\ []) do
+    # Per-operation auth is sourced from the Options struct's optional `auth`
+    # field (the uniform "auth folded into Options" model). A `:auth` entry in
+    # the trailing keyword list still overrides it for ergonomic call sites, and
+    # an absent override falls back to the API instance's configured
+    # authenticator so auth-omitted calls use the Configuration credentials.
+    auth =
+      Keyword.get(opts, :auth) || (options && Map.get(options, :auth)) ||
+        Map.get(api, :authenticator)
 
     if is_nil(pet) do
       raise ArgumentError,
@@ -388,6 +397,8 @@ defmodule PetstoreClient.Api.PetApi do
     * `pet_id` - integer()
     * `pet_treatment` - PetTreatment
 
+    * `options` - Optional parameters (query, header, form, cookie).
+
     * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
@@ -396,10 +407,10 @@ defmodule PetstoreClient.Api.PetApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec add_pet_treatment(t(), integer(), PetTreatment, keyword()) ::
+  @spec add_pet_treatment(t(), integer(), PetTreatment, Options.t(), keyword()) ::
           {:ok, PetTreatment} | {:error, term()}
-  def add_pet_treatment(%__MODULE__{} = api, pet_id, pet_treatment, opts \\ []) do
-    case add_pet_treatment_with_http_info(api, pet_id, pet_treatment, opts) do
+  def add_pet_treatment(%__MODULE__{} = api, pet_id, pet_treatment, options \\ nil, opts \\ []) do
+    case add_pet_treatment_with_http_info(api, pet_id, pet_treatment, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
       # comes back with no decodable body surfaces a typed ApiError rather
       # than silently handing back nil, so callers never get a silent
@@ -424,8 +435,8 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Bang version of `add_pet_treatment`. Raises on error.
   """
-  def add_pet_treatment!(%__MODULE__{} = api, pet_id, pet_treatment, opts \\ []) do
-    case add_pet_treatment(api, pet_id, pet_treatment, opts) do
+  def add_pet_treatment!(%__MODULE__{} = api, pet_id, pet_treatment, options \\ nil, opts \\ []) do
+    case add_pet_treatment(api, pet_id, pet_treatment, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -434,10 +445,17 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `add_pet_treatment` but returns the full `ApiResult`.
   """
-  @spec add_pet_treatment_with_http_info(t(), integer(), PetTreatment, keyword()) ::
+  @spec add_pet_treatment_with_http_info(t(), integer(), PetTreatment, Options.t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def add_pet_treatment_with_http_info(%__MODULE__{} = api, pet_id, pet_treatment, opts \\ []) do
-    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+  def add_pet_treatment_with_http_info(%__MODULE__{} = api, pet_id, pet_treatment, options \\ nil, opts \\ []) do
+    # Per-operation auth is sourced from the Options struct's optional `auth`
+    # field (the uniform "auth folded into Options" model). A `:auth` entry in
+    # the trailing keyword list still overrides it for ergonomic call sites, and
+    # an absent override falls back to the API instance's configured
+    # authenticator so auth-omitted calls use the Configuration credentials.
+    auth =
+      Keyword.get(opts, :auth) || (options && Map.get(options, :auth)) ||
+        Map.get(api, :authenticator)
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -510,7 +528,7 @@ defmodule PetstoreClient.Api.PetApi do
   """
   @spec delete_pet(t(), integer(), Options.t(), keyword()) ::
           {:ok, nil} | {:error, term()}
-  def delete_pet(%__MODULE__{} = api, pet_id, options, opts \\ []) do
+  def delete_pet(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     case delete_pet_with_http_info(api, pet_id, options, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
@@ -520,7 +538,7 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Bang version of `delete_pet`. Raises on error.
   """
-  def delete_pet!(%__MODULE__{} = api, pet_id, options, opts \\ []) do
+  def delete_pet!(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     case delete_pet(api, pet_id, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
@@ -532,8 +550,15 @@ defmodule PetstoreClient.Api.PetApi do
   """
   @spec delete_pet_with_http_info(t(), integer(), Options.t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def delete_pet_with_http_info(%__MODULE__{} = api, pet_id, options, opts \\ []) do
-    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+  def delete_pet_with_http_info(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
+    # Per-operation auth is sourced from the Options struct's optional `auth`
+    # field (the uniform "auth folded into Options" model). A `:auth` entry in
+    # the trailing keyword list still overrides it for ergonomic call sites, and
+    # an absent override falls back to the API instance's configured
+    # authenticator so auth-omitted calls use the Configuration credentials.
+    auth =
+      Keyword.get(opts, :auth) || (options && Map.get(options, :auth)) ||
+        Map.get(api, :authenticator)
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -753,7 +778,7 @@ defmodule PetstoreClient.Api.PetApi do
   @deprecated "This operation is deprecated."
   @spec find_pets_by_status(t(), Options.t(), keyword()) ::
           {:ok, [Pet]} | {:error, term()}
-  def find_pets_by_status(%__MODULE__{} = api, options, opts \\ []) do
+  def find_pets_by_status(%__MODULE__{} = api, options \\ nil, opts \\ []) do
     case find_pets_by_status_with_http_info(api, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
       # comes back with no decodable body surfaces a typed ApiError rather
@@ -779,7 +804,7 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Bang version of `find_pets_by_status`. Raises on error.
   """
-  def find_pets_by_status!(%__MODULE__{} = api, options, opts \\ []) do
+  def find_pets_by_status!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
     case find_pets_by_status(api, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
@@ -791,7 +816,7 @@ defmodule PetstoreClient.Api.PetApi do
   """
   @spec find_pets_by_status_with_http_info(t(), Options.t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def find_pets_by_status_with_http_info(%__MODULE__{} = api, options, opts \\ []) do
+  def find_pets_by_status_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the
     # client has a default authenticator configured (OpenAPI 3.0 spec).
     auth = nil
@@ -1663,7 +1688,7 @@ defmodule PetstoreClient.Api.PetApi do
   """
   @spec get_pet_tag(t(), integer(), String.t(), Options.t(), keyword()) ::
           {:ok, Pet} | {:error, term()}
-  def get_pet_tag(%__MODULE__{} = api, pet_id, tag_name, options, opts \\ []) do
+  def get_pet_tag(%__MODULE__{} = api, pet_id, tag_name, options \\ nil, opts \\ []) do
     case get_pet_tag_with_http_info(api, pet_id, tag_name, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
       # comes back with no decodable body surfaces a typed ApiError rather
@@ -1689,7 +1714,7 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Bang version of `get_pet_tag`. Raises on error.
   """
-  def get_pet_tag!(%__MODULE__{} = api, pet_id, tag_name, options, opts \\ []) do
+  def get_pet_tag!(%__MODULE__{} = api, pet_id, tag_name, options \\ nil, opts \\ []) do
     case get_pet_tag(api, pet_id, tag_name, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
@@ -1701,7 +1726,7 @@ defmodule PetstoreClient.Api.PetApi do
   """
   @spec get_pet_tag_with_http_info(t(), integer(), String.t(), Options.t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def get_pet_tag_with_http_info(%__MODULE__{} = api, pet_id, tag_name, options, opts \\ []) do
+  def get_pet_tag_with_http_info(%__MODULE__{} = api, pet_id, tag_name, options \\ nil, opts \\ []) do
     # Operation declared `security: []` — no auth applied even if the
     # client has a default authenticator configured (OpenAPI 3.0 spec).
     auth = nil

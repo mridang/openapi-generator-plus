@@ -22,7 +22,9 @@ import '../models/pet_treatment.dart';
 import '../models/photo.dart';
 import '../models/photo_metadata.dart';
 import '../models/set_pet_avatar_thumbnail_request.dart';
+import 'options/add_pet_options.dart';
 import 'options/add_pet_photos_options.dart';
+import 'options/add_pet_treatment_options.dart';
 import 'options/delete_pet_options.dart';
 import 'options/find_pets_by_status_options.dart';
 import 'options/get_pet_tag_options.dart';
@@ -169,8 +171,8 @@ class PetApi extends BaseApi {
   /// Add a new pet to the store
   /// `pet` Create a new pet in the store
 
-  Future<Pet> addPet(Pet pet, {Authenticator? auth}) async {
-    final result = await addPetWithHTTPInfo(pet, auth: auth);
+  Future<Pet> addPet(Pet pet, AddPetOptions? options) async {
+    final result = await addPetWithHTTPInfo(pet, options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -190,9 +192,11 @@ class PetApi extends BaseApi {
 
   /// Performs the addPet operation and returns the full API result.
   Future<ApiResult<Pet>> addPetWithHTTPInfo(
-    Pet pet, {
-    Authenticator? auth,
-  }) async {
+    Pet pet,
+    AddPetOptions? options,
+  ) async {
+    final Authenticator? auth = options?.auth;
+
     var path = '/pet';
 
     final queryParams = <String, Object?>{};
@@ -220,10 +224,9 @@ class PetApi extends BaseApi {
 
   Future<List<Photo>> addPetPhotos(
     int petId,
-    AddPetPhotosOptions options, {
-    Authenticator? auth,
-  }) async {
-    final result = await addPetPhotosWithHTTPInfo(petId, options, auth: auth);
+    AddPetPhotosOptions options,
+  ) async {
+    final result = await addPetPhotosWithHTTPInfo(petId, options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -245,9 +248,8 @@ class PetApi extends BaseApi {
   /// Performs the addPetPhotos operation and returns the full API result.
   Future<ApiResult<List<Photo>>> addPetPhotosWithHTTPInfo(
     int petId,
-    AddPetPhotosOptions options, {
-    Authenticator? auth,
-  }) async {
+    AddPetPhotosOptions options,
+  ) async {
     var path = '/pet/{petId}/photos';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -285,7 +287,7 @@ class PetApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'multipart/form-data',
       returnType: 'List<Photo>',
-      auth: auth,
+      auth: null,
       deserialize: (body) =>
           deserializeList(body, Photo.fromJson) as List<Photo>,
     );
@@ -295,13 +297,13 @@ class PetApi extends BaseApi {
 
   Future<PetTreatment> addPetTreatment(
     int petId,
-    PetTreatment petTreatment, {
-    Authenticator? auth,
-  }) async {
+    PetTreatment petTreatment,
+    AddPetTreatmentOptions? options,
+  ) async {
     final result = await addPetTreatmentWithHTTPInfo(
       petId,
       petTreatment,
-      auth: auth,
+      options,
     );
     final data = result.data;
     if (data == null) {
@@ -324,9 +326,11 @@ class PetApi extends BaseApi {
   /// Performs the addPetTreatment operation and returns the full API result.
   Future<ApiResult<PetTreatment>> addPetTreatmentWithHTTPInfo(
     int petId,
-    PetTreatment petTreatment, {
-    Authenticator? auth,
-  }) async {
+    PetTreatment petTreatment,
+    AddPetTreatmentOptions? options,
+  ) async {
+    final Authenticator? auth = options?.auth;
+
     var path = '/pet/{petId}/treatment';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -371,20 +375,17 @@ class PetApi extends BaseApi {
   /// `petId` Pet id to delete
   /// `apiKey` Session cookie used for authentication
 
-  Future<void> deletePet(
-    int petId,
-    DeletePetOptions? options, {
-    Authenticator? auth,
-  }) async {
-    await deletePetWithHTTPInfo(petId, options, auth: auth);
+  Future<void> deletePet(int petId, DeletePetOptions? options) async {
+    await deletePetWithHTTPInfo(petId, options);
   }
 
   /// Performs the deletePet operation and returns the full API result.
   Future<ApiResult<void>> deletePetWithHTTPInfo(
     int petId,
-    DeletePetOptions? options, {
-    Authenticator? auth,
-  }) async {
+    DeletePetOptions? options,
+  ) async {
+    final Authenticator? auth = options?.auth;
+
     var path = '/pet/{petId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -435,16 +436,8 @@ class PetApi extends BaseApi {
   /// Download a vet document
   /// Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
 
-  Future<Uint8List> downloadPetDocument(
-    int petId,
-    int documentId, {
-    Authenticator? auth,
-  }) async {
-    final result = await downloadPetDocumentWithHTTPInfo(
-      petId,
-      documentId,
-      auth: auth,
-    );
+  Future<Uint8List> downloadPetDocument(int petId, int documentId) async {
+    final result = await downloadPetDocumentWithHTTPInfo(petId, documentId);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -466,9 +459,8 @@ class PetApi extends BaseApi {
   /// Performs the downloadPetDocument operation and returns the full API result.
   Future<ApiResult<Uint8List>> downloadPetDocumentWithHTTPInfo(
     int petId,
-    int documentId, {
-    Authenticator? auth,
-  }) async {
+    int documentId,
+  ) async {
     var path = '/pet/{petId}/documents/{documentId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -520,7 +512,7 @@ class PetApi extends BaseApi {
       accepts: ['application/octet-stream'],
       contentType: 'application/json',
       returnType: 'Uint8List',
-      auth: auth,
+      auth: null,
       deserialize: (body) => deserializeRaw(body) as Uint8List,
     );
   }
@@ -539,11 +531,8 @@ class PetApi extends BaseApi {
   /// ```json
   /// sold
   /// ```
-  Future<List<Pet>> findPetsByStatus(
-    FindPetsByStatusOptions? options, {
-    Authenticator? auth,
-  }) async {
-    final result = await findPetsByStatusWithHTTPInfo(options, auth: auth);
+  Future<List<Pet>> findPetsByStatus(FindPetsByStatusOptions? options) async {
+    final result = await findPetsByStatusWithHTTPInfo(options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -564,9 +553,8 @@ class PetApi extends BaseApi {
 
   /// Performs the findPetsByStatus operation and returns the full API result.
   Future<ApiResult<List<Pet>>> findPetsByStatusWithHTTPInfo(
-    FindPetsByStatusOptions? options, {
-    Authenticator? auth,
-  }) async {
+    FindPetsByStatusOptions? options,
+  ) async {
     var path = '/pet/findByStatus';
 
     final queryParams = <String, Object?>{};
@@ -607,7 +595,7 @@ class PetApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'List<Pet>',
-      auth: auth,
+      auth: null,
       deserialize: (body) => deserializeList(body, Pet.fromJson) as List<Pet>,
     );
   }
@@ -616,14 +604,9 @@ class PetApi extends BaseApi {
 
   Future<Pet> getExternalPetInfo(
     int petId,
-    GetExternalPetInfoServer? server, {
-    Authenticator? auth,
-  }) async {
-    final result = await getExternalPetInfoWithHTTPInfo(
-      petId,
-      server,
-      auth: auth,
-    );
+    GetExternalPetInfoServer? server,
+  ) async {
+    final result = await getExternalPetInfoWithHTTPInfo(petId, server);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -645,9 +628,8 @@ class PetApi extends BaseApi {
   /// Performs the getExternalPetInfo operation and returns the full API result.
   Future<ApiResult<Pet>> getExternalPetInfoWithHTTPInfo(
     int petId,
-    GetExternalPetInfoServer? server, {
-    Authenticator? auth,
-  }) async {
+    GetExternalPetInfoServer? server,
+  ) async {
     var path = '/pet/{petId}/external';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -688,7 +670,7 @@ class PetApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'Pet',
-      auth: auth,
+      auth: null,
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
   }
@@ -697,14 +679,9 @@ class PetApi extends BaseApi {
 
   Future<Pet> getMultiServerPetInfo(
     int petId,
-    GetMultiServerPetInfoServer? server, {
-    Authenticator? auth,
-  }) async {
-    final result = await getMultiServerPetInfoWithHTTPInfo(
-      petId,
-      server,
-      auth: auth,
-    );
+    GetMultiServerPetInfoServer? server,
+  ) async {
+    final result = await getMultiServerPetInfoWithHTTPInfo(petId, server);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -726,9 +703,8 @@ class PetApi extends BaseApi {
   /// Performs the getMultiServerPetInfo operation and returns the full API result.
   Future<ApiResult<Pet>> getMultiServerPetInfoWithHTTPInfo(
     int petId,
-    GetMultiServerPetInfoServer? server, {
-    Authenticator? auth,
-  }) async {
+    GetMultiServerPetInfoServer? server,
+  ) async {
     var path = '/pet/{petId}/multi';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -769,7 +745,7 @@ class PetApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'Pet',
-      auth: auth,
+      auth: null,
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
   }
@@ -777,8 +753,8 @@ class PetApi extends BaseApi {
   /// Get the pet's profile photo
   /// Returns the raw image bytes of the pet's current avatar.
 
-  Future<Uint8List> getPetAvatar(int petId, {Authenticator? auth}) async {
-    final result = await getPetAvatarWithHTTPInfo(petId, auth: auth);
+  Future<Uint8List> getPetAvatar(int petId) async {
+    final result = await getPetAvatarWithHTTPInfo(petId);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -798,10 +774,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getPetAvatar operation and returns the full API result.
-  Future<ApiResult<Uint8List>> getPetAvatarWithHTTPInfo(
-    int petId, {
-    Authenticator? auth,
-  }) async {
+  Future<ApiResult<Uint8List>> getPetAvatarWithHTTPInfo(int petId) async {
     var path = '/pet/{petId}/avatar';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -836,7 +809,7 @@ class PetApi extends BaseApi {
       accepts: ['image/jpeg', 'image/png'],
       contentType: 'application/json',
       returnType: 'Uint8List',
-      auth: auth,
+      auth: null,
       deserialize: (body) => deserializeRaw(body) as Uint8List,
     );
   }
@@ -844,11 +817,8 @@ class PetApi extends BaseApi {
   /// Get the pet's avatar thumbnail as base64
   /// Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
 
-  Future<Uint8List> getPetAvatarThumbnail(
-    int petId, {
-    Authenticator? auth,
-  }) async {
-    final result = await getPetAvatarThumbnailWithHTTPInfo(petId, auth: auth);
+  Future<Uint8List> getPetAvatarThumbnail(int petId) async {
+    final result = await getPetAvatarThumbnailWithHTTPInfo(petId);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -869,9 +839,8 @@ class PetApi extends BaseApi {
 
   /// Performs the getPetAvatarThumbnail operation and returns the full API result.
   Future<ApiResult<Uint8List>> getPetAvatarThumbnailWithHTTPInfo(
-    int petId, {
-    Authenticator? auth,
-  }) async {
+    int petId,
+  ) async {
     var path = '/pet/{petId}/avatar/thumbnail';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -906,7 +875,7 @@ class PetApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'Uint8List',
-      auth: auth,
+      auth: null,
       deserialize: (body) => deserializeRaw(body) as Uint8List,
     );
   }
@@ -925,12 +894,8 @@ class PetApi extends BaseApi {
   /// ```json
   /// 42
   /// ```
-  Future<Pet> getPetById(
-    int petId,
-    GetPetByIdServer? server, {
-    Authenticator? auth,
-  }) async {
-    final result = await getPetByIdWithHTTPInfo(petId, server, auth: auth);
+  Future<Pet> getPetById(int petId, GetPetByIdServer? server) async {
+    final result = await getPetByIdWithHTTPInfo(petId, server);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -952,9 +917,8 @@ class PetApi extends BaseApi {
   /// Performs the getPetById operation and returns the full API result.
   Future<ApiResult<Pet>> getPetByIdWithHTTPInfo(
     int petId,
-    GetPetByIdServer? server, {
-    Authenticator? auth,
-  }) async {
+    GetPetByIdServer? server,
+  ) async {
     var path = '/pet/{petId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -995,7 +959,7 @@ class PetApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'Pet',
-      auth: auth,
+      auth: null,
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
   }
@@ -1003,8 +967,8 @@ class PetApi extends BaseApi {
   /// Get the pet's passport
   /// Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
 
-  Future<PetPassport> getPetPassport(int petId, {Authenticator? auth}) async {
-    final result = await getPetPassportWithHTTPInfo(petId, auth: auth);
+  Future<PetPassport> getPetPassport(int petId) async {
+    final result = await getPetPassportWithHTTPInfo(petId);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1024,10 +988,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getPetPassport operation and returns the full API result.
-  Future<ApiResult<PetPassport>> getPetPassportWithHTTPInfo(
-    int petId, {
-    Authenticator? auth,
-  }) async {
+  Future<ApiResult<PetPassport>> getPetPassportWithHTTPInfo(int petId) async {
     var path = '/pet/{petId}/passport';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -1062,7 +1023,7 @@ class PetApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'PetPassport',
-      auth: auth,
+      auth: null,
       deserialize: (body) =>
           deserialize(body, PetPassport.fromJson) as PetPassport,
     );
@@ -1071,12 +1032,8 @@ class PetApi extends BaseApi {
   /// Get a photo or its metadata
   /// Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
 
-  Future<Uint8List> getPetPhoto(
-    int petId,
-    int photoId, {
-    Authenticator? auth,
-  }) async {
-    final result = await getPetPhotoWithHTTPInfo(petId, photoId, auth: auth);
+  Future<Uint8List> getPetPhoto(int petId, int photoId) async {
+    final result = await getPetPhotoWithHTTPInfo(petId, photoId);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1098,9 +1055,8 @@ class PetApi extends BaseApi {
   /// Performs the getPetPhoto operation and returns the full API result.
   Future<ApiResult<Uint8List>> getPetPhotoWithHTTPInfo(
     int petId,
-    int photoId, {
-    Authenticator? auth,
-  }) async {
+    int photoId,
+  ) async {
     var path = '/pet/{petId}/photos/{photoId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -1152,7 +1108,7 @@ class PetApi extends BaseApi {
       accepts: ['image/jpeg', 'image/png', 'application/json'],
       contentType: 'application/json',
       returnType: 'Uint8List',
-      auth: auth,
+      auth: null,
       deserialize: (body) => deserializeRaw(body) as Uint8List,
     );
   }
@@ -1162,15 +1118,9 @@ class PetApi extends BaseApi {
   Future<Pet> getPetTag(
     int petId,
     String tagName,
-    GetPetTagOptions? options, {
-    Authenticator? auth,
-  }) async {
-    final result = await getPetTagWithHTTPInfo(
-      petId,
-      tagName,
-      options,
-      auth: auth,
-    );
+    GetPetTagOptions? options,
+  ) async {
+    final result = await getPetTagWithHTTPInfo(petId, tagName, options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1192,9 +1142,8 @@ class PetApi extends BaseApi {
   Future<ApiResult<Pet>> getPetTagWithHTTPInfo(
     int petId,
     String tagName,
-    GetPetTagOptions? options, {
-    Authenticator? auth,
-  }) async {
+    GetPetTagOptions? options,
+  ) async {
     var path = '/pet/{petId}/tag/{tagName}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -1283,7 +1232,7 @@ class PetApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'Pet',
-      auth: auth,
+      auth: null,
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
   }
@@ -1292,14 +1241,9 @@ class PetApi extends BaseApi {
 
   Future<Pet> getStagingPetInfo(
     int petId,
-    GetStagingPetInfoServer? server, {
-    Authenticator? auth,
-  }) async {
-    final result = await getStagingPetInfoWithHTTPInfo(
-      petId,
-      server,
-      auth: auth,
-    );
+    GetStagingPetInfoServer? server,
+  ) async {
+    final result = await getStagingPetInfoWithHTTPInfo(petId, server);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1321,9 +1265,8 @@ class PetApi extends BaseApi {
   /// Performs the getStagingPetInfo operation and returns the full API result.
   Future<ApiResult<Pet>> getStagingPetInfoWithHTTPInfo(
     int petId,
-    GetStagingPetInfoServer? server, {
-    Authenticator? auth,
-  }) async {
+    GetStagingPetInfoServer? server,
+  ) async {
     var path = '/pet/{petId}/staging';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -1364,7 +1307,7 @@ class PetApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'Pet',
-      auth: auth,
+      auth: null,
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
   }
@@ -1372,20 +1315,15 @@ class PetApi extends BaseApi {
   /// Set the pet's profile photo
   /// Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
 
-  Future<void> setPetAvatar(
-    int petId,
-    Uint8List body, {
-    Authenticator? auth,
-  }) async {
-    await setPetAvatarWithHTTPInfo(petId, body, auth: auth);
+  Future<void> setPetAvatar(int petId, Uint8List body) async {
+    await setPetAvatarWithHTTPInfo(petId, body);
   }
 
   /// Performs the setPetAvatar operation and returns the full API result.
   Future<ApiResult<void>> setPetAvatarWithHTTPInfo(
     int petId,
-    Uint8List body, {
-    Authenticator? auth,
-  }) async {
+    Uint8List body,
+  ) async {
     var path = '/pet/{petId}/avatar';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -1420,7 +1358,7 @@ class PetApi extends BaseApi {
       accepts: [],
       contentType: 'image/jpeg',
       returnType: '',
-      auth: auth,
+      auth: null,
     );
   }
 
@@ -1429,22 +1367,19 @@ class PetApi extends BaseApi {
 
   Future<void> setPetAvatarThumbnail(
     int petId,
-    SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest, {
-    Authenticator? auth,
-  }) async {
+    SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
+  ) async {
     await setPetAvatarThumbnailWithHTTPInfo(
       petId,
       setPetAvatarThumbnailRequest,
-      auth: auth,
     );
   }
 
   /// Performs the setPetAvatarThumbnail operation and returns the full API result.
   Future<ApiResult<void>> setPetAvatarThumbnailWithHTTPInfo(
     int petId,
-    SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest, {
-    Authenticator? auth,
-  }) async {
+    SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
+  ) async {
     var path = '/pet/{petId}/avatar/thumbnail';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -1479,7 +1414,7 @@ class PetApi extends BaseApi {
       accepts: [],
       contentType: 'application/json',
       returnType: '',
-      auth: auth,
+      auth: null,
     );
   }
 
@@ -1487,8 +1422,8 @@ class PetApi extends BaseApi {
   /// `petId` ID of pet to update
   /// `pet` Pet object that needs to be updated
 
-  Future<Pet> updatePet(int petId, Pet pet, {Authenticator? auth}) async {
-    final result = await updatePetWithHTTPInfo(petId, pet, auth: auth);
+  Future<Pet> updatePet(int petId, Pet pet) async {
+    final result = await updatePetWithHTTPInfo(petId, pet);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1507,11 +1442,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the updatePet operation and returns the full API result.
-  Future<ApiResult<Pet>> updatePetWithHTTPInfo(
-    int petId,
-    Pet pet, {
-    Authenticator? auth,
-  }) async {
+  Future<ApiResult<Pet>> updatePetWithHTTPInfo(int petId, Pet pet) async {
     var path = '/pet/{petId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -1546,7 +1477,7 @@ class PetApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'Pet',
-      auth: auth,
+      auth: null,
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
   }
@@ -1556,14 +1487,9 @@ class PetApi extends BaseApi {
 
   Future<ApiResponse> uploadPetCertificate(
     int petId,
-    UploadPetCertificateOptions options, {
-    Authenticator? auth,
-  }) async {
-    final result = await uploadPetCertificateWithHTTPInfo(
-      petId,
-      options,
-      auth: auth,
-    );
+    UploadPetCertificateOptions options,
+  ) async {
+    final result = await uploadPetCertificateWithHTTPInfo(petId, options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1585,9 +1511,8 @@ class PetApi extends BaseApi {
   /// Performs the uploadPetCertificate operation and returns the full API result.
   Future<ApiResult<ApiResponse>> uploadPetCertificateWithHTTPInfo(
     int petId,
-    UploadPetCertificateOptions options, {
-    Authenticator? auth,
-  }) async {
+    UploadPetCertificateOptions options,
+  ) async {
     var path = '/pet/{petId}/certificate';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -1624,7 +1549,7 @@ class PetApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'multipart/form-data',
       returnType: 'ApiResponse',
-      auth: auth,
+      auth: null,
       deserialize: (body) =>
           deserialize(body, ApiResponse.fromJson) as ApiResponse,
     );
@@ -1635,14 +1560,9 @@ class PetApi extends BaseApi {
 
   Future<ApiResponse> uploadPetDocument(
     int petId,
-    UploadPetDocumentOptions options, {
-    Authenticator? auth,
-  }) async {
-    final result = await uploadPetDocumentWithHTTPInfo(
-      petId,
-      options,
-      auth: auth,
-    );
+    UploadPetDocumentOptions options,
+  ) async {
+    final result = await uploadPetDocumentWithHTTPInfo(petId, options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1664,9 +1584,8 @@ class PetApi extends BaseApi {
   /// Performs the uploadPetDocument operation and returns the full API result.
   Future<ApiResult<ApiResponse>> uploadPetDocumentWithHTTPInfo(
     int petId,
-    UploadPetDocumentOptions options, {
-    Authenticator? auth,
-  }) async {
+    UploadPetDocumentOptions options,
+  ) async {
     var path = '/pet/{petId}/documents';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -1709,7 +1628,7 @@ class PetApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'multipart/form-data',
       returnType: 'ApiResponse',
-      auth: auth,
+      auth: null,
       deserialize: (body) =>
           deserialize(body, ApiResponse.fromJson) as ApiResponse,
     );

@@ -126,8 +126,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     /// - Parameters:
     ///   - pet: Create a new pet in the store
 
-    public func addPet(pet: Pet, auth: Authenticator? = nil) async throws -> Pet {
-        let result = try await addPetWithHTTPInfo(pet: pet, auth: auth)
+    public func addPet(pet: Pet, options: AddPetOptions? = nil) async throws -> Pet {
+        let result = try await addPetWithHTTPInfo(pet: pet, options: options)
         guard let data = result.data else {
             throw ApiError(
                 statusCode: result.statusCode,
@@ -140,7 +140,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the addPet operation and returns the full API result.
-    public func addPetWithHTTPInfo(pet: Pet, auth: Authenticator? = nil) async throws -> ApiResult<Pet> {
+    public func addPetWithHTTPInfo(pet: Pet, options: AddPetOptions? = nil) async throws -> ApiResult<Pet> {
 
         let path = "/pet"
 
@@ -159,7 +159,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
             accepts: ["application/json"],
             contentType: "application/json",
             returnType: "Pet",
-            auth: auth
+            auth: options?.auth
         )
 
         return try await invokeAPIForResult(params, as: Pet.self)
@@ -170,8 +170,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     ///
     /// - Parameters:
 
-    public func addPetPhotos(petId: Int64, options: AddPetPhotosOptions, ) async throws -> [Photo] {
-        let result = try await addPetPhotosWithHTTPInfo(petId: petId, options: options, )
+    public func addPetPhotos(petId: Int64, options: AddPetPhotosOptions) async throws -> [Photo] {
+        let result = try await addPetPhotosWithHTTPInfo(petId: petId, options: options)
         guard let data = result.data else {
             throw ApiError(
                 statusCode: result.statusCode,
@@ -184,9 +184,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the addPetPhotos operation and returns the full API result.
-    public func addPetPhotosWithHTTPInfo(
-        petId: Int64, options: AddPetPhotosOptions,
-    ) async throws -> ApiResult<[Photo]> {
+    public func addPetPhotosWithHTTPInfo(petId: Int64, options: AddPetPhotosOptions) async throws -> ApiResult<[Photo]>
+    {
 
         var path = "/pet/{petId}/photos"
         path = path.replacingOccurrences(
@@ -224,9 +223,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     /// - Parameters:
 
     public func addPetTreatment(
-        petId: Int64, petTreatment: PetTreatment, auth: Authenticator? = nil
+        petId: Int64, petTreatment: PetTreatment, options: AddPetTreatmentOptions? = nil
     ) async throws -> PetTreatment {
-        let result = try await addPetTreatmentWithHTTPInfo(petId: petId, petTreatment: petTreatment, auth: auth)
+        let result = try await addPetTreatmentWithHTTPInfo(petId: petId, petTreatment: petTreatment, options: options)
         guard let data = result.data else {
             throw ApiError(
                 statusCode: result.statusCode,
@@ -240,7 +239,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
 
     /// Performs the addPetTreatment operation and returns the full API result.
     public func addPetTreatmentWithHTTPInfo(
-        petId: Int64, petTreatment: PetTreatment, auth: Authenticator? = nil
+        petId: Int64, petTreatment: PetTreatment, options: AddPetTreatmentOptions? = nil
     ) async throws -> ApiResult<PetTreatment> {
 
         var path = "/pet/{petId}/treatment"
@@ -265,7 +264,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
             accepts: ["application/json"],
             contentType: "application/json",
             returnType: "PetTreatment",
-            auth: auth
+            auth: options?.auth
         )
 
         return try await invokeAPIForResult(params, as: PetTreatment.self)
@@ -277,15 +276,13 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     ///   - petId: Pet id to delete
     ///   - apiKey: Session cookie used for authentication
 
-    public func deletePet(petId: Int64, options: DeletePetOptions? = nil, auth: Authenticator? = nil) async throws {
-        let result = try await deletePetWithHTTPInfo(petId: petId, options: options, auth: auth)
+    public func deletePet(petId: Int64, options: DeletePetOptions? = nil) async throws {
+        let result = try await deletePetWithHTTPInfo(petId: petId, options: options)
         _ = result
     }
 
     /// Performs the deletePet operation and returns the full API result.
-    public func deletePetWithHTTPInfo(
-        petId: Int64, options: DeletePetOptions? = nil, auth: Authenticator? = nil
-    ) async throws -> ApiResult<Void> {
+    public func deletePetWithHTTPInfo(petId: Int64, options: DeletePetOptions? = nil) async throws -> ApiResult<Void> {
 
         var path = "/pet/{petId}"
         path = path.replacingOccurrences(
@@ -318,7 +315,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
             accepts: [],
             contentType: "application/json",
             returnType: "",
-            auth: auth
+            auth: options?.auth
         )
 
         return try await invokeAPIForEmptyResult(params)
@@ -329,8 +326,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     ///
     /// - Parameters:
 
-    public func downloadPetDocument(petId: Int64, documentId: Int64, ) async throws -> Data {
-        let result = try await downloadPetDocumentWithHTTPInfo(petId: petId, documentId: documentId, )
+    public func downloadPetDocument(petId: Int64, documentId: Int64) async throws -> Data {
+        let result = try await downloadPetDocumentWithHTTPInfo(petId: petId, documentId: documentId)
         guard let data = result.data else {
             throw ApiError(
                 statusCode: result.statusCode,
@@ -343,7 +340,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the downloadPetDocument operation and returns the full API result.
-    public func downloadPetDocumentWithHTTPInfo(petId: Int64, documentId: Int64, ) async throws -> ApiResult<Data> {
+    public func downloadPetDocumentWithHTTPInfo(petId: Int64, documentId: Int64) async throws -> ApiResult<Data> {
 
         var path = "/pet/{petId}/documents/{documentId}"
         path = path.replacingOccurrences(
@@ -398,8 +395,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     /// sold
     /// ```
 
-    public func findPetsByStatus(options: FindPetsByStatusOptions? = nil, ) async throws -> [Pet] {
-        let result = try await findPetsByStatusWithHTTPInfo(options: options, )
+    public func findPetsByStatus(options: FindPetsByStatusOptions? = nil) async throws -> [Pet] {
+        let result = try await findPetsByStatusWithHTTPInfo(options: options)
         guard let data = result.data else {
             throw ApiError(
                 statusCode: result.statusCode,
@@ -412,8 +409,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the findPetsByStatus operation and returns the full API result.
-    public func findPetsByStatusWithHTTPInfo(options: FindPetsByStatusOptions? = nil, ) async throws -> ApiResult<[Pet]>
-    {
+    public func findPetsByStatusWithHTTPInfo(options: FindPetsByStatusOptions? = nil) async throws -> ApiResult<[Pet]> {
 
         let path = "/pet/findByStatus"
 
@@ -458,8 +454,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     ///
     /// - Parameters:
 
-    public func getExternalPetInfo(petId: Int64, server: (any GetExternalPetInfoServer)? = nil, ) async throws -> Pet {
-        let result = try await getExternalPetInfoWithHTTPInfo(petId: petId, server: server, )
+    public func getExternalPetInfo(petId: Int64, server: (any GetExternalPetInfoServer)? = nil) async throws -> Pet {
+        let result = try await getExternalPetInfoWithHTTPInfo(petId: petId, server: server)
         guard let data = result.data else {
             throw ApiError(
                 statusCode: result.statusCode,
@@ -473,7 +469,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
 
     /// Performs the getExternalPetInfo operation and returns the full API result.
     public func getExternalPetInfoWithHTTPInfo(
-        petId: Int64, server: (any GetExternalPetInfoServer)? = nil,
+        petId: Int64, server: (any GetExternalPetInfoServer)? = nil
     ) async throws -> ApiResult<Pet> {
 
         var path = "/pet/{petId}/external"
@@ -515,9 +511,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     /// - Parameters:
 
     public func getMultiServerPetInfo(
-        petId: Int64, server: (any GetMultiServerPetInfoServer)? = nil,
+        petId: Int64, server: (any GetMultiServerPetInfoServer)? = nil
     ) async throws -> Pet {
-        let result = try await getMultiServerPetInfoWithHTTPInfo(petId: petId, server: server, )
+        let result = try await getMultiServerPetInfoWithHTTPInfo(petId: petId, server: server)
         guard let data = result.data else {
             throw ApiError(
                 statusCode: result.statusCode,
@@ -531,7 +527,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
 
     /// Performs the getMultiServerPetInfo operation and returns the full API result.
     public func getMultiServerPetInfoWithHTTPInfo(
-        petId: Int64, server: (any GetMultiServerPetInfoServer)? = nil,
+        petId: Int64, server: (any GetMultiServerPetInfoServer)? = nil
     ) async throws -> ApiResult<Pet> {
 
         var path = "/pet/{petId}/multi"
@@ -573,8 +569,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     ///
     /// - Parameters:
 
-    public func getPetAvatar(petId: Int64, ) async throws -> Data {
-        let result = try await getPetAvatarWithHTTPInfo(petId: petId, )
+    public func getPetAvatar(petId: Int64) async throws -> Data {
+        let result = try await getPetAvatarWithHTTPInfo(petId: petId)
         guard let data = result.data else {
             throw ApiError(
                 statusCode: result.statusCode,
@@ -587,7 +583,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the getPetAvatar operation and returns the full API result.
-    public func getPetAvatarWithHTTPInfo(petId: Int64, ) async throws -> ApiResult<Data> {
+    public func getPetAvatarWithHTTPInfo(petId: Int64) async throws -> ApiResult<Data> {
 
         var path = "/pet/{petId}/avatar"
         path = path.replacingOccurrences(
@@ -622,8 +618,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     ///
     /// - Parameters:
 
-    public func getPetAvatarThumbnail(petId: Int64, ) async throws -> Data {
-        let result = try await getPetAvatarThumbnailWithHTTPInfo(petId: petId, )
+    public func getPetAvatarThumbnail(petId: Int64) async throws -> Data {
+        let result = try await getPetAvatarThumbnailWithHTTPInfo(petId: petId)
         guard let data = result.data else {
             throw ApiError(
                 statusCode: result.statusCode,
@@ -636,7 +632,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the getPetAvatarThumbnail operation and returns the full API result.
-    public func getPetAvatarThumbnailWithHTTPInfo(petId: Int64, ) async throws -> ApiResult<Data> {
+    public func getPetAvatarThumbnailWithHTTPInfo(petId: Int64) async throws -> ApiResult<Data> {
 
         var path = "/pet/{petId}/avatar/thumbnail"
         path = path.replacingOccurrences(
@@ -685,8 +681,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     /// 42
     /// ```
 
-    public func getPetById(petId: Int64, server: (any GetPetByIdServer)? = nil, ) async throws -> Pet {
-        let result = try await getPetByIdWithHTTPInfo(petId: petId, server: server, )
+    public func getPetById(petId: Int64, server: (any GetPetByIdServer)? = nil) async throws -> Pet {
+        let result = try await getPetByIdWithHTTPInfo(petId: petId, server: server)
         guard let data = result.data else {
             throw ApiError(
                 statusCode: result.statusCode,
@@ -700,7 +696,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
 
     /// Performs the getPetById operation and returns the full API result.
     public func getPetByIdWithHTTPInfo(
-        petId: Int64, server: (any GetPetByIdServer)? = nil,
+        petId: Int64, server: (any GetPetByIdServer)? = nil
     ) async throws -> ApiResult<Pet> {
 
         var path = "/pet/{petId}"
@@ -742,8 +738,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     ///
     /// - Parameters:
 
-    public func getPetPassport(petId: Int64, ) async throws -> PetPassport {
-        let result = try await getPetPassportWithHTTPInfo(petId: petId, )
+    public func getPetPassport(petId: Int64) async throws -> PetPassport {
+        let result = try await getPetPassportWithHTTPInfo(petId: petId)
         guard let data = result.data else {
             throw ApiError(
                 statusCode: result.statusCode,
@@ -756,7 +752,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the getPetPassport operation and returns the full API result.
-    public func getPetPassportWithHTTPInfo(petId: Int64, ) async throws -> ApiResult<PetPassport> {
+    public func getPetPassportWithHTTPInfo(petId: Int64) async throws -> ApiResult<PetPassport> {
 
         var path = "/pet/{petId}/passport"
         path = path.replacingOccurrences(
@@ -791,8 +787,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     ///
     /// - Parameters:
 
-    public func getPetPhoto(petId: Int64, photoId: Int64, ) async throws -> Data {
-        let result = try await getPetPhotoWithHTTPInfo(petId: petId, photoId: photoId, )
+    public func getPetPhoto(petId: Int64, photoId: Int64) async throws -> Data {
+        let result = try await getPetPhotoWithHTTPInfo(petId: petId, photoId: photoId)
         guard let data = result.data else {
             throw ApiError(
                 statusCode: result.statusCode,
@@ -805,7 +801,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the getPetPhoto operation and returns the full API result.
-    public func getPetPhotoWithHTTPInfo(petId: Int64, photoId: Int64, ) async throws -> ApiResult<Data> {
+    public func getPetPhotoWithHTTPInfo(petId: Int64, photoId: Int64) async throws -> ApiResult<Data> {
 
         var path = "/pet/{petId}/photos/{photoId}"
         path = path.replacingOccurrences(
@@ -844,8 +840,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     ///
     /// - Parameters:
 
-    public func getPetTag(petId: Int64, tagName: String, options: GetPetTagOptions? = nil, ) async throws -> Pet {
-        let result = try await getPetTagWithHTTPInfo(petId: petId, tagName: tagName, options: options, )
+    public func getPetTag(petId: Int64, tagName: String, options: GetPetTagOptions? = nil) async throws -> Pet {
+        let result = try await getPetTagWithHTTPInfo(petId: petId, tagName: tagName, options: options)
         guard let data = result.data else {
             throw ApiError(
                 statusCode: result.statusCode,
@@ -859,7 +855,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
 
     /// Performs the getPetTag operation and returns the full API result.
     public func getPetTagWithHTTPInfo(
-        petId: Int64, tagName: String, options: GetPetTagOptions? = nil,
+        petId: Int64, tagName: String, options: GetPetTagOptions? = nil
     ) async throws -> ApiResult<Pet> {
         guard !tagName.isEmpty else {
             throw ApiError(
@@ -922,8 +918,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     ///
     /// - Parameters:
 
-    public func getStagingPetInfo(petId: Int64, server: (any GetStagingPetInfoServer)? = nil, ) async throws -> Pet {
-        let result = try await getStagingPetInfoWithHTTPInfo(petId: petId, server: server, )
+    public func getStagingPetInfo(petId: Int64, server: (any GetStagingPetInfoServer)? = nil) async throws -> Pet {
+        let result = try await getStagingPetInfoWithHTTPInfo(petId: petId, server: server)
         guard let data = result.data else {
             throw ApiError(
                 statusCode: result.statusCode,
@@ -937,7 +933,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
 
     /// Performs the getStagingPetInfo operation and returns the full API result.
     public func getStagingPetInfoWithHTTPInfo(
-        petId: Int64, server: (any GetStagingPetInfoServer)? = nil,
+        petId: Int64, server: (any GetStagingPetInfoServer)? = nil
     ) async throws -> ApiResult<Pet> {
 
         var path = "/pet/{petId}/staging"
@@ -979,13 +975,13 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     ///
     /// - Parameters:
 
-    public func setPetAvatar(petId: Int64, body: Data, ) async throws {
-        let result = try await setPetAvatarWithHTTPInfo(petId: petId, body: body, )
+    public func setPetAvatar(petId: Int64, body: Data) async throws {
+        let result = try await setPetAvatarWithHTTPInfo(petId: petId, body: body)
         _ = result
     }
 
     /// Performs the setPetAvatar operation and returns the full API result.
-    public func setPetAvatarWithHTTPInfo(petId: Int64, body: Data, ) async throws -> ApiResult<Void> {
+    public func setPetAvatarWithHTTPInfo(petId: Int64, body: Data) async throws -> ApiResult<Void> {
 
         var path = "/pet/{petId}/avatar"
         path = path.replacingOccurrences(
@@ -1021,16 +1017,16 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     /// - Parameters:
 
     public func setPetAvatarThumbnail(
-        petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest,
+        petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest
     ) async throws {
         let result = try await setPetAvatarThumbnailWithHTTPInfo(
-            petId: petId, setPetAvatarThumbnailRequest: setPetAvatarThumbnailRequest, )
+            petId: petId, setPetAvatarThumbnailRequest: setPetAvatarThumbnailRequest)
         _ = result
     }
 
     /// Performs the setPetAvatarThumbnail operation and returns the full API result.
     public func setPetAvatarThumbnailWithHTTPInfo(
-        petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest,
+        petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest
     ) async throws -> ApiResult<Void> {
 
         var path = "/pet/{petId}/avatar/thumbnail"
@@ -1067,8 +1063,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     ///   - petId: ID of pet to update
     ///   - pet: Pet object that needs to be updated
 
-    public func updatePet(petId: Int64, pet: Pet, ) async throws -> Pet {
-        let result = try await updatePetWithHTTPInfo(petId: petId, pet: pet, )
+    public func updatePet(petId: Int64, pet: Pet) async throws -> Pet {
+        let result = try await updatePetWithHTTPInfo(petId: petId, pet: pet)
         guard let data = result.data else {
             throw ApiError(
                 statusCode: result.statusCode,
@@ -1081,7 +1077,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the updatePet operation and returns the full API result.
-    public func updatePetWithHTTPInfo(petId: Int64, pet: Pet, ) async throws -> ApiResult<Pet> {
+    public func updatePetWithHTTPInfo(petId: Int64, pet: Pet) async throws -> ApiResult<Pet> {
 
         var path = "/pet/{petId}"
         path = path.replacingOccurrences(
@@ -1116,8 +1112,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     ///
     /// - Parameters:
 
-    public func uploadPetCertificate(petId: Int64, options: UploadPetCertificateOptions, ) async throws -> ApiResponse {
-        let result = try await uploadPetCertificateWithHTTPInfo(petId: petId, options: options, )
+    public func uploadPetCertificate(petId: Int64, options: UploadPetCertificateOptions) async throws -> ApiResponse {
+        let result = try await uploadPetCertificateWithHTTPInfo(petId: petId, options: options)
         guard let data = result.data else {
             throw ApiError(
                 statusCode: result.statusCode,
@@ -1131,7 +1127,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
 
     /// Performs the uploadPetCertificate operation and returns the full API result.
     public func uploadPetCertificateWithHTTPInfo(
-        petId: Int64, options: UploadPetCertificateOptions,
+        petId: Int64, options: UploadPetCertificateOptions
     ) async throws -> ApiResult<ApiResponse> {
 
         var path = "/pet/{petId}/certificate"
@@ -1169,8 +1165,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     ///
     /// - Parameters:
 
-    public func uploadPetDocument(petId: Int64, options: UploadPetDocumentOptions, ) async throws -> ApiResponse {
-        let result = try await uploadPetDocumentWithHTTPInfo(petId: petId, options: options, )
+    public func uploadPetDocument(petId: Int64, options: UploadPetDocumentOptions) async throws -> ApiResponse {
+        let result = try await uploadPetDocumentWithHTTPInfo(petId: petId, options: options)
         guard let data = result.data else {
             throw ApiError(
                 statusCode: result.statusCode,
@@ -1184,7 +1180,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
 
     /// Performs the uploadPetDocument operation and returns the full API result.
     public func uploadPetDocumentWithHTTPInfo(
-        petId: Int64, options: UploadPetDocumentOptions,
+        petId: Int64, options: UploadPetDocumentOptions
     ) async throws -> ApiResult<ApiResponse> {
 
         var path = "/pet/{petId}/documents"

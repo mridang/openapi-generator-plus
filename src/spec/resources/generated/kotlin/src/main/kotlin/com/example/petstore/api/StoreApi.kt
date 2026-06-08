@@ -30,7 +30,6 @@ class StoreApi : BaseApi {
     /**
      * Delete purchase order by ID
      * @param orderId ID of the order to delete (required)
-
      * @throws ApiException if fails to make API call
      */
 
@@ -64,7 +63,6 @@ class StoreApi : BaseApi {
 
     /**
      * Returns pet inventories by status
-
      * @return Map<String, Int>
      * @throws ApiException if fails to make API call
      */
@@ -92,7 +90,6 @@ class StoreApi : BaseApi {
     /**
      * Find purchase order by ID
      * @param orderId ID of order to return (required)
-
      * @return Order
      * @throws ApiException if fails to make API call
      */
@@ -128,7 +125,6 @@ class StoreApi : BaseApi {
     /**
      * Place an order for a pet
      * @param order  (optional)
-
      * @return Order
      * @throws ApiException if fails to make API call
      */

@@ -1,0 +1,7 @@
+package options
+
+// AddPetTreatmentOptions holds optional parameters for the AddPetTreatment operation.
+type AddPetTreatmentOptions struct {
+	/* Auth overrides the client's configured credentials for this call only. */
+	Auth Authenticator
+}

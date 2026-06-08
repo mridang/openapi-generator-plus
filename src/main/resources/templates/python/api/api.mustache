@@ -90,17 +90,11 @@ class {{classname}}(BaseApi):
 {{#vendorExtensions.op.signatureArgs}}
         {{paramName}}: {{#isPath}}{{{dataType}}}{{/isPath}}{{#isBody}}{{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}}{{/isBody}}{{#isOptions}}Optional[{{{dataType}}}] = None{{/isOptions}}{{#isServer}}Optional['{{{dataType}}}'] = None{{/isServer}},
 {{/vendorExtensions.op.signatureArgs}}
-{{#hasAuthMethods}}
-        auth: Optional[Authenticator] = None,
-{{/hasAuthMethods}}
     ) -> {{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}:
         """{{summary}}
 {{#notes}}
         {{.}}
 {{/notes}}
-{{#hasAuthMethods}}
-        :param auth: authenticator for this operation
-{{/hasAuthMethods}}
 {{#pathParams}}
         :param {{paramName}}: {{description}}{{vendorExtensions.requiredLabelWithDefault}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
@@ -177,7 +171,7 @@ class {{classname}}(BaseApi):
 
 {{/required}}
 {{/cookieParams}}
-        result = await self.{{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}{{#allParams.0}}, {{/allParams.0}}server=server{{/-first}}{{/servers}}{{#hasAuthMethods}}{{#allParams.0}}, {{/allParams.0}}{{^allParams.0}}{{#servers.0}}, {{/servers.0}}{{/allParams.0}}auth=auth{{/hasAuthMethods}})
+        result = await self.{{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}{{#allParams.0}}, {{/allParams.0}}server=server{{/-first}}{{/servers}})
 
 {{#returnType}}
         if result.data is None:
@@ -199,17 +193,11 @@ class {{classname}}(BaseApi):
 {{#vendorExtensions.op.signatureArgs}}
         {{paramName}}: {{#isPath}}{{{dataType}}}{{/isPath}}{{#isBody}}{{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}}{{/isBody}}{{#isOptions}}Optional[{{{dataType}}}] = None{{/isOptions}}{{#isServer}}Optional['{{{dataType}}}'] = None{{/isServer}},
 {{/vendorExtensions.op.signatureArgs}}
-{{#hasAuthMethods}}
-        auth: Optional[Authenticator] = None,
-{{/hasAuthMethods}}
     ) -> 'ApiResult[{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}]':
         """{{summary}} (with HTTP info)
 {{#notes}}
         {{.}}
 {{/notes}}
-{{#hasAuthMethods}}
-        :param auth: authenticator for this operation
-{{/hasAuthMethods}}
 {{#pathParams}}
         :param {{paramName}}: {{description}}{{vendorExtensions.requiredLabelWithDefault}}
 {{/pathParams}}
@@ -337,7 +325,7 @@ class {{classname}}(BaseApi):
             [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
             '{{vendorExtensions.op.effectiveConsumes}}',
             {{#returnType}}'{{{returnType}}}'{{/returnType}}{{^returnType}}None{{/returnType}},
-            {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}None{{/hasAuthMethods}},
+            {{#hasAuthMethods}}{{#vendorExtensions.op.optionsParamRequired}}options.auth{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}(options.auth if options is not None else None){{/vendorExtensions.op.optionsParamRequired}}{{/hasAuthMethods}}{{^hasAuthMethods}}None{{/hasAuthMethods}},
         )
 {{/operation}}
 {{/operations}}

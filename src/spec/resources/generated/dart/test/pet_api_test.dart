@@ -62,7 +62,7 @@ void main() {
 
       final result = await api.addPet(
         Pet(name: 'Fido', photoUrls: <String>{'http://example.com/fido.jpg'}),
-        auth: auth,
+        AddPetOptions(auth: auth),
       );
       expect(result, isNotNull);
     });
@@ -73,7 +73,7 @@ void main() {
 
       final result = await api.addPetWithHTTPInfo(
         Pet(name: 'Buddy', photoUrls: <String>{'http://example.com/buddy.jpg'}),
-        auth: auth,
+        AddPetOptions(auth: auth),
       );
       expect(result.statusCode, greaterThanOrEqualTo(200));
       expect(result.statusCode, lessThan(300));
@@ -146,14 +146,17 @@ void main() {
       final api = _newPetApiForIntegration();
       final auth = _TestAuth();
 
-      await api.deletePet(1, null, auth: auth);
+      await api.deletePet(1, DeletePetOptions(auth: auth));
     });
 
     test('deletePetWithHTTPInfo', () async {
       final api = _newPetApiForIntegration();
       final auth = _TestAuth();
 
-      final result = await api.deletePetWithHTTPInfo(1, null, auth: auth);
+      final result = await api.deletePetWithHTTPInfo(
+        1,
+        DeletePetOptions(auth: auth),
+      );
       expect(result.statusCode, greaterThanOrEqualTo(200));
       expect(result.statusCode, lessThan(300));
     });
@@ -380,10 +383,106 @@ void main() {
             name: 'OverrideDog',
             photoUrls: <String>{'http://example.com/p.jpg'},
           ),
-          auth: auth,
+          AddPetOptions(auth: auth),
         );
 
         expect(capturedAuth, equals('Bearer per-call-token'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* auth-in-options-applied: an Authenticator supplied via the Options
+     * object (AddPetOptions(auth: ...)) must be threaded onto the outgoing
+     * request, overriding the client's default header. This is the folded
+     * replacement for the removed standalone `auth:` parameter. */
+    test('addPet auth supplied via Options is applied', () async {
+      String? capturedAuth;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedAuth = request.headers.value('authorization');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"x","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .defaultHeader('Authorization', 'Bearer default-token')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+        final auth = _PerCallAuth();
+
+        await api.addPet(
+          Pet(name: 'OptDog', photoUrls: <String>{'http://example.com/p.jpg'}),
+          AddPetOptions(auth: auth),
+        );
+
+        expect(capturedAuth, equals('Bearer per-call-token'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* auth-omitted-uses-config-default: when no auth is supplied on the
+     * Options object, the call must fall back to the Configuration's
+     * credentials (here a default Authorization header) rather than sending
+     * no credentials at all. */
+    test('addPet without Options auth uses Configuration default', () async {
+      String? capturedAuth;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedAuth = request.headers.value('authorization');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"x","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .defaultHeader('Authorization', 'Bearer default-token')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.addPet(
+          Pet(name: 'DefDog', photoUrls: <String>{'http://example.com/p.jpg'}),
+          const AddPetOptions(),
+        );
+
+        expect(capturedAuth, equals('Bearer default-token'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* unsecured-op-has-no-auth-field: getPetById is not secured, so its
+     * generated signature carries no Options auth slot at all — the call
+     * compiles and runs with only its path/server positional arguments. */
+    test('getPetById unsecured op has no auth field', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":7,"name":"Rex","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        final result = await api.getPetById(7, null);
+        expect(result, isNotNull);
+        expect(result.id, equals(7));
       } finally {
         await server.close();
       }

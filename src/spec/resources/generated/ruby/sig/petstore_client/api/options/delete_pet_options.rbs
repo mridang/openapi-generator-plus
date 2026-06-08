@@ -6,7 +6,8 @@ module PetstoreClient
       # are nullable only for optional parameters.
       class DeletePetOptions
         attr_accessor api_key: String?
-        def initialize: (?api_key: String?) -> void
+        attr_accessor auth: ::PetstoreClient::Auth::Authenticator?
+        def initialize: (?api_key: String?, ?auth: ::PetstoreClient::Auth::Authenticator?) -> void
       end
     end
   end

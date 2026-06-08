@@ -82,7 +82,7 @@ export class {{classname}} extends BaseApi {
    * {{&notes}}
 {{/notes}}
 {{#hasAuthMethods}}
-   * @param auth authenticator for this operation
+   * @param options.auth optional authenticator for this operation
 {{/hasAuthMethods}}
 {{#pathParams}}
    * @param {{paramName}} {{description}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
@@ -131,7 +131,7 @@ export class {{classname}} extends BaseApi {
    * @see {@link {{url}}} {{description}}
 {{/externalDocs}}
    */
-  async {{nickname}}({{#hasAuthMethods}}auth: Authenticator{{/hasAuthMethods}}{{#vendorExtensions.op.signatureArgs}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{#isPath}}{{paramName}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/isPath}}{{#isBody}}{{paramName}}{{#nullable}}?{{/nullable}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/isBody}}{{#isOptions}}options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}: {{{dataType}}}{{/isOptions}}{{#isServer}}server?: {{{dataType}}}{{/isServer}}{{/vendorExtensions.op.signatureArgs}}): Promise<{{{returnType}}}{{^returnType}}void{{/returnType}}> {
+  async {{nickname}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{paramName}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/isPath}}{{#isBody}}{{paramName}}{{#nullable}}?{{/nullable}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/isBody}}{{#isOptions}}options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}: {{{dataType}}}{{/isOptions}}{{#isServer}}server?: {{{dataType}}}{{/isServer}}{{/vendorExtensions.op.signatureArgs}}): Promise<{{{returnType}}}{{^returnType}}void{{/returnType}}> {
 {{#pathParams}}
 {{#required}}
     if ({{paramName}} == null) {
@@ -175,7 +175,7 @@ export class {{classname}} extends BaseApi {
 {{/required}}
 {{/cookieParams}}
 {{#returnType}}
-    const {{nickname}}Result = await this.{{nickname}}WithHttpInfo({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#vendorExtensions.op.signatureArgs}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}});
+    const {{nickname}}Result = await this.{{nickname}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}});
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -191,7 +191,7 @@ export class {{classname}} extends BaseApi {
     return {{nickname}}Result.data as {{{returnType}}};
 {{/returnType}}
 {{^returnType}}
-    await this.{{nickname}}WithHttpInfo({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#vendorExtensions.op.signatureArgs}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}});
+    await this.{{nickname}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}});
 {{/returnType}}
   }
 
@@ -199,7 +199,7 @@ export class {{classname}} extends BaseApi {
    * {{&summary}} (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async {{nickname}}WithHttpInfo({{#hasAuthMethods}}auth: Authenticator{{/hasAuthMethods}}{{#vendorExtensions.op.signatureArgs}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{#isPath}}{{paramName}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/isPath}}{{#isBody}}{{paramName}}{{#nullable}}?{{/nullable}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/isBody}}{{#isOptions}}options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}: {{{dataType}}}{{/isOptions}}{{#isServer}}server?: {{{dataType}}}{{/isServer}}{{/vendorExtensions.op.signatureArgs}}): Promise<ApiResult<{{{returnType}}}{{^returnType}}void{{/returnType}}>> {
+  async {{nickname}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{paramName}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/isPath}}{{#isBody}}{{paramName}}{{#nullable}}?{{/nullable}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/isBody}}{{#isOptions}}options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}: {{{dataType}}}{{/isOptions}}{{#isServer}}server?: {{{dataType}}}{{/isServer}}{{/vendorExtensions.op.signatureArgs}}): Promise<ApiResult<{{{returnType}}}{{^returnType}}void{{/returnType}}>> {
 {{#pathParams}}
 {{#required}}
     if ({{paramName}} == null) {
@@ -328,7 +328,7 @@ export class {{classname}} extends BaseApi {
       [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
       '{{vendorExtensions.op.effectiveConsumes}}',
       {{#returnType}}{{#isArray}}(json: unknown) => ObjectSerializer.deserializeArray(json, {{returnBaseType}}){{/isArray}}{{#isMap}}{{#items}}{{#isPrimitiveType}}(json: unknown) => json as {{{returnType}}}{{/isPrimitiveType}}{{^isPrimitiveType}}(json: unknown) => ObjectSerializer.deserializeMap(json, {{returnBaseType}}){{/isPrimitiveType}}{{/items}}{{^items}}(json: unknown) => json as {{{returnType}}}{{/items}}{{/isMap}}{{^isArray}}{{^isMap}}{{#returnTypeIsPrimitive}}(json: unknown) => json as {{{returnType}}}{{/returnTypeIsPrimitive}}{{^returnTypeIsPrimitive}}(json: unknown) => ObjectSerializer.deserialize(json, {{returnBaseType}})!{{/returnTypeIsPrimitive}}{{/isMap}}{{/isArray}}{{/returnType}}{{^returnType}}null{{/returnType}},
-      {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}null{{/hasAuthMethods}}
+      {{#hasAuthMethods}}{{#vendorExtensions.op.optionsParamRequired}}options.auth{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.auth{{/vendorExtensions.op.optionsParamRequired}}{{/hasAuthMethods}}{{^hasAuthMethods}}null{{/hasAuthMethods}}
     );
   }
   {{/operation}}

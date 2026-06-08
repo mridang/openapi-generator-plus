@@ -88,8 +88,8 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
     /// {{value}}
     /// ```
 {{/vendorExtensions.pluralExamples}}{{/allParams}}
-    public func {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}?{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}? = nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}? = nil{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}{{#hasAuthMethods}}auth: Authenticator? = nil{{/hasAuthMethods}}) async throws{{#returnType}} -> {{{.}}}{{/returnType}} {
-        let result = try await {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{paramName}}, {{/vendorExtensions.op.signatureArgs}}{{#hasAuthMethods}}auth: auth{{/hasAuthMethods}})
+    public func {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}?{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}? = nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}? = nil{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}) async throws{{#returnType}} -> {{{.}}}{{/returnType}} {
+        let result = try await {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}})
 {{#returnType}}
         guard let data = result.data else {
             throw ApiError(
@@ -107,7 +107,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the {{operationId}} operation and returns the full API result.
-    public func {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}?{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}? = nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}? = nil{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}{{#hasAuthMethods}}auth: Authenticator? = nil{{/hasAuthMethods}}) async throws -> ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}Void{{/returnType}}> {
+    public func {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}?{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}? = nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}? = nil{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}) async throws -> ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}Void{{/returnType}}> {
 {{#pathParams}}
 {{#required}}
 {{#isString}}
@@ -342,7 +342,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
             accepts: [{{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}}],
             contentType: "{{vendorExtensions.op.effectiveConsumes}}",
             returnType: "{{#returnType}}{{{.}}}{{/returnType}}",
-            auth: {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}nil{{/hasAuthMethods}}
+            auth: {{#hasAuthMethods}}{{#vendorExtensions.op.optionsParamRequired}}options.auth{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.auth{{/vendorExtensions.op.optionsParamRequired}}{{/hasAuthMethods}}{{^hasAuthMethods}}nil{{/hasAuthMethods}}
         )
 
 {{#returnType}}

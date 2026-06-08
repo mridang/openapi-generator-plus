@@ -746,6 +746,15 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         context.put("params", params);
         context.put("dartImports", optionsImports);
         context.put("hasDartImports", !optionsImports.isEmpty());
+        injectAuthFieldContext(op, context);
+        // Relative import from lib/src/api/options/ up to the generic
+        // Authenticator at lib/src/auth/authenticator.dart, mirroring how
+        // model imports are formed (../../models/<file>.dart).
+        context.put(
+                "authImport",
+                "../../auth/"
+                        + NamingConvention.SNAKE_CASE.apply(getAuthenticatorTypeName())
+                        + ".dart");
         return renderOptionsTemplate("api/options.mustache", context);
     }
 

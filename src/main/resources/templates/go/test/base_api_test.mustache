@@ -218,7 +218,7 @@ func TestBaseApi_ReturnsNilWhenReturnTypeIsVoid(t *testing.T) {
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := {{packageName}}.NewPetApi(client, config, nil)
 	// DeletePet is a void operation -- it should return no error for a 200 OK response
-	err := api.DeletePet(nil, int64(1), nil)
+	err := api.DeletePet(int64(1), nil)
 	if err != nil {
 		t.Fatalf("expected no error for void operation with 200 response, got: %v", err)
 	}
@@ -264,7 +264,7 @@ func TestBaseApi_SetsCookieFromAuth(t *testing.T) {
 		cookies: map[string]string{"session": "abc123"},
 	}
 
-	_, err := api.AddPet(auth, *models.NewPet("Test", []string{}))
+	_, err := api.AddPet(*models.NewPet("Test", []string{}), &options.AddPetOptions{Auth: auth})
 	if err != nil {
 		// We don't care if the request fails (chasm may not have a matching mapping),
 		// we just need to verify the cookie was sent
@@ -314,7 +314,7 @@ func TestBaseApi_EmptyContentTypeDefaultsToJson(t *testing.T) {
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := {{packageName}}.NewPetApi(client, config, nil)
 	pet := models.NewPet("TestPet", []string{})
-	_, _ = api.AddPet(nil, *pet)
+	_, _ = api.AddPet(*pet, nil)
 	ct, ok := client.capturedHeaders["Content-Type"]
 	if !ok {
 		t.Fatal("expected Content-Type header to be set")
@@ -330,7 +330,7 @@ func TestBaseApi_AllHeadersFlowThrough(t *testing.T) {
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := {{packageName}}.NewPetApi(client, config, nil)
 	pet := models.NewPet("TestPet", []string{})
-	_, _ = api.AddPet(nil, *pet)
+	_, _ = api.AddPet(*pet, nil)
 	if _, ok := client.capturedHeaders["Accept"]; !ok {
 		t.Error("expected Accept header from selector to flow through")
 	}
@@ -410,7 +410,7 @@ func TestBaseApi_SerializesJsonBody(t *testing.T) {
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := {{packageName}}.NewPetApi(client, config, nil)
 	pet := models.NewPet("TestPet", []string{})
-	_, _ = api.AddPet(nil, *pet)
+	_, _ = api.AddPet(*pet, nil)
 	if client.capturedBody == nil {
 		t.Fatal("expected body to be captured")
 	}
@@ -653,7 +653,7 @@ func TestBaseApi_SerializesTextPlainBody(t *testing.T) {
 	api := {{packageName}}.NewPetApi(client, config, nil)
 	// Use AddPet which sends a body - the body will be JSON but tests the capturing mechanism
 	pet := models.NewPet("TestPet", []string{})
-	_, _ = api.AddPet(nil, *pet)
+	_, _ = api.AddPet(*pet, nil)
 	if client.capturedBody == nil {
 		t.Fatal("expected body to be captured")
 	}
@@ -665,7 +665,7 @@ func TestBaseApi_SerializesFormUrlencodedBody(t *testing.T) {
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := {{packageName}}.NewPetApi(client, config, nil)
 	pet := models.NewPet("FormPet", []string{})
-	_, _ = api.AddPet(nil, *pet)
+	_, _ = api.AddPet(*pet, nil)
 	if client.capturedBody == nil {
 		t.Fatal("expected body to be captured for form serialization test")
 	}
@@ -688,7 +688,7 @@ func TestBaseApi_PassesBinaryBody(t *testing.T) {
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := {{packageName}}.NewPetApi(client, config, nil)
 	pet := models.NewPet("BinaryPet", []string{})
-	_, _ = api.AddPet(nil, *pet)
+	_, _ = api.AddPet(*pet, nil)
 	if client.capturedBody == nil {
 		t.Fatal("expected body to be captured for binary body test")
 	}
@@ -833,7 +833,7 @@ func TestBinaryResponse_EmptyBodyYieldsNoError(t *testing.T) {
 	}
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := {{packageName}}.NewPetApi(client, config, nil)
-	err := api.DeletePet(nil, int64(1), nil)
+	err := api.DeletePet(int64(1), nil)
 	// DeletePet is void -- empty body should succeed
 	_ = err
 }
@@ -938,7 +938,7 @@ func TestNullBody_AddPetWithBodyIncludesContentType(t *testing.T) {
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := {{packageName}}.NewPetApi(client, config, nil)
 	pet := models.NewPet("TestPet", []string{})
-	_, _ = api.AddPet(nil, *pet)
+	_, _ = api.AddPet(*pet, nil)
 	if _, ok := client.capturedHeaders["Content-Type"]; !ok {
 		t.Error("Content-Type must be sent when body is non-nil")
 	}
@@ -950,7 +950,7 @@ func TestNullBody_DeletePetWithNilBodyOmitsContentType(t *testing.T) {
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := {{packageName}}.NewPetApi(client, config, nil)
 	// DeletePet sends no body
-	_ = api.DeletePet(nil, int64(1), nil)
+	_ = api.DeletePet(int64(1), nil)
 	if _, ok := client.capturedHeaders["Content-Type"]; ok {
 		t.Error("Content-Type must NOT be sent when body is nil (DeletePet)")
 	}
@@ -1015,7 +1015,7 @@ func TestAuth_NilPerCallFallsBackToClientLevelAuthenticator(t *testing.T) {
 	}
 	api := {{packageName}}.NewPetApi(client, config, clientLevelAuth)
 	pet := *models.NewPet("AuthTest", []string{})
-	_, _ = api.AddPet(nil, pet)
+	_, _ = api.AddPet(pet, nil)
 	if got := client.headers["X-Client-Auth"]; got != "client-level-token" {
 		t.Errorf("expected client-level auth header to be used when per-call auth is nil, got %q", got)
 	}
@@ -1037,7 +1037,7 @@ func TestAuth_PerCallOverridesClientLevelAuthenticator(t *testing.T) {
 	}
 	api := {{packageName}}.NewPetApi(client, config, clientLevelAuth)
 	pet := *models.NewPet("AuthTest", []string{})
-	_, _ = api.AddPet(perCallAuth, pet)
+	_, _ = api.AddPet(pet, &options.AddPetOptions{Auth: perCallAuth})
 	if got := client.headers["X-Client-Auth"]; got != "per-call-token" {
 		t.Errorf("expected per-call auth header to override client-level auth, got %q", got)
 	}

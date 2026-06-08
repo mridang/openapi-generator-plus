@@ -1,8 +1,16 @@
 {{#modelImports}}
 import type { {{.}} } from '../../models/index.js';
 {{/modelImports}}
+{{#hasAuthField}}
+import type { {{authFieldType}} } from '{{authImport}}';
+{{/hasAuthField}}
 {{#hasModelImports}}
 
+{{/hasModelImports}}
+{{^hasModelImports}}
+{{#hasAuthField}}
+
+{{/hasAuthField}}
 {{/hasModelImports}}
 /**
  * Options for the {{operationId}} operation.
@@ -11,4 +19,9 @@ export interface {{className}} {
 {{#params}}
   {{paramName}}{{^required}}?{{/required}}: {{dataType}}{{#isNullable}} | null{{/isNullable}};
 {{/params}}
+{{#hasAuthField}}
+  {{! per-operation authenticator: overrides the client's configured }}
+  {{! credentials for this call only; omit to use the configured creds }}
+  auth?: {{authFieldType}};
+{{/hasAuthField}}
 }

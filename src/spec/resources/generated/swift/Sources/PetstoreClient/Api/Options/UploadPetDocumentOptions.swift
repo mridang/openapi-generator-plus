@@ -6,7 +6,7 @@ public struct UploadPetDocumentOptions: Sendable {
     public var documentType: String?
     public var notes: String?
 
-    public init(file: Data, documentType: String? = nil, notes: String? = nil) {
+    public init(file: Data, documentType: String? = nil, notes: String? = nil, ) {
         self.file = file
         self.documentType = documentType
         self.notes = notes

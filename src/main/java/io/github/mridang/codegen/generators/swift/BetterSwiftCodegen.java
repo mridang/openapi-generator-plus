@@ -609,6 +609,10 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         context.put("packageName", packageName);
         context.put("operationId", op.operationId);
         context.put("params", params);
+        // Folds the optional per-operation `auth` field into the Options object
+        // for authed operations. Swift's Authenticator protocol lives in the
+        // same module as the generated Options struct, so no import is needed.
+        injectAuthFieldContext(op, context);
         return renderOptionsTemplate("api/options.mustache", context);
     }
 

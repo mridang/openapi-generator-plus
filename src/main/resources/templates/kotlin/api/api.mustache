@@ -9,25 +9,6 @@ import {{invokerPackage}}.Configuration
 import {{invokerPackage}}.ObjectSerializer
 import {{invokerPackage}}.ValueSerializer
 import {{invokerPackage}}.auth.Authenticator
-{{#operations}}
-{{#operation}}
-{{#hasAuthMethods}}
-{{#authMethods}}
-{{#isOAuth}}
-import {{invokerPackage}}.auth.oauth.{{vendorExtensions.authenticatorClassName}}
-{{/isOAuth}}
-{{#isOpenId}}
-import {{invokerPackage}}.auth.oauth.{{vendorExtensions.namePascal}}Authenticator
-{{/isOpenId}}
-{{^isOAuth}}
-{{^isOpenId}}
-import {{invokerPackage}}.auth.{{vendorExtensions.namePascal}}Authenticator
-{{/isOpenId}}
-{{/isOAuth}}
-{{/authMethods}}
-{{/hasAuthMethods}}
-{{/operation}}
-{{/operations}}
 {{#imports}}import {{import}}
 {{/imports}}
 {{#optionsImports}}
@@ -115,15 +96,14 @@ class {{classname}} : BaseApi {
      * Example — {{summary}}: `{{value}}`
 {{/vendorExtensions.pluralExamples}}
 {{/bodyParam}}
-{{#queryParams}}{{#-first}}
-     * @param options options for query, header, form, and cookie parameters
-{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
-     * @param options options for query, header, form, and cookie parameters
-{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
-     * @param options options for query, header, form, and cookie parameters
-{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
-     * @param options options for query, header, form, and cookie parameters
-{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+{{#vendorExtensions.op.hasOptionsParam}}
+     * @param options options for query, header, form, cookie parameters, and per-operation auth
+{{/vendorExtensions.op.hasOptionsParam}}
+{{^vendorExtensions.op.hasOptionsParam}}
+{{#hasAuthMethods}}
+     * @param options per-operation authenticator override
+{{/hasAuthMethods}}
+{{/vendorExtensions.op.hasOptionsParam}}
 {{#returnType}}
      * @return {{{returnType}}}
 {{/returnType}}
@@ -139,30 +119,6 @@ class {{classname}} : BaseApi {
 {{#isDeprecated}}
     @Deprecated("This operation is deprecated.")
 {{/isDeprecated}}
-{{#hasAuthMethods}}
-    {{#authMethods}}
-    suspend fun {{operationId}}(auth: {{vendorExtensions.authenticatorClassName}}{{#vendorExtensions.op.signatureArgs}}, {{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}} {
-        {{#returnType}}return {{operationId}}WithHttpInfo(auth{{#vendorExtensions.op.signatureArgs}}, {{paramName}}{{/vendorExtensions.op.signatureArgs}}).data
-            ?: throw ApiException("Expected a response body for {{operationId}} but the server returned an empty body"){{/returnType}}{{^returnType}}{{operationId}}WithHttpInfo(auth{{#vendorExtensions.op.signatureArgs}}, {{paramName}}{{/vendorExtensions.op.signatureArgs}}){{/returnType}}
-    }
-
-    suspend fun {{operationId}}WithHttpInfo(auth: {{vendorExtensions.authenticatorClassName}}{{#vendorExtensions.op.signatureArgs}}, {{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}> {
-        return {{operationId}}Internal(auth{{#vendorExtensions.op.signatureArgs}}, {{paramName}}{{/vendorExtensions.op.signatureArgs}})
-    }
-
-{{#servers}}{{#-first}}
-    suspend fun {{operationId}}(auth: {{vendorExtensions.authenticatorClassName}}{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}} {
-        {{#returnType}}return {{operationId}}(auth{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, null){{/returnType}}{{^returnType}}{{operationId}}(auth{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, null){{/returnType}}
-    }
-
-    suspend fun {{operationId}}WithHttpInfo(auth: {{vendorExtensions.authenticatorClassName}}{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}> {
-        return {{operationId}}WithHttpInfo(auth{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, null)
-    }
-{{/-first}}{{/servers}}
-    {{/authMethods}}
-    private suspend fun {{operationId}}Internal(auth: Authenticator{{#vendorExtensions.op.signatureArgs}}, {{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}> {
-{{/hasAuthMethods}}
-{{^hasAuthMethods}}
 {{#servers}}{{#-first}}
     suspend fun {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}} {
         {{#returnType}}return {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, null){{/returnType}}{{^returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, null){{/returnType}}
@@ -178,6 +134,8 @@ class {{classname}} : BaseApi {
     }
 
     suspend fun {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}> {
+{{#hasAuthMethods}}
+        val auth: Authenticator? = options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.auth
 {{/hasAuthMethods}}
 {{#pathParams}}
 {{#required}}
@@ -211,17 +169,17 @@ class {{classname}} : BaseApi {
         val queryParams = mutableMapOf<String, Any?>()
 {{#queryParams}}
 {{#vendorExtensions.param.queryDeepObject}}
-        if (options.{{paramName}} != null) {
-            queryParams.putAll(ValueSerializer.serializeDeepObject("{{baseName}}", options.{{paramName}}))
+        if (options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}} != null) {
+            queryParams.putAll(ValueSerializer.serializeDeepObject("{{baseName}}", options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}}))
         }
 {{/vendorExtensions.param.queryDeepObject}}
 {{#vendorExtensions.param.queryContent}}
-        if (options.{{paramName}} != null) {
-            queryParams["{{baseName}}"] = objectSerializer.serialize(options.{{paramName}})
+        if (options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}} != null) {
+            queryParams["{{baseName}}"] = objectSerializer.serialize(options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}})
         }
 {{/vendorExtensions.param.queryContent}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
-        run {
+        if (options != null) {
             val _{{paramName}}Val = ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}, "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}})
             if (_{{paramName}}Val != null) {
                 queryParams["{{baseName}}"] = _{{paramName}}Val
@@ -231,22 +189,22 @@ class {{classname}} : BaseApi {
         }
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryStyled}}
-        if (options.{{paramName}} != null) {
-            queryParams["{{baseName}}"] = ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}, "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}})
+        if (options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}} != null) {
+            queryParams["{{baseName}}"] = ValueSerializer.serializeStyled("{{baseName}}", options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}}, "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}})
         }
 {{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}
         val headerParams = mutableMapOf<String, String>()
 {{#headerParams}}
-        if (options.{{paramName}} != null) {
-            headerParams["{{baseName}}"] = ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}, "header", "{{{dataType}}}", null, "{{style}}", {{isExplode}}) as String
+        if (options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}} != null) {
+            headerParams["{{baseName}}"] = ValueSerializer.serializeStyled("{{baseName}}", options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}}, "header", "{{{dataType}}}", null, "{{style}}", {{isExplode}}) as String
         }
 {{/headerParams}}
 {{#hasCookieParams}}
         val cookieParts = mutableListOf<String>()
 {{#cookieParams}}
-        if (options != null && options.{{paramName}} != null) {
-            cookieParts.add("{{baseName}}=" + ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}, "cookie", "{{{dataType}}}", null, "{{style}}", {{isExplode}}))
+        if (options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}} != null) {
+            cookieParts.add("{{baseName}}=" + ValueSerializer.serializeStyled("{{baseName}}", options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}}, "cookie", "{{{dataType}}}", null, "{{style}}", {{isExplode}}))
         }
 {{/cookieParams}}
         if (cookieParts.isNotEmpty()) {
@@ -260,8 +218,8 @@ class {{classname}} : BaseApi {
         formBody["{{baseName}}"] = options.{{paramName}}
 {{/required}}
 {{^required}}
-        if (options.{{paramName}} != null) {
-            formBody["{{baseName}}"] = options.{{paramName}}
+        if (options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}} != null) {
+            formBody["{{baseName}}"] = options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}}
         }
 {{/required}}
 {{/formParams}}

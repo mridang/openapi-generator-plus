@@ -11,8 +11,12 @@ defmodule PetstoreClient.Api.Options.DeletePetOptions do
   """
 
   @type t :: %__MODULE__{
-          api_key: String.t() | nil
+          api_key: String.t() | nil,
+          auth: term() | nil
         }
 
-  defstruct api_key: nil
+  defstruct api_key: nil,
+            # Overrides the client's configured credentials for this call only.
+            # Falls back to the API instance's configured authenticator when nil.
+            auth: nil
 end

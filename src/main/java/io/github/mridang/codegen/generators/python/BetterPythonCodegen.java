@@ -842,7 +842,10 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             CodegenOperation op, List<CodegenParameter> optionsParams, String className) {
         final TreeSet<String> importSet = new TreeSet<>();
         importSet.add("from dataclasses import dataclass");
-        boolean needsOptional = false;
+        // The optional per-operation `auth` field is typed Optional[Authenticator],
+        // so authed operations always need the Optional import even when they
+        // carry no optional query/header/form/cookie params.
+        boolean needsOptional = op.hasAuthMethods;
         final List<String> typingNames = new ArrayList<>();
         for (final CodegenParameter p : optionsParams) {
             if (!p.required) {
@@ -912,6 +915,11 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         context.put("imports", new ArrayList<>(importSet));
         context.put("requiredParams", requiredParams);
         context.put("optionalParams", optionalParams);
+        injectAuthFieldContext(op, context);
+        context.put(
+                "authImport",
+                "from " + packageName + ".auth.authenticator import "
+                        + getAuthenticatorTypeName());
         return renderOptionsTemplate("api/options.mustache", context);
     }
 

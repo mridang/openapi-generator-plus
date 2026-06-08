@@ -14,7 +14,9 @@ import { Configuration } from '../configuration.js';
 import { ObjectSerializer } from '../object-serializer.js';
 import { ValueSerializer } from '../value-serializer.js';
 import { ApiResponse, Pet, PetPassport, PetTreatment, Photo, SetPetAvatarThumbnailRequest } from '../models/index.js';
+import type { AddPetOptions } from './options/add-pet-options.js';
 import type { AddPetPhotosOptions } from './options/add-pet-photos-options.js';
+import type { AddPetTreatmentOptions } from './options/add-pet-treatment-options.js';
 import type { DeletePetOptions } from './options/delete-pet-options.js';
 import type { FindPetsByStatusOptions } from './options/find-pets-by-status-options.js';
 import type { GetPetTagOptions } from './options/get-pet-tag-options.js';
@@ -116,16 +118,16 @@ export class PetApi extends BaseApi {
 
   /**
    * Add a new pet to the store
-   * @param auth authenticator for this operation
+   * @param options.auth optional authenticator for this operation
    * @param pet Create a new pet in the store (required)
    * @return Pet
    * @throws {ApiError} if fails to make API call
    */
-  async addPet(auth: Authenticator, pet: Pet): Promise<Pet> {
+  async addPet(pet: Pet, options?: AddPetOptions): Promise<Pet> {
     if (pet == null) {
       throw new Error('Missing required parameter "pet" when calling addPet');
     }
-    const addPetResult = await this.addPetWithHttpInfo(auth, pet);
+    const addPetResult = await this.addPetWithHttpInfo(pet, options);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -145,7 +147,7 @@ export class PetApi extends BaseApi {
    * Add a new pet to the store (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async addPetWithHttpInfo(auth: Authenticator, pet: Pet): Promise<ApiResult<Pet>> {
+  async addPetWithHttpInfo(pet: Pet, options?: AddPetOptions): Promise<ApiResult<Pet>> {
     if (pet == null) {
       throw new Error('Missing required parameter "pet" when calling addPet');
     }
@@ -161,7 +163,7 @@ export class PetApi extends BaseApi {
       ['application/json'],
       'application/json',
       (json: unknown) => ObjectSerializer.deserialize(json, Pet)!,
-      auth
+      options?.auth
     );
   }
 
@@ -244,20 +246,24 @@ export class PetApi extends BaseApi {
 
   /**
    * Record a treatment for a pet
-   * @param auth authenticator for this operation
+   * @param options.auth optional authenticator for this operation
    * @param petId  (required)
    * @param petTreatment  (required)
    * @return PetTreatment
    * @throws {ApiError} if fails to make API call
    */
-  async addPetTreatment(auth: Authenticator, petId: number, petTreatment: PetTreatment): Promise<PetTreatment> {
+  async addPetTreatment(
+    petId: number,
+    petTreatment: PetTreatment,
+    options?: AddPetTreatmentOptions
+  ): Promise<PetTreatment> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling addPetTreatment');
     }
     if (petTreatment == null) {
       throw new Error('Missing required parameter "petTreatment" when calling addPetTreatment');
     }
-    const addPetTreatmentResult = await this.addPetTreatmentWithHttpInfo(auth, petId, petTreatment);
+    const addPetTreatmentResult = await this.addPetTreatmentWithHttpInfo(petId, petTreatment, options);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -278,9 +284,9 @@ export class PetApi extends BaseApi {
    * @throws {ApiError} if fails to make API call
    */
   async addPetTreatmentWithHttpInfo(
-    auth: Authenticator,
     petId: number,
-    petTreatment: PetTreatment
+    petTreatment: PetTreatment,
+    options?: AddPetTreatmentOptions
   ): Promise<ApiResult<PetTreatment>> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling addPetTreatment');
@@ -304,33 +310,29 @@ export class PetApi extends BaseApi {
       ['application/json'],
       'application/json',
       (json: unknown) => ObjectSerializer.deserialize(json, PetTreatment)!,
-      auth
+      options?.auth
     );
   }
 
   /**
    * Deletes a pet
-   * @param auth authenticator for this operation
+   * @param options.auth optional authenticator for this operation
    * @param petId Pet id to delete (required)
    * @param options.apiKey Session cookie used for authentication (optional)
    * @throws {ApiError} if fails to make API call
    */
-  async deletePet(auth: Authenticator, petId: number, options?: DeletePetOptions): Promise<void> {
+  async deletePet(petId: number, options?: DeletePetOptions): Promise<void> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling deletePet');
     }
-    await this.deletePetWithHttpInfo(auth, petId, options);
+    await this.deletePetWithHttpInfo(petId, options);
   }
 
   /**
    * Deletes a pet (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async deletePetWithHttpInfo(
-    auth: Authenticator,
-    petId: number,
-    options?: DeletePetOptions
-  ): Promise<ApiResult<void>> {
+  async deletePetWithHttpInfo(petId: number, options?: DeletePetOptions): Promise<ApiResult<void>> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling deletePet');
     }
@@ -359,7 +361,7 @@ export class PetApi extends BaseApi {
       [],
       'application/json',
       null,
-      auth
+      options?.auth
     );
   }
 

@@ -25,7 +25,9 @@ from .base_api import BaseApi
 from ..value_serializer import ValueSerializer
 from ..auth.authenticator import Authenticator
 from ..errors import ApiException
+from .options.add_pet_options import AddPetOptions
 from .options.add_pet_photos_options import AddPetPhotosOptions
+from .options.add_pet_treatment_options import AddPetTreatmentOptions
 from .options.delete_pet_options import DeletePetOptions
 from .options.find_pets_by_status_options import FindPetsByStatusOptions
 from .options.get_pet_tag_options import GetPetTagOptions
@@ -161,11 +163,12 @@ class PetApi(BaseApi):
     async def add_pet(
         self,
         pet: Pet,
-        auth: Optional[Authenticator] = None,
+        options: Optional[AddPetOptions] = None,
     ) -> Pet:
         """Add a new pet to the store
-        :param auth: authenticator for this operation
         :param pet: Create a new pet in the store (required)
+
+        :param options: options for query, header, form, and cookie parameters
 
         :return: Pet
         :raises ApiException: if fails to make API call
@@ -173,7 +176,7 @@ class PetApi(BaseApi):
         if pet is None:
             raise ValueError("Missing the required parameter 'pet'")
 
-        result = await self.add_pet_with_http_info(pet, auth=auth)
+        result = await self.add_pet_with_http_info(pet, options)
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -191,11 +194,12 @@ class PetApi(BaseApi):
     async def add_pet_with_http_info(
         self,
         pet: Pet,
-        auth: Optional[Authenticator] = None,
+        options: Optional[AddPetOptions] = None,
     ) -> 'ApiResult[Pet]':
         """Add a new pet to the store (with HTTP info)
-        :param auth: authenticator for this operation
         :param pet: Create a new pet in the store (required)
+
+        :param options: options for query, header, form, and cookie parameters
 
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
@@ -217,7 +221,7 @@ class PetApi(BaseApi):
             ['application/json'],
             'application/json',
             'Pet',
-            auth,
+            (options.auth if options is not None else None),
         )
 
     async def add_pet_photos(
@@ -307,12 +311,13 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         pet_treatment: PetTreatment,
-        auth: Optional[Authenticator] = None,
+        options: Optional[AddPetTreatmentOptions] = None,
     ) -> PetTreatment:
         """Record a treatment for a pet
-        :param auth: authenticator for this operation
         :param pet_id:  (required)
         :param pet_treatment:  (required)
+
+        :param options: options for query, header, form, and cookie parameters
 
         :return: PetTreatment
         :raises ApiException: if fails to make API call
@@ -323,7 +328,7 @@ class PetApi(BaseApi):
         if pet_treatment is None:
             raise ValueError("Missing the required parameter 'pet_treatment'")
 
-        result = await self.add_pet_treatment_with_http_info(pet_id, pet_treatment, auth=auth)
+        result = await self.add_pet_treatment_with_http_info(pet_id, pet_treatment, options)
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -342,12 +347,13 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         pet_treatment: PetTreatment,
-        auth: Optional[Authenticator] = None,
+        options: Optional[AddPetTreatmentOptions] = None,
     ) -> 'ApiResult[PetTreatment]':
         """Record a treatment for a pet (with HTTP info)
-        :param auth: authenticator for this operation
         :param pet_id:  (required)
         :param pet_treatment:  (required)
+
+        :param options: options for query, header, form, and cookie parameters
 
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
@@ -373,17 +379,15 @@ class PetApi(BaseApi):
             ['application/json'],
             'application/json',
             'PetTreatment',
-            auth,
+            (options.auth if options is not None else None),
         )
 
     async def delete_pet(
         self,
         pet_id: StrictInt,
         options: Optional[DeletePetOptions] = None,
-        auth: Optional[Authenticator] = None,
     ) -> None:
         """Deletes a pet
-        :param auth: authenticator for this operation
         :param pet_id: Pet id to delete (required)
 
         :param options: options for query, header, form, and cookie parameters
@@ -393,7 +397,7 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        result = await self.delete_pet_with_http_info(pet_id, options, auth=auth)
+        result = await self.delete_pet_with_http_info(pet_id, options)
 
         return result.data
 
@@ -401,10 +405,8 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         options: Optional[DeletePetOptions] = None,
-        auth: Optional[Authenticator] = None,
     ) -> 'ApiResult[None]':
         """Deletes a pet (with HTTP info)
-        :param auth: authenticator for this operation
         :param pet_id: Pet id to delete (required)
 
         :param options: options for query, header, form, and cookie parameters
@@ -435,7 +437,7 @@ class PetApi(BaseApi):
             [],
             'application/json',
             None,
-            auth,
+            (options.auth if options is not None else None),
         )
 
     async def download_pet_document(

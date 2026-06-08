@@ -87,7 +87,7 @@ func TestPetApi_AddPet(t *testing.T) {
 
 	pet := models.NewPet("Fido", models.Set[string]{"http://example.com/fido.jpg"})
 
-	result, err := api.AddPet(auth, *pet)
+	result, err := api.AddPet(*pet, &options.AddPetOptions{Auth: auth})
 	if err != nil {
 		t.Fatalf("AddPet failed: %v", err)
 	}
@@ -103,7 +103,7 @@ func TestPetApi_AddPetWithHTTPInfo(t *testing.T) {
 
 	pet := models.NewPet("Buddy", models.Set[string]{"http://example.com/buddy.jpg"})
 
-	result, err := api.AddPetWithHTTPInfo(auth, *pet)
+	result, err := api.AddPetWithHTTPInfo(*pet, &options.AddPetOptions{Auth: auth})
 	if err != nil {
 		t.Fatalf("AddPetWithHTTPInfo failed: %v", err)
 	}
@@ -194,7 +194,7 @@ func TestPetApi_DeletePet(t *testing.T) {
 	api := newPetApiForIntegration(t)
 	auth := &petAuth{}
 
-	err := api.DeletePet(auth, int64(1), nil)
+	err := api.DeletePet(int64(1), &options.DeletePetOptions{Auth: auth})
 	if err != nil {
 		t.Fatalf("DeletePet failed: %v", err)
 	}
@@ -205,7 +205,7 @@ func TestPetApi_DeletePetWithHTTPInfo(t *testing.T) {
 	api := newPetApiForIntegration(t)
 	auth := &petAuth{}
 
-	result, err := api.DeletePetWithHTTPInfo(auth, int64(1), nil)
+	result, err := api.DeletePetWithHTTPInfo(int64(1), &options.DeletePetOptions{Auth: auth})
 	if err != nil {
 		t.Fatalf("DeletePetWithHTTPInfo failed: %v", err)
 	}
@@ -572,7 +572,7 @@ func TestPetApi_AddPetPerCallAuthOverride(t *testing.T) {
 	perCallAuth := &perCallPetAuth{}
 	pet := models.NewPet("OverrideDog", models.Set[string]{"http://example.com/p.jpg"})
 
-	_, err := api.AddPet(perCallAuth, *pet)
+	_, err := api.AddPet(*pet, &options.AddPetOptions{Auth: perCallAuth})
 	if err != nil {
 		t.Fatalf("AddPet failed: %v", err)
 	}
@@ -595,5 +595,109 @@ func TestPetApi_ErrorHandling_ServerError(t *testing.T) {
 	_, err := api.GetPetById(int64(1), nil)
 	if err == nil {
 		t.Fatal("expected error for server error response")
+	}
+}
+
+// auth-in-options-go (1/3): the per-operation Authenticator now travels on the
+// Options object's Auth field rather than a standalone parameter. The token from
+// options.Auth must reach the wire and override the client's configured default.
+func TestPetApi_AddPetAuthInOptionsAppliesToWire(t *testing.T) {
+	t.Parallel()
+	var capturedAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
+	}))
+	defer server.Close()
+
+	config := petstore.NewConfigurationBuilder().
+		BaseURL(server.URL).
+		DefaultHeader("Authorization", "Bearer default-token").
+		Build()
+	client := petstore.NewDefaultApiClient(nil)
+	api := petstore.NewPetApi(client, config, nil)
+
+	pet := models.NewPet("AuthDog", models.Set[string]{"http://example.com/a.jpg"})
+
+	_, err := api.AddPet(*pet, &options.AddPetOptions{Auth: &perCallPetAuth{}})
+	if err != nil {
+		t.Fatalf("AddPet failed: %v", err)
+	}
+	if capturedAuth != "Bearer per-call-token" {
+		t.Errorf("expected per-call auth header from options.Auth, got %q", capturedAuth)
+	}
+}
+
+// auth-in-options-go (2/3): omitting the Authenticator (nil Options, or Options
+// with a nil Auth) must fall back to the client's Configuration credentials. A
+// nil options pointer must not panic.
+func TestPetApi_AddPetNilOptionsUsesConfiguredCredentials(t *testing.T) {
+	t.Parallel()
+	var capturedAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
+	}))
+	defer server.Close()
+
+	config := petstore.NewConfigurationBuilder().
+		BaseURL(server.URL).
+		DefaultHeader("Authorization", "Bearer default-token").
+		Build()
+	client := petstore.NewDefaultApiClient(nil)
+	api := petstore.NewPetApi(client, config, nil)
+
+	pet := models.NewPet("DefaultDog", models.Set[string]{"http://example.com/d.jpg"})
+
+	// nil Options: must not panic and must use the configured default credentials.
+	if _, err := api.AddPet(*pet, nil); err != nil {
+		t.Fatalf("AddPet with nil options failed: %v", err)
+	}
+	if capturedAuth != "Bearer default-token" {
+		t.Errorf("expected configured default auth header, got %q", capturedAuth)
+	}
+
+	// Options present but Auth left nil: same fallback behaviour.
+	capturedAuth = ""
+	if _, err := api.AddPet(*pet, &options.AddPetOptions{}); err != nil {
+		t.Fatalf("AddPet with nil Auth failed: %v", err)
+	}
+	if capturedAuth != "Bearer default-token" {
+		t.Errorf("expected configured default auth header with nil Auth, got %q", capturedAuth)
+	}
+}
+
+// auth-in-options-go (3/3): an unsecured operation (getPetById has security: [])
+// must NOT gain an Auth field on its Options object — there is no
+// GetPetByIdOptions type at all, and the operation takes no Options arg. This is
+// a compile-time assertion: GetPetById's signature is (petId, server) with no
+// authenticator anywhere.
+func TestPetApi_GetPetByIdUnsecuredHasNoAuthField(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "" {
+			t.Errorf("unsecured GetPetById sent an Authorization header: %q", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
+	}))
+	defer server.Close()
+
+	config := petstore.NewConfigurationBuilder().BaseURL(server.URL).Build()
+	client := petstore.NewDefaultApiClient(nil)
+	api := petstore.NewPetApi(client, config, nil)
+
+	// Compiles only because GetPetById takes (petId, server) — no Options/Auth.
+	result, err := api.GetPetById(int64(1), nil)
+	if err != nil {
+		t.Fatalf("GetPetById failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result from GetPetById")
 	}
 }

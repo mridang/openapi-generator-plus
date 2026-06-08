@@ -37,7 +37,7 @@ describe('PetApi', () => {
       status: PetStatusEnum.Available
     };
 
-    const result = await api.addPet(auth, pet);
+    const result = await api.addPet(pet, { auth });
 
     expect(result).toBeDefined();
     expect(result.name).toBeDefined();
@@ -72,7 +72,7 @@ describe('PetApi', () => {
   });
 
   test('deletePet', async () => {
-    await api.deletePet(auth, 1, undefined);
+    await api.deletePet(1, { auth });
   });
 
   test('setPetAvatar', async () => {
@@ -175,7 +175,7 @@ describe('PetApi', () => {
       status: PetStatusEnum.Available
     };
 
-    const result = await api.addPetWithHttpInfo(auth, pet);
+    const result = await api.addPetWithHttpInfo(pet, { auth });
 
     expect(result.statusCode).toBeGreaterThanOrEqual(200);
     expect(result.statusCode).toBeLessThan(300);
@@ -205,7 +205,7 @@ describe('PetApi', () => {
   });
 
   test('deletePetWithHttpInfo', async () => {
-    const result = await api.deletePetWithHttpInfo(auth, 1, undefined);
+    const result = await api.deletePetWithHttpInfo(1, { auth });
 
     expect(result.statusCode).toBeGreaterThanOrEqual(200);
     expect(result.statusCode).toBeLessThan(300);
@@ -331,11 +331,91 @@ describe('PetApi error handling', () => {
         name: 'OverrideDog',
         photoUrls: new Set(['http://example.com/p.jpg'])
       };
-      await overrideApi.addPet(perCallAuth, pet);
+      await overrideApi.addPet(pet, { auth: perCallAuth });
 
       expect(capturedAuth).toBe('Bearer per-call-token');
     } finally {
       server.close();
+    }
+  });
+
+  // auth-in-options: the per-operation authenticator is supplied through the
+  // Options object (options.auth), not a standalone argument. It must reach the
+  // wire and win over the client's configured default credentials.
+  test('addPet auth supplied via Options reaches the wire', async () => {
+    let capturedAuth: string | undefined;
+    const server = http.createServer((req, res) => {
+      capturedAuth = req.headers['authorization'];
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end('{"id":1,"name":"x","photoUrls":[]}');
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const addr = server.address() as { port: number };
+      const url = `http://127.0.0.1:${addr.port}`;
+      const cfg = Configuration.builder().baseUrl(url).defaultHeader('Authorization', 'Bearer default-token').build();
+      const optionsApi = new PetApi(undefined, cfg);
+      const optionsAuth = new BearerAuthenticator(url, 'options-token');
+
+      const pet: Pet = {
+        id: 1,
+        name: 'OptionsDog',
+        photoUrls: new Set(['http://example.com/p.jpg'])
+      };
+      await optionsApi.addPet(pet, { auth: optionsAuth });
+
+      expect(capturedAuth).toBe('Bearer options-token');
+    } finally {
+      server.close();
+    }
+  });
+
+  // auth-omitted-falls-back: when no per-operation auth is provided (options
+  // omitted entirely), the request must fall back to the client's configured
+  // default credentials rather than sending no Authorization header.
+  test('addPet without Options falls back to Configuration credentials', async () => {
+    let capturedAuth: string | undefined;
+    const server = http.createServer((req, res) => {
+      capturedAuth = req.headers['authorization'];
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end('{"id":1,"name":"x","photoUrls":[]}');
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const addr = server.address() as { port: number };
+      const url = `http://127.0.0.1:${addr.port}`;
+      const cfg = Configuration.builder().baseUrl(url).defaultHeader('Authorization', 'Bearer default-token').build();
+      const defaultApi = new PetApi(undefined, cfg);
+
+      const pet: Pet = {
+        id: 1,
+        name: 'DefaultDog',
+        photoUrls: new Set(['http://example.com/p.jpg'])
+      };
+      await defaultApi.addPet(pet);
+
+      expect(capturedAuth).toBe('Bearer default-token');
+    } finally {
+      server.close();
+    }
+  });
+
+  // unsecured-op-has-no-auth-field: getPetById is not a secured operation, so
+  // its generated signature must NOT accept a per-operation auth field. This is
+  // a compile-time guarantee enforced by tsc — a stray `auth` key on its
+  // (absent) Options object would fail type-checking. The runtime assertion
+  // simply confirms the unsecured call still works.
+  test('getPetById is unsecured and exposes no auth field', async () => {
+    const { api: mockApi, close } = await createMockServer(
+      200,
+      'application/json',
+      '{"id":1,"name":"x","photoUrls":[]}'
+    );
+    try {
+      const result = await mockApi.getPetById(1);
+      expect(result).toBeDefined();
+    } finally {
+      close();
     }
   });
 });

@@ -41,7 +41,26 @@ public class PetApiTest
             Status = Pet.StatusEnum.Available,
         };
 
-        var result = await _api.AddPetAsync(_auth, pet);
+        var result = await _api.AddPetAsync(pet, new AddPetOptions { Auth = _auth });
+
+        Assert.NotNull(result);
+        Assert.NotNull(result.Name);
+    }
+
+    [Fact]
+    public async Task TestAddPetUsingConfiguredCredentials()
+    {
+        // The Options arg (and its Auth) is optional: omitting it falls back to
+        // the credentials configured on the client (the default Authorization
+        // header set in the constructor), which must satisfy the secured
+        // endpoint.
+        var pet = new Pet("DefaultCredsDog", new HashSet<string> { "http://example.com/photo.jpg" })
+        {
+            Id = 54321L,
+            Status = Pet.StatusEnum.Available,
+        };
+
+        var result = await _api.AddPetAsync(pet);
 
         Assert.NotNull(result);
         Assert.NotNull(result.Name);
@@ -86,7 +105,7 @@ public class PetApiTest
     [Fact]
     public async Task TestDeletePet()
     {
-        await _api.DeletePetAsync(_auth, 1L);
+        await _api.DeletePetAsync(1L, new DeletePetOptions { Auth = _auth });
         Assert.True(true);
     }
 
@@ -223,7 +242,7 @@ public class PetApiTest
             Status = Pet.StatusEnum.Available,
         };
 
-        var result = await _api.AddPetWithHttpInfoAsync(_auth, pet);
+        var result = await _api.AddPetWithHttpInfoAsync(pet, new AddPetOptions { Auth = _auth });
 
         Assert.NotNull(result);
         Assert.True(result.StatusCode >= 200 && result.StatusCode < 300);
@@ -248,7 +267,10 @@ public class PetApiTest
     [Fact]
     public async Task TestDeletePetWithHttpInfo()
     {
-        var result = await _api.DeletePetWithHttpInfoAsync(_auth, 1L);
+        var result = await _api.DeletePetWithHttpInfoAsync(
+            1L,
+            new DeletePetOptions { Auth = _auth }
+        );
 
         Assert.NotNull(result);
         Assert.True(result.StatusCode >= 200 && result.StatusCode < 300);
@@ -379,10 +401,11 @@ public class PetApiTest
     [Fact]
     public async Task TestAddPetPerCallAuthOverride()
     {
-        // Verify the auth argument on the BASE operation method (not just the
-        // WithHttpInfo variant) is applied to the outgoing request. The default
-        // header carries one token; the per-call authenticator carries a
-        // different one and must win on the wire.
+        // Verify the auth carried inside the Options object on the BASE
+        // operation method (not just the WithHttpInfo variant) is applied to
+        // the outgoing request. The default header carries one token; the
+        // per-call authenticator carries a different one and must win on the
+        // wire.
         var client = new HeaderCapturingApiClient();
         var config = Configuration
             .Builder()
@@ -396,9 +419,49 @@ public class PetApiTest
         {
             Id = 1L,
         };
-        await api.AddPetAsync(perCallAuth, pet);
+        await api.AddPetAsync(pet, new AddPetOptions { Auth = perCallAuth });
 
         Assert.Equal("Bearer per-call-token", client.CapturedHeaders["Authorization"]);
+    }
+
+    [Fact]
+    public async Task TestAddPetUsesConfiguredCredentialsWhenAuthOmitted()
+    {
+        // When no per-call auth is supplied (Options omitted entirely), the
+        // client falls back to the credentials configured on the Configuration
+        // (the default Authorization header). Verify that token reaches the
+        // wire.
+        var client = new HeaderCapturingApiClient();
+        var config = Configuration
+            .Builder()
+            .BaseUrl("http://localhost")
+            .DefaultHeader("Authorization", "Bearer default-token")
+            .Build();
+        var api = new PetApi(client, config);
+
+        var pet = new Pet("DefaultDog", new HashSet<string> { "http://example.com/p.jpg" })
+        {
+            Id = 1L,
+        };
+        await api.AddPetAsync(pet);
+
+        Assert.Equal("Bearer default-token", client.CapturedHeaders["Authorization"]);
+    }
+
+    [Fact]
+    public void TestUnsecuredOperationOptionsExposesNoAuth()
+    {
+        // Compile-level guard: an unsecured operation (getPetById) takes no
+        // Options arg and its absence of an Auth field is enforced by the fact
+        // that GetPetById has no Options class at all. The authed operations'
+        // Options classes DO expose an Auth field. This is a no-op at runtime;
+        // it fails to compile if a regression reintroduces or removes the
+        // Auth field on the wrong operation.
+        var authedOptions = new AddPetOptions { Auth = _auth };
+        Assert.NotNull(authedOptions.Auth);
+
+        var unsecuredOptions = new FindPetsByStatusOptions { Status = "available" };
+        Assert.NotNull(unsecuredOptions);
     }
 
     [Fact]

@@ -25,7 +25,7 @@ describe PetstoreClient::Api::PetApi do
         status: 'available'
       )
 
-      result = @api.add_pet(pet, auth: @auth)
+      result = @api.add_pet(pet, PetstoreClient::Api::Options::AddPetOptions.new(auth: @auth))
 
       _(result).wont_be_nil
       _(result.name).wont_be_nil
@@ -69,7 +69,7 @@ describe PetstoreClient::Api::PetApi do
 
   describe '#delete_pet' do
     it 'deletes a pet' do
-      @api.delete_pet(1, auth: @auth)
+      @api.delete_pet(1, PetstoreClient::Api::Options::DeletePetOptions.new(auth: @auth))
     end
   end
 
@@ -341,7 +341,7 @@ describe PetstoreClient::Api::PetApi do
           status: 'available'
         )
 
-        result = @api.add_pet_with_http_info(pet, auth: @auth)
+        result = @api.add_pet_with_http_info(pet, PetstoreClient::Api::Options::AddPetOptions.new(auth: @auth))
 
         _(result).wont_be_nil
         _(result.status_code).must_be :>=, 200
@@ -369,7 +369,7 @@ describe PetstoreClient::Api::PetApi do
 
     describe '#delete_pet_with_http_info' do
       it 'returns HTTP info on successful deletion' do
-        result = @api.delete_pet_with_http_info(1, auth: @auth)
+        result = @api.delete_pet_with_http_info(1, PetstoreClient::Api::Options::DeletePetOptions.new(auth: @auth))
 
         _(result).wont_be_nil
         _(result.status_code).must_be :>=, 200
@@ -400,27 +400,40 @@ describe PetstoreClient::Api::PetApi do
   end
 
   describe 'per-call auth override' do
-    # per-call-auth-override: an authenticator passed to the BASE operation
-    # method (not just _with_http_info) must be applied to the outgoing
-    # request. The default header carries one token; the per-call
-    # authenticator carries a different one and must win on the wire.
-    it 'applies the per-call authenticator on the base method' do
+    # capture_auth_header: spin up a one-shot TCP server that records the
+    # Authorization header (if any) of the first request and returns a
+    # minimal Pet JSON body so the body-returning convenience method is happy.
+    def capture_auth_header
       server = TCPServer.new('127.0.0.1', 0)
       port = server.addr[1]
       captured = Queue.new
       thread = Thread.new do
         client = server.accept rescue next
         client.gets # request line
+        saw_auth = false
         while (line = client.gets)
-          captured << line if line.downcase.start_with?('authorization:')
+          if line.downcase.start_with?('authorization:')
+            captured << line
+            saw_auth = true
+          end
           break if line.strip.empty?
         end
+        captured << :none unless saw_auth
         body = '{"id":1,"name":"x","photoUrls":[]}'
         response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
                    "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
         client.print(response)
         client.close
       end
+      [server, port, thread, captured]
+    end
+
+    # per-call-auth-override: an authenticator carried INSIDE the Options
+    # object must be applied to the outgoing request. The default header
+    # carries one token; the per-call authenticator carries a different one
+    # and must win on the wire.
+    it 'applies the per-call authenticator supplied in Options' do
+      server, port, thread, captured = capture_auth_header
 
       begin
         config = PetstoreClient::Configuration.new(
@@ -435,7 +448,7 @@ describe PetstoreClient::Api::PetApi do
           name: 'OverrideDog',
           photo_urls: Set['http://example.com/p.jpg']
         )
-        api.add_pet(pet, auth: per_call_auth)
+        api.add_pet(pet, PetstoreClient::Api::Options::AddPetOptions.new(auth: per_call_auth))
 
         header_line = captured.pop
         _(header_line).must_include 'Bearer per-call-token'
@@ -443,6 +456,45 @@ describe PetstoreClient::Api::PetApi do
         server.close
         thread.join(2)
       end
+    end
+
+    # auth-omitted-uses-config-default: when no per-operation authenticator is
+    # supplied (auth omitted from Options entirely), the base client must fall
+    # back to the credentials configured on the Configuration object.
+    it 'falls back to the configured credentials when auth is omitted from Options' do
+      server, port, thread, captured = capture_auth_header
+
+      begin
+        config = PetstoreClient::Configuration.new(
+          base_url: "http://127.0.0.1:#{port}",
+          default_headers: { 'Authorization' => 'Bearer config-default-token' }
+        )
+        api = PetstoreClient::Api::PetApi.new(nil, config)
+
+        pet = PetstoreClient::Models::Pet.new(
+          id: 1,
+          name: 'DefaultCredsDog',
+          photo_urls: Set['http://example.com/p.jpg']
+        )
+        # Options omits auth entirely; the minted Options object defaults its
+        # auth member to nil, so the configured default credentials apply.
+        api.add_pet(pet, PetstoreClient::Api::Options::AddPetOptions.new)
+
+        header_line = captured.pop
+        _(header_line).must_include 'Bearer config-default-token'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # unsecured-op-has-no-auth-member: an unsecured operation
+    # (get_pet_by_id has no security requirement) must NOT mint an `auth`
+    # member on its Options object — indeed it has no Options object at all,
+    # so there is no AddPetOptions-style class for it. Guard the contract by
+    # asserting the GetPetByIdOptions constant is absent.
+    it 'does not expose an auth member on an unsecured operation' do
+      _(PetstoreClient::Api::Options.const_defined?(:GetPetByIdOptions)).must_equal false
     end
   end
 end

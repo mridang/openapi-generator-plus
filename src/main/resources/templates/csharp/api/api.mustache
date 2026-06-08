@@ -120,9 +120,6 @@ public class {{classname}} : BaseApi
 {{#notes}}
     /// <remarks>{{.}}</remarks>
 {{/notes}}
-{{#hasAuthMethods}}
-    /// <param name="auth">Authenticator for this operation.</param>
-{{/hasAuthMethods}}
     {{#pathParams}}
     /// <param name="{{paramName}}">{{description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
     {{#vendorExtensions.pluralExamples}}
@@ -135,32 +132,11 @@ public class {{classname}} : BaseApi
     /// <example>{{summary}}: {{value}}</example>
     {{/vendorExtensions.pluralExamples}}
     {{/bodyParam}}
-{{#queryParams}}
-{{#-first}}
-    /// <param name="options">Options for query, header, and form parameters.</param>
-{{/-first}}
-{{/queryParams}}
-{{^queryParams}}
-{{#headerParams}}
-{{#-first}}
-    /// <param name="options">Options for query, header, and form parameters.</param>
-{{/-first}}
-{{/headerParams}}
-{{^headerParams}}
-{{#formParams}}
-{{#-first}}
-    /// <param name="options">Options for query, header, and form parameters.</param>
-{{/-first}}
-{{/formParams}}
-{{^formParams}}
-{{#cookieParams}}
-{{#-first}}
-    /// <param name="options">Options for query, header, and form parameters.</param>
-{{/-first}}
-{{/cookieParams}}
-{{/formParams}}
-{{/headerParams}}
-{{/queryParams}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
 {{#servers}}
 {{#-first}}
     /// <param name="server">Optional per-operation server override.</param>
@@ -176,10 +152,10 @@ public class {{classname}} : BaseApi
 {{#isDeprecated}}
     [Obsolete("This operation is deprecated.")]
 {{/isDeprecated}}
-    public async {{#returnType}}Task<{{{returnType}}}>{{/returnType}}{{^returnType}}Task{{/returnType}} {{operationId}}Async({{#hasAuthMethods}}IAuthenticator auth{{/hasAuthMethods}}{{#vendorExtensions.op.signatureArgs}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{{dataType}}}{{#nullable}}?{{/nullable}} {{paramName}}{{#nullable}}{{^isBody}} = null{{/isBody}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}})
+    public async {{#returnType}}Task<{{{returnType}}}>{{/returnType}}{{^returnType}}Task{{/returnType}} {{operationId}}Async({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{{dataType}}}{{#nullable}}?{{/nullable}} {{paramName}}{{#nullable}}{{^isBody}} = null{{/isBody}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}})
     {
         {{#returnType}}
-        Task<ApiResult<{{{returnType}}}>> task = {{operationId}}WithHttpInfoAsync({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#vendorExtensions.op.signatureArgs}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}});
+        Task<ApiResult<{{{returnType}}}>> task = {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}});
         ApiResult<{{{returnType}}}> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -194,7 +170,7 @@ public class {{classname}} : BaseApi
                 result.RawBody);
         {{/returnType}}
         {{^returnType}}
-        Task<ApiResult<object?>> task = {{operationId}}WithHttpInfoAsync({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#vendorExtensions.op.signatureArgs}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}});
+        Task<ApiResult<object?>> task = {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}});
         _ = await task.ConfigureAwait(false);
         {{/returnType}}
     }
@@ -205,41 +181,17 @@ public class {{classname}} : BaseApi
 {{#notes}}
     /// <remarks>{{.}}</remarks>
 {{/notes}}
-{{#hasAuthMethods}}
-    /// <param name="auth">Authenticator for this operation.</param>
-{{/hasAuthMethods}}
     {{#pathParams}}
     /// <param name="{{paramName}}">{{description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
     {{/pathParams}}
     {{#bodyParam}}
     /// <param name="{{paramName}}">{{description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
     {{/bodyParam}}
-{{#queryParams}}
-{{#-first}}
-    /// <param name="options">Options for query, header, and form parameters.</param>
-{{/-first}}
-{{/queryParams}}
-{{^queryParams}}
-{{#headerParams}}
-{{#-first}}
-    /// <param name="options">Options for query, header, and form parameters.</param>
-{{/-first}}
-{{/headerParams}}
-{{^headerParams}}
-{{#formParams}}
-{{#-first}}
-    /// <param name="options">Options for query, header, and form parameters.</param>
-{{/-first}}
-{{/formParams}}
-{{^formParams}}
-{{#cookieParams}}
-{{#-first}}
-    /// <param name="options">Options for query, header, and form parameters.</param>
-{{/-first}}
-{{/cookieParams}}
-{{/formParams}}
-{{/headerParams}}
-{{/queryParams}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
 {{#servers}}
 {{#-first}}
     /// <param name="server">Optional per-operation server override.</param>
@@ -247,7 +199,7 @@ public class {{classname}} : BaseApi
 {{/servers}}
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>> {{operationId}}WithHttpInfoAsync({{#hasAuthMethods}}IAuthenticator auth{{/hasAuthMethods}}{{#vendorExtensions.op.signatureArgs}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{{dataType}}}{{#nullable}}?{{/nullable}} {{paramName}}{{#nullable}}{{^isBody}} = null{{/isBody}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}})
+    public async Task<ApiResult<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>> {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{{dataType}}}{{#nullable}}?{{/nullable}} {{paramName}}{{#nullable}}{{^isBody}} = null{{/isBody}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}})
     {
 {{#queryParams}}
 {{#-first}}
@@ -407,7 +359,7 @@ public class {{classname}} : BaseApi
 {{^produces}}                [],{{/produces}}{{#produces}}{{#-first}}                {{operationId}}Accepts,{{/-first}}{{/produces}}
                 "{{vendorExtensions.op.effectiveConsumes}}",
                 {{#returnType}}typeof({{{returnType}}}){{/returnType}}{{^returnType}}null{{/returnType}},
-                {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}null{{/hasAuthMethods}}
+                {{#hasAuthMethods}}options?.Auth{{/hasAuthMethods}}{{^hasAuthMethods}}null{{/hasAuthMethods}}
             )
             .ConfigureAwait(false);
     }

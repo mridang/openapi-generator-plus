@@ -120,18 +120,19 @@ module PetstoreClient
       end
 
       # Add a new pet to the store
-      # @param auth [Auth::Authenticator] authenticator for this operation
       # @param pet [Pet] Create a new pet in the store
+
+      # @param options [AddPetOptions] options for query, header, form, and cookie parameters
 
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
-      def add_pet(pet, auth: nil)
+      def add_pet(pet, options = nil)
         if pet.nil?
           raise ArgumentError,
             "Missing the required parameter 'pet' when calling PetApi.add_pet"
         end
 
-        result = add_pet_with_http_info(pet, auth: auth)
+        result = add_pet_with_http_info(pet, options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -150,7 +151,7 @@ module PetstoreClient
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def add_pet_with_http_info(pet, auth: nil)
+      def add_pet_with_http_info(pet, options = nil)
         if pet.nil?
           raise ArgumentError,
             "Missing the required parameter 'pet' when calling PetApi.add_pet"
@@ -168,7 +169,7 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'Pet',
-          auth
+          options&.auth
         )
       end
 
@@ -180,7 +181,7 @@ module PetstoreClient
 
       # @return [Array<Photo>]
       # @raise [ApiError] if fails to make API call
-      def add_pet_photos(pet_id, options = nil)
+      def add_pet_photos(pet_id, options)
         if pet_id.nil?
           raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.add_pet_photos"
@@ -205,7 +206,7 @@ module PetstoreClient
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def add_pet_photos_with_http_info(pet_id, options = nil)
+      def add_pet_photos_with_http_info(pet_id, options)
         if pet_id.nil?
           raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.add_pet_photos"
@@ -232,13 +233,14 @@ module PetstoreClient
       end
 
       # Record a treatment for a pet
-      # @param auth [Auth::Authenticator] authenticator for this operation
       # @param pet_id [Integer]
       # @param pet_treatment [PetTreatment]
 
+      # @param options [AddPetTreatmentOptions] options for query, header, form, and cookie parameters
+
       # @return [PetTreatment]
       # @raise [ApiError] if fails to make API call
-      def add_pet_treatment(pet_id, pet_treatment, auth: nil)
+      def add_pet_treatment(pet_id, pet_treatment, options = nil)
         if pet_id.nil?
           raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.add_pet_treatment"
@@ -249,7 +251,7 @@ module PetstoreClient
             "Missing the required parameter 'pet_treatment' when calling PetApi.add_pet_treatment"
         end
 
-        result = add_pet_treatment_with_http_info(pet_id, pet_treatment, auth: auth)
+        result = add_pet_treatment_with_http_info(pet_id, pet_treatment, options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -268,7 +270,7 @@ module PetstoreClient
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def add_pet_treatment_with_http_info(pet_id, pet_treatment, auth: nil)
+      def add_pet_treatment_with_http_info(pet_id, pet_treatment, options = nil)
         if pet_id.nil?
           raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.add_pet_treatment"
@@ -292,30 +294,29 @@ module PetstoreClient
           ['application/json'],
           'application/json',
           'PetTreatment',
-          auth
+          options&.auth
         )
       end
 
       # Deletes a pet
-      # @param auth [Auth::Authenticator] authenticator for this operation
       # @param pet_id [Integer] Pet id to delete
 
       # @param options [DeletePetOptions] options for query, header, form, and cookie parameters
 
       # @return [nil]
       # @raise [ApiError] if fails to make API call
-      def delete_pet(pet_id, options = nil, auth: nil)
+      def delete_pet(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.delete_pet"
         end
 
-        delete_pet_with_http_info(pet_id, options, auth: auth).data
+        delete_pet_with_http_info(pet_id, options).data
       end
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def delete_pet_with_http_info(pet_id, options = nil, auth: nil)
+      def delete_pet_with_http_info(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.delete_pet"
@@ -337,7 +338,7 @@ module PetstoreClient
           [],
           'application/json',
           nil,
-          auth
+          options&.auth
         )
       end
 
@@ -1182,7 +1183,7 @@ module PetstoreClient
 
       # @return [ApiResponse]
       # @raise [ApiError] if fails to make API call
-      def upload_pet_certificate(pet_id, options = nil)
+      def upload_pet_certificate(pet_id, options)
         if pet_id.nil?
           raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_certificate"
@@ -1207,7 +1208,7 @@ module PetstoreClient
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def upload_pet_certificate_with_http_info(pet_id, options = nil)
+      def upload_pet_certificate_with_http_info(pet_id, options)
         if pet_id.nil?
           raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_certificate"
@@ -1240,7 +1241,7 @@ module PetstoreClient
 
       # @return [ApiResponse]
       # @raise [ApiError] if fails to make API call
-      def upload_pet_document(pet_id, options = nil)
+      def upload_pet_document(pet_id, options)
         if pet_id.nil?
           raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"
@@ -1265,7 +1266,7 @@ module PetstoreClient
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def upload_pet_document_with_http_info(pet_id, options = nil)
+      def upload_pet_document_with_http_info(pet_id, options)
         if pet_id.nil?
           raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"

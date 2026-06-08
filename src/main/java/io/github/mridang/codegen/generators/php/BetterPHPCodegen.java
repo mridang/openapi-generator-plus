@@ -787,6 +787,8 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         context.put("hasRequiredParams", !requiredParams.isEmpty());
         context.put("modelImports", new ArrayList<>(modelTypes));
         context.put("hasModelImports", !modelTypes.isEmpty());
+        injectAuthFieldContext(op, context);
+        context.put("authImport", invokerPackage + "\\Auth\\" + getAuthenticatorTypeName());
         return renderOptionsTemplate("api/options.mustache", context);
     }
 

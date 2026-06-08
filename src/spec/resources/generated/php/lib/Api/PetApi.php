@@ -13,7 +13,9 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Api;
 
+use PetstoreClient\Api\Options\AddPetOptions;
 use PetstoreClient\Api\Options\AddPetPhotosOptions;
+use PetstoreClient\Api\Options\AddPetTreatmentOptions;
 use PetstoreClient\Api\Options\DeletePetOptions;
 use PetstoreClient\Api\Options\FindPetsByStatusOptions;
 use PetstoreClient\Api\Options\GetPetTagOptions;
@@ -21,7 +23,6 @@ use PetstoreClient\Api\Options\UploadPetCertificateOptions;
 use PetstoreClient\Api\Options\UploadPetDocumentOptions;
 use PetstoreClient\ApiException;
 use PetstoreClient\ApiResult;
-use PetstoreClient\Auth\Authenticator;
 use PetstoreClient\ValueSerializer;
 
 /**
@@ -156,15 +157,14 @@ class PetApi extends BaseApi
 {
     /**
      * Add a new pet to the store
-     * @param Authenticator $auth Authenticator for this operation
      * @param \PetstoreClient\Models\Pet $pet Create a new pet in the store
 
      * @return \PetstoreClient\Models\Pet
      * @throws ApiException
      */
-    public function addPet(\PetstoreClient\Models\Pet $pet, ?Authenticator $auth = null)
+    public function addPet(\PetstoreClient\Models\Pet $pet, ?AddPetOptions $options = null)
     {
-        $apiResult = $this->addPetWithHttpInfo($pet, $auth);
+        $apiResult = $this->addPetWithHttpInfo($pet, $options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -189,8 +189,12 @@ class PetApi extends BaseApi
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws ApiException
      */
-    public function addPetWithHttpInfo(\PetstoreClient\Models\Pet $pet, ?Authenticator $auth = null): ApiResult
+    public function addPetWithHttpInfo(\PetstoreClient\Models\Pet $pet, ?AddPetOptions $options = null): ApiResult
     {
+        /* Per-operation auth is sourced from the Options object's $auth field.
+         * A null options or a null $auth falls back to the client's configured
+         * credentials. */
+        $auth = $options?->auth;
         $path = '/pet';
         $queryParams = [];
         $headerParams = [];
@@ -284,14 +288,13 @@ class PetApi extends BaseApi
 
     /**
      * Record a treatment for a pet
-     * @param Authenticator $auth Authenticator for this operation
 
      * @return \PetstoreClient\Models\PetTreatment
      * @throws ApiException
      */
-    public function addPetTreatment(int $petId, \PetstoreClient\Models\PetTreatment $petTreatment, ?Authenticator $auth = null)
+    public function addPetTreatment(int $petId, \PetstoreClient\Models\PetTreatment $petTreatment, ?AddPetTreatmentOptions $options = null)
     {
-        $apiResult = $this->addPetTreatmentWithHttpInfo($petId, $petTreatment, $auth);
+        $apiResult = $this->addPetTreatmentWithHttpInfo($petId, $petTreatment, $options);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -315,8 +318,12 @@ class PetApi extends BaseApi
      * @return ApiResult<\PetstoreClient\Models\PetTreatment>
      * @throws ApiException
      */
-    public function addPetTreatmentWithHttpInfo(int $petId, \PetstoreClient\Models\PetTreatment $petTreatment, ?Authenticator $auth = null): ApiResult
+    public function addPetTreatmentWithHttpInfo(int $petId, \PetstoreClient\Models\PetTreatment $petTreatment, ?AddPetTreatmentOptions $options = null): ApiResult
     {
+        /* Per-operation auth is sourced from the Options object's $auth field.
+         * A null options or a null $auth falls back to the client's configured
+         * credentials. */
+        $auth = $options?->auth;
         $path = '/pet/{petId}/treatment';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
@@ -350,16 +357,15 @@ class PetApi extends BaseApi
 
     /**
      * Deletes a pet
-     * @param Authenticator $auth Authenticator for this operation
      * @param int $petId Pet id to delete
 
      * @param DeletePetOptions|null $options Options for query, header, form, and cookie parameters
 
      * @throws ApiException
      */
-    public function deletePet(int $petId, ?DeletePetOptions $options = null, ?Authenticator $auth = null): void
+    public function deletePet(int $petId, ?DeletePetOptions $options = null): void
     {
-        $this->deletePetWithHttpInfo($petId, $options, $auth);
+        $this->deletePetWithHttpInfo($petId, $options);
     }
 
     /**
@@ -370,8 +376,12 @@ class PetApi extends BaseApi
      * @return ApiResult<null>
      * @throws ApiException
      */
-    public function deletePetWithHttpInfo(int $petId, ?DeletePetOptions $options = null, ?Authenticator $auth = null): ApiResult
+    public function deletePetWithHttpInfo(int $petId, ?DeletePetOptions $options = null): ApiResult
     {
+        /* Per-operation auth is sourced from the Options object's $auth field.
+         * A null options or a null $auth falls back to the client's configured
+         * credentials. */
+        $auth = $options?->auth;
         $path = '/pet/{petId}';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
@@ -387,7 +397,7 @@ class PetApi extends BaseApi
         $queryParams = [];
         $headerParams = [];
         $cookieParts = [];
-        if ($options?->apiKey !== null) {
+        if ($options !== null && $options->apiKey !== null) {
             /** @var string $cookieValue */
             $cookieValue = ValueSerializer::serializeStyled('api_key', $options->apiKey, 'cookie', 'string', null, 'form', true);
             $cookieParts[] = 'api_key=' . $cookieValue;
@@ -498,7 +508,7 @@ class PetApi extends BaseApi
      * @deprecated This operation is deprecated.
      * @see https://example.com/docs/filtering Find out more about filtering
      */
-    public function findPetsByStatus(FindPetsByStatusOptions $options)
+    public function findPetsByStatus(?FindPetsByStatusOptions $options = null)
     {
         $apiResult = $this->findPetsByStatusWithHttpInfo($options);
         if ($apiResult->data === null) {
@@ -526,16 +536,18 @@ class PetApi extends BaseApi
      * @return ApiResult<\Ds\Vector>
      * @throws ApiException
      */
-    public function findPetsByStatusWithHttpInfo(FindPetsByStatusOptions $options): ApiResult
+    public function findPetsByStatusWithHttpInfo(?FindPetsByStatusOptions $options = null): ApiResult
     {
         $path = '/pet/findByStatus';
         $queryParams = [];
-        if ($options->status !== null) {
-            $queryParams['status'] = ValueSerializer::serializeStyled('status', $options->status, 'query', 'string', null, 'form', true);
-        } else {
-            $queryParams['status'] = '';
+        if ($options !== null) {
+            if ($options->status !== null) {
+                $queryParams['status'] = ValueSerializer::serializeStyled('status', $options->status, 'query', 'string', null, 'form', true);
+            } else {
+                $queryParams['status'] = '';
+            }
         }
-        if ($options->filter !== null) {
+        if ($options !== null && $options->filter !== null) {
             $queryParams = array_merge($queryParams, ValueSerializer::serializeDeepObject('filter', $options->filter));
         }
         $headerParams = [];
@@ -1050,7 +1062,7 @@ class PetApi extends BaseApi
      * @return \PetstoreClient\Models\Pet
      * @throws ApiException
      */
-    public function getPetTag(int $petId, string $tagName, GetPetTagOptions $options)
+    public function getPetTag(int $petId, string $tagName, ?GetPetTagOptions $options = null)
     {
         $apiResult = $this->getPetTagWithHttpInfo($petId, $tagName, $options);
         if ($apiResult->data === null) {
@@ -1078,7 +1090,7 @@ class PetApi extends BaseApi
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws ApiException
      */
-    public function getPetTagWithHttpInfo(int $petId, string $tagName, GetPetTagOptions $options): ApiResult
+    public function getPetTagWithHttpInfo(int $petId, string $tagName, ?GetPetTagOptions $options = null): ApiResult
     {
         $path = '/pet/{petId}/tag/{tagName}';
         /** @var string $pathValue */
@@ -1104,16 +1116,18 @@ class PetApi extends BaseApi
         ]);
         $path = str_replace('{' . 'tagName' . '}', $pathValue, $path);
         $queryParams = [];
-        if ($options->colors !== null) {
+        if ($options !== null && $options->colors !== null) {
             $queryParams['colors'] = ValueSerializer::serializeStyled('colors', $options->colors, 'query', '\Ds\Vector', 'pipes', 'pipeDelimited', false);
         }
-        if ($options->sizes !== null) {
+        if ($options !== null && $options->sizes !== null) {
             $queryParams['sizes'] = ValueSerializer::serializeStyled('sizes', $options->sizes, 'query', '\Ds\Vector', 'ssv', 'spaceDelimited', false);
         }
-        if ($options->filter !== null) {
-            $queryParams['filter'] = ValueSerializer::serializeStyled('filter', $options->filter, 'query', 'string', null, 'form', true);
-        } else {
-            $queryParams['filter'] = '';
+        if ($options !== null) {
+            if ($options->filter !== null) {
+                $queryParams['filter'] = ValueSerializer::serializeStyled('filter', $options->filter, 'query', 'string', null, 'form', true);
+            } else {
+                $queryParams['filter'] = '';
+            }
         }
         $headerParams = [];
         $requestBody = null;

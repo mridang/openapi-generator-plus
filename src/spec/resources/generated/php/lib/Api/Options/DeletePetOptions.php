@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Api\Options;
 
+use PetstoreClient\Auth\Authenticator;
+
 /**
  * Options for the deletePet operation.
  */
@@ -20,8 +22,16 @@ class DeletePetOptions
 {
     public ?string $apiKey;
 
-    public function __construct(?string $apiKey = null)
+    /**
+     * Per-operation authenticator. When set, it overrides the client's
+     * configured credentials for this call only; leave {@code null} to use
+     * the configured credentials.
+     */
+    public ?Authenticator $auth;
+
+    public function __construct(?string $apiKey = null, ?Authenticator $auth = null)
     {
         $this->apiKey = $apiKey;
+        $this->auth = $auth;
     }
 }

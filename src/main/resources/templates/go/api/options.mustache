@@ -26,4 +26,8 @@ type {{className}} struct {
 	{{name}} *{{{dataType}}}
 {{/required}}
 {{/params}}
+{{#hasAuthField}}
+	/* Auth overrides the client's configured credentials for this call only. */
+	Auth {{authFieldType}}
+{{/hasAuthField}}
 }

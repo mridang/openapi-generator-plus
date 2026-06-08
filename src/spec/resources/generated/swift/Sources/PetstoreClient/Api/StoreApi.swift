@@ -16,13 +16,13 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     /// - Parameters:
     ///   - orderId: ID of the order to delete
 
-    public func deleteOrder(orderId: Int64, ) async throws {
-        let result = try await deleteOrderWithHTTPInfo(orderId: orderId, )
+    public func deleteOrder(orderId: Int64) async throws {
+        let result = try await deleteOrderWithHTTPInfo(orderId: orderId)
         _ = result
     }
 
     /// Performs the deleteOrder operation and returns the full API result.
-    public func deleteOrderWithHTTPInfo(orderId: Int64, ) async throws -> ApiResult<Void> {
+    public func deleteOrderWithHTTPInfo(orderId: Int64) async throws -> ApiResult<Void> {
 
         var path = "/store/order/{orderId}"
         path = path.replacingOccurrences(
@@ -98,8 +98,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     /// - Parameters:
     ///   - orderId: ID of order to return
 
-    public func getOrderById(orderId: Int64, ) async throws -> Order {
-        let result = try await getOrderByIdWithHTTPInfo(orderId: orderId, )
+    public func getOrderById(orderId: Int64) async throws -> Order {
+        let result = try await getOrderByIdWithHTTPInfo(orderId: orderId)
         guard let data = result.data else {
             throw ApiError(
                 statusCode: result.statusCode,
@@ -112,7 +112,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the getOrderById operation and returns the full API result.
-    public func getOrderByIdWithHTTPInfo(orderId: Int64, ) async throws -> ApiResult<Order> {
+    public func getOrderByIdWithHTTPInfo(orderId: Int64) async throws -> ApiResult<Order> {
 
         var path = "/store/order/{orderId}"
         path = path.replacingOccurrences(
@@ -146,8 +146,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     ///
     /// - Parameters:
 
-    public func placeOrder(order: Order?, ) async throws -> Order {
-        let result = try await placeOrderWithHTTPInfo(order: order, )
+    public func placeOrder(order: Order?) async throws -> Order {
+        let result = try await placeOrderWithHTTPInfo(order: order)
         guard let data = result.data else {
             throw ApiError(
                 statusCode: result.statusCode,
@@ -160,7 +160,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     }
 
     /// Performs the placeOrder operation and returns the full API result.
-    public func placeOrderWithHTTPInfo(order: Order?, ) async throws -> ApiResult<Order> {
+    public func placeOrderWithHTTPInfo(order: Order?) async throws -> ApiResult<Order> {
 
         let path = "/store/order"
 

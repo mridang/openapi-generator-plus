@@ -138,7 +138,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
   {{/isDeprecated}}
   @spec {{operationId}}(t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{{dataType}}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}Options.t(){{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
           {:ok, {{{returnType}}}{{^returnType}}nil{{/returnType}}} | {:error, term()}
-  def {{operationId}}(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
+  def {{operationId}}(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
     case {{operationId}}_with_http_info(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts) do
 {{#returnType}}
       # convenience-empty-body-handling: a body-returning operation that
@@ -167,7 +167,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
   @doc """
   Bang version of `{{operationId}}`. Raises on error.
   """
-  def {{operationId}}!(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
+  def {{operationId}}!(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
     case {{operationId}}(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
@@ -179,9 +179,16 @@ defmodule {{moduleName}}.Api.{{classname}} do
   """
   @spec {{operationId}}_with_http_info(t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{{dataType}}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}Options.t(){{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
           {:ok, {{moduleName}}.ApiResult.t()} | {:error, term()}
-  def {{operationId}}_with_http_info(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
+  def {{operationId}}_with_http_info(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
 {{#hasAuthMethods}}
-    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+    # Per-operation auth is sourced from the Options struct's optional `auth`
+    # field (the uniform "auth folded into Options" model). A `:auth` entry in
+    # the trailing keyword list still overrides it for ergonomic call sites, and
+    # an absent override falls back to the API instance's configured
+    # authenticator so auth-omitted calls use the Configuration credentials.
+    auth =
+      Keyword.get(opts, :auth) || (options && Map.get(options, :auth)) ||
+        Map.get(api, :authenticator)
 {{/hasAuthMethods}}
 {{^hasAuthMethods}}
     # Operation declared `security: []` — no auth applied even if the

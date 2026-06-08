@@ -319,7 +319,7 @@ import Testing
         let api = PetApi(apiClient: mockClient, config: config)
 
         let pet = Pet(name: "test", photoUrls: [])
-        _ = try? await api.addPet(pet: pet, auth: MockAuth())
+        _ = try? await api.addPet(pet: pet, options: AddPetOptions(auth: MockAuth()))
         #expect(mockClient.lastHeaders["Accept"] != nil, "Expected Accept header from selector")
         #expect(mockClient.lastHeaders["Content-Type"] != nil, "Expected Content-Type header from selector")
     }
@@ -333,7 +333,7 @@ import Testing
 
         // POST requests with a body should always send Content-Type: application/json
         let pet = Pet(name: "test", photoUrls: [])
-        _ = try? await api.addPet(pet: pet, auth: MockAuth())
+        _ = try? await api.addPet(pet: pet, options: AddPetOptions(auth: MockAuth()))
         // The header selector should default empty content-type to application/json
         let ct = mockClient.lastHeaders["Content-Type"]
         #expect(ct != nil, "Expected Content-Type to be set")
@@ -350,7 +350,7 @@ import Testing
         let api = PetApi(apiClient: mockClient, config: config)
 
         let pet = Pet(name: "TestPet", photoUrls: [])
-        _ = try? await api.addPet(pet: pet, auth: MockAuth())
+        _ = try? await api.addPet(pet: pet, options: AddPetOptions(auth: MockAuth()))
         #expect(mockClient.lastBody != nil, "Expected body to be captured")
         if let body = mockClient.lastBody {
             let bodyStr = String(data: body, encoding: .utf8) ?? ""
@@ -452,7 +452,7 @@ import Testing
 
         let auth = MockAuth(cookies: ["session": "abc123"])
         let pet = Pet(name: "TestPet", photoUrls: [])
-        _ = try? await api.addPet(pet: pet, auth: auth)
+        _ = try? await api.addPet(pet: pet, options: AddPetOptions(auth: auth))
         if let cookie = mockClient.lastHeaders["Cookie"] {
             #expect(cookie.contains("session=abc123"))
         }
@@ -624,7 +624,7 @@ import Testing
         // deletePet is a void operation
         let auth = MockAuth()
         do {
-            try await api.deletePet(petId: 1, auth: auth)
+            try await api.deletePet(petId: 1, options: DeletePetOptions(auth: auth))
             // Success - void operation returns no value
         } catch {
             // OK - chasm may not have matching mapping
@@ -771,7 +771,7 @@ import Testing
         let config = ConfigurationBuilder().baseURL("https://example.com").build()
         let api = PetApi(apiClient: mockClient, config: config)
         let pet = Pet(name: "TestPet", photoUrls: [])
-        _ = try? await api.addPet(pet: pet, auth: MockAuth())
+        _ = try? await api.addPet(pet: pet, options: AddPetOptions(auth: MockAuth()))
         // addPet sends a JSON body -- Content-Type should be present
         #expect(
             mockClient.lastHeaders["Content-Type"] != nil,
@@ -801,7 +801,7 @@ import Testing
         let opAuth = MockAuth(headers: ["Authorization": "Bearer op-level"])
         let api = PetApi(apiClient: mockClient, config: config, authenticator: clientAuth)
         let pet = Pet(name: "TestPet", photoUrls: [])
-        _ = try? await api.addPet(pet: pet, auth: opAuth)
+        _ = try? await api.addPet(pet: pet, options: AddPetOptions(auth: opAuth))
         #expect(
             mockClient.lastHeaders["Authorization"] == "Bearer op-level",
             "Op-level auth must override the client-level authenticator")
@@ -902,7 +902,7 @@ import Testing
         let config = ConfigurationBuilder().baseURL("https://example.com").build()
         let api = PetApi(apiClient: mockClient, config: config)
         let pet = Pet(name: "EmptyPet", photoUrls: [])
-        _ = try? await api.addPet(pet: pet, auth: MockAuth())
+        _ = try? await api.addPet(pet: pet, options: AddPetOptions(auth: MockAuth()))
         #expect(
             mockClient.lastHeaders["Content-Type"] == "application/json",
             "Content-Type must be application/json when body is a JSON object")

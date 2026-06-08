@@ -185,10 +185,10 @@ impl PetApi {
     /// * `pet`: Create a new pet in the store
     pub async fn add_pet(
         &self,
-        auth: Option<&dyn Authenticator>,
         pet: Pet,
+        options: Option<&AddPetOptions>,
     ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.add_pet_with_http_info(auth, pet).await?;
+        let result = self.add_pet_with_http_info(pet, options).await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -206,9 +206,14 @@ impl PetApi {
     /// Performs the add_pet operation and returns the full API result.
     pub async fn add_pet_with_http_info(
         &self,
-        auth: Option<&dyn Authenticator>,
         pet: Pet,
+        options: Option<&AddPetOptions>,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
+        // Per-operation auth is folded into the Options struct: source the
+        // authenticator from `options.auth` when present, otherwise pass None so
+        // the base client falls back to the Configuration credentials.
+        let auth: Option<&dyn Authenticator> = options.and_then(|o| o.auth.as_deref());
+
         let mut path = "/pet".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -348,12 +353,12 @@ impl PetApi {
     /// Record a treatment for a pet
     pub async fn add_pet_treatment(
         &self,
-        auth: Option<&dyn Authenticator>,
         pet_id: i64,
         pet_treatment: PetTreatment,
+        options: Option<&AddPetTreatmentOptions>,
     ) -> Result<PetTreatment, Box<dyn std::error::Error + Send + Sync>> {
         let result = self
-            .add_pet_treatment_with_http_info(auth, pet_id, pet_treatment)
+            .add_pet_treatment_with_http_info(pet_id, pet_treatment, options)
             .await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
@@ -372,10 +377,15 @@ impl PetApi {
     /// Performs the add_pet_treatment operation and returns the full API result.
     pub async fn add_pet_treatment_with_http_info(
         &self,
-        auth: Option<&dyn Authenticator>,
         pet_id: i64,
         pet_treatment: PetTreatment,
+        options: Option<&AddPetTreatmentOptions>,
     ) -> Result<ApiResult<PetTreatment>, Box<dyn std::error::Error + Send + Sync>> {
+        // Per-operation auth is folded into the Options struct: source the
+        // authenticator from `options.auth` when present, otherwise pass None so
+        // the base client falls back to the Configuration credentials.
+        let auth: Option<&dyn Authenticator> = options.and_then(|o| o.auth.as_deref());
+
         let mut path = "/pet/{petId}/treatment".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
@@ -455,13 +465,10 @@ impl PetApi {
     /// * `api_key`: Session cookie used for authentication
     pub async fn delete_pet(
         &self,
-        auth: Option<&dyn Authenticator>,
         pet_id: i64,
         options: Option<&DeletePetOptions>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let result = self
-            .delete_pet_with_http_info(auth, pet_id, options)
-            .await?;
+        let result = self.delete_pet_with_http_info(pet_id, options).await?;
         let _ = result;
         Ok(())
     }
@@ -469,10 +476,14 @@ impl PetApi {
     /// Performs the delete_pet operation and returns the full API result.
     pub async fn delete_pet_with_http_info(
         &self,
-        auth: Option<&dyn Authenticator>,
         pet_id: i64,
         options: Option<&DeletePetOptions>,
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
+        // Per-operation auth is folded into the Options struct: source the
+        // authenticator from `options.auth` when present, otherwise pass None so
+        // the base client falls back to the Configuration credentials.
+        let auth: Option<&dyn Authenticator> = options.and_then(|o| o.auth.as_deref());
+
         let mut path = "/pet/{petId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",

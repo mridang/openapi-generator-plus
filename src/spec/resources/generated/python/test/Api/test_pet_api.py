@@ -5,7 +5,9 @@ import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Any, Dict
 from petstore_client.api.pet_api import PetApi
+from petstore_client.api.options.add_pet_options import AddPetOptions
 from petstore_client.api.options.add_pet_photos_options import AddPetPhotosOptions
+from petstore_client.api.options.delete_pet_options import DeletePetOptions
 from petstore_client.api.options.find_pets_by_status_options import FindPetsByStatusOptions
 from petstore_client.api.options.get_pet_tag_options import GetPetTagOptions
 from petstore_client.api.options.upload_pet_certificate_options import UploadPetCertificateOptions
@@ -31,7 +33,7 @@ class TestPetApi:
     async def test_add_pet(self) -> None:
         pet = Pet(id=12345, name='TestDog', photoUrls={'http://example.com/photo.jpg'}, status=PetStatusEnum.AVAILABLE)
 
-        result = await self.api.add_pet(pet, auth=self.auth)
+        result = await self.api.add_pet(pet, AddPetOptions(auth=self.auth))
 
         assert result is not None
         assert result.name is not None
@@ -58,7 +60,7 @@ class TestPetApi:
         assert result is not None
 
     async def test_delete_pet(self) -> None:
-        await self.api.delete_pet(1, None, auth=self.auth)
+        await self.api.delete_pet(1, DeletePetOptions(auth=self.auth))
 
         assert True
 
@@ -194,10 +196,10 @@ class TestPetApiErrorHandling:
         assert result is not None
 
     async def test_add_pet_per_call_auth_override(self) -> None:
-        # Verify that an auth: kwarg passed to the BASE operation method (not just
-        # _with_http_info) is applied to the outgoing request. The default header
-        # carries one token; the per-call authenticator carries a different one and
-        # must win on the wire.
+        # Verify that an authenticator carried inside the Options object (not a
+        # standalone auth kwarg) is applied to the outgoing request. The default
+        # header carries one token; the per-call authenticator carries a
+        # different one and must win on the wire.
         captured: Dict[str, str] = {}
 
         class Handler(BaseHTTPRequestHandler):
@@ -224,9 +226,85 @@ class TestPetApiErrorHandling:
         per_call_auth = BearerAuthenticator(base_url, 'per-call-token')
 
         pet = Pet(id=1, name='OverrideDog', photoUrls={'http://example.com/p.jpg'})
-        await api.add_pet(pet, auth=per_call_auth)
+        await api.add_pet(pet, AddPetOptions(auth=per_call_auth))
 
         assert captured.get('Authorization') == 'Bearer per-call-token'
+
+    async def test_auth_in_options_is_applied(self) -> None:
+        # Regression: the per-operation authenticator now lives on the Options
+        # object's `auth` field. An Options instance carrying an authenticator
+        # must drive the Authorization header on the outgoing request.
+        captured: Dict[str, str] = {}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self) -> None:
+                for key, value in self.headers.items():
+                    captured[key] = value
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(b'{"id":1,"name":"x","photoUrls":[]}')
+
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+        server = HTTPServer(('127.0.0.1', 0), Handler)
+        port = server.server_address[1]
+        thread = threading.Thread(target=server.handle_request)
+        thread.daemon = True
+        thread.start()
+
+        base_url = f'http://127.0.0.1:{port}'
+        config = Configuration.builder().base_url(base_url).default_header('Authorization', 'Bearer default-token').build()
+        api = PetApi(config=config)
+        options_auth = BearerAuthenticator(base_url, 'options-token')
+
+        pet = Pet(id=2, name='OptionsAuthDog', photoUrls={'http://example.com/o.jpg'})
+        await api.add_pet(pet, AddPetOptions(auth=options_auth))
+
+        assert captured.get('Authorization') == 'Bearer options-token'
+
+    async def test_auth_omitted_uses_configuration_credentials(self) -> None:
+        # Regression: when no authenticator is supplied (Options omitted, or an
+        # Options instance with auth left as None), the base client falls back to
+        # the credentials configured on the Configuration object.
+        captured: Dict[str, str] = {}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self) -> None:
+                for key, value in self.headers.items():
+                    captured[key] = value
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(b'{"id":1,"name":"x","photoUrls":[]}')
+
+            def log_message(self, format: str, *args: object) -> None:
+                pass
+
+        server = HTTPServer(('127.0.0.1', 0), Handler)
+        port = server.server_address[1]
+        thread = threading.Thread(target=server.handle_request)
+        thread.daemon = True
+        thread.start()
+
+        base_url = f'http://127.0.0.1:{port}'
+        config = Configuration.builder().base_url(base_url).default_header('Authorization', 'Bearer config-default-token').build()
+        api = PetApi(config=config)
+
+        pet = Pet(id=3, name='NoAuthDog', photoUrls={'http://example.com/n.jpg'})
+        await api.add_pet(pet)
+
+        assert captured.get('Authorization') == 'Bearer config-default-token'
+
+    def test_unsecured_op_options_has_no_auth_field(self) -> None:
+        # Regression: get_pet_by_id is an unsecured operation, so it must not
+        # mint an Options class carrying an `auth` field. The options package
+        # must expose no GetPetByIdOptions at all.
+        import importlib
+
+        with pytest.raises(ModuleNotFoundError):
+            importlib.import_module('petstore_client.api.options.get_pet_by_id_options')
 
 
 class TestPetApiWithHttpInfo:
@@ -249,7 +327,7 @@ class TestPetApiWithHttpInfo:
     async def test_add_pet_with_http_info(self) -> None:
         pet = Pet(id=99, name='HttpInfoDog', photoUrls={'http://example.com/photo.jpg'}, status=PetStatusEnum.AVAILABLE)
 
-        result = await self.api.add_pet_with_http_info(pet, auth=self.auth)
+        result = await self.api.add_pet_with_http_info(pet, AddPetOptions(auth=self.auth))
 
         assert result is not None
         assert 200 <= result.status_code < 300
@@ -264,7 +342,7 @@ class TestPetApiWithHttpInfo:
         assert 200 <= result.status_code < 300
 
     async def test_delete_pet_with_http_info(self) -> None:
-        result = await self.api.delete_pet_with_http_info(1, None, auth=self.auth)
+        result = await self.api.delete_pet_with_http_info(1, DeletePetOptions(auth=self.auth))
 
         assert result is not None
         assert 200 <= result.status_code < 300

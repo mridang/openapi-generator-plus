@@ -12,18 +12,15 @@ import com.example.petstore.ApiException
 import com.example.petstore.ApiResult
 import com.example.petstore.Configuration
 import com.example.petstore.ValueSerializer
+import com.example.petstore.api.options.AddPetOptions
 import com.example.petstore.api.options.AddPetPhotosOptions
+import com.example.petstore.api.options.AddPetTreatmentOptions
 import com.example.petstore.api.options.DeletePetOptions
 import com.example.petstore.api.options.FindPetsByStatusOptions
 import com.example.petstore.api.options.GetPetTagOptions
 import com.example.petstore.api.options.UploadPetCertificateOptions
 import com.example.petstore.api.options.UploadPetDocumentOptions
-import com.example.petstore.auth.AdminBasicAuthenticator
-import com.example.petstore.auth.ApiKeyHeaderAuthenticator
 import com.example.petstore.auth.Authenticator
-import com.example.petstore.auth.PetStoreBasicAuthenticator
-import com.example.petstore.auth.PetStoreBearerAuthenticator
-import com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator
 import com.example.petstore.models.ApiResponse
 import com.example.petstore.models.Pet
 import com.example.petstore.models.PetPassport
@@ -135,38 +132,23 @@ class PetApi : BaseApi {
     /**
      * Add a new pet to the store
      * @param pet Create a new pet in the store (required)
-
+     * @param options per-operation authenticator override
      * @return Pet
      * @throws ApiException if fails to make API call
      */
+
     suspend fun addPet(
-        auth: PetStoreBearerAuthenticator,
         pet: Pet,
+        options: AddPetOptions? = null,
     ): Pet =
-        addPetWithHttpInfo(auth, pet).data
+        addPetWithHttpInfo(pet, options).data
             ?: throw ApiException("Expected a response body for addPet but the server returned an empty body")
 
     suspend fun addPetWithHttpInfo(
-        auth: PetStoreBearerAuthenticator,
         pet: Pet,
-    ): ApiResult<Pet> = addPetInternal(auth, pet)
-
-    suspend fun addPet(
-        auth: ApiKeyHeaderAuthenticator,
-        pet: Pet,
-    ): Pet =
-        addPetWithHttpInfo(auth, pet).data
-            ?: throw ApiException("Expected a response body for addPet but the server returned an empty body")
-
-    suspend fun addPetWithHttpInfo(
-        auth: ApiKeyHeaderAuthenticator,
-        pet: Pet,
-    ): ApiResult<Pet> = addPetInternal(auth, pet)
-
-    private suspend fun addPetInternal(
-        auth: Authenticator,
-        pet: Pet,
+        options: AddPetOptions? = null,
     ): ApiResult<Pet> {
+        val auth: Authenticator? = options?.auth
         requireNotNull(pet) {
             "Missing the required parameter 'pet' when calling addPet"
         }
@@ -189,9 +171,7 @@ class PetApi : BaseApi {
      * Add photos to the pet&#39;s gallery
      * Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
      * @param petId  (required)
-
-     * @param options options for query, header, form, and cookie parameters
-
+     * @param options options for query, header, form, cookie parameters, and per-operation auth
      * @return List<Photo>
      * @throws ApiException if fails to make API call
      */
@@ -238,43 +218,25 @@ class PetApi : BaseApi {
      * Record a treatment for a pet
      * @param petId  (required)
      * @param petTreatment  (required)
-
+     * @param options per-operation authenticator override
      * @return PetTreatment
      * @throws ApiException if fails to make API call
      */
+
     suspend fun addPetTreatment(
-        auth: PetStoreBasicAuthenticator,
         petId: Long,
         petTreatment: PetTreatment,
+        options: AddPetTreatmentOptions? = null,
     ): PetTreatment =
-        addPetTreatmentWithHttpInfo(auth, petId, petTreatment).data
+        addPetTreatmentWithHttpInfo(petId, petTreatment, options).data
             ?: throw ApiException("Expected a response body for addPetTreatment but the server returned an empty body")
 
     suspend fun addPetTreatmentWithHttpInfo(
-        auth: PetStoreBasicAuthenticator,
         petId: Long,
         petTreatment: PetTreatment,
-    ): ApiResult<PetTreatment> = addPetTreatmentInternal(auth, petId, petTreatment)
-
-    suspend fun addPetTreatment(
-        auth: PetStoreBearerAuthenticator,
-        petId: Long,
-        petTreatment: PetTreatment,
-    ): PetTreatment =
-        addPetTreatmentWithHttpInfo(auth, petId, petTreatment).data
-            ?: throw ApiException("Expected a response body for addPetTreatment but the server returned an empty body")
-
-    suspend fun addPetTreatmentWithHttpInfo(
-        auth: PetStoreBearerAuthenticator,
-        petId: Long,
-        petTreatment: PetTreatment,
-    ): ApiResult<PetTreatment> = addPetTreatmentInternal(auth, petId, petTreatment)
-
-    private suspend fun addPetTreatmentInternal(
-        auth: Authenticator,
-        petId: Long,
-        petTreatment: PetTreatment,
+        options: AddPetTreatmentOptions? = null,
     ): ApiResult<PetTreatment> {
+        val auth: Authenticator? = options?.auth
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling addPetTreatment"
         }
@@ -304,44 +266,22 @@ class PetApi : BaseApi {
     /**
      * Deletes a pet
      * @param petId Pet id to delete (required)
-
-     * @param options options for query, header, form, and cookie parameters
-
+     * @param options options for query, header, form, cookie parameters, and per-operation auth
      * @throws ApiException if fails to make API call
      */
+
     suspend fun deletePet(
-        auth: MachineAuthClientCredentialsAuthenticator,
         petId: Long,
         options: DeletePetOptions? = null,
     ) {
-        deletePetWithHttpInfo(auth, petId, options)
+        deletePetWithHttpInfo(petId, options)
     }
 
     suspend fun deletePetWithHttpInfo(
-        auth: MachineAuthClientCredentialsAuthenticator,
-        petId: Long,
-        options: DeletePetOptions? = null,
-    ): ApiResult<Unit> = deletePetInternal(auth, petId, options)
-
-    suspend fun deletePet(
-        auth: AdminBasicAuthenticator,
-        petId: Long,
-        options: DeletePetOptions? = null,
-    ) {
-        deletePetWithHttpInfo(auth, petId, options)
-    }
-
-    suspend fun deletePetWithHttpInfo(
-        auth: AdminBasicAuthenticator,
-        petId: Long,
-        options: DeletePetOptions? = null,
-    ): ApiResult<Unit> = deletePetInternal(auth, petId, options)
-
-    private suspend fun deletePetInternal(
-        auth: Authenticator,
         petId: Long,
         options: DeletePetOptions? = null,
     ): ApiResult<Unit> {
+        val auth: Authenticator? = options?.auth
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling deletePet"
         }
@@ -354,8 +294,10 @@ class PetApi : BaseApi {
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
         val cookieParts = mutableListOf<String>()
-        if (options != null && options.apiKey != null) {
-            cookieParts.add("api_key=" + ValueSerializer.serializeStyled("api_key", options.apiKey, "cookie", "String", null, "form", true))
+        if (options?.apiKey != null) {
+            cookieParts.add(
+                "api_key=" + ValueSerializer.serializeStyled("api_key", options!!.apiKey, "cookie", "String", null, "form", true),
+            )
         }
         if (cookieParts.isNotEmpty()) {
             headerParams["Cookie"] = cookieParts.joinToString("; ")
@@ -377,7 +319,6 @@ class PetApi : BaseApi {
      * Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
      * @param petId  (required)
      * @param documentId  (required)
-
      * @return ByteArray
      * @throws ApiException if fails to make API call
      */
@@ -424,9 +365,7 @@ class PetApi : BaseApi {
 
     /**
      * Finds Pets by status
-
-     * @param options options for query, header, form, and cookie parameters
-
+     * @param options options for query, header, form, cookie parameters, and per-operation auth
      * @return List<Pet>
      * @throws ApiException if fails to make API call
      * @deprecated This operation is deprecated.
@@ -434,14 +373,14 @@ class PetApi : BaseApi {
      * @see <a href="https://example.com/docs/filtering">Finds Pets by status Documentation</a>
      */
     @Deprecated("This operation is deprecated.")
-    suspend fun findPetsByStatus(options: FindPetsByStatusOptions): List<Pet> =
+    suspend fun findPetsByStatus(options: FindPetsByStatusOptions? = null): List<Pet> =
         findPetsByStatusWithHttpInfo(options).data
             ?: throw ApiException("Expected a response body for findPetsByStatus but the server returned an empty body")
 
-    suspend fun findPetsByStatusWithHttpInfo(options: FindPetsByStatusOptions): ApiResult<List<Pet>> {
+    suspend fun findPetsByStatusWithHttpInfo(options: FindPetsByStatusOptions? = null): ApiResult<List<Pet>> {
         var path = "/pet/findByStatus"
         val queryParams = mutableMapOf<String, Any?>()
-        run {
+        if (options != null) {
             val _statusVal = ValueSerializer.serializeStyled("status", options.status, "query", "String", null, "form", true)
             if (_statusVal != null) {
                 queryParams["status"] = _statusVal
@@ -449,8 +388,8 @@ class PetApi : BaseApi {
                 queryParams["status"] = ""
             }
         }
-        if (options.filter != null) {
-            queryParams.putAll(ValueSerializer.serializeDeepObject("filter", options.filter))
+        if (options?.filter != null) {
+            queryParams.putAll(ValueSerializer.serializeDeepObject("filter", options!!.filter))
         }
         val headerParams = mutableMapOf<String, String>()
         return invokeApiForResult<List<Pet>>(
@@ -468,7 +407,6 @@ class PetApi : BaseApi {
     /**
      * Get external pet info
      * @param petId  (required)
-
      * @return Pet
      * @throws ApiException if fails to make API call
      */
@@ -520,7 +458,6 @@ class PetApi : BaseApi {
     /**
      * Get multi-server pet info
      * @param petId  (required)
-
      * @return Pet
      * @throws ApiException if fails to make API call
      */
@@ -573,7 +510,6 @@ class PetApi : BaseApi {
      * Get the pet&#39;s profile photo
      * Returns the raw image bytes of the pet&#39;s current avatar.
      * @param petId  (required)
-
      * @return ByteArray
      * @throws ApiException if fails to make API call
      */
@@ -610,7 +546,6 @@ class PetApi : BaseApi {
      * Get the pet&#39;s avatar thumbnail as base64
      * Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
      * @param petId  (required)
-
      * @return ByteArray
      * @throws ApiException if fails to make API call
      */
@@ -649,7 +584,6 @@ class PetApi : BaseApi {
      * @param petId ID of pet to return (required)
      * Example — Small breed ID: `1`
      * Example — Large breed ID: `42`
-
      * @return Pet
      * @throws ApiException if fails to make API call
      * @deprecated This operation is deprecated.
@@ -703,7 +637,6 @@ class PetApi : BaseApi {
      * Get the pet&#39;s passport
      * Returns a single JSON document combining the pet&#39;s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
      * @param petId  (required)
-
      * @return PetPassport
      * @throws ApiException if fails to make API call
      */
@@ -741,7 +674,6 @@ class PetApi : BaseApi {
      * Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
      * @param petId  (required)
      * @param photoId  (required)
-
      * @return ByteArray
      * @throws ApiException if fails to make API call
      */
@@ -790,9 +722,7 @@ class PetApi : BaseApi {
      * Get a tag for a pet
      * @param petId  (required)
      * @param tagName  (required)
-
-     * @param options options for query, header, form, and cookie parameters
-
+     * @param options options for query, header, form, cookie parameters, and per-operation auth
      * @return Pet
      * @throws ApiException if fails to make API call
      */
@@ -800,7 +730,7 @@ class PetApi : BaseApi {
     suspend fun getPetTag(
         petId: Long,
         tagName: String,
-        options: GetPetTagOptions,
+        options: GetPetTagOptions? = null,
     ): Pet =
         getPetTagWithHttpInfo(petId, tagName, options).data
             ?: throw ApiException("Expected a response body for getPetTag but the server returned an empty body")
@@ -808,7 +738,7 @@ class PetApi : BaseApi {
     suspend fun getPetTagWithHttpInfo(
         petId: Long,
         tagName: String,
-        options: GetPetTagOptions,
+        options: GetPetTagOptions? = null,
     ): ApiResult<Pet> {
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling getPetTag"
@@ -826,15 +756,15 @@ class PetApi : BaseApi {
                     ValueSerializer.serializeStyled("tagName", tagName, "path", "String", null, "label", false) as String,
                 )
         val queryParams = mutableMapOf<String, Any?>()
-        if (options.colors != null) {
+        if (options?.colors != null) {
             queryParams["colors"] =
-                ValueSerializer.serializeStyled("colors", options.colors, "query", "List<String>", "pipes", "pipeDelimited", false)
+                ValueSerializer.serializeStyled("colors", options!!.colors, "query", "List<String>", "pipes", "pipeDelimited", false)
         }
-        if (options.sizes != null) {
+        if (options?.sizes != null) {
             queryParams["sizes"] =
-                ValueSerializer.serializeStyled("sizes", options.sizes, "query", "List<String>", "ssv", "spaceDelimited", false)
+                ValueSerializer.serializeStyled("sizes", options!!.sizes, "query", "List<String>", "ssv", "spaceDelimited", false)
         }
-        run {
+        if (options != null) {
             val _filterVal = ValueSerializer.serializeStyled("filter", options.filter, "query", "String", null, "form", true)
             if (_filterVal != null) {
                 queryParams["filter"] = _filterVal
@@ -858,7 +788,6 @@ class PetApi : BaseApi {
     /**
      * Get staging pet info
      * @param petId  (required)
-
      * @return Pet
      * @throws ApiException if fails to make API call
      */
@@ -912,7 +841,6 @@ class PetApi : BaseApi {
      * Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
      * @param petId  (required)
      * @param body  (required)
-
      * @throws ApiException if fails to make API call
      */
 
@@ -958,7 +886,6 @@ class PetApi : BaseApi {
      * Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
      * @param petId  (required)
      * @param setPetAvatarThumbnailRequest  (required)
-
      * @throws ApiException if fails to make API call
      */
 
@@ -1003,7 +930,6 @@ class PetApi : BaseApi {
      * Update an existing pet
      * @param petId ID of pet to update (required)
      * @param pet Pet object that needs to be updated (required)
-
      * @return Pet
      * @throws ApiException if fails to make API call
      */
@@ -1049,9 +975,7 @@ class PetApi : BaseApi {
      * Upload the pet&#39;s adoption certificate
      * Attaches a single adoption certificate document. No metadata fields are required alongside the file.
      * @param petId  (required)
-
-     * @param options options for query, header, form, and cookie parameters
-
+     * @param options options for query, header, form, cookie parameters, and per-operation auth
      * @return ApiResponse
      * @throws ApiException if fails to make API call
      */
@@ -1097,9 +1021,7 @@ class PetApi : BaseApi {
      * Attach a vet document or health record
      * Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
      * @param petId  (required)
-
-     * @param options options for query, header, form, and cookie parameters
-
+     * @param options options for query, header, form, cookie parameters, and per-operation auth
      * @return ApiResponse
      * @throws ApiException if fails to make API call
      */

@@ -185,7 +185,7 @@ void main() {
 
       // Exercise auth headers through the API layer
       try {
-        await api.addPet(Pet(name: 'Test', photoUrls: <String>{}), auth: auth);
+        await api.addPet(Pet(name: 'Test', photoUrls: <String>{}), AddPetOptions(auth: auth));
       } catch (_) {}
 
       // Verify via echo endpoint
@@ -209,7 +209,7 @@ void main() {
       final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
       try {
-        await api.addPet(Pet(name: 'Test', photoUrls: <String>{}), auth: auth);
+        await api.addPet(Pet(name: 'Test', photoUrls: <String>{}), AddPetOptions(auth: auth));
       } catch (_) {}
     });
 
@@ -371,7 +371,7 @@ void main() {
       }
     });
 
-    test('op-level auth overrides client-level auth when passed as named param', () async {
+    test('op-level auth in Options overrides client-level auth', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String? receivedAuth;
       server.listen((request) {
@@ -396,7 +396,8 @@ void main() {
             config: config,
             authenticator: clientAuth);
 
-        await api.getPetById(1, null, auth: opAuth);
+        await api.addPet(
+            Pet(name: 'Fido', photoUrls: <String>{}), AddPetOptions(auth: opAuth));
         expect(receivedAuth, equals('Bearer op-level'));
       } finally {
         await server.close();
@@ -730,7 +731,7 @@ void main() {
         final auth = _BaseApiAuth();
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        await api.addPet(Pet(name: 'TestPet', photoUrls: <String>{}), auth: auth);
+        await api.addPet(Pet(name: 'TestPet', photoUrls: <String>{}), AddPetOptions(auth: auth));
         expect(receivedBody, contains('TestPet'));
       } finally {
         await server.close();
@@ -897,7 +898,7 @@ void main() {
 
         final auth = _BaseApiAuth();
         try {
-          await api.deletePet(1, null, auth: auth);
+          await api.deletePet(1, DeletePetOptions(auth: auth));
         } catch (_) {}
       } finally {
         await server.close();
@@ -928,7 +929,7 @@ void main() {
          * a body is present. GET endpoints can't exercise this
          * because the client strips Content-Type when body is null
          * (see RFC 7231 §3.1.1.5). */
-        await api.addPet(Pet(name: 'Fido', photoUrls: <String>{}));
+        await api.addPet(Pet(name: 'Fido', photoUrls: <String>{}), const AddPetOptions());
         expect(receivedContentType, isNotNull);
         expect(receivedContentType, contains('application/json'));
       } finally {

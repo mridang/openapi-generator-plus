@@ -47,6 +47,16 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     protected String packageVersion = "1.0.0";
 
     /**
+     * Guards one-time emission of the {@code pkg/options/authenticator.go} mirror
+     * interface. The options package declares its own {@code Authenticator}
+     * interface (structurally identical to the root package's) so authed Options
+     * structs can carry a per-operation auth field without importing the root
+     * package, which would form a cycle. The interface must be declared exactly
+     * once across all authed options files.
+     */
+    private boolean optionsAuthenticatorWritten = false;
+
+    /**
      * Initializes type mappings, template paths, and reserved
      * words for the Go language. Type mappings convert OpenAPI
      * types to their Go equivalents (e.g. integer to int32,
@@ -641,6 +651,13 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         context.put("operationId", op.operationId);
         context.put("params", params);
         context.put("moduleName", packageName);
+        // Per-operation auth folded into the Options object. The optional `Auth`
+        // field carries the generic Authenticator. Go uses structural typing, so
+        // the options package declares its own mirror Authenticator interface
+        // (authImport stays empty) to avoid an import cycle with the root
+        // package, which dot-imports pkg/options.
+        injectAuthFieldContext(op, context);
+        context.put("authImport", "");
         if (hasModelImport) {
             context.put("hasModelImport", true);
         }
@@ -649,6 +666,18 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         }
         if (hasUuidImport) {
             context.put("hasUuidImport", true);
+        }
+        if (op.hasAuthMethods && !optionsAuthenticatorWritten) {
+            // Emit the shared mirror Authenticator interface exactly once, in its
+            // own file, so the per-op Options structs can reference it without a
+            // duplicate-declaration error.
+            final String authPath =
+                    Path.of(getOutputDir(), "pkg", "options", "authenticator.go").toString();
+            writeFile(
+                    authPath,
+                    renderOptionsTemplate("api/options_authenticator.mustache", new HashMap<>()));
+            postProcessFile(Path.of(authPath).toFile(), "source");
+            optionsAuthenticatorWritten = true;
         }
         return renderOptionsTemplate("api/options.mustache", context);
     }

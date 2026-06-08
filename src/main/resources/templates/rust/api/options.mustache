@@ -1,7 +1,16 @@
 use crate::models::*;
+{{#hasAuthField}}
+use crate::auth::Authenticator;
+use std::sync::Arc;
+{{/hasAuthField}}
 
 /// Options for the {{operationId}} operation.
+{{#hasAuthField}}
+#[derive(Clone, Default)]
+{{/hasAuthField}}
+{{^hasAuthField}}
 #[derive(Debug, Clone, Default)]
+{{/hasAuthField}}
 pub struct {{className}} {
 {{#params}}
 {{#description}}
@@ -14,6 +23,11 @@ pub struct {{className}} {
     pub {{name}}: Option<{{{dataType}}}>,
 {{/required}}
 {{/params}}
+{{#hasAuthField}}
+    /// Per-operation authenticator. When set, it overrides the client's
+    /// configured credentials for this call only.
+    pub auth: Option<{{{authFieldType}}}>,
+{{/hasAuthField}}
 }
 
 impl {{className}} {
@@ -31,4 +45,13 @@ impl {{className}} {
     }
 {{/required}}
 {{/params}}
+{{#hasAuthField}}
+
+    /// Sets the per-operation authenticator. When set, it overrides the
+    /// client's configured credentials for this call only.
+    pub fn auth(mut self, auth: {{{authFieldType}}}) -> Self {
+        self.auth = Some(auth);
+        self
+    }
+{{/hasAuthField}}
 }

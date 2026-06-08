@@ -7,7 +7,7 @@ public struct FindPetsByStatusOptions: Sendable {
     /// Filter criteria as key-value pairs
     public var filter: [String: String]?
 
-    public init(status: String? = nil, filter: [String: String]? = nil) {
+    public init(status: String? = nil, filter: [String: String]? = nil, ) {
         self.status = status
         self.filter = filter
     }

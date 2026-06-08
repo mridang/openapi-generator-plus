@@ -6,6 +6,10 @@ import '../../models/{{filename}}.dart';
 {{/dartImports}}
 
 {{/hasDartImports}}
+{{#hasAuthField}}
+import '{{authImport}}';
+
+{{/hasAuthField}}
 /// {{className}} holds optional parameters for the {{operationId}} operation.
 class {{className}} {
 {{#params}}
@@ -20,6 +24,13 @@ class {{className}} {
 {{/required}}
 
 {{/params}}
+{{#hasAuthField}}
+  {{! Optional per-operation authenticator. When non-null it overrides the }}
+  {{! client's configured credentials for this call only; null falls back to }}
+  {{! the Configuration credentials. }}
+  final {{authFieldType}}? auth;
+
+{{/hasAuthField}}
   const {{className}}({
 {{#params}}
 {{#required}}
@@ -29,5 +40,8 @@ class {{className}} {
     this.{{name}},
 {{/required}}
 {{/params}}
+{{#hasAuthField}}
+    this.auth,
+{{/hasAuthField}}
   });
 }
