@@ -142,4 +142,24 @@ describe PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(url).must_include 'response_type=code'
     _(url.count('?')).must_equal 1
   end
+
+  it 'masks the client secret in inspect' do
+    # client-secret-leak-in-default-repr: the default Object#inspect dumps
+    # every instance variable, leaking @client_secret. The overridden
+    # inspect must mask it.
+    secret_auth = PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
+      'https://api.example.com',
+      'my_client_id',
+      'super_secret_value',
+      'https://auth.example.com/authorize',
+      'https://auth.example.com/token',
+      'https://app.example.com/callback',
+      %w[read write]
+    )
+
+    _(secret_auth.inspect).wont_include 'super_secret_value'
+    _(secret_auth.inspect).must_include '***'
+    _(secret_auth.to_s).wont_include 'super_secret_value'
+    _("#{secret_auth}").wont_include 'super_secret_value'
+  end
 end

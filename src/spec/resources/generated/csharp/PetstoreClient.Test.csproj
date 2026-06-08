@@ -1,13 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <LangVersion>13</LangVersion>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <IsPackable>false</IsPackable>
-    <IsTestProject>true</IsTestProject>
-    <OutputType>Exe</OutputType>
-    <!--
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <LangVersion>13</LangVersion>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+        <OutputType>Exe</OutputType>
+        <!--
       Relaxed for the test project only (the production SDK keeps every rule at
       error): CA1707 because test methods use snake_case names deliberately for
       readability, and CA1861 because the "hoist constant arrays to static
@@ -20,32 +20,32 @@
       CS0618: tests intentionally exercise deprecated (spec-[Obsolete]) APIs to
       prove the generated deprecated surface still works.
     -->
-    <NoWarn>$(NoWarn);CA1707;CA1861;xUnit1004;xUnit2032;CS0618</NoWarn>
-    <CollectCoverage>false</CollectCoverage>
-    <CoverletOutputFormat>cobertura</CoverletOutputFormat>
-    <CoverletOutput>.out/</CoverletOutput>
-  </PropertyGroup>
-  <ItemGroup>
-    <Compile Remove="src/**" />
-    <ProjectReference Include="src/PetstoreClient/PetstoreClient.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Update="xunit.runner.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Test/Resources/certs/**/*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.6.0" />
-    <PackageReference Include="xunit.v3" Version="3.2.2" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
-    <PackageReference Include="JUnitXml.TestLogger" Version="7.0.2" />
-    <PackageReference Include="Testcontainers" Version="4.12.0" />
-    <PackageReference Include="coverlet.msbuild" Version="10.0.1">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-  </ItemGroup>
+        <NoWarn>$(NoWarn);CA1707;CA1861;xUnit1004;xUnit2032;CS0618</NoWarn>
+        <CollectCoverage>false</CollectCoverage>
+        <CoverletOutputFormat>cobertura</CoverletOutputFormat>
+        <CoverletOutput>.out/</CoverletOutput>
+    </PropertyGroup>
+    <ItemGroup>
+        <Compile Remove="src/**" />
+        <ProjectReference Include="src/PetstoreClient/PetstoreClient.csproj" />
+    </ItemGroup>
+    <ItemGroup>
+        <None Update="xunit.runner.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <None Update="Test/Resources/certs/**/*">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.6.0" />
+        <PackageReference Include="xunit.v3" Version="3.2.2" />
+        <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+        <PackageReference Include="JUnitXml.TestLogger" Version="7.0.2" />
+        <PackageReference Include="Testcontainers" Version="4.12.0" />
+        <PackageReference Include="coverlet.msbuild" Version="10.0.1">
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+    </ItemGroup>
 </Project>

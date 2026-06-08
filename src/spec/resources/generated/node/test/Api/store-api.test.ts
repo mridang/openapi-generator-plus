@@ -34,14 +34,14 @@ describe('StoreApi', () => {
   });
 
   test('placeOrder', async () => {
-    const order: Order = {
+    const order = new Order({
       id: 1,
       petId: 12345,
       quantity: 1,
       shipDate: new Date(),
       status: OrderStatusEnum.Placed,
       complete: false
-    };
+    });
 
     const result = await api.placeOrder(order);
 
@@ -59,14 +59,14 @@ describe('StoreApi', () => {
   });
 
   test('placeOrderWithHttpInfo', async () => {
-    const order: Order = {
+    const order = new Order({
       id: 1,
       petId: 12345,
       quantity: 1,
       shipDate: new Date(),
       status: OrderStatusEnum.Placed,
       complete: false
-    };
+    });
 
     const result = await api.placeOrderWithHttpInfo(order);
 
@@ -133,14 +133,14 @@ describe('StoreApi error handling', () => {
       '{"message":"Internal server error"}'
     );
     try {
-      const order: Order = {
+      const order = new Order({
         id: 1,
         petId: 12345,
         quantity: 1,
         shipDate: new Date(),
         status: OrderStatusEnum.Placed,
         complete: false
-      };
+      });
       await expect(mockApi.placeOrder(order)).rejects.toThrow();
     } finally {
       close();

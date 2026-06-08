@@ -50,4 +50,18 @@ class BearerAuthenticator extends BaseAuthenticator
         }
         return ['Authorization' => 'Bearer ' . $value];
     }
+
+    /**
+     * Masks the token so it never leaks through var_dump() / print_r() /
+     * debug_zval_dump() / stack traces / error logs.
+     *
+     * @return array<string, string>
+     */
+    public function __debugInfo(): array
+    {
+        return [
+            'host' => $this->host,
+            'token' => '***',
+        ];
+    }
 }

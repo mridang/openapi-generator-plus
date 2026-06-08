@@ -168,11 +168,7 @@ public class OpenIdConnectAuthenticatorTest
         Assert.Equal("https://api.example.com", auth.GetHost());
     }
 
-    [Fact(Skip =
-        "Feature gap: GetDelegateAsync parses response.Body without first " +
-        "checking the HTTP status, so a non-2xx discovery response surfaces " +
-        "as a JsonException (invalid JSON), not as a status error. Documented " +
-        "skip so the scenario count matches the other SDKs.")]
+    [Fact]
     public async Task ThrowsWhenDiscoveryReturnsNon2xxStatus()
     {
         var client = new FakeApiClient();

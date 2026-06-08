@@ -30,6 +30,7 @@ from .options.add_pet_photos_options import AddPetPhotosOptions
 from .options.add_pet_treatment_options import AddPetTreatmentOptions
 from .options.delete_pet_options import DeletePetOptions
 from .options.find_pets_by_status_options import FindPetsByStatusOptions
+from .options.get_pet_by_name_options import GetPetByNameOptions
 from .options.get_pet_tag_options import GetPetTagOptions
 from .options.set_pet_preferences_options import SetPetPreferencesOptions
 from .options.upload_pet_certificate_options import UploadPetCertificateOptions
@@ -893,6 +894,79 @@ class PetApi(BaseApi):
             if _server_url.startswith('http://') or _server_url.startswith('https://'):
                 path = _server_url + path
         query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body = None
+
+        return await self._invoke_api_for_result(
+            'GET',
+            path,
+            query_params,
+            header_params,
+            body,
+            ['application/json'],
+            'application/json',
+            'Pet',
+            None,
+        )
+
+    async def get_pet_by_name(
+        self,
+        name: StrictStr,
+        options: Optional[GetPetByNameOptions] = None,
+    ) -> Pet:
+        """Look up a pet by name (simple string path param + required query)
+        :param name:  (required)
+
+        :param options: options for query, header, form, and cookie parameters
+
+        :return: Pet
+        :raises ApiException: if fails to make API call
+        """
+        if name is None:
+            raise ValueError("Missing the required parameter 'name'")
+
+        if options is None or options.category is None:
+            raise ValueError("Missing the required parameter 'category'")
+
+        result = await self.get_pet_by_name_with_http_info(name, options)
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message='Expected a response body but the server returned none',
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def get_pet_by_name_with_http_info(
+        self,
+        name: StrictStr,
+        options: Optional[GetPetByNameOptions] = None,
+    ) -> 'ApiResult[Pet]':
+        """Look up a pet by name (simple string path param + required query) (with HTTP info)
+        :param name:  (required)
+
+        :param options: options for query, header, form, and cookie parameters
+
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        if name is None:
+            raise ValueError("Missing the required parameter 'name'")
+
+        if options is None or options.category is None:
+            raise ValueError("Missing the required parameter 'category'")
+
+        path = '/pet/byName/{name}'
+        path = path.replace('{' + 'name' + '}', str(ValueSerializer.serialize_styled('name', name, 'path', 'StrictStr', None, 'simple', False)))
+        query_params: Dict[str, Any] = {}
+        if options is not None and options.category is not None:
+            query_params['category'] = ValueSerializer.serialize_styled('category', options.category, 'query', 'StrictStr', None, 'form', True)
         header_params: Dict[str, str] = {}
         body = None
 

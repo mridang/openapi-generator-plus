@@ -111,6 +111,31 @@ class TestErrorBodyParsing:
         assert exc_info.value.error_body is not None, 'error_body should not be None for JSON responses'
 
 
+class TestErrorHeaders:
+    """python-error-throw-headers-coerced-to-none: an error response with an
+    empty headers map must surface response_headers == {} (a real empty
+    header set), not None. The old `dict(h) if h else None` coerced empty
+    headers to None, conflating 'empty headers' with 'no response'.
+    """
+
+    def test_empty_headers_pass_through_as_empty_dict_not_none(self) -> None:
+        resp = ApiResponse(status_code=400, body='{"error":"bad"}', headers={})
+        with pytest.raises(BadRequestException) as exc_info:
+            BaseApi._throw_api_exception(resp)
+        assert exc_info.value.response_headers == {}
+        assert exc_info.value.response_headers is not None
+
+    def test_present_headers_pass_through(self) -> None:
+        resp = ApiResponse(
+            status_code=400,
+            body='{"error":"bad"}',
+            headers={'content-type': 'application/json'},
+        )
+        with pytest.raises(BadRequestException) as exc_info:
+            BaseApi._throw_api_exception(resp)
+        assert exc_info.value.response_headers == {'content-type': 'application/json'}
+
+
 class TestExceptionHierarchy:
     async def test_not_found_hierarchy(self, api: Any) -> None:
         with pytest.raises(NotFoundException) as exc_info:

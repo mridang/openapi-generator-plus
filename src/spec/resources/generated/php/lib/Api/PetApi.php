@@ -18,6 +18,7 @@ use PetstoreClient\Api\Options\AddPetPhotosOptions;
 use PetstoreClient\Api\Options\AddPetTreatmentOptions;
 use PetstoreClient\Api\Options\DeletePetOptions;
 use PetstoreClient\Api\Options\FindPetsByStatusOptions;
+use PetstoreClient\Api\Options\GetPetByNameOptions;
 use PetstoreClient\Api\Options\GetPetTagOptions;
 use PetstoreClient\Api\Options\SetPetPreferencesOptions;
 use PetstoreClient\Api\Options\UploadPetCertificateOptions;
@@ -915,6 +916,83 @@ class PetApi extends BaseApi
     }
 
     /**
+     * Look up a pet by name (simple string path param + required query)
+
+     * @param GetPetByNameOptions $options Options for query, header, form, and cookie parameters
+
+     * @return \PetstoreClient\Models\Pet
+     * @throws ApiException
+     */
+    public function getPetByName(string $name, GetPetByNameOptions $options)
+    {
+        $apiResult = $this->getPetByNameWithHttpInfo($name, $options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new ApiException(
+                'Expected a response body for getPetByName but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\Pet $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+
+     * @param GetPetByNameOptions $options Options for query, header, form, and cookie parameters
+
+     * @return ApiResult<\PetstoreClient\Models\Pet>
+     * @throws ApiException
+     */
+    public function getPetByNameWithHttpInfo(string $name, GetPetByNameOptions $options): ApiResult
+    {
+        if ($name === '') {
+            throw new \InvalidArgumentException("Missing the required parameter 'name' when calling getPetByName");
+        }
+        if ($options->category === '') {
+            throw new \InvalidArgumentException("Missing the required parameter 'category' when calling getPetByName");
+        }
+        $path = '/pet/byName/{name}';
+        /** @var string $pathValue */
+        $pathValue = ValueSerializer::serializeStyled('name', $name, 'path', 'string', null, 'simple', false);
+        /* URL-encode the styled value for use as a URL path segment, preserving
+         * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
+        $path = str_replace('{' . 'name' . '}', $pathValue, $path);
+        $queryParams = [];
+        /* Required query param: always present (non-nullable on the Options
+         * object and empty-guarded above), so it is emitted unconditionally. */
+        $queryParams['category'] = ValueSerializer::serializeStyled('category', $options->category, 'query', 'string', null, 'form', true);
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\Pet> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            '\PetstoreClient\Models\Pet'
+        );
+        return $result;
+    }
+
+    /**
      * Get the pet&#39;s passport
      * Returns a single JSON document combining the pet&#39;s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
 
@@ -1093,6 +1171,9 @@ class PetApi extends BaseApi
      */
     public function getPetTagWithHttpInfo(int $petId, string $tagName, ?GetPetTagOptions $options = null): ApiResult
     {
+        if ($tagName === '') {
+            throw new \InvalidArgumentException("Missing the required parameter 'tagName' when calling getPetTag");
+        }
         $path = '/pet/{petId}/tag/{tagName}';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'matrix', false);
@@ -1352,6 +1433,9 @@ class PetApi extends BaseApi
      */
     public function setPetPreferencesWithHttpInfo(int $petId, SetPetPreferencesOptions $options): ApiResult
     {
+        if ($options->nickname === '') {
+            throw new \InvalidArgumentException("Missing the required parameter 'nickname' when calling setPetPreferences");
+        }
         $path = '/pet/{petId}/preferences';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);

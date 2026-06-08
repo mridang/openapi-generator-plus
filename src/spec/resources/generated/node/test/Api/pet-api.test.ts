@@ -31,12 +31,12 @@ describe('PetApi', () => {
   });
 
   test('addPet', async () => {
-    const pet: Pet = {
+    const pet = new Pet({
       id: 12345,
       name: 'TestDog',
       photoUrls: new Set(['http://example.com/photo.jpg']),
       status: PetStatusEnum.Available
-    };
+    });
 
     const result = await api.addPet(pet, { auth });
 
@@ -60,12 +60,12 @@ describe('PetApi', () => {
   });
 
   test('updatePet', async () => {
-    const pet: Pet = {
+    const pet = new Pet({
       id: 1,
       name: 'UpdatedDog',
       photoUrls: new Set(['http://example.com/updated.jpg']),
       status: PetStatusEnum.Pending
-    };
+    });
 
     const result = await api.updatePet(1, pet);
 
@@ -169,12 +169,12 @@ describe('PetApi', () => {
   });
 
   test('addPetWithHttpInfo', async () => {
-    const pet: Pet = {
+    const pet = new Pet({
       id: 99,
       name: 'HttpInfoDog',
       photoUrls: new Set(['http://example.com/photo.jpg']),
       status: PetStatusEnum.Available
-    };
+    });
 
     const result = await api.addPetWithHttpInfo(pet, { auth });
 
@@ -192,12 +192,12 @@ describe('PetApi', () => {
   });
 
   test('updatePetWithHttpInfo', async () => {
-    const pet: Pet = {
+    const pet = new Pet({
       id: 1,
       name: 'UpdatedDog',
       photoUrls: new Set(['http://example.com/updated.jpg']),
       status: PetStatusEnum.Pending
-    };
+    });
 
     const result = await api.updatePetWithHttpInfo(1, pet);
 
@@ -327,11 +327,11 @@ describe('PetApi error handling', () => {
       const overrideApi = new PetApi(undefined, overrideConfig);
       const perCallAuth = new BearerAuthenticator(overrideUrl, 'per-call-token');
 
-      const pet: Pet = {
+      const pet = new Pet({
         id: 1,
         name: 'OverrideDog',
         photoUrls: new Set(['http://example.com/p.jpg'])
-      };
+      });
       await overrideApi.addPet(pet, { auth: perCallAuth });
 
       expect(capturedAuth).toBe('Bearer per-call-token');
@@ -358,11 +358,11 @@ describe('PetApi error handling', () => {
       const optionsApi = new PetApi(undefined, cfg);
       const optionsAuth = new BearerAuthenticator(url, 'options-token');
 
-      const pet: Pet = {
+      const pet = new Pet({
         id: 1,
         name: 'OptionsDog',
         photoUrls: new Set(['http://example.com/p.jpg'])
-      };
+      });
       await optionsApi.addPet(pet, { auth: optionsAuth });
 
       expect(capturedAuth).toBe('Bearer options-token');
@@ -388,11 +388,11 @@ describe('PetApi error handling', () => {
       const cfg = Configuration.builder().baseUrl(url).defaultHeader('Authorization', 'Bearer default-token').build();
       const defaultApi = new PetApi(undefined, cfg);
 
-      const pet: Pet = {
+      const pet = new Pet({
         id: 1,
         name: 'DefaultDog',
         photoUrls: new Set(['http://example.com/p.jpg'])
-      };
+      });
       await defaultApi.addPet(pet);
 
       expect(capturedAuth).toBe('Bearer default-token');

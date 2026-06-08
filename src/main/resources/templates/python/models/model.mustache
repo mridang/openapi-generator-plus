@@ -131,12 +131,17 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
         {{/isNullable}}
         instance = {{{classname}}}.model_construct()
         error_messages = []
-        match = 0
+        # First-match semantics: return the FIRST oneOf variant the payload
+        # validates against rather than requiring exactly one match. A payload
+        # that satisfies more than one variant is ambiguous only in theory --
+        # the other 11 SDKs all resolve it to the first declared variant, so
+        # Python matches that behaviour for cross-SDK parity. The no-match
+        # case is still an error.
         {{#composedSchemas.oneOf}}
         {{#isContainer}}
         try:
             instance.{{name}} = v
-            match += 1
+            return v
         except (ValidationError, ValueError) as e:
             error_messages.append(str(e))
         {{/isContainer}}
@@ -144,30 +149,21 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
         {{#isPrimitiveType}}
         try:
             instance.{{name}} = v
-            match += 1
+            return v
         except (ValidationError, ValueError) as e:
             error_messages.append(str(e))
         {{/isPrimitiveType}}
         {{^isPrimitiveType}}
-        if not isinstance(v, {{{dataType}}}):
-            error_messages.append(f'Error! Input type `{type(v)}` is not `{{{dataType}}}`')
-        else:
-            match += 1
+        if isinstance(v, {{{dataType}}}):
+            return v
+        error_messages.append(f'Error! Input type `{type(v)}` is not `{{{dataType}}}`')
         {{/isPrimitiveType}}
         {{/isContainer}}
         {{/composedSchemas.oneOf}}
-        if match > 1:
-            raise ValueError(
-                'Multiple matches found when setting `actual_instance` in {{{classname}}} with oneOf schemas: {{#oneOf}}{{{.}}}{{^-last}}, {{/-last}}{{/oneOf}}. Details: '
-                + ', '.join(error_messages)
-            )
-        elif match == 0:
-            raise ValueError(
-                'No match found when setting `actual_instance` in {{{classname}}} with oneOf schemas: {{#oneOf}}{{{.}}}{{^-last}}, {{/-last}}{{/oneOf}}. Details: '
-                + ', '.join(error_messages)
-            )
-        else:
-            return v
+        raise ValueError(
+            'No match found when setting `actual_instance` in {{{classname}}} with oneOf schemas: {{#oneOf}}{{{.}}}{{^-last}}, {{/-last}}{{/oneOf}}. Details: '
+            + ', '.join(error_messages)
+        )
 {{/discriminator}}
 
 {{/-first}}

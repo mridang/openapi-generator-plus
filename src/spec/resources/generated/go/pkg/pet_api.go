@@ -246,6 +246,12 @@ func (a *PetApi) AddPetPhotos(petId int64, options *opts.AddPetPhotosOptions) (*
 
 // AddPetPhotosWithHTTPInfo performs the AddPetPhotos operation and returns the full API result.
 func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *opts.AddPetPhotosOptions) (*ApiResult[[]Photo], error) {
+	if options == nil {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.AddPetPhotos", "files")
+	}
+	if options == nil {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.AddPetPhotos", "metadata")
+	}
 
 	path := "/pet/{petId}/photos"
 	/* Path params route through serializeStyled so OAS path styles
@@ -1116,6 +1122,103 @@ func (a *PetApi) GetPetByIdWithHTTPInfo(petId int64, server GetPetByIdServer) (*
 	}, nil
 }
 
+// GetPetByName Look up a pet by name (simple string path param + required query)
+
+func (a *PetApi) GetPetByName(name string, options *opts.GetPetByNameOptions) (*Pet, error) {
+	result, err := a.GetPetByNameWithHTTPInfo(name, options)
+	if err != nil {
+		return nil, err
+	}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("GetPetByName", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return result.Data, nil
+}
+
+// GetPetByNameWithHTTPInfo performs the GetPetByName operation and returns the full API result.
+func (a *PetApi) GetPetByNameWithHTTPInfo(name string, options *opts.GetPetByNameOptions) (*ApiResult[Pet], error) {
+	if name == "" {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.GetPetByName", "name")
+	}
+	if options == nil {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.GetPetByName", "category")
+	}
+	if options.Category == "" {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.GetPetByName", "category")
+	}
+
+	path := "/pet/byName/{name}"
+	/* Path params route through serializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "name", fmt.Sprintf("%v", serializeStyled("name", name, "path", "string", "", "simple", false)))
+
+	queryParams := make(map[string]any)
+	/* Required query param: the Options field is a non-pointer value, so it is
+	 * always present (validated above) and serialized directly. */
+	queryParams["category"] = serializeStyled("category", options.Category, "query", "string", "", "form", true)
+
+	headerParams := make(map[string]string)
+
+	var requestBody any
+
+	response, err := a.invokeApi(invokeApiParams{
+		method:       "GET",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{"application/json"},
+		contentType:  "application/json",
+		returnType:   "Pet",
+		auth:         nil,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var data Pet
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *Pet
+	if response.Body != "" {
+		respContentType := ""
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, err
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in HttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, decErr
+			}
+			*bytesPtr = decoded
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[Pet]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
 // GetPetPassport Get the pet's passport
 // Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
 
@@ -1612,6 +1715,12 @@ func (a *PetApi) SetPetPreferences(petId int64, options *opts.SetPetPreferencesO
 
 // SetPetPreferencesWithHTTPInfo performs the SetPetPreferences operation and returns the full API result.
 func (a *PetApi) SetPetPreferencesWithHTTPInfo(petId int64, options *opts.SetPetPreferencesOptions) (*ApiResult[ApiResponse], error) {
+	if options == nil {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.SetPetPreferences", "nickname")
+	}
+	if options.Nickname == "" {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.SetPetPreferences", "nickname")
+	}
 
 	path := "/pet/{petId}/preferences"
 	/* Path params route through serializeStyled so OAS path styles
@@ -1795,6 +1904,9 @@ func (a *PetApi) UploadPetCertificate(petId int64, options *opts.UploadPetCertif
 
 // UploadPetCertificateWithHTTPInfo performs the UploadPetCertificate operation and returns the full API result.
 func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *opts.UploadPetCertificateOptions) (*ApiResult[ApiResponse], error) {
+	if options == nil {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.UploadPetCertificate", "file")
+	}
 
 	path := "/pet/{petId}/certificate"
 	/* Path params route through serializeStyled so OAS path styles
@@ -1885,6 +1997,9 @@ func (a *PetApi) UploadPetDocument(petId int64, options *opts.UploadPetDocumentO
 
 // UploadPetDocumentWithHTTPInfo performs the UploadPetDocument operation and returns the full API result.
 func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *opts.UploadPetDocumentOptions) (*ApiResult[ApiResponse], error) {
+	if options == nil {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.UploadPetDocument", "file")
+	}
 
 	path := "/pet/{petId}/documents"
 	/* Path params route through serializeStyled so OAS path styles

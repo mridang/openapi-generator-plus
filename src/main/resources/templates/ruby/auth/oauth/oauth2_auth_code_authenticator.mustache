@@ -108,6 +108,16 @@ module {{moduleName}}
           token = @token_manager.get_access_token(@refresh_url, params)
           { 'Authorization' => "Bearer #{token}" }
         end
+
+        # Mask the client secret so it never leaks through the default
+        # +inspect+/+p+/string-interpolation, which would otherwise dump
+        # every instance variable verbatim.
+        # @return [String]
+        def inspect
+          "#<#{self.class.name} host=#{@host.inspect} client_id=#{@client_id.inspect} " \
+            'client_secret="***">'
+        end
+        alias to_s inspect
       end
     end
   end

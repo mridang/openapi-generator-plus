@@ -431,6 +431,47 @@ final class PetApiTests {
         #expect(!body.contains("%20"), "space must not encode as %20, got: \(body)")
     }
 
+    // required-nested-param-validation: a missing (empty) REQUIRED query/header/
+    // form/cookie param must be rejected before the request goes out, the same
+    // way a missing required string path param already is. getPetByName.category
+    // is a required string query param; an empty value must throw an ApiError and
+    // never reach the transport.
+    @Test func testRequiredQueryParamEmptyThrows() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        var caught: ApiError? = nil
+        do {
+            _ = try await api.getPetByName(name: "Fido", options: GetPetByNameOptions(category: ""))
+            Issue.record("expected ApiError for an empty required query param")
+        } catch let error as ApiError {
+            caught = error
+        } catch {
+            Issue.record("expected ApiError, got \(error)")
+        }
+        #expect(caught != nil)
+        #expect(mockClient.lastURL.isEmpty, "transport must not be called when a required param is missing")
+    }
+
+    // required-nested-param-validation (happy path): a present required query
+    // param passes the guard and the request is dispatched normally.
+    @Test func testRequiredQueryParamPresentSucceeds() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        let result = try await api.getPetByName(name: "Fido", options: GetPetByNameOptions(category: "dog"))
+        #expect(result != nil)
+        #expect(mockClient.lastURL.contains("category=dog"))
+    }
+
     // options-immutable-readback: an Options value is built once via its init
     // (named args + defaults) and its stored properties are immutable lets that
     // remain readable after construction. A param-bearing Options round-trips

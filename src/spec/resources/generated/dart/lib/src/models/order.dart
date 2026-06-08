@@ -68,7 +68,14 @@ class Order {
     this.petId,
     this.quantity,
     this.shipDate,
-    this.status,
+    /* Cross-cutting `optional-enum-default-omitted`: an OPTIONAL enum field
+     * with a schema `default` is initialised to that default variant so a
+     * default-constructed model serialises the default on the wire (parity
+     * with the SDKs that emit `"status":"placed"`). The Dart `defaultValue`
+     * arrives as the quoted wire literal (e.g. `'placed'`); camelcase strips
+     * the quotes to the variant identifier, which equals the lowercased enum
+     * value the typed enum declares above. */
+    this.status = OrderStatusEnum.placed,
     this.complete,
   });
 

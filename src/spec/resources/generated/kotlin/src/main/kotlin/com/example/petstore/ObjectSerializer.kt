@@ -372,7 +372,12 @@ internal class ObjectSerializer(
                 // instead of silently assigning null. Aligns with the 9 SDKs
                 // that throw; Python and Go also tightened in this cycle.
                 // explicitNulls defaults to true.
-                isLenient = true
+                // primitive-type-coercion-lenient: isLenient=true let the parser
+                // coerce a quoted scalar (e.g. "42") into a numeric field, masking
+                // a payload type mismatch. Strict parsing (the kotlinx default)
+                // rejects wrong-typed primitives, matching the validate-and-throw
+                // behaviour of the other SDKs.
+                isLenient = false
                 // Gap AJ: removed `coerceInputValues = true` for the same
                 // reason — coercing missing values to defaults masked the
                 // required-field violation. Default is false (strict).

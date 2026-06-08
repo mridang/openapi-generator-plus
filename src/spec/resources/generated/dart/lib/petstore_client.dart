@@ -75,6 +75,7 @@ export 'src/api/options/add_pet_photos_options.dart';
 export 'src/api/options/add_pet_treatment_options.dart';
 export 'src/api/options/delete_pet_options.dart';
 export 'src/api/options/find_pets_by_status_options.dart';
+export 'src/api/options/get_pet_by_name_options.dart';
 export 'src/api/options/get_pet_tag_options.dart';
 export 'src/api/options/set_pet_preferences_options.dart';
 export 'src/api/options/upload_pet_certificate_options.dart';

@@ -9,6 +9,7 @@ import {{apiPackage}}.options.AddPetOptions
 import {{apiPackage}}.options.AddPetPhotosOptions
 import {{apiPackage}}.options.DeletePetOptions
 import {{apiPackage}}.options.FindPetsByStatusOptions
+import {{apiPackage}}.options.GetPetByNameOptions
 import {{apiPackage}}.options.GetPetTagOptions
 import {{apiPackage}}.options.SetPetPreferencesOptions
 import {{apiPackage}}.options.UploadPetCertificateOptions
@@ -58,6 +59,12 @@ class PetApiTest {
         "admin",
         "password"
     )
+
+    // Launders a null through an erased type parameter so it can be assigned to
+    // a non-nullable field without a cast-time NullPointerException, emulating a
+    // null arriving across the Java/Kotlin interop boundary. Used to exercise
+    // the runtime required-parameter guards in the generated API methods.
+    private fun <T> forceNull(): T = null as T
 
     @Nested
     @DisplayName("Integration tests")
@@ -461,6 +468,58 @@ class PetApiTest {
 
             assertThrows(ApiException::class.java) {
                 runBlocking { api.getPetById(1L) }
+            }
+        }
+
+        @Test
+        @DisplayName("getPetByName sends the required query param on the wire")
+        fun testGetPetByNameSendsRequiredQuery() {
+            var capturedQuery: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedQuery = request.url.encodedQuery
+                    respond(
+                        content = """{"id":1,"name":"Rex","photoUrls":[]}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            runBlocking { api.getPetByName("Rex", GetPetByNameOptions(category = "dog")) }
+
+            assertTrue(capturedQuery!!.contains("category=dog"), "query was: $capturedQuery")
+        }
+
+        @Test
+        @DisplayName("required-nested-param-validation: missing required query param fails loud")
+        fun testGetPetByNameMissingRequiredQueryFailsLoud() {
+            // required-nested-param-validation: `category` is a REQUIRED query
+            // param carried in options. A null value (e.g. arriving via Java
+            // interop, which bypasses Kotlin's compile-time null check) must
+            // fail loud, never be silently dropped from the request. The
+            // generated getPetByName emits a requireNotNull guard mirroring the
+            // path/body checks; the non-null Options field is a second barrier.
+            // Either way a null required param surfaces a RuntimeException.
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(), config)
+
+            // forceNull() launders a null through an erased type parameter so it
+            // reaches the required slot the way a null crosses the Java/Kotlin
+            // boundary, rather than being rejected at a cast site in the test.
+            assertThrows(RuntimeException::class.java) {
+                runBlocking {
+                    api.getPetByName("Rex", GetPetByNameOptions(category = forceNull()))
+                }
             }
         }
 

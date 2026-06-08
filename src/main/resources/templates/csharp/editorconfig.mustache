@@ -1,5 +1,16 @@
 root = true
 
+# Universal baseline applied to every file in the generated tree, regardless
+# of language. Pins the on-disk encoding and line endings so the output is
+# byte-stable across platforms and editors.
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
 [*.cs]
 dotnet_analyzer_diagnostic.severity = warning
 csharp_style_namespace_declarations = file_scoped:warning

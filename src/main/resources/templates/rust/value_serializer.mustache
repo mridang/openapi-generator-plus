@@ -118,6 +118,17 @@ pub fn serialize_styled(
     style: &str,
     explode: bool,
 ) -> Option<SerializedValue> {
+    // Empty-string path guard. A required-path check lives in the operation
+    // method; here we catch the empty-string case that slips through it.
+    // panic is appropriate because this is a programmer error, not a
+    // recoverable runtime condition — matching the other 11 SDKs which all
+    // raise on an empty path value.
+    if location == "path" {
+        if let Some("") = value {
+            panic!("Path parameter '{}' must not be empty", param_name);
+        }
+    }
+
     // URL-encoding is applied at a higher level (the API call site) — pass the
     // raw stringified value through here.
     if style.is_empty() {
@@ -1010,17 +1021,14 @@ mod tests {
         assert!(!slash.contains("%252F"), "slash was double-encoded: {slash}");
     }
 
-    // FEATURE GAP — empty-string path values are NOT rejected by the Rust value
-    // serializer (it has no empty-path guard, unlike the Java/Python/PHP/Ruby/
-    // Elixir/Go/C#/Dart SDKs). Ignored until the serializer grows an empty-path
-    // check; kept for scenario parity with the other 11 SDKs.
+    // Empty-string path values are rejected by the value serializer (parity
+    // with the Java/Python/PHP/Ruby/Elixir/Go/C#/Dart SDKs, which all raise).
+    // The Rust idiom for a programmer error is a panic.
     #[test]
-    #[ignore = "Rust value serializer lacks an empty-string path guard (feature gap)"]
+    #[should_panic(expected = "Path parameter 'id' must not be empty")]
     fn test_empty_string_path_param_rejected() {
-        let result = super::serialize_styled(
+        let _ = super::serialize_styled(
             "id", Some(""), None, "path", "string", "", "simple", false,
         );
-        // When the guard is added this should be an error/None rather than "".
-        assert_ne!(unwrap_single(result), "");
     }
 }

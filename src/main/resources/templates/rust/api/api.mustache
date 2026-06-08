@@ -193,22 +193,11 @@ impl {{classname}} {
             "<%style%>",
             <%isExplode%>,
         ) {
-            // URL-encode for use as a URL path segment, preserving sub-delimiters
-            // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v.chars().flat_map(|c| {
-                if c.is_ascii_alphanumeric()
-                    || matches!(c, '-' | '_' | '.' | '~'
-                        | '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+'
-                        | ',' | ';' | '=' | ':' | '@')
-                {
-                    vec![c]
-                } else {
-                    let mut buf = [0u8; 4];
-                    let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                    bytes.into_iter().flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>()).collect()
-                }
-            }).collect();
-            path = path.replace("{<%baseName%>}", &encoded);
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{<%baseName%>}", &v);
         }
 <%={{ }}=%>
 {{/pathParams}}
@@ -226,6 +215,35 @@ impl {{classname}} {
         let mut query_params: Vec<(String, String)> = Vec::new();
 {{#queryParams}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
+{{#required}}
+        // Required query parameter (allowEmptyValue): a missing Options is a
+        // programming error and is rejected up front.
+        let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+            format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}").into()
+        })?;
+        if let Some(serialized) = value_serializer::serialize_styled(
+            "{{baseName}}",
+            Some(&object_serializer::stringify(&opts.{{paramName}})),
+            None,
+            "query",
+            "{{{dataType}}}",
+            "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}",
+            "{{style}}",
+            {{isExplode}},
+        ) {
+            match serialized {
+                SerializedValue::Single(v) => {
+                    query_params.push(("{{baseName}}".to_string(), v));
+                }
+                SerializedValue::Multi(values) => {
+                    for v in values {
+                        query_params.push(("{{baseName}}".to_string(), v));
+                    }
+                }
+            }
+        }
+{{/required}}
+{{^required}}
         if let Some(opts) = options {
             if let Some(ref val) = opts.{{paramName}} {
                 if let Some(serialized) = value_serializer::serialize_styled(
@@ -253,8 +271,19 @@ impl {{classname}} {
                 query_params.push(("{{baseName}}".to_string(), String::new()));
             }
         }
+{{/required}}
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryDeepObject}}
+{{#required}}
+        // Required deepObject query parameter: a missing Options is rejected.
+        let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+            format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}").into()
+        })?;
+        for (k, v) in value_serializer::serialize_deep_object("{{baseName}}", &opts.{{paramName}}) {
+            query_params.push((k, v));
+        }
+{{/required}}
+{{^required}}
         if let Some(opts) = options {
             if let Some(ref val) = opts.{{paramName}} {
                 for (k, v) in value_serializer::serialize_deep_object("{{baseName}}", val) {
@@ -262,15 +291,55 @@ impl {{classname}} {
                 }
             }
         }
+{{/required}}
 {{/vendorExtensions.param.queryDeepObject}}
 {{#vendorExtensions.param.queryContent}}
+{{#required}}
+        // Required content query parameter: a missing Options is rejected.
+        let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+            format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}").into()
+        })?;
+        query_params.push(("{{baseName}}".to_string(), serde_json::to_string(&opts.{{paramName}}).unwrap_or_default()));
+{{/required}}
+{{^required}}
         if let Some(opts) = options {
             if let Some(ref val) = opts.{{paramName}} {
                 query_params.push(("{{baseName}}".to_string(), serde_json::to_string(val).unwrap_or_default()));
             }
         }
+{{/required}}
 {{/vendorExtensions.param.queryContent}}
 {{#vendorExtensions.param.queryStyled}}
+{{#required}}
+        // Required query parameter: the caller must supply it via Options. A
+        // missing Options is a programming error and is rejected up front,
+        // matching the required-param validation the other SDKs perform.
+        let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+            format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}").into()
+        })?;
+        if let Some(serialized) = value_serializer::serialize_styled(
+            "{{baseName}}",
+            Some(&object_serializer::stringify(&opts.{{paramName}})),
+            None,
+            "query",
+            "{{{dataType}}}",
+            "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}",
+            "{{style}}",
+            {{isExplode}},
+        ) {
+            match serialized {
+                SerializedValue::Single(v) => {
+                    query_params.push(("{{baseName}}".to_string(), v));
+                }
+                SerializedValue::Multi(values) => {
+                    for v in values {
+                        query_params.push(("{{baseName}}".to_string(), v));
+                    }
+                }
+            }
+        }
+{{/required}}
+{{^required}}
         if let Some(opts) = options {
             if let Some(ref val) = opts.{{paramName}} {
                 if let Some(serialized) = value_serializer::serialize_styled(
@@ -296,11 +365,33 @@ impl {{classname}} {
                 }
             }
         }
+{{/required}}
 {{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 {{#headerParams}}
+{{#required}}
+        // Required header parameter: a missing Options is a programming error.
+        let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+            format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}").into()
+        })?;
+        if let Some(serialized) = value_serializer::serialize_styled(
+            "{{baseName}}",
+            Some(&object_serializer::stringify(&opts.{{paramName}})),
+            None,
+            "header",
+            "{{{dataType}}}",
+            "",
+            "{{style}}",
+            {{isExplode}},
+        ) {
+            if let SerializedValue::Single(v) = serialized {
+                header_params.insert("{{baseName}}".to_string(), v);
+            }
+        }
+{{/required}}
+{{^required}}
         if let Some(opts) = options {
             if let Some(ref val) = opts.{{paramName}} {
                 if let Some(serialized) = value_serializer::serialize_styled(
@@ -319,10 +410,30 @@ impl {{classname}} {
                 }
             }
         }
+{{/required}}
 {{/headerParams}}
 {{#hasCookieParams}}
         let mut cookie_parts: Vec<String> = Vec::new();
 {{#cookieParams}}
+{{#required}}
+        // Required cookie parameter: a missing Options is a programming error.
+        let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+            format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}").into()
+        })?;
+        if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+            "{{baseName}}",
+            Some(&object_serializer::stringify(&opts.{{paramName}})),
+            None,
+            "cookie",
+            "{{{dataType}}}",
+            "",
+            "{{style}}",
+            {{isExplode}},
+        ) {
+            cookie_parts.push(format!("{{baseName}}={}", v));
+        }
+{{/required}}
+{{^required}}
         if let Some(opts) = options {
             if let Some(ref val) = opts.{{paramName}} {
                 if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
@@ -339,6 +450,7 @@ impl {{classname}} {
                 }
             }
         }
+{{/required}}
 {{/cookieParams}}
         if !cookie_parts.is_empty() {
             header_params.insert("Cookie".to_string(), cookie_parts.join("; "));

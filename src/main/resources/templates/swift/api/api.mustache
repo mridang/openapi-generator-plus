@@ -117,6 +117,44 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{/isString}}
 {{/required}}
 {{/pathParams}}
+{{#vendorExtensions.op.optionsParamRequired}}
+{{#queryParams}}
+{{#required}}
+{{#isString}}
+        guard !options.{{paramName}}.isEmpty else {
+            throw ApiError(statusCode: 0, message: "Missing required parameter 'options.{{paramName}}' when calling {{classname}}.{{operationId}}")
+        }
+{{/isString}}
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+{{#isString}}
+        guard !options.{{paramName}}.isEmpty else {
+            throw ApiError(statusCode: 0, message: "Missing required parameter 'options.{{paramName}}' when calling {{classname}}.{{operationId}}")
+        }
+{{/isString}}
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+{{#isString}}
+        guard !options.{{paramName}}.isEmpty else {
+            throw ApiError(statusCode: 0, message: "Missing required parameter 'options.{{paramName}}' when calling {{classname}}.{{operationId}}")
+        }
+{{/isString}}
+{{/required}}
+{{/formParams}}
+{{#cookieParams}}
+{{#required}}
+{{#isString}}
+        guard !options.{{paramName}}.isEmpty else {
+            throw ApiError(statusCode: 0, message: "Missing required parameter 'options.{{paramName}}' when calling {{classname}}.{{operationId}}")
+        }
+{{/isString}}
+{{/required}}
+{{/cookieParams}}
+{{/vendorExtensions.op.optionsParamRequired}}
 
 {{#pathParams.0}}
         var path = "{{{path}}}"

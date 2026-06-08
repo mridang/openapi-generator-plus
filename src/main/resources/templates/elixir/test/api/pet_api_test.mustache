@@ -431,5 +431,92 @@ defmodule {{moduleName}}.Api.PetApiTest do
 
     Agent.stop(name)
   end
+
+  # per-op-auth-precedence: per-operation auth is sourced SOLELY from the
+  # Options struct's `auth` field. There is no `opts[:auth]` channel — an
+  # `:auth` entry in the trailing keyword list is ignored and must never
+  # override an explicit `options.auth`. 11 sibling SDKs source per-op auth
+  # only from `options.auth`; this pins Elixir to the same contract.
+  test "per-op auth comes only from options.auth; opts[:auth] is ignored" do
+    {:ok, name} = HeaderCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(HeaderCapturingApiClient, config)
+
+    options_auth = %{auth_headers: %{"Authorization" => "Bearer from-options"}}
+    opts_auth = %{auth_headers: %{"Authorization" => "Bearer from-opts"}}
+
+    options = %{{moduleName}}.Api.Options.DeletePetOptions{auth: options_auth}
+    {:ok, _result} =
+      {{moduleName}}.Api.PetApi.delete_pet_with_http_info(api, 1, options, auth: opts_auth)
+
+    headers = HeaderCapturingApiClient.captured_headers(name)
+    assert headers["Authorization"] == "Bearer from-options"
+
+    Agent.stop(name)
+  end
+
+  # apiresult-rawbody-nullability: ApiResult.raw_body is typed String.t() (never
+  # nil) because ApiResponse.body is always populated. Even an empty 200 body
+  # surfaces raw_body as a binary, not nil.
+  test "api_result raw_body is always a binary, never nil" do
+    api = new_pet_api_for_mock(200, "application/json", "")
+
+    assert {:ok, result} = {{moduleName}}.Api.PetApi.delete_pet_with_http_info(api, 1)
+    assert is_binary(result.raw_body)
+    refute is_nil(result.raw_body)
+  end
+
+  # required-nested-param-validation: get_pet_by_name has a REQUIRED query param
+  # `category`. A nil value or empty string must raise before any HTTP call,
+  # and a present value must be serialized onto the wire.
+  test "get_pet_by_name raises when required category is nil" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(PathCapturingApiClient, config)
+
+    assert_raise ArgumentError, ~r/category/, fn ->
+      {{moduleName}}.Api.PetApi.get_pet_by_name_with_http_info(
+        api, "rex",
+        %{{moduleName}}.Api.Options.GetPetByNameOptions{category: nil}
+      )
+    end
+
+    assert PathCapturingApiClient.captured_url(name) == ""
+    Agent.stop(name)
+  end
+
+  test "get_pet_by_name raises when required category is empty string" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(PathCapturingApiClient, config)
+
+    assert_raise ArgumentError, ~r/category/, fn ->
+      {{moduleName}}.Api.PetApi.get_pet_by_name_with_http_info(
+        api, "rex",
+        %{{moduleName}}.Api.Options.GetPetByNameOptions{category: ""}
+      )
+    end
+
+    assert PathCapturingApiClient.captured_url(name) == ""
+    Agent.stop(name)
+  end
+
+  test "get_pet_by_name sends the required category on the wire" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(PathCapturingApiClient, config)
+
+    {:ok, _result} =
+      {{moduleName}}.Api.PetApi.get_pet_by_name_with_http_info(
+        api, "rex",
+        %{{moduleName}}.Api.Options.GetPetByNameOptions{category: "dog"}
+      )
+
+    url = PathCapturingApiClient.captured_url(name)
+    assert String.contains?(url, "category=dog"),
+      "Expected required category=dog on the wire, got: #{url}"
+
+    Agent.stop(name)
+  end
 end
 {{/generateTests}}

@@ -738,6 +738,69 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         return try await invokeAPIForResult(params, as: Pet.self)
     }
 
+    /// Look up a pet by name (simple string path param + required query)
+    ///
+    /// - Parameters:
+
+    public func getPetByName(name: String, options: GetPetByNameOptions) async throws -> Pet {
+        let result = try await getPetByNameWithHTTPInfo(name: name, options: options)
+        guard let data = result.data else {
+            throw ApiError(
+                statusCode: result.statusCode,
+                message: "Server returned no body for getPetByName",
+                responseBody: result.rawBody,
+                responseHeaders: result.headers
+            )
+        }
+        return data
+    }
+
+    /// Performs the getPetByName operation and returns the full API result.
+    public func getPetByNameWithHTTPInfo(name: String, options: GetPetByNameOptions) async throws -> ApiResult<Pet> {
+        guard !name.isEmpty else {
+            throw ApiError(
+                statusCode: 0, message: "Missing required parameter '\(name)' when calling PetApi.getPetByName")
+        }
+        guard !options.category.isEmpty else {
+            throw ApiError(
+                statusCode: 0, message: "Missing required parameter 'options.category' when calling PetApi.getPetByName"
+            )
+        }
+
+        var path = "/pet/byName/{name}"
+        path = path.replacingOccurrences(
+            of: "{" + "name" + "}",
+            with:
+                "\(ValueSerializer.serializeStyled("name", value: name, location: "path", schemaType: "String", collectionFormat: "", style: "simple", explode: false) ?? "")"
+        )
+
+        var queryParams: [String: Any?] = [:]
+        do {
+            let val = options.category
+            queryParams["category"] = ValueSerializer.serializeStyled(
+                "category", value: val, location: "query", schemaType: "String", collectionFormat: "", style: "form",
+                explode: true)
+        }
+
+        let headerParams: [String: String] = [:]
+
+        let requestBody: Any? = nil
+
+        let params = InvokeAPIParams(
+            method: "GET",
+            path: path,
+            queryParams: queryParams,
+            headerParams: headerParams,
+            body: requestBody,
+            accepts: ["application/json"],
+            contentType: "application/json",
+            returnType: "Pet",
+            auth: nil
+        )
+
+        return try await invokeAPIForResult(params, as: Pet.self)
+    }
+
     /// Get the pet's passport
     /// Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
     ///
@@ -1084,6 +1147,11 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     public func setPetPreferencesWithHTTPInfo(
         petId: Int64, options: SetPetPreferencesOptions
     ) async throws -> ApiResult<ApiResponse> {
+        guard !options.nickname.isEmpty else {
+            throw ApiError(
+                statusCode: 0,
+                message: "Missing required parameter 'options.nickname' when calling PetApi.setPetPreferences")
+        }
 
         var path = "/pet/{petId}/preferences"
         path = path.replacingOccurrences(

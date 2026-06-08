@@ -222,6 +222,26 @@ public class {{classname}} : BaseApi
 {{/formParams}}
 {{/headerParams}}
 {{/queryParams}}
+{{#queryParams}}
+{{#required}}
+        ArgumentNullException.ThrowIfNull(options.{{vendorExtensions.pascalName}}, nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+        ArgumentNullException.ThrowIfNull(options.{{vendorExtensions.pascalName}}, nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+        ArgumentNullException.ThrowIfNull(options.{{vendorExtensions.pascalName}}, nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+{{/required}}
+{{/formParams}}
+{{#cookieParams}}
+{{#required}}
+        ArgumentNullException.ThrowIfNull(options.{{vendorExtensions.pascalName}}, nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+{{/required}}
+{{/cookieParams}}
         string path = "{{{path}}}";
         {{#pathParams}}
 {{^isPrimitiveType}}

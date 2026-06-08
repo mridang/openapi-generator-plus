@@ -470,6 +470,21 @@ class DefaultApiClient implements ApiClient
                 null,
                 $e
             );
+        } catch (\RuntimeException $e) {
+            /* Response post-processing (notably decompressBody's gzip /
+             * deflate / brotli / zstd failures) throws a plain
+             * \RuntimeException. Without this branch a corrupt or truncated
+             * compressed body would leak that raw runtime error past the SDK
+             * surface; wrap it as the SDK's ApiException so callers catch a
+             * single, documented exception type. */
+            throw new ApiException(
+                "API Request failed: {$e->getMessage()}",
+                0,
+                null,
+                null,
+                null,
+                $e
+            );
         }
     }
 

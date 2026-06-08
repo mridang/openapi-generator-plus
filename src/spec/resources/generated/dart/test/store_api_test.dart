@@ -48,6 +48,15 @@ void main() {
       expect(result.rawBody, isNotEmpty);
     });
 
+    /* optional-enum-default-omitted: an OPTIONAL enum field with a schema
+     * `default` must be initialised to that default variant, so a
+     * default-constructed model serialises the default on the wire
+     * (`"status":"placed"`) like the other SDKs — rather than omitting it. */
+    test('default-constructed Order serializes the default status', () {
+      final json = Order().toJson();
+      expect(json['status'], equals('placed'));
+    });
+
     test('getInventory', () async {
       final api = _newStoreApiForIntegration();
 

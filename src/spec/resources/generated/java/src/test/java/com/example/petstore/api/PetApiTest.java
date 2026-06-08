@@ -19,6 +19,7 @@ import com.example.petstore.api.options.AddPetOptions;
 import com.example.petstore.api.options.AddPetPhotosOptions;
 import com.example.petstore.api.options.DeletePetOptions;
 import com.example.petstore.api.options.FindPetsByStatusOptions;
+import com.example.petstore.api.options.GetPetByNameOptions;
 import com.example.petstore.api.options.GetPetTagOptions;
 import com.example.petstore.api.options.SetPetPreferencesOptions;
 import com.example.petstore.api.options.UploadPetCertificateOptions;
@@ -457,6 +458,7 @@ class PetApiTest {
    */
   private static final class CapturingApiClient implements ApiClient {
     @javax.annotation.Nullable Object capturedBody;
+    @javax.annotation.Nullable String capturedUrl;
 
     @Override
     public com.example.petstore.ApiResponse sendRequest(
@@ -465,9 +467,49 @@ class PetApiTest {
         java.util.Map<String, String> headers,
         @javax.annotation.Nullable Object body) {
       this.capturedBody = body;
+      this.capturedUrl = url;
       return new com.example.petstore.ApiResponse(
-          200, "{}", java.util.Map.of("Content-Type", "application/json"));
+          200,
+          "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}",
+          java.util.Map.of("Content-Type", "application/json"));
     }
+  }
+
+  @Test
+  void getPetByNameTildeInPathIsNotOverEncoded() throws Exception {
+    // RFC 3986 unreserved '~' must survive in a path segment as a literal
+    // tilde, never percent-encoded to %7E.
+    CapturingApiClient capturing = new CapturingApiClient();
+    Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+    PetApi petApi = new PetApi(capturing, config);
+
+    petApi.getPetByName("a~b", new GetPetByNameOptions("cats"));
+
+    assertNotNull(capturing.capturedUrl);
+    assertThat(capturing.capturedUrl).contains("/pet/byName/a~b");
+    assertThat(capturing.capturedUrl).doesNotContain("%7E");
+  }
+
+  @Test
+  void getPetByNameMissingRequiredQueryParamThrows() throws Exception {
+    // A required query param that is null at runtime must fail client-side
+    // with a clear error before any request is made — parity with path/body
+    // required-param validation. The options field is typed non-null, so to
+    // simulate a value that slipped past the type system (e.g. a legacy or
+    // reflection-built caller) the final field is injected with null.
+    CapturingApiClient capturing = new CapturingApiClient();
+    Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+    PetApi petApi = new PetApi(capturing, config);
+
+    GetPetByNameOptions options = new GetPetByNameOptions("placeholder");
+    java.lang.reflect.Field categoryField = GetPetByNameOptions.class.getDeclaredField("category");
+    categoryField.setAccessible(true);
+    categoryField.set(options, null);
+
+    assertThatThrownBy(() -> petApi.getPetByName("Rex", options))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("category");
+    assertThat(capturing.capturedUrl).isNull();
   }
 
   @Test

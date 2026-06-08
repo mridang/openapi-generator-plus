@@ -81,7 +81,7 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 
 {{#hasVars}}
     /// Creates a new {{classname}} instance.
-    public init({{#requiredVars}}{{nameInCamelCase}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^isEnum}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{/isEnum}}{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{nameInCamelCase}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?{{#isEnum}} = nil{{/isEnum}}{{^isEnum}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{^defaultValue}} = nil{{/defaultValue}}{{/isEnum}}{{^-last}}, {{/-last}}{{/optionalVars}}) {
+    public init({{#requiredVars}}{{nameInCamelCase}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^isEnum}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{/isEnum}}{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{nameInCamelCase}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?{{#isEnum}}{{#defaultValue}} = {{classname}}{{enumName}}(rawValue: {{{.}}}){{/defaultValue}}{{^defaultValue}} = nil{{/defaultValue}}{{/isEnum}}{{^isEnum}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{^defaultValue}} = nil{{/defaultValue}}{{/isEnum}}{{^-last}}, {{/-last}}{{/optionalVars}}) {
 {{#requiredVars}}
         self.{{name}} = {{nameInCamelCase}}
 {{/requiredVars}}

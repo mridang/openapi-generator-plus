@@ -285,44 +285,11 @@ impl PetApi {
             "simple",
             false,
         ) {
-            // URL-encode for use as a URL path segment, preserving sub-delimiters
-            // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v
-                .chars()
-                .flat_map(|c| {
-                    if c.is_ascii_alphanumeric()
-                        || matches!(
-                            c,
-                            '-' | '_'
-                                | '.'
-                                | '~'
-                                | '!'
-                                | '$'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | ';'
-                                | '='
-                                | ':'
-                                | '@'
-                        )
-                    {
-                        vec![c]
-                    } else {
-                        let mut buf = [0u8; 4];
-                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                        bytes
-                            .into_iter()
-                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
-                            .collect()
-                    }
-                })
-                .collect();
-            path = path.replace("{petId}", &encoded);
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{petId}", &v);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -424,44 +391,11 @@ impl PetApi {
             "simple",
             false,
         ) {
-            // URL-encode for use as a URL path segment, preserving sub-delimiters
-            // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v
-                .chars()
-                .flat_map(|c| {
-                    if c.is_ascii_alphanumeric()
-                        || matches!(
-                            c,
-                            '-' | '_'
-                                | '.'
-                                | '~'
-                                | '!'
-                                | '$'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | ';'
-                                | '='
-                                | ':'
-                                | '@'
-                        )
-                    {
-                        vec![c]
-                    } else {
-                        let mut buf = [0u8; 4];
-                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                        bytes
-                            .into_iter()
-                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
-                            .collect()
-                    }
-                })
-                .collect();
-            path = path.replace("{petId}", &encoded);
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{petId}", &v);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -524,44 +458,11 @@ impl PetApi {
             "simple",
             false,
         ) {
-            // URL-encode for use as a URL path segment, preserving sub-delimiters
-            // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v
-                .chars()
-                .flat_map(|c| {
-                    if c.is_ascii_alphanumeric()
-                        || matches!(
-                            c,
-                            '-' | '_'
-                                | '.'
-                                | '~'
-                                | '!'
-                                | '$'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | ';'
-                                | '='
-                                | ':'
-                                | '@'
-                        )
-                    {
-                        vec![c]
-                    } else {
-                        let mut buf = [0u8; 4];
-                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                        bytes
-                            .into_iter()
-                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
-                            .collect()
-                    }
-                })
-                .collect();
-            path = path.replace("{petId}", &encoded);
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{petId}", &v);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -651,44 +552,11 @@ impl PetApi {
             "simple",
             false,
         ) {
-            // URL-encode for use as a URL path segment, preserving sub-delimiters
-            // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v
-                .chars()
-                .flat_map(|c| {
-                    if c.is_ascii_alphanumeric()
-                        || matches!(
-                            c,
-                            '-' | '_'
-                                | '.'
-                                | '~'
-                                | '!'
-                                | '$'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | ';'
-                                | '='
-                                | ':'
-                                | '@'
-                        )
-                    {
-                        vec![c]
-                    } else {
-                        let mut buf = [0u8; 4];
-                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                        bytes
-                            .into_iter()
-                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
-                            .collect()
-                    }
-                })
-                .collect();
-            path = path.replace("{petId}", &encoded);
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{petId}", &v);
         }
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "documentId",
@@ -700,44 +568,11 @@ impl PetApi {
             "simple",
             false,
         ) {
-            // URL-encode for use as a URL path segment, preserving sub-delimiters
-            // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v
-                .chars()
-                .flat_map(|c| {
-                    if c.is_ascii_alphanumeric()
-                        || matches!(
-                            c,
-                            '-' | '_'
-                                | '.'
-                                | '~'
-                                | '!'
-                                | '$'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | ';'
-                                | '='
-                                | ':'
-                                | '@'
-                        )
-                    {
-                        vec![c]
-                    } else {
-                        let mut buf = [0u8; 4];
-                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                        bytes
-                            .into_iter()
-                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
-                            .collect()
-                    }
-                })
-                .collect();
-            path = path.replace("{documentId}", &encoded);
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{documentId}", &v);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -907,44 +742,11 @@ impl PetApi {
             "simple",
             false,
         ) {
-            // URL-encode for use as a URL path segment, preserving sub-delimiters
-            // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v
-                .chars()
-                .flat_map(|c| {
-                    if c.is_ascii_alphanumeric()
-                        || matches!(
-                            c,
-                            '-' | '_'
-                                | '.'
-                                | '~'
-                                | '!'
-                                | '$'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | ';'
-                                | '='
-                                | ':'
-                                | '@'
-                        )
-                    {
-                        vec![c]
-                    } else {
-                        let mut buf = [0u8; 4];
-                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                        bytes
-                            .into_iter()
-                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
-                            .collect()
-                    }
-                })
-                .collect();
-            path = path.replace("{petId}", &encoded);
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{petId}", &v);
         }
         if let Some(s) = server {
             let server_url = s.get_url();
@@ -1019,44 +821,11 @@ impl PetApi {
             "simple",
             false,
         ) {
-            // URL-encode for use as a URL path segment, preserving sub-delimiters
-            // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v
-                .chars()
-                .flat_map(|c| {
-                    if c.is_ascii_alphanumeric()
-                        || matches!(
-                            c,
-                            '-' | '_'
-                                | '.'
-                                | '~'
-                                | '!'
-                                | '$'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | ';'
-                                | '='
-                                | ':'
-                                | '@'
-                        )
-                    {
-                        vec![c]
-                    } else {
-                        let mut buf = [0u8; 4];
-                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                        bytes
-                            .into_iter()
-                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
-                            .collect()
-                    }
-                })
-                .collect();
-            path = path.replace("{petId}", &encoded);
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{petId}", &v);
         }
         if let Some(s) = server {
             let server_url = s.get_url();
@@ -1128,44 +897,11 @@ impl PetApi {
             "simple",
             false,
         ) {
-            // URL-encode for use as a URL path segment, preserving sub-delimiters
-            // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v
-                .chars()
-                .flat_map(|c| {
-                    if c.is_ascii_alphanumeric()
-                        || matches!(
-                            c,
-                            '-' | '_'
-                                | '.'
-                                | '~'
-                                | '!'
-                                | '$'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | ';'
-                                | '='
-                                | ':'
-                                | '@'
-                        )
-                    {
-                        vec![c]
-                    } else {
-                        let mut buf = [0u8; 4];
-                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                        bytes
-                            .into_iter()
-                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
-                            .collect()
-                    }
-                })
-                .collect();
-            path = path.replace("{petId}", &encoded);
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{petId}", &v);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -1231,44 +967,11 @@ impl PetApi {
             "simple",
             false,
         ) {
-            // URL-encode for use as a URL path segment, preserving sub-delimiters
-            // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v
-                .chars()
-                .flat_map(|c| {
-                    if c.is_ascii_alphanumeric()
-                        || matches!(
-                            c,
-                            '-' | '_'
-                                | '.'
-                                | '~'
-                                | '!'
-                                | '$'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | ';'
-                                | '='
-                                | ':'
-                                | '@'
-                        )
-                    {
-                        vec![c]
-                    } else {
-                        let mut buf = [0u8; 4];
-                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                        bytes
-                            .into_iter()
-                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
-                            .collect()
-                    }
-                })
-                .collect();
-            path = path.replace("{petId}", &encoded);
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{petId}", &v);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -1348,44 +1051,11 @@ impl PetApi {
             "simple",
             false,
         ) {
-            // URL-encode for use as a URL path segment, preserving sub-delimiters
-            // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v
-                .chars()
-                .flat_map(|c| {
-                    if c.is_ascii_alphanumeric()
-                        || matches!(
-                            c,
-                            '-' | '_'
-                                | '.'
-                                | '~'
-                                | '!'
-                                | '$'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | ';'
-                                | '='
-                                | ':'
-                                | '@'
-                        )
-                    {
-                        vec![c]
-                    } else {
-                        let mut buf = [0u8; 4];
-                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                        bytes
-                            .into_iter()
-                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
-                            .collect()
-                    }
-                })
-                .collect();
-            path = path.replace("{petId}", &encoded);
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{petId}", &v);
         }
         if let Some(s) = server {
             let server_url = s.get_url();
@@ -1395,6 +1065,116 @@ impl PetApi {
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
+
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "Pet",
+            auth: None,
+        };
+
+        self.base.invoke_api_for_result::<Pet>(params).await
+    }
+
+    /// Look up a pet by name (simple string path param + required query)
+    pub async fn get_pet_by_name(
+        &self,
+        name: String,
+        options: Option<&GetPetByNameOptions>,
+    ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.get_pet_by_name_with_http_info(name, options).await?;
+        // convenience-empty-body-handling: a body-returning operation that
+        // receives no decodable body must surface the SDK's typed ApiError
+        // (not a silent null / zero value), matching the other SDKs.
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "empty response body for an operation that declares a response type".to_string(),
+                Some(raw_body),
+                Some(headers),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the get_pet_by_name operation and returns the full API result.
+    pub async fn get_pet_by_name_with_http_info(
+        &self,
+        name: String,
+        options: Option<&GetPetByNameOptions>,
+    ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
+        if name.is_empty() {
+            return Err(format!(
+                "missing required parameter '{}' when calling PetApi.get_pet_by_name",
+                "name"
+            )
+            .into());
+        }
+
+        let mut path = "/pet/byName/{name}".to_string();
+        if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+            "name",
+            Some(&object_serializer::to_path_value(&name)),
+            None,
+            "path",
+            "String",
+            "",
+            "simple",
+            false,
+        ) {
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{name}", &v);
+        }
+
+        let mut query_params: Vec<(String, String)> = Vec::new();
+        // Required query parameter: the caller must supply it via Options. A
+        // missing Options is a programming error and is rejected up front,
+        // matching the required-param validation the other SDKs perform.
+        let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+            format!(
+                "missing required parameter '{}' when calling PetApi.get_pet_by_name",
+                "category"
+            )
+            .into()
+        })?;
+        if let Some(serialized) = value_serializer::serialize_styled(
+            "category",
+            Some(&object_serializer::stringify(&opts.category)),
+            None,
+            "query",
+            "String",
+            "",
+            "form",
+            true,
+        ) {
+            match serialized {
+                SerializedValue::Single(v) => {
+                    query_params.push(("category".to_string(), v));
+                }
+                SerializedValue::Multi(values) => {
+                    for v in values {
+                        query_params.push(("category".to_string(), v));
+                    }
+                }
+            }
+        }
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -1457,44 +1237,11 @@ impl PetApi {
             "simple",
             false,
         ) {
-            // URL-encode for use as a URL path segment, preserving sub-delimiters
-            // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v
-                .chars()
-                .flat_map(|c| {
-                    if c.is_ascii_alphanumeric()
-                        || matches!(
-                            c,
-                            '-' | '_'
-                                | '.'
-                                | '~'
-                                | '!'
-                                | '$'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | ';'
-                                | '='
-                                | ':'
-                                | '@'
-                        )
-                    {
-                        vec![c]
-                    } else {
-                        let mut buf = [0u8; 4];
-                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                        bytes
-                            .into_iter()
-                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
-                            .collect()
-                    }
-                })
-                .collect();
-            path = path.replace("{petId}", &encoded);
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{petId}", &v);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -1562,44 +1309,11 @@ impl PetApi {
             "simple",
             false,
         ) {
-            // URL-encode for use as a URL path segment, preserving sub-delimiters
-            // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v
-                .chars()
-                .flat_map(|c| {
-                    if c.is_ascii_alphanumeric()
-                        || matches!(
-                            c,
-                            '-' | '_'
-                                | '.'
-                                | '~'
-                                | '!'
-                                | '$'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | ';'
-                                | '='
-                                | ':'
-                                | '@'
-                        )
-                    {
-                        vec![c]
-                    } else {
-                        let mut buf = [0u8; 4];
-                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                        bytes
-                            .into_iter()
-                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
-                            .collect()
-                    }
-                })
-                .collect();
-            path = path.replace("{petId}", &encoded);
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{petId}", &v);
         }
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "photoId",
@@ -1611,44 +1325,11 @@ impl PetApi {
             "simple",
             false,
         ) {
-            // URL-encode for use as a URL path segment, preserving sub-delimiters
-            // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v
-                .chars()
-                .flat_map(|c| {
-                    if c.is_ascii_alphanumeric()
-                        || matches!(
-                            c,
-                            '-' | '_'
-                                | '.'
-                                | '~'
-                                | '!'
-                                | '$'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | ';'
-                                | '='
-                                | ':'
-                                | '@'
-                        )
-                    {
-                        vec![c]
-                    } else {
-                        let mut buf = [0u8; 4];
-                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                        bytes
-                            .into_iter()
-                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
-                            .collect()
-                    }
-                })
-                .collect();
-            path = path.replace("{photoId}", &encoded);
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{photoId}", &v);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -1727,44 +1408,11 @@ impl PetApi {
             "matrix",
             false,
         ) {
-            // URL-encode for use as a URL path segment, preserving sub-delimiters
-            // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v
-                .chars()
-                .flat_map(|c| {
-                    if c.is_ascii_alphanumeric()
-                        || matches!(
-                            c,
-                            '-' | '_'
-                                | '.'
-                                | '~'
-                                | '!'
-                                | '$'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | ';'
-                                | '='
-                                | ':'
-                                | '@'
-                        )
-                    {
-                        vec![c]
-                    } else {
-                        let mut buf = [0u8; 4];
-                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                        bytes
-                            .into_iter()
-                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
-                            .collect()
-                    }
-                })
-                .collect();
-            path = path.replace("{petId}", &encoded);
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{petId}", &v);
         }
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "tagName",
@@ -1776,44 +1424,11 @@ impl PetApi {
             "label",
             false,
         ) {
-            // URL-encode for use as a URL path segment, preserving sub-delimiters
-            // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v
-                .chars()
-                .flat_map(|c| {
-                    if c.is_ascii_alphanumeric()
-                        || matches!(
-                            c,
-                            '-' | '_'
-                                | '.'
-                                | '~'
-                                | '!'
-                                | '$'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | ';'
-                                | '='
-                                | ':'
-                                | '@'
-                        )
-                    {
-                        vec![c]
-                    } else {
-                        let mut buf = [0u8; 4];
-                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                        bytes
-                            .into_iter()
-                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
-                            .collect()
-                    }
-                })
-                .collect();
-            path = path.replace("{tagName}", &encoded);
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{tagName}", &v);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -1959,44 +1574,11 @@ impl PetApi {
             "simple",
             false,
         ) {
-            // URL-encode for use as a URL path segment, preserving sub-delimiters
-            // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v
-                .chars()
-                .flat_map(|c| {
-                    if c.is_ascii_alphanumeric()
-                        || matches!(
-                            c,
-                            '-' | '_'
-                                | '.'
-                                | '~'
-                                | '!'
-                                | '$'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | ';'
-                                | '='
-                                | ':'
-                                | '@'
-                        )
-                    {
-                        vec![c]
-                    } else {
-                        let mut buf = [0u8; 4];
-                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                        bytes
-                            .into_iter()
-                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
-                            .collect()
-                    }
-                })
-                .collect();
-            path = path.replace("{petId}", &encoded);
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{petId}", &v);
         }
         if let Some(s) = server {
             let server_url = s.get_url();
@@ -2057,44 +1639,11 @@ impl PetApi {
             "simple",
             false,
         ) {
-            // URL-encode for use as a URL path segment, preserving sub-delimiters
-            // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v
-                .chars()
-                .flat_map(|c| {
-                    if c.is_ascii_alphanumeric()
-                        || matches!(
-                            c,
-                            '-' | '_'
-                                | '.'
-                                | '~'
-                                | '!'
-                                | '$'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | ';'
-                                | '='
-                                | ':'
-                                | '@'
-                        )
-                    {
-                        vec![c]
-                    } else {
-                        let mut buf = [0u8; 4];
-                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                        bytes
-                            .into_iter()
-                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
-                            .collect()
-                    }
-                })
-                .collect();
-            path = path.replace("{petId}", &encoded);
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{petId}", &v);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -2151,44 +1700,11 @@ impl PetApi {
             "simple",
             false,
         ) {
-            // URL-encode for use as a URL path segment, preserving sub-delimiters
-            // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v
-                .chars()
-                .flat_map(|c| {
-                    if c.is_ascii_alphanumeric()
-                        || matches!(
-                            c,
-                            '-' | '_'
-                                | '.'
-                                | '~'
-                                | '!'
-                                | '$'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | ';'
-                                | '='
-                                | ':'
-                                | '@'
-                        )
-                    {
-                        vec![c]
-                    } else {
-                        let mut buf = [0u8; 4];
-                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                        bytes
-                            .into_iter()
-                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
-                            .collect()
-                    }
-                })
-                .collect();
-            path = path.replace("{petId}", &encoded);
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{petId}", &v);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -2259,44 +1775,11 @@ impl PetApi {
             "simple",
             false,
         ) {
-            // URL-encode for use as a URL path segment, preserving sub-delimiters
-            // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v
-                .chars()
-                .flat_map(|c| {
-                    if c.is_ascii_alphanumeric()
-                        || matches!(
-                            c,
-                            '-' | '_'
-                                | '.'
-                                | '~'
-                                | '!'
-                                | '$'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | ';'
-                                | '='
-                                | ':'
-                                | '@'
-                        )
-                    {
-                        vec![c]
-                    } else {
-                        let mut buf = [0u8; 4];
-                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                        bytes
-                            .into_iter()
-                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
-                            .collect()
-                    }
-                })
-                .collect();
-            path = path.replace("{petId}", &encoded);
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{petId}", &v);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -2382,44 +1865,11 @@ impl PetApi {
             "simple",
             false,
         ) {
-            // URL-encode for use as a URL path segment, preserving sub-delimiters
-            // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v
-                .chars()
-                .flat_map(|c| {
-                    if c.is_ascii_alphanumeric()
-                        || matches!(
-                            c,
-                            '-' | '_'
-                                | '.'
-                                | '~'
-                                | '!'
-                                | '$'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | ';'
-                                | '='
-                                | ':'
-                                | '@'
-                        )
-                    {
-                        vec![c]
-                    } else {
-                        let mut buf = [0u8; 4];
-                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                        bytes
-                            .into_iter()
-                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
-                            .collect()
-                    }
-                })
-                .collect();
-            path = path.replace("{petId}", &encoded);
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{petId}", &v);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -2489,44 +1939,11 @@ impl PetApi {
             "simple",
             false,
         ) {
-            // URL-encode for use as a URL path segment, preserving sub-delimiters
-            // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v
-                .chars()
-                .flat_map(|c| {
-                    if c.is_ascii_alphanumeric()
-                        || matches!(
-                            c,
-                            '-' | '_'
-                                | '.'
-                                | '~'
-                                | '!'
-                                | '$'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | ';'
-                                | '='
-                                | ':'
-                                | '@'
-                        )
-                    {
-                        vec![c]
-                    } else {
-                        let mut buf = [0u8; 4];
-                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                        bytes
-                            .into_iter()
-                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
-                            .collect()
-                    }
-                })
-                .collect();
-            path = path.replace("{petId}", &encoded);
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{petId}", &v);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -2610,44 +2027,11 @@ impl PetApi {
             "simple",
             false,
         ) {
-            // URL-encode for use as a URL path segment, preserving sub-delimiters
-            // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v
-                .chars()
-                .flat_map(|c| {
-                    if c.is_ascii_alphanumeric()
-                        || matches!(
-                            c,
-                            '-' | '_'
-                                | '.'
-                                | '~'
-                                | '!'
-                                | '$'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | ';'
-                                | '='
-                                | ':'
-                                | '@'
-                        )
-                    {
-                        vec![c]
-                    } else {
-                        let mut buf = [0u8; 4];
-                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                        bytes
-                            .into_iter()
-                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
-                            .collect()
-                    }
-                })
-                .collect();
-            path = path.replace("{petId}", &encoded);
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{petId}", &v);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();

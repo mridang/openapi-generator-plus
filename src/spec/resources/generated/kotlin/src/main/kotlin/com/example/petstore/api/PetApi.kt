@@ -17,6 +17,7 @@ import com.example.petstore.api.options.AddPetPhotosOptions
 import com.example.petstore.api.options.AddPetTreatmentOptions
 import com.example.petstore.api.options.DeletePetOptions
 import com.example.petstore.api.options.FindPetsByStatusOptions
+import com.example.petstore.api.options.GetPetByNameOptions
 import com.example.petstore.api.options.GetPetTagOptions
 import com.example.petstore.api.options.SetPetPreferencesOptions
 import com.example.petstore.api.options.UploadPetCertificateOptions
@@ -190,6 +191,12 @@ class PetApi : BaseApi {
     ): ApiResult<List<Photo>> {
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling addPetPhotos"
+        }
+        requireNotNull(options.files) {
+            "Missing the required parameter 'files' when calling addPetPhotos"
+        }
+        requireNotNull(options.metadata) {
+            "Missing the required parameter 'metadata' when calling addPetPhotos"
         }
         var path =
             "/pet/{petId}/photos"
@@ -635,6 +642,54 @@ class PetApi : BaseApi {
     }
 
     /**
+     * Look up a pet by name (simple string path param + required query)
+     * @param name  (required)
+     * @param options options for query, header, form, cookie parameters, and per-operation auth
+     * @return Pet
+     * @throws ApiException if fails to make API call
+     */
+
+    suspend fun getPetByName(
+        name: String,
+        options: GetPetByNameOptions,
+    ): Pet =
+        getPetByNameWithHttpInfo(name, options).data
+            ?: throw ApiException("Expected a response body for getPetByName but the server returned an empty body")
+
+    suspend fun getPetByNameWithHttpInfo(
+        name: String,
+        options: GetPetByNameOptions,
+    ): ApiResult<Pet> {
+        requireNotNull(name) {
+            "Missing the required parameter 'name' when calling getPetByName"
+        }
+        requireNotNull(options.category) {
+            "Missing the required parameter 'category' when calling getPetByName"
+        }
+        var path =
+            "/pet/byName/{name}"
+                .replace(
+                    "{" + "name" + "}",
+                    ValueSerializer.serializeStyled("name", name, "path", "String", null, "simple", false) as String,
+                )
+        val queryParams = mutableMapOf<String, Any?>()
+        if (options.category != null) {
+            queryParams["category"] = ValueSerializer.serializeStyled("category", options.category, "query", "String", null, "form", true)
+        }
+        val headerParams = mutableMapOf<String, String>()
+        return invokeApiForResult<Pet>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            null,
+        )
+    }
+
+    /**
      * Get the pet&#39;s passport
      * Returns a single JSON document combining the pet&#39;s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
      * @param petId  (required)
@@ -950,6 +1005,9 @@ class PetApi : BaseApi {
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling setPetPreferences"
         }
+        requireNotNull(options.nickname) {
+            "Missing the required parameter 'nickname' when calling setPetPreferences"
+        }
         var path =
             "/pet/{petId}/preferences"
                 .replace(
@@ -1047,6 +1105,9 @@ class PetApi : BaseApi {
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling uploadPetCertificate"
         }
+        requireNotNull(options._file) {
+            "Missing the required parameter '_file' when calling uploadPetCertificate"
+        }
         var path =
             "/pet/{petId}/certificate"
                 .replace(
@@ -1092,6 +1153,9 @@ class PetApi : BaseApi {
     ): ApiResult<ApiResponse> {
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling uploadPetDocument"
+        }
+        requireNotNull(options._file) {
+            "Missing the required parameter '_file' when calling uploadPetDocument"
         }
         var path =
             "/pet/{petId}/documents"

@@ -1,6 +1,6 @@
 {
     "name": "openapi/{{#lambda.lowercase}}{{invokerPackage}}{{/lambda.lowercase}}",
-    "description": "{{appDescription}}",
+    "description": "{{#appDescription}}{{appDescription}}{{/appDescription}}{{^appDescription}}API client for openapi/{{#lambda.lowercase}}{{invokerPackage}}{{/lambda.lowercase}}{{/appDescription}}",
     "license": "MIT",
     "version": "{{packageVersion}}",
     "require": {

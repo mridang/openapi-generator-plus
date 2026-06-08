@@ -178,4 +178,25 @@ describe PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator do
     decoded = Base64.strict_decode64(auth_header.sub(/\ABasic /, ''))
     _(decoded).must_equal 'id%2Bwith%2Fspecial:secret%26with%3Dstuff'
   end
+
+  it 'masks the client secret and password in inspect' do
+    # client-secret-leak-in-default-repr: the default Object#inspect dumps
+    # every instance variable, leaking @client_secret and @password into
+    # logs / error messages. The overridden inspect must mask both.
+    auth = PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator.new(
+      'https://api.example.com',
+      'my_client_id',
+      'super_secret_value',
+      'https://auth.example.com/token',
+      'user@example.com',
+      'super_secret_password',
+      %w[read]
+    )
+
+    _(auth.inspect).wont_include 'super_secret_value'
+    _(auth.inspect).wont_include 'super_secret_password'
+    _(auth.inspect).must_include '***'
+    _(auth.to_s).wont_include 'super_secret_value'
+    _("#{auth}").wont_include 'super_secret_password'
+  end
 end

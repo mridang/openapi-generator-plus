@@ -39,6 +39,19 @@ class _EchoHandler(BaseHTTPRequestHandler):
             self.wfile.write(b'not found')
             return
 
+        if self.path == '/bad-gzip':
+            # Advertise gzip but send bytes that are NOT valid gzip. The
+            # client must surface this as the SDK's ApiException rather than
+            # leaking a raw gzip.BadGzipFile / OSError.
+            payload = b'this is definitely not gzip'
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Content-Encoding', 'gzip')
+            self.send_header('Content-Length', str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+
         # Echo back all received headers as JSON. Lowercase the keys to match
         # chasm's /test/echo envelope shape so tests use a single key style.
         received_headers = {k.lower(): v for k, v in self.headers.items()}
@@ -93,6 +106,17 @@ class TestDefaultApiClientUnit:
         lower_headers = {k.lower(): v for k, v in response.headers.items()}
         assert 'x-test-header' in lower_headers
         assert lower_headers['x-test-header'] == 'test-value'
+
+    def test_malformed_gzip_body_raises_api_exception(self) -> None:
+        """decompression-error-not-wrapped: a body that advertises
+        Content-Encoding: gzip but is not valid gzip must surface as the
+        SDK's ApiException, not a raw gzip.BadGzipFile / OSError."""
+        from petstore_client.errors import ApiException
+
+        client = DefaultApiClient()
+        with pytest.raises(ApiException) as exc_info:
+            client.send_request('GET', f'{self.base_url}/bad-gzip', {}, None)
+        assert 'decompress' in str(exc_info.value.message or '').lower()
 
     def test_returns_non_2xx_status_code(self) -> None:
         client = DefaultApiClient()

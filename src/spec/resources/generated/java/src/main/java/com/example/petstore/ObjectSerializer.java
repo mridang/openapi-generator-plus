@@ -13,6 +13,7 @@ import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.util.StdDateFormat;
@@ -86,6 +87,12 @@ public final class ObjectSerializer {
   public <T> T deserialize(@Nullable String jsonString, Type type) throws SerializationException {
     if (jsonString == null || jsonString.isEmpty()) {
       return null;
+    }
+    /* Strip a leading UTF-8 BOM (U+FEFF) before parsing. Jackson does not
+    strip it from String input, so the very first token would otherwise
+    fail. Other SDKs in this family all strip it. */
+    if (jsonString.charAt(0) == '\uFEFF') {
+      jsonString = jsonString.substring(1);
     }
     try {
       JavaType javaType = objectMapper.getTypeFactory().constructType(type);
@@ -231,6 +238,10 @@ public final class ObjectSerializer {
     mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     mapper.enable(SerializationFeature.WRITE_ENUMS_USING_TO_STRING);
     mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    /* Strict scalar typing: a quoted number ("42") for an int field or a
+    numeric (1) for a boolean field must fail, not be silently coerced.
+    Matches the other SDKs, which reject wrong-typed primitives. */
+    mapper.configure(MapperFeature.ALLOW_COERCION_OF_SCALARS, false);
     /* Strict discriminator resolution: an unknown/invalid oneOf subtype must
     fail loudly rather than deserialize to null, matching the other 11 SDKs. */
     mapper.configure(DeserializationFeature.FAIL_ON_INVALID_SUBTYPE, true);

@@ -17,7 +17,7 @@ namespace PetstoreClient;
 public class ApiResult<T>(
     int statusCode,
     T? data,
-    string? rawBody,
+    string rawBody,
     IReadOnlyDictionary<string, string> headers
 )
 {
@@ -27,8 +27,8 @@ public class ApiResult<T>(
     /// <summary>The deserialized response body (null for void responses).</summary>
     public T? Data { get; } = data;
 
-    /// <summary>The raw response body string.</summary>
-    public string? RawBody { get; } = rawBody;
+    /// <summary>The raw response body string (always populated; empty for an empty body).</summary>
+    public string RawBody { get; } = rawBody;
 
     /// <summary>The response headers (unmodifiable).</summary>
     public IReadOnlyDictionary<string, string> Headers { get; } =

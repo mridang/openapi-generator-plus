@@ -67,44 +67,11 @@ impl StoreApi {
             "simple",
             false,
         ) {
-            // URL-encode for use as a URL path segment, preserving sub-delimiters
-            // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v
-                .chars()
-                .flat_map(|c| {
-                    if c.is_ascii_alphanumeric()
-                        || matches!(
-                            c,
-                            '-' | '_'
-                                | '.'
-                                | '~'
-                                | '!'
-                                | '$'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | ';'
-                                | '='
-                                | ':'
-                                | '@'
-                        )
-                    {
-                        vec![c]
-                    } else {
-                        let mut buf = [0u8; 4];
-                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                        bytes
-                            .into_iter()
-                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
-                            .collect()
-                    }
-                })
-                .collect();
-            path = path.replace("{orderId}", &encoded);
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{orderId}", &v);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -227,44 +194,11 @@ impl StoreApi {
             "simple",
             false,
         ) {
-            // URL-encode for use as a URL path segment, preserving sub-delimiters
-            // used by OAS 3.0 matrix/label/simple styles.
-            let encoded: String = v
-                .chars()
-                .flat_map(|c| {
-                    if c.is_ascii_alphanumeric()
-                        || matches!(
-                            c,
-                            '-' | '_'
-                                | '.'
-                                | '~'
-                                | '!'
-                                | '$'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | ';'
-                                | '='
-                                | ':'
-                                | '@'
-                        )
-                    {
-                        vec![c]
-                    } else {
-                        let mut buf = [0u8; 4];
-                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
-                        bytes
-                            .into_iter()
-                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
-                            .collect()
-                    }
-                })
-                .collect();
-            path = path.replace("{orderId}", &encoded);
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{orderId}", &v);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();

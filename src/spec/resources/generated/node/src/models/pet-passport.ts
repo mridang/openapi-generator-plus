@@ -60,4 +60,95 @@ export class PetPassport {
       throw new TypeError(`biometricChip must be a string, got ${typeof this.biometricChip}`);
     }
   }
+
+  /**
+   * Value-equality across all declared fields. Two instances are equal when
+   * every field deep-equals the other's. Arrays, plain objects, Sets, Maps,
+   * Buffers and Date values are compared structurally; nested model fields
+   * fall through to their own {@link equals} when present, otherwise to a
+   * recursive structural compare. Mirrors the value-equality exposed by the
+   * other SDKs (node-model-equality).
+   */
+  equals(other: unknown): boolean {
+    if (this === other) {
+      return true;
+    }
+    if (!(other instanceof PetPassport)) {
+      return false;
+    }
+    if (!PetPassport.__deepEquals(this.pet, (other as PetPassport).pet)) {
+      return false;
+    }
+    if (!PetPassport.__deepEquals(this.thumbnail, (other as PetPassport).thumbnail)) {
+      return false;
+    }
+    if (!PetPassport.__deepEquals(this.scans, (other as PetPassport).scans)) {
+      return false;
+    }
+    if (!PetPassport.__deepEquals(this.issuedAt, (other as PetPassport).issuedAt)) {
+      return false;
+    }
+    if (!PetPassport.__deepEquals(this.biometricChip, (other as PetPassport).biometricChip)) {
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Recursive structural comparison used by {@link equals}. Defers to a
+   * nested value's own `equals` method when it exposes one (generated
+   * models do), so equality stays value-based all the way down.
+   */
+  private static __deepEquals(a: unknown, b: unknown): boolean {
+    if (a === b) {
+      return true;
+    }
+    if (a == null || b == null) {
+      return a === b;
+    }
+    if (typeof (a as { equals?: unknown }).equals === 'function' && a.constructor === b.constructor) {
+      return (a as { equals(o: unknown): boolean }).equals(b);
+    }
+    if (Buffer.isBuffer(a) && Buffer.isBuffer(b)) {
+      return a.equals(b);
+    }
+    if (a instanceof Date && b instanceof Date) {
+      return a.getTime() === b.getTime();
+    }
+    if (Array.isArray(a) && Array.isArray(b)) {
+      if (a.length !== b.length) {
+        return false;
+      }
+      return a.every((v, i) => PetPassport.__deepEquals(v, b[i]));
+    }
+    if (a instanceof Set && b instanceof Set) {
+      if (a.size !== b.size) {
+        return false;
+      }
+      const bvals = [...b];
+      return [...a].every((v) => bvals.some((w) => PetPassport.__deepEquals(v, w)));
+    }
+    if (a instanceof Map && b instanceof Map) {
+      if (a.size !== b.size) {
+        return false;
+      }
+      for (const [k, v] of a) {
+        if (!b.has(k) || !PetPassport.__deepEquals(v, b.get(k))) {
+          return false;
+        }
+      }
+      return true;
+    }
+    if (typeof a === 'object' && typeof b === 'object') {
+      const ar = a as Record<string, unknown>;
+      const br = b as Record<string, unknown>;
+      const ak = Object.keys(ar);
+      const bk = Object.keys(br);
+      if (ak.length !== bk.length) {
+        return false;
+      }
+      return ak.every((k) => Object.prototype.hasOwnProperty.call(br, k) && PetPassport.__deepEquals(ar[k], br[k]));
+    }
+    return false;
+  }
 }

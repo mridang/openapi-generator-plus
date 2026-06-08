@@ -226,6 +226,38 @@ public class {{classname}} extends BaseApi {
         }
 {{/required}}
 {{/bodyParam}}
+{{#queryParams}}
+{{#required}}
+        if (options.{{paramName}}() == null) {
+            throw new IllegalArgumentException(
+                    "Missing the required parameter '{{baseName}}' when calling {{operationId}}");
+        }
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+        if (options.{{paramName}}() == null) {
+            throw new IllegalArgumentException(
+                    "Missing the required parameter '{{baseName}}' when calling {{operationId}}");
+        }
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+        if (options.{{paramName}}() == null) {
+            throw new IllegalArgumentException(
+                    "Missing the required parameter '{{baseName}}' when calling {{operationId}}");
+        }
+{{/required}}
+{{/formParams}}
+{{#cookieParams}}
+{{#required}}
+        if (options.{{paramName}}() == null) {
+            throw new IllegalArgumentException(
+                    "Missing the required parameter '{{baseName}}' when calling {{operationId}}");
+        }
+{{/required}}
+{{/cookieParams}}
         String path{{^pathParams}} = "{{{path}}}";{{/pathParams}}{{#pathParams}}{{#-first}} =
                 "{{{path}}}"{{/-first}}
                         .replace(

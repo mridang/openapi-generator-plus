@@ -189,6 +189,27 @@ describe PetstoreClient::Api::PetApi do
     end
   end
 
+  # required-nested-param-validation: getPetByName has a simple string path
+  # param (name) AND a REQUIRED query param (category) carried on the Options
+  # object. The generated method must raise ArgumentError when either is nil,
+  # not just the path param — previously only path/body were guarded so a nil
+  # required query param sailed through to the wire.
+  describe '#get_pet_by_name required-param validation' do
+    it 'raises ArgumentError when the required query param category is nil' do
+      err = assert_raises(ArgumentError) do
+        @api.get_pet_by_name('Rex', PetstoreClient::Api::Options::GetPetByNameOptions.new(category: nil))
+      end
+      _(err.message).must_include 'category'
+    end
+
+    it 'raises ArgumentError when the required path param name is nil' do
+      err = assert_raises(ArgumentError) do
+        @api.get_pet_by_name(nil, PetstoreClient::Api::Options::GetPetByNameOptions.new(category: 'dogs'))
+      end
+      _(err.message).must_include 'name'
+    end
+  end
+
   describe 'error handling' do
     def new_pet_api_for_mock(status, content_type, body)
       server = TCPServer.new('127.0.0.1', 0)

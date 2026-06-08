@@ -133,6 +133,15 @@ class ValueSerializerTest {
         }
 
         @Test
+        @DisplayName("tilde preserved (unreserved, not over-encoded)")
+        fun tildePreserved() {
+            // java-kotlin-tilde-overencoded: URLEncoder emits `~`->`%7E`, but
+            // `~` is an RFC 3986 unreserved character and the other 10 SDKs
+            // leave it literal. Restore it so path segments match cross-SDK.
+            assertEquals("a~b", ValueSerializer.serialize("a~b", "path", "string", null))
+        }
+
+        @Test
         @DisplayName("already-percent-encoded is re-encoded (literal %)")
         fun alreadyEncodedReencoded() {
             assertEquals("a%2520b", ValueSerializer.serialize("a%20b", "path", "string", null))

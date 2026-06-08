@@ -127,6 +127,42 @@ module {{moduleName}}
 
 {{/required}}
 {{/bodyParam}}
+{{#queryParams}}
+{{#required}}
+        if options.nil? || options.{{paramName}}.nil?
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+        if options.nil? || options.{{paramName}}.nil?
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+        if options.nil? || options.{{paramName}}.nil?
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+
+{{/required}}
+{{/formParams}}
+{{#cookieParams}}
+{{#required}}
+        if options.nil? || options.{{paramName}}.nil?
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+
+{{/required}}
+{{/cookieParams}}
 {{#returnType}}
         result = {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}, server: server{{/-first}}{{/servers}})
         # This operation declares a non-void return type. When the server
@@ -170,6 +206,42 @@ module {{moduleName}}
 
 {{/required}}
 {{/bodyParam}}
+{{#queryParams}}
+{{#required}}
+        if options.nil? || options.{{paramName}}.nil?
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+        if options.nil? || options.{{paramName}}.nil?
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+        if options.nil? || options.{{paramName}}.nil?
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+
+{{/required}}
+{{/formParams}}
+{{#cookieParams}}
+{{#required}}
+        if options.nil? || options.{{paramName}}.nil?
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+
+{{/required}}
+{{/cookieParams}}
         path = '{{{path}}}'
 {{#pathParams}}
 {{=<% %>=}}

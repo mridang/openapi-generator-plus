@@ -148,6 +148,58 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 {{/isString}}
 {{/required}}
 {{/pathParams}}
+{{! required-nested-param-validation: query/header/form/cookie params live on
+    the Options object. A required one is a non-pointer field, so a nil options
+    (or, for strings, an empty value) means the caller omitted it. Guard here so
+    the caller gets a clear error instead of silently sending the zero value. }}
+{{#queryParams}}
+{{#required}}
+	if options == nil {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
+	}
+{{#isString}}
+	if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} == "" {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
+	}
+{{/isString}}
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+	if options == nil {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
+	}
+{{#isString}}
+	if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} == "" {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
+	}
+{{/isString}}
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+	if options == nil {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
+	}
+{{#isString}}
+	if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} == "" {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
+	}
+{{/isString}}
+{{/required}}
+{{/formParams}}
+{{#cookieParams}}
+{{#required}}
+	if options == nil {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
+	}
+{{#isString}}
+	if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} == "" {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
+	}
+{{/isString}}
+{{/required}}
+{{/cookieParams}}
 
 
 	path := "{{{path}}}"
@@ -199,24 +251,43 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 	}
 {{/vendorExtensions.param.queryContent}}
 {{#vendorExtensions.param.queryStyled}}
+{{#required}}
+	/* Required query param: the Options field is a non-pointer value, so it is
+	 * always present (validated above) and serialized directly. */
+	queryParams["{{baseName}}"] = serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}})
+{{/required}}
+{{^required}}
 	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
 		queryParams["{{baseName}}"] = serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}})
 	}
+{{/required}}
 {{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}
 
 	headerParams := make(map[string]string)
 {{#headerParams}}
+{{#required}}
+	/* Required header param: non-pointer Options field, always present. */
+	headerParams["{{baseName}}"] = fmt.Sprintf("%v", serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "header", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
+{{/required}}
+{{^required}}
 	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
 		headerParams["{{baseName}}"] = fmt.Sprintf("%v", serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "header", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
 	}
+{{/required}}
 {{/headerParams}}
 {{#hasCookieParams}}
 	var cookieParts []string
 {{#cookieParams}}
+{{#required}}
+	/* Required cookie param: non-pointer Options field, always present. */
+	cookieParts = append(cookieParts, fmt.Sprintf("{{baseName}}=%v", serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "cookie", "{{{dataType}}}", "", "{{style}}", {{isExplode}})))
+{{/required}}
+{{^required}}
 	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
 		cookieParts = append(cookieParts, fmt.Sprintf("{{baseName}}=%v", serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "cookie", "{{{dataType}}}", "", "{{style}}", {{isExplode}})))
 	}
+{{/required}}
 {{/cookieParams}}
 	if len(cookieParts) > 0 {
 		headerParams["Cookie"] = strings.Join(cookieParts, "; ")

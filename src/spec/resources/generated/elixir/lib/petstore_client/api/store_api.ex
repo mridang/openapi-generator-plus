@@ -46,7 +46,7 @@ defmodule PetstoreClient.Api.StoreApi do
   ## Parameters
     * `order_id` - integer() - ID of the order to delete
 
-    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -136,7 +136,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -228,7 +228,7 @@ defmodule PetstoreClient.Api.StoreApi do
   ## Parameters
     * `order_id` - integer() - ID of order to return
 
-    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -335,7 +335,7 @@ defmodule PetstoreClient.Api.StoreApi do
   ## Parameters
     * `order` - Order
 
-    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 

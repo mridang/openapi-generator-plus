@@ -232,6 +232,42 @@ describe('DefaultApiClient CA certificate fail-fast', () => {
   });
 });
 
+describe('DefaultApiClient transport-failure responseHeaders', () => {
+  // node-transport-failure-headers-empty-not-null: a transport-phase failure
+  // produces no response headers, so the thrown ApiError must carry
+  // responseHeaders === null (the documented "no headers" sentinel), not an
+  // empty {} that would be indistinguishable from a real header-less response.
+  it('connection failure throws ApiError with null responseHeaders', async () => {
+    const client = new DefaultApiClient();
+    // Port 1 has no listener on the loopback interface; the connect attempt
+    // fails before any response is received.
+    let caught: ApiError | undefined;
+    try {
+      await client.sendRequest('GET', 'http://127.0.0.1:1/never', {}, null);
+    } catch (e) {
+      caught = e as ApiError;
+    } finally {
+      await client.close();
+    }
+    expect(caught).toBeInstanceOf(ApiError);
+    expect(caught!.statusCode).toBe(0);
+    expect(caught!.responseHeaders).toBeNull();
+  });
+
+  it('using a closed client throws ApiError with null responseHeaders', async () => {
+    const client = new DefaultApiClient();
+    await client.close();
+    let caught: ApiError | undefined;
+    try {
+      await client.sendRequest('GET', `${baseUrl}/echo`, {}, null);
+    } catch (e) {
+      caught = e as ApiError;
+    }
+    expect(caught).toBeInstanceOf(ApiError);
+    expect(caught!.responseHeaders).toBeNull();
+  });
+});
+
 describe('DefaultApiClient.decodeBody charset handling', () => {
   it('decodes ISO-8859-1 when declared via Content-Type charset', () => {
     const buf = Buffer.from([0xE9]);

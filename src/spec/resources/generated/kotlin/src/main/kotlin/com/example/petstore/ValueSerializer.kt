@@ -85,6 +85,10 @@ internal object ValueSerializer {
             .replace("%29", ")")
             .replace("%2A", "*")
             .replace("%2B", "+")
+            // `~` is an RFC 3986 unreserved character, but URLEncoder over-encodes
+            // it to %7E. Restore it so path segments match the 10 SDKs that keep
+            // `~` literal.
+            .replace("%7E", "~")
     }
 
     @JvmStatic

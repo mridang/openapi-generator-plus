@@ -182,4 +182,25 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator implements 
 
         return ['Authorization' => 'Bearer ' . $token];
     }
+
+    /**
+     * Masks the client secret so it never leaks through var_dump() /
+     * print_r() / stack traces / error logs.
+     *
+     * @return array<string, mixed>
+     */
+    public function __debugInfo(): array
+    {
+        return [
+            'host' => $this->host,
+            'clientId' => $this->clientId,
+            'clientSecret' => '***',
+            'authorizationUrl' => $this->authorizationUrl,
+            'tokenUrl' => $this->tokenUrl,
+            'refreshUrl' => $this->refreshUrl,
+            'redirectUri' => $this->redirectUri,
+            'scopes' => $this->scopes,
+            'tokenExchanged' => $this->tokenExchanged,
+        ];
+    }
 }

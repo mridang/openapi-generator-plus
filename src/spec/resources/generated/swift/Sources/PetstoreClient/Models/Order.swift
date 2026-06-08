@@ -42,7 +42,7 @@ public struct Order: Codable, Sendable, Equatable, Hashable {
     /// Creates a new Order instance.
     public init(
         id: Int64? = nil, petId: Int64? = nil, quantity: Int? = nil, shipDate: Date? = nil,
-        status: OrderStatusEnum? = nil, complete: Bool? = nil
+        status: OrderStatusEnum? = OrderStatusEnum(rawValue: "placed"), complete: Bool? = nil
     ) {
         self.id = id
         self.petId = petId

@@ -81,6 +81,27 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task TestGetPetByName()
+    {
+        var result = await _api.GetPetByNameAsync("Rex", new GetPetByNameOptions { Category = "dogs" });
+
+        Assert.NotNull(result);
+        Assert.NotNull(result.Name);
+    }
+
+    [Fact]
+    public async Task TestGetPetByNameMissingRequiredQueryParamThrows()
+    {
+        // The 'category' query parameter is required by the spec. Passing a null
+        // value for the required nested option must fail fast with an
+        // ArgumentNullException naming the offending parameter — before any
+        // HTTP request is made — rather than silently dropping it.
+        var ex = await Assert.ThrowsAsync<ArgumentNullException>(
+            () => _api.GetPetByNameAsync("Rex", new GetPetByNameOptions { Category = null! }));
+        Assert.Equal("options.Category", ex.ParamName);
+    }
+
+    [Fact]
     public async Task TestUpdatePet()
     {
         var pet = new Pet("UpdatedDog", new HashSet<string> { "http://example.com/updated.jpg" })

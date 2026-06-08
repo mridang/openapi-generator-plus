@@ -238,6 +238,30 @@ class ObjectSerializerTest {
                 serializer.deserialize<com.example.petstore.models.Pet>(json)
             }
         }
+
+        @Test
+        @DisplayName("primitive-type-coercion-lenient: unquoted scalar on a String field throws")
+        fun unquotedScalarOnStringFieldThrows() {
+            // isLenient=true accepts an unquoted bare literal as a string value
+            // ({"name":Dogs}), coercing malformed JSON into a valid object and
+            // masking the payload error. isLenient=false rejects it, matching
+            // the strict parsers of the other SDKs.
+            val json = "{\"name\":Dogs}"
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<com.example.petstore.models.Category>(json)
+            }
+        }
+
+        @Test
+        @DisplayName("primitive-type-coercion-lenient: unquoted number scalar on a String field throws")
+        fun unquotedNumberScalarOnStringFieldThrows() {
+            // Another isLenient=true coercion: a bare numeric token decoded into
+            // a String field. Strict mode requires the value to be quoted.
+            val json = "{\"name\":42}"
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<com.example.petstore.models.Category>(json)
+            }
+        }
     }
 
     @Nested

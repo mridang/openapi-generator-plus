@@ -125,7 +125,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
   {{#vendorExtensions.op.signatureArgsNoServer}}{{#isOptions}}
     * `options` - Optional parameters (query, header, form, cookie).
   {{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}
-    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -181,14 +181,14 @@ defmodule {{moduleName}}.Api.{{classname}} do
           {:ok, {{moduleName}}.ApiResult.t()} | {:error, term()}
   def {{operationId}}_with_http_info(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
 {{#hasAuthMethods}}
-    # Per-operation auth is sourced from the Options struct's optional `auth`
-    # field (the uniform "auth folded into Options" model). A `:auth` entry in
-    # the trailing keyword list still overrides it for ergonomic call sites, and
-    # an absent override falls back to the API instance's configured
-    # authenticator so auth-omitted calls use the Configuration credentials.
-    auth =
-      Keyword.get(opts, :auth) || (options && Map.get(options, :auth)) ||
-        Map.get(api, :authenticator)
+    # Per-operation auth is sourced solely from the Options struct's optional
+    # `auth` field (the uniform "auth folded into Options" model shared by every
+    # SDK). When the Options auth is absent it falls back to the API instance's
+    # configured authenticator so auth-omitted calls use the Configuration
+    # credentials. There is deliberately no separate `opts[:auth]` channel: a
+    # per-call keyword override would silently win over an explicit
+    # `options.auth`, which no other SDK permits.
+    auth = (options && Map.get(options, :auth)) || Map.get(api, :authenticator)
 {{/hasAuthMethods}}
 {{^hasAuthMethods}}
     # Operation declared `security: []` — no auth applied even if the
@@ -213,6 +213,45 @@ defmodule {{moduleName}}.Api.{{classname}} do
 
 {{/required}}
 {{/bodyParam}}
+{{#queryParams}}
+{{#required}}
+    # required-nested-param-validation: this query param is REQUIRED. A nil
+    # Options struct, a nil value, or an empty string is treated as missing and
+    # raises before any HTTP call rather than silently omitting the parameter.
+    if is_nil(options) or is_nil(options.{{paramName}}) or options.{{paramName}} == "" do
+      raise ArgumentError,
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+    end
+
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+    if is_nil(options) or is_nil(options.{{paramName}}) or options.{{paramName}} == "" do
+      raise ArgumentError,
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+    end
+
+{{/required}}
+{{/headerParams}}
+{{#cookieParams}}
+{{#required}}
+    if is_nil(options) or is_nil(options.{{paramName}}) or options.{{paramName}} == "" do
+      raise ArgumentError,
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+    end
+
+{{/required}}
+{{/cookieParams}}
+{{#formParams}}
+{{#required}}
+    if is_nil(options) or is_nil(options.{{paramName}}) or options.{{paramName}} == "" do
+      raise ArgumentError,
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+    end
+
+{{/required}}
+{{/formParams}}
     path = "{{{path}}}"
 {{#pathParams}}
 {{=<% %>=}}

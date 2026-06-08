@@ -675,3 +675,57 @@ describe('ObjectSerializer', () => {
     });
   });
 });
+
+describe('model value-equality', () => {
+  // node-model-equality: generated models expose a value-based equals(),
+  // matching the value-equality the other SDKs provide.
+  test('structurally identical scalar models are equal', () => {
+    const a = new Category({ id: 1, name: 'Dogs' });
+    const b = new Category({ id: 1, name: 'Dogs' });
+    expect(a.equals(b)).toBe(true);
+    expect(b.equals(a)).toBe(true);
+  });
+
+  test('a model is equal to itself', () => {
+    const a = new Category({ id: 1, name: 'Dogs' });
+    expect(a.equals(a)).toBe(true);
+  });
+
+  test('models differing in a single field are not equal', () => {
+    const a = new Category({ id: 1, name: 'Dogs' });
+    const b = new Category({ id: 1, name: 'Cats' });
+    expect(a.equals(b)).toBe(false);
+    expect(b.equals(a)).toBe(false);
+  });
+
+  test('a model is never equal to a non-model value', () => {
+    const a = new Category({ id: 1, name: 'Dogs' });
+    expect(a.equals(null)).toBe(false);
+    expect(a.equals(undefined)).toBe(false);
+    expect(a.equals({ id: 1, name: 'Dogs' })).toBe(false);
+  });
+
+  test('deep equality compares nested models and collections structurally', () => {
+    const a = new Pet({
+      id: 7,
+      name: 'Rex',
+      photoUrls: new Set(['http://example.com/a.jpg', 'http://example.com/b.jpg']),
+      category: new Category({ id: 1, name: 'Dogs' }),
+    });
+    const b = new Pet({
+      id: 7,
+      name: 'Rex',
+      photoUrls: new Set(['http://example.com/a.jpg', 'http://example.com/b.jpg']),
+      category: new Category({ id: 1, name: 'Dogs' }),
+    });
+    expect(a.equals(b)).toBe(true);
+
+    const c = new Pet({
+      id: 7,
+      name: 'Rex',
+      photoUrls: new Set(['http://example.com/a.jpg', 'http://example.com/b.jpg']),
+      category: new Category({ id: 2, name: 'Cats' }),
+    });
+    expect(a.equals(c)).toBe(false);
+  });
+});

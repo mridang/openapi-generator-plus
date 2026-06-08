@@ -14,12 +14,12 @@ defmodule PetstoreClient.ApiResult do
   @type t :: %__MODULE__{
           status_code: integer(),
           data: term() | nil,
-          raw_body: String.t() | nil,
+          raw_body: String.t(),
           headers: %{optional(String.t()) => String.t()}
         }
 
   defstruct status_code: nil,
             data: nil,
-            raw_body: nil,
+            raw_body: "",
             headers: %{}
 end

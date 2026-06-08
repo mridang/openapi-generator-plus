@@ -219,11 +219,17 @@ module {{moduleName}}
             raise ApiError, "Exceeded maximum number of redirects (#{max_redirects})"
           end
         end
+        # Decompress inside the rescue so a malformed Content-Encoding body
+        # (a truncated/garbage gzip/deflate/br/zstd payload) surfaces as an
+        # SDK ApiError rather than leaking a raw Zlib::GzipFile::Error /
+        # Zlib::Error / decoder exception to the caller.
+        content_type = response.headers['content-type'].to_s
+        decoded_body = decompress_body(response.body, response.headers['content-encoding'])
       rescue Faraday::ConnectionFailed, Faraday::TimeoutError, Faraday::SSLError => e
         raise ApiError, e.message
+      rescue Zlib::Error => e
+        raise ApiError, "Failed to decompress response body: #{e.message}"
       end
-      content_type = response.headers['content-type'].to_s
-      decoded_body = decompress_body(response.body, response.headers['content-encoding'])
       response_body = if text_content_type?(content_type)
                         decode_text_body(decoded_body.to_s, content_type)
                       else

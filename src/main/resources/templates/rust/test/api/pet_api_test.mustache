@@ -446,6 +446,65 @@ async fn test_pet_api_unsecured_op_has_no_auth_field() {
     assert!(result.is_ok(), "get_pet_by_id failed: {:?}", result.err());
 }
 
+/// path-single-encoding: a string path parameter containing a space and a
+/// slash must be percent-encoded EXACTLY ONCE on the wire (`%20`/`%2F`),
+/// never double-encoded (`%2520`/`%252F`). serialize_styled already encodes
+/// path segments, so the operation template must not re-encode the output.
+#[tokio::test]
+async fn test_pet_api_get_pet_by_name_path_encoded_once() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let opts = GetPetByNameOptions { category: "dogs".to_string() };
+    let _ = api.get_pet_by_name("a b/c".to_string(), Some(&opts)).await;
+
+    let request = rx.recv().expect("expected a captured request");
+    let request_line = request.lines().next().unwrap_or("");
+    assert!(
+        request_line.contains("/pet/byName/a%20b%2Fc"),
+        "expected single-encoded path segment, got request line: {}",
+        request_line
+    );
+    assert!(
+        !request_line.contains("%2520") && !request_line.contains("%252F"),
+        "path was double-encoded, got request line: {}",
+        request_line
+    );
+}
+
+/// required-nested-param-validation: `category` is a REQUIRED query parameter.
+/// Calling the operation without Options (where the required value lives) must
+/// surface an error rather than silently omitting the parameter.
+#[tokio::test]
+async fn test_pet_api_get_pet_by_name_missing_required_query_errors() {
+    let api = new_pet_api_for_integration();
+    let result = api.get_pet_by_name("rex".to_string(), None).await;
+    assert!(
+        result.is_err(),
+        "expected an error when the required query parameter 'category' is missing"
+    );
+    let msg = result.unwrap_err().to_string();
+    assert!(
+        msg.contains("category"),
+        "error must name the missing required parameter, got: {}",
+        msg
+    );
+}
+
+/// required query parameter is serialized on the wire when supplied via Options.
+#[tokio::test]
+async fn test_pet_api_get_pet_by_name_required_query_on_wire() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let opts = GetPetByNameOptions { category: "cats".to_string() };
+    let _ = api.get_pet_by_name("rex".to_string(), Some(&opts)).await;
+
+    let request = rx.recv().expect("expected a captured request");
+    let request_line = request.lines().next().unwrap_or("");
+    assert!(
+        request_line.contains("category=cats"),
+        "expected required query param on the wire, got request line: {}",
+        request_line
+    );
+}
+
 #[tokio::test]
 async fn test_pet_api_error_handling_server_error() {
     let (api, _) = new_pet_api_for_mock(

@@ -380,11 +380,28 @@ class DefaultApiClient:
             # exception. This gives callers one error type for the whole
             # transport phase, matching Java/Swift/Ruby/PHP/Elixir.
             raw_data = response.read()
+
+            # Decompression also runs INSIDE the transport try/except so a
+            # malformed Content-Encoding body (e.g. a server that advertises
+            # `gzip` but sends truncated / non-gzip bytes) surfaces as the
+            # SDK's uniform ApiException rather than leaking a raw
+            # gzip.BadGzipFile / zlib.error / OSError to the caller. The
+            # decode is part of the transport phase, so it belongs under the
+            # same error contract as the body read above.
+            content_encoding = (response.headers.get('content-encoding') or '').lower()
+            try:
+                decompressed = self._decompress_body(raw_data, content_encoding)
+            except ApiException:
+                raise
+            except Exception as e:
+                # gzip.BadGzipFile (OSError), zlib.error, brotli.error, and
+                # zstandard.ZstdError are all direct/indirect subclasses of
+                # Exception with no shared codec base, so they are caught here
+                # as a group and re-raised as the SDK's uniform ApiException.
+                raise ApiException(message=f'failed to decompress response body (content-encoding={content_encoding!r}): {e}') from e
         except urllib3.exceptions.HTTPError as e:
             raise ApiException(message=str(e)) from e
 
-        content_encoding = (response.headers.get('content-encoding') or '').lower()
-        decompressed = self._decompress_body(raw_data, content_encoding)
         content_type = response.headers.get('content-type') or ''
         # Empty bodies flow through the same content-type decode path as the
         # other 11 SDKs rather than short-circuiting to ''. For an empty body

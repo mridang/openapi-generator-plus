@@ -143,6 +143,25 @@ class ValueSerializerTest {
     }
 
     @Test
+    @DisplayName("tilde preserved (RFC 3986 unreserved)")
+    void tildePreserved() {
+      // '~' is an RFC 3986 unreserved character and MUST NOT be
+      // percent-encoded. URLEncoder emits %7E; the canonical encoding
+      // (Node, C#, etc.) keeps a literal '~'.
+      assertEquals("a~b", ValueSerializer.serialize("a~b", "path", "string", null));
+      assertEquals("~", ValueSerializer.serialize("~", "path", "string", null));
+    }
+
+    @Test
+    @DisplayName("tilde preserved in styled path array items")
+    void tildePreservedInStyledArray() {
+      assertEquals(
+          "a~b,c~d",
+          ValueSerializer.serializeStyled(
+              "ids", Arrays.asList("a~b", "c~d"), "path", "array", null, "simple", false));
+    }
+
+    @Test
     @DisplayName("already-percent-encoded is re-encoded (literal %)")
     void alreadyEncodedReencoded() {
       // Inputs are treated as raw literals; the '%' is itself encoded.

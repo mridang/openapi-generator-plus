@@ -58,23 +58,23 @@ class SetPetAvatarThumbnailRequest(BaseModel):
     def actual_instance_must_validate_oneof(cls, v: Any) -> Any:
         instance = SetPetAvatarThumbnailRequest.model_construct()
         error_messages = []
-        match = 0
+        # First-match semantics: return the FIRST oneOf variant the payload
+        # validates against rather than requiring exactly one match. A payload
+        # that satisfies more than one variant is ambiguous only in theory --
+        # the other 11 SDKs all resolve it to the first declared variant, so
+        # Python matches that behaviour for cross-SDK parity. The no-match
+        # case is still an error.
         try:
             instance.one_of_0 = v
-            match += 1
+            return v
         except (ValidationError, ValueError) as e:
             error_messages.append(str(e))
         try:
             instance.one_of_1 = v
-            match += 1
+            return v
         except (ValidationError, ValueError) as e:
             error_messages.append(str(e))
-        if match > 1:
-            raise ValueError('Multiple matches found when setting `actual_instance` in SetPetAvatarThumbnailRequest with oneOf schemas: List[bytes], bytes. Details: ' + ', '.join(error_messages))
-        elif match == 0:
-            raise ValueError('No match found when setting `actual_instance` in SetPetAvatarThumbnailRequest with oneOf schemas: List[bytes], bytes. Details: ' + ', '.join(error_messages))
-        else:
-            return v
+        raise ValueError('No match found when setting `actual_instance` in SetPetAvatarThumbnailRequest with oneOf schemas: List[bytes], bytes. Details: ' + ', '.join(error_messages))
 
 
 SetPetAvatarThumbnailRequest.model_rebuild(raise_errors=False)

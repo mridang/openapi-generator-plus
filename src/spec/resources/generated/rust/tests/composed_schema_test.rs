@@ -246,3 +246,22 @@ fn test_enum_direct_unknown_value_is_rejected() {
         "an unknown bare enum value must fail to deserialize"
     );
 }
+
+// -- optional-enum-default-omitted (parity) --
+//
+// `Order.status` is an OPTIONAL enum field carrying a schema `default: placed`.
+// A default-constructed Order must serialize that default on the wire
+// (`"status":"placed"`) rather than omitting the field, matching the other
+// SDKs that seed the default variant.
+#[test]
+fn test_order_default_status_serializes_default_variant() {
+    let order = Order::new();
+    assert_eq!(order.status, Some(OrderStatusEnum::Placed));
+
+    let data = serde_json::to_string(&order).expect("failed to serialize Order");
+    assert!(
+        data.contains("\"status\":\"placed\""),
+        "default-constructed Order must serialize the schema default status, got: {}",
+        data
+    );
+}

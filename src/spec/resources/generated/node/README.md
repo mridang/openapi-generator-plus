@@ -113,13 +113,3 @@ into the generated tree as part of your release pipeline before
 publishing to a registry — most registries warn or block on a missing
 file, and the GitHub license auto-detect cannot pick up a manifest-only
 declaration.
-
-### Default `User-Agent` is not normalised across SDKs
-
-The default `User-Agent` header value is whatever this SDK's ecosystem
-considers idiomatic — it deliberately does not match the other 11 SDKs
-in this generator family. Servers that route, throttle, or analyse on
-`User-Agent` will see different values depending on which SDK the
-request came from. Override per request via
-`TransportOptions.defaultHeader("User-Agent", "your/agent")` if you
-need a stable value across all your client integrations.

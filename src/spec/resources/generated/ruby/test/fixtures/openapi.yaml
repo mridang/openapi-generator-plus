@@ -761,6 +761,31 @@ paths:
               schema:
                 $ref: '#/components/schemas/Pet'
 
+  /pet/byName/{name}:
+    get:
+      tags:
+        - pet
+      summary: Look up a pet by name (simple string path param + required query)
+      operationId: getPetByName
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: category
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+
   # ─── Per-operation servers ────────────────────────────────────────────────
 
   /pet/{petId}/external:
@@ -1420,6 +1445,18 @@ components:
       anyOf:
         - $ref: '#/components/schemas/Medication'
         - $ref: '#/components/schemas/Surgery'
+
+    AmbiguousShape:
+      description: >-
+        A oneOf without a discriminator whose two primitive variants overlap:
+        an integer literal validates against BOTH the number(float) and the
+        integer variant under pydantic's lenient coercion. Used to verify
+        first-match (not multiple-match-error) semantics for cross-SDK parity.
+      oneOf:
+        - type: number
+          format: double
+        - type: integer
+          format: int32
 
     PetWithOwner:
       description: A pet record extended with owner information

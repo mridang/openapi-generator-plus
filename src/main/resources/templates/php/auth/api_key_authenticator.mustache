@@ -72,4 +72,20 @@ class ApiKeyAuthenticator extends BaseAuthenticator
         }
         return [];
     }
+
+    /**
+     * Masks the API key so it never leaks through var_dump() / print_r() /
+     * debug_zval_dump() / stack traces / error logs.
+     *
+     * @return array<string, string>
+     */
+    public function __debugInfo(): array
+    {
+        return [
+            'host' => $this->host,
+            'keyParamName' => $this->keyParamName,
+            'apiKey' => '***',
+            'location' => $this->location->name,
+        ];
+    }
 }

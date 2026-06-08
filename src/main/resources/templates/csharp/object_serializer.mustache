@@ -70,6 +70,14 @@ internal class ObjectSerializer
         {
             return default;
         }
+        /* utf8-bom-strip: System.Text.Json does not strip a leading UTF-8 BOM
+         * (U+FEFF) from string input, so a BOM-prefixed body would throw a
+         * JsonException on the very first token. Strip it before parsing to
+         * match the other language SDKs, which all tolerate a leading BOM. */
+        if (json[0] == '\uFEFF')
+        {
+            json = json[1..];
+        }
         try
         {
             return JsonSerializer.Deserialize<T>(json, _options);

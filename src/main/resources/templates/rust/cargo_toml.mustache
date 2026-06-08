@@ -4,7 +4,7 @@ version = "{{packageVersion}}"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT"
-description = "{{appDescription}}"
+description = "{{#appDescription}}{{appDescription}}{{/appDescription}}{{^appDescription}}Generated API client for {{packageName}}{{/appDescription}}"
 
 [lints.rust]
 # Generated OAuth2 token-manager + OIDC authenticator templates declare

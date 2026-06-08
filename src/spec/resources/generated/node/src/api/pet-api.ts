@@ -19,6 +19,7 @@ import type { AddPetPhotosOptions } from './options/add-pet-photos-options.js';
 import type { AddPetTreatmentOptions } from './options/add-pet-treatment-options.js';
 import type { DeletePetOptions } from './options/delete-pet-options.js';
 import type { FindPetsByStatusOptions } from './options/find-pets-by-status-options.js';
+import type { GetPetByNameOptions } from './options/get-pet-by-name-options.js';
 import type { GetPetTagOptions } from './options/get-pet-tag-options.js';
 import type { SetPetPreferencesOptions } from './options/set-pet-preferences-options.js';
 import type { UploadPetCertificateOptions } from './options/upload-pet-certificate-options.js';
@@ -772,6 +773,78 @@ export class PetApi extends BaseApi {
     return await this.invokeApiForResult(
       'GET',
       serverUrl && (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) ? serverUrl + path : path,
+      queryParams,
+      headerParams,
+      null,
+      ['application/json'],
+      'application/json',
+      (json: unknown) => ObjectSerializer.deserialize(json, Pet)!,
+      null
+    );
+  }
+
+  /**
+   * Look up a pet by name (simple string path param + required query)
+   * @param name  (required)
+   * @param options.category  (required)
+   * @return Pet
+   * @throws {ApiError} if fails to make API call
+   */
+  async getPetByName(name: string, options: GetPetByNameOptions): Promise<Pet> {
+    if (name == null) {
+      throw new Error('Missing required parameter "name" when calling getPetByName');
+    }
+    if (options?.category == null) {
+      throw new Error('Missing required parameter "category" when calling getPetByName');
+    }
+    const getPetByNameResult = await this.getPetByNameWithHttpInfo(name, options);
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (getPetByNameResult.data == null) {
+      throw new ApiError(
+        getPetByNameResult.statusCode,
+        'Expected a response body for getPetByName but received none',
+        getPetByNameResult.headers,
+        getPetByNameResult.rawBody,
+        null
+      );
+    }
+    return getPetByNameResult.data as Pet;
+  }
+
+  /**
+   * Look up a pet by name (simple string path param + required query) (with HTTP info)
+   * @throws {ApiError} if fails to make API call
+   */
+  async getPetByNameWithHttpInfo(name: string, options: GetPetByNameOptions): Promise<ApiResult<Pet>> {
+    if (name == null) {
+      throw new Error('Missing required parameter "name" when calling getPetByName');
+    }
+    if (options?.category == null) {
+      throw new Error('Missing required parameter "category" when calling getPetByName');
+    }
+    let path = `/pet/byName/{name}`;
+    path = path.replace(
+      `{${'name'}}`,
+      ValueSerializer.serializeStyled('name', name, 'path', 'string', null, 'simple', false) as string
+    );
+    const queryParams: Record<string, unknown> = {};
+    if (options?.category != null) {
+      queryParams['category'] = ValueSerializer.serializeStyled(
+        'category',
+        options.category,
+        'query',
+        'string',
+        null,
+        'form',
+        true
+      );
+    }
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      'GET',
+      path,
       queryParams,
       headerParams,
       null,

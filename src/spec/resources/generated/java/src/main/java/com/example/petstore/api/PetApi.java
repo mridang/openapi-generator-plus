@@ -16,6 +16,7 @@ import com.example.petstore.api.options.AddPetPhotosOptions;
 import com.example.petstore.api.options.AddPetTreatmentOptions;
 import com.example.petstore.api.options.DeletePetOptions;
 import com.example.petstore.api.options.FindPetsByStatusOptions;
+import com.example.petstore.api.options.GetPetByNameOptions;
 import com.example.petstore.api.options.GetPetTagOptions;
 import com.example.petstore.api.options.SetPetPreferencesOptions;
 import com.example.petstore.api.options.UploadPetCertificateOptions;
@@ -68,6 +69,9 @@ public class PetApi extends BaseApi {
       new TypeReference<byte[]>() {}.getType();
 
   private static final java.lang.reflect.Type getPetByIdTypeRef =
+      new TypeReference<Pet>() {}.getType();
+
+  private static final java.lang.reflect.Type getPetByNameTypeRef =
       new TypeReference<Pet>() {}.getType();
 
   private static final java.lang.reflect.Type getPetPassportTypeRef =
@@ -398,6 +402,14 @@ public class PetApi extends BaseApi {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling addPetPhotos");
+    }
+    if (options.files() == null) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'files' when calling addPetPhotos");
+    }
+    if (options.metadata() == null) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'metadata' when calling addPetPhotos");
     }
     String path =
         "/pet/{petId}/photos"
@@ -1086,6 +1098,65 @@ public class PetApi extends BaseApi {
   }
 
   /**
+   * Look up a pet by name (simple string path param + required query)
+   *
+   * @param name (required)
+   * @param options options for query, header, form, and cookie parameters, plus an optional
+   *     per-call authenticator
+   * @return {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
+  public Pet getPetByName(String name, GetPetByNameOptions options) throws ApiException {
+    return requireBody(getPetByNameWithHttpInfo(name, options), "getPetByName");
+  }
+
+  /**
+   * Look up a pet by name (simple string path param + required query)
+   *
+   * @param name (required)
+   * @param options options for query, header, form, and cookie parameters, plus an optional
+   *     per-call authenticator
+   * @return the API result wrapping {@code Pet}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Pet> getPetByNameWithHttpInfo(String name, GetPetByNameOptions options)
+      throws ApiException {
+    if (name == null) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'name' when calling getPetByName");
+    }
+    if (options.category() == null) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'category' when calling getPetByName");
+    }
+    String path =
+        "/pet/byName/{name}"
+            .replace(
+                "{" + "name" + "}",
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "name", name, "path", "String", null, "simple", false));
+    Map<String, Object> queryParams = new HashMap<>();
+    if (options.category() != null) {
+      queryParams.put(
+          "category",
+          ValueSerializer.serializeStyled(
+              "category", options.category(), "query", "String", null, "form", true));
+    }
+    Map<String, String> headerParams = new HashMap<>();
+    return invokeApiForResult(
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        getPetByNameTypeRef,
+        null);
+  }
+
+  /**
    * Get the pet&#39;s passport Returns a single JSON document combining the pet&#39;s profile with
    * an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for
    * mobile clients that prefer a single-request workflow.
@@ -1515,6 +1586,10 @@ public class PetApi extends BaseApi {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling setPetPreferences");
     }
+    if (options.nickname() == null) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'nickname' when calling setPetPreferences");
+    }
     String path =
         "/pet/{petId}/preferences"
             .replace(
@@ -1626,6 +1701,10 @@ public class PetApi extends BaseApi {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling uploadPetCertificate");
     }
+    if (options.file() == null) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'file' when calling uploadPetCertificate");
+    }
     String path =
         "/pet/{petId}/certificate"
             .replace(
@@ -1682,6 +1761,10 @@ public class PetApi extends BaseApi {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling uploadPetDocument");
+    }
+    if (options.file() == null) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'file' when calling uploadPetDocument");
     }
     String path =
         "/pet/{petId}/documents"

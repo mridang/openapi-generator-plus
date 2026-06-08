@@ -180,7 +180,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -229,14 +229,14 @@ defmodule PetstoreClient.Api.PetApi do
   @spec add_pet_with_http_info(t(), Pet, Options.t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def add_pet_with_http_info(%__MODULE__{} = api, pet, options \\ nil, opts \\ []) do
-    # Per-operation auth is sourced from the Options struct's optional `auth`
-    # field (the uniform "auth folded into Options" model). A `:auth` entry in
-    # the trailing keyword list still overrides it for ergonomic call sites, and
-    # an absent override falls back to the API instance's configured
-    # authenticator so auth-omitted calls use the Configuration credentials.
-    auth =
-      Keyword.get(opts, :auth) || (options && Map.get(options, :auth)) ||
-        Map.get(api, :authenticator)
+    # Per-operation auth is sourced solely from the Options struct's optional
+    # `auth` field (the uniform "auth folded into Options" model shared by every
+    # SDK). When the Options auth is absent it falls back to the API instance's
+    # configured authenticator so auth-omitted calls use the Configuration
+    # credentials. There is deliberately no separate `opts[:auth]` channel: a
+    # per-call keyword override would silently win over an explicit
+    # `options.auth`, which no other SDK permits.
+    auth = (options && Map.get(options, :auth)) || Map.get(api, :authenticator)
 
     if is_nil(pet) do
       raise ArgumentError,
@@ -287,7 +287,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -345,6 +345,16 @@ defmodule PetstoreClient.Api.PetApi do
             "Missing the required parameter 'pet_id' when calling PetApi.add_pet_photos"
     end
 
+    if is_nil(options) or is_nil(options.files) or options.files == "" do
+      raise ArgumentError,
+            "Missing the required parameter 'files' when calling PetApi.add_pet_photos"
+    end
+
+    if is_nil(options) or is_nil(options.metadata) or options.metadata == "" do
+      raise ArgumentError,
+            "Missing the required parameter 'metadata' when calling PetApi.add_pet_photos"
+    end
+
     path = "/pet/{petId}/photos"
 
     path =
@@ -399,7 +409,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -448,14 +458,14 @@ defmodule PetstoreClient.Api.PetApi do
   @spec add_pet_treatment_with_http_info(t(), integer(), PetTreatment, Options.t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def add_pet_treatment_with_http_info(%__MODULE__{} = api, pet_id, pet_treatment, options \\ nil, opts \\ []) do
-    # Per-operation auth is sourced from the Options struct's optional `auth`
-    # field (the uniform "auth folded into Options" model). A `:auth` entry in
-    # the trailing keyword list still overrides it for ergonomic call sites, and
-    # an absent override falls back to the API instance's configured
-    # authenticator so auth-omitted calls use the Configuration credentials.
-    auth =
-      Keyword.get(opts, :auth) || (options && Map.get(options, :auth)) ||
-        Map.get(api, :authenticator)
+    # Per-operation auth is sourced solely from the Options struct's optional
+    # `auth` field (the uniform "auth folded into Options" model shared by every
+    # SDK). When the Options auth is absent it falls back to the API instance's
+    # configured authenticator so auth-omitted calls use the Configuration
+    # credentials. There is deliberately no separate `opts[:auth]` channel: a
+    # per-call keyword override would silently win over an explicit
+    # `options.auth`, which no other SDK permits.
+    auth = (options && Map.get(options, :auth)) || Map.get(api, :authenticator)
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -518,7 +528,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -551,14 +561,14 @@ defmodule PetstoreClient.Api.PetApi do
   @spec delete_pet_with_http_info(t(), integer(), Options.t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def delete_pet_with_http_info(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
-    # Per-operation auth is sourced from the Options struct's optional `auth`
-    # field (the uniform "auth folded into Options" model). A `:auth` entry in
-    # the trailing keyword list still overrides it for ergonomic call sites, and
-    # an absent override falls back to the API instance's configured
-    # authenticator so auth-omitted calls use the Configuration credentials.
-    auth =
-      Keyword.get(opts, :auth) || (options && Map.get(options, :auth)) ||
-        Map.get(api, :authenticator)
+    # Per-operation auth is sourced solely from the Options struct's optional
+    # `auth` field (the uniform "auth folded into Options" model shared by every
+    # SDK). When the Options auth is absent it falls back to the API instance's
+    # configured authenticator so auth-omitted calls use the Configuration
+    # credentials. There is deliberately no separate `opts[:auth]` channel: a
+    # per-call keyword override would silently win over an explicit
+    # `options.auth`, which no other SDK permits.
+    auth = (options && Map.get(options, :auth)) || Map.get(api, :authenticator)
 
     if is_nil(pet_id) do
       raise ArgumentError,
@@ -636,7 +646,7 @@ defmodule PetstoreClient.Api.PetApi do
     * `pet_id` - integer()
     * `document_id` - integer()
 
-    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -767,7 +777,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -891,7 +901,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
 
-    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -998,7 +1008,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
 
-    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -1107,7 +1117,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
 
-    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -1216,7 +1226,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
 
-    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -1335,7 +1345,7 @@ defmodule PetstoreClient.Api.PetApi do
 
       42
 
-    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -1438,6 +1448,143 @@ defmodule PetstoreClient.Api.PetApi do
   end
 
   @doc """
+  Look up a pet by name (simple string path param + required query)
+
+  ## Parameters
+    * `name` - String.t()
+
+    * `options` - Optional parameters (query, header, form, cookie).
+
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+
+  ## Returns
+
+    * `{:ok, Pet}` on success.
+    * `{:error, exception}` on failure.
+
+  """
+  @spec get_pet_by_name(t(), String.t(), Options.t(), keyword()) ::
+          {:ok, Pet} | {:error, term()}
+  def get_pet_by_name(%__MODULE__{} = api, name, options, opts \\ []) do
+    case get_pet_by_name_with_http_info(api, name, options, opts) do
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for get_pet_by_name but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Bang version of `get_pet_by_name`. Raises on error.
+  """
+  def get_pet_by_name!(%__MODULE__{} = api, name, options, opts \\ []) do
+    case get_pet_by_name(api, name, options, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `get_pet_by_name` but returns the full `ApiResult`.
+  """
+  @spec get_pet_by_name_with_http_info(t(), String.t(), Options.t(), keyword()) ::
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+  def get_pet_by_name_with_http_info(%__MODULE__{} = api, name, options, opts \\ []) do
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
+
+    if is_nil(name) do
+      raise ArgumentError,
+            "Missing the required parameter 'name' when calling PetApi.get_pet_by_name"
+    end
+
+    # required-nested-param-validation: this query param is REQUIRED. A nil
+    # Options struct, a nil value, or an empty string is treated as missing and
+    # raises before any HTTP call rather than silently omitting the parameter.
+    if is_nil(options) or is_nil(options.category) or options.category == "" do
+      raise ArgumentError,
+            "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
+    end
+
+    path = "/pet/byName/{name}"
+
+    path =
+      String.replace(
+        path,
+        "{name}",
+        PetstoreClient.ValueSerializer.serialize_styled("name", name, :path, "String.t()", nil, "simple", false)
+        |> to_string()
+      )
+
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://") do
+          server_url <> path
+        else
+          path
+        end
+      else
+        path
+      end
+
+    query_params = %{}
+
+    query_params =
+      if not is_nil(options) and not is_nil(options.category) and options.category != [] do
+        Map.put(
+          query_params,
+          "category",
+          PetstoreClient.ValueSerializer.serialize_styled(
+            "category",
+            options.category,
+            :query,
+            "String.t()",
+            nil,
+            "form",
+            true
+          )
+        )
+      else
+        query_params
+      end
+
+    header_params = %{}
+    request_body = nil
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      api,
+      :GET,
+      path,
+      query_params,
+      header_params,
+      request_body,
+      ["application/json"],
+      "application/json",
+      "Pet",
+      auth
+    )
+  end
+
+  @doc """
   Get the pet&#39;s passport
 
   Returns a single JSON document combining the pet&#39;s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
@@ -1445,7 +1592,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
 
-    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -1555,7 +1702,7 @@ defmodule PetstoreClient.Api.PetApi do
     * `pet_id` - integer()
     * `photo_id` - integer()
 
-    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -1678,7 +1825,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -1860,7 +2007,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
 
-    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -1970,7 +2117,7 @@ defmodule PetstoreClient.Api.PetApi do
     * `pet_id` - integer()
     * `body` - binary()
 
-    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -2069,7 +2216,7 @@ defmodule PetstoreClient.Api.PetApi do
     * `pet_id` - integer()
     * `set_pet_avatar_thumbnail_request` - SetPetAvatarThumbnailRequest
 
-    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -2169,7 +2316,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -2225,6 +2372,11 @@ defmodule PetstoreClient.Api.PetApi do
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.set_pet_preferences"
+    end
+
+    if is_nil(options) or is_nil(options.nickname) or options.nickname == "" do
+      raise ArgumentError,
+            "Missing the required parameter 'nickname' when calling PetApi.set_pet_preferences"
     end
 
     path = "/pet/{petId}/preferences"
@@ -2292,7 +2444,7 @@ defmodule PetstoreClient.Api.PetApi do
     * `pet_id` - integer() - ID of pet to update
     * `pet` - Pet - Pet object that needs to be updated
 
-    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -2408,7 +2560,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -2466,6 +2618,11 @@ defmodule PetstoreClient.Api.PetApi do
             "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_certificate"
     end
 
+    if is_nil(options) or is_nil(options.file) or options.file == "" do
+      raise ArgumentError,
+            "Missing the required parameter 'file' when calling PetApi.upload_pet_certificate"
+    end
+
     path = "/pet/{petId}/certificate"
 
     path =
@@ -2520,7 +2677,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -2576,6 +2733,11 @@ defmodule PetstoreClient.Api.PetApi do
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"
+    end
+
+    if is_nil(options) or is_nil(options.file) or options.file == "" do
+      raise ArgumentError,
+            "Missing the required parameter 'file' when calling PetApi.upload_pet_document"
     end
 
     path = "/pet/{petId}/documents"

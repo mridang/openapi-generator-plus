@@ -307,7 +307,11 @@ class BaseApi:
         code = response.status_code
         message = f'API returned status code {code}'
         body = response.body
-        headers = dict(response.headers) if response.headers else None
+        # Pass response headers through unconditionally. An empty header map is
+        # a real (if unusual) error response, distinct from "no response" --
+        # coercing empty headers to None conflated the two and dropped a valid
+        # empty dict. The transport always supplies a dict here.
+        headers = dict(response.headers)
 
         error_body = None
         if body:

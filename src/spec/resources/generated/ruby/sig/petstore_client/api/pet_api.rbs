@@ -73,6 +73,8 @@ module PetstoreClient
       def get_pet_avatar_thumbnail_with_http_info: (Integer pet_id) -> ::PetstoreClient::ApiResult[String]
       def get_pet_by_id: (Integer pet_id, ?server: GetPetByIdServer?) -> Models::Pet
       def get_pet_by_id_with_http_info: (Integer pet_id, ?server: GetPetByIdServer?) -> ::PetstoreClient::ApiResult[Models::Pet]
+      def get_pet_by_name: (String name, Options::GetPetByNameOptions options) -> Models::Pet
+      def get_pet_by_name_with_http_info: (String name, Options::GetPetByNameOptions options) -> ::PetstoreClient::ApiResult[Models::Pet]
       def get_pet_passport: (Integer pet_id) -> Models::PetPassport
       def get_pet_passport_with_http_info: (Integer pet_id) -> ::PetstoreClient::ApiResult[Models::PetPassport]
       def get_pet_photo: (Integer pet_id, Integer photo_id) -> File

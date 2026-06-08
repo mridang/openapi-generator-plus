@@ -187,6 +187,16 @@ module PetstoreClient
             "Missing the required parameter 'pet_id' when calling PetApi.add_pet_photos"
         end
 
+        if options.nil? || options.files.nil?
+          raise ArgumentError,
+            "Missing the required parameter 'files' when calling PetApi.add_pet_photos"
+        end
+
+        if options.nil? || options.metadata.nil?
+          raise ArgumentError,
+            "Missing the required parameter 'metadata' when calling PetApi.add_pet_photos"
+        end
+
         result = add_pet_photos_with_http_info(pet_id, options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
@@ -210,6 +220,16 @@ module PetstoreClient
         if pet_id.nil?
           raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.add_pet_photos"
+        end
+
+        if options.nil? || options.files.nil?
+          raise ArgumentError,
+            "Missing the required parameter 'files' when calling PetApi.add_pet_photos"
+        end
+
+        if options.nil? || options.metadata.nil?
+          raise ArgumentError,
+            "Missing the required parameter 'metadata' when calling PetApi.add_pet_photos"
         end
 
         path = '/pet/{petId}/photos'
@@ -749,6 +769,75 @@ module PetstoreClient
         )
       end
 
+      # Look up a pet by name (simple string path param + required query)
+      # @param name [String]
+
+      # @param options [GetPetByNameOptions] options for query, header, form, and cookie parameters
+
+      # @return [Pet]
+      # @raise [ApiError] if fails to make API call
+      def get_pet_by_name(name, options)
+        if name.nil?
+          raise ArgumentError,
+            "Missing the required parameter 'name' when calling PetApi.get_pet_by_name"
+        end
+
+        if options.nil? || options.category.nil?
+          raise ArgumentError,
+            "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
+        end
+
+        result = get_pet_by_name_with_http_info(name, options)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def get_pet_by_name_with_http_info(name, options)
+        if name.nil?
+          raise ArgumentError,
+            "Missing the required parameter 'name' when calling PetApi.get_pet_by_name"
+        end
+
+        if options.nil? || options.category.nil?
+          raise ArgumentError,
+            "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
+        end
+
+        path = '/pet/byName/{name}'
+        path = path.gsub('{name}', PetstoreClient::ValueSerializer.serialize_styled('name', name, :path, 'String', nil, 'simple', false).to_s)
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        unless options.nil? || options.category.nil?
+          query_params['category'] =
+            PetstoreClient::ValueSerializer.serialize_styled('category', options.category, :query, 'String', nil, 'form', true)
+        end
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        request_body = nil
+
+        invoke_api_for_result(
+          :GET, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/json',
+          'Pet',
+          nil
+        )
+      end
+
       # Get the pet&#39;s passport
       # Returns a single JSON document combining the pet&#39;s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
       # @param pet_id [Integer]
@@ -1125,6 +1214,11 @@ module PetstoreClient
             "Missing the required parameter 'pet_id' when calling PetApi.set_pet_preferences"
         end
 
+        if options.nil? || options.nickname.nil?
+          raise ArgumentError,
+            "Missing the required parameter 'nickname' when calling PetApi.set_pet_preferences"
+        end
+
         result = set_pet_preferences_with_http_info(pet_id, options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
@@ -1148,6 +1242,11 @@ module PetstoreClient
         if pet_id.nil?
           raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.set_pet_preferences"
+        end
+
+        if options.nil? || options.nickname.nil?
+          raise ArgumentError,
+            "Missing the required parameter 'nickname' when calling PetApi.set_pet_preferences"
         end
 
         path = '/pet/{petId}/preferences'
@@ -1249,6 +1348,11 @@ module PetstoreClient
             "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_certificate"
         end
 
+        if options.nil? || options.file.nil?
+          raise ArgumentError,
+            "Missing the required parameter 'file' when calling PetApi.upload_pet_certificate"
+        end
+
         result = upload_pet_certificate_with_http_info(pet_id, options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
@@ -1272,6 +1376,11 @@ module PetstoreClient
         if pet_id.nil?
           raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_certificate"
+        end
+
+        if options.nil? || options.file.nil?
+          raise ArgumentError,
+            "Missing the required parameter 'file' when calling PetApi.upload_pet_certificate"
         end
 
         path = '/pet/{petId}/certificate'
@@ -1307,6 +1416,11 @@ module PetstoreClient
             "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"
         end
 
+        if options.nil? || options.file.nil?
+          raise ArgumentError,
+            "Missing the required parameter 'file' when calling PetApi.upload_pet_document"
+        end
+
         result = upload_pet_document_with_http_info(pet_id, options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
@@ -1330,6 +1444,11 @@ module PetstoreClient
         if pet_id.nil?
           raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"
+        end
+
+        if options.nil? || options.file.nil?
+          raise ArgumentError,
+            "Missing the required parameter 'file' when calling PetApi.upload_pet_document"
         end
 
         path = '/pet/{petId}/documents'

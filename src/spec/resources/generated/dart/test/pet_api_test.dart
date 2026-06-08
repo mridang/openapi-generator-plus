@@ -488,6 +488,47 @@ void main() {
       }
     });
 
+    /* required-nested-param-validation: getPetByName's `category` is a
+     * REQUIRED query param carried on a REQUIRED (non-null) Options object,
+     * so GetPetByNameOptions generates it as a non-nullable field
+     * (`final String category` + `required this.category`). Dart's sound null
+     * safety therefore makes a missing value unrepresentable: it cannot be
+     * constructed, passed, or read as null without a compile error or a
+     * cast TypeError at the language boundary — i.e. the type system itself
+     * is the required-param guard, and the generated SDK additionally emits
+     * an explicit ArgumentError.checkNotNull enforcement point for parity.
+     * The observable, reachable contract we assert here is that a supplied
+     * category is REQUIRED to be present and is serialised onto the wire. */
+    test('getPetByName sends required category on the wire', () async {
+      String? capturedQuery;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedQuery = request.uri.query;
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"Rex","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        final result = await api.getPetByName(
+          'Rex',
+          const GetPetByNameOptions(category: 'dogs'),
+        );
+
+        expect(result, isNotNull);
+        expect(capturedQuery, contains('category=dogs'));
+      } finally {
+        await server.close();
+      }
+    });
+
     test('errorHandling_notFound', () async {
       final config = ConfigurationBuilder()
           .baseUrl('$chasmHttpUrl/test/status/404')

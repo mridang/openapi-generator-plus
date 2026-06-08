@@ -495,6 +495,19 @@ public class ObjectSerializerTest
             var result = _serializer.Deserialize<Category>(null);
             Assert.Null(result);
         }
+
+        [Fact]
+        public void StripsLeadingUtf8BomBeforeParsing()
+        {
+            // System.Text.Json does not strip a leading UTF-8 BOM (U+FEFF) and
+            // would otherwise throw a JsonException on the first token. The
+            // serializer must tolerate a BOM-prefixed body like the other SDKs.
+            var json = "\uFEFF{\"id\":1,\"name\":\"Dogs\"}";
+            var category = _serializer.Deserialize<Category>(json);
+            Assert.NotNull(category);
+            Assert.Equal(1L, category!.Id);
+            Assert.Equal("Dogs", category.Name);
+        }
     }
 
     public class RequiredFieldStrictnessTests

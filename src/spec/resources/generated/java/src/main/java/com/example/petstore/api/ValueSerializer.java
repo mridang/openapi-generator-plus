@@ -108,7 +108,8 @@ final class ValueSerializer {
    * matrix/label/simple styles use as structural separators in the styled value.
    *
    * <p>The preserved set matches the canonical encoding used by Node, C#, Swift, etc.: {@code ; = ,
-   * : @ ! $ & ' ( ) * +}.
+   * : @ ! $ & ' ( ) * +}. The RFC 3986 unreserved {@code ~} is also restored, since {@link
+   * URLEncoder} over-encodes it to {@code %7E}.
    *
    * @param value the raw value to encode
    * @return the percent-encoded path segment
@@ -119,6 +120,7 @@ final class ValueSerializer {
     }
     return URLEncoder.encode(value, StandardCharsets.UTF_8)
         .replace("+", "%20")
+        .replace("%7E", "~")
         .replace("%3B", ";")
         .replace("%3D", "=")
         .replace("%2C", ",")

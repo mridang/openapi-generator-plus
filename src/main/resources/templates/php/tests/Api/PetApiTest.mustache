@@ -8,13 +8,20 @@ use {{invokerPackage}}\Api\Options\AddPetOptions;
 use {{invokerPackage}}\Api\Options\AddPetPhotosOptions;
 use {{invokerPackage}}\Api\Options\DeletePetOptions;
 use {{invokerPackage}}\Api\Options\FindPetsByStatusOptions;
+use {{invokerPackage}}\Api\Options\GetPetByNameOptions;
 use {{invokerPackage}}\Api\Options\GetPetTagOptions;
 use {{invokerPackage}}\Api\Options\SetPetPreferencesOptions;
 use {{invokerPackage}}\Api\Options\UploadPetCertificateOptions;
 use {{invokerPackage}}\Api\Options\UploadPetDocumentOptions;
 use {{invokerPackage}}\Api\PetApi;
 use {{invokerPackage}}\ApiException;
+use {{invokerPackage}}\Auth\ApiKeyAuthenticator;
+use {{invokerPackage}}\Auth\ApiKeyLocation;
 use {{invokerPackage}}\Auth\BearerAuthenticator;
+use {{invokerPackage}}\Auth\OAuth\OAuth2AuthorizationCodeAuthenticator;
+use {{invokerPackage}}\Auth\OAuth\OAuth2ClientCredentialsAuthenticator;
+use {{invokerPackage}}\Auth\OAuth\OAuth2PasswordAuthenticator;
+use {{invokerPackage}}\Auth\OAuth\OpenIdConnectAuthenticator;
 use {{invokerPackage}}\Configuration;
 use {{invokerPackage}}\Errors\NotFoundException;
 use {{invokerPackage}}\Errors\ServerException;
@@ -494,4 +501,133 @@ test('options class is immutable: construction works but property writes throw',
 
     expect(fn () => $opts->auth = new BearerAuthenticator('http://localhost:9999', 'other'))
         ->toThrow(\Error::class);
+});
+
+// -- Required nested-parameter validation (#6) --
+//
+// getPetByName has a simple-style string path param (name) plus a REQUIRED
+// query param (category). Both are non-nullable in the generated signature /
+// Options object, so the missing-value case in PHP is an empty string. The
+// client must throw a clear \InvalidArgumentException before any request is
+// dispatched rather than silently sending an empty value on the wire.
+
+test('get pet by name throws when required query param is empty', function (): void {
+    [$api] = newBodyCapturingPetApi();
+
+    expect(fn (): mixed => $api->getPetByName('Rex', new GetPetByNameOptions(category: '')))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('get pet by name throws when required path param is empty', function (): void {
+    [$api] = newBodyCapturingPetApi();
+
+    expect(fn (): mixed => $api->getPetByName('', new GetPetByNameOptions(category: 'dogs')))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('get pet by name sends the required query param when supplied', function (): void {
+    // With both required params populated the guard passes and the request is
+    // dispatched; a header-capturing client confirms the call reached the wire.
+    [$api, $captured] = newHeaderCapturingPetApi();
+
+    $result = $api->getPetByName('Rex', new GetPetByNameOptions(category: 'dogs'));
+
+    expect($result)->not->toBeNull();
+    expect($captured->headers)->not->toBeEmpty();
+});
+
+// -- Authenticator secret redaction in debug dumps (#2, #3) --
+//
+// Every authenticator that holds a secret implements __debugInfo() so PHP's
+// var_dump()/print_r() — the surfaces that otherwise leak private readonly
+// properties into logs and stack traces — emit '***' for the credential.
+
+/**
+ * Renders an object through both var_dump() and print_r() for a single
+ * combined assertion over both debug surfaces.
+ */
+function dumpForRedaction(object $value): string
+{
+    ob_start();
+    var_dump($value);
+    $varDump = (string) ob_get_clean();
+
+    return $varDump . "\n" . print_r($value, true);
+}
+
+test('bearer authenticator masks token in debug output', function (): void {
+    $dump = dumpForRedaction(new BearerAuthenticator('https://api.example.com', 'super-secret-token'));
+
+    expect($dump)->not->toContain('super-secret-token');
+    expect($dump)->toContain('***');
+});
+
+test('api key authenticator masks key in debug output', function (): void {
+    $dump = dumpForRedaction(
+        new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', 'super-secret-key', ApiKeyLocation::HEADER)
+    );
+
+    expect($dump)->not->toContain('super-secret-key');
+    expect($dump)->toContain('***');
+    expect($dump)->toContain('X-Api-Key');
+});
+
+test('client credentials authenticator masks client secret in debug output', function (): void {
+    $dump = dumpForRedaction(new OAuth2ClientCredentialsAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'super-secret-client-secret',
+        'https://auth.example.com/token',
+        ['read']
+    ));
+
+    expect($dump)->not->toContain('super-secret-client-secret');
+    expect($dump)->toContain('***');
+    expect($dump)->toContain('my-client-id');
+});
+
+test('auth code authenticator masks client secret in debug output', function (): void {
+    $dump = dumpForRedaction(new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'super-secret-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        ['read', 'write']
+    ));
+
+    expect($dump)->not->toContain('super-secret-client-secret');
+    expect($dump)->toContain('***');
+});
+
+test('password authenticator masks client secret and resource owner password in debug output', function (): void {
+    $dump = dumpForRedaction(new OAuth2PasswordAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'super-secret-client-secret',
+        'https://auth.example.com/token',
+        'testuser',
+        'super-secret-password',
+        []
+    ));
+
+    expect($dump)->not->toContain('super-secret-client-secret');
+    expect($dump)->not->toContain('super-secret-password');
+    expect($dump)->toContain('***');
+    expect($dump)->toContain('testuser');
+});
+
+test('openid connect authenticator masks client secret in debug output', function (): void {
+    $dump = dumpForRedaction(new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'super-secret-client-secret',
+        'https://app.example.com/callback',
+        ['openid', 'profile']
+    ));
+
+    expect($dump)->not->toContain('super-secret-client-secret');
+    expect($dump)->toContain('***');
 });

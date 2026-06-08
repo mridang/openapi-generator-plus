@@ -109,16 +109,3 @@ into the generated tree as part of your release pipeline before
 publishing to a registry — most registries warn or block on a missing
 file, and the GitHub license auto-detect cannot pick up a manifest-only
 declaration.
-
-### UTF-8 BOM is not stripped from JSON response bodies
-
-Most other SDKs in this generator family (Python, Ruby, Node, Go, Rust,
-Swift, Dart, PHP, Kotlin, Elixir) explicitly strip a leading UTF-8 BOM
-(`U+FEFF`) before parsing JSON. The C# SDK does not — it relies on
-`System.Text.Json.JsonSerializer` defaults, which do not strip BOM from
-`string` input. This is rare in practice (Windows-emitted JSON from
-`Out-File -Encoding utf8` pre-PowerShell 6, Notepad, etc.) and most
-servers strip it before sending, but if you hit it you will get a
-`JsonException` on the very first token. Pre-trim the BOM at the caller
-layer (`s.StartsWith("\uFEFF") ? s.Substring(1) : s`) if you control a
-problematic upstream.

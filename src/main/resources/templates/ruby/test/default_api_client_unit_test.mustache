@@ -2,6 +2,8 @@
 
 require 'minitest/autorun'
 require 'json'
+require 'stringio'
+require 'zlib'
 require '{{gemName}}'
 
 describe {{moduleName}}::DefaultApiClient do
@@ -710,5 +712,46 @@ describe {{moduleName}}::DefaultApiClient do
     assert_raises({{moduleName}}::ApiError) do
       {{moduleName}}::DefaultApiClient.new(transport)
     end
+  end
+
+  # ── decompression-error-not-wrapped ──
+  # A response that advertises Content-Encoding: gzip but carries a malformed
+  # (non-gzip) body must surface as the SDK's typed ApiError, not a raw
+  # Zlib::GzipFile::Error leaking from inside the client. Before the fix the
+  # decompress ran AFTER the rescue block, so the Zlib error escaped.
+  it 'wraps a malformed Content-Encoding body as ApiError' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/gz') do
+        [200, { 'content-type' => 'application/json', 'content-encoding' => 'gzip' }, 'not-actually-gzip']
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      err = assert_raises({{moduleName}}::ApiError) do
+        client.send_request('GET', 'http://localhost/gz', {}, nil)
+      end
+      refute_kind_of Zlib::Error, err
+    end
+    stubs.verify_stubbed_calls
+  end
+
+  # Positive path: a correctly gzip-encoded body still decompresses normally.
+  it 'decompresses a valid gzip-encoded body' do
+    io = StringIO.new
+    gz = Zlib::GzipWriter.new(io)
+    gz.write('{"ok":true}')
+    gz.close
+    compressed = io.string
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/gz') do
+        [200, { 'content-type' => 'application/json', 'content-encoding' => 'gzip' }, compressed]
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/gz', {}, nil)
+      _(JSON.parse(response.body)['ok']).must_equal true
+    end
+    stubs.verify_stubbed_calls
   end
 end

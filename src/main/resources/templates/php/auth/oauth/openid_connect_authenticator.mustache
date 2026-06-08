@@ -198,4 +198,22 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
     {
         return $this->getDelegate()->getAuthHeaders();
     }
+
+    /**
+     * Masks the client secret so it never leaks through var_dump() /
+     * print_r() / stack traces / error logs.
+     *
+     * @return array<string, mixed>
+     */
+    public function __debugInfo(): array
+    {
+        return [
+            'host' => $this->host,
+            'openIdConnectUrl' => $this->openIdConnectUrl,
+            'clientId' => $this->clientId,
+            'clientSecret' => '***',
+            'redirectUri' => $this->redirectUri,
+            'scopes' => $this->scopes,
+        ];
+    }
 }

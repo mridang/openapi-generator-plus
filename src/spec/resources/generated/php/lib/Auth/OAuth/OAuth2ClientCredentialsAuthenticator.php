@@ -125,4 +125,22 @@ class OAuth2ClientCredentialsAuthenticator extends BaseAuthenticator implements 
 
         return ['Authorization' => 'Bearer ' . $token];
     }
+
+    /**
+     * Masks the client secret so it never leaks through var_dump() /
+     * print_r() / stack traces / error logs.
+     *
+     * @return array<string, mixed>
+     */
+    public function __debugInfo(): array
+    {
+        return [
+            'host' => $this->host,
+            'clientId' => $this->clientId,
+            'clientSecret' => '***',
+            'tokenUrl' => $this->tokenUrl,
+            'scopes' => $this->scopes,
+            'clientAuthMethod' => $this->clientAuthMethod->name,
+        ];
+    }
 }

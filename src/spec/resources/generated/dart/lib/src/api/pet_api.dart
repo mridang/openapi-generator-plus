@@ -27,6 +27,7 @@ import 'options/add_pet_photos_options.dart';
 import 'options/add_pet_treatment_options.dart';
 import 'options/delete_pet_options.dart';
 import 'options/find_pets_by_status_options.dart';
+import 'options/get_pet_by_name_options.dart';
 import 'options/get_pet_tag_options.dart';
 import 'options/set_pet_preferences_options.dart';
 import 'options/upload_pet_certificate_options.dart';
@@ -251,6 +252,10 @@ class PetApi extends BaseApi {
     int petId,
     AddPetPhotosOptions options,
   ) async {
+    ArgumentError.checkNotNull(options.files, 'files');
+
+    ArgumentError.checkNotNull(options.metadata, 'metadata');
+
     var path = '/pet/{petId}/photos';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -976,6 +981,84 @@ class PetApi extends BaseApi {
     );
   }
 
+  /// Look up a pet by name (simple string path param + required query)
+
+  Future<Pet> getPetByName(String name, GetPetByNameOptions options) async {
+    final result = await getPetByNameWithHTTPInfo(name, options);
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as Pet` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for getPetByName but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the getPetByName operation and returns the full API result.
+  Future<ApiResult<Pet>> getPetByNameWithHTTPInfo(
+    String name,
+    GetPetByNameOptions options,
+  ) async {
+    ArgumentError.checkNotNull(options.category, 'category');
+
+    var path = '/pet/byName/{name}';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so the
+     * outer _encodePathSegment wrapper was encoding a second time (a
+     * space became %2520, `a/b` became a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. */
+    path = path.replaceAll(
+      '{' + 'name' + '}',
+      serializeStyled(
+        'name',
+        name,
+        'path',
+        'String',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
+
+    final queryParams = <String, Object?>{};
+
+    queryParams['category'] = serializeStyled(
+      'category',
+      options.category,
+      'query',
+      'String',
+      '',
+      'form',
+      true,
+    );
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<Pet>(
+      method: 'GET',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'Pet',
+      auth: null,
+      deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
+    );
+  }
+
   /// Get the pet's passport
   /// Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
 
@@ -1461,6 +1544,8 @@ class PetApi extends BaseApi {
     int petId,
     SetPetPreferencesOptions options,
   ) async {
+    ArgumentError.checkNotNull(options.nickname, 'nickname');
+
     var path = '/pet/{petId}/preferences';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -1615,6 +1700,8 @@ class PetApi extends BaseApi {
     int petId,
     UploadPetCertificateOptions options,
   ) async {
+    ArgumentError.checkNotNull(options.file, 'file');
+
     var path = '/pet/{petId}/certificate';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the
@@ -1699,6 +1786,8 @@ class PetApi extends BaseApi {
     int petId,
     UploadPetDocumentOptions options,
   ) async {
+    ArgumentError.checkNotNull(options.file, 'file');
+
     var path = '/pet/{petId}/documents';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so the

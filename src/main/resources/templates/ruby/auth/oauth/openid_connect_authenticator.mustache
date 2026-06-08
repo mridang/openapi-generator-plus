@@ -73,6 +73,17 @@ module {{moduleName}}
           resolve_delegate.auth_headers
         end
 
+        # Mask the client secret so it never leaks through the default
+        # +inspect+/+p+/string-interpolation, which would otherwise dump
+        # every instance variable verbatim.
+        # @return [String]
+        def inspect
+          "#<#{self.class.name} host=#{@host.inspect} " \
+            "openid_connect_url=#{@openid_connect_url.inspect} " \
+            "client_id=#{@client_id.inspect} client_secret=\"***\">"
+        end
+        alias to_s inspect
+
         private
 
         # Lazily resolve the delegate by fetching the OIDC discovery document

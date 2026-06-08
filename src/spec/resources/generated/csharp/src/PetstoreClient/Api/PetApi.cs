@@ -198,6 +198,8 @@ public class PetApi : BaseApi
 
     private static readonly string[] GetPetByIdAccepts = ["application/json"];
 
+    private static readonly string[] GetPetByNameAccepts = ["application/json"];
+
     private static readonly string[] GetPetPassportAccepts = ["application/json"];
 
     private static readonly string[] GetPetPhotoAccepts =
@@ -331,6 +333,14 @@ public class PetApi : BaseApi
     )
     {
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(
+            options.Files,
+            nameof(options) + "." + nameof(options.Files)
+        );
+        ArgumentNullException.ThrowIfNull(
+            options.Metadata,
+            nameof(options) + "." + nameof(options.Metadata)
+        );
         string path = "/pet/{petId}/photos";
         path = path.Replace(
             "{" + nameof(petId) + "}",
@@ -1072,6 +1082,92 @@ public class PetApi : BaseApi
     }
 
     /// <summary>
+    /// Look up a pet by name (simple string path param + required query)
+    /// </summary>
+    /// <param name="name"></param>
+    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <returns><![CDATA[Pet]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<Pet> GetPetByNameAsync(string name, GetPetByNameOptions options)
+    {
+        Task<ApiResult<Pet>> task = GetPetByNameWithHttpInfoAsync(name, options);
+        ApiResult<Pet> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
+        return result.Data
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody
+            );
+    }
+
+    /// <summary>
+    /// Look up a pet by name (simple string path param + required query) (with HTTP info)
+    /// </summary>
+    /// <param name="name"></param>
+    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<Pet>> GetPetByNameWithHttpInfoAsync(
+        string name,
+        GetPetByNameOptions options
+    )
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(
+            options.Category,
+            nameof(options) + "." + nameof(options.Category)
+        );
+        string path = "/pet/byName/{name}";
+        path = path.Replace(
+            "{" + nameof(name) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(name),
+                    name,
+                    "path",
+                    "string",
+                    null,
+                    "simple",
+                    false
+                )!,
+            StringComparison.Ordinal
+        );
+
+        Dictionary<string, object?> queryParams = [];
+        if (options != null && options.Category != null)
+        {
+            queryParams["category"] = ValueSerializer.SerializeStyled(
+                "category",
+                options.Category,
+                "query",
+                "string",
+                null,
+                "form",
+                true
+            );
+        }
+        Dictionary<string, string> headerParams = [];
+        return await InvokeApiForResultAsync<Pet>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                GetPetByNameAccepts,
+                "application/json",
+                typeof(Pet),
+                null
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Get the pet&#39;s passport
     /// </summary>
     /// <remarks>Returns a single JSON document combining the pet&#39;s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.</remarks>
@@ -1597,6 +1693,10 @@ public class PetApi : BaseApi
     )
     {
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(
+            options.Nickname,
+            nameof(options) + "." + nameof(options.Nickname)
+        );
         string path = "/pet/{petId}/preferences";
         path = path.Replace(
             "{" + nameof(petId) + "}",
@@ -1748,6 +1848,10 @@ public class PetApi : BaseApi
     )
     {
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(
+            options.File,
+            nameof(options) + "." + nameof(options.File)
+        );
         string path = "/pet/{petId}/certificate";
         path = path.Replace(
             "{" + nameof(petId) + "}",
@@ -1825,6 +1929,10 @@ public class PetApi : BaseApi
     )
     {
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(
+            options.File,
+            nameof(options) + "." + nameof(options.File)
+        );
         string path = "/pet/{petId}/documents";
         path = path.Replace(
             "{" + nameof(petId) + "}",

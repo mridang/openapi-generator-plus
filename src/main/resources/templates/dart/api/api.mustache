@@ -126,6 +126,62 @@ class {{classname}} extends BaseApi {
     {{! null, the base client falls back to the Configuration credentials. }}
     final Authenticator? auth = options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.auth;
 {{/hasAuthMethods}}
+{{! Cross-cutting `required-nested-param-validation`: a REQUIRED query/header/ }}
+{{! form/cookie param carried on the Options object must be rejected at }}
+{{! runtime when missing, for parity with the SDKs that throw. }}
+{{! }}
+{{! Two cases: }}
+{{!  - Options REQUIRED (optionsParamRequired): the field is generated }}
+{{!    non-nullable (`final String foo;` + `required this.foo`), so a missing }}
+{{!    value is already rejected by Dart's sound null safety at construction }}
+{{!    and at the call boundary — the type system IS the guard. We still emit }}
+{{!    an explicit ArgumentError.checkNotNull so the enforcement point is }}
+{{!    uniform across SDKs and survives a value that slips past static typing }}
+{{!    (e.g. an unsound-null caller). checkNotNull is lint-safe: it is a }}
+{{!    method call, not a `== null` comparison on a non-nullable. }}
+{{!  - Options OPTIONAL: the object itself can be null, which would silently }}
+{{!    drop the required param; guard the whole object so the call throws }}
+{{!    instead of sending an incomplete request. }}
+{{#queryParams}}{{#required}}
+{{#vendorExtensions.op.optionsParamRequired}}
+    ArgumentError.checkNotNull(options.{{paramName}}, '{{paramName}}');
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+    if (options?.{{paramName}} == null) {
+      throw ArgumentError("Missing the required parameter '{{paramName}}'");
+    }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/required}}{{/queryParams}}
+{{#headerParams}}{{#required}}
+{{#vendorExtensions.op.optionsParamRequired}}
+    ArgumentError.checkNotNull(options.{{paramName}}, '{{paramName}}');
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+    if (options?.{{paramName}} == null) {
+      throw ArgumentError("Missing the required parameter '{{paramName}}'");
+    }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/required}}{{/headerParams}}
+{{#formParams}}{{#required}}
+{{#vendorExtensions.op.optionsParamRequired}}
+    ArgumentError.checkNotNull(options.{{paramName}}, '{{paramName}}');
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+    if (options?.{{paramName}} == null) {
+      throw ArgumentError("Missing the required parameter '{{paramName}}'");
+    }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/required}}{{/formParams}}
+{{#cookieParams}}{{#required}}
+{{#vendorExtensions.op.optionsParamRequired}}
+    ArgumentError.checkNotNull(options.{{paramName}}, '{{paramName}}');
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+    if (options?.{{paramName}} == null) {
+      throw ArgumentError("Missing the required parameter '{{paramName}}'");
+    }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/required}}{{/cookieParams}}
 
     var path = '{{{path}}}';
 {{#pathParams}}

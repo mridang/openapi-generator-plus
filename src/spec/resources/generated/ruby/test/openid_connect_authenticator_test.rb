@@ -205,4 +205,23 @@ describe PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator do
     auth.api_client = client
     assert_raises(PetstoreClient::ApiError) { auth.build_authorization_url }
   end
+
+  it 'masks the client secret in inspect' do
+    # client-secret-leak-in-default-repr: the default Object#inspect dumps
+    # every instance variable, leaking @client_secret. The overridden
+    # inspect must mask it.
+    secret_auth = PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id',
+      'super_secret_value',
+      'https://app.example.com/callback',
+      %w[openid profile]
+    )
+
+    _(secret_auth.inspect).wont_include 'super_secret_value'
+    _(secret_auth.inspect).must_include '***'
+    _(secret_auth.to_s).wont_include 'super_secret_value'
+    _("#{secret_auth}").wont_include 'super_secret_value'
+  end
 end

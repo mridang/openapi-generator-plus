@@ -61,4 +61,19 @@ class BasicAuthenticator extends BaseAuthenticator
         $authHeader = 'Basic ' . base64_encode($this->username . ':' . $this->password);
         return ['Authorization' => $authHeader];
     }
+
+    /**
+     * Masks the password so it never leaks through var_dump() / print_r() /
+     * debug_zval_dump() / stack traces / error logs.
+     *
+     * @return array<string, string>
+     */
+    public function __debugInfo(): array
+    {
+        return [
+            'host' => $this->host,
+            'username' => $this->username,
+            'password' => '***',
+        ];
+    }
 }

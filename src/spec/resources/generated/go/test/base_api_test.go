@@ -20,11 +20,12 @@ import (
 	"petstore/pkg/options"
 )
 
-// response-wrapper-type-name-split: the public transport-response wrapper must
-// be named HttpResponse (matching the 10-SDK majority), not HttpResponse. This
-// test references the public type and its fields directly; it would not compile
-// if the type were still named HttpResponse.
-func TestApiResponse_PublicTypeNameAndFields(t *testing.T) {
+// response-type-name: the public transport-response wrapper is named
+// HttpResponse in the Go SDK because the petstore spec defines an `ApiResponse`
+// model that is dot-imported into the API package; a package-level `ApiResponse`
+// wrapper would collide with that dot-imported model. This test references the
+// public type and its fields directly.
+func TestHttpResponse_PublicTypeNameAndFields(t *testing.T) {
 	t.Parallel()
 	resp := petstore.HttpResponse{
 		StatusCode: 200,
@@ -568,6 +569,55 @@ func TestBaseApi_ExpandsArrayQueryParams(t *testing.T) {
 	// Verify both values are present in the URL
 	if !strings.Contains(client.capturedURL, "red") || !strings.Contains(client.capturedURL, "blue") {
 		t.Errorf("expected URL to contain both array values 'red' and 'blue', got %q", client.capturedURL)
+	}
+}
+
+// required-nested-param-validation: getPetByName has a REQUIRED query param
+// `category`. Omitting it (nil options) must surface a clear missing-parameter
+// error before any HTTP call, not silently send the zero value.
+func TestBaseApi_MissingRequiredQueryParam_NilOptions(t *testing.T) {
+	t.Parallel()
+	client := &queryCapturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil)
+	_, err := api.GetPetByName("rex", nil)
+	if err == nil {
+		t.Fatal("expected error for missing required query param 'category', got nil")
+	}
+	if !strings.Contains(err.Error(), "category") {
+		t.Errorf("expected error to mention 'category', got %q", err.Error())
+	}
+	if client.capturedURL != "" {
+		t.Errorf("expected no HTTP call when required param is missing, got URL %q", client.capturedURL)
+	}
+}
+
+// required-nested-param-validation: an empty-string required query param is also
+// treated as missing for string-typed params.
+func TestBaseApi_MissingRequiredQueryParam_EmptyString(t *testing.T) {
+	t.Parallel()
+	client := &queryCapturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil)
+	_, err := api.GetPetByName("rex", &options.GetPetByNameOptions{Category: ""})
+	if err == nil {
+		t.Fatal("expected error for empty required query param 'category', got nil")
+	}
+	if !strings.Contains(err.Error(), "category") {
+		t.Errorf("expected error to mention 'category', got %q", err.Error())
+	}
+}
+
+// required-nested-param-validation: a present required query param is serialized
+// into the request URL and the call proceeds.
+func TestBaseApi_RequiredQueryParamIsSent(t *testing.T) {
+	t.Parallel()
+	client := &queryCapturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil)
+	_, _ = api.GetPetByName("rex", &options.GetPetByNameOptions{Category: "dog"})
+	if !strings.Contains(client.capturedURL, "category=dog") {
+		t.Errorf("expected URL to contain category=dog, got %q", client.capturedURL)
 	}
 }
 

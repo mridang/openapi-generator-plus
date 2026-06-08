@@ -87,7 +87,7 @@ export class DefaultApiClient implements ApiClient {
       try {
         caCert = fs.readFileSync(caCertPath);
       } catch (e) {
-        throw new ApiError(0, `failed to read CA certificate from "${caCertPath}"`, {}, null, null, {
+        throw new ApiError(0, `failed to read CA certificate from "${caCertPath}"`, null, null, null, {
           cause: e,
         });
       }
@@ -97,7 +97,7 @@ export class DefaultApiClient implements ApiClient {
         throw new ApiError(
           0,
           `failed to parse CA certificate from "${caCertPath}": no PEM blocks found or unparseable`,
-          {},
+          null,
           null,
           null,
           { cause: e }
@@ -168,7 +168,7 @@ export class DefaultApiClient implements ApiClient {
       throw new ApiError(
         0,
         'ApiClient has been closed and can no longer be used',
-        {},
+        null,
         null,
         null
       );
@@ -257,7 +257,7 @@ export class DefaultApiClient implements ApiClient {
             throw new ApiError(
               0,
               `Refusing to follow redirect to non-HTTP(S) URL: ${nextUrl}`,
-              {},
+              null,
               null,
               null
             );
@@ -307,7 +307,7 @@ export class DefaultApiClient implements ApiClient {
               0,
               'Refusing to replay request body across HTTPS -> HTTP redirect downgrade '
                 + `(from ${currentUrl} to ${nextUrl})`,
-              {},
+              null,
               null,
               null
             );
@@ -343,7 +343,7 @@ export class DefaultApiClient implements ApiClient {
           throw new ApiError(
             0,
             `Too many redirects (exceeded maxRedirects=${maxRedirects})`,
-            {},
+            null,
             null,
             null
           );
@@ -359,7 +359,7 @@ export class DefaultApiClient implements ApiClient {
       throw new ApiError(
         0,
         error instanceof Error ? error.message : String(error),
-        {},
+        null,
         null,
         null,
         { cause: error }
@@ -379,7 +379,7 @@ export class DefaultApiClient implements ApiClient {
       throw new ApiError(
         0,
         error instanceof Error ? error.message : String(error),
-        {},
+        null,
         null,
         null,
         { cause: error }

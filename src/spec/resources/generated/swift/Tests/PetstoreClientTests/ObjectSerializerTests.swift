@@ -182,6 +182,21 @@ import Testing
         }
     }
 
+    // optional-enum-default-omitted: an optional enum field carrying a schema
+    // `default` must be initialised to that default case (not nil), so a
+    // default-constructed model serialises the default value onto the wire —
+    // matching the 9 other SDKs. Order.status has `default: placed`.
+    @Test func testOptionalEnumDefaultSerialized() throws {
+        let order = Order()
+        #expect(order.status == .placed)
+        let json = try ObjectSerializer.serialize(order)
+        let data = json.data(using: .utf8)!
+        let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        #expect(
+            parsed?["status"] as? String == "placed",
+            "default-constructed Order must serialize status=placed, got: \(json)")
+    }
+
     @Test func testToCookieValueString() {
         #expect(ObjectSerializer.toCookieValue("hello") == "hello")
     }

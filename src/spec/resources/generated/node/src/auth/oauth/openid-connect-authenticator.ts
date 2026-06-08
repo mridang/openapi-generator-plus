@@ -209,4 +209,15 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
   getCookieParams(): Record<string, string> {
     return {};
   }
+
+  /* Redact the client secret from the default string/inspect representation
+   * so `console.log(auth)` / `util.inspect(auth)` / JSON.stringify never
+   * exfiltrate the credential into application logs. */
+  [Symbol.for('nodejs.util.inspect.custom')](): string {
+    return `OpenIdConnectAuthenticator(host=${this.host}, clientId=${this.clientId}, clientSecret=***)`;
+  }
+
+  toJSON(): Record<string, string> {
+    return { host: this.host, clientId: this.clientId, clientSecret: '***' };
+  }
 }

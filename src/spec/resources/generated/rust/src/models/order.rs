@@ -55,11 +55,13 @@ impl Order {
             pet_id: None,
             quantity: None,
             ship_date: None,
-            // Default value for enum-typed optional fields not auto-set:
-            // upstream defaultValue is the raw string from the spec
-            // (e.g. "placed"), but the field type is the typed enum
-            // (e.g. OrderStatusEnum). Caller must set explicitly.
-            status: None,
+            // Optional enum field with a schema default: seed it with the
+            // default variant so a default-constructed value serializes the
+            // declared default (e.g. `"status":"placed"`), matching the other
+            // SDKs. The enum derives Default with `#[default]` on the variant
+            // for the spec's first/default value, so `Default::default()`
+            // resolves to the schema default.
+            status: Some(OrderStatusEnum::default()),
             complete: None,
         }
     }

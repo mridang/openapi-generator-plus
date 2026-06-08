@@ -91,16 +91,27 @@ public partial class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareA
             .SendRequestAsync("GET", _openIdConnectUrl, headers, null)
             .ConfigureAwait(false);
 
+        if (response.StatusCode < 200 || response.StatusCode >= 300)
+        {
+            throw new InvalidOperationException(
+                $"OIDC discovery request to {_openIdConnectUrl} failed with HTTP status {response.StatusCode}"
+            );
+        }
+
         using JsonDocument doc = JsonDocument.Parse(response.Body);
         JsonElement root = doc.RootElement;
         string authorizationEndpoint =
-            root.GetProperty("authorization_endpoint").GetString()
-            ?? throw new InvalidOperationException(
-                "Discovery document missing authorization_endpoint"
-            );
+            root.TryGetProperty("authorization_endpoint", out JsonElement authEndpointElement)
+            && authEndpointElement.GetString() is { } authEndpoint
+                ? authEndpoint
+                : throw new InvalidOperationException(
+                    "Discovery document missing authorization_endpoint"
+                );
         string tokenEndpoint =
-            root.GetProperty("token_endpoint").GetString()
-            ?? throw new InvalidOperationException("Discovery document missing token_endpoint");
+            root.TryGetProperty("token_endpoint", out JsonElement tokenEndpointElement)
+            && tokenEndpointElement.GetString() is { } tokenEndpointValue
+                ? tokenEndpointValue
+                : throw new InvalidOperationException("Discovery document missing token_endpoint");
 
         _delegate = new OAuth2AuthorizationCodeAuthenticator(
             _host,

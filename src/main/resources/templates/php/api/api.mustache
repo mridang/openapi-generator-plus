@@ -202,6 +202,56 @@ class {{classname}} extends BaseApi
          * credentials. */
         $auth = $options{{#vendorExtensions.op.optionsParamRequired}}->auth{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}?->auth{{/vendorExtensions.op.optionsParamRequired}};
 {{/hasAuthMethods}}
+{{! required-nested-param-validation: query/header/form/cookie params live on
+    the Options object. A required string one is a non-nullable field, so an
+    empty value means the caller omitted it. Guard here so the caller gets a
+    clear error instead of silently sending an empty value on the wire. The
+    path param (also a direct method arg) gets the same empty-string guard. }}
+{{#pathParams}}
+{{#required}}
+{{#isString}}
+        if (${{paramName}} === '') {
+            throw new \InvalidArgumentException("Missing the required parameter '{{paramName}}' when calling {{operationId}}");
+        }
+{{/isString}}
+{{/required}}
+{{/pathParams}}
+{{#queryParams}}
+{{#required}}
+{{#isString}}
+        if ($options->{{paramName}} === '') {
+            throw new \InvalidArgumentException("Missing the required parameter '{{paramName}}' when calling {{operationId}}");
+        }
+{{/isString}}
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+{{#isString}}
+        if ($options->{{paramName}} === '') {
+            throw new \InvalidArgumentException("Missing the required parameter '{{paramName}}' when calling {{operationId}}");
+        }
+{{/isString}}
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+{{#isString}}
+        if ($options->{{paramName}} === '') {
+            throw new \InvalidArgumentException("Missing the required parameter '{{paramName}}' when calling {{operationId}}");
+        }
+{{/isString}}
+{{/required}}
+{{/formParams}}
+{{#cookieParams}}
+{{#required}}
+{{#isString}}
+        if ($options->{{paramName}} === '') {
+            throw new \InvalidArgumentException("Missing the required parameter '{{paramName}}' when calling {{operationId}}");
+        }
+{{/isString}}
+{{/required}}
+{{/cookieParams}}
         $path = '{{{path}}}';
 {{#pathParams}}
         /** @var string $pathValue */
@@ -257,9 +307,16 @@ class {{classname}} extends BaseApi
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryStyled}}
+{{#required}}
+        /* Required query param: always present (non-nullable on the Options
+         * object and empty-guarded above), so it is emitted unconditionally. */
+        $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
+{{/required}}
+{{^required}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
         }
+{{/required}}
 {{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}
         $headerParams = [];
@@ -365,6 +422,56 @@ class {{classname}} extends BaseApi
          * credentials. */
         $auth = $options{{#vendorExtensions.op.optionsParamRequired}}->auth{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}?->auth{{/vendorExtensions.op.optionsParamRequired}};
 {{/hasAuthMethods}}
+{{! required-nested-param-validation: query/header/form/cookie params live on
+    the Options object. A required string one is a non-nullable field, so an
+    empty value means the caller omitted it. Guard here so the caller gets a
+    clear error instead of silently sending an empty value on the wire. The
+    path param (also a direct method arg) gets the same empty-string guard. }}
+{{#pathParams}}
+{{#required}}
+{{#isString}}
+        if (${{paramName}} === '') {
+            throw new \InvalidArgumentException("Missing the required parameter '{{paramName}}' when calling {{operationId}}");
+        }
+{{/isString}}
+{{/required}}
+{{/pathParams}}
+{{#queryParams}}
+{{#required}}
+{{#isString}}
+        if ($options->{{paramName}} === '') {
+            throw new \InvalidArgumentException("Missing the required parameter '{{paramName}}' when calling {{operationId}}");
+        }
+{{/isString}}
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+{{#isString}}
+        if ($options->{{paramName}} === '') {
+            throw new \InvalidArgumentException("Missing the required parameter '{{paramName}}' when calling {{operationId}}");
+        }
+{{/isString}}
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+{{#isString}}
+        if ($options->{{paramName}} === '') {
+            throw new \InvalidArgumentException("Missing the required parameter '{{paramName}}' when calling {{operationId}}");
+        }
+{{/isString}}
+{{/required}}
+{{/formParams}}
+{{#cookieParams}}
+{{#required}}
+{{#isString}}
+        if ($options->{{paramName}} === '') {
+            throw new \InvalidArgumentException("Missing the required parameter '{{paramName}}' when calling {{operationId}}");
+        }
+{{/isString}}
+{{/required}}
+{{/cookieParams}}
         $path = '{{{path}}}';
 {{#pathParams}}
         /** @var string $pathValue */
@@ -420,9 +527,16 @@ class {{classname}} extends BaseApi
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryStyled}}
+{{#required}}
+        /* Required query param: always present (non-nullable on the Options
+         * object and empty-guarded above), so it is emitted unconditionally. */
+        $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
+{{/required}}
+{{^required}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
         }
+{{/required}}
 {{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}
         $headerParams = [];

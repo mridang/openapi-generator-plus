@@ -5,6 +5,7 @@ from {{packageName}}.models.dry_food import DryFood
 from {{packageName}}.models.wet_food import WetFood
 from {{packageName}}.models.medication import Medication
 from {{packageName}}.models.surgery import Surgery
+from {{packageName}}.models.set_pet_avatar_thumbnail_request import SetPetAvatarThumbnailRequest
 
 
 class TestOneOfPetFood:
@@ -85,6 +86,30 @@ class TestAnyOfPetTreatment:
         json_str = '{"unrelatedKey":"value","anotherUnknown":123}'
         with pytest.raises(Exception):
             ObjectSerializer().deserialize(json_str, 'PetTreatment')
+
+
+class TestOneOfNonDiscriminatorValidator:
+    """oneof-multiple-match: the non-discriminator oneOf validator now uses
+    FIRST-match semantics -- it returns the first variant the payload
+    validates against rather than counting matches and raising 'Multiple
+    matches found' on more than one. This aligns Python with the other 11
+    SDKs. SetPetAvatarThumbnailRequest is the spec's non-discriminator oneOf
+    (bytes | List[bytes]); these tests cover the first-match-returns and
+    no-match-still-raises branches of the rewritten validator.
+    """
+
+    def test_first_variant_match_returns_value(self) -> None:
+        req = SetPetAvatarThumbnailRequest(actual_instance=b'avatar-bytes')
+        assert req.actual_instance == b'avatar-bytes'
+
+    def test_second_variant_match_returns_value(self) -> None:
+        req = SetPetAvatarThumbnailRequest(actual_instance=[b'a', b'b'])
+        assert req.actual_instance == [b'a', b'b']
+
+    def test_no_matching_variant_still_raises(self) -> None:
+        """The no-match error path is preserved by the first-match rewrite."""
+        with pytest.raises(Exception):
+            SetPetAvatarThumbnailRequest(actual_instance=object())
 
 
 class TestAllOfPetWithOwner:

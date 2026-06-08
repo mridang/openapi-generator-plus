@@ -445,6 +445,49 @@ class ObjectSerializerTest {
                   new com.fasterxml.jackson.core.type.TypeReference<
                       com.example.petstore.models.Pet>() {}.getType()));
     }
+
+    @Test
+    @DisplayName("leading UTF-8 BOM is stripped before parse")
+    void leadingBomIsStripped() {
+      // Parity regression: a leading UTF-8 BOM (U+FEFF) must be stripped
+      // before JSON parsing. Jackson's defaults do not strip it from a
+      // String, so without an explicit trim the very first token fails.
+      com.example.petstore.models.Category category =
+          serializer.deserialize(
+              "\uFEFF{\"id\":1,\"name\":\"dogs\"}",
+              new com.fasterxml.jackson.core.type.TypeReference<
+                  com.example.petstore.models.Category>() {}.getType());
+      assertNotNull(category, "deserialized category must not be null");
+      assertEquals(1L, category.id);
+      assertEquals("dogs", category.name);
+    }
+
+    @Test
+    @DisplayName("quoted-string for an integer field throws (no scalar coercion)")
+    void quotedScalarForIntFieldThrows() {
+      // Parity regression: a wrong-typed primitive ("42" for a numeric
+      // field, 1 for a boolean field) must fail loudly. With Jackson's
+      // ALLOW_COERCION_OF_SCALARS left on, these are silently coerced.
+      assertThrows(
+          ObjectSerializer.SerializationException.class,
+          () ->
+              serializer.deserialize(
+                  "{\"id\":\"42\"}",
+                  new com.fasterxml.jackson.core.type.TypeReference<
+                      com.example.petstore.models.Order>() {}.getType()));
+    }
+
+    @Test
+    @DisplayName("numeric for a boolean field throws (no scalar coercion)")
+    void numericForBooleanFieldThrows() {
+      assertThrows(
+          ObjectSerializer.SerializationException.class,
+          () ->
+              serializer.deserialize(
+                  "{\"complete\":1}",
+                  new com.fasterxml.jackson.core.type.TypeReference<
+                      com.example.petstore.models.Order>() {}.getType()));
+    }
   }
 
   @Nested

@@ -90,7 +90,7 @@ export class DefaultApiClient implements ApiClient {
       try {
         caCert = fs.readFileSync(caCertPath);
       } catch (e) {
-        throw new ApiError(0, `failed to read CA certificate from "${caCertPath}"`, {}, null, null, {
+        throw new ApiError(0, `failed to read CA certificate from "${caCertPath}"`, null, null, null, {
           cause: e
         });
       }
@@ -100,7 +100,7 @@ export class DefaultApiClient implements ApiClient {
         throw new ApiError(
           0,
           `failed to parse CA certificate from "${caCertPath}": no PEM blocks found or unparseable`,
-          {},
+          null,
           null,
           null,
           { cause: e }
@@ -168,7 +168,7 @@ export class DefaultApiClient implements ApiClient {
     options?: SendRequestOptions
   ): Promise<ApiResponse> {
     if (this.closed) {
-      throw new ApiError(0, 'ApiClient has been closed and can no longer be used', {}, null, null);
+      throw new ApiError(0, 'ApiClient has been closed and can no longer be used', null, null, null);
     }
     if (body instanceof Blob) {
       body = Buffer.from(await body.arrayBuffer());
@@ -248,7 +248,7 @@ export class DefaultApiClient implements ApiClient {
            * never silently surfaced as the 3xx response. Throw a typed
            * ApiError so callers see the offending URL. */
           if (nextParsed.protocol !== 'http:' && nextParsed.protocol !== 'https:') {
-            throw new ApiError(0, `Refusing to follow redirect to non-HTTP(S) URL: ${nextUrl}`, {}, null, null);
+            throw new ApiError(0, `Refusing to follow redirect to non-HTTP(S) URL: ${nextUrl}`, null, null, null);
           }
           const crossOrigin = !DefaultApiClient.sameOrigin(originalUrl, nextUrl);
 
@@ -295,7 +295,7 @@ export class DefaultApiClient implements ApiClient {
               0,
               'Refusing to replay request body across HTTPS -> HTTP redirect downgrade ' +
                 `(from ${currentUrl} to ${nextUrl})`,
-              {},
+              null,
               null,
               null
             );
@@ -329,7 +329,7 @@ export class DefaultApiClient implements ApiClient {
          * other SDKs throw "too many redirects" rather than silently
          * returning the final 3xx as if it were a normal response. */
         if (hops >= maxRedirects && DefaultApiClient.isRedirectStatus(response.status)) {
-          throw new ApiError(0, `Too many redirects (exceeded maxRedirects=${maxRedirects})`, {}, null, null);
+          throw new ApiError(0, `Too many redirects (exceeded maxRedirects=${maxRedirects})`, null, null, null);
         }
       }
     } catch (error) {
@@ -339,7 +339,7 @@ export class DefaultApiClient implements ApiClient {
       if (error instanceof ApiError) {
         throw error;
       }
-      throw new ApiError(0, error instanceof Error ? error.message : String(error), {}, null, null, { cause: error });
+      throw new ApiError(0, error instanceof Error ? error.message : String(error), null, null, null, { cause: error });
     }
 
     /* Wrap the post-headers body read in the SDK's transport error type.
@@ -352,7 +352,7 @@ export class DefaultApiClient implements ApiClient {
     try {
       responseBytes = Buffer.from(await response.arrayBuffer());
     } catch (error) {
-      throw new ApiError(0, error instanceof Error ? error.message : String(error), {}, null, null, { cause: error });
+      throw new ApiError(0, error instanceof Error ? error.message : String(error), null, null, null, { cause: error });
     }
     const contentType = response.headers.get('content-type') ?? '';
     const responseBody = DefaultApiClient.isTextContentType(contentType)

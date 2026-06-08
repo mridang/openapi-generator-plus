@@ -823,3 +823,45 @@ test('non-existent caCertPath throws api exception at construction', function ()
     expect(fn (): mixed => new DefaultApiClient($transport))
         ->toThrow(ApiException::class);
 });
+
+test('decompresses a valid gzip-encoded response body', function (): void {
+    /* Baseline for the decompression error-wrapping test below: a well-formed
+     * gzip body declared via Content-Encoding is transparently inflated so the
+     * caller sees the original payload. */
+    $payload = '{"ok":true}';
+    $gzipped = gzencode($payload);
+    expect($gzipped)->not->toBeFalse();
+
+    $mockResponse = new MockResponse((string) $gzipped, [
+        'http_code' => 200,
+        'response_headers' => [
+            'Content-Type' => 'application/json',
+            'Content-Encoding' => 'gzip',
+        ],
+    ]);
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
+
+    $response = $client->sendRequest('GET', 'http://example.com/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($response->body)->toBe($payload);
+});
+
+test('wraps a gzip decompression failure as api exception', function (): void {
+    /* decompression-error-not-wrapped: a body advertised as Content-Encoding:
+     * gzip but whose bytes are not valid gzip makes gzdecode() fail, which the
+     * client raises as a plain \RuntimeException. The transport must wrap that
+     * in the SDK's ApiException so callers catch a single documented type
+     * instead of a raw runtime error leaking through. */
+    $mockResponse = new MockResponse('this is not gzip data', [
+        'http_code' => 200,
+        'response_headers' => [
+            'Content-Type' => 'application/json',
+            'Content-Encoding' => 'gzip',
+        ],
+    ]);
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
+
+    expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/echo', [], null))
+        ->toThrow(ApiException::class);
+});

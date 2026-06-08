@@ -151,6 +151,37 @@ class {{classname}} : BaseApi {
         }
 {{/required}}
 {{/bodyParam}}
+{{! required-nested-param-validation: query/header/form/cookie params live in
+    options. A REQUIRED one must fail loud when absent rather than be silently
+    dropped by the `!= null` guards below — mirrors the path/body checks. }}
+{{#queryParams}}
+{{#required}}
+        requireNotNull(options.{{paramName}}) {
+            "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
+        }
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+        requireNotNull(options.{{paramName}}) {
+            "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
+        }
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+        requireNotNull(options.{{paramName}}) {
+            "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
+        }
+{{/required}}
+{{/formParams}}
+{{#cookieParams}}
+{{#required}}
+        requireNotNull(options.{{paramName}}) {
+            "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
+        }
+{{/required}}
+{{/cookieParams}}
         var path{{^pathParams}} = "{{{path}}}"{{/pathParams}}{{#pathParams}}{{#-first}} =
                 "{{{path}}}"{{/-first}}
                         .replace(
