@@ -11,6 +11,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import com.example.petstore.ApiClient;
 import com.example.petstore.ChasmContainer;
 import com.example.petstore.Configuration;
 import com.example.petstore.DefaultApiClient;
@@ -19,6 +20,7 @@ import com.example.petstore.api.options.AddPetPhotosOptions;
 import com.example.petstore.api.options.DeletePetOptions;
 import com.example.petstore.api.options.FindPetsByStatusOptions;
 import com.example.petstore.api.options.GetPetTagOptions;
+import com.example.petstore.api.options.SetPetPreferencesOptions;
 import com.example.petstore.api.options.UploadPetCertificateOptions;
 import com.example.petstore.api.options.UploadPetDocumentOptions;
 import com.example.petstore.auth.AdminBasicAuthenticator;
@@ -447,5 +449,49 @@ class PetApiTest {
     assertNotNull(opts);
     Pet result = api.getPetById(1L);
     assertNotNull(result);
+  }
+
+  /**
+   * Captures the request body the SDK hands to the transport, without touching the network, so
+   * wire-format assertions can run as fast unit tests.
+   */
+  private static final class CapturingApiClient implements ApiClient {
+    @javax.annotation.Nullable Object capturedBody;
+
+    @Override
+    public com.example.petstore.ApiResponse sendRequest(
+        String method,
+        String url,
+        java.util.Map<String, String> headers,
+        @javax.annotation.Nullable Object body) {
+      this.capturedBody = body;
+      return new com.example.petstore.ApiResponse(
+          200, "{}", java.util.Map.of("Content-Type", "application/json"));
+    }
+  }
+
+  @Test
+  void setPetPreferencesFormBodyIsCanonical() throws Exception {
+    // Parity regression: application/x-www-form-urlencoded body must encode
+    //   - a space as '+' (nickname="a b" -> nickname=a+b)
+    //   - an array as repeated keys, exploded (tags=x&tags=y, never tags=x,y)
+    //   - an absent optional field omitted entirely (no note=)
+    CapturingApiClient capturing = new CapturingApiClient();
+    Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+    PetApi petApi = new PetApi(capturing, config);
+
+    SetPetPreferencesOptions options = new SetPetPreferencesOptions("a b").tags(List.of("x", "y"));
+    petApi.setPetPreferences(1L, options);
+
+    assertNotNull(capturing.capturedBody);
+    String wire = capturing.capturedBody.toString();
+
+    // Order-tolerant on field grouping, but the exact tokens must be present.
+    List<String> pairs = List.of(wire.split("&"));
+    assertThat(pairs).contains("nickname=a+b", "tags=x", "tags=y");
+    assertThat(wire).doesNotContain("note=");
+    assertThat(wire).doesNotContain("tags=x,y");
+    assertThat(wire).doesNotContain("tags%5B%5D");
+    assertThat(wire).doesNotContain("%20");
   }
 }

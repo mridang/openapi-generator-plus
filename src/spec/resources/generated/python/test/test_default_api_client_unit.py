@@ -9,6 +9,7 @@ from petstore_client.default_api_client import (
     _charset_from_content_type,
     _decode_with_charset,
     _guess_content_type,
+    _sanitize_multipart_field_name,
     _sanitize_multipart_filename,
 )
 from petstore_client.transport_options import TransportOptions
@@ -320,6 +321,46 @@ class TestMultipartFilenameSanitization:
         file_like.name = '日本.pdf'
         body = client._build_multipart_body({'upload': file_like}, 'boundary')
         assert b"filename*=UTF-8''%E6%97%A5%E6%9C%AC.pdf" in body
+
+
+class TestMultipartFieldNameUtf8:
+    """multipart-field-name-ascii-fold: a non-ASCII field NAME must reach the
+    wire as raw UTF-8, NOT be transliterated to '?'.
+
+    Field names (unlike filename fallbacks) are carried verbatim per RFC 7578
+    section 5.1.1. The previous bug routed the name through
+    ``_sanitize_multipart_filename`` whose ASCII fallback replaced non-ASCII
+    bytes with ``?``; the dedicated ``_sanitize_multipart_field_name`` keeps
+    the name intact.
+    """
+
+    def test_field_name_helper_preserves_non_ascii(self) -> None:
+        # The helper must return the name unchanged (no '?' substitution).
+        assert _sanitize_multipart_field_name('dépôt') == 'dépôt'
+
+    def test_field_name_helper_escapes_quote_and_backslash(self) -> None:
+        assert _sanitize_multipart_field_name('a"b\\c') == 'a\\"b\\\\c'
+
+    def test_field_name_helper_rejects_crlf(self) -> None:
+        with pytest.raises(ValueError):
+            _sanitize_multipart_field_name('a\r\nX-Injected: yes')
+
+    def test_field_name_helper_rejects_nul(self) -> None:
+        with pytest.raises(ValueError):
+            _sanitize_multipart_field_name('a\x00b')
+
+    def test_multipart_body_preserves_non_ascii_field_name_as_utf8(self) -> None:
+        client = DefaultApiClient()
+        body = client._build_multipart_body({'café': b'x'}, 'boundary')
+        # The name must appear as raw UTF-8 bytes, never folded to '?'.
+        assert 'name="café"'.encode('utf-8') in body
+        assert b'name="caf?"' not in body
+
+    def test_multipart_body_preserves_cjk_field_name_as_utf8(self) -> None:
+        client = DefaultApiClient()
+        body = client._build_multipart_body({'標籤': b'x'}, 'boundary')
+        assert 'name="標籤"'.encode('utf-8') in body
+        assert b'?' not in body.split(b'\r\n\r\n', 1)[0]
 
 
 class TestMultipartContentType:

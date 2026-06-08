@@ -327,6 +327,35 @@ describe PetstoreClient::DefaultApiClient do
     stubs.verify_stubbed_calls
   end
 
+  # ── Non-ASCII multipart field name preserved as UTF-8 (canonical #5) ──
+  #
+  # A multipart form field NAME containing non-ASCII characters must be
+  # emitted verbatim as UTF-8 bytes in the Content-Disposition `name="..."`
+  # parameter — not transliterated to '?', not stripped to ASCII. The field
+  # name is interpolated raw (after CR/LF/NUL rejection and quote escaping)
+  # and the part is built as binary, so the UTF-8 bytes survive intact.
+  it 'preserves a non-ASCII multipart field name as UTF-8' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    client = PetstoreClient::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      # 'café' is a plain scalar form field whose NAME is non-ASCII.
+      client.send_request('POST', 'http://localhost/upload', {}, { 'café' => 'value' })
+    end
+    body_str = captured_body.to_s.dup.force_encoding(Encoding::UTF_8)
+    _(body_str).must_include 'name="café"'
+    # The raw UTF-8 bytes for 'é' (0xC3 0xA9) must be present unmangled.
+    body_bytes = captured_body.to_s.dup.force_encoding(Encoding::ASCII_8BIT)
+    _(body_bytes).must_include 'caf'.b + "\xC3\xA9".b
+    _(body_bytes).wont_include 'name="caf?"'.b
+    stubs.verify_stubbed_calls
+  end
+
   # ── Per-part MIME sniffing (Gap J) ──
 
   it 'sets image/png Content-Type for .png upload' do

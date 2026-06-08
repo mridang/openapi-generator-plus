@@ -429,6 +429,22 @@ class ObjectSerializerTest {
                           com.example.petstore.models.Category>() {}.getType()));
       assertNotNull(ex.getCause(), "exception should have a cause");
     }
+
+    @Test
+    @DisplayName("unknown enum value throws SerializationException")
+    void unknownEnumValueThrowsSerializationException() {
+      // Parity regression: deserializing a payload whose enum field holds a
+      // value the schema never declared (status="banana") must fail loudly
+      // with the SDK's (de)serialization exception, not be silently coerced
+      // to null or a default constant.
+      assertThrows(
+          ObjectSerializer.SerializationException.class,
+          () ->
+              serializer.deserialize(
+                  "{\"name\":\"x\",\"photoUrls\":[],\"status\":\"banana\"}",
+                  new com.fasterxml.jackson.core.type.TypeReference<
+                      com.example.petstore.models.Pet>() {}.getType()));
+    }
   }
 
   @Nested

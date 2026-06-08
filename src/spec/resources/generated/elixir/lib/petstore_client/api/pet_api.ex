@@ -2160,6 +2160,132 @@ defmodule PetstoreClient.Api.PetApi do
   end
 
   @doc """
+  Update a pet&#39;s notification preferences
+
+  Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
+
+  ## Parameters
+    * `pet_id` - integer()
+
+    * `options` - Optional parameters (query, header, form, cookie).
+
+    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+
+  ## Returns
+
+    * `{:ok, ApiResponse}` on success.
+    * `{:error, exception}` on failure.
+
+  """
+  @spec set_pet_preferences(t(), integer(), Options.t(), keyword()) ::
+          {:ok, ApiResponse} | {:error, term()}
+  def set_pet_preferences(%__MODULE__{} = api, pet_id, options, opts \\ []) do
+    case set_pet_preferences_with_http_info(api, pet_id, options, opts) do
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.ApiError.exception(
+           message: "Expected a response body for set_pet_preferences but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Bang version of `set_pet_preferences`. Raises on error.
+  """
+  def set_pet_preferences!(%__MODULE__{} = api, pet_id, options, opts \\ []) do
+    case set_pet_preferences(api, pet_id, options, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `set_pet_preferences` but returns the full `ApiResult`.
+  """
+  @spec set_pet_preferences_with_http_info(t(), integer(), Options.t(), keyword()) ::
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
+  def set_pet_preferences_with_http_info(%__MODULE__{} = api, pet_id, options, opts \\ []) do
+    # Operation declared `security: []` — no auth applied even if the
+    # client has a default authenticator configured (OpenAPI 3.0 spec).
+    auth = nil
+
+    if is_nil(pet_id) do
+      raise ArgumentError,
+            "Missing the required parameter 'pet_id' when calling PetApi.set_pet_preferences"
+    end
+
+    path = "/pet/{petId}/preferences"
+
+    path =
+      String.replace(
+        path,
+        "{petId}",
+        PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
+        |> to_string()
+      )
+
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://") do
+          server_url <> path
+        else
+          path
+        end
+      else
+        path
+      end
+
+    query_params = %{}
+    header_params = %{}
+    request_body = %{}
+    request_body = Map.put(request_body, "nickname", options.nickname)
+
+    request_body =
+      if not is_nil(options) and not is_nil(options.tags) do
+        Map.put(request_body, "tags", options.tags)
+      else
+        request_body
+      end
+
+    request_body =
+      if not is_nil(options) and not is_nil(options.note) do
+        Map.put(request_body, "note", options.note)
+      else
+        request_body
+      end
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      api,
+      :POST,
+      path,
+      query_params,
+      header_params,
+      request_body,
+      ["application/json"],
+      "application/x-www-form-urlencoded",
+      "ApiResponse",
+      auth
+    )
+  end
+
+  @doc """
   Update an existing pet
 
   ## Parameters

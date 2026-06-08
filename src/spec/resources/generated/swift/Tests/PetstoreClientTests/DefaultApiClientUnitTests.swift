@@ -252,6 +252,26 @@ import Testing
             "expected percent-encoded Japanese characters, got: \(bodyStr)")
     }
 
+    // multipart-nonascii-field-name: a multipart part whose field NAME contains
+    // non-ASCII characters must carry the name through as raw UTF-8 in the
+    // Content-Disposition `name="..."` parameter — not transliterated to `?`,
+    // stripped, or percent-encoded.
+    @Test func testMultipartNonAsciiFieldNamePreservedAsUtf8() throws {
+        let formParts: [String: Any] = ["café": "value"]
+        let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
+        let bodyStr = String(data: body, encoding: .utf8) ?? ""
+        #expect(
+            bodyStr.contains("name=\"café\""),
+            "expected raw UTF-8 field name in Content-Disposition, got: \(bodyStr)")
+        #expect(
+            !bodyStr.contains("name=\"caf?\""),
+            "field name must not be transliterated to ?, got: \(bodyStr)")
+        /* The non-ASCII bytes for é (0xC3 0xA9) must appear verbatim in the body. */
+        #expect(
+            body.range(of: Data([0xC3, 0xA9])) != nil,
+            "expected UTF-8 bytes for é in the multipart body")
+    }
+
     // MARK: - Per-part MIME sniffing (Gap J)
 
     @Test func testMultipartUsesPngMimeForPngFilename() throws {

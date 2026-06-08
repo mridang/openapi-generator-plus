@@ -297,27 +297,32 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{/hasCookieParams}}
 
 {{#hasFormParams}}
-        var formBody: [String: String] = [:]
+        /* Form fields are stored as `Any` so array values survive as arrays
+         * (rather than being stringified to a Swift "[a, b]" description) and
+         * can be emitted as repeated keys by the form/multipart encoder.
+         * Optional nil fields are omitted entirely — never sent as an empty
+         * `name=` pair. */
+        var formBody: [String: Any] = [:]
 {{#formParams}}
 {{#required}}
 {{#vendorExtensions.op.optionsParamRequired}}
-        formBody["{{baseName}}"] = "\(options.{{paramName}})"
+        formBody["{{baseName}}"] = options.{{paramName}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
         if let options = options {
-            formBody["{{baseName}}"] = "\(options.{{paramName}})"
+            formBody["{{baseName}}"] = options.{{paramName}}
         }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/required}}
 {{^required}}
 {{#vendorExtensions.op.optionsParamRequired}}
         if let val = options.{{paramName}} {
-            formBody["{{baseName}}"] = "\(val)"
+            formBody["{{baseName}}"] = val
         }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
         if let options = options, let val = options.{{paramName}} {
-            formBody["{{baseName}}"] = "\(val)"
+            formBody["{{baseName}}"] = val
         }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/required}}

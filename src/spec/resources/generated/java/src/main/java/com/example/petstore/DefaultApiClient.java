@@ -761,7 +761,9 @@ public final class DefaultApiClient implements ApiClient {
                   + "\"; "
                   + buildFilenameDirective(fieldName)
                   + "\r\n"
-                  + "Content-Type: application/octet-stream\r\n\r\n")
+                  + "Content-Type: "
+                  + guessMimeTypeFromName(fieldName)
+                  + "\r\n\r\n")
               .getBytes(StandardCharsets.UTF_8));
       byteArrays.add(bytes);
     } else if (value instanceof InputStream stream) {
@@ -773,7 +775,9 @@ public final class DefaultApiClient implements ApiClient {
                     + "\"; "
                     + buildFilenameDirective(fieldName)
                     + "\r\n"
-                    + "Content-Type: application/octet-stream\r\n\r\n")
+                    + "Content-Type: "
+                    + guessMimeTypeFromName(fieldName)
+                    + "\r\n\r\n")
                 .getBytes(StandardCharsets.UTF_8));
         byteArrays.add(stream.readAllBytes());
       } catch (IOException e) {

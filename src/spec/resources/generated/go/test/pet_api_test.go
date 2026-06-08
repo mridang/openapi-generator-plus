@@ -497,6 +497,70 @@ func TestPetApi_MultipartObjectPartHasJSONContentType(t *testing.T) {
 	}
 }
 
+// multipart-object-part-contenttype-go (file parts): an uploaded file part must
+// advertise a Content-Type derived from its filename extension (image/png for a
+// .png), with application/octet-stream as the fallback — matching the other 11
+// SDKs. AddPetPhotos uploads files as the "files" multipart part.
+func TestPetApi_MultipartFilePartContentTypeFromExtension(t *testing.T) {
+	t.Parallel()
+	var filePartContentType string
+	var sawFilePart bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, params, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+		if err == nil {
+			if boundary, ok := params["boundary"]; ok {
+				mr := multipart.NewReader(r.Body, boundary)
+				for {
+					part, perr := mr.NextPart()
+					if perr != nil {
+						break
+					}
+					if part.FormName() == "files" {
+						sawFilePart = true
+						filePartContentType = part.Header.Get("Content-Type")
+					}
+				}
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	defer server.Close()
+
+	api := newPetApiForMock(t, server)
+
+	// A temp file whose name ends in .png so the part Content-Type is derived
+	// from the extension.
+	f, err := os.CreateTemp("", "avatar-*.png")
+	if err != nil {
+		t.Fatalf("CreateTemp failed: %v", err)
+	}
+	if _, err := f.WriteString("fake-png-bytes"); err != nil {
+		t.Fatalf("write temp failed: %v", err)
+	}
+	if _, err := f.Seek(0, 0); err != nil {
+		t.Fatalf("seek temp failed: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = f.Close()
+		_ = os.Remove(f.Name())
+	})
+
+	metadata := models.NewPhotoMetadata()
+	_, _ = api.AddPetPhotos(int64(1), &options.AddPetPhotosOptions{
+		Files:    []*os.File{f},
+		Metadata: *metadata,
+	})
+
+	if !sawFilePart {
+		t.Fatal("expected the multipart body to contain a 'files' part")
+	}
+	if filePartContentType != "image/png" {
+		t.Errorf("expected file part Content-Type image/png, got %q", filePartContentType)
+	}
+}
+
 func TestPetApi_ErrorHandling_NotFound(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -578,6 +642,31 @@ func TestPetApi_AddPetPerCallAuthOverride(t *testing.T) {
 	}
 	if capturedAuth != "Bearer per-call-token" {
 		t.Errorf("expected per-call auth header, got %q", capturedAuth)
+	}
+}
+
+// enum-reject-unknown-value: deserialising a model whose enum-typed field
+// carries a value outside the declared members must fail with a
+// (de)serialisation error rather than silently accepting it. Pet.Status is the
+// typed PetStatusEnum; a server response with status "banana" must surface an
+// error from GetPetById.
+func TestPetApi_DeserializeUnknownEnumValueErrors(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[],"status":"banana"}`))
+	}))
+	defer server.Close()
+
+	api := newPetApiForMock(t, server)
+
+	_, err := api.GetPetById(int64(1), nil)
+	if err == nil {
+		t.Fatal("expected a deserialization error for an unknown enum value, got nil")
+	}
+	if !strings.Contains(err.Error(), "banana") {
+		t.Errorf("expected error to reference the rejected enum value %q, got: %v", "banana", err)
 	}
 }
 

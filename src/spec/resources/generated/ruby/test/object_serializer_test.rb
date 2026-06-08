@@ -435,6 +435,24 @@ describe PetstoreClient::ObjectSerializer do
       result = PetstoreClient::ObjectSerializer.deserialize('"approved"', 'TestStatusEnumDeserialize')
       _(result).must_equal 'approved'
     end
+
+    # Canonical behavior 6 through a real generated model: Pet.status is an
+    # inline enum (available/pending/sold) backed by dry-struct's
+    # Types::String.enum. An unknown wire value must surface the SDK
+    # (de)serialization error rather than silently coercing to a default or
+    # an "unknown" sentinel.
+    it 'raises SerializationError when an inline model enum has an unknown value' do
+      json = '{"name":"doggie","photoUrls":["http://x/p.jpg"],"status":"banana"}'
+      _(proc {
+        PetstoreClient::ObjectSerializer.deserialize(json, 'Pet')
+      }).must_raise(PetstoreClient::SerializationError)
+    end
+
+    it 'deserializes an inline model enum with a known value' do
+      json = '{"name":"doggie","photoUrls":["http://x/p.jpg"],"status":"available"}'
+      pet = PetstoreClient::ObjectSerializer.deserialize(json, 'Pet')
+      _(pet.status).must_equal 'available'
+    end
   end
 
   # ── enum frozen const + VALUES validation (#11) ──

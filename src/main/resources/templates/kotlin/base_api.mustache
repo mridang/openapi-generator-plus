@@ -188,9 +188,25 @@ abstract class BaseApi {
                     "text/plain" == contentType -> body.toString()
                     "application/x-www-form-urlencoded" == contentType && body is Map<*, *> -> {
                         val formParams = body as Map<String, Any?>
-                        formParams.entries.joinToString("&") { (key, value) ->
-                            "${encode(key)}=${encode(value.toString())}"
+                        val parts = mutableListOf<String>()
+                        for ((key, value) in formParams) {
+                            // Optional/absent fields are passed as null and must be
+                            // OMITTED from the wire body (parity rule 2), not encoded
+                            // as the literal string "null".
+                            if (value == null) continue
+                            if (value is Collection<*>) {
+                                // Array fields explode into repeated keys —
+                                // `tags=a&tags=b` (parity rule 1) — rather than a
+                                // single bracket-mangled `tags=[a, b]` value.
+                                for (item in value) {
+                                    if (item == null) continue
+                                    parts.add("${encode(key)}=${encode(objectSerializer.stringify(item))}")
+                                }
+                            } else {
+                                parts.add("${encode(key)}=${encode(objectSerializer.stringify(value))}")
+                            }
                         }
+                        parts.joinToString("&")
                     }
                     else -> objectSerializer.serialize(body)
                 }

@@ -1111,6 +1111,66 @@ module PetstoreClient
         )
       end
 
+      # Update a pet&#39;s notification preferences
+      # Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
+      # @param pet_id [Integer]
+
+      # @param options [SetPetPreferencesOptions] options for query, header, form, and cookie parameters
+
+      # @return [ApiResponse]
+      # @raise [ApiError] if fails to make API call
+      def set_pet_preferences(pet_id, options)
+        if pet_id.nil?
+          raise ArgumentError,
+            "Missing the required parameter 'pet_id' when calling PetApi.set_pet_preferences"
+        end
+
+        result = set_pet_preferences_with_http_info(pet_id, options)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise PetstoreClient::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def set_pet_preferences_with_http_info(pet_id, options)
+        if pet_id.nil?
+          raise ArgumentError,
+            "Missing the required parameter 'pet_id' when calling PetApi.set_pet_preferences"
+        end
+
+        path = '/pet/{petId}/preferences'
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        # @type var request_body: Hash[String, untyped]
+        request_body = {}
+        request_body['nickname'] = options.nickname
+        request_body['tags'] = options.tags unless options.tags.nil?
+        request_body['note'] = options.note unless options.note.nil?
+
+        invoke_api_for_result(
+          :POST, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/x-www-form-urlencoded',
+          'ApiResponse',
+          nil
+        )
+      end
+
       # Update an existing pet
       # @param pet_id [Integer] ID of pet to update
       # @param pet [Pet] Pet object that needs to be updated

@@ -499,6 +499,39 @@ test('multipart resource falls back to octet stream', function (): void {
     expect($capturedBody)->toContain('Content-Type: application/octet-stream');
 });
 
+// -- Canonical behavior #5: non-ASCII multipart field name preserved as UTF-8 --
+
+test('multipart non ascii field name preserved as utf 8', function (): void {
+    /* A multipart form field whose NAME contains non-ASCII characters must
+     * travel on the wire as raw UTF-8 in the Content-Disposition name=
+     * directive — not transliterated to '?' and not stripped. This pins the
+     * cross-SDK invariant for unicode field names. */
+    $fieldName = 'caféMénù'; // contains é and ù
+
+    $capturedBody = '';
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$capturedBody): MockResponse {
+            $capturedBody = collectDefaultApiClientRequestBody($options['body'] ?? '');
+            return new MockResponse('{}', ['http_code' => 200]);
+        }
+    );
+
+    $client = new StubbedDefaultApiClient($mockClient);
+    $client->sendRequest(
+        'POST',
+        'http://example.com/upload',
+        [],
+        [$fieldName => 'value']
+    );
+
+    // The exact UTF-8 bytes of the field name must appear in the part's
+    // Content-Disposition header.
+    expect($capturedBody)->toContain('name="' . $fieldName . '"');
+    // It must not have been mangled into question marks or dropped.
+    expect($capturedBody)->not->toContain('name="caf?M?n?"');
+    expect($capturedBody)->not->toContain('name="cafMn"');
+});
+
 test('decodes iso 8859 1 error body to utf 8', function (): void {
     $body = "\xE9rreur"; // ISO-8859-1 'érreur'
     $mockResponse = new MockResponse($body, [

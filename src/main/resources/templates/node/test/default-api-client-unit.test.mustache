@@ -294,6 +294,103 @@ describe('DefaultApiClient.buildContentDisposition multipart filename safety', (
   });
 });
 
+// Canonical behavior #4 — a multipart file part advertises a Content-Type
+// derived from the filename extension, falling back to
+// application/octet-stream when the extension is unknown.
+describe('DefaultApiClient.mimeTypeForFilename (canonical behavior #4)', () => {
+  it('maps .png to image/png', () => {
+    expect(DefaultApiClient.mimeTypeForFilename('avatar.png')).toBe('image/png');
+  });
+
+  it('maps .jpg/.jpeg to image/jpeg', () => {
+    expect(DefaultApiClient.mimeTypeForFilename('a.jpg')).toBe('image/jpeg');
+    expect(DefaultApiClient.mimeTypeForFilename('a.jpeg')).toBe('image/jpeg');
+  });
+
+  it('falls back to application/octet-stream for an unknown extension', () => {
+    expect(DefaultApiClient.mimeTypeForFilename('blob.xyzzy')).toBe('application/octet-stream');
+  });
+
+  it('falls back to application/octet-stream when there is no extension', () => {
+    expect(DefaultApiClient.mimeTypeForFilename('noext')).toBe('application/octet-stream');
+  });
+});
+
+// Canonical behaviors #4 and #5, end-to-end through sendRequest: the
+// assembled multipart/form-data body must (a) advertise each file part's
+// Content-Type from its filename extension and (b) carry a non-ASCII field
+// name as raw UTF-8 bytes (never '?'-mangled or stripped). A local server
+// captures the exact request bytes so the assertions check the wire form.
+describe('DefaultApiClient multipart wire form (canonical behaviors #4, #5)', () => {
+  function captureRawBody(): Promise<{
+    url: string;
+    getBody: () => Buffer;
+    close: () => void;
+  }> {
+    return new Promise((resolve) => {
+      let chunks: Buffer[] = [];
+      const srv = http.createServer((req, res) => {
+        chunks = [];
+        req.on('data', (chunk: Buffer) => chunks.push(chunk));
+        req.on('end', () => {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end('{"ok":true}');
+        });
+      });
+      srv.listen(0, '127.0.0.1', () => {
+        const addr = srv.address() as { port: number };
+        resolve({
+          url: `http://127.0.0.1:${addr.port}/upload`,
+          getBody: () => Buffer.concat(chunks),
+          close: () => srv.close(),
+        });
+      });
+    });
+  }
+
+  it('#4 file part Content-Type is derived from the filename extension', async () => {
+    const { url, getBody, close } = await captureRawBody();
+    try {
+      const client = new DefaultApiClient();
+      // The field name doubles as the filename for Buffer parts, so the
+      // extension on the field name drives the per-part Content-Type.
+      await client.sendRequest('POST', url, {}, { 'avatar.png': Buffer.from([0x89, 0x50, 0x4e, 0x47]) });
+      const body = getBody().toString('binary');
+      expect(body).toContain('Content-Type: image/png');
+    } finally {
+      close();
+    }
+  });
+
+  it('#4 unknown file extension falls back to application/octet-stream', async () => {
+    const { url, getBody, close } = await captureRawBody();
+    try {
+      const client = new DefaultApiClient();
+      await client.sendRequest('POST', url, {}, { 'data.xyzzy': Buffer.from([0x00, 0x01, 0x02]) });
+      const body = getBody().toString('binary');
+      expect(body).toContain('Content-Type: application/octet-stream');
+    } finally {
+      close();
+    }
+  });
+
+  it('#5 non-ASCII field name is preserved as UTF-8 in the part header', async () => {
+    const { url, getBody, close } = await captureRawBody();
+    try {
+      const client = new DefaultApiClient();
+      await client.sendRequest('POST', url, {}, { café: 'crème' });
+      const body = getBody();
+      // The field name must appear verbatim as UTF-8 bytes — not '?'-mangled
+      // (latin1 lossy encode) and not stripped.
+      expect(body.toString('utf-8')).toContain('name="café"');
+      const cafeUtf8 = Buffer.from('café', 'utf-8');
+      expect(body.includes(cafeUtf8)).toBe(true);
+    } finally {
+      close();
+    }
+  });
+});
+
 describe('DefaultApiClient proxy authentication', () => {
   // Skipped: the bundled Squid container under
   // test/fixtures/proxy/squid.conf does NOT have basic auth enabled

@@ -274,6 +274,26 @@ internal enum ObjectSerializer {
         return stringify(value)
     }
 
+    /// Attempts to interpret a value as an array, returning each element
+    /// stringified. Returns nil when the value is not an array (so the caller
+    /// can fall back to scalar encoding). Nil array elements are dropped so an
+    /// optional-typed array never emits an empty entry.
+    static func toStringList(_ value: Any?) -> [String]? {
+        if let items = value as? [String] {
+            return items
+        }
+        if let items = value as? [String?] {
+            return items.compactMap { $0 }
+        }
+        if let items = value as? [Any?] {
+            return items.compactMap { $0.map { stringify($0) } }
+        }
+        if let items = value as? [Any] {
+            return items.map { stringify($0) }
+        }
+        return nil
+    }
+
     /// Resolve a oneOf schema by attempting deserialization against each candidate.
     /// Each candidate is a closure that takes parsed JSON (Any) and returns a deserialized value.
     /// Returns the first successful result, or throws a ``SerializationError`` when no

@@ -11,7 +11,7 @@ use std::sync::Arc;
 use base64::Engine;
 use serde::de::DeserializeOwned;
 
-use crate::api_client::{ApiClient, RequestBody};
+use crate::api_client::{ApiClient, MultipartValue, RequestBody};
 use crate::api_error::ApiError;
 use crate::api_response::ApiResponse;
 use crate::api_result::ApiResult;
@@ -37,6 +37,14 @@ pub(crate) struct InvokeApiParams<'a> {
     pub query_params: Vec<(String, String)>,
     pub header_params: HashMap<String, String>,
     pub body: Option<Vec<u8>>,
+    /// Multipart/form-data fields. When set, the request is sent as
+    /// `multipart/form-data` and `body` is ignored. File parts carry their
+    /// bytes via `MultipartValue::Bytes`, repeated fields via
+    /// `MultipartValue::List`, and every other part via `MultipartValue::Text`.
+    /// Serialization (boundary, per-part Content-Type from the field-name
+    /// extension, RFC 5987 filename handling, non-ASCII field-name UTF-8
+    /// preservation) is performed by the API client's `serialize_multipart_body`.
+    pub multipart: Option<HashMap<String, MultipartValue>>,
     pub accepts: Vec<&'a str>,
     pub content_type: &'a str,
     pub return_type: &'a str,
@@ -163,23 +171,21 @@ impl BaseApi {
         /* Inject trace context */
         trace_context_util::inject_trace_context(&mut headers);
 
-        /* Serialize body -- multipart/form-data is handled separately so that
-         * the boundary can be injected into the Content-Type header. */
-        let serialized_body: Option<RequestBody> = if params.content_type == "multipart/form-data" {
-            if let Some(body_bytes) = params.body {
-                let form_fields: std::collections::HashMap<String, serde_json::Value> =
-                    serde_json::from_slice(&body_bytes)?;
-                let boundary = uuid::Uuid::new_v4().to_string();
-                headers.insert(
-                    "Content-Type".to_string(),
-                    format!("multipart/form-data; boundary={}", boundary),
-                );
-                Some(RequestBody::Bytes(build_multipart_body(
-                    &form_fields,
-                    &boundary,
-                )?))
-            } else {
+        /* Serialize body. For multipart/form-data we hand the structured
+         * fields to the API client as `RequestBody::Multipart`; the client's
+         * `serialize_multipart_body` generates the boundary, sets the
+         * `Content-Type` header (overriding the placeholder selected above),
+         * derives each file part's Content-Type from its field-name extension,
+         * emits RFC 5987 directives for non-ASCII filenames, and preserves
+         * non-ASCII field names as UTF-8. The placeholder Content-Type chosen
+         * by the header selector lacks the boundary, so we drop it here and let
+         * the client install the boundary-bearing value. */
+        let serialized_body: Option<RequestBody> = if let Some(fields) = params.multipart {
+            headers.remove("Content-Type");
+            if fields.is_empty() {
                 None
+            } else {
+                Some(RequestBody::Multipart(fields))
             }
         } else {
             serialize_body(params.body, params.content_type)?.map(RequestBody::Bytes)
@@ -324,118 +330,13 @@ fn build_query_string(query_params: &[(String, String)]) -> String {
     parts.join("&")
 }
 
-/// Build a multipart/form-data request body from a map of form fields.
-///
-/// Each value may be a JSON string, number, boolean, array (repeated field),
-/// object (serialized as JSON part), or null (skipped).
-fn build_multipart_body(
-    form_fields: &std::collections::HashMap<String, serde_json::Value>,
-    boundary: &str,
-) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
-    let mut body = Vec::new();
-
-    for (name, value) in form_fields {
-        if let serde_json::Value::Array(items) = value {
-            for item in items {
-                append_multipart_field(&mut body, boundary, name, item)?;
-            }
-        } else {
-            append_multipart_field(&mut body, boundary, name, value)?;
-        }
-    }
-    body.extend_from_slice(format!("--{}--\r\n", boundary).as_bytes());
-    Ok(body)
-}
-
-fn append_multipart_field(
-    body: &mut Vec<u8>,
-    boundary: &str,
-    name: &str,
-    value: &serde_json::Value,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    /* W-new-2: validate the field name on every branch (string, number,
-     * boolean, JSON, binary) before it lands in Content-Disposition. The name
-     * is interpolated directly into `Content-Disposition: form-data;
-     * name="..."`, so CR/LF/NUL must be rejected even when the value is not
-     * binary, and quote/backslash must be escaped so a malicious name cannot
-     * break out of the `name="..."` parameter. */
-    validate_multipart_field_name(name)?;
-    let safe_name = escape_multipart_field_name(name);
-    match value {
-        serde_json::Value::String(s) => {
-            body.extend_from_slice(
-                format!(
-                    "--{}\r\nContent-Disposition: form-data; name=\"{}\"\r\n\r\n{}\r\n",
-                    boundary, safe_name, s
-                )
-                .as_bytes(),
-            );
-        }
-        serde_json::Value::Number(n) => {
-            body.extend_from_slice(
-                format!(
-                    "--{}\r\nContent-Disposition: form-data; name=\"{}\"\r\n\r\n{}\r\n",
-                    boundary, safe_name, n
-                )
-                .as_bytes(),
-            );
-        }
-        serde_json::Value::Bool(b) => {
-            body.extend_from_slice(
-                format!(
-                    "--{}\r\nContent-Disposition: form-data; name=\"{}\"\r\n\r\n{}\r\n",
-                    boundary, safe_name, b
-                )
-                .as_bytes(),
-            );
-        }
-        serde_json::Value::Object(_) => {
-            let json = serde_json::to_string(value)?;
-            body.extend_from_slice(
-                format!(
-                    "--{}\r\nContent-Disposition: form-data; name=\"{}\"\r\nContent-Type: application/json\r\n\r\n{}\r\n",
-                    boundary, safe_name, json
-                )
-                .as_bytes(),
-            );
-        }
-        serde_json::Value::Null => {}
-        serde_json::Value::Array(_) => {
-            /* Nested arrays are serialized as JSON */
-            let json = serde_json::to_string(value)?;
-            body.extend_from_slice(
-                format!(
-                    "--{}\r\nContent-Disposition: form-data; name=\"{}\"\r\nContent-Type: application/json\r\n\r\n{}\r\n",
-                    boundary, safe_name, json
-                )
-                .as_bytes(),
-            );
-        }
-    }
-    Ok(())
-}
-
-/// Rejects multipart form field names that would allow Content-Disposition
-/// header injection or smuggling. Returns Err for names containing CR, LF, or
-/// NUL. Must run on every branch of `append_multipart_field` because the name
-/// is interpolated directly into `Content-Disposition: form-data; name="..."`.
-pub(crate) fn validate_multipart_field_name(name: &str) -> Result<(), String> {
-    for c in name.chars() {
-        if c == '\r' || c == '\n' || c == '\0' {
-            return Err(
-                "multipart field name must not contain CR, LF, or NUL characters".to_string(),
-            );
-        }
-    }
-    Ok(())
-}
-
-/// Backslash-escapes embedded `"` and `\` in a multipart field name so a
-/// malicious name cannot break out of the `name="..."` parameter. Caller must
-/// have already validated CR/LF/NUL via `validate_multipart_field_name`.
-pub(crate) fn escape_multipart_field_name(name: &str) -> String {
-    name.replace('\\', "\\\\").replace('"', "\\\"")
-}
+/* multipart/form-data serialization (boundary, per-part Content-Type from the
+ * field-name extension, RFC 5987 filename handling, non-ASCII field-name UTF-8
+ * preservation, repeated-field expansion, field-name validation/escaping) lives
+ * in `default_api_client::serialize_multipart_body`. `invoke_api` hands the
+ * structured `HashMap<String, MultipartValue>` to the client as
+ * `RequestBody::Multipart`; the client owns the wire format so the same bytes
+ * and boundary can be replayed across 307/308 redirects. */
 
 pub(crate) fn serialize_body(
     body: Option<Vec<u8>>,
@@ -462,23 +363,61 @@ pub(crate) fn serialize_body(
     }
 
     if content_type == "application/x-www-form-urlencoded" {
-        /* Body arrives as JSON-serialized HashMap; re-encode as URL form data.
-         * Uses the shared form_url_encode helper (utils::form_url_encode) so
-         * the byte-level escape set matches the OAuth2 token-endpoint helper
-         * exactly — space becomes `+`, every non-unreserved byte becomes
-         * %XX. The `urlencoding` crate emits `%20` for space, which is valid
-         * RFC 3986 query syntax but inconsistent with the OAuth body
-         * encoder, so we deliberately do not use it here. */
-        let params: std::collections::HashMap<String, String> = serde_json::from_slice(&body)?;
-        let encoded: Vec<String> = params
-            .iter()
-            .map(|(k, v)| format!("{}={}", form_url_encode(k), form_url_encode(v)))
-            .collect();
+        /* The body arrives as a JSON array of `[key, value]` pairs in
+         * spec-declaration order (built by the operation template). Each value
+         * is one of:
+         *   - a JSON array  → emitted as REPEATED keys (`tags=a&tags=b`), the
+         *                     form-explode convention shared by all 12 SDKs
+         *                     (never a bracketed/joined `tags=[a, b]`);
+         *   - JSON null     → OMITTED entirely (an absent optional field must
+         *                     not appear as an empty `note=` pair);
+         *   - any scalar    → stringified and emitted as a single pair.
+         * Encoding uses the shared `form_url_encode` helper so the byte-level
+         * escape set matches the OAuth2 token-endpoint helper exactly: a space
+         * becomes `+` (the application/x-www-form-urlencoded convention), not
+         * `%20`, and every other non-unreserved byte becomes `%XX`. */
+        let pairs: Vec<(String, serde_json::Value)> = serde_json::from_slice(&body)?;
+        let mut encoded: Vec<String> = Vec::new();
+        for (key, value) in pairs {
+            match value {
+                serde_json::Value::Null => {}
+                serde_json::Value::Array(items) => {
+                    for item in items {
+                        encoded.push(format!(
+                            "{}={}",
+                            form_url_encode(&key),
+                            form_url_encode(&form_scalar_to_string(&item))
+                        ));
+                    }
+                }
+                scalar => {
+                    encoded.push(format!(
+                        "{}={}",
+                        form_url_encode(&key),
+                        form_url_encode(&form_scalar_to_string(&scalar))
+                    ));
+                }
+            }
+        }
         return Ok(Some(encoded.join("&").into_bytes()));
     }
 
     /* Default: JSON -- body is already serialized by the caller */
     Ok(Some(body))
+}
+
+/// Renders a single JSON scalar as the string form used on the wire for a
+/// form-urlencoded value. Mirrors `object_serializer::stringify`: strings pass
+/// through unquoted, numbers/booleans use their natural rendering, null becomes
+/// empty, and any residual composite is rendered as compact JSON.
+fn form_scalar_to_string(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Bool(b) => b.to_string(),
+        serde_json::Value::Number(n) => n.to_string(),
+        serde_json::Value::Null => String::new(),
+        other => other.to_string(),
+    }
 }
 
 fn throw_api_error(response: &ApiResponse) -> Box<dyn std::error::Error + Send + Sync> {
@@ -540,37 +479,93 @@ fn is_valid_cookie_value(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::serialize_body;
-    use std::collections::HashMap;
+
+    /// Encodes a list of form pairs the way the operation template does: a JSON
+    /// array of `[key, value]` tuples preserving declaration order.
+    fn encode_form_pairs(pairs: &[(&str, serde_json::Value)]) -> Vec<u8> {
+        let owned: Vec<(String, serde_json::Value)> = pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.clone()))
+            .collect();
+        serde_json::to_vec(&owned).unwrap()
+    }
 
     #[test]
     fn test_serialize_body_form_urlencoded() {
-        let mut params = HashMap::new();
-        params.insert("name".to_string(), "alice".to_string());
-        let json_bytes = serde_json::to_vec(&params).unwrap();
+        let json_bytes = encode_form_pairs(&[("name", serde_json::json!("alice"))]);
         let result = serialize_body(Some(json_bytes), "application/x-www-form-urlencoded").unwrap();
         assert!(result.is_some());
         let body_str = String::from_utf8(result.unwrap()).unwrap();
-        assert!(
-            body_str.contains("name=alice"),
+        assert_eq!(
+            body_str, "name=alice",
             "expected URL-encoded form data, got: {}",
             body_str
         );
     }
 
+    // form-body-space-encoding (behavior 3): a space in an
+    // application/x-www-form-urlencoded value MUST be encoded as `+`, not `%20`.
     #[test]
     fn test_serialize_body_form_urlencoded_space_as_plus() {
-        /* form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
-         * mandates '+' for a space (WHATWG/HTML form-encoding), not '%20'.
-         * The shared form_url_encode helper emits '+', matching the other SDKs. */
-        let mut params = HashMap::new();
-        params.insert("full name".to_string(), "Ada Lovelace".to_string());
-        let json_bytes = serde_json::to_vec(&params).unwrap();
+        let json_bytes = encode_form_pairs(&[("full name", serde_json::json!("Ada Lovelace"))]);
         let result = serialize_body(Some(json_bytes), "application/x-www-form-urlencoded").unwrap();
         let body_str = String::from_utf8(result.unwrap()).unwrap();
         assert_eq!(body_str, "full+name=Ada+Lovelace");
         assert!(
             !body_str.contains("%20"),
             "space must encode as +, not %20: {}",
+            body_str
+        );
+    }
+
+    // form-array-repeated-keys (behavior 1): an array form field MUST serialize
+    // as repeated keys (`tags=a&tags=b`), never a bracketed/joined `tags=[a, b]`
+    // or `tags=a,b`.
+    #[test]
+    fn test_serialize_body_form_urlencoded_array_repeated_keys() {
+        let json_bytes = encode_form_pairs(&[
+            ("nickname", serde_json::json!("Rex")),
+            ("tags", serde_json::json!(["fluffy", "good boy"])),
+        ]);
+        let result = serialize_body(Some(json_bytes), "application/x-www-form-urlencoded")
+            .unwrap()
+            .unwrap();
+        let body_str = String::from_utf8(result).unwrap();
+        assert_eq!(body_str, "nickname=Rex&tags=fluffy&tags=good+boy");
+        // No bracketed / comma-joined collapse.
+        assert!(
+            !body_str.contains('['),
+            "must not bracket the array: {}",
+            body_str
+        );
+        assert!(
+            !body_str.contains("tags=fluffy%2Cgood"),
+            "must not comma-join: {}",
+            body_str
+        );
+        assert!(
+            !body_str.contains("tags=fluffy,good"),
+            "must not comma-join: {}",
+            body_str
+        );
+    }
+
+    // form-optional-null-omitted (behavior 2): an optional field whose value is
+    // null/absent MUST be omitted entirely — no empty `note=` pair on the wire.
+    #[test]
+    fn test_serialize_body_form_urlencoded_null_field_omitted() {
+        let json_bytes = encode_form_pairs(&[
+            ("nickname", serde_json::json!("Rex")),
+            ("note", serde_json::Value::Null),
+        ]);
+        let result = serialize_body(Some(json_bytes), "application/x-www-form-urlencoded")
+            .unwrap()
+            .unwrap();
+        let body_str = String::from_utf8(result).unwrap();
+        assert_eq!(body_str, "nickname=Rex");
+        assert!(
+            !body_str.contains("note"),
+            "null field must be omitted: {}",
             body_str
         );
     }

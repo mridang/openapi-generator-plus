@@ -641,8 +641,9 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                 _ = content.Headers.Remove("Content-Disposition");
                 _ = content.Headers.TryAddWithoutValidation(
                     "Content-Disposition",
-                    "form-data; name=\"" + EscapeQuotedString(name) + "\"; "
-                        + BuildFilenameDirective(name));
+                    EncodeHeaderValueUtf8(
+                        "form-data; name=\"" + EscapeQuotedString(name) + "\"; "
+                            + BuildFilenameDirective(name)));
                 multipart.Add(content);
                 break;
             }
@@ -655,24 +656,47 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                 _ = content.Headers.Remove("Content-Disposition");
                 _ = content.Headers.TryAddWithoutValidation(
                     "Content-Disposition",
-                    "form-data; name=\"" + EscapeQuotedString(name) + "\"; "
-                        + BuildFilenameDirective(name));
+                    EncodeHeaderValueUtf8(
+                        "form-data; name=\"" + EscapeQuotedString(name) + "\"; "
+                            + BuildFilenameDirective(name)));
                 multipart.Add(content);
                 break;
             }
             case string s:
-                multipart.Add(BuildTextPart(s), name);
+            {
+                ValidateMultipartFilename(name);
+                StringContent content = BuildTextPart(s);
+                _ = content.Headers.Remove("Content-Disposition");
+                _ = content.Headers.TryAddWithoutValidation(
+                    "Content-Disposition",
+                    EncodeHeaderValueUtf8(
+                        "form-data; name=\"" + EscapeQuotedString(name) + "\""));
+                multipart.Add(content);
                 break;
+            }
             default:
                 if (value is int or long or float or double or bool or decimal)
                 {
-                    multipart.Add(BuildTextPart(value.ToString() ?? ""), name);
+                    ValidateMultipartFilename(name);
+                    StringContent scalarContent = BuildTextPart(value.ToString() ?? "");
+                    _ = scalarContent.Headers.Remove("Content-Disposition");
+                    _ = scalarContent.Headers.TryAddWithoutValidation(
+                        "Content-Disposition",
+                        EncodeHeaderValueUtf8(
+                            "form-data; name=\"" + EscapeQuotedString(name) + "\""));
+                    multipart.Add(scalarContent);
                 }
                 else
                 {
+                    ValidateMultipartFilename(name);
                     string json = System.Text.Json.JsonSerializer.Serialize(value);
                     StringContent jsonContent = new(json, Encoding.UTF8, "application/json");
-                    multipart.Add(jsonContent, name);
+                    _ = jsonContent.Headers.Remove("Content-Disposition");
+                    _ = jsonContent.Headers.TryAddWithoutValidation(
+                        "Content-Disposition",
+                        EncodeHeaderValueUtf8(
+                            "form-data; name=\"" + EscapeQuotedString(name) + "\""));
+                    multipart.Add(jsonContent);
                 }
                 break;
         }
@@ -691,6 +715,23 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         StringContent content = new(value);
         content.Headers.ContentType = null;
         return content;
+    }
+
+    /// <summary>
+    /// Re-encodes a header value so its UTF-8 bytes survive .NET's Latin-1
+    /// header serialization. <see cref="System.Net.Http.Headers"/> writes each
+    /// <c>char</c> of a header value as a single Latin-1 byte; a multi-byte
+    /// UTF-8 field name (e.g. a non-ASCII Content-Disposition <c>name</c>)
+    /// would otherwise be mangled or dropped on the wire. By mapping each UTF-8
+    /// byte to one Latin-1 <c>char</c> here, the round-trip reproduces the
+    /// original UTF-8 byte sequence — so non-ASCII multipart field names are
+    /// preserved verbatim, matching the other 11 SDKs (which build the
+    /// multipart body as raw UTF-8 bytes directly). ASCII values are
+    /// unaffected.
+    /// </summary>
+    private static string EncodeHeaderValueUtf8(string value)
+    {
+        return Encoding.Latin1.GetString(Encoding.UTF8.GetBytes(value));
     }
 
     /// <summary>

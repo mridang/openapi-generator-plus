@@ -18,6 +18,7 @@ import com.example.petstore.api.options.AddPetTreatmentOptions
 import com.example.petstore.api.options.DeletePetOptions
 import com.example.petstore.api.options.FindPetsByStatusOptions
 import com.example.petstore.api.options.GetPetTagOptions
+import com.example.petstore.api.options.SetPetPreferencesOptions
 import com.example.petstore.api.options.UploadPetCertificateOptions
 import com.example.petstore.api.options.UploadPetDocumentOptions
 import com.example.petstore.auth.Authenticator
@@ -922,6 +923,58 @@ class PetApi : BaseApi {
             setPetAvatarThumbnailRequest,
             arrayOf(),
             "application/json",
+            null,
+        )
+    }
+
+    /**
+     * Update a pet&#39;s notification preferences
+     * Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
+     * @param petId  (required)
+     * @param options options for query, header, form, cookie parameters, and per-operation auth
+     * @return ApiResponse
+     * @throws ApiException if fails to make API call
+     */
+
+    suspend fun setPetPreferences(
+        petId: Long,
+        options: SetPetPreferencesOptions,
+    ): ApiResponse =
+        setPetPreferencesWithHttpInfo(petId, options).data
+            ?: throw ApiException("Expected a response body for setPetPreferences but the server returned an empty body")
+
+    suspend fun setPetPreferencesWithHttpInfo(
+        petId: Long,
+        options: SetPetPreferencesOptions,
+    ): ApiResult<ApiResponse> {
+        requireNotNull(petId) {
+            "Missing the required parameter 'petId' when calling setPetPreferences"
+        }
+        var path =
+            "/pet/{petId}/preferences"
+                .replace(
+                    "{" + "petId" + "}",
+                    ValueSerializer.serializeStyled("petId", petId, "path", "Long", null, "simple", false) as String,
+                )
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+        val formBody = mutableMapOf<String, Any?>()
+        formBody["nickname"] = options.nickname
+        if (options.tags != null) {
+            formBody["tags"] = options.tags
+        }
+        if (options.note != null) {
+            formBody["note"] = options.note
+        }
+
+        return invokeApiForResult<ApiResponse>(
+            "POST",
+            path,
+            queryParams,
+            headerParams,
+            formBody,
+            arrayOf("application/json"),
+            "application/x-www-form-urlencoded",
             null,
         )
     }

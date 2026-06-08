@@ -269,27 +269,38 @@ class {{classname}} extends BaseApi {
 {{/hasCookieParams}}
 
 {{#hasFormParams}}
-    final formBody = <String, String>{};
+    /* The form body is a `Map<String, Object?>` (NOT `Map<String, String>`)
+     * so values reach the serializer in their native shape:
+     *   - a `List` stays a list, which the form-urlencoded encoder expands
+     *     into repeated keys (`tags=a&tags=b`) and the multipart builder
+     *     emits as repeated parts (form-array-repeated-keys);
+     *   - a binary file (`Uint8List`/`List<int>`) stays bytes so the
+     *     multipart builder routes it through the binary branch with a
+     *     filename-derived Content-Type instead of stringifying the bytes;
+     *   - a scalar is stringified at the edge by the serializer.
+     * Optional null/absent fields are never added, so they are omitted on
+     * the wire (form-optional-null-omitted). */
+    final formBody = <String, Object?>{};
 {{#formParams}}
 {{#required}}
 {{#vendorExtensions.op.optionsParamRequired}}
-    formBody['{{baseName}}'] = '${options.{{paramName}}}';
+    formBody['{{baseName}}'] = options.{{paramName}};
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options != null) {
-      formBody['{{baseName}}'] = '${options.{{paramName}}}';
+      formBody['{{baseName}}'] = options.{{paramName}};
     }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/required}}
 {{^required}}
 {{#vendorExtensions.op.optionsParamRequired}}
     if (options.{{paramName}} != null) {
-      formBody['{{baseName}}'] = '${options.{{paramName}}}';
+      formBody['{{baseName}}'] = options.{{paramName}};
     }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options != null && options.{{paramName}} != null) {
-      formBody['{{baseName}}'] = '${options.{{paramName}}}';
+      formBody['{{baseName}}'] = options.{{paramName}};
     }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/required}}

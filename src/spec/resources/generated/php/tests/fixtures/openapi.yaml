@@ -505,6 +505,55 @@ paths:
         '404':
           description: Pet not found
 
+  # ─── Form-encoded preferences ────────────────────────────────────────────────
+  # Case 10: application/x-www-form-urlencoded body with a required scalar, an
+  # ARRAY field (exercises repeated-key array serialization parity) and an
+  # OPTIONAL field (exercises null-field omission parity) across all SDKs.
+
+  /pet/{petId}/preferences:
+    post:
+      tags:
+        - pet
+      summary: Update a pet's notification preferences
+      description: >-
+        Submits preferences as an application/x-www-form-urlencoded form. Used to
+        exercise array-field (repeated-key) serialization and optional-field
+        omission so the wire bytes are identical across every SDK.
+      operationId: setPetPreferences
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - nickname
+              properties:
+                nickname:
+                  type: string
+                tags:
+                  type: array
+                  items:
+                    type: string
+                note:
+                  type: string
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '404':
+          description: Pet not found
+
   # ─── Vet documents ───────────────────────────────────────────────────────────
   # Case 2: binary request,  octet-stream  (POST application/octet-stream)
   # Case 4: binary request,  multipart file + scalar companions

@@ -195,3 +195,52 @@ fn test_pet_with_owner_round_trip() {
         serde_json::from_str(&data).expect("failed to deserialize after round-trip");
     let _ = restored;
 }
+
+// -- enum-unknown-value-on-deserialize (behavior 6) --
+//
+// Deserializing a JSON enum value that is NOT one of the schema's declared
+// variants MUST raise the SDK's (de)serialization error rather than silently
+// mapping to a default or catch-all variant. The generated enums carry no
+// `#[serde(other)]` arm, so serde rejects unknown values; the `#[default]`
+// attribute only powers `Default::default()` and never participates in
+// deserialization.
+
+#[test]
+fn test_enum_unknown_value_on_deserialize_is_rejected() {
+    // `Pet.status` is a `PetStatusEnum` whose only values are
+    // available/pending/sold. A `status` of "teleported" is not in the schema.
+    let payload = r#"{
+        "name": "Rex",
+        "photoUrls": ["http://example.com/rex.jpg"],
+        "status": "teleported"
+    }"#;
+    let result: Result<Pet, _> = serde_json::from_str(payload);
+    assert!(
+        result.is_err(),
+        "deserializing an unknown enum value must fail, not fall back to a default variant"
+    );
+}
+
+#[test]
+fn test_enum_known_value_on_deserialize_succeeds() {
+    // Control: a declared enum value still deserializes cleanly, so the
+    // strictness above does not break valid payloads.
+    let payload = r#"{
+        "name": "Rex",
+        "photoUrls": ["http://example.com/rex.jpg"],
+        "status": "pending"
+    }"#;
+    let pet: Pet = serde_json::from_str(payload).expect("known enum value must deserialize");
+    assert_eq!(pet.status, Some(PetStatusEnum::Pending));
+}
+
+#[test]
+fn test_enum_direct_unknown_value_is_rejected() {
+    // Deserializing the enum type directly (not via its owning struct) must
+    // also reject an out-of-schema value.
+    let result: Result<PetStatusEnum, _> = serde_json::from_str("\"banished\"");
+    assert!(
+        result.is_err(),
+        "an unknown bare enum value must fail to deserialize"
+    );
+}

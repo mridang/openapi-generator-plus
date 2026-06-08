@@ -85,6 +85,8 @@ module PetstoreClient
       def set_pet_avatar_with_http_info: (Integer pet_id, File body) -> ::PetstoreClient::ApiResult[nil]
       def set_pet_avatar_thumbnail: (Integer pet_id, Models::SetPetAvatarThumbnailRequest set_pet_avatar_thumbnail_request) -> void
       def set_pet_avatar_thumbnail_with_http_info: (Integer pet_id, Models::SetPetAvatarThumbnailRequest set_pet_avatar_thumbnail_request) -> ::PetstoreClient::ApiResult[nil]
+      def set_pet_preferences: (Integer pet_id, Options::SetPetPreferencesOptions options) -> Models::ApiResponse
+      def set_pet_preferences_with_http_info: (Integer pet_id, Options::SetPetPreferencesOptions options) -> ::PetstoreClient::ApiResult[Models::ApiResponse]
       def update_pet: (Integer pet_id, Models::Pet pet) -> Models::Pet
       def update_pet_with_http_info: (Integer pet_id, Models::Pet pet) -> ::PetstoreClient::ApiResult[Models::Pet]
       def upload_pet_certificate: (Integer pet_id, Options::UploadPetCertificateOptions options) -> Models::ApiResponse

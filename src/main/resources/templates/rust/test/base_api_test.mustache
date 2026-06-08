@@ -490,6 +490,66 @@ async fn test_base_api_serializes_json_body() {
 // `src/api/base_api.rs`'s `#[cfg(test)] mod tests`) because `serialize_body` is
 // crate-private.
 
+// -- form-urlencoded wire-format parity through the generated operation --
+//
+// Drives the real `set_pet_preferences` operation (POST /pet/{petId}/preferences,
+// application/x-www-form-urlencoded) and inspects the bytes the SDK puts on the
+// wire, proving behaviors 1/2/3 end-to-end (not just at the serializer level):
+//   1. an array field becomes repeated keys (tags=a&tags=b);
+//   2. an optional null/absent field is omitted entirely (no `note=`);
+//   3. a space encodes as `+`, never `%20`.
+#[tokio::test]
+async fn test_set_pet_preferences_form_body_wire_format() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client.clone(), config, None);
+
+    // `note` is intentionally left unset (None) to exercise null-omission.
+    let opts = SetPetPreferencesOptions::new()
+        .tags(vec!["fluffy".to_string(), "very good".to_string()]);
+    let opts = SetPetPreferencesOptions {
+        nickname: "Good Boy".to_string(),
+        ..opts
+    };
+    let _ = api.set_pet_preferences(1, Some(&opts)).await;
+
+    let body = client.captured_body.lock().unwrap();
+    let body_str = String::from_utf8(body.as_ref().expect("form body captured").clone()).unwrap();
+
+    // Behavior 1: array -> repeated keys, never bracketed/comma-joined.
+    assert!(body_str.contains("tags=fluffy"), "missing first tag: {}", body_str);
+    assert!(body_str.contains("tags=very+good"), "missing second tag (space as +): {}", body_str);
+    assert!(!body_str.contains('['), "array must not be bracketed: {}", body_str);
+    assert!(!body_str.contains("tags=fluffy%2C"), "array must not be comma-joined: {}", body_str);
+    assert!(!body_str.contains("tags=fluffy,"), "array must not be comma-joined: {}", body_str);
+
+    // Behavior 2: the unset optional `note` is omitted entirely.
+    assert!(!body_str.contains("note"), "absent optional field must be omitted: {}", body_str);
+
+    // Behavior 3: spaces encode as `+`, never `%20`.
+    assert!(body_str.contains("nickname=Good+Boy"), "space must encode as +: {}", body_str);
+    assert!(!body_str.contains("%20"), "space must never encode as %20: {}", body_str);
+}
+
+// -- form-urlencoded Content-Type set on the generated operation --
+#[tokio::test]
+async fn test_set_pet_preferences_sends_form_content_type() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client.clone(), config, None);
+    let opts = SetPetPreferencesOptions {
+        nickname: "Rex".to_string(),
+        ..SetPetPreferencesOptions::new()
+    };
+    let _ = api.set_pet_preferences(1, Some(&opts)).await;
+    let headers = client.captured_headers.lock().unwrap();
+    assert_eq!(
+        headers.get("Content-Type").map(String::as_str),
+        Some("application/x-www-form-urlencoded"),
+        "form operation must send the urlencoded Content-Type"
+    );
+}
+
 // -- 418 Teapot (unrecognized status) --
 
 #[tokio::test]

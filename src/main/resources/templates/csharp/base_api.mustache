@@ -198,14 +198,39 @@ public abstract class BaseApi
                 ) && body is Dictionary<string, object> formParams
             )
             {
+                /* Canonical form serialization (identical across every SDK):
+                 *   - array fields emit one repeated key per element
+                 *     (exploded, e.g. tags=a&tags=b — never tags=a,b or
+                 *     tags[]=);
+                 *   - null/absent fields are omitted entirely;
+                 *   - FormUrlEncode uses application/x-www-form-urlencoded
+                 *     rules, so a space becomes '+'. */
                 List<string> parts = [];
                 foreach (KeyValuePair<string, object> kv in formParams)
                 {
-                    parts.Add(
-                        FormUrlEncode(kv.Key)
-                            + "="
-                            + FormUrlEncode(kv.Value?.ToString() ?? "")
-                    );
+                    if (kv.Value == null)
+                    {
+                        continue;
+                    }
+                    string key = FormUrlEncode(kv.Key);
+                    if (
+                        kv.Value is System.Collections.IEnumerable enumerable
+                        && kv.Value is not string
+                    )
+                    {
+                        foreach (object? element in enumerable)
+                        {
+                            if (element == null)
+                            {
+                                continue;
+                            }
+                            parts.Add(key + "=" + FormUrlEncode(element.ToString() ?? ""));
+                        }
+                    }
+                    else
+                    {
+                        parts.Add(key + "=" + FormUrlEncode(kv.Value.ToString() ?? ""));
+                    }
                 }
 
                 requestBody = string.Join("&", parts);

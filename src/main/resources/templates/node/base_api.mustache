@@ -325,7 +325,32 @@ export abstract class BaseApi {
       return String(body);
     }
     if (contentType === 'application/x-www-form-urlencoded') {
-      return new URLSearchParams(body as Record<string, string>).toString();
+      /* Build the urlencoded body field-by-field so the wire bytes match
+       * the other 11 SDKs:
+       *   - array values emit a REPEATED key (tags=a&tags=b), never a
+       *     comma-joined `tags=a,b` (which is what passing an array straight
+       *     to the URLSearchParams constructor produces);
+       *   - null / undefined fields are OMITTED entirely, never serialized
+       *     as the literal string "null"/"undefined";
+       *   - URLSearchParams.append encodes a space as `+` (not %20), the
+       *     canonical application/x-www-form-urlencoded form. */
+      const params = new URLSearchParams();
+      for (const [key, value] of Object.entries(body as Record<string, unknown>)) {
+        if (value == null) {
+          continue;
+        }
+        if (Array.isArray(value)) {
+          for (const item of value) {
+            if (item == null) {
+              continue;
+            }
+            params.append(key, ObjectSerializer.stringify(item));
+          }
+        } else {
+          params.append(key, ObjectSerializer.stringify(value));
+        }
+      }
+      return params.toString();
     }
     return ObjectSerializer.serialize(body);
   }

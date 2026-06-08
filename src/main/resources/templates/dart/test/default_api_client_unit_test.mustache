@@ -924,11 +924,25 @@ void main() {
 
     // -- Gap J: per-part MIME sniffing from the filename extension --
 
+    /* The multipart body now carries the file part's raw bytes (not a
+     * stringified byte list), so the request body is binary and must be read
+     * with a byte-preserving decoder. `latin1` maps each byte 1:1 to a code
+     * unit and never throws on non-UTF-8 bytes (e.g. the 0x89 PNG signature),
+     * which lets the test inspect the ASCII Content-Disposition / Content-Type
+     * header lines while the binary part content passes through intact. */
+    Future<String> readBodyAsLatin1(HttpRequest request) async {
+      final bytes = <int>[];
+      await for (final chunk in request) {
+        bytes.addAll(chunk);
+      }
+      return latin1.decode(bytes).toLowerCase();
+    }
+
     test('multipart .png field sets image/png Content-Type', () async {
       String body = '';
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) async {
-        body = (await utf8.decoder.bind(request).join()).toLowerCase();
+        body = await readBodyAsLatin1(request);
         request.response
           ..statusCode = 200
           ..close();
@@ -952,7 +966,7 @@ void main() {
       String body = '';
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) async {
-        body = (await utf8.decoder.bind(request).join()).toLowerCase();
+        body = await readBodyAsLatin1(request);
         request.response
           ..statusCode = 200
           ..close();
@@ -977,7 +991,7 @@ void main() {
       String body = '';
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) async {
-        body = (await utf8.decoder.bind(request).join()).toLowerCase();
+        body = await readBodyAsLatin1(request);
         request.response
           ..statusCode = 200
           ..close();

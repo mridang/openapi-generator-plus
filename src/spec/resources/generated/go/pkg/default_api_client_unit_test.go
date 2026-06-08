@@ -11,6 +11,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	pkgerrors "petstore/pkg/errors"
@@ -866,4 +868,58 @@ func TestDefaultApiClient_NonexistentCaCertPathFailsFast(t *testing.T) {
 		CACertPath("/nonexistent/ca.pem").
 		Build()
 	_ = NewDefaultApiClient(transport)
+}
+
+// multipart-nonascii-field-name: a non-ASCII multipart field name must be
+// preserved as UTF-8 bytes in the Content-Disposition header, not transliterated
+// or stripped — matching the other SDKs. buildMultipartBody is exercised
+// directly (it is package-private) and the emitted body is parsed back to read
+// the field name the receiver would see.
+func TestBuildMultipartBody_PreservesNonASCIIFieldName(t *testing.T) {
+	t.Parallel()
+	const fieldName = "café"
+	boundary := "test-boundary-nonascii"
+	body, err := buildMultipartBody(map[string]any{fieldName: "value"}, boundary)
+	if err != nil {
+		t.Fatalf("buildMultipartBody failed: %v", err)
+	}
+
+	if !strings.Contains(string(body), fieldName) {
+		t.Errorf("expected raw multipart body to contain UTF-8 field name %q, got: %s", fieldName, string(body))
+	}
+
+	mr := multipart.NewReader(strings.NewReader(string(body)), boundary)
+	part, err := mr.NextPart()
+	if err != nil {
+		t.Fatalf("reading multipart part failed: %v", err)
+	}
+	if got := part.FormName(); got != fieldName {
+		t.Errorf("expected field name %q to round-trip, got %q", fieldName, got)
+	}
+}
+
+// multipart-file-part-contenttype: a file part's Content-Type is derived from
+// the filename extension, falling back to application/octet-stream for unknown
+// or absent extensions.
+func TestMimeTypeForFilename_ExtensionMappingAndFallback(t *testing.T) {
+	t.Parallel()
+	cases := map[string]string{
+		"avatar.png":  "image/png",
+		"AVATAR.PNG":  "image/png",
+		"photo.jpg":   "image/jpeg",
+		"doc.pdf":     "application/pdf",
+		"data.bin":    "application/octet-stream",
+		"noextension": "application/octet-stream",
+	}
+	for filename, want := range cases {
+		got := mimeTypeForFilename(filename)
+		// mime.TypeByExtension may add a charset parameter; compare the media type.
+		mediaType, _, _ := mime.ParseMediaType(got)
+		if mediaType == "" {
+			mediaType = got
+		}
+		if mediaType != want {
+			t.Errorf("mimeTypeForFilename(%q) = %q, want %q", filename, mediaType, want)
+		}
+	}
 }

@@ -28,6 +28,7 @@ import 'options/add_pet_treatment_options.dart';
 import 'options/delete_pet_options.dart';
 import 'options/find_pets_by_status_options.dart';
 import 'options/get_pet_tag_options.dart';
+import 'options/set_pet_preferences_options.dart';
 import 'options/upload_pet_certificate_options.dart';
 import 'options/upload_pet_document_options.dart';
 
@@ -273,9 +274,20 @@ class PetApi extends BaseApi {
 
     final headerParams = <String, String>{};
 
-    final formBody = <String, String>{};
-    formBody['files'] = '${options.files}';
-    formBody['metadata'] = '${options.metadata}';
+    /* The form body is a `Map<String, Object?>` (NOT `Map<String, String>`)
+     * so values reach the serializer in their native shape:
+     *   - a `List` stays a list, which the form-urlencoded encoder expands
+     *     into repeated keys (`tags=a&tags=b`) and the multipart builder
+     *     emits as repeated parts (form-array-repeated-keys);
+     *   - a binary file (`Uint8List`/`List<int>`) stays bytes so the
+     *     multipart builder routes it through the binary branch with a
+     *     filename-derived Content-Type instead of stringifying the bytes;
+     *   - a scalar is stringified at the edge by the serializer.
+     * Optional null/absent fields are never added, so they are omitted on
+     * the wire (form-optional-null-omitted). */
+    final formBody = <String, Object?>{};
+    formBody['files'] = options.files;
+    formBody['metadata'] = options.metadata;
     final Object? requestBody = formBody;
 
     return invokeApiForResult<List<Photo>>(
@@ -1418,6 +1430,96 @@ class PetApi extends BaseApi {
     );
   }
 
+  /// Update a pet's notification preferences
+  /// Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
+
+  Future<ApiResponse> setPetPreferences(
+    int petId,
+    SetPetPreferencesOptions options,
+  ) async {
+    final result = await setPetPreferencesWithHTTPInfo(petId, options);
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiError (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as ApiResponse` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiError(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for setPetPreferences but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the setPetPreferences operation and returns the full API result.
+  Future<ApiResult<ApiResponse>> setPetPreferencesWithHTTPInfo(
+    int petId,
+    SetPetPreferencesOptions options,
+  ) async {
+    var path = '/pet/{petId}/preferences';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so the
+     * outer _encodePathSegment wrapper was encoding a second time (a
+     * space became %2520, `a/b` became a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. */
+    path = path.replaceAll(
+      '{' + 'petId' + '}',
+      serializeStyled(
+        'petId',
+        petId,
+        'path',
+        'int',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
+
+    final queryParams = <String, Object?>{};
+
+    final headerParams = <String, String>{};
+
+    /* The form body is a `Map<String, Object?>` (NOT `Map<String, String>`)
+     * so values reach the serializer in their native shape:
+     *   - a `List` stays a list, which the form-urlencoded encoder expands
+     *     into repeated keys (`tags=a&tags=b`) and the multipart builder
+     *     emits as repeated parts (form-array-repeated-keys);
+     *   - a binary file (`Uint8List`/`List<int>`) stays bytes so the
+     *     multipart builder routes it through the binary branch with a
+     *     filename-derived Content-Type instead of stringifying the bytes;
+     *   - a scalar is stringified at the edge by the serializer.
+     * Optional null/absent fields are never added, so they are omitted on
+     * the wire (form-optional-null-omitted). */
+    final formBody = <String, Object?>{};
+    formBody['nickname'] = options.nickname;
+    if (options.tags != null) {
+      formBody['tags'] = options.tags;
+    }
+    if (options.note != null) {
+      formBody['note'] = options.note;
+    }
+    final Object? requestBody = formBody;
+
+    return invokeApiForResult<ApiResponse>(
+      method: 'POST',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/x-www-form-urlencoded',
+      returnType: 'ApiResponse',
+      auth: null,
+      deserialize: (body) =>
+          deserialize(body, ApiResponse.fromJson) as ApiResponse,
+    );
+  }
+
   /// Update an existing pet
   /// `petId` ID of pet to update
   /// `pet` Pet object that needs to be updated
@@ -1536,8 +1638,19 @@ class PetApi extends BaseApi {
 
     final headerParams = <String, String>{};
 
-    final formBody = <String, String>{};
-    formBody['file'] = '${options.file}';
+    /* The form body is a `Map<String, Object?>` (NOT `Map<String, String>`)
+     * so values reach the serializer in their native shape:
+     *   - a `List` stays a list, which the form-urlencoded encoder expands
+     *     into repeated keys (`tags=a&tags=b`) and the multipart builder
+     *     emits as repeated parts (form-array-repeated-keys);
+     *   - a binary file (`Uint8List`/`List<int>`) stays bytes so the
+     *     multipart builder routes it through the binary branch with a
+     *     filename-derived Content-Type instead of stringifying the bytes;
+     *   - a scalar is stringified at the edge by the serializer.
+     * Optional null/absent fields are never added, so they are omitted on
+     * the wire (form-optional-null-omitted). */
+    final formBody = <String, Object?>{};
+    formBody['file'] = options.file;
     final Object? requestBody = formBody;
 
     return invokeApiForResult<ApiResponse>(
@@ -1609,13 +1722,24 @@ class PetApi extends BaseApi {
 
     final headerParams = <String, String>{};
 
-    final formBody = <String, String>{};
-    formBody['file'] = '${options.file}';
+    /* The form body is a `Map<String, Object?>` (NOT `Map<String, String>`)
+     * so values reach the serializer in their native shape:
+     *   - a `List` stays a list, which the form-urlencoded encoder expands
+     *     into repeated keys (`tags=a&tags=b`) and the multipart builder
+     *     emits as repeated parts (form-array-repeated-keys);
+     *   - a binary file (`Uint8List`/`List<int>`) stays bytes so the
+     *     multipart builder routes it through the binary branch with a
+     *     filename-derived Content-Type instead of stringifying the bytes;
+     *   - a scalar is stringified at the edge by the serializer.
+     * Optional null/absent fields are never added, so they are omitted on
+     * the wire (form-optional-null-omitted). */
+    final formBody = <String, Object?>{};
+    formBody['file'] = options.file;
     if (options.documentType != null) {
-      formBody['documentType'] = '${options.documentType}';
+      formBody['documentType'] = options.documentType;
     }
     if (options.notes != null) {
-      formBody['notes'] = '${options.notes}';
+      formBody['notes'] = options.notes;
     }
     final Object? requestBody = formBody;
 

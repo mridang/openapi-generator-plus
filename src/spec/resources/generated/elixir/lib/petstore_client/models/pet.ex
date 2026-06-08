@@ -96,7 +96,7 @@ defmodule PetstoreClient.Models.Pet do
       category: "Category",
       photo_urls: "MapSet.t(String.t())",
       tags: "[Tag]",
-      status: "String.t()",
+      status: "Enum<available,pending,sold>",
       location: "[any()]",
       homepage_url: "String.t()",
       thumbnail_ref: "String.t()",

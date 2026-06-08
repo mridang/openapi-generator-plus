@@ -198,7 +198,27 @@ class BaseApi:
             elif content_type == 'text/plain':
                 serialized_body = str(body)
             elif content_type == 'application/x-www-form-urlencoded':
-                serialized_body = urlencode(body)
+                # Build a (key, value) pair list so array values become
+                # repeated keys (`tags=a&tags=b`) rather than a single
+                # `tags=['a', 'b']` Python-repr. Each scalar is stringified
+                # through ObjectSerializer so bools render as `true`/`false`
+                # and enums/dates use their wire form, matching the other
+                # SDKs. None-valued fields are omitted, and None elements
+                # inside an array are skipped. urlencode(..., doseq=True)
+                # then percent-encodes with `quote_plus`, so a space becomes
+                # `+` (HTML form encoding), not `%20`.
+                form_pairs: List[tuple[str, str]] = []
+                for form_key, form_value in body.items():
+                    if form_value is None:
+                        continue
+                    if isinstance(form_value, list):
+                        for form_item in form_value:
+                            if form_item is None:
+                                continue
+                            form_pairs.append((form_key, self._object_serializer.stringify(form_item)))
+                    else:
+                        form_pairs.append((form_key, self._object_serializer.stringify(form_value)))
+                serialized_body = urlencode(form_pairs, doseq=True)
             else:
                 serialized_body = self._object_serializer.serialize(body)
 

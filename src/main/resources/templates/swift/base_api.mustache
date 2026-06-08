@@ -258,12 +258,22 @@ public class BaseApi: @unchecked Sendable {
                     let pct = s.addingPercentEncoding(withAllowedCharacters: formSafe) ?? s
                     return pct.replacingOccurrences(of: "%20", with: "+")
                 }
-                let encoded = params.map {
-                    let key = formEncode("\($0.key)")
-                    let val = formEncode("\($0.value)")
-                    return "\(key)=\(val)"
-                }.joined(separator: "&")
-                return encoded.data(using: .utf8)
+                var parts: [String] = []
+                for (rawKey, rawValue) in params {
+                    let key = formEncode(rawKey)
+                    /* Array values are emitted as repeated keys
+                     * (`tags=a&tags=b`), never bracketed or joined, matching
+                     * the canonical cross-SDK behaviour. A nil array element is
+                     * skipped rather than sent as an empty value. */
+                    if let items = ObjectSerializer.toStringList(rawValue) {
+                        for item in items {
+                            parts.append("\(key)=\(formEncode(item))")
+                        }
+                    } else {
+                        parts.append("\(key)=\(formEncode(ObjectSerializer.stringify(rawValue)))")
+                    }
+                }
+                return parts.joined(separator: "&").data(using: .utf8)
             }
         }
 

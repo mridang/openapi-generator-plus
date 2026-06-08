@@ -520,6 +520,50 @@ class DefaultApiClientUnitTest {
     assertEquals("application/octet-stream", DefaultApiClient.guessMimeTypeFromName("blob"));
   }
 
+  private static String renderMultipartPart(String fieldName, Object value) throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    java.lang.reflect.Method method =
+        DefaultApiClient.class.getDeclaredMethod(
+            "addMultipartField", List.class, String.class, String.class, Object.class);
+    method.setAccessible(true);
+    List<byte[]> byteArrays = new java.util.ArrayList<>();
+    method.invoke(client, byteArrays, "BOUNDARY", fieldName, value);
+    java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+    for (byte[] chunk : byteArrays) {
+      out.write(chunk);
+    }
+    return out.toString(StandardCharsets.UTF_8);
+  }
+
+  @Test
+  void multipartRawBytesPartDerivesContentTypeFromFilenameExtension() throws Exception {
+    byte[] raw = new byte[] {(byte) 0x89, 'P', 'N', 'G'};
+    String part = renderMultipartPart("avatar.png", raw);
+    assertTrue(
+        part.contains("Content-Type: image/png"),
+        "byte[] part named avatar.png must derive Content-Type image/png, got: " + part);
+    assertFalse(
+        part.contains("Content-Type: application/octet-stream"),
+        "byte[] part with a known extension must not fall back to octet-stream");
+  }
+
+  @Test
+  void multipartRawBytesPartWithoutExtensionFallsBackToOctetStream() throws Exception {
+    String part = renderMultipartPart("blob", new byte[] {1, 2, 3});
+    assertTrue(
+        part.contains("Content-Type: application/octet-stream"),
+        "byte[] part with no usable extension must fall back to octet-stream, got: " + part);
+  }
+
+  @Test
+  void multipartNonAsciiFieldNamePreservedAsUtf8() throws Exception {
+    String fieldName = "imágé";
+    String part = renderMultipartPart(fieldName, "value");
+    assertTrue(
+        part.contains("name=\"" + fieldName + "\""),
+        "non-ASCII multipart field name must be preserved as UTF-8, got: " + part);
+  }
+
   @Test
   void multipartFilenameNonAsciiEmitsRFC5987() {
     String directive = DefaultApiClient.buildFilenameDirective("日本.pdf");

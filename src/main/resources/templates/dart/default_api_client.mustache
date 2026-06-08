@@ -184,7 +184,16 @@ class DefaultApiClient implements ApiClient {
         final name = entry.key;
         final value = entry.value;
         if (value == null) continue;
-        if (value is List) {
+        /* A binary part (`Uint8List`/`List<int>`) must be handled as a single
+         * file part — NOT iterated as a repeated field. `Uint8List` satisfies
+         * `value is List`, so the `List<int>` check has to come first;
+         * otherwise each individual byte is stringified into its own numeric
+         * form field and the file content is destroyed (multipart-file-content-type). */
+        if (value is List<int>) {
+          _addMultipartField(multipartRequest, name, value);
+        } else if (value is List) {
+          /* A non-binary array form field expands into one part per element
+           * (form-array-repeated-keys, multipart variant). */
           for (final item in value) {
             if (item == null) continue;
             _addMultipartField(multipartRequest, name, item as Object);

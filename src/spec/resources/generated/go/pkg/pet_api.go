@@ -1592,6 +1592,102 @@ func (a *PetApi) SetPetAvatarThumbnailWithHTTPInfo(petId int64, setPetAvatarThum
 	}, nil
 }
 
+// SetPetPreferences Update a pet's notification preferences
+// Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
+
+func (a *PetApi) SetPetPreferences(petId int64, options *opts.SetPetPreferencesOptions) (*ApiResponse, error) {
+	result, err := a.SetPetPreferencesWithHTTPInfo(petId, options)
+	if err != nil {
+		return nil, err
+	}
+	/* convenience-empty-body-handling: a body-returning operation that receives
+	 * no decodable body must surface a typed ApiError rather than hand back a
+	 * silent nil / zero-value, matching the throw-on-empty canonical of the
+	 * other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("SetPetPreferences", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return result.Data, nil
+}
+
+// SetPetPreferencesWithHTTPInfo performs the SetPetPreferences operation and returns the full API result.
+func (a *PetApi) SetPetPreferencesWithHTTPInfo(petId int64, options *opts.SetPetPreferencesOptions) (*ApiResult[ApiResponse], error) {
+
+	path := "/pet/{petId}/preferences"
+	/* Path params route through serializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+
+	queryParams := make(map[string]any)
+
+	headerParams := make(map[string]string)
+
+	formBody := make(map[string]any)
+	if options != nil {
+		formBody["nickname"] = options.Nickname
+		if options.Tags != nil {
+			formBody["tags"] = *options.Tags
+		}
+		if options.Note != nil {
+			formBody["note"] = *options.Note
+		}
+	}
+	var requestBody any = formBody
+
+	response, err := a.invokeApi(invokeApiParams{
+		method:       "POST",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{"application/json"},
+		contentType:  "application/x-www-form-urlencoded",
+		returnType:   "ApiResponse",
+		auth:         nil,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var data ApiResponse
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *ApiResponse
+	if response.Body != "" {
+		respContentType := ""
+		// Headers are lowercase-normalised per Gap BE.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, err
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in HttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, decErr
+			}
+			*bytesPtr = decoded
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[ApiResponse]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
 // UpdatePet Update an existing pet
 // param petId: ID of pet to update
 // param pet: Pet object that needs to be updated

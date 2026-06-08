@@ -860,6 +860,109 @@ mod tests {
         assert_eq!(mime_for_filename("noextension"), "application/octet-stream");
     }
 
+    // ── multipart-file-part-contenttype-from-extension (behavior 4) ──
+    //
+    // End-to-end through serialize_multipart_body (the serializer the generated
+    // operations actually drive): a file (`MultipartValue::Bytes`) part MUST set
+    // its part Content-Type from the field-name extension, falling back to
+    // application/octet-stream when the extension is unknown/missing. The field
+    // name doubles as the filename, mirroring the other 11 SDKs.
+
+    #[test]
+    fn test_multipart_file_part_content_type_png_from_extension() {
+        let mut fields = std::collections::HashMap::new();
+        fields.insert(
+            "avatar.png".to_string(),
+            MultipartValue::Bytes(vec![0x89, 0x50, 0x4e, 0x47]),
+        );
+        let body = serialize_multipart_body(&fields, "BOUNDARY");
+        let body_str = String::from_utf8_lossy(&body);
+        assert!(
+            body_str.contains("Content-Type: image/png\r\n"),
+            "png file part must derive image/png Content-Type, got: {}",
+            body_str
+        );
+    }
+
+    #[test]
+    fn test_multipart_file_part_content_type_json_from_extension() {
+        let mut fields = std::collections::HashMap::new();
+        fields.insert(
+            "data.json".to_string(),
+            MultipartValue::Bytes(b"{}".to_vec()),
+        );
+        let body = serialize_multipart_body(&fields, "BOUNDARY");
+        let body_str = String::from_utf8_lossy(&body);
+        assert!(
+            body_str.contains("Content-Type: application/json\r\n"),
+            ".json file part must derive application/json Content-Type, got: {}",
+            body_str
+        );
+    }
+
+    #[test]
+    fn test_multipart_file_part_content_type_unknown_extension_falls_back() {
+        let mut fields = std::collections::HashMap::new();
+        fields.insert(
+            "file".to_string(),
+            MultipartValue::Bytes(vec![1, 2, 3]),
+        );
+        let body = serialize_multipart_body(&fields, "BOUNDARY");
+        let body_str = String::from_utf8_lossy(&body);
+        assert!(
+            body_str.contains("Content-Type: application/octet-stream\r\n"),
+            "extension-less file part must fall back to application/octet-stream, got: {}",
+            body_str
+        );
+    }
+
+    // ── multipart-non-ascii-field-name-preserved-utf8 (behavior 5) ──
+    //
+    // A multipart part whose field NAME contains non-ASCII characters MUST emit
+    // those characters as raw UTF-8 bytes in the Content-Disposition `name="..."`
+    // parameter — never transliterated to `?` nor stripped.
+
+    #[test]
+    fn test_multipart_non_ascii_field_name_preserved_as_utf8_text_part() {
+        let field_name = "café"; // 'é' is U+00E9 -> UTF-8 0xC3 0xA9
+        let mut fields = std::collections::HashMap::new();
+        fields.insert(field_name.to_string(), MultipartValue::Text("v".to_string()));
+        let body = serialize_multipart_body(&fields, "BOUNDARY");
+
+        // The raw UTF-8 bytes for "café" must appear verbatim in the body.
+        let needle = b"name=\"caf\xC3\xA9\"";
+        assert!(
+            body.windows(needle.len()).any(|w| w == needle),
+            "non-ASCII field name must be emitted as raw UTF-8, body: {:?}",
+            String::from_utf8_lossy(&body)
+        );
+        assert!(
+            !body.contains(&b'?'),
+            "non-ASCII field name must not be transliterated to '?'"
+        );
+    }
+
+    #[test]
+    fn test_multipart_non_ascii_field_name_preserved_as_utf8_file_part() {
+        // CJK field name on a bytes (file) part — must also survive as UTF-8.
+        let field_name = "日本.png"; // emits image/png too (behavior 4 cross-check)
+        let mut fields = std::collections::HashMap::new();
+        fields.insert(field_name.to_string(), MultipartValue::Bytes(vec![0, 1, 2]));
+        let body = serialize_multipart_body(&fields, "BOUNDARY");
+
+        let nihon = "日本".as_bytes(); // E6 97 A5 E6 9C AC
+        assert!(
+            body.windows(nihon.len()).any(|w| w == nihon),
+            "CJK field name must be emitted as raw UTF-8 in Content-Disposition"
+        );
+        let body_str = String::from_utf8_lossy(&body);
+        assert!(
+            body_str.contains("Content-Type: image/png\r\n"),
+            "non-ASCII .png file name must still derive image/png, got: {}",
+            body_str
+        );
+    }
+
     // ── Multipart filename directive (Gap BI / Gap F) ──
 
     #[test]

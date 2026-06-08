@@ -19,6 +19,7 @@ use PetstoreClient\Api\Options\AddPetTreatmentOptions;
 use PetstoreClient\Api\Options\DeletePetOptions;
 use PetstoreClient\Api\Options\FindPetsByStatusOptions;
 use PetstoreClient\Api\Options\GetPetTagOptions;
+use PetstoreClient\Api\Options\SetPetPreferencesOptions;
 use PetstoreClient\Api\Options\UploadPetCertificateOptions;
 use PetstoreClient\Api\Options\UploadPetDocumentOptions;
 use PetstoreClient\ApiException;
@@ -1308,6 +1309,82 @@ class PetApi extends BaseApi
             [],
             'application/json',
             null
+        );
+        return $result;
+    }
+
+    /**
+     * Update a pet&#39;s notification preferences
+     * Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
+
+     * @param SetPetPreferencesOptions $options Options for query, header, form, and cookie parameters
+
+     * @return \PetstoreClient\Models\ApiResponse
+     * @throws ApiException
+     */
+    public function setPetPreferences(int $petId, SetPetPreferencesOptions $options)
+    {
+        $apiResult = $this->setPetPreferencesWithHttpInfo($petId, $options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new ApiException(
+                'Expected a response body for setPetPreferences but received none',
+                $apiResult->statusCode,
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\ApiResponse $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+
+     * @param SetPetPreferencesOptions $options Options for query, header, form, and cookie parameters
+
+     * @return ApiResult<\PetstoreClient\Models\ApiResponse>
+     * @throws ApiException
+     */
+    public function setPetPreferencesWithHttpInfo(int $petId, SetPetPreferencesOptions $options): ApiResult
+    {
+        $path = '/pet/{petId}/preferences';
+        /** @var string $pathValue */
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
+        /* URL-encode the styled value for use as a URL path segment, preserving
+         * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
+        $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
+        $queryParams = [];
+        $headerParams = [];
+        $requestBody = [];
+        $requestBody['nickname'] = $options->nickname;
+        if ($options->tags !== null) {
+            $requestBody['tags'] = $options->tags;
+        }
+        if ($options->note !== null) {
+            $requestBody['note'] = $options->note;
+        }
+
+        /** @var ApiResult<\PetstoreClient\Models\ApiResponse> $result */
+        $result = $this->invokeApiForResult(
+            'POST',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/x-www-form-urlencoded',
+            '\PetstoreClient\Models\ApiResponse'
         );
         return $result;
     }

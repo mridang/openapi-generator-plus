@@ -7,7 +7,7 @@
 
 import * as http from 'node:http';
 import { PetApi, UploadPetDocumentDocumentTypeEnum } from '../../src/api/pet-api.js';
-import type { AddPetOptions, UploadPetDocumentOptions } from '../../src/api/options/index.js';
+import type { AddPetOptions, UploadPetDocumentOptions, SetPetPreferencesOptions } from '../../src/api/options/index.js';
 import { BearerAuthenticator } from '../../src/auth/bearer-authenticator.js';
 import { Configuration } from '../../src/configuration.js';
 import { Pet, PetStatusEnum, PhotoMetadata, SetPetAvatarThumbnailRequest } from '../../src/models/index.js';
@@ -438,5 +438,92 @@ describe('PetApi error handling', () => {
     expect(uploadOptions.file.toString()).toBe('doc');
     expect(uploadOptions.documentType).toBe('invoice');
     expect(uploadOptions.notes).toBe('a note');
+  });
+});
+
+// Canonical form-urlencoded body behaviors (#1 array -> repeated keys,
+// #2 optional null/absent -> omitted, #3 space -> '+'). setPetPreferences
+// posts an application/x-www-form-urlencoded body; a local capturing server
+// records the exact wire bytes so the assertions check the encoded form, not
+// just a round-trip status.
+describe('PetApi form-urlencoded body serialization', () => {
+  function captureFormBody(): Promise<{
+    api: PetApi;
+    getCapture: () => { body: string; contentType: string | undefined };
+    close: () => void;
+  }> {
+    return new Promise((resolve) => {
+      let captured = { body: '', contentType: undefined as string | undefined };
+      const server = http.createServer((req, res) => {
+        let body = '';
+        req.on('data', (chunk: Buffer) => (body += chunk.toString('utf-8')));
+        req.on('end', () => {
+          captured = { body, contentType: req.headers['content-type'] };
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end('{"code":200,"type":"ok","message":"saved"}');
+        });
+      });
+      server.listen(0, '127.0.0.1', () => {
+        const addr = server.address() as { port: number };
+        const cfg = Configuration.builder().baseUrl(`http://127.0.0.1:${addr.port}`).build();
+        resolve({
+          api: new PetApi(undefined, cfg),
+          getCapture: () => captured,
+          close: () => server.close()
+        });
+      });
+    });
+  }
+
+  // #1 — an array form field is emitted as repeated keys (tags=a&tags=b),
+  // never a single comma-joined value (tags=a%2Cb).
+  test('#1 array form field emits repeated keys', async () => {
+    const { api, getCapture, close } = await captureFormBody();
+    try {
+      const options: SetPetPreferencesOptions = { nickname: 'Rex', tags: ['fast', 'loyal'] };
+      await api.setPetPreferences(1, options);
+      const { body } = getCapture();
+      expect(body).toContain('tags=fast');
+      expect(body).toContain('tags=loyal');
+      expect(body).not.toContain('tags=fast%2Cloyal');
+      expect(body).not.toContain('tags=fast,loyal');
+    } finally {
+      close();
+    }
+  });
+
+  // #2 — an optional field that is absent (or null) is omitted from the
+  // body entirely, never serialized as the literal string "undefined"/"null".
+  test('#2 absent optional form field is omitted', async () => {
+    const { api, getCapture, close } = await captureFormBody();
+    try {
+      const options: SetPetPreferencesOptions = { nickname: 'Rex' };
+      await api.setPetPreferences(1, options);
+      const { body } = getCapture();
+      expect(body).toContain('nickname=Rex');
+      expect(body).not.toContain('note');
+      expect(body).not.toContain('tags');
+      expect(body).not.toContain('undefined');
+      expect(body).not.toContain('null');
+    } finally {
+      close();
+    }
+  });
+
+  // #3 — spaces in a form-body value are encoded as '+', not %20, the
+  // canonical application/x-www-form-urlencoded encoding.
+  test('#3 space in a form value encodes as plus', async () => {
+    const { api, getCapture, close } = await captureFormBody();
+    try {
+      const options: SetPetPreferencesOptions = { nickname: 'good boy', note: 'very fast' };
+      await api.setPetPreferences(1, options);
+      const { body, contentType } = getCapture();
+      expect(contentType).toContain('application/x-www-form-urlencoded');
+      expect(body).toContain('nickname=good+boy');
+      expect(body).toContain('note=very+fast');
+      expect(body).not.toContain('%20');
+    } finally {
+      close();
+    }
   });
 });

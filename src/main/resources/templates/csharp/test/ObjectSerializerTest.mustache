@@ -491,6 +491,20 @@ public class ObjectSerializerTest
         }
 
         [Fact]
+        public void UnknownEnumValueThrows()
+        {
+            // Wire-format parity lock: a string enum value the schema does not
+            // declare ("banana" for Pet.status) must hard-fail on deserialize
+            // with the SDK-owned SerializationException rather than silently
+            // mapping to a default/unknown member. System.Text.Json's
+            // JsonStringEnumConverter throws a JsonException on an unknown
+            // value, which the serializer wraps. Canonical across all 12 SDKs.
+            var json = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[\"https://example.com/fido.jpg\"],\"status\":\"banana\"}";
+            Assert.Throws<SerializationException>(
+                () => _serializer.Deserialize<Pet>(json));
+        }
+
+        [Fact]
         public void MissingRequiredStringFieldThrows()
         {
             // 'name' is required but absent — [JsonRequired] rejects it.

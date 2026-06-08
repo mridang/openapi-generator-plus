@@ -72,7 +72,7 @@ defmodule PetstoreClient.Models.Order do
       quantity: "integer()",
       ship_date: "DateTime.t()",
       complete: "boolean()",
-      status: "String.t()"
+      status: "Enum<placed,approved,delivered>"
     }
   end
 end

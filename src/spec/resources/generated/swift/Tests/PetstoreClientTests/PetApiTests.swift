@@ -378,6 +378,69 @@ final class PetApiTests {
         #expect(result != nil)
     }
 
+    // form-array-repeated-keys: an x-www-form-urlencoded array field must be
+    // encoded as repeated keys (tags=a&tags=b), never bracketed ("[a, b]") or
+    // comma-joined. Decodes the captured request body and asserts both tag
+    // values appear as separate `tags=` pairs.
+    @Test func testFormArrayEncodedAsRepeatedKeys() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        let options = SetPetPreferencesOptions(nickname: "Rex", tags: ["a", "b"])
+        _ = try await api.setPetPreferences(petId: 1, options: options)
+
+        let body = String(data: mockClient.lastBody ?? Data(), encoding: .utf8) ?? ""
+        let pairs = body.split(separator: "&").map(String.init)
+        #expect(pairs.contains("tags=a"), "expected repeated key tags=a, got: \(body)")
+        #expect(pairs.contains("tags=b"), "expected repeated key tags=b, got: \(body)")
+        #expect(!body.contains("%5B"), "form array must not be bracketed, got: \(body)")
+        #expect(
+            !body.contains("tags=a%2Cb") && !body.contains("tags=a,b"),
+            "form array must not be comma-joined, got: \(body)")
+    }
+
+    // form-optional-omitted: an optional form field left nil must be omitted
+    // from the body entirely — never sent as an empty `note=` pair.
+    @Test func testFormOptionalNilOmitted() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        let options = SetPetPreferencesOptions(nickname: "Rex")
+        _ = try await api.setPetPreferences(petId: 1, options: options)
+
+        let body = String(data: mockClient.lastBody ?? Data(), encoding: .utf8) ?? ""
+        #expect(!body.contains("note"), "omitted optional must not appear, got: \(body)")
+        #expect(!body.contains("tags"), "omitted optional array must not appear, got: \(body)")
+        #expect(body.contains("nickname=Rex"), "required field must be present, got: \(body)")
+    }
+
+    // form-space-encoding-plus: a space in an x-www-form-urlencoded value must be
+    // encoded as `+`, not `%20`, per the WHATWG form-encoding standard.
+    @Test func testFormSpaceEncodedAsPlus() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        let options = SetPetPreferencesOptions(nickname: "Good Boy", note: "be kind")
+        _ = try await api.setPetPreferences(petId: 1, options: options)
+
+        let body = String(data: mockClient.lastBody ?? Data(), encoding: .utf8) ?? ""
+        #expect(body.contains("nickname=Good+Boy"), "space must encode as +, got: \(body)")
+        #expect(body.contains("note=be+kind"), "space must encode as +, got: \(body)")
+        #expect(!body.contains("%20"), "space must not encode as %20, got: \(body)")
+    }
+
     // options-immutable-readback: an Options value is built once via its init
     // (named args + defaults) and its stored properties are immutable lets that
     // remain readable after construction. A param-bearing Options round-trips

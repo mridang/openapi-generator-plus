@@ -315,7 +315,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
   def openapi_types do
     %{
   {{#vars}}
-      {{name}}: "{{#isByteArray}}ByteArray{{/isByteArray}}{{^isByteArray}}{{#isUuid}}UUID{{/isUuid}}{{^isUuid}}{{{dataType}}}{{/isUuid}}{{/isByteArray}}"{{^-last}},{{/-last}}
+      {{name}}: "{{#isEnum}}Enum<{{#allowableValues}}{{#enumVars}}{{nameLowercase}}{{^-last}},{{/-last}}{{/enumVars}}{{/allowableValues}}>{{/isEnum}}{{^isEnum}}{{#isByteArray}}ByteArray{{/isByteArray}}{{^isByteArray}}{{#isUuid}}UUID{{/isUuid}}{{^isUuid}}{{{dataType}}}{{/isUuid}}{{/isByteArray}}{{/isEnum}}"{{^-last}},{{/-last}}
   {{/vars}}
     }
   end

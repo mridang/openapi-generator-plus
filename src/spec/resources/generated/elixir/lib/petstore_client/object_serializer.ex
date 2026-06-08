@@ -540,6 +540,29 @@ defmodule PetstoreClient.ObjectSerializer do
     end)
   end
 
+  # Inline property enum: the model's openapi_types map carries the allowed
+  # wire values as an "Enum<a,b,c>" sentinel. An out-of-schema wire value is
+  # spec drift; raise a SerializationError instead of silently passing the raw
+  # string through as an invalid typed value (the struct's @type declares these
+  # as atoms). Matches the throwing behaviour of the other SDKs and of the
+  # standalone-enum-module path in atomize_enum/2. A valid value is returned as
+  # its atom form, consistent with the struct's declared type.
+  def convert_to_type(data, "Enum<" <> rest) do
+    allowed =
+      rest
+      |> String.trim_trailing(">")
+      |> String.split(",", trim: true)
+
+    str = to_string(data)
+
+    if str in allowed do
+      String.to_atom(str)
+    else
+      raise PetstoreClient.SerializationError,
+        message: "Unknown enum value #{inspect(str)}; allowed values: #{inspect(allowed)}"
+    end
+  end
+
   def convert_to_type(data, return_type) do
     module = resolve_model_module(return_type)
 

@@ -199,12 +199,32 @@ public abstract class BaseApi {
         requestBody = body.toString();
       } else if ("application/x-www-form-urlencoded".equals(contentType)
           && body instanceof Map<?, ?> formParams) {
+        /* Canonical form serialization (identical across every SDK):
+         *   - array fields emit one repeated key per element
+         *     (exploded, e.g. tags=a&tags=b — never tags=a,b or
+         *     tags[]=);
+         *   - null/absent fields are omitted entirely;
+         *   - URLEncoder uses application/x-www-form-urlencoded rules,
+         *     so a space becomes '+'. */
         StringJoiner joiner = new StringJoiner("&");
         for (Map.Entry<?, ?> entry : formParams.entrySet()) {
-          joiner.add(
-              URLEncoder.encode(String.valueOf(entry.getKey()), StandardCharsets.UTF_8)
-                  + "="
-                  + URLEncoder.encode(String.valueOf(entry.getValue()), StandardCharsets.UTF_8));
+          Object value = entry.getValue();
+          if (value == null) {
+            continue;
+          }
+          String key = URLEncoder.encode(String.valueOf(entry.getKey()), StandardCharsets.UTF_8);
+          if (value instanceof Iterable<?> values) {
+            for (Object element : values) {
+              if (element == null) {
+                continue;
+              }
+              joiner.add(
+                  key + "=" + URLEncoder.encode(String.valueOf(element), StandardCharsets.UTF_8));
+            }
+          } else {
+            joiner.add(
+                key + "=" + URLEncoder.encode(String.valueOf(value), StandardCharsets.UTF_8));
+          }
         }
         requestBody = joiner.toString();
       } else {

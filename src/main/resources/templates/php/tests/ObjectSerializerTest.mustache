@@ -311,6 +311,39 @@ test('malformed json does not leak native exception', function (): void {
     }
 });
 
+// -- Canonical behavior #6: unknown enum value on deserialize must throw --
+//
+// A wire value that is not one of the enum's declared cases is a contract
+// violation. Symfony's BackedEnumNormalizer raises NotNormalizableValueException
+// for it; deserialize() wraps that in the SDK-owned SerializationException
+// rather than silently producing a default/unknown enum member. This aligns
+// PHP with the throwing SDKs (the (de)serialization error surfaces, never a
+// silent fallback).
+
+test('unknown enum value on deserialize throws SerializationException', function (): void {
+    // Pet::$status is a PetStatusEnum; "teleporting" is not a declared case.
+    $json = '{"id":1,"name":"Rex","photoUrls":[],"status":"teleporting"}';
+
+    expect(fn (): mixed => ObjectSerializer::deserialize($json, Pet::class))
+        ->toThrow(\{{invokerPackage}}\SerializationException::class);
+});
+
+test('unknown enum value does not silently fall back to a default member', function (): void {
+    // Guard against a regression where the unknown value is swallowed and a
+    // valid Pet (with some default/first enum case) is returned instead of
+    // throwing. The deserialize call MUST raise — never return a Pet.
+    $json = '{"id":1,"name":"Rex","photoUrls":[],"status":"teleporting"}';
+
+    $threw = false;
+    try {
+        ObjectSerializer::deserialize($json, Pet::class);
+    } catch (\{{invokerPackage}}\SerializationException) {
+        $threw = true;
+    }
+
+    expect($threw)->toBeTrue();
+});
+
 test('thrown exception has message', function (): void {
     $message = '';
     try {

@@ -374,6 +374,37 @@ describe {{moduleName}}::Api::BaseApi do
     _(client.captured_body.to_s).wont_include '%20'
   end
 
+  # Canonical behavior 1 — a form-body array property serializes to
+  # repeated keys (`tags=a&tags=b`), not a single comma-joined value or a
+  # `tags[]` bracket form. URI.encode_www_form repeats the key for each
+  # array element, matching the other SDKs.
+  it 'form-urlencoded body expands an array property to repeated keys' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('POST', '/test', {}, {}, { 'tags' => %w[a b] },
+                  ['application/json'], 'application/x-www-form-urlencoded', nil)
+    _(client.captured_body.to_s).must_equal 'tags=a&tags=b'
+    _(client.captured_body.to_s).wont_include 'tags=a,b'
+    _(client.captured_body.to_s).wont_include 'tags%5B%5D'
+  end
+
+  # Canonical behavior 2 — an optional form property whose value is absent
+  # is omitted from the encoded body entirely. The operation method only
+  # inserts non-nil optional form params into request_body, so a hash that
+  # never received the key produces no `note=` pair at all.
+  it 'form-urlencoded body omits an absent optional property' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    # Mirrors what the operation builds when `note` is nil: the key is
+    # simply never added to request_body.
+    test_api.call('POST', '/test', {}, {}, { 'nickname' => 'Rex' },
+                  ['application/json'], 'application/x-www-form-urlencoded', nil)
+    _(client.captured_body.to_s).must_equal 'nickname=Rex'
+    _(client.captured_body.to_s).wont_include 'note'
+  end
+
   it 'passes binary body as-is' do
     client = CapturingApiClient.new
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build

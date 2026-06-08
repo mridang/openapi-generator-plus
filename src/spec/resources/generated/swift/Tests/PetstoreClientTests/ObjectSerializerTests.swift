@@ -154,6 +154,34 @@ import Testing
         #expect(ObjectSerializer.toFormValue(false) == "false")
     }
 
+    // form-array-helper: toStringList must surface array values as a [String]
+    // (so the form encoder can emit repeated keys) and return nil for scalars
+    // (so the encoder falls back to a single key). Nil elements are dropped.
+    @Test func testToStringListArray() {
+        #expect(ObjectSerializer.toStringList(["a", "b"]) == ["a", "b"])
+    }
+
+    @Test func testToStringListMixedDropsNil() {
+        let result = ObjectSerializer.toStringList([1, nil, 3] as [Int?])
+        #expect(result == ["1", "3"])
+    }
+
+    @Test func testToStringListScalarReturnsNil() {
+        #expect(ObjectSerializer.toStringList("hello") == nil)
+        #expect(ObjectSerializer.toStringList(42) == nil)
+    }
+
+    // unknown-enum-throws: deserializing a JSON payload whose enum field holds a
+    // value outside the declared cases must raise the SDK SerializationError,
+    // not silently fall back to a default/unknown variant. OrderStatusEnum
+    // declares placed/approved/delivered; "teleported" is unknown.
+    @Test func testUnknownEnumValueOnDeserializeThrows() {
+        let json = "{\"id\":1,\"status\":\"teleported\"}"
+        #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.deserialize(json, as: Order.self)
+        }
+    }
+
     @Test func testToCookieValueString() {
         #expect(ObjectSerializer.toCookieValue("hello") == "hello")
     }

@@ -14,7 +14,7 @@ public class GoClientSpec extends AbstractClientSpec implements GoSpec {
 
     @Override
     protected String[] getBuildCommands() {
-        return new String[] {"go test -parallel=8 ./test/..."};
+        return new String[] {"go test -parallel=8 ./..."};
     }
 
     @Override

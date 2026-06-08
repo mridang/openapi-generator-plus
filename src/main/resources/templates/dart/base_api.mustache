@@ -228,6 +228,13 @@ class BaseApi {
         || mediaType.startsWith('video/');
   }
 
+  /* form-body-space-encoding: application/x-www-form-urlencoded requires a
+   * space to be encoded as `+` (WHATWG URL / HTML form-encoding), not `%20`.
+   * Dart's `Uri.encodeQueryComponent` implements exactly this form-encoding
+   * (space -> `+`, literal `+` -> `%2B`), so it is the correct primitive for
+   * both the key and the value of a form field. */
+  String _encodeFormComponent(String s) => Uri.encodeQueryComponent(s);
+
   String _buildQueryString(Map<String, Object?> queryParams) {
     if (queryParams.isEmpty) return '';
 
@@ -270,11 +277,29 @@ class BaseApi {
     }
 
     if (contentType == 'application/x-www-form-urlencoded') {
-      if (body is Map<String, String>) {
-        final values = body.entries
-            .map((e) => '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
-            .join('&');
-        return Uint8List.fromList(utf8.encode(values));
+      if (body is Map<String, Object?>) {
+        final parts = <String>[];
+        for (final entry in body.entries) {
+          final value = entry.value;
+          /* form-optional-null-omitted: a null field is dropped entirely
+           * rather than emitted as `key=`. The operation method already
+           * skips absent optional fields; this guards any null that slips
+           * through (e.g. an explicitly-null required field). */
+          if (value == null) continue;
+          final encodedKey = _encodeFormComponent(entry.key);
+          if (value is List) {
+            /* form-array-repeated-keys: `tags=[a,b]` serializes to
+             * `tags=a&tags=b` (one key per element), matching the other
+             * SDKs, NOT a single `tags=[a, b]` from List.toString(). */
+            for (final item in value) {
+              if (item == null) continue;
+              parts.add('$encodedKey=${_encodeFormComponent(stringify(item))}');
+            }
+          } else {
+            parts.add('$encodedKey=${_encodeFormComponent(stringify(value))}');
+          }
+        }
+        return Uint8List.fromList(utf8.encode(parts.join('&')));
       }
     }
 
@@ -325,9 +350,23 @@ class BaseApi {
     validateMultipartFieldName(name);
     final safeName = escapeMultipartFieldName(name);
     if (value is List<int>) {
+      /* multipart-file-content-type: derive the part's Content-Type from the
+       * filename extension (`.png` -> `image/png`), falling back to
+       * `application/octet-stream` when the name carries no recognised
+       * extension. The form field name doubles as the filename here because
+       * the spec models a binary form field as raw bytes with no separate
+       * filename slot. */
+      validateMultipartFilename(name);
       final mimeType = lookupMimeType(name) ?? 'application/octet-stream';
+      /* multipart-rfc5987-filename: a non-ASCII filename must be emitted as an
+       * RFC 5987 `filename*=UTF-8''<pct-encoded>` parameter (with an ASCII
+       * `filename="..."` fallback), not as raw UTF-8 bytes inside the quoted
+       * `filename="..."` — the latter is non-conformant and mangled by strict
+       * parsers. buildFilenameDirective emits the plain `filename="..."` for
+       * ASCII names and adds `filename*` only when needed. */
+      final filenameDirective = buildFilenameDirective(name);
       parts.add(utf8.encode(
-        '--$boundary\r\nContent-Disposition: form-data; name="$safeName"; filename="$safeName"\r\nContent-Type: $mimeType\r\n\r\n',
+        '--$boundary\r\nContent-Disposition: form-data; name="$safeName"; $filenameDirective\r\nContent-Type: $mimeType\r\n\r\n',
       ));
       parts.add(value);
       parts.add(utf8.encode('\r\n'));

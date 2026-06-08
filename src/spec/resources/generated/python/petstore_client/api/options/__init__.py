@@ -4,5 +4,6 @@ from .add_pet_treatment_options import AddPetTreatmentOptions as AddPetTreatment
 from .delete_pet_options import DeletePetOptions as DeletePetOptions
 from .find_pets_by_status_options import FindPetsByStatusOptions as FindPetsByStatusOptions
 from .get_pet_tag_options import GetPetTagOptions as GetPetTagOptions
+from .set_pet_preferences_options import SetPetPreferencesOptions as SetPetPreferencesOptions
 from .upload_pet_certificate_options import UploadPetCertificateOptions as UploadPetCertificateOptions
 from .upload_pet_document_options import UploadPetDocumentOptions as UploadPetDocumentOptions

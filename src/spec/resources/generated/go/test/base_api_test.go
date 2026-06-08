@@ -427,6 +427,41 @@ func TestBaseApi_SerializesJsonBody(t *testing.T) {
 	}
 }
 
+// form-array-repeated-keys / form-optional-omit / form-urlencoded-space-plus:
+// an application/x-www-form-urlencoded body must serialise array fields as
+// repeated keys (tags=x&tags=y, never a single bracketed/joined value), omit
+// absent optional fields entirely, and encode a space as '+' (HTML
+// form-encoding) rather than %20 — byte-identical to the other 11 SDKs.
+func TestBaseApi_FormUrlencodedWireFormat(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil)
+
+	tags := []string{"x", "y"}
+	// note is left nil so the optional field must be omitted from the wire body.
+	_, _ = api.SetPetPreferences(int64(1), &options.SetPetPreferencesOptions{
+		Nickname: "a b",
+		Tags:     &tags,
+	})
+
+	b, ok := client.capturedBody.([]byte)
+	if !ok {
+		t.Fatalf("expected []byte body, got %T", client.capturedBody)
+	}
+	wire := string(b)
+	// url.Values.Encode sorts keys, so nickname precedes tags deterministically.
+	if wire != "nickname=a+b&tags=x&tags=y" {
+		t.Errorf("expected wire body %q, got %q", "nickname=a+b&tags=x&tags=y", wire)
+	}
+	if strings.Contains(wire, "%20") {
+		t.Errorf("space must encode as '+' not %%20, got %q", wire)
+	}
+	if strings.Contains(wire, "note") {
+		t.Errorf("absent optional field 'note' must be omitted, got %q", wire)
+	}
+}
+
 // ── Query parameter serialization ──
 
 // queryCapturingApiClient captures the full URL including query string.

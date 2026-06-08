@@ -636,4 +636,43 @@ describe('ObjectSerializer', () => {
       expect(() => ObjectSerializer.resolveAnyOf<string>('{}', [() => null])).toThrow(SerializationError);
     });
   });
+
+  describe('Canonical behavior #6 — unknown enum value on deserialize throws', () => {
+    // Deserializing a payload whose enum field carries an out-of-schema
+    // value must raise the SDK's (de)serialization error, never silently
+    // pass the unknown value through or coerce it to a default/unknown
+    // member. ObjectSerializer.deserialize routes plainToInstance output
+    // back through the model constructor, where the enum membership check
+    // fires.
+    test('out-of-schema enum value raises SerializationError', () => {
+      const wire = {
+        id: 1,
+        name: 'Rex',
+        photoUrls: ['http://example.com/p.jpg'],
+        status: 'galloping'
+      };
+      expect(() => ObjectSerializer.deserialize(wire, Pet)).toThrow(SerializationError);
+    });
+
+    test('error message names the offending enum value', () => {
+      const wire = {
+        id: 1,
+        name: 'Rex',
+        photoUrls: ['http://example.com/p.jpg'],
+        status: 'galloping'
+      };
+      expect(() => ObjectSerializer.deserialize(wire, Pet)).toThrow(/galloping/);
+    });
+
+    test('an in-schema enum value still deserializes cleanly', () => {
+      const wire = {
+        id: 1,
+        name: 'Rex',
+        photoUrls: ['http://example.com/p.jpg'],
+        status: PetStatusEnum.Available
+      };
+      const pet = ObjectSerializer.deserialize(wire, Pet);
+      expect(pet?.status).toBe(PetStatusEnum.Available);
+    });
+  });
 });

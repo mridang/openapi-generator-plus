@@ -31,6 +31,7 @@ from .options.add_pet_treatment_options import AddPetTreatmentOptions
 from .options.delete_pet_options import DeletePetOptions
 from .options.find_pets_by_status_options import FindPetsByStatusOptions
 from .options.get_pet_tag_options import GetPetTagOptions
+from .options.set_pet_preferences_options import SetPetPreferencesOptions
 from .options.upload_pet_certificate_options import UploadPetCertificateOptions
 from .options.upload_pet_document_options import UploadPetDocumentOptions
 
@@ -1305,6 +1306,85 @@ class PetApi(BaseApi):
             [],
             'application/json',
             None,
+            None,
+        )
+
+    async def set_pet_preferences(
+        self,
+        pet_id: StrictInt,
+        options: Optional[SetPetPreferencesOptions] = None,
+    ) -> ApiResponse:
+        """Update a pet&#39;s notification preferences
+        Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
+        :param pet_id:  (required)
+
+        :param options: options for query, header, form, and cookie parameters
+
+        :return: ApiResponse
+        :raises ApiException: if fails to make API call
+        """
+        if pet_id is None:
+            raise ValueError("Missing the required parameter 'pet_id'")
+
+        if options is None or options.nickname is None:
+            raise ValueError("Missing the required parameter 'nickname'")
+
+        result = await self.set_pet_preferences_with_http_info(pet_id, options)
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message='Expected a response body but the server returned none',
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def set_pet_preferences_with_http_info(
+        self,
+        pet_id: StrictInt,
+        options: Optional[SetPetPreferencesOptions] = None,
+    ) -> 'ApiResult[ApiResponse]':
+        """Update a pet&#39;s notification preferences (with HTTP info)
+        Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
+        :param pet_id:  (required)
+
+        :param options: options for query, header, form, and cookie parameters
+
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        if pet_id is None:
+            raise ValueError("Missing the required parameter 'pet_id'")
+
+        if options is None or options.nickname is None:
+            raise ValueError("Missing the required parameter 'nickname'")
+
+        path = '/pet/{petId}/preferences'
+        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'StrictInt', None, 'simple', False)))
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body: Dict[str, Any] = {}
+        if options is not None:
+            body['nickname'] = options.nickname
+        if options is not None and options.tags is not None:
+            body['tags'] = options.tags
+        if options is not None and options.note is not None:
+            body['note'] = options.note
+
+        return await self._invoke_api_for_result(
+            'POST',
+            path,
+            query_params,
+            header_params,
+            body,
+            ['application/json'],
+            'application/x-www-form-urlencoded',
+            'ApiResponse',
             None,
         )
 

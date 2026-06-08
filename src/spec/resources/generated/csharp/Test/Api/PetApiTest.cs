@@ -564,4 +564,59 @@ public class PetApiTest
 
         Assert.NotNull(result);
     }
+
+    private sealed class BodyCapturingApiClient : IApiClient
+    {
+        public object? CapturedBody { get; private set; }
+
+        public Task<PetstoreClient.ApiResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body,
+            bool noRedirect = false
+        )
+        {
+            CapturedBody = body;
+            return Task.FromResult(
+                new PetstoreClient.ApiResponse(
+                    200,
+                    "",
+                    new Dictionary<string, string> { { "Content-Type", "application/json" } }
+                )
+            );
+        }
+    }
+
+    [Fact]
+    public async Task SetPetPreferencesFormWireFormat()
+    {
+        // Wire-format parity lock for the application/x-www-form-urlencoded
+        // body of setPetPreferences. The canonical (identical across all 12
+        // SDKs) requires:
+        //   - array fields exploded into repeated keys: tags=x&tags=y;
+        //   - a space encoded as '+' (form-urlencoded, not '%20');
+        //   - an absent optional field (note) omitted entirely.
+        var client = new BodyCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var api = new PetApi(client, config);
+
+        // The WithHttpInfo variant is used so an empty mock response body
+        // does not trip the convenience wrapper's non-empty-body guard; the
+        // request body is captured before any response handling.
+        await api.SetPetPreferencesWithHttpInfoAsync(
+            1L,
+            new SetPetPreferencesOptions
+            {
+                Nickname = "a b",
+                Tags = new List<string> { "x", "y" },
+            }
+        );
+
+        Assert.NotNull(client.CapturedBody);
+        string wire = client.CapturedBody!.ToString()!;
+        Assert.Equal("nickname=a+b&tags=x&tags=y", wire);
+        Assert.DoesNotContain("note", wire);
+        Assert.DoesNotContain("%20", wire);
+    }
 }

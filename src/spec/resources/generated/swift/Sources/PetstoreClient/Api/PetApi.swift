@@ -198,9 +198,14 @@ public final class PetApi: BaseApi, @unchecked Sendable {
 
         let headerParams: [String: String] = [:]
 
-        var formBody: [String: String] = [:]
-        formBody["files"] = "\(options.files)"
-        formBody["metadata"] = "\(options.metadata)"
+        /* Form fields are stored as `Any` so array values survive as arrays
+         * (rather than being stringified to a Swift "[a, b]" description) and
+         * can be emitted as repeated keys by the form/multipart encoder.
+         * Optional nil fields are omitted entirely — never sent as an empty
+         * `name=` pair. */
+        var formBody: [String: Any] = [:]
+        formBody["files"] = options.files
+        formBody["metadata"] = options.metadata
         let requestBody: Any? = formBody
 
         let params = InvokeAPIParams(
@@ -1057,6 +1062,70 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         return try await invokeAPIForEmptyResult(params)
     }
 
+    /// Update a pet's notification preferences
+    /// Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
+    ///
+    /// - Parameters:
+
+    public func setPetPreferences(petId: Int64, options: SetPetPreferencesOptions) async throws -> ApiResponse {
+        let result = try await setPetPreferencesWithHTTPInfo(petId: petId, options: options)
+        guard let data = result.data else {
+            throw ApiError(
+                statusCode: result.statusCode,
+                message: "Server returned no body for setPetPreferences",
+                responseBody: result.rawBody,
+                responseHeaders: result.headers
+            )
+        }
+        return data
+    }
+
+    /// Performs the setPetPreferences operation and returns the full API result.
+    public func setPetPreferencesWithHTTPInfo(
+        petId: Int64, options: SetPetPreferencesOptions
+    ) async throws -> ApiResult<ApiResponse> {
+
+        var path = "/pet/{petId}/preferences"
+        path = path.replacingOccurrences(
+            of: "{" + "petId" + "}",
+            with:
+                "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+        )
+
+        let queryParams: [String: Any?] = [:]
+
+        let headerParams: [String: String] = [:]
+
+        /* Form fields are stored as `Any` so array values survive as arrays
+         * (rather than being stringified to a Swift "[a, b]" description) and
+         * can be emitted as repeated keys by the form/multipart encoder.
+         * Optional nil fields are omitted entirely — never sent as an empty
+         * `name=` pair. */
+        var formBody: [String: Any] = [:]
+        formBody["nickname"] = options.nickname
+        if let val = options.tags {
+            formBody["tags"] = val
+        }
+        if let val = options.note {
+            formBody["note"] = val
+        }
+        let requestBody: Any? = formBody
+
+        let params = InvokeAPIParams(
+            method: "POST",
+            path: path,
+            queryParams: queryParams,
+            headerParams: headerParams,
+            body: requestBody,
+            accepts: ["application/json"],
+            contentType: "application/x-www-form-urlencoded",
+            returnType: "ApiResponse",
+            auth: nil
+        )
+
+        return try await invokeAPIForResult(params, as: ApiResponse.self)
+    }
+
     /// Update an existing pet
     ///
     /// - Parameters:
@@ -1141,8 +1210,13 @@ public final class PetApi: BaseApi, @unchecked Sendable {
 
         let headerParams: [String: String] = [:]
 
-        var formBody: [String: String] = [:]
-        formBody["file"] = "\(options.file)"
+        /* Form fields are stored as `Any` so array values survive as arrays
+         * (rather than being stringified to a Swift "[a, b]" description) and
+         * can be emitted as repeated keys by the form/multipart encoder.
+         * Optional nil fields are omitted entirely — never sent as an empty
+         * `name=` pair. */
+        var formBody: [String: Any] = [:]
+        formBody["file"] = options.file
         let requestBody: Any? = formBody
 
         let params = InvokeAPIParams(
@@ -1194,13 +1268,18 @@ public final class PetApi: BaseApi, @unchecked Sendable {
 
         let headerParams: [String: String] = [:]
 
-        var formBody: [String: String] = [:]
-        formBody["file"] = "\(options.file)"
+        /* Form fields are stored as `Any` so array values survive as arrays
+         * (rather than being stringified to a Swift "[a, b]" description) and
+         * can be emitted as repeated keys by the form/multipart encoder.
+         * Optional nil fields are omitted entirely — never sent as an empty
+         * `name=` pair. */
+        var formBody: [String: Any] = [:]
+        formBody["file"] = options.file
         if let val = options.documentType {
-            formBody["documentType"] = "\(val)"
+            formBody["documentType"] = val
         }
         if let val = options.notes {
-            formBody["notes"] = "\(val)"
+            formBody["notes"] = val
         }
         let requestBody: Any? = formBody
 

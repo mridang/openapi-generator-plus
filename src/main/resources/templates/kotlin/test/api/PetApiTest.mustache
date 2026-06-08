@@ -10,6 +10,7 @@ import {{apiPackage}}.options.AddPetPhotosOptions
 import {{apiPackage}}.options.DeletePetOptions
 import {{apiPackage}}.options.FindPetsByStatusOptions
 import {{apiPackage}}.options.GetPetTagOptions
+import {{apiPackage}}.options.SetPetPreferencesOptions
 import {{apiPackage}}.options.UploadPetCertificateOptions
 import {{apiPackage}}.options.UploadPetDocumentOptions
 import {{modelPackage}}.*
@@ -586,6 +587,80 @@ class PetApiTest {
 
             val result = runBlocking { api.getPetAvatar(1L) }
             assertNotNull(result)
+        }
+
+        @Test
+        @DisplayName("setPetPreferences form body: repeated array keys, omitted null, space as +")
+        fun testSetPetPreferencesFormWireFormat() {
+            // Parity rules 1/2/3 for application/x-www-form-urlencoded bodies:
+            //   1. array fields explode into REPEATED keys: tags=x&tags=y
+            //   2. an absent/null optional field (note) is OMITTED entirely
+            //   3. a space in a value is encoded as '+'
+            // The whole body must be byte-identical across all SDKs.
+            var capturedBody: String? = null
+            var capturedContentType: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedContentType =
+                        request.body.contentType?.toString()
+                            ?: request.headers["Content-Type"]
+                    capturedBody = String(request.body.toByteArray(), Charsets.UTF_8)
+                    respond(
+                        content = """{"code":200,"type":"ok","message":"saved"}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            runBlocking {
+                api.setPetPreferences(
+                    1L,
+                    SetPetPreferencesOptions(
+                        nickname = "a b",
+                        tags = listOf("x", "y"),
+                        note = null,
+                    ),
+                )
+            }
+
+            assertTrue(
+                capturedContentType!!.startsWith("application/x-www-form-urlencoded"),
+                "Content-Type must be application/x-www-form-urlencoded, got: $capturedContentType",
+            )
+            assertEquals("nickname=a+b&tags=x&tags=y", capturedBody)
+        }
+
+        @Test
+        @DisplayName("deserializing an unknown enum value throws an SDK error")
+        fun testUnknownEnumValueThrows() {
+            // Parity rule 6: an unknown enum value in a response body must
+            // surface a (de)serialization error, never be silently coerced to
+            // null or a default. kotlinx.serialization throws
+            // SerializationException for a status the StatusEnum doesn't define.
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = """{"id":1,"name":"Rex","photoUrls":[],"status":"banana"}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            assertThrows(kotlinx.serialization.SerializationException::class.java) {
+                runBlocking { api.getPetById(1L) }
+            }
         }
     }
 }

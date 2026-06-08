@@ -20,6 +20,7 @@ import type { AddPetTreatmentOptions } from './options/add-pet-treatment-options
 import type { DeletePetOptions } from './options/delete-pet-options.js';
 import type { FindPetsByStatusOptions } from './options/find-pets-by-status-options.js';
 import type { GetPetTagOptions } from './options/get-pet-tag-options.js';
+import type { SetPetPreferencesOptions } from './options/set-pet-preferences-options.js';
 import type { UploadPetCertificateOptions } from './options/upload-pet-certificate-options.js';
 import type { UploadPetDocumentOptions } from './options/upload-pet-document-options.js';
 
@@ -1150,6 +1151,84 @@ export class PetApi extends BaseApi {
       [],
       'application/json',
       null,
+      null
+    );
+  }
+
+  /**
+   * Update a pet's notification preferences
+   * Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
+   * @param petId  (required)
+   * @param options.nickname  (required)
+   * @param options.tags  (optional)
+   * @param options.note  (optional)
+   * @return ApiResponse
+   * @throws {ApiError} if fails to make API call
+   */
+  async setPetPreferences(petId: number, options: SetPetPreferencesOptions): Promise<ApiResponse> {
+    if (petId == null) {
+      throw new Error('Missing required parameter "petId" when calling setPetPreferences');
+    }
+    if (options?.nickname == null) {
+      throw new Error('Missing required parameter "nickname" when calling setPetPreferences');
+    }
+    const setPetPreferencesResult = await this.setPetPreferencesWithHttpInfo(petId, options);
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (setPetPreferencesResult.data == null) {
+      throw new ApiError(
+        setPetPreferencesResult.statusCode,
+        'Expected a response body for setPetPreferences but received none',
+        setPetPreferencesResult.headers,
+        setPetPreferencesResult.rawBody,
+        null
+      );
+    }
+    return setPetPreferencesResult.data as ApiResponse;
+  }
+
+  /**
+   * Update a pet's notification preferences (with HTTP info)
+   * @throws {ApiError} if fails to make API call
+   */
+  async setPetPreferencesWithHttpInfo(
+    petId: number,
+    options: SetPetPreferencesOptions
+  ): Promise<ApiResult<ApiResponse>> {
+    if (petId == null) {
+      throw new Error('Missing required parameter "petId" when calling setPetPreferences');
+    }
+    if (options?.nickname == null) {
+      throw new Error('Missing required parameter "nickname" when calling setPetPreferences');
+    }
+    let path = `/pet/{petId}/preferences`;
+    path = path.replace(
+      `{${'petId'}}`,
+      ValueSerializer.serializeStyled('petId', petId, 'path', 'number', null, 'simple', false) as string
+    );
+    const queryParams: Record<string, unknown> = {};
+    const headerParams: Record<string, string> = {};
+    const formBody: Record<string, unknown> = {};
+    if (options?.nickname != null) {
+      formBody['nickname'] = options.nickname;
+    }
+    if (options?.tags != null) {
+      formBody['tags'] = options.tags;
+    }
+    if (options?.note != null) {
+      formBody['note'] = options.note;
+    }
+
+    return await this.invokeApiForResult(
+      'POST',
+      path,
+      queryParams,
+      headerParams,
+      formBody,
+      ['application/json'],
+      'application/x-www-form-urlencoded',
+      (json: unknown) => ObjectSerializer.deserialize(json, ApiResponse)!,
       null
     );
   }

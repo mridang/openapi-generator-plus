@@ -34,15 +34,21 @@ public class RustClientSpec extends AbstractClientSpec implements RustSpec {
          * it up alongside the other languages' JUnit output. */
         return new String[] {
             "mkdir -p .out/reports",
-            /* Build the library (normal rlib) BEFORE nextest. Since unit tests
-             * now live in-crate (`#[cfg(test)] mod tests`), the lib is compiled
-             * in two variants; nextest's parallel test-binary build could start
-             * an integration-test crate before the lib's normal rlib was
-             * emitted, yielding a transient `E0463: can't find crate petstore`.
-             * Building the lib first makes the rlib present and removes the race.
-             * CARGO_BUILD_JOBS=2 matches RustBuildSpec (bounds peak memory). */
-            "CARGO_BUILD_JOBS=2 cargo build",
-            "cargo nextest run --profile=ci",
+            /* Compile ALL test binaries (lib in its `--cfg test` variant plus
+             * every integration-test crate) in a single bounded build BEFORE the
+             * run. Unit tests live in-crate (`#[cfg(test)] mod tests`), so the
+             * lib is built in two variants; if the lib's test-cfg rlib is still
+             * being emitted when nextest starts compiling a dependent
+             * integration-test crate in parallel, that crate fails with a
+             * transient `E0463: can't find crate petstore` (and, by extension,
+             * `serde`/`testcontainers`/… whichever dependent loses the race).
+             * `cargo nextest run --no-run` performs the identical test-profile
+             * build nextest would otherwise do inline, so the subsequent run
+             * step finds every artifact cached and never rebuilds concurrently.
+             * CARGO_BUILD_JOBS=2 bounds the build graph's parallelism (matching
+             * RustBuildSpec) so the rlib lands before its dependents compile. */
+            "CARGO_BUILD_JOBS=2 cargo nextest run --profile=ci --no-run",
+            "CARGO_BUILD_JOBS=2 cargo nextest run --profile=ci",
             "cp target/nextest/ci/junit.xml .out/reports/junit.xml"
         };
     }

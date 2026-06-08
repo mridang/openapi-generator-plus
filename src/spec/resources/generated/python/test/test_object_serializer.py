@@ -2,6 +2,7 @@ import datetime
 import pytest
 from petstore_client.object_serializer import ObjectSerializer, SerializationError
 from petstore_client.models.category import Category
+from petstore_client.models.order import OrderStatusEnum
 
 
 class TestDateTimeOffsetPreservation:
@@ -313,6 +314,28 @@ class TestRequiredFieldNullRejection:
         json_str = '{"photoUrls": ["x"]}'
         with pytest.raises(SerializationError):
             ObjectSerializer().deserialize(json_str, 'Pet')
+
+
+class TestUnknownEnumRejection:
+    """unknown-enum-deserialize-throws: an enum value not declared in the
+    schema must raise the SDK's SerializationError on deserialize, never fall
+    back to a silent default or an 'unknown' member. All 12 SDKs converge here.
+    """
+
+    def test_unknown_enum_value_on_scalar_raises(self) -> None:
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize('"teleported"', OrderStatusEnum)
+
+    def test_known_enum_value_on_scalar_round_trips(self) -> None:
+        result = ObjectSerializer().deserialize('"placed"', OrderStatusEnum)
+        assert result == OrderStatusEnum.PLACED
+
+    def test_unknown_enum_value_on_model_field_raises(self) -> None:
+        # The enum field lives on a model; an out-of-schema value must fail the
+        # whole deserialize rather than coerce to the field default.
+        json_str = '{"id": 1, "petId": 1, "quantity": 1, "status": "teleported"}'
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize(json_str, 'Order')
 
 
 class TestNanInfinityRejection:

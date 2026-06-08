@@ -211,6 +211,8 @@ public class PetApi : BaseApi
 
     private static readonly string[] GetStagingPetInfoAccepts = ["application/json"];
 
+    private static readonly string[] SetPetPreferencesAccepts = ["application/json"];
+
     private static readonly string[] UpdatePetAccepts = ["application/json"];
 
     private static readonly string[] UploadPetCertificateAccepts = ["application/json"];
@@ -1547,6 +1549,91 @@ public class PetApi : BaseApi
                 [],
                 "application/json",
                 null,
+                null
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Update a pet&#39;s notification preferences
+    /// </summary>
+    /// <remarks>Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.</remarks>
+    /// <param name="petId"></param>
+    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <returns><![CDATA[ApiResponse]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResponse> SetPetPreferencesAsync(
+        long petId,
+        SetPetPreferencesOptions options
+    )
+    {
+        Task<ApiResult<ApiResponse>> task = SetPetPreferencesWithHttpInfoAsync(petId, options);
+        ApiResult<ApiResponse> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. */
+        return result.Data
+            ?? throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody
+            );
+    }
+
+    /// <summary>
+    /// Update a pet&#39;s notification preferences (with HTTP info)
+    /// </summary>
+    /// <remarks>Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.</remarks>
+    /// <param name="petId"></param>
+    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<ApiResponse>> SetPetPreferencesWithHttpInfoAsync(
+        long petId,
+        SetPetPreferencesOptions options
+    )
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        string path = "/pet/{petId}/preferences";
+        path = path.Replace(
+            "{" + nameof(petId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
+            StringComparison.Ordinal
+        );
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+        Dictionary<string, object> formBody = [];
+        formBody["nickname"] = options.Nickname;
+        if (options != null && options.Tags != null)
+        {
+            formBody["tags"] = options.Tags;
+        }
+        if (options != null && options.Note != null)
+        {
+            formBody["note"] = options.Note;
+        }
+        return await InvokeApiForResultAsync<ApiResponse>(
+                "POST",
+                path,
+                queryParams,
+                headerParams,
+                formBody,
+                SetPetPreferencesAccepts,
+                "application/x-www-form-urlencoded",
+                typeof(ApiResponse),
                 null
             )
             .ConfigureAwait(false);

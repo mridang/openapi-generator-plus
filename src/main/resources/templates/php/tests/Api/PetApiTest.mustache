@@ -9,6 +9,7 @@ use {{invokerPackage}}\Api\Options\AddPetPhotosOptions;
 use {{invokerPackage}}\Api\Options\DeletePetOptions;
 use {{invokerPackage}}\Api\Options\FindPetsByStatusOptions;
 use {{invokerPackage}}\Api\Options\GetPetTagOptions;
+use {{invokerPackage}}\Api\Options\SetPetPreferencesOptions;
 use {{invokerPackage}}\Api\Options\UploadPetCertificateOptions;
 use {{invokerPackage}}\Api\Options\UploadPetDocumentOptions;
 use {{invokerPackage}}\Api\PetApi;
@@ -257,6 +258,98 @@ test('get pet tag sends styled parameters', function (): void {
     $result = $this->api->getPetTag(5, 'cute', new GetPetTagOptions(colors: ['blue', 'black'], sizes: ['S', 'M']));
 
     expect($result)->not->toBeNull();
+});
+
+// -- Canonical form-urlencoded body behaviors (#1, #2, #3) --
+//
+// setPetPreferences sends an application/x-www-form-urlencoded body with a
+// required scalar (nickname), an optional array (tags) and an optional scalar
+// (note). The body is serialized to the wire string BEFORE it reaches the
+// ApiClient, so a body-capturing fake client sees the exact bytes that go on
+// the wire. These tests pin three cross-SDK invariants:
+//   #1 array field -> repeated keys (tags=a&tags=b, never tags=a,b or tags[]=)
+//   #2 optional null/absent field -> omitted entirely
+//   #3 space in a form-body value -> '+' (WHATWG form encoding), not %20
+
+/**
+ * Builds a PetApi backed by a body-capturing fake client plus a holder whose
+ * ->body is set to the serialized request body string on each call.
+ *
+ * @return array{0: PetApi, 1: \stdClass}
+ */
+function newBodyCapturingPetApi(): array
+{
+    $captured = new \stdClass();
+    $captured->body = '';
+
+    $client = new class($captured) implements \{{invokerPackage}}\ApiClient {
+        public function __construct(private readonly \stdClass $captured)
+        {
+        }
+
+        public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false): \{{invokerPackage}}\ApiResponse
+        {
+            $this->captured->body = is_string($body) ? $body : '';
+            return new \{{invokerPackage}}\ApiResponse(
+                200,
+                '{"code":200,"type":"ok","message":"saved"}',
+                ['Content-Type' => 'application/json']
+            );
+        }
+    };
+
+    $config = Configuration::builder()
+        ->baseUrl('http://localhost:9999')
+        ->build();
+
+    return [new PetApi(apiClient: $client, config: $config), $captured];
+}
+
+test('form array field serializes as repeated keys', function (): void {
+    // Canonical behavior #1: tags=[friendly, calm] must serialize to
+    // tags=friendly&tags=calm — one repeated key per element.
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    $api->setPetPreferences(1, new SetPetPreferencesOptions(
+        nickname: 'Rex',
+        tags: ['friendly', 'calm'],
+    ));
+
+    expect($captured->body)->toContain('tags=friendly');
+    expect($captured->body)->toContain('tags=calm');
+    // The csv form (tags=friendly,calm) and the bracket form (tags[]=) are
+    // both wrong for repeated-key parity.
+    expect($captured->body)->not->toContain('tags=friendly%2Ccalm');
+    expect($captured->body)->not->toContain('tags%5B%5D');
+});
+
+test('form optional null field is omitted', function (): void {
+    // Canonical behavior #2: an unset optional field (note) must not appear in
+    // the body at all — no empty note= pair.
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    $api->setPetPreferences(1, new SetPetPreferencesOptions(
+        nickname: 'Rex',
+    ));
+
+    expect($captured->body)->toContain('nickname=Rex');
+    expect($captured->body)->not->toContain('note');
+    expect($captured->body)->not->toContain('tags');
+});
+
+test('form body encodes space as plus not percent twenty', function (): void {
+    // Canonical behavior #3: a space inside a form-body value is encoded as
+    // '+' (WHATWG application/x-www-form-urlencoded), never %20.
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    $api->setPetPreferences(1, new SetPetPreferencesOptions(
+        nickname: 'Good Boy',
+        note: 'likes long walks',
+    ));
+
+    expect($captured->body)->toContain('nickname=Good+Boy');
+    expect($captured->body)->toContain('note=likes+long+walks');
+    expect($captured->body)->not->toContain('%20');
 });
 
 // -- Mock-based error handling tests --

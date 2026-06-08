@@ -813,7 +813,12 @@ defmodule PetstoreClient.DefaultApiClient do
     {body, headers}
   end
 
-  defp build_multipart_body(form_parts, boundary) do
+  @doc false
+  # Public for testability: this is the exact serializer `prepare_body/2`
+  # uses for multipart/form-data request bodies. Exposed so the generated
+  # test suite can assert on per-part Content-Type derivation and field
+  # name preservation without reaching through the transport layer.
+  def build_multipart_body(form_parts, boundary) do
     parts =
       Enum.flat_map(form_parts, fn {name, value} ->
         case value do

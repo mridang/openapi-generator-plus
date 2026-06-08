@@ -12,6 +12,7 @@ use crate::api::base_api::BaseApi;
 use crate::api::base_api::InvokeApiParams;
 use crate::api::options::*;
 use crate::api_client::ApiClient;
+use crate::api_client::MultipartValue;
 use crate::api_error::ApiError;
 use crate::api_result::ApiResult;
 use crate::auth::Authenticator;
@@ -224,6 +225,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body = Some(object_serializer::serialize(&pet)?.into_bytes());
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
 
         let params = InvokeApiParams {
             method: "POST",
@@ -231,6 +233,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            multipart,
             accepts: vec!["application/json"],
             content_type: "application/json",
             return_type: "Pet",
@@ -326,20 +329,34 @@ impl PetApi {
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
-        let mut form_body: HashMap<String, String> = HashMap::new();
+        // multipart/form-data. Each form param is mapped to a MultipartValue so
+        // the API client's serialize_multipart_body owns the wire format:
+        //   - file params (Vec<u8>)      -> Bytes (one file part; its part
+        //     Content-Type is derived from the field-name extension, falling
+        //     back to application/octet-stream);
+        //   - arrays of files           -> List(Bytes ...) (repeated parts);
+        //   - text arrays               -> List(Text ...) (repeated parts);
+        //   - objects / scalars         -> Text;
+        //   - absent optional fields    -> omitted entirely.
+        // Field names are emitted as UTF-8 by the client (non-ASCII preserved).
+        let mut multipart: HashMap<String, MultipartValue> = HashMap::new();
         if let Some(opts) = options {
-            form_body.insert(
+            multipart.insert(
                 "files".to_string(),
-                object_serializer::stringify(&opts.files),
+                MultipartValue::List(
+                    opts.files
+                        .iter()
+                        .map(|b| MultipartValue::Bytes(b.clone()))
+                        .collect(),
+                ),
             );
-        }
-        if let Some(opts) = options {
-            form_body.insert(
+            multipart.insert(
                 "metadata".to_string(),
-                object_serializer::stringify(&opts.metadata),
+                MultipartValue::Text(object_serializer::serialize(&opts.metadata)?),
             );
         }
-        let request_body = Some(serde_json::to_vec(&form_body)?);
+        let request_body: Option<Vec<u8>> = None;
+        let multipart = Some(multipart);
 
         let params = InvokeApiParams {
             method: "POST",
@@ -347,6 +364,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            multipart,
             accepts: vec!["application/json"],
             content_type: "multipart/form-data",
             return_type: "Vec<Photo>",
@@ -451,6 +469,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body = Some(object_serializer::serialize(&pet_treatment)?.into_bytes());
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
 
         let params = InvokeApiParams {
             method: "POST",
@@ -458,6 +477,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            multipart,
             accepts: vec!["application/json"],
             content_type: "application/json",
             return_type: "PetTreatment",
@@ -569,6 +589,7 @@ impl PetApi {
         }
 
         let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
 
         let params = InvokeApiParams {
             method: "DELETE",
@@ -576,6 +597,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            multipart,
             accepts: vec![],
             content_type: "application/json",
             return_type: "",
@@ -723,6 +745,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -730,6 +753,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            multipart,
             accepts: vec!["application/octet-stream"],
             content_type: "application/json",
             return_type: "Vec<u8>",
@@ -822,6 +846,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -829,6 +854,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            multipart,
             accepts: vec!["application/json"],
             content_type: "application/json",
             return_type: "Vec<Pet>",
@@ -932,6 +958,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -939,6 +966,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            multipart,
             accepts: vec!["application/json"],
             content_type: "application/json",
             return_type: "Pet",
@@ -1042,6 +1070,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -1049,6 +1078,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            multipart,
             accepts: vec!["application/json"],
             content_type: "application/json",
             return_type: "Pet",
@@ -1143,6 +1173,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -1150,6 +1181,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            multipart,
             accepts: vec!["image/jpeg", "image/png"],
             content_type: "application/json",
             return_type: "Vec<u8>",
@@ -1244,6 +1276,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -1251,6 +1284,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            multipart,
             accepts: vec!["application/json"],
             content_type: "application/json",
             return_type: "Vec<u8>",
@@ -1365,6 +1399,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -1372,6 +1407,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            multipart,
             accepts: vec!["application/json"],
             content_type: "application/json",
             return_type: "Pet",
@@ -1466,6 +1502,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -1473,6 +1510,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            multipart,
             accepts: vec!["application/json"],
             content_type: "application/json",
             return_type: "PetPassport",
@@ -1618,6 +1656,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -1625,6 +1664,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            multipart,
             accepts: vec!["image/jpeg", "image/png", "application/json"],
             content_type: "application/json",
             return_type: "Vec<u8>",
@@ -1858,6 +1898,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -1865,6 +1906,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            multipart,
             accepts: vec!["application/json"],
             content_type: "application/json",
             return_type: "Pet",
@@ -1968,6 +2010,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -1975,6 +2018,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            multipart,
             accepts: vec!["application/json"],
             content_type: "application/json",
             return_type: "Pet",
@@ -2058,6 +2102,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body = Some(object_serializer::serialize(&body)?.into_bytes());
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
 
         let params = InvokeApiParams {
             method: "PUT",
@@ -2065,6 +2110,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            multipart,
             accepts: vec![],
             content_type: "image/jpeg",
             return_type: "",
@@ -2151,6 +2197,7 @@ impl PetApi {
 
         let request_body =
             Some(object_serializer::serialize(&set_pet_avatar_thumbnail_request)?.into_bytes());
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
 
         let params = InvokeApiParams {
             method: "PUT",
@@ -2158,6 +2205,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            multipart,
             accepts: vec![],
             content_type: "application/json",
             return_type: "",
@@ -2165,6 +2213,130 @@ impl PetApi {
         };
 
         self.base.invoke_api_for_empty_result(params).await
+    }
+
+    /// Update a pet's notification preferences
+    /// Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
+    pub async fn set_pet_preferences(
+        &self,
+        pet_id: i64,
+        options: Option<&SetPetPreferencesOptions>,
+    ) -> Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self
+            .set_pet_preferences_with_http_info(pet_id, options)
+            .await?;
+        // convenience-empty-body-handling: a body-returning operation that
+        // receives no decodable body must surface the SDK's typed ApiError
+        // (not a silent null / zero value), matching the other SDKs.
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "empty response body for an operation that declares a response type".to_string(),
+                Some(raw_body),
+                Some(headers),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the set_pet_preferences operation and returns the full API result.
+    pub async fn set_pet_preferences_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&SetPetPreferencesOptions>,
+    ) -> Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut path = "/pet/{petId}/preferences".to_string();
+        if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+            "petId",
+            Some(&object_serializer::to_path_value(&pet_id)),
+            None,
+            "path",
+            "i64",
+            "",
+            "simple",
+            false,
+        ) {
+            // URL-encode for use as a URL path segment, preserving sub-delimiters
+            // used by OAS 3.0 matrix/label/simple styles.
+            let encoded: String = v
+                .chars()
+                .flat_map(|c| {
+                    if c.is_ascii_alphanumeric()
+                        || matches!(
+                            c,
+                            '-' | '_'
+                                | '.'
+                                | '~'
+                                | '!'
+                                | '$'
+                                | '&'
+                                | '\''
+                                | '('
+                                | ')'
+                                | '*'
+                                | '+'
+                                | ','
+                                | ';'
+                                | '='
+                                | ':'
+                                | '@'
+                        )
+                    {
+                        vec![c]
+                    } else {
+                        let mut buf = [0u8; 4];
+                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
+                        bytes
+                            .into_iter()
+                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
+                            .collect()
+                    }
+                })
+                .collect();
+            path = path.replace("{petId}", &encoded);
+        }
+
+        let mut query_params: Vec<(String, String)> = Vec::new();
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        // application/x-www-form-urlencoded. The body is an ordered list of
+        // [key, value] pairs (spec-declaration order). Array values are emitted
+        // as repeated keys by serialize_body; null/absent optional fields are
+        // omitted entirely; spaces are encoded as `+`.
+        let mut form_pairs: Vec<(String, serde_json::Value)> = Vec::new();
+        if let Some(opts) = options {
+            form_pairs.push((
+                "nickname".to_string(),
+                serde_json::to_value(&opts.nickname)?,
+            ));
+            if let Some(ref val) = opts.tags {
+                form_pairs.push(("tags".to_string(), serde_json::to_value(val)?));
+            }
+            if let Some(ref val) = opts.note {
+                form_pairs.push(("note".to_string(), serde_json::to_value(val)?));
+            }
+        }
+        let request_body = Some(serde_json::to_vec(&form_pairs)?);
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
+
+        let params = InvokeApiParams {
+            method: "POST",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: "application/x-www-form-urlencoded",
+            return_type: "ApiResponse",
+            auth: None,
+        };
+
+        self.base.invoke_api_for_result::<ApiResponse>(params).await
     }
 
     /// Update an existing pet
@@ -2255,6 +2427,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body = Some(object_serializer::serialize(&pet)?.into_bytes());
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
 
         let params = InvokeApiParams {
             method: "PUT",
@@ -2262,6 +2435,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            multipart,
             accepts: vec!["application/json"],
             content_type: "application/json",
             return_type: "Pet",
@@ -2359,11 +2533,22 @@ impl PetApi {
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
-        let mut form_body: HashMap<String, String> = HashMap::new();
+        // multipart/form-data. Each form param is mapped to a MultipartValue so
+        // the API client's serialize_multipart_body owns the wire format:
+        //   - file params (Vec<u8>)      -> Bytes (one file part; its part
+        //     Content-Type is derived from the field-name extension, falling
+        //     back to application/octet-stream);
+        //   - arrays of files           -> List(Bytes ...) (repeated parts);
+        //   - text arrays               -> List(Text ...) (repeated parts);
+        //   - objects / scalars         -> Text;
+        //   - absent optional fields    -> omitted entirely.
+        // Field names are emitted as UTF-8 by the client (non-ASCII preserved).
+        let mut multipart: HashMap<String, MultipartValue> = HashMap::new();
         if let Some(opts) = options {
-            form_body.insert("file".to_string(), object_serializer::stringify(&opts.file));
+            multipart.insert("file".to_string(), MultipartValue::Bytes(opts.file.clone()));
         }
-        let request_body = Some(serde_json::to_vec(&form_body)?);
+        let request_body: Option<Vec<u8>> = None;
+        let multipart = Some(multipart);
 
         let params = InvokeApiParams {
             method: "POST",
@@ -2371,6 +2556,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            multipart,
             accepts: vec!["application/json"],
             content_type: "multipart/form-data",
             return_type: "ApiResponse",
@@ -2468,24 +2654,34 @@ impl PetApi {
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
-        let mut form_body: HashMap<String, String> = HashMap::new();
+        // multipart/form-data. Each form param is mapped to a MultipartValue so
+        // the API client's serialize_multipart_body owns the wire format:
+        //   - file params (Vec<u8>)      -> Bytes (one file part; its part
+        //     Content-Type is derived from the field-name extension, falling
+        //     back to application/octet-stream);
+        //   - arrays of files           -> List(Bytes ...) (repeated parts);
+        //   - text arrays               -> List(Text ...) (repeated parts);
+        //   - objects / scalars         -> Text;
+        //   - absent optional fields    -> omitted entirely.
+        // Field names are emitted as UTF-8 by the client (non-ASCII preserved).
+        let mut multipart: HashMap<String, MultipartValue> = HashMap::new();
         if let Some(opts) = options {
-            form_body.insert("file".to_string(), object_serializer::stringify(&opts.file));
-        }
-        if let Some(opts) = options {
+            multipart.insert("file".to_string(), MultipartValue::Bytes(opts.file.clone()));
             if let Some(ref val) = opts.document_type {
-                form_body.insert(
+                multipart.insert(
                     "documentType".to_string(),
-                    object_serializer::stringify(val),
+                    MultipartValue::Text(object_serializer::stringify(val)),
+                );
+            }
+            if let Some(ref val) = opts.notes {
+                multipart.insert(
+                    "notes".to_string(),
+                    MultipartValue::Text(object_serializer::stringify(val)),
                 );
             }
         }
-        if let Some(opts) = options {
-            if let Some(ref val) = opts.notes {
-                form_body.insert("notes".to_string(), object_serializer::stringify(val));
-            }
-        }
-        let request_body = Some(serde_json::to_vec(&form_body)?);
+        let request_body: Option<Vec<u8>> = None;
+        let multipart = Some(multipart);
 
         let params = InvokeApiParams {
             method: "POST",
@@ -2493,6 +2689,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            multipart,
             accepts: vec!["application/json"],
             content_type: "multipart/form-data",
             return_type: "ApiResponse",

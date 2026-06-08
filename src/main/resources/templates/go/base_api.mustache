@@ -256,9 +256,25 @@ func serializeBody(body any, contentType string) ([]byte, error) {
 
 	if contentType == "application/x-www-form-urlencoded" {
 		if params, ok := body.(map[string]any); ok {
+			/* application/x-www-form-urlencoded wire-format parity:
+			 *  - array fields are exploded into repeated keys
+			 *    (tags=a&tags=b), never a single bracketed/joined value;
+			 *  - nil/absent optional fields are omitted entirely;
+			 *  - url.Values.Encode percent-encodes per RFC 3986 and emits
+			 *    `+` for spaces (HTML form-encoding), matching every other SDK.
+			 * url.Values.Encode also sorts keys for deterministic output. */
 			values := url.Values{}
 			for k, v := range params {
-				values.Set(k, fmt.Sprintf("%v", v))
+				if v == nil {
+					continue
+				}
+				if items, isArray := toStringSlice(v); isArray {
+					for _, item := range items {
+						values.Add(k, item)
+					}
+					continue
+				}
+				values.Set(k, stringify(v))
 			}
 			return []byte(values.Encode()), nil
 		}
@@ -279,17 +295,24 @@ func buildMultipartBody(formFields map[string]any, boundary string) ([]byte, err
 		if value == nil {
 			continue
 		}
-		switch v := value.(type) {
-		case []any:
-			for _, item := range v {
-				if err := writeMultipartField(writer, name, item); err != nil {
+		/* Array form fields (e.g. multiple uploaded files []*os.File, or a
+		 * repeated string field) explode into one part per element under the
+		 * same field name, mirroring the repeated-key encoding of the other
+		 * SDKs. []byte is a binary scalar (a single file part), not an array
+		 * of bytes, so it is excluded here and handled by writeMultipartField.
+		 * Reflection is used so any concrete slice type ([]*os.File, []string,
+		 * …) is handled, not just []any. */
+		rv := reflect.ValueOf(value)
+		if (rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array) && rv.Type().Elem().Kind() != reflect.Uint8 {
+			for i := 0; i < rv.Len(); i++ {
+				if err := writeMultipartField(writer, name, rv.Index(i).Interface()); err != nil {
 					return nil, err
 				}
 			}
-		default:
-			if err := writeMultipartField(writer, name, v); err != nil {
-				return nil, err
-			}
+			continue
+		}
+		if err := writeMultipartField(writer, name, value); err != nil {
+			return nil, err
 		}
 	}
 	writer.Close()

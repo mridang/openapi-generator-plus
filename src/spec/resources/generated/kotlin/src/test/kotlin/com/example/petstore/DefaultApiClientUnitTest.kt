@@ -235,6 +235,50 @@ class DefaultApiClientUnitTest {
         fun noExtensionDefaultsToOctetStream() {
             assertEquals("application/octet-stream", contentTypeForFilename("blob").toString())
         }
+
+        @Test
+        @DisplayName("avatar.png file part Content-Type is image/png")
+        fun avatarPngFileSetsImagePng() {
+            // Parity rule 4: a multipart file part keyed by a name carrying an
+            // extension sniffs the per-part Content-Type from that extension,
+            // falling back to octet-stream. `avatar.png` => image/png.
+            assertEquals("image/png", contentTypeForFilename("avatar.png").toString())
+        }
+    }
+
+    @Nested
+    @DisplayName("multipart field name encoding")
+    inner class MultipartFieldNameEncoding {
+        @Test
+        @DisplayName("non-ASCII field name is preserved as raw UTF-8 on the wire")
+        fun nonAsciiFieldNamePreserved() {
+            // Parity rule 5: a multipart field NAME containing non-ASCII
+            // codepoints must be transmitted as raw UTF-8 in `name="..."`,
+            // never ASCII-folded to `?` placeholders. Send a part keyed by a
+            // non-ASCII name and assert the exact bytes survive in the body.
+            var bodyBytes: ByteArray? = null
+            val client =
+                mockClient(requestCapture = { request ->
+                    bodyBytes = runBlocking { request.body.toByteArray() }
+                })
+            val apiClient = DefaultApiClient(client)
+
+            val form: Map<String, Any?> = mapOf("café" to "value")
+            runBlocking {
+                apiClient.sendRequest(
+                    "POST",
+                    "http://localhost/upload",
+                    mapOf("Content-Type" to "multipart/form-data"),
+                    form,
+                )
+            }
+
+            val wire = String(bodyBytes!!, Charsets.UTF_8)
+            assertTrue(
+                wire.contains("name=\"café\""),
+                "multipart field name must be preserved as raw UTF-8, got: $wire",
+            )
+        }
     }
 
     @Nested

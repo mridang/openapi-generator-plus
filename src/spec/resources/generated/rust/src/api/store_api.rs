@@ -12,6 +12,7 @@ use crate::api::base_api::BaseApi;
 use crate::api::base_api::InvokeApiParams;
 use crate::api::options::*;
 use crate::api_client::ApiClient;
+use crate::api_client::MultipartValue;
 use crate::api_error::ApiError;
 use crate::api_result::ApiResult;
 use crate::auth::Authenticator;
@@ -111,6 +112,7 @@ impl StoreApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
 
         let params = InvokeApiParams {
             method: "DELETE",
@@ -118,6 +120,7 @@ impl StoreApi {
             query_params,
             header_params,
             body: request_body,
+            multipart,
             accepts: vec![],
             content_type: "application/json",
             return_type: "",
@@ -164,6 +167,7 @@ impl StoreApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -171,6 +175,7 @@ impl StoreApi {
             query_params,
             header_params,
             body: request_body,
+            multipart,
             accepts: vec!["application/json"],
             content_type: "application/json",
             return_type: "std::collections::HashMap<String, i32>",
@@ -267,6 +272,7 @@ impl StoreApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -274,6 +280,7 @@ impl StoreApi {
             query_params,
             header_params,
             body: request_body,
+            multipart,
             accepts: vec!["application/json"],
             content_type: "application/json",
             return_type: "Order",
@@ -318,6 +325,7 @@ impl StoreApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body = Some(object_serializer::serialize(&order)?.into_bytes());
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
 
         let params = InvokeApiParams {
             method: "POST",
@@ -325,6 +333,7 @@ impl StoreApi {
             query_params,
             header_params,
             body: request_body,
+            multipart,
             accepts: vec!["application/json"],
             content_type: "application/json",
             return_type: "Order",

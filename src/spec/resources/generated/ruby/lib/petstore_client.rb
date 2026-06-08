@@ -85,6 +85,7 @@ require 'petstore_client/api/options/add_pet_treatment_options'
 require 'petstore_client/api/options/delete_pet_options'
 require 'petstore_client/api/options/find_pets_by_status_options'
 require 'petstore_client/api/options/get_pet_tag_options'
+require 'petstore_client/api/options/set_pet_preferences_options'
 require 'petstore_client/api/options/upload_pet_certificate_options'
 require 'petstore_client/api/options/upload_pet_document_options'
 

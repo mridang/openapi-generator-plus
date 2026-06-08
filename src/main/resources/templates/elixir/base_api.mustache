@@ -308,7 +308,31 @@ defmodule {{moduleName}}.Api.BaseApi do
 
   defp serialize_body(body, "text/plain"), do: to_string(body)
 
-  defp serialize_body(body, "application/x-www-form-urlencoded"), do: URI.encode_query(body)
+  # application/x-www-form-urlencoded: encode each field as `key=value`,
+  # joining pairs with `&`. A list value expands to one repeated `key=`
+  # pair per element (`tags=a&tags=b`) rather than a single comma-joined
+  # value, matching the array → repeated-keys convention of the other
+  # SDKs. URI.encode_www_form encodes a space as `+` (not %20) per the
+  # form-urlencoded media type. nil values are skipped (the operation
+  # method already omits absent optional fields, this is belt-and-braces).
+  defp serialize_body(body, "application/x-www-form-urlencoded") when is_map(body) do
+    body
+    |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+    |> Enum.flat_map(&encode_form_pair/1)
+    |> Enum.join("&")
+  end
 
   defp serialize_body(body, _content_type), do: {{moduleName}}.ObjectSerializer.serialize(body)
+
+  defp encode_form_pair({key, values}) when is_list(values) do
+    encoded_key = URI.encode_www_form(to_string(key))
+
+    Enum.map(values, fn val ->
+      "#{encoded_key}=#{URI.encode_www_form({{moduleName}}.ObjectSerializer.stringify(val))}"
+    end)
+  end
+
+  defp encode_form_pair({key, value}) do
+    ["#{URI.encode_www_form(to_string(key))}=#{URI.encode_www_form({{moduleName}}.ObjectSerializer.stringify(value))}"]
+  end
 end

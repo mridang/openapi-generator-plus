@@ -112,6 +112,23 @@ def _sanitize_multipart_filename(filename: str) -> Tuple[str, Optional[str]]:
     return ascii_fallback, rfc5987
 
 
+def _sanitize_multipart_field_name(name: str) -> str:
+    """Sanitize a multipart field name for a Content-Disposition header.
+
+    Unlike :func:`_sanitize_multipart_filename`, a non-ASCII field name is
+    NOT transliterated to ``?`` -- per RFC 7578 section 5.1.1 field names are
+    carried verbatim and most servers decode the part headers as UTF-8. The
+    name is emitted raw (UTF-8 on the wire) after backslash-escaping ``"`` and
+    ``\\`` so it cannot terminate the quoted ``name="..."`` value early. CR,
+    LF, and NUL are rejected to prevent header injection.
+
+    Raises ``ValueError`` if the name contains CR, LF, or NUL.
+    """
+    if any(ch in name for ch in ('\r', '\n', '\x00')):
+        raise ValueError('Multipart field name must not contain CR, LF, or NUL characters')
+    return name.replace('\\', '\\\\').replace('"', '\\"')
+
+
 def _guess_content_type(filename: Optional[str]) -> str:
     """Guess a Content-Type from a filename, defaulting to octet-stream."""
     if not filename:
@@ -694,7 +711,10 @@ class DefaultApiClient:
     @staticmethod
     def _build_disposition(name: str, filename: Optional[str]) -> str:
         """Build a sanitized Content-Disposition header value for a multipart part."""
-        safe_name, _ = _sanitize_multipart_filename(name)
+        # The field NAME is preserved as raw UTF-8 (only quote/backslash
+        # escaped) -- it must NOT be ASCII-folded to '?', which is what
+        # _sanitize_multipart_filename does for the filename fallback.
+        safe_name = _sanitize_multipart_field_name(name)
         disposition = f'form-data; name="{safe_name}"'
         if filename is not None:
             ascii_fallback, rfc5987 = _sanitize_multipart_filename(filename)

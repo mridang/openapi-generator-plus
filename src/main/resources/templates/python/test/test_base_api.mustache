@@ -352,6 +352,45 @@ class TestBodySerialization:
         assert wire == 'full+name=Ada+Lovelace'
         assert '%20' not in wire
 
+    async def test_form_array_field_serializes_as_repeated_keys(self) -> None:
+        # form-array-repeated-keys: an array form field must serialize as
+        # repeated keys (`tags=a&tags=b`), NOT a single key whose value is the
+        # Python list repr (`tags=['a', 'b']`). All 12 SDKs converge here.
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('POST', '/test/echo', {}, {},
+                        {'nickname': 'rex', 'tags': ['a', 'b']},
+                        ['application/json'], 'application/x-www-form-urlencoded', None)
+        wire = str(client.captured_body)
+        assert wire == 'nickname=rex&tags=a&tags=b'
+
+    async def test_form_optional_none_field_is_omitted(self) -> None:
+        # form-optional-null-omitted: a form field whose value is None must be
+        # dropped from the wire entirely, not emitted as `note=` or `note=None`.
+        # None elements inside an array are likewise skipped.
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('POST', '/test/echo', {}, {},
+                        {'nickname': 'rex', 'note': None, 'tags': ['a', None, 'b']},
+                        ['application/json'], 'application/x-www-form-urlencoded', None)
+        wire = str(client.captured_body)
+        assert 'note' not in wire
+        assert wire == 'nickname=rex&tags=a&tags=b'
+
+    async def test_form_bool_field_serializes_lowercase(self) -> None:
+        # Form scalars route through ObjectSerializer.stringify so a bool
+        # renders as `true`/`false` (the JSON/wire form), not Python's `True`.
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('POST', '/test/echo', {}, {},
+                        {'nickname': 'rex', 'subscribed': True},
+                        ['application/json'], 'application/x-www-form-urlencoded', None)
+        wire = str(client.captured_body)
+        assert wire == 'nickname=rex&subscribed=true'
+
     async def test_passes_binary_body_as_is(self) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url='http://localhost')

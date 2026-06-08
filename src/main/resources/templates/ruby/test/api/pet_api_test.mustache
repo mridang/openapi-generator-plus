@@ -510,4 +510,95 @@ describe {{moduleName}}::Api::PetApi do
       _({{moduleName}}::Api::Options.const_defined?(:GetPetByIdOptions)).must_equal false
     end
   end
+
+  # End-to-end form-urlencoded body assembly through the real generated
+  # set_pet_preferences operation (POST /pet/{petId}/preferences). These
+  # capture the raw request body off the wire so the assertions exercise the
+  # operation's request_body construction plus BaseApi#serialize_body, not
+  # just a helper in isolation.
+  describe 'form-urlencoded body assembly (set_pet_preferences)' do
+    # capture_request_body: one-shot TCP server that records the full request
+    # body and returns a minimal ApiResponse JSON so the convenience method
+    # is satisfied.
+    def capture_request_body
+      server = TCPServer.new('127.0.0.1', 0)
+      port = server.addr[1]
+      captured = Queue.new
+      thread = Thread.new do
+        client = server.accept rescue next
+        content_length = 0
+        client.gets # request line
+        while (line = client.gets)
+          if line.downcase.start_with?('content-length:')
+            content_length = line.split(':', 2).last.strip.to_i
+          end
+          break if line.strip.empty?
+        end
+        captured << (content_length.positive? ? client.read(content_length).to_s : '')
+        body = '{"code":200,"type":"","message":"ok"}'
+        response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
+                   "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
+        client.print(response)
+        client.close
+      end
+      config = {{moduleName}}::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+      api = {{moduleName}}::Api::PetApi.new(nil, config)
+      [api, server, thread, captured]
+    end
+
+    # Canonical behavior 1 — a repeated-key array (`tags=a&tags=b`), not a
+    # comma-joined value or a bracketed `tags[]` form.
+    it 'expands an array form property to repeated keys' do
+      api, server, thread, captured = capture_request_body
+      begin
+        options = {{moduleName}}::Api::Options::SetPetPreferencesOptions.new(
+          nickname: 'Rex', tags: %w[a b]
+        )
+        api.set_pet_preferences(1, options)
+        sent = captured.pop
+        _(sent).must_include 'tags=a&tags=b'
+        _(sent).wont_include 'tags=a,b'
+        _(sent).wont_include 'tags%5B%5D'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # Canonical behavior 2 — optional `tags`/`note` left absent are omitted
+    # from the body entirely; only the required `nickname` is sent.
+    it 'omits absent optional form properties' do
+      api, server, thread, captured = capture_request_body
+      begin
+        options = {{moduleName}}::Api::Options::SetPetPreferencesOptions.new(nickname: 'Rex')
+        api.set_pet_preferences(1, options)
+        sent = captured.pop
+        _(sent).must_equal 'nickname=Rex'
+        _(sent).wont_include 'tags'
+        _(sent).wont_include 'note'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # Canonical behavior 3 — a space inside a form value is encoded as '+',
+    # never '%20' (WHATWG application/x-www-form-urlencoded rules).
+    it 'encodes a space in a form value as + not %20' do
+      api, server, thread, captured = capture_request_body
+      begin
+        options = {{moduleName}}::Api::Options::SetPetPreferencesOptions.new(
+          nickname: 'Mr Whiskers', note: 'good boy'
+        )
+        api.set_pet_preferences(1, options)
+        sent = captured.pop
+        _(sent).must_include 'nickname=Mr+Whiskers'
+        _(sent).must_include 'note=good+boy'
+        _(sent).wont_include '%20'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
 end

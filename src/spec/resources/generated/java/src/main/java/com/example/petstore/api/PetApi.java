@@ -17,6 +17,7 @@ import com.example.petstore.api.options.AddPetTreatmentOptions;
 import com.example.petstore.api.options.DeletePetOptions;
 import com.example.petstore.api.options.FindPetsByStatusOptions;
 import com.example.petstore.api.options.GetPetTagOptions;
+import com.example.petstore.api.options.SetPetPreferencesOptions;
 import com.example.petstore.api.options.UploadPetCertificateOptions;
 import com.example.petstore.api.options.UploadPetDocumentOptions;
 import com.example.petstore.auth.Authenticator;
@@ -80,6 +81,9 @@ public class PetApi extends BaseApi {
 
   private static final java.lang.reflect.Type getStagingPetInfoTypeRef =
       new TypeReference<Pet>() {}.getType();
+
+  private static final java.lang.reflect.Type setPetPreferencesTypeRef =
+      new TypeReference<ApiResponse>() {}.getType();
 
   private static final java.lang.reflect.Type updatePetTypeRef =
       new TypeReference<Pet>() {}.getType();
@@ -1475,6 +1479,69 @@ public class PetApi extends BaseApi {
         new String[] {},
         "application/json",
         null,
+        null);
+  }
+
+  /**
+   * Update a pet&#39;s notification preferences Submits preferences as an
+   * application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key)
+   * serialization and optional-field omission so the wire bytes are identical across every SDK.
+   *
+   * @param petId (required)
+   * @param options options for query, header, form, and cookie parameters, plus an optional
+   *     per-call authenticator
+   * @return {@code ApiResponse}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse setPetPreferences(Long petId, SetPetPreferencesOptions options)
+      throws ApiException {
+    return requireBody(setPetPreferencesWithHttpInfo(petId, options), "setPetPreferences");
+  }
+
+  /**
+   * Update a pet&#39;s notification preferences Submits preferences as an
+   * application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key)
+   * serialization and optional-field omission so the wire bytes are identical across every SDK.
+   *
+   * @param petId (required)
+   * @param options options for query, header, form, and cookie parameters, plus an optional
+   *     per-call authenticator
+   * @return the API result wrapping {@code ApiResponse}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<ApiResponse> setPetPreferencesWithHttpInfo(
+      Long petId, SetPetPreferencesOptions options) throws ApiException {
+    if (petId == null) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'petId' when calling setPetPreferences");
+    }
+    String path =
+        "/pet/{petId}/preferences"
+            .replace(
+                "{" + "petId" + "}",
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "petId", petId, "path", "Long", null, "simple", false));
+    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    Map<String, Object> formBody = new HashMap<>();
+    formBody.put("nickname", options.nickname());
+    if (options.tags() != null) {
+      formBody.put("tags", options.tags());
+    }
+    if (options.note() != null) {
+      formBody.put("note", options.note());
+    }
+
+    return invokeApiForResult(
+        "POST",
+        path,
+        queryParams,
+        headerParams,
+        formBody,
+        new String[] {"application/json"},
+        "application/x-www-form-urlencoded",
+        setPetPreferencesTypeRef,
         null);
   }
 

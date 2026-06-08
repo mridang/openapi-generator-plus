@@ -448,6 +448,65 @@ public class DefaultApiClientUnitTest
         Assert.Contains("Content-Type: application/pdf", wireText);
     }
 
+    [Fact]
+    public async Task MultipartAvatarPngFilePartGetsImagePngContentType()
+    {
+        // Wire-format parity lock: a file part whose name carries a .png
+        // extension is given Content-Type image/png, derived from the
+        // filename extension (octet-stream fallback for unknown/absent
+        // extensions). Identical across all 12 SDKs.
+        string? wireText = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            Assert.NotNull(req.Content);
+            wireText = await req.Content!.ReadAsStringAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var formData = new Dictionary<string, object>
+        {
+            { "avatar.png", new byte[] { 0x89, 0x50, 0x4E, 0x47 } },
+        };
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://example.com/upload"),
+            new Dictionary<string, string>(),
+            formData
+        );
+
+        Assert.NotNull(wireText);
+        Assert.Contains("Content-Type: image/png", wireText);
+    }
+
+    [Fact]
+    public async Task MultipartNonAsciiFieldNamePreservedAsUtf8()
+    {
+        // Wire-format parity lock: a multipart field NAME containing non-ASCII
+        // characters is preserved verbatim (UTF-8) inside the part's
+        // Content-Disposition name="..." directive — never transliterated or
+        // dropped. Identical across all 12 SDKs.
+        byte[]? wireBytes = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            Assert.NotNull(req.Content);
+            wireBytes = await req.Content!.ReadAsByteArrayAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var formData = new Dictionary<string, object>
+        {
+            { "名前.png", new byte[] { 0x89, 0x50, 0x4E, 0x47 } },
+        };
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://example.com/upload"),
+            new Dictionary<string, string>(),
+            formData
+        );
+
+        Assert.NotNull(wireBytes);
+        string wireText = Encoding.UTF8.GetString(wireBytes!);
+        Assert.Contains("名前.png", wireText);
+    }
+
     // -- Gap BI: RFC 5987 filename* for non-ASCII multipart filenames --
 
     [Fact]

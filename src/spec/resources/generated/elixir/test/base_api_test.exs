@@ -1544,4 +1544,183 @@ defmodule PetstoreClient.Api.BaseApiTest do
     opts = PetstoreClient.TransportOptions.new(proxy: proxy_auth_url)
     assert opts.proxy == proxy_auth_url
   end
+
+  # ---------------------------------------------------------------------------
+  # Canonical cross-language behaviors (1-6). These pin the six behaviors all
+  # 12 SDKs converge on; each is exercised against the real production code
+  # path, not a re-implementation in the test.
+  # ---------------------------------------------------------------------------
+
+  defmodule BodyCapturingApiClient do
+    @behaviour PetstoreClient.ApiClient
+    use Agent
+
+    def start do
+      name = :"#{__MODULE__}-#{System.unique_integer([:positive])}"
+      {:ok, _pid} = Agent.start_link(fn -> nil end, name: name)
+      Process.put(__MODULE__, name)
+      {:ok, name}
+    end
+
+    def captured_body(name) do
+      Agent.get(name, & &1)
+    end
+
+    @impl true
+    def send_request(_method, _url, _headers, body) do
+      name = Process.get(__MODULE__)
+      Agent.update(name, fn _ -> body end)
+      %PetstoreClient.ApiResponse{status_code: 200, body: "", headers: %{"Content-Type" => "application/json"}}
+    end
+  end
+
+  # Behavior #1: a form array serializes to repeated keys (tags=a&tags=b),
+  # never a single comma-joined value.
+  test "form array body serializes to repeated keys" do
+    {:ok, name} = BodyCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: BodyCapturingApiClient}
+
+    body = %{"tags" => ["a", "b"], "nickname" => "rex"}
+
+    _result =
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :post,
+        "/test/echo",
+        %{},
+        %{},
+        body,
+        ["application/json"],
+        "application/x-www-form-urlencoded",
+        nil
+      )
+
+    captured = BodyCapturingApiClient.captured_body(name)
+    pairs = String.split(captured, "&")
+    assert "tags=a" in pairs, "Expected repeated tags=a, got: #{captured}"
+    assert "tags=b" in pairs, "Expected repeated tags=b, got: #{captured}"
+
+    refute String.contains?(captured, "tags=a%2Cb"),
+           "Array must not be comma-joined, got: #{captured}"
+
+    refute String.contains?(captured, "tags=ab"),
+           "Array must not be charlist-flattened, got: #{captured}"
+
+    Agent.stop(name)
+  end
+
+  # Behavior #2: an absent/nil optional form field is omitted from the body.
+  # set_pet_preferences declares optional `tags` and `note`; only `nickname`
+  # (required) is supplied here, so neither optional key must appear.
+  test "absent optional form fields are omitted from the request body" do
+    {:ok, name} = BodyCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(BodyCapturingApiClient, config)
+
+    options = %PetstoreClient.Api.Options.SetPetPreferencesOptions{nickname: "rex"}
+    _result = PetstoreClient.Api.PetApi.set_pet_preferences(api, 1, options)
+
+    captured = BodyCapturingApiClient.captured_body(name)
+
+    assert String.contains?(captured, "nickname=rex"),
+           "Expected required nickname in body, got: #{captured}"
+
+    refute String.contains?(captured, "tags"),
+           "Absent optional 'tags' must be omitted, got: #{captured}"
+
+    refute String.contains?(captured, "note"),
+           "Absent optional 'note' must be omitted, got: #{captured}"
+
+    Agent.stop(name)
+  end
+
+  # Behavior #3: a space in a form-body value encodes as `+`, not %20
+  # (form-urlencoded media type).
+  test "form body encodes space as plus, not percent-20" do
+    {:ok, name} = BodyCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: BodyCapturingApiClient}
+
+    body = %{"nickname" => "the big boss"}
+
+    _result =
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :post,
+        "/test/echo",
+        %{},
+        %{},
+        body,
+        ["application/json"],
+        "application/x-www-form-urlencoded",
+        nil
+      )
+
+    captured = BodyCapturingApiClient.captured_body(name)
+
+    assert String.contains?(captured, "nickname=the+big+boss"),
+           "Expected spaces encoded as +, got: #{captured}"
+
+    refute String.contains?(captured, "%20"),
+           "Spaces must not encode as %20 in a form body, got: #{captured}"
+
+    Agent.stop(name)
+  end
+
+  # Behavior #4: a multipart file part derives its Content-Type from the
+  # filename extension (.png -> image/png), falling back to
+  # application/octet-stream for an unknown/extension-less filename.
+  test "multipart file part Content-Type is derived from the filename extension" do
+    body = %{"file" => {:file, "avatar.png", <<1, 2, 3>>}}
+    serialized = PetstoreClient.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
+
+    assert String.contains?(serialized, "Content-Type: image/png"),
+           "Expected image/png for .png file, got: #{serialized}"
+  end
+
+  test "multipart file part falls back to application/octet-stream for unknown extension" do
+    body = %{"file" => {:file, "blob", <<1, 2, 3>>}}
+    serialized = PetstoreClient.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
+
+    assert String.contains?(serialized, "Content-Type: application/octet-stream"),
+           "Expected octet-stream fallback for extension-less file, got: #{serialized}"
+  end
+
+  # Behavior #5: a non-ASCII multipart field name is preserved verbatim as
+  # UTF-8 in the Content-Disposition `name=` parameter — not transliterated
+  # to `?` and not stripped.
+  test "multipart non-ASCII field name is preserved as UTF-8" do
+    body = %{"имя" => "value"}
+    serialized = PetstoreClient.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
+
+    assert String.contains?(serialized, "name=\"имя\""),
+           "Expected non-ASCII field name preserved as UTF-8, got: #{serialized}"
+
+    refute String.contains?(serialized, "name=\"?\""),
+           "Field name must not be transliterated to ?, got: #{serialized}"
+  end
+
+  # Behavior #6: deserializing an out-of-schema enum value raises the SDK
+  # (de)serialization error instead of silently passing the raw value through
+  # or defaulting to an "unknown" member. The Pet model declares an inline
+  # `status` enum (available | pending | sold).
+  test "unknown enum wire value raises SerializationError on deserialize" do
+    assert_raise PetstoreClient.SerializationError, fn ->
+      PetstoreClient.ObjectSerializer.deserialize(
+        ~s({"name":"rex","photoUrls":[],"status":"banana"}),
+        "Pet"
+      )
+    end
+  end
+
+  test "valid enum wire value deserializes to its atom" do
+    pet =
+      PetstoreClient.ObjectSerializer.deserialize(
+        ~s({"name":"rex","photoUrls":[],"status":"available"}),
+        "Pet"
+      )
+
+    assert pet.status == :available
+  end
 end

@@ -6,6 +6,7 @@ use std::sync::Arc;
 use crate::api::base_api::BaseApi;
 use crate::api::base_api::InvokeApiParams;
 use crate::api_client::ApiClient;
+use crate::api_client::MultipartValue;
 use crate::api_error::ApiError;
 use crate::api_result::ApiResult;
 use crate::auth::Authenticator;
@@ -345,27 +346,103 @@ impl {{classname}} {
 {{/hasCookieParams}}
 
 {{#hasFormParams}}
-        let mut form_body: HashMap<String, String> = HashMap::new();
-{{#formParams}}
+{{#isMultipart}}
+        // multipart/form-data. Each form param is mapped to a MultipartValue so
+        // the API client's serialize_multipart_body owns the wire format:
+        //   - file params (Vec<u8>)      -> Bytes (one file part; its part
+        //     Content-Type is derived from the field-name extension, falling
+        //     back to application/octet-stream);
+        //   - arrays of files           -> List(Bytes ...) (repeated parts);
+        //   - text arrays               -> List(Text ...) (repeated parts);
+        //   - objects / scalars         -> Text;
+        //   - absent optional fields    -> omitted entirely.
+        // Field names are emitted as UTF-8 by the client (non-ASCII preserved).
+        let mut multipart: HashMap<String, MultipartValue> = HashMap::new();
         if let Some(opts) = options {
+{{#formParams}}
 {{#required}}
-            form_body.insert("{{baseName}}".to_string(), object_serializer::stringify(&opts.{{paramName}}));
+{{#isArray}}
+{{#items.isFile}}
+            multipart.insert("{{baseName}}".to_string(), MultipartValue::List(opts.{{paramName}}.iter().map(|b| MultipartValue::Bytes(b.clone())).collect()));
+{{/items.isFile}}
+{{^items.isFile}}
+            multipart.insert("{{baseName}}".to_string(), MultipartValue::List(opts.{{paramName}}.iter().map(|v| MultipartValue::Text(object_serializer::stringify(v))).collect()));
+{{/items.isFile}}
+{{/isArray}}
+{{^isArray}}
+{{#isFile}}
+            multipart.insert("{{baseName}}".to_string(), MultipartValue::Bytes(opts.{{paramName}}.clone()));
+{{/isFile}}
+{{^isFile}}
+{{#isPrimitiveType}}
+            multipart.insert("{{baseName}}".to_string(), MultipartValue::Text(object_serializer::stringify(&opts.{{paramName}})));
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+            multipart.insert("{{baseName}}".to_string(), MultipartValue::Text(object_serializer::serialize(&opts.{{paramName}})?));
+{{/isPrimitiveType}}
+{{/isFile}}
+{{/isArray}}
 {{/required}}
 {{^required}}
             if let Some(ref val) = opts.{{paramName}} {
-                form_body.insert("{{baseName}}".to_string(), object_serializer::stringify(val));
+{{#isArray}}
+{{#items.isFile}}
+                multipart.insert("{{baseName}}".to_string(), MultipartValue::List(val.iter().map(|b| MultipartValue::Bytes(b.clone())).collect()));
+{{/items.isFile}}
+{{^items.isFile}}
+                multipart.insert("{{baseName}}".to_string(), MultipartValue::List(val.iter().map(|v| MultipartValue::Text(object_serializer::stringify(v))).collect()));
+{{/items.isFile}}
+{{/isArray}}
+{{^isArray}}
+{{#isFile}}
+                multipart.insert("{{baseName}}".to_string(), MultipartValue::Bytes(val.clone()));
+{{/isFile}}
+{{^isFile}}
+{{#isPrimitiveType}}
+                multipart.insert("{{baseName}}".to_string(), MultipartValue::Text(object_serializer::stringify(val)));
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+                multipart.insert("{{baseName}}".to_string(), MultipartValue::Text(object_serializer::serialize(val)?));
+{{/isPrimitiveType}}
+{{/isFile}}
+{{/isArray}}
             }
 {{/required}}
-        }
 {{/formParams}}
-        let request_body = Some(serde_json::to_vec(&form_body)?);
+        }
+        let request_body: Option<Vec<u8>> = None;
+        let multipart = Some(multipart);
+{{/isMultipart}}
+{{^isMultipart}}
+        // application/x-www-form-urlencoded. The body is an ordered list of
+        // [key, value] pairs (spec-declaration order). Array values are emitted
+        // as repeated keys by serialize_body; null/absent optional fields are
+        // omitted entirely; spaces are encoded as `+`.
+        let mut form_pairs: Vec<(String, serde_json::Value)> = Vec::new();
+        if let Some(opts) = options {
+{{#formParams}}
+{{#required}}
+            form_pairs.push(("{{baseName}}".to_string(), serde_json::to_value(&opts.{{paramName}})?));
+{{/required}}
+{{^required}}
+            if let Some(ref val) = opts.{{paramName}} {
+                form_pairs.push(("{{baseName}}".to_string(), serde_json::to_value(val)?));
+            }
+{{/required}}
+{{/formParams}}
+        }
+        let request_body = Some(serde_json::to_vec(&form_pairs)?);
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
+{{/isMultipart}}
 {{/hasFormParams}}
 {{^hasFormParams}}
 {{#bodyParam}}
         let request_body = Some(object_serializer::serialize(&{{paramName}})?.into_bytes());
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
 {{/bodyParam}}
 {{^bodyParam}}
         let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
 {{/bodyParam}}
 {{/hasFormParams}}
 
@@ -375,6 +452,7 @@ impl {{classname}} {
             query_params,
             header_params,
             body: request_body,
+            multipart,
             accepts: vec![{{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}}],
             content_type: "{{vendorExtensions.op.effectiveConsumes}}",
             return_type: "{{#returnType}}{{{.}}}{{/returnType}}",
