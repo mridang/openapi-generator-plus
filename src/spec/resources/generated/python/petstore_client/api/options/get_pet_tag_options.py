@@ -10,7 +10,7 @@ from pydantic import StrictStr
 from typing import Optional, List
 
 
-@dataclass
+@dataclass(frozen=True)
 class GetPetTagOptions:
     """Options for the get_pet_tag operation."""
 

@@ -12,7 +12,14 @@ use crate::errors::client_error::ClientError;
 /// UnauthorizedError represents an HTTP 401 Unauthorized error.
 #[derive(Debug, Clone)]
 pub struct UnauthorizedError {
-    pub client_error: ClientError,
+    client_error: ClientError,
+}
+
+impl UnauthorizedError {
+    /// Returns the underlying [`ClientError`].
+    pub fn client_error(&self) -> &ClientError {
+        &self.client_error
+    }
 }
 
 impl fmt::Display for UnauthorizedError {
@@ -20,7 +27,7 @@ impl fmt::Display for UnauthorizedError {
         write!(
             f,
             "Unauthorized (401): {}",
-            self.client_error.api_error.message
+            self.client_error.api_error().message()
         )
     }
 }

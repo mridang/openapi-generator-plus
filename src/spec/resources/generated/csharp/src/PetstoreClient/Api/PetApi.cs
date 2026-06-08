@@ -254,7 +254,7 @@ public class PetApi : BaseApi
             ?? throw new ApiException(
                 result.StatusCode,
                 "Expected a non-empty response body but none was returned",
-                result.Headers,
+                new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
     }
@@ -310,7 +310,7 @@ public class PetApi : BaseApi
             ?? throw new ApiException(
                 result.StatusCode,
                 "Expected a non-empty response body but none was returned",
-                result.Headers,
+                new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
     }
@@ -393,7 +393,7 @@ public class PetApi : BaseApi
             ?? throw new ApiException(
                 result.StatusCode,
                 "Expected a non-empty response body but none was returned",
-                result.Headers,
+                new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
     }
@@ -544,7 +544,7 @@ public class PetApi : BaseApi
             ?? throw new ApiException(
                 result.StatusCode,
                 "Expected a non-empty response body but none was returned",
-                result.Headers,
+                new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
     }
@@ -629,7 +629,7 @@ public class PetApi : BaseApi
             ?? throw new ApiException(
                 result.StatusCode,
                 "Expected a non-empty response body but none was returned",
-                result.Headers,
+                new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
     }
@@ -709,7 +709,7 @@ public class PetApi : BaseApi
             ?? throw new ApiException(
                 result.StatusCode,
                 "Expected a non-empty response body but none was returned",
-                result.Headers,
+                new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
     }
@@ -792,7 +792,7 @@ public class PetApi : BaseApi
             ?? throw new ApiException(
                 result.StatusCode,
                 "Expected a non-empty response body but none was returned",
-                result.Headers,
+                new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
     }
@@ -872,7 +872,7 @@ public class PetApi : BaseApi
             ?? throw new ApiException(
                 result.StatusCode,
                 "Expected a non-empty response body but none was returned",
-                result.Headers,
+                new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
     }
@@ -938,7 +938,7 @@ public class PetApi : BaseApi
             ?? throw new ApiException(
                 result.StatusCode,
                 "Expected a non-empty response body but none was returned",
-                result.Headers,
+                new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
     }
@@ -1008,7 +1008,7 @@ public class PetApi : BaseApi
             ?? throw new ApiException(
                 result.StatusCode,
                 "Expected a non-empty response body but none was returned",
-                result.Headers,
+                new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
     }
@@ -1089,7 +1089,7 @@ public class PetApi : BaseApi
             ?? throw new ApiException(
                 result.StatusCode,
                 "Expected a non-empty response body but none was returned",
-                result.Headers,
+                new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
     }
@@ -1156,7 +1156,7 @@ public class PetApi : BaseApi
             ?? throw new ApiException(
                 result.StatusCode,
                 "Expected a non-empty response body but none was returned",
-                result.Headers,
+                new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
     }
@@ -1245,7 +1245,7 @@ public class PetApi : BaseApi
             ?? throw new ApiException(
                 result.StatusCode,
                 "Expected a non-empty response body but none was returned",
-                result.Headers,
+                new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
     }
@@ -1370,7 +1370,7 @@ public class PetApi : BaseApi
             ?? throw new ApiException(
                 result.StatusCode,
                 "Expected a non-empty response body but none was returned",
-                result.Headers,
+                new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
     }
@@ -1572,7 +1572,7 @@ public class PetApi : BaseApi
             ?? throw new ApiException(
                 result.StatusCode,
                 "Expected a non-empty response body but none was returned",
-                result.Headers,
+                new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
     }
@@ -1642,7 +1642,7 @@ public class PetApi : BaseApi
             ?? throw new ApiException(
                 result.StatusCode,
                 "Expected a non-empty response body but none was returned",
-                result.Headers,
+                new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
     }
@@ -1719,7 +1719,7 @@ public class PetApi : BaseApi
             ?? throw new ApiException(
                 result.StatusCode,
                 "Expected a non-empty response body but none was returned",
-                result.Headers,
+                new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
     }

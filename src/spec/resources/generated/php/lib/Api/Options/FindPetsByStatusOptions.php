@@ -18,17 +18,12 @@ namespace PetstoreClient\Api\Options;
  */
 class FindPetsByStatusOptions
 {
-    public ?string $status;
-
-    /** @var array<string, \Ds\Map>|null Filter criteria as key-value pairs */
-    public ?array $filter;
-
     /**
-     * @param array<string, \Ds\Map>|null $filter
+     * @param array<string, \Ds\Map>|null $filter Filter criteria as key-value pairs
      */
-    public function __construct(?string $status = null, ?array $filter = null)
-    {
-        $this->status = $status;
-        $this->filter = $filter;
+    public function __construct(
+        public readonly ?string $status = null,
+        public readonly ?array $filter = null,
+    ) {
     }
 }

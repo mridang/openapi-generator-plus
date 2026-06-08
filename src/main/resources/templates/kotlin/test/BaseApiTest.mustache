@@ -603,7 +603,7 @@ class BaseApiTest {
             val config = Configuration.builder().baseUrl("http://localhost").build()
             val api = PetApi(client, config)
             try {
-                runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("")) }
+                runBlocking { api.findPetsByStatus(FindPetsByStatusOptions(status = "")) }
             } catch (_: Exception) {
                 // Response deserialization may fail; we only care about the captured URL
             }

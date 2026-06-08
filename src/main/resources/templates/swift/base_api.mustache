@@ -21,13 +21,13 @@ public class BaseApi: @unchecked Sendable {
     struct InvokeAPIParams {
         let method: String
         let path: String
-        var queryParams: [String: Any?] = [:]
-        var headerParams: [String: String] = [:]
-        var body: Any? = nil
-        var accepts: [String] = []
-        var contentType: String = ""
-        var returnType: String = ""
-        var auth: Authenticator? = nil
+        let queryParams: [String: Any?]
+        let headerParams: [String: String]
+        let body: Any?
+        let accepts: [String]
+        let contentType: String
+        let returnType: String
+        let auth: Authenticator?
     }
 
     /// Dispatches an API request and returns the raw response.

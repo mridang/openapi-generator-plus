@@ -192,13 +192,16 @@ impl PetApi {
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
-        match result.data {
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
-                result.status_code,
+                status_code,
                 "empty response body for an operation that declares a response type".to_string(),
-                Some(result.raw_body),
-                Some(result.headers),
+                Some(raw_body),
+                Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -248,13 +251,16 @@ impl PetApi {
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
-        match result.data {
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
-                result.status_code,
+                status_code,
                 "empty response body for an operation that declares a response type".to_string(),
-                Some(result.raw_body),
-                Some(result.headers),
+                Some(raw_body),
+                Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -363,13 +369,16 @@ impl PetApi {
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
-        match result.data {
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
-                result.status_code,
+                status_code,
                 "empty response body for an operation that declares a response type".to_string(),
-                Some(result.raw_body),
-                Some(result.headers),
+                Some(raw_body),
+                Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -589,13 +598,16 @@ impl PetApi {
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
-        match result.data {
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
-                result.status_code,
+                status_code,
                 "empty response body for an operation that declares a response type".to_string(),
-                Some(result.raw_body),
-                Some(result.headers),
+                Some(raw_body),
+                Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -750,13 +762,16 @@ impl PetApi {
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
-        match result.data {
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
-                result.status_code,
+                status_code,
                 "empty response body for an operation that declares a response type".to_string(),
-                Some(result.raw_body),
-                Some(result.headers),
+                Some(raw_body),
+                Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -835,13 +850,16 @@ impl PetApi {
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
-        match result.data {
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
-                result.status_code,
+                status_code,
                 "empty response body for an operation that declares a response type".to_string(),
-                Some(result.raw_body),
-                Some(result.headers),
+                Some(raw_body),
+                Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -942,13 +960,16 @@ impl PetApi {
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
-        match result.data {
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
-                result.status_code,
+                status_code,
                 "empty response body for an operation that declares a response type".to_string(),
-                Some(result.raw_body),
-                Some(result.headers),
+                Some(raw_body),
+                Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -1047,13 +1068,16 @@ impl PetApi {
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
-        match result.data {
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
-                result.status_code,
+                status_code,
                 "empty response body for an operation that declares a response type".to_string(),
-                Some(result.raw_body),
-                Some(result.headers),
+                Some(raw_body),
+                Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -1145,13 +1169,16 @@ impl PetApi {
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
-        match result.data {
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
-                result.status_code,
+                status_code,
                 "empty response body for an operation that declares a response type".to_string(),
-                Some(result.raw_body),
-                Some(result.headers),
+                Some(raw_body),
+                Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -1256,13 +1283,16 @@ impl PetApi {
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
-        match result.data {
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
-                result.status_code,
+                status_code,
                 "empty response body for an operation that declares a response type".to_string(),
-                Some(result.raw_body),
-                Some(result.headers),
+                Some(raw_body),
+                Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -1361,13 +1391,16 @@ impl PetApi {
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
-        match result.data {
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
-                result.status_code,
+                status_code,
                 "empty response body for an operation that declares a response type".to_string(),
-                Some(result.raw_body),
-                Some(result.headers),
+                Some(raw_body),
+                Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -1460,13 +1493,16 @@ impl PetApi {
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
-        match result.data {
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
-                result.status_code,
+                status_code,
                 "empty response body for an operation that declares a response type".to_string(),
-                Some(result.raw_body),
-                Some(result.headers),
+                Some(raw_body),
+                Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -1611,13 +1647,16 @@ impl PetApi {
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
-        match result.data {
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
-                result.status_code,
+                status_code,
                 "empty response body for an operation that declares a response type".to_string(),
-                Some(result.raw_body),
-                Some(result.headers),
+                Some(raw_body),
+                Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -1847,13 +1886,16 @@ impl PetApi {
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
-        match result.data {
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
-                result.status_code,
+                status_code,
                 "empty response body for an operation that declares a response type".to_string(),
-                Some(result.raw_body),
-                Some(result.headers),
+                Some(raw_body),
+                Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -2137,13 +2179,16 @@ impl PetApi {
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
-        match result.data {
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
-                result.status_code,
+                status_code,
                 "empty response body for an operation that declares a response type".to_string(),
-                Some(result.raw_body),
-                Some(result.headers),
+                Some(raw_body),
+                Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -2239,13 +2284,16 @@ impl PetApi {
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
-        match result.data {
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
-                result.status_code,
+                status_code,
                 "empty response body for an operation that declares a response type".to_string(),
-                Some(result.raw_body),
-                Some(result.headers),
+                Some(raw_body),
+                Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -2345,13 +2393,16 @@ impl PetApi {
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
-        match result.data {
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
-                result.status_code,
+                status_code,
                 "empty response body for an operation that declares a response type".to_string(),
-                Some(result.raw_body),
-                Some(result.headers),
+                Some(raw_body),
+                Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }

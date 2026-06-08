@@ -99,7 +99,7 @@ async fn test_default_api_client_injects_custom_user_agent() {
         .await
         .expect("unexpected error");
 
-    assert_eq!(resp.status_code, 200);
+    assert_eq!(resp.status_code(), 200);
 }
 
 #[tokio::test]
@@ -116,7 +116,7 @@ async fn test_default_api_client_omits_user_agent_when_not_set() {
         .await
         .expect("unexpected error");
 
-    assert_eq!(resp.status_code, 200);
+    assert_eq!(resp.status_code(), 200);
 }
 
 #[tokio::test]
@@ -136,7 +136,7 @@ async fn test_default_api_client_builds_with_verify_ssl_false() {
         .await
         .expect("unexpected error");
 
-    assert_eq!(resp.status_code, 200);
+    assert_eq!(resp.status_code(), 200);
 }
 
 #[tokio::test]
@@ -154,7 +154,7 @@ async fn test_default_api_client_injects_request_id() {
         .await
         .expect("unexpected error");
 
-    assert_eq!(resp.status_code, 200);
+    assert_eq!(resp.status_code(), 200);
 }
 
 #[tokio::test]
@@ -172,7 +172,7 @@ async fn test_default_api_client_does_not_inject_request_id_when_disabled() {
         .await
         .expect("unexpected error");
 
-    assert_eq!(resp.status_code, 200);
+    assert_eq!(resp.status_code(), 200);
 }
 
 #[tokio::test]
@@ -192,7 +192,7 @@ async fn test_default_api_client_does_not_override_caller_request_id() {
         .await
         .expect("unexpected error");
 
-    assert_eq!(resp.status_code, 200);
+    assert_eq!(resp.status_code(), 200);
 }
 
 #[tokio::test]
@@ -210,7 +210,7 @@ async fn test_default_api_client_includes_transport_default_headers() {
         .await
         .expect("unexpected error");
 
-    assert_eq!(resp.status_code, 200);
+    assert_eq!(resp.status_code(), 200);
 }
 
 #[tokio::test]
@@ -230,7 +230,7 @@ async fn test_default_api_client_caller_headers_override_defaults() {
         .await
         .expect("unexpected error");
 
-    assert_eq!(resp.status_code, 200);
+    assert_eq!(resp.status_code(), 200);
 }
 
 #[tokio::test]
@@ -427,7 +427,8 @@ async fn test_no_redirect_returns_307_verbatim() {
 
     let response = result.expect("no_redirect must return the 3xx, not error");
     assert_eq!(
-        307, response.status_code,
+        307,
+        response.status_code(),
         "no_redirect=true must return the 3xx response as-is"
     );
     // Only the first (initial) request must have been issued; the redirect
@@ -527,11 +528,11 @@ async fn test_default_api_client_sends_get_request_and_returns_response() {
         .send_request("GET", &format!("{}/echo", base_url), &headers, None)
         .await
         .expect("unexpected error");
-    assert_eq!(resp.status_code, 200);
+    assert_eq!(resp.status_code(), 200);
     assert!(
-        resp.body.contains("GET"),
+        resp.body().contains("GET"),
         "expected body to contain GET, got: {}",
-        resp.body
+        resp.body()
     );
 }
 
@@ -546,16 +547,16 @@ async fn test_default_api_client_sends_post_with_json_body() {
         .send_request("POST", &format!("{}/echo", base_url), &headers, Some(&body))
         .await
         .expect("unexpected error");
-    assert_eq!(resp.status_code, 200);
+    assert_eq!(resp.status_code(), 200);
     assert!(
-        resp.body.contains("POST"),
+        resp.body().contains("POST"),
         "expected body to contain POST, got: {}",
-        resp.body
+        resp.body()
     );
     assert!(
-        resp.body.contains("key"),
+        resp.body().contains("key"),
         "expected body to contain key, got: {}",
-        resp.body
+        resp.body()
     );
 }
 
@@ -568,15 +569,15 @@ async fn test_default_api_client_returns_response_headers() {
         .send_request("GET", &format!("{}/echo", base_url), &headers, None)
         .await
         .expect("unexpected error");
-    assert_eq!(resp.status_code, 200);
+    assert_eq!(resp.status_code(), 200);
     let found = resp
-        .headers
+        .headers()
         .iter()
         .any(|(k, v)| k.to_lowercase() == "x-test-header" && v == "test-value");
     assert!(
         found,
         "expected X-Test-Header: test-value in response headers, got: {:?}",
-        resp.headers
+        resp.headers()
     );
 }
 
@@ -589,8 +590,8 @@ async fn test_default_api_client_returns_non_2xx_status_code() {
         .send_request("GET", &format!("{}/not-found", base_url), &headers, None)
         .await
         .expect("unexpected error");
-    assert_eq!(resp.status_code, 404);
-    assert_eq!(resp.body, "not found");
+    assert_eq!(resp.status_code(), 404);
+    assert_eq!(resp.body(), "not found");
 }
 
 #[tokio::test]
@@ -603,11 +604,11 @@ async fn test_default_api_client_sends_put_request() {
         .send_request("PUT", &format!("{}/echo", base_url), &headers, Some(&body))
         .await
         .expect("unexpected error");
-    assert_eq!(resp.status_code, 200);
+    assert_eq!(resp.status_code(), 200);
     assert!(
-        resp.body.contains("PUT"),
+        resp.body().contains("PUT"),
         "expected body to contain PUT, got: {}",
-        resp.body
+        resp.body()
     );
 }
 
@@ -620,11 +621,11 @@ async fn test_default_api_client_sends_delete_request() {
         .send_request("DELETE", &format!("{}/echo", base_url), &headers, None)
         .await
         .expect("unexpected error");
-    assert_eq!(resp.status_code, 200);
+    assert_eq!(resp.status_code(), 200);
     assert!(
-        resp.body.contains("DELETE"),
+        resp.body().contains("DELETE"),
         "expected body to contain DELETE, got: {}",
-        resp.body
+        resp.body()
     );
 }
 
@@ -637,11 +638,11 @@ async fn test_default_api_client_returns_json_body_for_vendor_json_content_type(
         .send_request("GET", &format!("{}/vendor-json", base_url), &headers, None)
         .await
         .expect("unexpected error");
-    assert_eq!(resp.status_code, 200);
+    assert_eq!(resp.status_code(), 200);
     assert!(
-        resp.body.contains("vendor"),
+        resp.body().contains("vendor"),
         "expected body to contain vendor, got: {}",
-        resp.body
+        resp.body()
     );
 }
 
@@ -654,9 +655,9 @@ async fn test_default_api_client_joins_multi_value_response_headers() {
         .send_request("GET", &format!("{}/multi-header", base_url), &headers, None)
         .await
         .expect("unexpected error");
-    assert_eq!(resp.status_code, 200);
+    assert_eq!(resp.status_code(), 200);
     let value = resp
-        .headers
+        .headers()
         .iter()
         .find(|(k, _)| k.to_lowercase() == "x-custom-value")
         .map(|(_, v)| v.as_str());
@@ -851,10 +852,6 @@ async fn test_transport_error_preserves_underlying_cause() {
     assert!(
         std::error::Error::source(api_err).is_some(),
         "ApiError must retain the underlying transport error as source()"
-    );
-    assert!(
-        api_err.source.is_some(),
-        "ApiError.source field must hold the preserved cause"
     );
 }
 

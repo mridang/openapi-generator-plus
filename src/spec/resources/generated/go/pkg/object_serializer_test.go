@@ -548,7 +548,7 @@ func TestDeserializationError_ErrorHasCause(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected *SerializationError, got %T", err)
 	}
-	if serErr.Cause == nil {
+	if serErr.Cause() == nil {
 		t.Error("SerializationError should have a non-nil Cause")
 	}
 }

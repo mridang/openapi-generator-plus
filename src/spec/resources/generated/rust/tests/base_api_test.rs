@@ -152,8 +152,8 @@ async fn test_base_api_parses_json_error_body() {
     // public surface instead — the raw body is present and is valid JSON, so
     // `typed_body` deserializes it without error.
     let parsed: Option<serde_json::Value> = bad_request
-        .client_error
-        .api_error
+        .client_error()
+        .api_error()
         .typed_body()
         .expect("error body should be valid JSON");
     assert!(
@@ -178,8 +178,8 @@ async fn test_base_api_handles_empty_200_response() {
         .await
         .expect("unexpected error");
 
-    assert_eq!(resp.status_code, 200);
-    assert!(resp.body.is_empty());
+    assert_eq!(resp.status_code(), 200);
+    assert!(resp.body().is_empty());
 }
 
 // -- JSON response deserialization --
@@ -201,7 +201,7 @@ async fn test_base_api_deserializes_json_response() {
     /* chasm's /test/echo returns a JSON envelope ({method, body, headers, cookies, contentLength}).
      * The previous chasm stub returned {"message":"success"}; loosen the check
      * to assert the response is valid JSON with the expected envelope shape. */
-    let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
+    let json: serde_json::Value = serde_json::from_str(resp.body()).expect("invalid json");
     assert_eq!(json["method"], "GET");
 }
 
@@ -224,7 +224,7 @@ async fn test_base_api_returns_raw_body_for_non_json() {
         .await
         .expect("unexpected error");
 
-    assert!(resp.body.contains("hello world"));
+    assert!(resp.body().contains("hello world"));
 }
 
 // -- Returns unit when return type is void --
@@ -294,7 +294,7 @@ async fn test_base_api_forwards_auth_headers() {
         .expect("unexpected error");
 
     /* chasm's echo envelope lowercases all header keys in the `headers` map. */
-    let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
+    let json: serde_json::Value = serde_json::from_str(resp.body()).expect("invalid json");
     let h = &json["headers"];
     assert!(h.get("authorization").is_some());
 }
@@ -315,7 +315,7 @@ async fn test_base_api_handles_nil_body() {
         .await
         .expect("unexpected error");
 
-    assert_eq!(resp.status_code, 200);
+    assert_eq!(resp.status_code(), 200);
 }
 
 // -- Content-Type check: non-JSON response skips deserialization --
@@ -341,15 +341,15 @@ impl petstore::api_client::ApiClient for PlainTextApiClient {
         >,
     > {
         Box::pin(async {
-            Ok(petstore::api_response::ApiResponse {
-                status_code: 200,
-                body: "hello plain text".to_string(),
-                headers: {
+            Ok(petstore::api_response::ApiResponse::new(
+                200,
+                "hello plain text".to_string(),
+                {
                     let mut h = HashMap::new();
                     h.insert("Content-Type".to_string(), "text/plain".to_string());
                     h
                 },
-            })
+            ))
         })
     }
 }
@@ -367,10 +367,10 @@ async fn test_base_api_skips_deserialization_for_non_json() {
     match result {
         Ok(api_result) => {
             assert!(
-                api_result.data.is_none(),
+                api_result.data().is_none(),
                 "expected data to be None for non-JSON response"
             );
-            assert_eq!(api_result.raw_body, "hello plain text");
+            assert_eq!(api_result.raw_body(), "hello plain text");
         }
         Err(_) => { /* If the API returns an error, it should not be a deserialization error */ }
     }
@@ -397,10 +397,10 @@ impl petstore::api_client::ApiClient for VendorJsonApiClient {
         >,
     > {
         Box::pin(async {
-            Ok(petstore::api_response::ApiResponse {
-                status_code: 200,
-                body: r#"{"title":"Not Found"}"#.to_string(),
-                headers: {
+            Ok(petstore::api_response::ApiResponse::new(
+                200,
+                r#"{"title":"Not Found"}"#.to_string(),
+                {
                     let mut h = HashMap::new();
                     h.insert(
                         "Content-Type".to_string(),
@@ -408,7 +408,7 @@ impl petstore::api_client::ApiClient for VendorJsonApiClient {
                     );
                     h
                 },
-            })
+            ))
         })
     }
 }
@@ -488,15 +488,15 @@ impl petstore::api_client::ApiClient for CapturingApiClient {
             _ => None,
         };
         Box::pin(async {
-            Ok(petstore::api_response::ApiResponse {
-                status_code: 200,
-                body: "{}".to_string(),
-                headers: {
+            Ok(petstore::api_response::ApiResponse::new(
+                200,
+                "{}".to_string(),
+                {
                     let mut h = HashMap::new();
                     h.insert("Content-Type".to_string(), "application/json".to_string());
                     h
                 },
-            })
+            ))
         })
     }
 }
@@ -685,7 +685,7 @@ async fn test_base_api_not_found_is_client_error() {
         .downcast_ref::<NotFoundError>()
         .expect("expected NotFoundError");
     // NotFoundError contains a client_error field (ClientError), confirming hierarchy
-    assert_eq!(not_found.client_error.api_error.status_code, 404);
+    assert_eq!(not_found.client_error().api_error().status_code(), 404);
 }
 
 #[tokio::test]
@@ -705,7 +705,7 @@ async fn test_base_api_internal_server_error_is_server_error() {
         .downcast_ref::<InternalServerError>()
         .expect("expected InternalServerError");
     // InternalServerError contains a server_error field (ServerError), confirming hierarchy
-    assert_eq!(ise.server_error.api_error.status_code, 500);
+    assert_eq!(ise.server_error().api_error().status_code(), 500);
 }
 
 // -- Cookie injection via authenticator --
@@ -807,15 +807,15 @@ impl petstore::api_client::ApiClient for QueryCapturingApiClient {
     > {
         *self.captured_url.lock().unwrap() = url.to_string();
         Box::pin(async {
-            Ok(petstore::api_response::ApiResponse {
-                status_code: 200,
-                body: "{}".to_string(),
-                headers: {
+            Ok(petstore::api_response::ApiResponse::new(
+                200,
+                "{}".to_string(),
+                {
                     let mut h = HashMap::new();
                     h.insert("Content-Type".to_string(), "application/json".to_string());
                     h
                 },
-            })
+            ))
         })
     }
 }
@@ -1012,15 +1012,11 @@ impl petstore::api_client::ApiClient for BinaryResponseApiClient {
         let body = self.body.clone();
         let ct = self.content_type.clone();
         Box::pin(async move {
-            Ok(petstore::api_response::ApiResponse {
-                status_code: 200,
-                body,
-                headers: {
-                    let mut h = HashMap::new();
-                    h.insert("Content-Type".to_string(), ct);
-                    h
-                },
-            })
+            Ok(petstore::api_response::ApiResponse::new(200, body, {
+                let mut h = HashMap::new();
+                h.insert("Content-Type".to_string(), ct);
+                h
+            }))
         })
     }
 }
@@ -1050,12 +1046,13 @@ async fn test_binary_response_octet_stream_decoded_from_base64() {
         .expect("binary response must surface as Ok");
 
     assert_eq!(
-        result.raw_body, encoded,
+        result.raw_body(),
+        encoded.as_str(),
         "raw_body must equal the transport-supplied base64 string"
     );
 
     let decoded = base64::engine::general_purpose::STANDARD
-        .decode(result.raw_body.as_bytes())
+        .decode(result.raw_body().as_bytes())
         .expect("raw_body must be valid base64");
     assert_eq!(
         decoded, original,
@@ -1088,7 +1085,7 @@ async fn test_binary_response_image_png_decoded_from_base64() {
         .expect("binary response must surface as Ok");
 
     let decoded = base64::engine::general_purpose::STANDARD
-        .decode(result.raw_body.as_bytes())
+        .decode(result.raw_body().as_bytes())
         .expect("raw_body must be valid base64");
     assert_eq!(decoded, original, "PNG bytes must roundtrip exactly");
 }
@@ -1267,15 +1264,15 @@ impl petstore::api_client::ApiClient for HeaderCapturingApiClient {
             _ => None,
         };
         Box::pin(async {
-            Ok(petstore::api_response::ApiResponse {
-                status_code: 200,
-                body: "{}".to_string(),
-                headers: {
+            Ok(petstore::api_response::ApiResponse::new(
+                200,
+                "{}".to_string(),
+                {
                     let mut h = HashMap::new();
                     h.insert("Content-Type".to_string(), "application/json".to_string());
                     h
                 },
-            })
+            ))
         })
     }
 }
@@ -1363,9 +1360,9 @@ async fn test_base_api_routes_through_proxy_with_basic_auth() {
      * The test verifies the proxy URL was parsed and applied without panic. */
     match result {
         Ok(resp) => assert!(
-            resp.status_code >= 200 && resp.status_code < 600,
+            resp.status_code() >= 200 && resp.status_code() < 600,
             "got nonsensical status: {}",
-            resp.status_code
+            resp.status_code()
         ),
         Err(_) => { /* Squid may refuse -- acceptable for this fixture. */ }
     }
@@ -1542,6 +1539,61 @@ fn test_api_error_typed_body_returns_err_when_body_invalid() {
     assert!(
         parsed.is_err(),
         "typed_body must return Err for unparseable bodies"
+    );
+}
+
+// immutability regression: ApiResult and ApiResponse expose their state only
+// through accessors. The fields are private, so a `with_http_info` caller can
+// read but never mutate the status / body / headers / data after the SDK
+// produced them.
+#[test]
+fn test_api_result_and_response_accessor_only() {
+    let mut headers = HashMap::new();
+    headers.insert("content-type".to_string(), "application/json".to_string());
+
+    let result: petstore::api_result::ApiResult<i32> = petstore::api_result::ApiResult::new(
+        201,
+        Some(42),
+        "{\"v\":42}".to_string(),
+        headers.clone(),
+    );
+    assert_eq!(result.status_code(), 201);
+    assert_eq!(result.data(), Some(&42));
+    assert_eq!(result.raw_body(), "{\"v\":42}");
+    assert_eq!(
+        result.headers().get("content-type").map(String::as_str),
+        Some("application/json")
+    );
+    assert_eq!(result.into_data(), Some(42));
+
+    let response = petstore::api_response::ApiResponse::new(204, "no content".to_string(), headers);
+    assert_eq!(response.status_code(), 204);
+    assert_eq!(response.body(), "no content");
+    assert_eq!(
+        response.headers().get("content-type").map(String::as_str),
+        Some("application/json")
+    );
+}
+
+// immutability regression: the typed error wrappers expose their wrapped error
+// only through accessor methods (no `pub` field to forge or mutate error
+// state). Walk the full BadRequest -> ClientError -> ApiError accessor chain.
+#[test]
+fn test_typed_error_wrappers_accessor_only() {
+    let api_error = petstore::api_error::ApiError::new(
+        400,
+        "bad request".to_string(),
+        Some("{}".to_string()),
+        None,
+    );
+    let client_error = ClientError::from(api_error);
+    assert_eq!(client_error.api_error().status_code(), 400);
+
+    let bad_request = BadRequestError::from(client_error);
+    assert_eq!(bad_request.client_error().api_error().status_code(), 400);
+    assert_eq!(
+        bad_request.client_error().api_error().message(),
+        "bad request"
     );
 }
 

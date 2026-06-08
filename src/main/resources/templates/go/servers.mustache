@@ -19,17 +19,17 @@ var (
 {{#serverConfigs}}
 	/* Server{{serverIndex}} is the server configuration for: {{serverUrl}}{{#serverDescription}}
 	 * {{serverDescription}}{{/serverDescription}} */
-	Server{{serverIndex}} = &ServerConfiguration{
-		URLTemplate: "{{{serverUrl}}}",
-		Description: "{{#serverDescription}}{{{serverDescription}}}{{/serverDescription}}",
-		Variables: {{#hasVariables}}map[string]ServerVariable{
-{{#serverVariables}}			"{{{varName}}}": {
-				DefaultValue: "{{{varDefault}}}",
-				Description:  "{{#varDescription}}{{{varDescription}}}{{/varDescription}}",
-				EnumValues:   {{#hasEnumValues}}[]string{ {{#varEnumValues}}"{{{.}}}"{{^-last}}, {{/-last}}{{/varEnumValues}} }{{/hasEnumValues}}{{^hasEnumValues}}nil{{/hasEnumValues}},
-			},
+	Server{{serverIndex}} = NewServerConfiguration(
+		"{{{serverUrl}}}",
+		"{{#serverDescription}}{{{serverDescription}}}{{/serverDescription}}",
+		{{#hasVariables}}map[string]ServerVariable{
+{{#serverVariables}}			"{{{varName}}}": NewServerVariable(
+				"{{{varDefault}}}",
+				"{{#varDescription}}{{{varDescription}}}{{/varDescription}}",
+				{{#hasEnumValues}}[]string{ {{#varEnumValues}}"{{{.}}}"{{^-last}}, {{/-last}}{{/varEnumValues}} }{{/hasEnumValues}}{{^hasEnumValues}}nil{{/hasEnumValues}},
+			),
 {{/serverVariables}}		}{{/hasVariables}}{{^hasVariables}}map[string]ServerVariable{}{{/hasVariables}},
-	}
+	)
 
 {{/serverConfigs}}
 )

@@ -16,11 +16,12 @@ module PetstoreClient
       # credentials for this call only; when nil, the base client falls
       # back to the Configuration credentials.
       class DeletePetOptions
-        attr_accessor :api_key, :auth
+        attr_reader :api_key, :auth
 
         def initialize(api_key: nil, auth: nil)
           @api_key = api_key
           @auth = auth
+          freeze
         end
       end
     end

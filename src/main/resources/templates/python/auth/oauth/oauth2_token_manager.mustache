@@ -295,8 +295,30 @@ class OAuth2ServerError(RuntimeError):
         else:
             message = f'Token request failed with status {status_code}: {code}'
         super().__init__(message)
-        self.status_code = status_code
-        self.code = code
-        self.description = description
-        self.uri = uri
-        self.raw_body = raw_body
+        # Stored privately and exposed via read-only @property getters so a
+        # caught error's fields cannot be reassigned after construction.
+        self._status_code = status_code
+        self._code = code
+        self._description = description
+        self._uri = uri
+        self._raw_body = raw_body
+
+    @property
+    def status_code(self) -> int:
+        return self._status_code
+
+    @property
+    def code(self) -> Optional[str]:
+        return self._code
+
+    @property
+    def description(self) -> Optional[str]:
+        return self._description
+
+    @property
+    def uri(self) -> Optional[str]:
+        return self._uri
+
+    @property
+    def raw_body(self) -> str:
+        return self._raw_body

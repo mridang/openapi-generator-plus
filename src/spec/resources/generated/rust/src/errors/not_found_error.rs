@@ -12,7 +12,14 @@ use crate::errors::client_error::ClientError;
 /// NotFoundError represents an HTTP 404 Not Found error.
 #[derive(Debug, Clone)]
 pub struct NotFoundError {
-    pub client_error: ClientError,
+    client_error: ClientError,
+}
+
+impl NotFoundError {
+    /// Returns the underlying [`ClientError`].
+    pub fn client_error(&self) -> &ClientError {
+        &self.client_error
+    }
 }
 
 impl fmt::Display for NotFoundError {
@@ -20,7 +27,7 @@ impl fmt::Display for NotFoundError {
         write!(
             f,
             "Not found (404): {}",
-            self.client_error.api_error.message
+            self.client_error.api_error().message()
         )
     }
 }

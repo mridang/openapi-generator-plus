@@ -2,12 +2,13 @@ module PetstoreClient
   module Api
     module Options
       # Required parameters have non-optional keyword arguments;
-      # optional parameters default to nil.  The attr_accessor types
-      # are nullable only for optional parameters.
+      # optional parameters default to nil.  The attr_reader types
+      # are nullable only for optional parameters.  Instances are
+      # frozen after construction, so only readers are exposed.
       class GetPetTagOptions
-        attr_accessor colors: Array[String]?
-        attr_accessor sizes: Array[String]?
-        attr_accessor filter: String?
+        attr_reader colors: Array[String]?
+        attr_reader sizes: Array[String]?
+        attr_reader filter: String?
         def initialize: (?colors: Array[String]?, ?sizes: Array[String]?, ?filter: String?) -> void
       end
     end

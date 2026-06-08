@@ -12,11 +12,12 @@ module PetstoreClient
     module Options
       # Options for the find_pets_by_status operation.
       class FindPetsByStatusOptions
-        attr_accessor :status, :filter
+        attr_reader :status, :filter
 
         def initialize(status: nil, filter: nil)
           @status = status
           @filter = filter
+          freeze
         end
       end
     end

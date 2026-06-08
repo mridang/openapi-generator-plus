@@ -12,8 +12,25 @@ use std::fmt;
 /// SerializationError is returned when serialization or deserialization fails.
 #[derive(Debug)]
 pub struct SerializationError {
-    pub message: String,
-    pub cause: Option<Box<dyn std::error::Error + Send + Sync>>,
+    message: String,
+    cause: Option<Box<dyn std::error::Error + Send + Sync>>,
+}
+
+impl SerializationError {
+    /// Creates a new serialization error with an optional underlying cause.
+    pub fn new(message: String, cause: Option<Box<dyn std::error::Error + Send + Sync>>) -> Self {
+        Self { message, cause }
+    }
+
+    /// Returns the human-readable error message.
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+
+    /// Returns the underlying cause, if any.
+    pub fn cause(&self) -> Option<&(dyn std::error::Error + Send + Sync)> {
+        self.cause.as_deref()
+    }
 }
 
 impl fmt::Display for SerializationError {

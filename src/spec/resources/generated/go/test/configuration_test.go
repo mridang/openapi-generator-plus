@@ -133,20 +133,14 @@ func TestConfiguration_BuilderChaining(t *testing.T) {
 
 func TestConfiguration_ServerURLResolution(t *testing.T) {
 	t.Parallel()
-	server := &petstore.ServerConfiguration{
-		URLTemplate: "https://{env}.example.com/api/{version}",
-		Description: "Test server",
-		Variables: map[string]petstore.ServerVariable{
-			"env": {
-				DefaultValue: "api",
-				EnumValues:   []string{"api", "staging"},
-			},
-			"version": {
-				DefaultValue: "v3",
-				EnumValues:   []string{"v2", "v3"},
-			},
+	server := petstore.NewServerConfiguration(
+		"https://{env}.example.com/api/{version}",
+		"Test server",
+		map[string]petstore.ServerVariable{
+			"env":     petstore.NewServerVariable("api", "", []string{"api", "staging"}),
+			"version": petstore.NewServerVariable("v3", "", []string{"v2", "v3"}),
 		},
-	}
+	)
 
 	builder, err := petstore.NewConfigurationBuilder().
 		Server(server, map[string]string{"env": "staging"})
@@ -163,20 +157,14 @@ func TestConfiguration_ServerURLResolution(t *testing.T) {
 
 func TestConfiguration_ServerURLResolutionWithDefaults(t *testing.T) {
 	t.Parallel()
-	server := &petstore.ServerConfiguration{
-		URLTemplate: "https://{env}.example.com/api/{version}",
-		Description: "Test server",
-		Variables: map[string]petstore.ServerVariable{
-			"env": {
-				DefaultValue: "api",
-				EnumValues:   []string{"api", "staging"},
-			},
-			"version": {
-				DefaultValue: "v3",
-				EnumValues:   []string{"v2", "v3"},
-			},
+	server := petstore.NewServerConfiguration(
+		"https://{env}.example.com/api/{version}",
+		"Test server",
+		map[string]petstore.ServerVariable{
+			"env":     petstore.NewServerVariable("api", "", []string{"api", "staging"}),
+			"version": petstore.NewServerVariable("v3", "", []string{"v2", "v3"}),
 		},
-	}
+	)
 
 	builder, err := petstore.NewConfigurationBuilder().
 		Server(server, nil)
@@ -220,15 +208,13 @@ func TestConfiguration_DefaultHeadersCopyIsolation(t *testing.T) {
 
 func TestConfiguration_InvalidServerVariableEnumValueReturnsError(t *testing.T) {
 	t.Parallel()
-	server := &petstore.ServerConfiguration{
-		URLTemplate: "https://{env}.example.com",
-		Variables: map[string]petstore.ServerVariable{
-			"env": {
-				DefaultValue: "api",
-				EnumValues:   []string{"api", "staging"},
-			},
+	server := petstore.NewServerConfiguration(
+		"https://{env}.example.com",
+		"",
+		map[string]petstore.ServerVariable{
+			"env": petstore.NewServerVariable("api", "", []string{"api", "staging"}),
 		},
-	}
+	)
 
 	_, err := petstore.NewConfigurationBuilder().
 		Server(server, map[string]string{"env": "invalid"})
@@ -240,9 +226,11 @@ func TestConfiguration_InvalidServerVariableEnumValueReturnsError(t *testing.T) 
 func TestConfiguration_BuilderMethodsReturnBuilderForChaining(t *testing.T) {
 	t.Parallel()
 	builder := petstore.NewConfigurationBuilder()
-	server := &petstore.ServerConfiguration{
-		URLTemplate: "https://example.com",
-	}
+	server := petstore.NewServerConfiguration(
+		"https://example.com",
+		"",
+		nil,
+	)
 
 	if builder.BaseURL("https://example.com") != builder {
 		t.Error("BaseURL should return the same builder")

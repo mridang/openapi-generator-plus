@@ -1,6 +1,10 @@
+import dataclasses
 import json
 import os
 import tomllib
+
+import pytest
+
 from petstore_client.object_serializer import ObjectSerializer
 
 
@@ -49,3 +53,17 @@ class TestPackageManifest:
         description = manifest['project']['description']
         assert isinstance(description, str)
         assert description.strip() != ''
+
+
+class TestOptionsImmutability:
+    def test_options_are_frozen(self) -> None:
+        # Per-operation Options classes are frozen dataclasses so a caller
+        # cannot mutate an Options instance after constructing it.
+        from petstore_client.api.options.find_pets_by_status_options import (
+            FindPetsByStatusOptions,
+        )
+
+        options = FindPetsByStatusOptions(status='available')
+
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            options.status = 'sold'  # type: ignore[misc]

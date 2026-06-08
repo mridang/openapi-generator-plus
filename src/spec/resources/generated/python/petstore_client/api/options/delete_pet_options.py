@@ -11,7 +11,7 @@ from typing import Optional
 from petstore_client.auth.authenticator import Authenticator
 
 
-@dataclass
+@dataclass(frozen=True)
 class DeletePetOptions:
     """Options for the delete_pet operation."""
 

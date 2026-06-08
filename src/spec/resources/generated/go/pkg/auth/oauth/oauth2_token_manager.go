@@ -163,10 +163,10 @@ func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]strin
 		 * of replaying the credential-bearing POST; we refuse all 3xx
 		 * explicitly so the caller fails closed rather than leaking the
 		 * client_secret / refresh_token to the redirect target. */
-		return &OAuth2TokenError{Message: fmt.Sprintf(
+		return newOAuth2TokenError(fmt.Sprintf(
 			"refusing to follow %d redirect on OAuth2 token endpoint %s; "+
 				"token POSTs carry credentials and must not be replayed",
-			resp.StatusCode, tokenURL)}
+			resp.StatusCode, tokenURL))
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
@@ -191,7 +191,7 @@ func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]strin
 	}
 
 	if parsed.AccessToken == "" {
-		return &OAuth2TokenError{Message: "token response missing or empty access_token field"}
+		return newOAuth2TokenError("token response missing or empty access_token field")
 	}
 	m.accessToken = parsed.AccessToken
 	if parsed.RefreshToken != "" {
@@ -219,36 +219,88 @@ func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]strin
 // response whose body is missing or contains an empty `access_token` field.
 // Distinct from *OAuth2ServerError (which represents RFC 6749 §5.2 error
 // responses on 4xx/5xx) so callers can recover differently via errors.As.
+//
+// Its state is immutable: the message is set once at construction via
+// newOAuth2TokenError and read through the Message getter.
 type OAuth2TokenError struct {
-	Message string
+	message string
+}
+
+// newOAuth2TokenError constructs an OAuth2TokenError with a fixed message.
+func newOAuth2TokenError(message string) *OAuth2TokenError {
+	return &OAuth2TokenError{message: message}
+}
+
+// Message returns the error message.
+func (e *OAuth2TokenError) Message() string {
+	return e.message
 }
 
 func (e *OAuth2TokenError) Error() string {
-	return e.Message
+	return e.message
 }
 
 // OAuth2ServerError is the typed representation of an RFC 6749 §5.2 OAuth2
-// error response. The `Code` field carries the OAuth2 error code (e.g.
-// "invalid_grant", "invalid_client"); `Description` and `URI` are the
+// error response. The code carries the OAuth2 error code (e.g.
+// "invalid_grant", "invalid_client"); description and URI are the
 // optional human-readable description and a URL to a page describing the
-// error. `RawBody` preserves the original response payload for diagnostics
+// error. rawBody preserves the original response payload for diagnostics
 // when the body is not a well-formed OAuth2 error object.
+//
+// Its state is immutable: fields are set once at construction via
+// newOAuth2ServerError and read through the getter methods.
 type OAuth2ServerError struct {
-	StatusCode  int
-	Code        string
-	Description string
-	URI         string
-	RawBody     string
+	statusCode  int
+	code        string
+	description string
+	uri         string
+	rawBody     string
+}
+
+// newOAuth2ServerError constructs an OAuth2ServerError with fixed state.
+func newOAuth2ServerError(statusCode int, code, description, uri, rawBody string) *OAuth2ServerError {
+	return &OAuth2ServerError{
+		statusCode:  statusCode,
+		code:        code,
+		description: description,
+		uri:         uri,
+		rawBody:     rawBody,
+	}
+}
+
+// StatusCode returns the HTTP status code of the token endpoint response.
+func (e *OAuth2ServerError) StatusCode() int {
+	return e.statusCode
+}
+
+// Code returns the RFC 6749 §5.2 OAuth2 error code (e.g. "invalid_grant").
+func (e *OAuth2ServerError) Code() string {
+	return e.code
+}
+
+// Description returns the optional human-readable error description.
+func (e *OAuth2ServerError) Description() string {
+	return e.description
+}
+
+// URI returns the optional URL describing the error.
+func (e *OAuth2ServerError) URI() string {
+	return e.uri
+}
+
+// RawBody returns the original response payload.
+func (e *OAuth2ServerError) RawBody() string {
+	return e.rawBody
 }
 
 func (e *OAuth2ServerError) Error() string {
-	if e.Code == "" {
-		return fmt.Sprintf("token request failed with status %d: %s", e.StatusCode, e.RawBody)
+	if e.code == "" {
+		return fmt.Sprintf("token request failed with status %d: %s", e.statusCode, e.rawBody)
 	}
-	if e.Description != "" {
-		return fmt.Sprintf("token request failed with status %d: %s — %s", e.StatusCode, e.Code, e.Description)
+	if e.description != "" {
+		return fmt.Sprintf("token request failed with status %d: %s — %s", e.statusCode, e.code, e.description)
 	}
-	return fmt.Sprintf("token request failed with status %d: %s", e.StatusCode, e.Code)
+	return fmt.Sprintf("token request failed with status %d: %s", e.statusCode, e.code)
 }
 
 // parseOAuth2ServerError parses an RFC 6749 §5.2 OAuth2 error response body
@@ -261,18 +313,15 @@ func parseOAuth2ServerError(statusCode int, body string) *OAuth2ServerError {
 		ErrorURI         string `json:"error_uri"`
 	}
 	if err := json.Unmarshal([]byte(body), &parsed); err == nil && parsed.Error != "" {
-		return &OAuth2ServerError{
-			StatusCode:  statusCode,
-			Code:        parsed.Error,
-			Description: parsed.ErrorDescription,
-			URI:         parsed.ErrorURI,
-			RawBody:     body,
-		}
+		return newOAuth2ServerError(
+			statusCode,
+			parsed.Error,
+			parsed.ErrorDescription,
+			parsed.ErrorURI,
+			body,
+		)
 	}
-	return &OAuth2ServerError{
-		StatusCode: statusCode,
-		RawBody:    body,
-	}
+	return newOAuth2ServerError(statusCode, "", "", "", body)
 }
 
 // parseExpiresIn performs a defensive parse of the OAuth2 "expires_in" field

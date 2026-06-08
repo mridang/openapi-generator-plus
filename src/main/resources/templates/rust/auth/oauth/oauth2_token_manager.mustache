@@ -190,7 +190,7 @@ impl OAuth2TokenManager {
             )
             .await?;
 
-        if response.status_code >= 300 && response.status_code < 400 {
+        if response.status_code() >= 300 && response.status_code() < 400 {
             /* RFC 6749 §3.2 forbids redirects at the token endpoint. With
              * NoRedirect set the transport surfaces the 3xx verbatim rather
              * than replaying the credential-bearing POST; we refuse all 3xx
@@ -200,24 +200,24 @@ impl OAuth2TokenManager {
                 message: format!(
                     "refusing to follow {} redirect on OAuth2 token endpoint {}; \
                      token POSTs carry credentials and must not be replayed",
-                    response.status_code, token_url
+                    response.status_code(), token_url
                 ),
             }) as Box<dyn std::error::Error + Send + Sync>);
         }
 
-        if response.status_code < 200 || response.status_code >= 300 {
+        if response.status_code() < 200 || response.status_code() >= 300 {
             /* RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
              * `error` (required), `error_description`, `error_uri`. Parse
              * them into a typed OAuth2ServerError so callers can recover
              * via downcast_ref. Fall back to the raw body when the response
              * is not a valid error object. */
             return Err(Box::new(parse_oauth2_server_error(
-                response.status_code,
-                &response.body,
+                response.status_code(),
+                response.body(),
             )) as Box<dyn std::error::Error + Send + Sync>);
         }
 
-        let parsed: serde_json::Value = serde_json::from_str(&response.body)?;
+        let parsed: serde_json::Value = serde_json::from_str(response.body())?;
 
         let token = parsed
             .get("access_token")
@@ -287,7 +287,14 @@ impl OAuth2TokenManager {
 /// 4xx/5xx) so callers can recover differently via `downcast_ref`.
 #[derive(Debug)]
 pub struct OAuth2TokenError {
-    pub message: String,
+    message: String,
+}
+
+impl OAuth2TokenError {
+    /// Returns the human-readable error message.
+    pub fn message(&self) -> &str {
+        &self.message
+    }
 }
 
 impl std::fmt::Display for OAuth2TokenError {
@@ -306,11 +313,38 @@ impl std::error::Error for OAuth2TokenError {}
 /// the body is not a well-formed OAuth2 error object.
 #[derive(Debug)]
 pub struct OAuth2ServerError {
-    pub status_code: u16,
-    pub code: Option<String>,
-    pub description: Option<String>,
-    pub uri: Option<String>,
-    pub raw_body: String,
+    status_code: u16,
+    code: Option<String>,
+    description: Option<String>,
+    uri: Option<String>,
+    raw_body: String,
+}
+
+impl OAuth2ServerError {
+    /// Returns the HTTP status code of the failed token request.
+    pub fn status_code(&self) -> u16 {
+        self.status_code
+    }
+
+    /// Returns the RFC 6749 §5.2 OAuth2 error code, if present.
+    pub fn code(&self) -> Option<&str> {
+        self.code.as_deref()
+    }
+
+    /// Returns the human-readable error description, if present.
+    pub fn description(&self) -> Option<&str> {
+        self.description.as_deref()
+    }
+
+    /// Returns the URL to a page describing the error, if present.
+    pub fn uri(&self) -> Option<&str> {
+        self.uri.as_deref()
+    }
+
+    /// Returns the original response payload preserved for diagnostics.
+    pub fn raw_body(&self) -> &str {
+        &self.raw_body
+    }
 }
 
 impl std::fmt::Display for OAuth2ServerError {

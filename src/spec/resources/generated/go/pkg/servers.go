@@ -24,30 +24,30 @@ package petstore
 var (
 	/* Server0 is the server configuration for: /api/v3
 	 * Relative URL (no variables) */
-	Server0 = &ServerConfiguration{
-		URLTemplate: "/api/v3",
-		Description: "Relative URL (no variables)",
-		Variables:   map[string]ServerVariable{},
-	}
+	Server0 = NewServerConfiguration(
+		"/api/v3",
+		"Relative URL (no variables)",
+		map[string]ServerVariable{},
+	)
 
 	/* Server1 is the server configuration for: https://{environment}.example.com/api/{version}
 	 * Main API server with variables */
-	Server1 = &ServerConfiguration{
-		URLTemplate: "https://{environment}.example.com/api/{version}",
-		Description: "Main API server with variables",
-		Variables: map[string]ServerVariable{
-			"environment": {
-				DefaultValue: "api",
-				Description:  "API environment",
-				EnumValues:   []string{"api", "staging", "sandbox"},
-			},
-			"version": {
-				DefaultValue: "v3",
-				Description:  "API version",
-				EnumValues:   []string{"v2", "v3"},
-			},
+	Server1 = NewServerConfiguration(
+		"https://{environment}.example.com/api/{version}",
+		"Main API server with variables",
+		map[string]ServerVariable{
+			"environment": NewServerVariable(
+				"api",
+				"API environment",
+				[]string{"api", "staging", "sandbox"},
+			),
+			"version": NewServerVariable(
+				"v3",
+				"API version",
+				[]string{"v2", "v3"},
+			),
 		},
-	}
+	)
 )
 
 // AllServers contains all server configurations in declaration order.

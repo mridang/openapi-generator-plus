@@ -12,12 +12,13 @@ module PetstoreClient
     module Options
       # Options for the upload_pet_document operation.
       class UploadPetDocumentOptions
-        attr_accessor :file, :document_type, :notes
+        attr_reader :file, :document_type, :notes
 
         def initialize(file:, document_type: nil, notes: nil)
           @file = file
           @document_type = document_type
           @notes = notes
+          freeze
         end
       end
     end

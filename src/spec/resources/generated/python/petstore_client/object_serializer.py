@@ -127,8 +127,18 @@ class SerializationError(Exception):
 
     def __init__(self, message: str, cause: Optional[Exception] = None):
         super().__init__(message)
-        self.message = message
-        self.cause = cause
+        # Stored privately and exposed via read-only @property getters so a
+        # caught error's fields cannot be reassigned after construction.
+        self._message = message
+        self._cause = cause
+
+    @property
+    def message(self) -> str:
+        return self._message
+
+    @property
+    def cause(self) -> Optional[Exception]:
+        return self._cause
 
 
 class ObjectSerializer:

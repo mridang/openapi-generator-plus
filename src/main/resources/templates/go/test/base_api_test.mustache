@@ -137,7 +137,7 @@ func TestBaseApi_ParsesJsonErrorBody(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected *BadRequestError, got %T", err)
 	}
-	if bre.ErrorBody == nil {
+	if bre.ErrorBody() == nil {
 		t.Error("ErrorBody should not be nil for JSON responses")
 	}
 }
@@ -1081,14 +1081,10 @@ func TestGetTypedErrorBody_ParsesJsonIntoTarget(t *testing.T) {
 	 * deserialize into the caller's target. Constructed directly with a known
 	 * body (matching the unit-test approach used by the other 11 SDKs) rather
 	 * than depending on a live server returning a body. */
-	bre := &apierrors.BadRequestError{
-		ClientError: apierrors.ClientError{
-			ApiError: apierrors.ApiError{
-				StatusCode:   400,
-				Msg:          "bad request",
-				ResponseBody: `{"title":"Bad Input","status":400}`,
-			},
-		},
+	typedErr := apierrors.NewTypedApiError(400, "bad request", `{"title":"Bad Input","status":400}`, nil, nil, nil)
+	bre, ok := typedErr.(*apierrors.BadRequestError)
+	if !ok {
+		t.Fatalf("expected *BadRequestError, got %T", typedErr)
 	}
 	var body map[string]any
 	if uerr := bre.GetTypedErrorBody(&body); uerr != nil {

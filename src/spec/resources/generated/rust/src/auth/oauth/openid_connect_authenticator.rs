@@ -100,7 +100,7 @@ impl OpenIdConnectAuthenticator {
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         /* The delegate's exchange_code is async; take ownership of the
          * delegate temporarily so the mutex is not held across the await. */
-        let mut delegate = {
+        let delegate = {
             let mut delegate_guard = self.delegate.lock().unwrap();
             delegate_guard
                 .take()
@@ -159,15 +159,16 @@ impl OpenIdConnectAuthenticator {
         // response BEFORE attempting to JSON-parse it. Otherwise a 500-HTML or
         // 404 error page surfaces to the caller as a misleading "invalid JSON"
         // error instead of the real transport-level failure.
-        if response.status_code < 200 || response.status_code >= 300 {
+        if response.status_code() < 200 || response.status_code() >= 300 {
             return Err(format!(
                 "OIDC discovery request to {} failed with HTTP status {}",
-                self.openid_connect_url, response.status_code
+                self.openid_connect_url,
+                response.status_code()
             )
             .into());
         }
 
-        let parsed: serde_json::Value = serde_json::from_str(&response.body)?;
+        let parsed: serde_json::Value = serde_json::from_str(response.body())?;
 
         let authorization_endpoint = parsed
             .get("authorization_endpoint")
@@ -195,7 +196,7 @@ impl OpenIdConnectAuthenticator {
         /* Inject the API client into the delegate's token manager. */
         delegate.set_api_client(client);
 
-        let max_age = parse_max_age(&response.headers);
+        let max_age = parse_max_age(response.headers());
         let new_expiry = Instant::now() + Duration::from_secs(max_age);
 
         let mut delegate_guard = self.delegate.lock().unwrap();

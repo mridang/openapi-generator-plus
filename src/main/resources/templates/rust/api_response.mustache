@@ -6,11 +6,37 @@ use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct ApiResponse {
     /// The HTTP status code of the response.
-    pub status_code: u16,
+    status_code: u16,
 
     /// The raw response body as a string.
-    pub body: String,
+    body: String,
 
     /// The response headers.
-    pub headers: HashMap<String, String>,
+    headers: HashMap<String, String>,
+}
+
+impl ApiResponse {
+    /// Creates a new ApiResponse with the given values.
+    pub fn new(status_code: u16, body: String, headers: HashMap<String, String>) -> Self {
+        Self {
+            status_code,
+            body,
+            headers,
+        }
+    }
+
+    /// Returns the HTTP status code of the response.
+    pub fn status_code(&self) -> u16 {
+        self.status_code
+    }
+
+    /// Returns the raw response body as a string.
+    pub fn body(&self) -> &str {
+        &self.body
+    }
+
+    /// Returns the response headers.
+    pub fn headers(&self) -> &HashMap<String, String> {
+        &self.headers
+    }
 }

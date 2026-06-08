@@ -10,7 +10,7 @@ from pydantic import StrictStr
 from typing import Optional
 
 
-@dataclass
+@dataclass(frozen=True)
 class UploadPetDocumentOptions:
     """Options for the upload_pet_document operation."""
 

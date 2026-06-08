@@ -36,24 +36,24 @@ use crate::server_configuration::{ServerConfiguration, ServerVariable};
 /// {{serverDescription}}
 {{/serverDescription}}
 pub fn server_{{serverIndex}}() -> ServerConfiguration {
-    ServerConfiguration {
-        url_template: "{{{serverUrl}}}".to_string(),
-        description: "{{#serverDescription}}{{{serverDescription}}}{{/serverDescription}}".to_string(),
-        variables: {{#hasVariables}}{
+    ServerConfiguration::new(
+        "{{{serverUrl}}}".to_string(),
+        "{{#serverDescription}}{{{serverDescription}}}{{/serverDescription}}".to_string(),
+        {{#hasVariables}}{
             let mut vars = HashMap::new();
 {{#serverVariables}}
             vars.insert(
                 "{{{varName}}}".to_string(),
-                ServerVariable {
-                    default_value: "{{{varDefault}}}".to_string(),
-                    description: "{{#varDescription}}{{{varDescription}}}{{/varDescription}}".to_string(),
-                    enum_values: {{#hasEnumValues}}vec![{{#varEnumValues}}"{{{.}}}".to_string(){{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}vec![]{{/hasEnumValues}},
-                },
+                ServerVariable::new(
+                    "{{{varDefault}}}".to_string(),
+                    "{{#varDescription}}{{{varDescription}}}{{/varDescription}}".to_string(),
+                    {{#hasEnumValues}}vec![{{#varEnumValues}}"{{{.}}}".to_string(){{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}vec![]{{/hasEnumValues}},
+                ),
             );
 {{/serverVariables}}
             vars
         }{{/hasVariables}}{{^hasVariables}}HashMap::new(){{/hasVariables}},
-    }
+    )
 }
 {{/serverConfigs}}
 

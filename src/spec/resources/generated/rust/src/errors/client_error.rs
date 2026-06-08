@@ -12,7 +12,14 @@ use crate::api_error::ApiError;
 /// ClientError represents an HTTP 4xx client error.
 #[derive(Debug, Clone)]
 pub struct ClientError {
-    pub api_error: ApiError,
+    api_error: ApiError,
+}
+
+impl ClientError {
+    /// Returns the underlying [`ApiError`].
+    pub fn api_error(&self) -> &ApiError {
+        &self.api_error
+    }
 }
 
 impl fmt::Display for ClientError {
@@ -20,7 +27,8 @@ impl fmt::Display for ClientError {
         write!(
             f,
             "Client error ({}): {}",
-            self.api_error.status_code, self.api_error.message
+            self.api_error.status_code(),
+            self.api_error.message()
         )
     }
 }

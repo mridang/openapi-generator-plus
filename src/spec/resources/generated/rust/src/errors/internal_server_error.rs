@@ -12,7 +12,14 @@ use crate::errors::server_error::ServerError;
 /// InternalServerError represents an HTTP 500 Internal Server Error.
 #[derive(Debug, Clone)]
 pub struct InternalServerError {
-    pub server_error: ServerError,
+    server_error: ServerError,
+}
+
+impl InternalServerError {
+    /// Returns the underlying [`ServerError`].
+    pub fn server_error(&self) -> &ServerError {
+        &self.server_error
+    }
 }
 
 impl fmt::Display for InternalServerError {
@@ -20,7 +27,7 @@ impl fmt::Display for InternalServerError {
         write!(
             f,
             "Internal server error (500): {}",
-            self.server_error.api_error.message
+            self.server_error.api_error().message()
         )
     }
 }

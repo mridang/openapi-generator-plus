@@ -41,11 +41,11 @@ impl FakeApiClient {
 
     fn enqueue(&self, body: &str, status_code: u16) {
         let mut responses = self.responses.lock().unwrap();
-        responses.push(ApiResponse {
+        responses.push(ApiResponse::new(
             status_code,
-            body: body.to_string(),
-            headers: HashMap::new(),
-        });
+            body.to_string(),
+            HashMap::new(),
+        ));
     }
 
     fn last_url(&self) -> Option<String> {

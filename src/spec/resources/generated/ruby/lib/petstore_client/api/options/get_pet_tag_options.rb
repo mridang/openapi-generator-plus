@@ -12,12 +12,13 @@ module PetstoreClient
     module Options
       # Options for the get_pet_tag operation.
       class GetPetTagOptions
-        attr_accessor :colors, :sizes, :filter
+        attr_reader :colors, :sizes, :filter
 
         def initialize(colors: nil, sizes: nil, filter: nil)
           @colors = colors
           @sizes = sizes
           @filter = filter
+          freeze
         end
       end
     end

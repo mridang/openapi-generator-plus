@@ -615,17 +615,17 @@ func TestOAuth2TokenManager_TokenEndpointErrorResponseParsedToTypedError(t *test
 	if !errors.As(err, &typed) {
 		t.Fatalf("expected *OAuth2ServerError, got %T: %v", err, err)
 	}
-	if typed.StatusCode != 400 {
-		t.Errorf("expected status 400, got %d", typed.StatusCode)
+	if typed.StatusCode() != 400 {
+		t.Errorf("expected status 400, got %d", typed.StatusCode())
 	}
-	if typed.Code != "invalid_grant" {
-		t.Errorf("expected code 'invalid_grant', got %q", typed.Code)
+	if typed.Code() != "invalid_grant" {
+		t.Errorf("expected code 'invalid_grant', got %q", typed.Code())
 	}
-	if typed.Description != "refresh token expired" {
-		t.Errorf("expected description 'refresh token expired', got %q", typed.Description)
+	if typed.Description() != "refresh token expired" {
+		t.Errorf("expected description 'refresh token expired', got %q", typed.Description())
 	}
-	if typed.URI != "https://docs.example.com/errors/invalid_grant" {
-		t.Errorf("unexpected URI: %q", typed.URI)
+	if typed.URI() != "https://docs.example.com/errors/invalid_grant" {
+		t.Errorf("unexpected URI: %q", typed.URI())
 	}
 }
 

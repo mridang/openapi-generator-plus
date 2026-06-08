@@ -18,7 +18,7 @@ import type { ApiResponse } from './api-response.js';
  *   to that host.
  */
 export interface SendRequestOptions {
-  noRedirect?: boolean;
+  readonly noRedirect?: boolean;
 }
 
 /**

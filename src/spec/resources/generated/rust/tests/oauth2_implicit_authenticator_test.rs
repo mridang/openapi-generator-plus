@@ -57,7 +57,7 @@ fn test_builds_authorization_url_with_state() {
 
 #[tokio::test]
 async fn test_get_auth_headers_returns_bearer_after_set_access_token() {
-    let mut auth = create_authenticator();
+    let auth = create_authenticator();
     auth.set_access_token("implicit-tok");
 
     let headers = auth.auth_headers().await;

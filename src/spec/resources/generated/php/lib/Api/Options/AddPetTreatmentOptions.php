@@ -20,15 +20,8 @@ use PetstoreClient\Auth\Authenticator;
  */
 class AddPetTreatmentOptions
 {
-    /**
-     * Per-operation authenticator. When set, it overrides the client's
-     * configured credentials for this call only; leave {@code null} to use
-     * the configured credentials.
-     */
-    public ?Authenticator $auth;
-
-    public function __construct(?Authenticator $auth = null)
-    {
-        $this->auth = $auth;
+    public function __construct(
+        public readonly ?Authenticator $auth = null,
+    ) {
     }
 }

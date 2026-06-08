@@ -18,22 +18,14 @@ namespace PetstoreClient\Api\Options;
  */
 class GetPetTagOptions
 {
-    /** @var string[]|null */
-    public ?array $colors;
-
-    /** @var string[]|null */
-    public ?array $sizes;
-
-    public ?string $filter;
-
     /**
      * @param string[]|null $colors
      * @param string[]|null $sizes
      */
-    public function __construct(?array $colors = null, ?array $sizes = null, ?string $filter = null)
-    {
-        $this->colors = $colors;
-        $this->sizes = $sizes;
-        $this->filter = $filter;
+    public function __construct(
+        public readonly ?array $colors = null,
+        public readonly ?array $sizes = null,
+        public readonly ?string $filter = null,
+    ) {
     }
 }

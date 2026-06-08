@@ -10,14 +10,41 @@ use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct ServerVariable {
     /// The default value for this variable.
-    pub default_value: String,
+    default_value: String,
 
     /// A human-readable description of this variable.
-    pub description: String,
+    description: String,
 
     /// The allowed values for this variable. An empty vec means any value
     /// is accepted.
-    pub enum_values: Vec<String>,
+    enum_values: Vec<String>,
+}
+
+impl ServerVariable {
+    /// Creates a new server variable.
+    pub fn new(default_value: String, description: String, enum_values: Vec<String>) -> Self {
+        Self {
+            default_value,
+            description,
+            enum_values,
+        }
+    }
+
+    /// Returns the default value for this variable.
+    pub fn default_value(&self) -> &str {
+        &self.default_value
+    }
+
+    /// Returns the human-readable description of this variable.
+    pub fn description(&self) -> &str {
+        &self.description
+    }
+
+    /// Returns the allowed values for this variable. An empty slice means any
+    /// value is accepted.
+    pub fn enum_values(&self) -> &[String] {
+        &self.enum_values
+    }
 }
 
 /// ServerConfiguration represents a single server entry from the OpenAPI specification.
@@ -29,16 +56,44 @@ pub struct ServerVariable {
 #[derive(Debug, Clone)]
 pub struct ServerConfiguration {
     /// The raw URL template before variable substitution.
-    pub url_template: String,
+    url_template: String,
 
     /// A human-readable description of this server.
-    pub description: String,
+    description: String,
 
     /// The server variables and their definitions.
-    pub variables: HashMap<String, ServerVariable>,
+    variables: HashMap<String, ServerVariable>,
 }
 
 impl ServerConfiguration {
+    /// Creates a new server configuration.
+    pub fn new(
+        url_template: String,
+        description: String,
+        variables: HashMap<String, ServerVariable>,
+    ) -> Self {
+        Self {
+            url_template,
+            description,
+            variables,
+        }
+    }
+
+    /// Returns the raw URL template before variable substitution.
+    pub fn url_template(&self) -> &str {
+        &self.url_template
+    }
+
+    /// Returns the human-readable description of this server.
+    pub fn description(&self) -> &str {
+        &self.description
+    }
+
+    /// Returns the server variables and their definitions.
+    pub fn variables(&self) -> &HashMap<String, ServerVariable> {
+        &self.variables
+    }
+
     /// Resolves the URL template using default variable values or the given overrides.
     ///
     /// Variables not present in overrides use their default values. If a variable

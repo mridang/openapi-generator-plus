@@ -425,11 +425,7 @@ impl ApiClient for DefaultApiClient {
                 base64::engine::general_purpose::STANDARD.encode(&resp_bytes)
             };
 
-            Ok(ApiResponse {
-                status_code,
-                body: resp_body,
-                headers: resp_headers,
-            })
+            Ok(ApiResponse::new(status_code, resp_body, resp_headers))
         })
     }
 }

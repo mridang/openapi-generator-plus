@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crate::api_client::ApiClient;
 use crate::auth::Authenticator;
@@ -31,7 +31,10 @@ pub struct OAuth2ImplicitAuthenticator {
     client_id: String,
     authorization_url: String,
     scopes: Vec<String>,
-    access_token: String,
+    /* Interior mutability so `set_access_token` takes `&self`, matching the
+     * `&self` + Mutex pattern used by OpenIdConnectAuthenticator. This lets a
+     * shared `&` reference set the token without requiring a `&mut` binding. */
+    access_token: Mutex<String>,
 }
 
 impl OAuth2ImplicitAuthenticator {
@@ -42,7 +45,7 @@ impl OAuth2ImplicitAuthenticator {
             client_id: client_id.to_string(),
             authorization_url: authorization_url.to_string(),
             scopes,
-            access_token: String::new(),
+            access_token: Mutex::new(String::new()),
         }
     }
 
@@ -53,7 +56,7 @@ impl OAuth2ImplicitAuthenticator {
     /// only fail at the next API call via the Authorization-header concat,
     /// allowing HTTP header injection from a redirect-fragment-derived value.
     /// Panics on invalid input — consistent with BearerAuthenticator.
-    pub fn set_access_token(&mut self, token: &str) {
+    pub fn set_access_token(&self, token: &str) {
         for b in token.bytes() {
             if b != b'\t' && (b < 0x20 || b >= 0x7F) {
                 panic!(
@@ -61,7 +64,7 @@ impl OAuth2ImplicitAuthenticator {
                 );
             }
         }
-        self.access_token = token.to_string();
+        *self.access_token.lock().unwrap() = token.to_string();
     }
 
     /// Builds the authorization URL to redirect the user to.
@@ -104,15 +107,13 @@ impl Authenticator for OAuth2ImplicitAuthenticator {
         &'a self,
     ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
         Box::pin(async move {
-            if self.access_token.is_empty() {
+            let token = self.access_token.lock().unwrap().clone();
+            if token.is_empty() {
                 panic!("must set access token before making API requests");
             }
 
             let mut headers = HashMap::new();
-            headers.insert(
-                "Authorization".to_string(),
-                format!("Bearer {}", self.access_token),
-            );
+            headers.insert("Authorization".to_string(), format!("Bearer {}", token));
             headers
         })
     }

@@ -7,6 +7,7 @@
 
 import * as http from 'node:http';
 import { PetApi, UploadPetDocumentDocumentTypeEnum } from '../../src/api/pet-api.js';
+import type { AddPetOptions, UploadPetDocumentOptions } from '../../src/api/options/index.js';
 import { BearerAuthenticator } from '../../src/auth/bearer-authenticator.js';
 import { Configuration } from '../../src/configuration.js';
 import { Pet, PetStatusEnum, PhotoMetadata, SetPetAvatarThumbnailRequest } from '../../src/models/index.js';
@@ -417,5 +418,25 @@ describe('PetApi error handling', () => {
     } finally {
       close();
     }
+  });
+
+  // options-are-readonly: the generated per-operation Options interfaces expose
+  // only `readonly` members. This test constructs an Options object literal (a
+  // secured op's `auth` field plus a multipart op's params) and reads each back,
+  // which compiles under tsc precisely because readonly members are still
+  // assignable via object literals; only post-construction mutation is rejected.
+  test('Options object literals are constructible and readable', () => {
+    const auth = new BearerAuthenticator(baseUrl, 'literal-token');
+    const addPetOptions: AddPetOptions = { auth };
+    const uploadOptions: UploadPetDocumentOptions = {
+      file: Buffer.from('doc'),
+      documentType: 'invoice',
+      notes: 'a note'
+    };
+
+    expect(addPetOptions.auth).toBe(auth);
+    expect(uploadOptions.file.toString()).toBe('doc');
+    expect(uploadOptions.documentType).toBe('invoice');
+    expect(uploadOptions.notes).toBe('a note');
   });
 });

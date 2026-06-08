@@ -10,7 +10,7 @@ from typing import Optional
 from petstore_client.auth.authenticator import Authenticator
 
 
-@dataclass
+@dataclass(frozen=True)
 class AddPetTreatmentOptions:
     """Options for the add_pet_treatment operation."""
 

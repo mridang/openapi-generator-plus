@@ -2,7 +2,7 @@
  * Options for the getPetTag operation.
  */
 export interface GetPetTagOptions {
-  colors?: Array<string>;
-  sizes?: Array<string>;
-  filter?: string;
+  readonly colors?: Array<string>;
+  readonly sizes?: Array<string>;
+  readonly filter?: string;
 }

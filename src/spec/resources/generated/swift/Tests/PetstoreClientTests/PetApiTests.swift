@@ -377,6 +377,23 @@ final class PetApiTests {
         let result = try await mockApi.getPetById(petId: 1)
         #expect(result != nil)
     }
+
+    // options-immutable-readback: an Options value is built once via its init
+    // (named args + defaults) and its stored properties are immutable lets that
+    // remain readable after construction. A param-bearing Options round-trips
+    // its parameters, and an auth-bearing Options round-trips its per-call
+    // authenticator. This pins the immutable shape: the properties are readable
+    // but cannot be reassigned after construction.
+    @Test func testOptionsConstructedAndReadBack() async throws {
+        let paramOpts = GetPetTagOptions(colors: ["blue", "black"], sizes: ["S"])
+        #expect(paramOpts.colors == ["blue", "black"])
+        #expect(paramOpts.sizes == ["S"])
+        #expect(paramOpts.filter == nil)
+
+        let perCallAuth = PerCallAuthenticator()
+        let authOpts = AddPetOptions(auth: perCallAuth)
+        #expect(authOpts.auth != nil)
+    }
 }
 
 /// Test authenticator for integration tests.

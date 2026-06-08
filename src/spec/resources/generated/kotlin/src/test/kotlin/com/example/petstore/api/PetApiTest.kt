@@ -190,7 +190,7 @@ class PetApiTest {
             val result =
                 runBlocking {
                     api.findPetsByStatus(
-                        FindPetsByStatusOptions().status("available"),
+                        FindPetsByStatusOptions(status = "available"),
                     )
                 }
 
@@ -204,7 +204,7 @@ class PetApiTest {
             val result =
                 runBlocking {
                     api.findPetsByStatusWithHttpInfo(
-                        FindPetsByStatusOptions().status("available"),
+                        FindPetsByStatusOptions(status = "available"),
                     )
                 }
 
@@ -279,9 +279,11 @@ class PetApiTest {
         fun testUploadPetDocument() {
             val fileBytes = "fake-doc-data".toByteArray()
             val options =
-                UploadPetDocumentOptions(fileBytes)
-                    .documentType("vaccination_record")
-                    .notes("Annual checkup")
+                UploadPetDocumentOptions(
+                    fileBytes,
+                    documentType = "vaccination_record",
+                    notes = "Annual checkup",
+                )
             val result = runBlocking { api.uploadPetDocument(1L, options) }
 
             assertNotNull(result)
@@ -318,9 +320,10 @@ class PetApiTest {
                     api.getPetTag(
                         5L,
                         "cute",
-                        GetPetTagOptions()
-                            .colors(listOf("blue", "black"))
-                            .sizes(listOf("S", "M")),
+                        GetPetTagOptions(
+                            colors = listOf("blue", "black"),
+                            sizes = listOf("S", "M"),
+                        ),
                     )
                 }
 
@@ -544,11 +547,36 @@ class PetApiTest {
             // (getPetById) take no Options arg at all. This is a no-op at
             // runtime; it fails to compile if a regression reintroduces auth on
             // unsecured operations.
-            val opts = FindPetsByStatusOptions().status("available")
+            val opts = FindPetsByStatusOptions(status = "available")
             assertNotNull(opts)
             // AddPetOptions (secured op) DOES carry the auth field.
             val secured = AddPetOptions(auth = bearerAuth)
             assertNotNull(secured.auth)
+        }
+
+        @Test
+        @DisplayName("Options are immutable and built via named-arg constructor")
+        fun testOptionsAreImmutableAndConstructedWithNamedArgs() {
+            // Options classes are immutable: every property is a `val` set
+            // through the primary constructor via named/default args. Reads
+            // below confirm the values round-trip; the `val` immutability is
+            // enforced at compile time (no setters exist to call).
+            val opts =
+                GetPetTagOptions(
+                    colors = listOf("blue", "black"),
+                    sizes = listOf("S", "M"),
+                )
+            assertEquals(listOf("blue", "black"), opts.colors)
+            assertEquals(listOf("S", "M"), opts.sizes)
+            assertNull(opts.filter)
+
+            // auth lives in Options as a `val` too, alongside operation params.
+            val secured = AddPetOptions(auth = bearerAuth)
+            assertEquals(bearerAuth, secured.auth)
+
+            val findOpts = FindPetsByStatusOptions(status = "available")
+            assertEquals("available", findOpts.status)
+            assertNull(findOpts.filter)
         }
 
         @Test

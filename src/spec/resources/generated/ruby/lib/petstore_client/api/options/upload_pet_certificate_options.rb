@@ -12,10 +12,11 @@ module PetstoreClient
     module Options
       # Options for the upload_pet_certificate operation.
       class UploadPetCertificateOptions
-        attr_accessor :file
+        attr_reader :file
 
         def initialize(file:)
           @file = file
+          freeze
         end
       end
     end

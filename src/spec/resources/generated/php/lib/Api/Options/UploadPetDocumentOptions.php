@@ -18,16 +18,10 @@ namespace PetstoreClient\Api\Options;
  */
 class UploadPetDocumentOptions
 {
-    public \SplFileObject $file;
-
-    public ?string $documentType;
-
-    public ?string $notes;
-
-    public function __construct(\SplFileObject $file, ?string $documentType = null, ?string $notes = null)
-    {
-        $this->file = $file;
-        $this->documentType = $documentType;
-        $this->notes = $notes;
+    public function __construct(
+        public readonly \SplFileObject $file,
+        public readonly ?string $documentType = null,
+        public readonly ?string $notes = null,
+    ) {
     }
 }

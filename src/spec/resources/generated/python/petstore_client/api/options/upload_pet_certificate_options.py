@@ -8,7 +8,7 @@
 from dataclasses import dataclass
 
 
-@dataclass
+@dataclass(frozen=True)
 class UploadPetCertificateOptions:
     """Options for the upload_pet_certificate operation."""
 

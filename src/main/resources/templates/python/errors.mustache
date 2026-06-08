@@ -20,11 +20,35 @@ class ApiException(OpenApiException):
         response_body: Optional[str] = None,
         error_body: Optional[Any] = None,
     ) -> None:
-        self.status_code = status_code
-        self.message = message
-        self.response_headers = response_headers
-        self.response_body = response_body
-        self.error_body = error_body
+        # Stored privately and exposed through read-only @property getters so
+        # that a caught exception's fields cannot be mutated after the fact
+        # (e.g. rewriting status_code on a re-raised error). The typed
+        # subclasses (ClientException, ServerException, ...) inherit these.
+        self._status_code = status_code
+        self._message = message
+        self._response_headers = response_headers
+        self._response_body = response_body
+        self._error_body = error_body
+
+    @property
+    def status_code(self) -> Optional[int]:
+        return self._status_code
+
+    @property
+    def message(self) -> Optional[str]:
+        return self._message
+
+    @property
+    def response_headers(self) -> Optional[Any]:
+        return self._response_headers
+
+    @property
+    def response_body(self) -> Optional[str]:
+        return self._response_body
+
+    @property
+    def error_body(self) -> Optional[Any]:
+        return self._error_body
 
     def get_typed_error_body(self, clazz: Type[T]) -> Optional[T]:
         """Deserialize the response body into a typed object.

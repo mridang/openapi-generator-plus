@@ -582,6 +582,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             CodegenOperation op, List<CodegenParameter> optionsParams, String className) {
         final List<Map<String, Object>> params = new ArrayList<>();
         final List<Map<String, Object>> requiredParams = new ArrayList<>();
+        final List<Map<String, Object>> optionalParams = new ArrayList<>();
         for (final CodegenParameter p : optionsParams) {
             final Map<String, Object> param = new HashMap<>();
             param.put("paramName", p.paramName);
@@ -590,6 +591,8 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             params.add(param);
             if (p.required) {
                 requiredParams.add(param);
+            } else {
+                optionalParams.add(param);
             }
         }
 
@@ -621,6 +624,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         context.put("operationId", op.operationId);
         context.put("params", params);
         context.put("requiredParams", requiredParams);
+        context.put("optionalParams", optionalParams);
         context.put("modelImports", new ArrayList<>(modelTypes));
         context.put("hasModelImports", !modelTypes.isEmpty());
         injectAuthFieldContext(op, context);

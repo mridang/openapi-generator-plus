@@ -7,12 +7,19 @@ use crate::errors::client_error::ClientError;
 /// ConflictError represents an HTTP 409 Conflict error.
 #[derive(Debug, Clone)]
 pub struct ConflictError {
-    pub client_error: ClientError,
+    client_error: ClientError,
+}
+
+impl ConflictError {
+    /// Returns the underlying [`ClientError`].
+    pub fn client_error(&self) -> &ClientError {
+        &self.client_error
+    }
 }
 
 impl fmt::Display for ConflictError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Conflict (409): {}", self.client_error.api_error.message)
+        write!(f, "Conflict (409): {}", self.client_error.api_error().message())
     }
 }
 

@@ -18,10 +18,8 @@ namespace PetstoreClient\Api\Options;
  */
 class UploadPetCertificateOptions
 {
-    public \SplFileObject $file;
-
-    public function __construct(\SplFileObject $file)
-    {
-        $this->file = $file;
+    public function __construct(
+        public readonly \SplFileObject $file,
+    ) {
     }
 }

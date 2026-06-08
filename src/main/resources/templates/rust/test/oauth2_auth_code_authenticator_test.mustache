@@ -29,11 +29,7 @@ impl FakeApiClient {
 
     fn enqueue(&self, body: &str, status_code: u16) {
         let mut responses = self.responses.lock().unwrap();
-        responses.push(ApiResponse {
-            status_code,
-            body: body.to_string(),
-            headers: HashMap::new(),
-        });
+        responses.push(ApiResponse::new(status_code, body.to_string(), HashMap::new()));
     }
 
     fn last_body(&self) -> Option<String> {

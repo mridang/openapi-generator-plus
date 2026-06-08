@@ -12,23 +12,14 @@ import {{authImport}}
 /**
  * Options for the {{operationId}} operation.
  */
-class {{className}}({{#requiredParams}}{{paramName}}: {{{dataType}}}{{^-last}}, {{/-last}}{{/requiredParams}}{{#hasAuthField}}{{#requiredParams.0}}, {{/requiredParams.0}}val auth: {{authFieldType}}? = null{{/hasAuthField}}) {
-{{#params}}
-{{#required}}
-    val {{paramName}}: {{{dataType}}} = {{paramName}}
-{{/required}}
-{{^required}}
-    var {{paramName}}: {{{dataType}}}? = null
-        private set
-{{/required}}
-{{/params}}
-
-{{#params}}
-{{^required}}
-    fun {{paramName}}({{paramName}}: {{{dataType}}}): {{className}} = apply {
-        this.{{paramName}} = {{paramName}}
-    }
-
-{{/required}}
-{{/params}}
-}
+class {{className}}(
+{{#requiredParams}}
+    val {{paramName}}: {{{dataType}}},
+{{/requiredParams}}
+{{#optionalParams}}
+    val {{paramName}}: {{{dataType}}}? = null,
+{{/optionalParams}}
+{{#hasAuthField}}
+    val auth: {{authFieldType}}? = null,
+{{/hasAuthField}}
+)

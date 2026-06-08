@@ -11,7 +11,7 @@ use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crate::api_client::ApiClient;
 use crate::auth::Authenticator;
@@ -61,7 +61,9 @@ pub struct OAuth2AuthorizationCodeAuthenticator {
     redirect_uri: String,
     scopes: Vec<String>,
     token_manager: OAuth2TokenManager,
-    token_exchanged: bool,
+    /* Interior mutability so `exchange_code` takes `&self`, matching the
+     * `&self` + Mutex pattern used by OpenIdConnectAuthenticator. */
+    token_exchanged: Mutex<bool>,
 }
 
 impl OAuth2AuthorizationCodeAuthenticator {
@@ -94,7 +96,7 @@ impl OAuth2AuthorizationCodeAuthenticator {
             redirect_uri: redirect_uri.to_string(),
             scopes,
             token_manager: OAuth2TokenManager::new(),
-            token_exchanged: false,
+            token_exchanged: Mutex::new(false),
         }
     }
 
@@ -141,7 +143,7 @@ impl OAuth2AuthorizationCodeAuthenticator {
 
     /// Exchanges an authorization code for an access token.
     pub async fn exchange_code(
-        &mut self,
+        &self,
         code: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // oauth-exchangecode-no-empty-code-guard: an empty authorization code
@@ -160,7 +162,7 @@ impl OAuth2AuthorizationCodeAuthenticator {
         self.token_manager
             .get_access_token(&self.token_url, &params)
             .await?;
-        self.token_exchanged = true;
+        *self.token_exchanged.lock().unwrap() = true;
         Ok(())
     }
 
@@ -184,7 +186,8 @@ impl OAuth2AuthorizationCodeAuthenticator {
         >,
     > {
         Box::pin(async move {
-            if !self.token_exchanged {
+            let token_exchanged = *self.token_exchanged.lock().unwrap();
+            if !token_exchanged {
                 return Err(Box::new(AuthCodeNotExchangedError) as Box<dyn Error + Send + Sync>);
             }
 

@@ -120,7 +120,7 @@ async fn test_pet_api_add_pet_with_http_info() {
     let result = api.add_pet_with_http_info(pet, Some(&opts)).await;
     assert!(result.is_ok(), "add_pet_with_http_info failed: {:?}", result.err());
     let api_result = result.unwrap();
-    assert!(api_result.status_code >= 200 && api_result.status_code < 300);
+    assert!(api_result.status_code() >= 200 && api_result.status_code() < 300);
 }
 
 #[tokio::test]
@@ -136,7 +136,7 @@ async fn test_pet_api_get_pet_by_id_with_http_info() {
     let result = api.get_pet_by_id_with_http_info(1, None).await;
     assert!(result.is_ok(), "get_pet_by_id_with_http_info failed: {:?}", result.err());
     let api_result = result.unwrap();
-    assert_eq!(api_result.status_code, 200);
+    assert_eq!(api_result.status_code(), 200);
 }
 
 #[tokio::test]

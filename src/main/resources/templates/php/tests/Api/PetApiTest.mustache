@@ -389,3 +389,16 @@ test('unsecured operation options has no auth field', function (): void {
     /** @var \ReflectionNamedType $type */
     expect($type->allowsNull())->toBeTrue();
 });
+
+test('options class is immutable: construction works but property writes throw', function (): void {
+    // The per-operation Options classes are immutable value objects:
+    // properties are constructor-promoted public readonly. Construction with
+    // an auth credential works, the value is readable, but any attempt to
+    // mutate a readonly property after construction must throw \Error.
+    $auth = new BearerAuthenticator('http://localhost:9999', 'token');
+    $opts = new AddPetOptions(auth: $auth);
+    expect($opts->auth)->toBe($auth);
+
+    expect(fn () => $opts->auth = new BearerAuthenticator('http://localhost:9999', 'other'))
+        ->toThrow(\Error::class);
+});

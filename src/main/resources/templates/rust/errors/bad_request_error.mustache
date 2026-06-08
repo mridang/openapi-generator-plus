@@ -7,12 +7,19 @@ use crate::errors::client_error::ClientError;
 /// BadRequestError represents an HTTP 400 Bad Request error.
 #[derive(Debug, Clone)]
 pub struct BadRequestError {
-    pub client_error: ClientError,
+    client_error: ClientError,
+}
+
+impl BadRequestError {
+    /// Returns the underlying [`ClientError`].
+    pub fn client_error(&self) -> &ClientError {
+        &self.client_error
+    }
 }
 
 impl fmt::Display for BadRequestError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Bad request (400): {}", self.client_error.api_error.message)
+        write!(f, "Bad request (400): {}", self.client_error.api_error().message())
     }
 }
 

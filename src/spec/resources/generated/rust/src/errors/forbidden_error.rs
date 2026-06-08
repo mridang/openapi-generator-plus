@@ -12,7 +12,14 @@ use crate::errors::client_error::ClientError;
 /// ForbiddenError represents an HTTP 403 Forbidden error.
 #[derive(Debug, Clone)]
 pub struct ForbiddenError {
-    pub client_error: ClientError,
+    client_error: ClientError,
+}
+
+impl ForbiddenError {
+    /// Returns the underlying [`ClientError`].
+    pub fn client_error(&self) -> &ClientError {
+        &self.client_error
+    }
 }
 
 impl fmt::Display for ForbiddenError {
@@ -20,7 +27,7 @@ impl fmt::Display for ForbiddenError {
         write!(
             f,
             "Forbidden (403): {}",
-            self.client_error.api_error.message
+            self.client_error.api_error().message()
         )
     }
 }

@@ -25,10 +25,10 @@ fn deserialize_error_body<T: serde::de::DeserializeOwned>(
 ) -> Result<Option<T>, SerializationError> {
     match body {
         Some(b) if !b.is_empty() => serde_json::from_str(b).map(Some).map_err(|e| {
-            SerializationError {
-                message: format!("failed to deserialize error response body: {}", e),
-                cause: Some(Box::new(e)),
-            }
+            SerializationError::new(
+                format!("failed to deserialize error response body: {}", e),
+                Some(Box::new(e)),
+            )
         }),
         _ => Ok(None),
     }
@@ -39,16 +39,16 @@ fn deserialize_error_body<T: serde::de::DeserializeOwned>(
 #[derive(Debug, Clone)]
 pub struct ApiError {
     /// The HTTP status code.
-    pub status_code: u16,
+    status_code: u16,
 
     /// The error message.
-    pub message: String,
+    message: String,
 
     /// The raw response body (None if the transport failed before producing one).
-    pub response_body: Option<String>,
+    response_body: Option<String>,
 
     /// The response headers (None if the transport failed before producing them).
-    pub response_headers: Option<HashMap<String, String>>,
+    response_headers: Option<HashMap<String, String>>,
 
     /// The parsed response body, if JSON. Crate-internal: exposing the
     /// `serde_json::Value` AST would leak `serde_json` into the public API.
@@ -64,7 +64,7 @@ pub struct ApiError {
     /// can downcast the cause and inspect it — matching the 10 other SDKs that
     /// retain `cause` / `Unwrap` / `__cause__` / `InnerException`. Stored as an
     /// `Arc` so `ApiError` stays `Clone`.
-    pub source: Option<Arc<dyn std::error::Error + Send + Sync>>,
+    source: Option<Arc<dyn std::error::Error + Send + Sync>>,
 }
 
 impl ApiError {
@@ -111,6 +111,26 @@ impl ApiError {
             error_body,
             source: Some(source),
         }
+    }
+
+    /// Returns the HTTP status code.
+    pub fn status_code(&self) -> u16 {
+        self.status_code
+    }
+
+    /// Returns the error message.
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+
+    /// Returns the raw response body, if the transport produced one.
+    pub fn response_body(&self) -> Option<&str> {
+        self.response_body.as_deref()
+    }
+
+    /// Returns the response headers, if the transport produced them.
+    pub fn response_headers(&self) -> Option<&HashMap<String, String>> {
+        self.response_headers.as_ref()
     }
 
     /// Deserializes the response body into the target type. Returns
@@ -181,13 +201,13 @@ impl std::error::Error for ApiError {
 #[derive(Debug, Clone)]
 pub struct ApiErrorFields {
     /// The HTTP status code surfaced by the transport.
-    pub status_code: u16,
+    status_code: u16,
     /// Human-readable summary suitable for log messages.
-    pub message: String,
+    message: String,
     /// Raw response body, if the transport produced one.
-    pub response_body: Option<String>,
+    response_body: Option<String>,
     /// Response headers, if the transport produced them.
-    pub response_headers: Option<HashMap<String, String>>,
+    response_headers: Option<HashMap<String, String>>,
     /// Parsed JSON view of the response body, if it was valid JSON.
     /// Crate-internal: see [`ApiError::error_body`]. Use
     /// [`ApiErrorFields::typed_body`] for a typed view.
@@ -195,6 +215,26 @@ pub struct ApiErrorFields {
 }
 
 impl ApiErrorFields {
+    /// Returns the HTTP status code surfaced by the transport.
+    pub fn status_code(&self) -> u16 {
+        self.status_code
+    }
+
+    /// Returns the human-readable summary suitable for log messages.
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+
+    /// Returns the raw response body, if the transport produced one.
+    pub fn response_body(&self) -> Option<&str> {
+        self.response_body.as_deref()
+    }
+
+    /// Returns the response headers, if the transport produced them.
+    pub fn response_headers(&self) -> Option<&HashMap<String, String>> {
+        self.response_headers.as_ref()
+    }
+
     /// Convenience: deserialize the response body into `T`.
     pub fn typed_body<T: serde::de::DeserializeOwned>(
         &self,

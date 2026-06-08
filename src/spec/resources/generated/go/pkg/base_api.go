@@ -544,12 +544,14 @@ func rfc5987EncodeValue(s string) string {
  * decodable body. convenience-empty-body-handling: the empty-body condition
  * must surface as a catchable, typed error instead of a silent nil/zero-value. */
 func newEmptyBodyError(operationID string, statusCode int, rawBody string, headers map[string]string) error {
-	return &ApiError{
-		StatusCode:      statusCode,
-		Msg:             fmt.Sprintf("expected a response body for %s but received none", operationID),
-		ResponseBody:    rawBody,
-		ResponseHeaders: headers,
-	}
+	return NewApiError(
+		statusCode,
+		fmt.Sprintf("expected a response body for %s but received none", operationID),
+		rawBody,
+		headers,
+		nil,
+		nil,
+	)
 }
 
 func throwAPIError(response *HttpResponse) error {
@@ -562,45 +564,7 @@ func throwAPIError(response *HttpResponse) error {
 		_ = json.Unmarshal([]byte(body), &parsed)
 	}
 
-	baseErr := &ApiError{
-		StatusCode:      code,
-		Msg:             msg,
-		ResponseBody:    body,
-		ResponseHeaders: response.Headers,
-		ErrorBody:       parsed,
-	}
-
-	if code >= 400 && code < 500 {
-		clientErr := &ClientError{ApiError: *baseErr}
-		switch code {
-		case 400:
-			return &BadRequestError{ClientError: *clientErr}
-		case 401:
-			return &UnauthorizedError{ClientError: *clientErr}
-		case 403:
-			return &ForbiddenError{ClientError: *clientErr}
-		case 404:
-			return &NotFoundError{ClientError: *clientErr}
-		case 409:
-			return &ConflictError{ClientError: *clientErr}
-		case 422:
-			return &UnprocessableEntityError{ClientError: *clientErr}
-		default:
-			return clientErr
-		}
-	}
-
-	if code >= 500 {
-		serverErr := &ServerError{ApiError: *baseErr}
-		switch code {
-		case 500:
-			return &InternalServerError{ServerError: *serverErr}
-		default:
-			return serverErr
-		}
-	}
-
-	return baseErr
+	return NewTypedApiError(code, msg, body, response.Headers, parsed, nil)
 }
 
 // isValidCookieName checks RFC 6265 cookie-name (RFC 7230 token).

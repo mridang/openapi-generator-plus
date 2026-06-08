@@ -25,8 +25,8 @@ async fn test_default_api_client_makes_https_request_with_verify_ssl_false() {
     /* chasm's /test/echo returns the request envelope; the previous chasm stub
      * returned {"message":"success"}. Loosened: assert the response is the echo
      * envelope (contains "method"). */
-    assert_eq!(resp.status_code, 200);
-    assert!(resp.body.contains("\"method\""));
+    assert_eq!(resp.status_code(), 200);
+    assert!(resp.body().contains("\"method\""));
 }
 
 #[tokio::test]
@@ -44,8 +44,8 @@ async fn test_default_api_client_makes_https_request_with_custom_ca_cert() {
         .await
         .expect("unexpected error");
 
-    assert_eq!(resp.status_code, 200);
-    assert!(resp.body.contains("\"method\""));
+    assert_eq!(resp.status_code(), 200);
+    assert!(resp.body().contains("\"method\""));
 }
 
 #[tokio::test]
@@ -60,8 +60,8 @@ async fn test_default_api_client_makes_http_request_through_proxy() {
         .await
         .expect("unexpected error");
 
-    assert_eq!(resp.status_code, 200);
-    assert!(resp.body.contains("\"method\""));
+    assert_eq!(resp.status_code(), 200);
+    assert!(resp.body().contains("\"method\""));
 }
 
 // Gap AK: userinfo embedded in the proxy URL must be base64-encoded
@@ -102,8 +102,8 @@ async fn test_default_api_client_makes_https_request_through_proxy_with_verify_s
         .await
         .expect("unexpected error");
 
-    assert_eq!(resp.status_code, 200);
-    assert!(resp.body.contains("\"method\""));
+    assert_eq!(resp.status_code(), 200);
+    assert!(resp.body().contains("\"method\""));
 }
 
 #[tokio::test]
@@ -132,9 +132,9 @@ async fn test_default_api_client_injects_custom_user_agent_header() {
         .await
         .expect("unexpected error");
 
-    assert_eq!(resp.status_code, 200);
+    assert_eq!(resp.status_code(), 200);
     /* chasm's echo envelope lowercases all header keys in the `headers` map. */
-    let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
+    let json: serde_json::Value = serde_json::from_str(resp.body()).expect("invalid json");
     let h = &json["headers"];
     let ua = h
         .get("user-agent")
@@ -156,7 +156,7 @@ async fn test_default_api_client_injects_request_id_header() {
         .await
         .expect("unexpected error");
 
-    let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
+    let json: serde_json::Value = serde_json::from_str(resp.body()).expect("invalid json");
     let h = &json["headers"];
     let request_id = h
         .get("x-request-id")
@@ -184,7 +184,7 @@ async fn test_default_api_client_includes_transport_default_headers() {
         .await
         .expect("unexpected error");
 
-    let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
+    let json: serde_json::Value = serde_json::from_str(resp.body()).expect("invalid json");
     let h = &json["headers"];
     let v = h
         .get("x-custom")
@@ -207,7 +207,7 @@ async fn test_default_api_client_caller_headers_override_transport_defaults() {
         .await
         .expect("unexpected error");
 
-    let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
+    let json: serde_json::Value = serde_json::from_str(resp.body()).expect("invalid json");
     let h = &json["headers"];
     let v = h
         .get("accept")
@@ -236,8 +236,8 @@ async fn test_default_api_client_follows_redirects_when_enabled() {
 
     /* chasm's redirect target lands on an echo response; loosened from
      * 'body contains "success"' to a 2xx + non-empty body check. */
-    assert_eq!(resp.status_code, 200);
-    assert!(!resp.body.is_empty());
+    assert_eq!(resp.status_code(), 200);
+    assert!(!resp.body().is_empty());
 }
 
 #[tokio::test]
@@ -258,7 +258,7 @@ async fn test_default_api_client_returns_redirect_when_disabled() {
         .await
         .expect("unexpected error");
 
-    assert_eq!(resp.status_code, 302);
+    assert_eq!(resp.status_code(), 302);
 }
 
 /// Gap T3: 303 forces follow-up to GET and drops the body per RFC 7231 §6.4.4.
@@ -285,8 +285,8 @@ async fn test_default_api_client_redirect_303_switches_to_get_and_drops_body() {
 
     /* chasm's redirect target is /test/echo, which now returns the envelope
      * {method, body, headers, cookies, contentLength}. */
-    assert_eq!(resp.status_code, 200);
-    let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
+    assert_eq!(resp.status_code(), 200);
+    let json: serde_json::Value = serde_json::from_str(resp.body()).expect("invalid json");
     assert_eq!(json["method"], "GET");
     assert_eq!(json["body"], "");
 }
@@ -328,8 +328,8 @@ async fn test_default_api_client_multipart_body_replayed_on_307_redirect() {
         .await
         .expect("unexpected error");
 
-    assert_eq!(resp.status_code, 200);
-    let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
+    assert_eq!(resp.status_code(), 200);
+    let json: serde_json::Value = serde_json::from_str(resp.body()).expect("invalid json");
     assert_eq!(
         json["method"], "POST",
         "follow-up request method must remain POST"
@@ -418,11 +418,11 @@ async fn test_default_api_client_decompresses_gzip_response() {
         )
         .await
         .expect("unexpected error");
-    assert_eq!(resp.status_code, 200);
+    assert_eq!(resp.status_code(), 200);
     assert!(
-        resp.body.contains("userId"),
+        resp.body().contains("userId"),
         "expected decompressed body, got: {}",
-        resp.body
+        resp.body()
     );
 }
 
@@ -441,11 +441,11 @@ async fn test_default_api_client_decompresses_brotli_response() {
         )
         .await
         .expect("unexpected error");
-    assert_eq!(resp.status_code, 200);
+    assert_eq!(resp.status_code(), 200);
     assert!(
-        resp.body.contains("userId"),
+        resp.body().contains("userId"),
         "expected decompressed body, got: {}",
-        resp.body
+        resp.body()
     );
 }
 
@@ -464,11 +464,11 @@ async fn test_default_api_client_decompresses_zstd_response() {
         )
         .await
         .expect("unexpected error");
-    assert_eq!(resp.status_code, 200);
+    assert_eq!(resp.status_code(), 200);
     assert!(
-        resp.body.contains("userId"),
+        resp.body().contains("userId"),
         "expected decompressed body, got: {}",
-        resp.body
+        resp.body()
     );
 }
 
@@ -485,10 +485,11 @@ async fn test_default_api_client_post_with_null_body_sends_content_length_zero()
         .send_request("POST", &format!("{}/test/echo", chasm_url), &headers, None)
         .await
         .expect("unexpected error");
-    assert_eq!(resp.status_code, 200);
+    assert_eq!(resp.status_code(), 200);
     /* chasm's echo envelope reports contentLength as a camelCase integer (not the
      * stringified header value chasm returned). */
-    let parsed: serde_json::Value = serde_json::from_str(&resp.body).expect("failed to parse json");
+    let parsed: serde_json::Value =
+        serde_json::from_str(resp.body()).expect("failed to parse json");
     assert_eq!(parsed["method"], "POST");
     assert_eq!(
         parsed.get("contentLength").and_then(|v| v.as_i64()),

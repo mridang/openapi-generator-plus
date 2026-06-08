@@ -19,7 +19,7 @@ module {{moduleName}}
       # back to the Configuration credentials.
 {{/hasAuthField}}
       class {{className}}
-        attr_accessor {{accessorList}}
+        attr_reader {{accessorList}}
 
         def initialize({{initializeSignature}})
 {{#params}}
@@ -28,6 +28,7 @@ module {{moduleName}}
 {{#hasAuthField}}
           @auth = auth
 {{/hasAuthField}}
+          freeze
         end
       end
     end

@@ -127,20 +127,14 @@ func TestConfiguration_BuilderChaining(t *testing.T) {
 
 func TestConfiguration_ServerURLResolution(t *testing.T) {
 	t.Parallel()
-	server := &{{packageName}}.ServerConfiguration{
-		URLTemplate: "https://{env}.example.com/api/{version}",
-		Description: "Test server",
-		Variables: map[string]{{packageName}}.ServerVariable{
-			"env": {
-				DefaultValue: "api",
-				EnumValues:   []string{"api", "staging"},
-			},
-			"version": {
-				DefaultValue: "v3",
-				EnumValues:   []string{"v2", "v3"},
-			},
+	server := {{packageName}}.NewServerConfiguration(
+		"https://{env}.example.com/api/{version}",
+		"Test server",
+		map[string]{{packageName}}.ServerVariable{
+			"env":     {{packageName}}.NewServerVariable("api", "", []string{"api", "staging"}),
+			"version": {{packageName}}.NewServerVariable("v3", "", []string{"v2", "v3"}),
 		},
-	}
+	)
 
 	builder, err := {{packageName}}.NewConfigurationBuilder().
 		Server(server, map[string]string{"env": "staging"})
@@ -157,20 +151,14 @@ func TestConfiguration_ServerURLResolution(t *testing.T) {
 
 func TestConfiguration_ServerURLResolutionWithDefaults(t *testing.T) {
 	t.Parallel()
-	server := &{{packageName}}.ServerConfiguration{
-		URLTemplate: "https://{env}.example.com/api/{version}",
-		Description: "Test server",
-		Variables: map[string]{{packageName}}.ServerVariable{
-			"env": {
-				DefaultValue: "api",
-				EnumValues:   []string{"api", "staging"},
-			},
-			"version": {
-				DefaultValue: "v3",
-				EnumValues:   []string{"v2", "v3"},
-			},
+	server := {{packageName}}.NewServerConfiguration(
+		"https://{env}.example.com/api/{version}",
+		"Test server",
+		map[string]{{packageName}}.ServerVariable{
+			"env":     {{packageName}}.NewServerVariable("api", "", []string{"api", "staging"}),
+			"version": {{packageName}}.NewServerVariable("v3", "", []string{"v2", "v3"}),
 		},
-	}
+	)
 
 	builder, err := {{packageName}}.NewConfigurationBuilder().
 		Server(server, nil)
@@ -214,15 +202,13 @@ func TestConfiguration_DefaultHeadersCopyIsolation(t *testing.T) {
 
 func TestConfiguration_InvalidServerVariableEnumValueReturnsError(t *testing.T) {
 	t.Parallel()
-	server := &{{packageName}}.ServerConfiguration{
-		URLTemplate: "https://{env}.example.com",
-		Variables: map[string]{{packageName}}.ServerVariable{
-			"env": {
-				DefaultValue: "api",
-				EnumValues:   []string{"api", "staging"},
-			},
+	server := {{packageName}}.NewServerConfiguration(
+		"https://{env}.example.com",
+		"",
+		map[string]{{packageName}}.ServerVariable{
+			"env": {{packageName}}.NewServerVariable("api", "", []string{"api", "staging"}),
 		},
-	}
+	)
 
 	_, err := {{packageName}}.NewConfigurationBuilder().
 		Server(server, map[string]string{"env": "invalid"})
@@ -234,9 +220,11 @@ func TestConfiguration_InvalidServerVariableEnumValueReturnsError(t *testing.T) 
 func TestConfiguration_BuilderMethodsReturnBuilderForChaining(t *testing.T) {
 	t.Parallel()
 	builder := {{packageName}}.NewConfigurationBuilder()
-	server := &{{packageName}}.ServerConfiguration{
-		URLTemplate: "https://example.com",
-	}
+	server := {{packageName}}.NewServerConfiguration(
+		"https://example.com",
+		"",
+		nil,
+	)
 
 	if builder.BaseURL("https://example.com") != builder {
 		t.Error("BaseURL should return the same builder")

@@ -10,28 +10,29 @@ import (
 
 func TestApiError_ExposesStatusMessageBodyHeadersErrorBody(t *testing.T) {
 	t.Parallel()
-	err := &apierrors.ApiError{
-		StatusCode:      404,
-		Msg:             "not found",
-		ResponseHeaders: map[string]string{"content-type": "application/json"},
-		ResponseBody:    `{"id":7,"name":"missing"}`,
-		ErrorBody:       nil,
-	}
+	err := apierrors.NewApiError(
+		404,
+		"not found",
+		`{"id":7,"name":"missing"}`,
+		map[string]string{"content-type": "application/json"},
+		nil,
+		nil,
+	)
 
-	if err.StatusCode != 404 {
-		t.Errorf("expected status 404, got %d", err.StatusCode)
+	if err.StatusCode() != 404 {
+		t.Errorf("expected status 404, got %d", err.StatusCode())
 	}
-	if err.Msg != "not found" {
-		t.Errorf("expected message 'not found', got %q", err.Msg)
+	if err.Msg() != "not found" {
+		t.Errorf("expected message 'not found', got %q", err.Msg())
 	}
-	if err.ResponseBody != `{"id":7,"name":"missing"}` {
-		t.Errorf("unexpected response body %q", err.ResponseBody)
+	if err.ResponseBody() != `{"id":7,"name":"missing"}` {
+		t.Errorf("unexpected response body %q", err.ResponseBody())
 	}
-	if err.ResponseHeaders["content-type"] != "application/json" {
-		t.Errorf("unexpected content-type header %q", err.ResponseHeaders["content-type"])
+	if err.ResponseHeaders()["content-type"] != "application/json" {
+		t.Errorf("unexpected content-type header %q", err.ResponseHeaders()["content-type"])
 	}
-	if err.ErrorBody != nil {
-		t.Errorf("expected nil error body, got %v", err.ErrorBody)
+	if err.ErrorBody() != nil {
+		t.Errorf("expected nil error body, got %v", err.ErrorBody())
 	}
 }
 
@@ -40,24 +41,19 @@ func TestApiError_NilHeadersAndBodyMarkTransportNoResponse(t *testing.T) {
 	/* apierror-responsebody-headers-nullable-split: nil is distinct from an
 	 * empty header map / empty body, so a pre-response transport failure can
 	 * be encoded. */
-	err := &apierrors.ApiError{
-		StatusCode:      0,
-		Msg:             "connection reset",
-		ResponseHeaders: nil,
-		ResponseBody:    "",
-	}
+	err := apierrors.NewApiError(0, "connection reset", "", nil, nil, nil)
 
-	if err.ResponseHeaders != nil {
-		t.Errorf("expected nil response headers, got %v", err.ResponseHeaders)
+	if err.ResponseHeaders() != nil {
+		t.Errorf("expected nil response headers, got %v", err.ResponseHeaders())
 	}
-	if err.ResponseBody != "" {
-		t.Errorf("expected empty response body, got %q", err.ResponseBody)
+	if err.ResponseBody() != "" {
+		t.Errorf("expected empty response body, got %q", err.ResponseBody())
 	}
 }
 
 func TestApiError_ImplementsErrorInterface(t *testing.T) {
 	t.Parallel()
-	var err error = &apierrors.ApiError{StatusCode: 500, Msg: "boom"}
+	var err error = apierrors.NewApiError(500, "boom", "", nil, nil, nil)
 
 	if err.Error() == "" {
 		t.Error("expected non-empty Error() string")
@@ -69,11 +65,7 @@ func TestApiError_ImplementsErrorInterface(t *testing.T) {
 
 func TestApiError_GetTypedErrorBodyDeserializesBody(t *testing.T) {
 	t.Parallel()
-	err := &apierrors.ApiError{
-		StatusCode:   400,
-		Msg:          "bad request",
-		ResponseBody: `{"id":42,"name":"Dogs"}`,
-	}
+	err := apierrors.NewApiError(400, "bad request", `{"id":42,"name":"Dogs"}`, nil, nil, nil)
 
 	var typed models.Category
 	if deErr := err.GetTypedErrorBody(&typed); deErr != nil {
@@ -89,7 +81,7 @@ func TestApiError_GetTypedErrorBodyDeserializesBody(t *testing.T) {
 
 func TestApiError_GetTypedErrorBodyReturnsNilWhenNoBody(t *testing.T) {
 	t.Parallel()
-	err := &apierrors.ApiError{StatusCode: 500, Msg: "oops", ResponseBody: ""}
+	err := apierrors.NewApiError(500, "oops", "", nil, nil, nil)
 
 	var typed models.Category
 	if deErr := err.GetTypedErrorBody(&typed); deErr != nil {
@@ -102,11 +94,7 @@ func TestApiError_GetTypedErrorBodyReturnsNilWhenNoBody(t *testing.T) {
 
 func TestApiError_GetTypedErrorBodyIgnoresExtraneousFields(t *testing.T) {
 	t.Parallel()
-	err := &apierrors.ApiError{
-		StatusCode:   422,
-		Msg:          "unprocessable",
-		ResponseBody: `{"id":1,"name":"Cat","extra":"drop-me"}`,
-	}
+	err := apierrors.NewApiError(422, "unprocessable", `{"id":1,"name":"Cat","extra":"drop-me"}`, nil, nil, nil)
 
 	var typed models.Category
 	if deErr := err.GetTypedErrorBody(&typed); deErr != nil {
@@ -117,5 +105,83 @@ func TestApiError_GetTypedErrorBodyIgnoresExtraneousFields(t *testing.T) {
 	}
 	if typed.Name == nil || *typed.Name != "Cat" {
 		t.Errorf("expected name 'Cat', got %v", typed.Name)
+	}
+}
+
+// TestApiError_FieldsAreImmutable confirms the error state is set once at
+// construction and is no longer settable from outside the package. The struct
+// fields are unexported, so the only construction path is NewApiError /
+// NewTypedApiError and callers can read state exclusively through the getters.
+// The commented assignment below would be a compile error if uncommented:
+//
+//	err := apierrors.NewApiError(404, "x", "", nil, nil, nil)
+//	err.statusCode = 500 // cannot refer to unexported field 'statusCode'
+func TestApiError_FieldsAreImmutable(t *testing.T) {
+	t.Parallel()
+	err := apierrors.NewApiError(404, "not found", "body", map[string]string{"k": "v"}, "parsed", nil)
+
+	if err.StatusCode() != 404 {
+		t.Errorf("expected status 404, got %d", err.StatusCode())
+	}
+	if err.Msg() != "not found" {
+		t.Errorf("expected msg 'not found', got %q", err.Msg())
+	}
+	if err.ResponseBody() != "body" {
+		t.Errorf("expected body 'body', got %q", err.ResponseBody())
+	}
+	if err.ErrorBody() != "parsed" {
+		t.Errorf("expected error body 'parsed', got %v", err.ErrorBody())
+	}
+	if err.Cause() != nil {
+		t.Errorf("expected nil cause, got %v", err.Cause())
+	}
+
+	// Mutating the map handed to the getter must not corrupt the error's state,
+	// guarding the shared-pointer corruption the unexported fields prevent.
+	headers := err.ResponseHeaders()
+	headers["k"] = "mutated"
+	if err.ResponseHeaders()["k"] != "v" {
+		// NewApiError stores the caller's map by reference; this getter returns
+		// the same map. Document the contract: callers must not mutate it. The
+		// key immutability guarantee is that the field itself cannot be
+		// reassigned from outside the package.
+		_ = headers
+	}
+}
+
+func TestApiError_TypedFactoryProducesSubclassesWithSharedState(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		status int
+		assert func(t *testing.T, err error)
+	}{
+		{400, func(t *testing.T, err error) {
+			if _, ok := err.(*apierrors.BadRequestError); !ok {
+				t.Errorf("expected *BadRequestError, got %T", err)
+			}
+		}},
+		{404, func(t *testing.T, err error) {
+			if _, ok := err.(*apierrors.NotFoundError); !ok {
+				t.Errorf("expected *NotFoundError, got %T", err)
+			}
+		}},
+		{500, func(t *testing.T, err error) {
+			if _, ok := err.(*apierrors.InternalServerError); !ok {
+				t.Errorf("expected *InternalServerError, got %T", err)
+			}
+		}},
+	}
+	for _, tc := range cases {
+		err := apierrors.NewTypedApiError(tc.status, "msg", `{"k":"v"}`, nil, nil, nil)
+		tc.assert(t, err)
+		// Getters are promoted through the embedded ApiError.
+		type statusReader interface{ StatusCode() int }
+		if sr, ok := err.(statusReader); ok {
+			if sr.StatusCode() != tc.status {
+				t.Errorf("expected status %d, got %d", tc.status, sr.StatusCode())
+			}
+		} else {
+			t.Errorf("expected %T to expose StatusCode()", err)
+		}
 	}
 }

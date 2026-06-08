@@ -1,3 +1,5 @@
+import pytest
+
 from {{packageName}}.errors import ApiException
 from {{packageName}}.models import Category
 
@@ -38,6 +40,29 @@ class TestApiErrorShape:
 
         assert isinstance(err, Exception)
         assert str(err) != ''
+
+
+class TestApiErrorImmutability:
+    def test_fields_are_read_only(self) -> None:
+        err = ApiException(
+            status_code=404,
+            message='not found',
+            response_headers={'content-type': 'application/json'},
+            response_body='{"id":7}',
+            error_body=None,
+        )
+
+        # A caught exception's fields must not be reassignable -- the @property
+        # getters have no setters, so assignment raises AttributeError.
+        with pytest.raises(AttributeError):
+            err.status_code = 500  # type: ignore[misc]
+        with pytest.raises(AttributeError):
+            err.message = 'tampered'  # type: ignore[misc]
+        with pytest.raises(AttributeError):
+            err.response_body = 'tampered'  # type: ignore[misc]
+
+        assert err.status_code == 404
+        assert err.message == 'not found'
 
 
 class TestApiErrorTypedBody:

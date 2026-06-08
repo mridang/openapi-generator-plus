@@ -16,10 +16,11 @@ module PetstoreClient
       # credentials for this call only; when nil, the base client falls
       # back to the Configuration credentials.
       class AddPetTreatmentOptions
-        attr_accessor :auth
+        attr_reader :auth
 
         def initialize(auth: nil)
           @auth = auth
+          freeze
         end
       end
     end

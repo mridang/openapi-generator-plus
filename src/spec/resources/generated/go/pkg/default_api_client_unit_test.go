@@ -813,8 +813,8 @@ func TestDefaultApiClient_UseAfterCloseReturnsApiError(t *testing.T) {
 	if !errors.As(err, &apiErr) {
 		t.Fatalf("expected use-after-close to return *ApiError, got %T: %v", err, err)
 	}
-	if !strings.Contains(strings.ToLower(apiErr.Msg), "closed") {
-		t.Errorf("expected error message to mention the client is closed, got %q", apiErr.Msg)
+	if !strings.Contains(strings.ToLower(apiErr.Msg()), "closed") {
+		t.Errorf("expected error message to mention the client is closed, got %q", apiErr.Msg())
 	}
 }
 
@@ -842,10 +842,10 @@ func TestDefaultApiClient_BodyReadErrorWrappedInApiError(t *testing.T) {
 	if !errors.As(err, &apiErr) {
 		t.Fatalf("expected body-read failure to be wrapped in *ApiError, got %T: %v", err, err)
 	}
-	if apiErr.StatusCode != 0 {
-		t.Errorf("expected StatusCode 0 for a body-read failure, got %d", apiErr.StatusCode)
+	if apiErr.StatusCode() != 0 {
+		t.Errorf("expected StatusCode 0 for a body-read failure, got %d", apiErr.StatusCode())
 	}
-	if apiErr.Cause == nil {
+	if apiErr.Cause() == nil {
 		t.Error("expected the underlying decompression error to be preserved on .Cause")
 	}
 }

@@ -96,10 +96,11 @@ func (c *DefaultApiClient) SendRequest(method, url string, headers map[string]st
 // replay the form-encoded client_secret onto an attacker host.
 func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *RequestOptions) (*HttpResponse, error) {
 	if c.closed.Load() {
-		return nil, &errors_pkg.ApiError{
-			StatusCode: 0,
-			Msg:        "API client has been closed and can no longer send requests",
-		}
+		return nil, errors_pkg.NewApiError(
+			0,
+			"API client has been closed and can no longer send requests",
+			"", nil, nil, nil,
+		)
 	}
 	merged := make(map[string]string)
 	for k, v := range c.transportOptions.DefaultHeaders() {
@@ -167,11 +168,11 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 		// failure was at the transport layer or in the HTTP response. The
 		// underlying lib error is preserved on .Cause and surfaced via
 		// errors.Unwrap.
-		return nil, &errors_pkg.ApiError{
-			StatusCode: 0,
-			Msg:        fmt.Sprintf("request failed: %s", err.Error()),
-			Cause:      err,
-		}
+		return nil, errors_pkg.NewApiError(
+			0,
+			fmt.Sprintf("request failed: %s", err.Error()),
+			"", nil, nil, err,
+		)
 	}
 	defer resp.Body.Close()
 
@@ -183,11 +184,11 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 		// the uniform ApiError (StatusCode 0, underlying preserved on .Cause)
 		// just like a send-phase failure, so callers get one error type for the
 		// entire transport phase.
-		return nil, &errors_pkg.ApiError{
-			StatusCode: 0,
-			Msg:        fmt.Sprintf("failed to read response body: %s", err.Error()),
-			Cause:      err,
-		}
+		return nil, errors_pkg.NewApiError(
+			0,
+			fmt.Sprintf("failed to read response body: %s", err.Error()),
+			"", nil, nil, err,
+		)
 	}
 
 	// Gap BE+BF: response header keys are normalised to lowercase so callers

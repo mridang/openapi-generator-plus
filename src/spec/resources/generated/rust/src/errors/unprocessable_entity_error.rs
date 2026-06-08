@@ -12,7 +12,14 @@ use crate::errors::client_error::ClientError;
 /// UnprocessableEntityError represents an HTTP 422 Unprocessable Entity error.
 #[derive(Debug, Clone)]
 pub struct UnprocessableEntityError {
-    pub client_error: ClientError,
+    client_error: ClientError,
+}
+
+impl UnprocessableEntityError {
+    /// Returns the underlying [`ClientError`].
+    pub fn client_error(&self) -> &ClientError {
+        &self.client_error
+    }
 }
 
 impl fmt::Display for UnprocessableEntityError {
@@ -20,7 +27,7 @@ impl fmt::Display for UnprocessableEntityError {
         write!(
             f,
             "Unprocessable entity (422): {}",
-            self.client_error.api_error.message
+            self.client_error.api_error().message()
         )
     }
 }

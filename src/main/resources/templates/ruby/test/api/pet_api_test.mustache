@@ -488,6 +488,19 @@ describe {{moduleName}}::Api::PetApi do
       end
     end
 
+    # immutable-options: Options objects are constructed via keyword
+    # arguments only. The generated classes expose attr_reader members and
+    # freeze themselves at the end of #initialize, so reading values works
+    # but no writer (setter) is exposed and the instance is frozen.
+    it 'builds immutable Options from keyword arguments' do
+      options = {{moduleName}}::Api::Options::FindPetsByStatusOptions.new(status: 'available')
+
+      _(options.status).must_equal 'available'
+      refute options.respond_to?(:status=)
+      refute options.respond_to?(:auth=)
+      assert options.frozen?
+    end
+
     # unsecured-op-has-no-auth-member: an unsecured operation
     # (get_pet_by_id has no security requirement) must NOT mint an `auth`
     # member on its Options object — indeed it has no Options object at all,

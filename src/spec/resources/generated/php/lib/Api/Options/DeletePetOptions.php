@@ -20,18 +20,9 @@ use PetstoreClient\Auth\Authenticator;
  */
 class DeletePetOptions
 {
-    public ?string $apiKey;
-
-    /**
-     * Per-operation authenticator. When set, it overrides the client's
-     * configured credentials for this call only; leave {@code null} to use
-     * the configured credentials.
-     */
-    public ?Authenticator $auth;
-
-    public function __construct(?string $apiKey = null, ?Authenticator $auth = null)
-    {
-        $this->apiKey = $apiKey;
-        $this->auth = $auth;
+    public function __construct(
+        public readonly ?string $apiKey = null,
+        public readonly ?Authenticator $auth = null,
+    ) {
     }
 }

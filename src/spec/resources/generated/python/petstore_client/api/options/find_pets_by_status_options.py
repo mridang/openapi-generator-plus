@@ -10,7 +10,7 @@ from pydantic import StrictStr
 from typing import Optional, Dict
 
 
-@dataclass
+@dataclass(frozen=True)
 class FindPetsByStatusOptions:
     """Options for the find_pets_by_status operation."""
 

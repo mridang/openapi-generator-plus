@@ -143,7 +143,7 @@ async fn test_pet_api_add_pet_with_http_info() {
         result.err()
     );
     let api_result = result.unwrap();
-    assert!(api_result.status_code >= 200 && api_result.status_code < 300);
+    assert!(api_result.status_code() >= 200 && api_result.status_code() < 300);
 }
 
 #[tokio::test]
@@ -163,7 +163,7 @@ async fn test_pet_api_get_pet_by_id_with_http_info() {
         result.err()
     );
     let api_result = result.unwrap();
-    assert_eq!(api_result.status_code, 200);
+    assert_eq!(api_result.status_code(), 200);
 }
 
 #[tokio::test]

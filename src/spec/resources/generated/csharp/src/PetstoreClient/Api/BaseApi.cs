@@ -18,7 +18,7 @@ namespace PetstoreClient.Api;
 public abstract class BaseApi
 {
     /// <summary>The HTTP transport client used for sending requests.</summary>
-    protected IApiClient ApiClient { get; set; }
+    protected IApiClient ApiClient { get; }
 
     /// <summary>API-level configuration (base URL and default headers).</summary>
     protected Configuration Config { get; }
@@ -316,7 +316,7 @@ public abstract class BaseApi
     {
         int code = response.StatusCode;
         string message = $"API returned status code {code}";
-        Dictionary<string, string>? headers = response.Headers;
+        Dictionary<string, string>? headers = new(response.Headers);
         string? body = response.Body;
 
         object? errorBody = null;

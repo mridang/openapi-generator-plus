@@ -126,7 +126,7 @@ public partial class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareA
     /// The parsed max-age in seconds, or 86400 (RFC 8414 default) if the header
     /// is absent or does not contain a <c>max-age</c> directive.
     /// </returns>
-    private static long ParseMaxAge(Dictionary<string, string> headers)
+    private static long ParseMaxAge(IReadOnlyDictionary<string, string> headers)
     {
         foreach (KeyValuePair<string, string> entry in headers)
         {

@@ -20,17 +20,12 @@ use PetstoreClient\Models\PhotoMetadata;
  */
 class AddPetPhotosOptions
 {
-    /** @var \SplFileObject[] */
-    public array $files;
-
-    public PhotoMetadata $metadata;
-
     /**
      * @param \SplFileObject[] $files
      */
-    public function __construct(array $files, PhotoMetadata $metadata)
-    {
-        $this->files = $files;
-        $this->metadata = $metadata;
+    public function __construct(
+        public readonly array $files,
+        public readonly PhotoMetadata $metadata,
+    ) {
     }
 }

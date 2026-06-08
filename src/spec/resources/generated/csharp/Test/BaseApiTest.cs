@@ -83,6 +83,30 @@ public class BaseApiTest
                 auth
             );
         }
+
+        public async Task<ApiResult<T>> CallForResultAsync<T>(
+            string method,
+            string path,
+            Dictionary<string, object?> queryParams,
+            Dictionary<string, string> headerParams,
+            object? body,
+            string[] accepts,
+            string contentType,
+            IAuthenticator? auth = null
+        )
+        {
+            return await InvokeApiForResultAsync<T>(
+                method,
+                path,
+                queryParams,
+                headerParams,
+                body,
+                accepts,
+                contentType,
+                typeof(T),
+                auth
+            );
+        }
     }
 
     private sealed class CapturingApiClient : IApiClient
@@ -253,6 +277,25 @@ public class BaseApiTest
         Assert.NotNull(result);
         // Chasm echo envelope returns method on any echo call.
         Assert.Equal("GET", result!["method"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task ApiResultExposesResponseHeadersAsReadOnly()
+    {
+        var client = new CapturingApiClient();
+        var api = new TestableApi(client, "https://example.test");
+        ApiResult<JsonNode> result = await api.CallForResultAsync<JsonNode>(
+            "GET",
+            "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null,
+            ["application/json"],
+            "application/json"
+        );
+
+        IReadOnlyDictionary<string, string> headers = result.Headers;
+        Assert.Equal("application/json", headers["Content-Type"]);
     }
 
     [Fact]

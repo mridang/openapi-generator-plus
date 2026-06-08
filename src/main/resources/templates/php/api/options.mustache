@@ -17,38 +17,25 @@ use {{authImport}};
  */
 class {{className}}
 {
-{{#params}}
-{{#hasDocType}}
-    /** @var {{phpDocType}}{{^required}}|null{{/required}}{{#description}} {{description}}{{/description}} */
-{{/hasDocType}}
-    public {{^required}}?{{/required}}{{phpType}} ${{paramName}};
-
-{{/params}}
-{{#hasAuthField}}
-    /**
-     * Per-operation authenticator. When set, it overrides the client's
-     * configured credentials for this call only; leave {@code null} to use
-     * the configured credentials.
-     */
-    public ?{{authFieldType}} $auth;
-
-{{/hasAuthField}}
 {{#hasAnyDocTypes}}
     /**
 {{#params}}
 {{#hasDocType}}
-     * @param {{phpDocType}}{{^required}}|null{{/required}} ${{paramName}}
+     * @param {{phpDocType}}{{^required}}|null{{/required}} ${{paramName}}{{#description}} {{description}}{{/description}}
 {{/hasDocType}}
 {{/params}}
      */
 {{/hasAnyDocTypes}}
-    public function __construct({{#requiredParams}}{{phpType}} ${{paramName}}{{^-last}}, {{/-last}}{{/requiredParams}}{{#hasRequiredParams}}{{#hasOptionalParams}}, {{/hasOptionalParams}}{{/hasRequiredParams}}{{#optionalParams}}?{{phpType}} ${{paramName}} = null{{^-last}}, {{/-last}}{{/optionalParams}}{{#hasAuthField}}{{#hasRequiredParams}}, {{/hasRequiredParams}}{{^hasRequiredParams}}{{#hasOptionalParams}}, {{/hasOptionalParams}}{{/hasRequiredParams}}?{{authFieldType}} $auth = null{{/hasAuthField}})
-    {
-{{#params}}
-        $this->{{paramName}} = ${{paramName}};
-{{/params}}
+    public function __construct(
+{{#requiredParams}}
+        public readonly {{phpType}} ${{paramName}},
+{{/requiredParams}}
+{{#optionalParams}}
+        public readonly ?{{phpType}} ${{paramName}} = null,
+{{/optionalParams}}
 {{#hasAuthField}}
-        $this->auth = $auth;
+        public readonly ?{{authFieldType}} $auth = null,
 {{/hasAuthField}}
+    ) {
     }
 }

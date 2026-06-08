@@ -201,7 +201,7 @@ impl BaseApi {
             .await?;
 
         /* Check for errors */
-        if response.status_code < 200 || response.status_code >= 300 {
+        if response.status_code() < 200 || response.status_code() >= 300 {
             return Err(throw_api_error(&response));
         }
 
@@ -221,7 +221,7 @@ impl BaseApi {
 
         /* Check Content-Type before deserializing -- only deserialize JSON responses */
         let resp_content_type = response
-            .headers
+            .headers()
             .iter()
             .find(|(k, _)| k.eq_ignore_ascii_case("content-type"))
             .map(|(_, v)| v.split(';').next().unwrap_or("").trim().to_string());
@@ -234,7 +234,7 @@ impl BaseApi {
             }
         };
 
-        let data = if is_binary_return && !response.body.is_empty() {
+        let data = if is_binary_return && !response.body().is_empty() {
             /* Binary return type (T = Vec<u8>). Mock/real servers encode binary
              * payloads inconsistently: some send a base64-encoded transport body
              * (non-JSON content-type), others a JSON string of base64, others a
@@ -244,19 +244,19 @@ impl BaseApi {
              * corrupt non-UTF-8 binary. */
             use base64::Engine as _;
             let bytes: Vec<u8> = if is_json {
-                match serde_json::from_slice::<serde_json::Value>(response.body.as_bytes()) {
+                match serde_json::from_slice::<serde_json::Value>(response.body().as_bytes()) {
                     /* Base64 string of the binary payload. */
                     Ok(serde_json::Value::String(s)) => base64::engine::general_purpose::STANDARD
                         .decode(s.as_bytes())
                         .unwrap_or_default(),
                     /* JSON array of byte values -- already the target shape. */
                     Ok(arr @ serde_json::Value::Array(_)) => {
-                        return Ok(ApiResult {
-                            data: serde_json::from_value(arr).ok(),
-                            status_code: response.status_code,
-                            raw_body: response.body,
-                            headers: response.headers,
-                        });
+                        return Ok(ApiResult::new(
+                            response.status_code(),
+                            serde_json::from_value(arr).ok(),
+                            response.body().to_string(),
+                            response.headers().clone(),
+                        ));
                     }
                     _ => Vec::new(),
                 }
@@ -264,21 +264,21 @@ impl BaseApi {
                 /* Non-JSON content-type: transport layer base64-encoded the raw
                  * bytes; decode them back. */
                 base64::engine::general_purpose::STANDARD
-                    .decode(response.body.as_bytes())
+                    .decode(response.body().as_bytes())
                     .unwrap_or_default()
             };
             let arr = serde_json::Value::Array(
                 bytes.iter().map(|&b| serde_json::Value::from(b)).collect(),
             );
             serde_json::from_value(arr).ok()
-        } else if is_json && !response.body.is_empty() {
-            crate::object_serializer::deserialize(response.body.as_bytes())?
-        } else if !is_json && !response.body.is_empty() {
+        } else if is_json && !response.body().is_empty() {
+            crate::object_serializer::deserialize(response.body().as_bytes())?
+        } else if !is_json && !response.body().is_empty() {
             /* Non-JSON, non-binary response -- transport layer base64-encoded
              * the bytes; decode them back and surface as a string. */
             use base64::Engine as _;
             let bytes = base64::engine::general_purpose::STANDARD
-                .decode(response.body.as_bytes())
+                .decode(response.body().as_bytes())
                 .unwrap_or_default();
             serde_json::from_value(serde_json::Value::String(
                 String::from_utf8_lossy(&bytes).into_owned(),
@@ -288,12 +288,12 @@ impl BaseApi {
             None
         };
 
-        Ok(ApiResult {
-            status_code: response.status_code,
+        Ok(ApiResult::new(
+            response.status_code(),
             data,
-            raw_body: response.body,
-            headers: response.headers,
-        })
+            response.body().to_string(),
+            response.headers().clone(),
+        ))
     }
 
     /// Dispatches an API request and returns an ApiResult with unit data (for operations with no return type).
@@ -302,12 +302,12 @@ impl BaseApi {
         params: InvokeApiParams<'_>,
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
         let response = self.invoke_api(params).await?;
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data: Some(()),
-            raw_body: response.body,
-            headers: response.headers,
-        })
+        Ok(ApiResult::new(
+            response.status_code(),
+            Some(()),
+            response.body().to_string(),
+            response.headers().clone(),
+        ))
     }
 }
 
@@ -482,11 +482,11 @@ pub(crate) fn serialize_body(
 }
 
 fn throw_api_error(response: &ApiResponse) -> Box<dyn std::error::Error + Send + Sync> {
-    let code = response.status_code;
+    let code = response.status_code();
     let msg = format!("API returned status code {}", code);
-    let body = response.body.clone();
+    let body = response.body().to_string();
 
-    let base_err = ApiError::new(code, msg, Some(body), Some(response.headers.clone()));
+    let base_err = ApiError::new(code, msg, Some(body), Some(response.headers().clone()));
 
     if code >= 400 && code < 500 {
         let client_err = ClientError::from(base_err);

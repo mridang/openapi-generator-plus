@@ -38,43 +38,43 @@ use crate::server_configuration::{ServerConfiguration, ServerVariable};
 /// Server configuration for: /api/v3
 /// Relative URL (no variables)
 pub fn server_0() -> ServerConfiguration {
-    ServerConfiguration {
-        url_template: "/api/v3".to_string(),
-        description: "Relative URL (no variables)".to_string(),
-        variables: HashMap::new(),
-    }
+    ServerConfiguration::new(
+        "/api/v3".to_string(),
+        "Relative URL (no variables)".to_string(),
+        HashMap::new(),
+    )
 }
 /// Server configuration for: https://{environment}.example.com/api/{version}
 /// Main API server with variables
 pub fn server_1() -> ServerConfiguration {
-    ServerConfiguration {
-        url_template: "https://{environment}.example.com/api/{version}".to_string(),
-        description: "Main API server with variables".to_string(),
-        variables: {
+    ServerConfiguration::new(
+        "https://{environment}.example.com/api/{version}".to_string(),
+        "Main API server with variables".to_string(),
+        {
             let mut vars = HashMap::new();
             vars.insert(
                 "environment".to_string(),
-                ServerVariable {
-                    default_value: "api".to_string(),
-                    description: "API environment".to_string(),
-                    enum_values: vec![
+                ServerVariable::new(
+                    "api".to_string(),
+                    "API environment".to_string(),
+                    vec![
                         "api".to_string(),
                         "staging".to_string(),
                         "sandbox".to_string(),
                     ],
-                },
+                ),
             );
             vars.insert(
                 "version".to_string(),
-                ServerVariable {
-                    default_value: "v3".to_string(),
-                    description: "API version".to_string(),
-                    enum_values: vec!["v2".to_string(), "v3".to_string()],
-                },
+                ServerVariable::new(
+                    "v3".to_string(),
+                    "API version".to_string(),
+                    vec!["v2".to_string(), "v3".to_string()],
+                ),
             );
             vars
         },
-    }
+    )
 }
 
 /// Returns all server configurations in declaration order.

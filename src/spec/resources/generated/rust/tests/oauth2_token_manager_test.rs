@@ -33,11 +33,11 @@ impl FakeApiClient {
 
     fn enqueue(&self, body: &str, status_code: u16) {
         let mut responses = self.responses.lock().unwrap();
-        responses.push(ApiResponse {
+        responses.push(ApiResponse::new(
             status_code,
-            body: body.to_string(),
-            headers: HashMap::new(),
-        });
+            body.to_string(),
+            HashMap::new(),
+        ));
     }
 }
 
@@ -285,11 +285,7 @@ impl ApiClient for CountingApiClient {
         let delay = self.delay_ms;
         Box::pin(async move {
             tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
-            Ok(ApiResponse {
-                status_code: 200,
-                body,
-                headers: HashMap::new(),
-            })
+            Ok(ApiResponse::new(200, body, HashMap::new()))
         })
     }
 }
@@ -649,15 +645,15 @@ async fn test_token_endpoint_error_response_parsed_to_typed_error() {
     let server_err = err
         .downcast_ref::<OAuth2ServerError>()
         .expect("expected OAuth2ServerError");
-    assert_eq!(400, server_err.status_code);
-    assert_eq!(Some("invalid_grant"), server_err.code.as_deref());
+    assert_eq!(400, server_err.status_code());
+    assert_eq!(Some("invalid_grant"), server_err.code().as_deref());
     assert_eq!(
         Some("refresh token expired"),
-        server_err.description.as_deref()
+        server_err.description().as_deref()
     );
     assert_eq!(
         Some("https://docs.example.com/errors/invalid_grant"),
-        server_err.uri.as_deref()
+        server_err.uri().as_deref()
     );
 }
 

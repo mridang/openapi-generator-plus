@@ -17,16 +17,54 @@ import (
 // Server variables define substitution parameters in server URL templates.
 // Each variable has a default value and may optionally restrict values to
 // an enumerated set.
+//
+// Its state is immutable: fields are set once at construction via
+// NewServerVariable and read through the getter methods. This matters because
+// the generated Server* configurations are shared package-level pointers — a
+// mutable variable would let one caller corrupt the configuration for the whole
+// process.
 type ServerVariable struct {
-	/* DefaultValue is the default value for this variable. */
-	DefaultValue string
+	defaultValue string
+	description  string
+	enumValues   []string
+}
 
-	/* Description is a human-readable description of this variable. */
-	Description string
+// NewServerVariable constructs a ServerVariable with fixed state. The enumValues
+// slice is defensively copied so the constructed value cannot be mutated through
+// the caller's slice header.
+func NewServerVariable(defaultValue, description string, enumValues []string) ServerVariable {
+	var enumCopy []string
+	if len(enumValues) > 0 {
+		enumCopy = make([]string, len(enumValues))
+		copy(enumCopy, enumValues)
+	}
+	return ServerVariable{
+		defaultValue: defaultValue,
+		description:  description,
+		enumValues:   enumCopy,
+	}
+}
 
-	/* EnumValues are the allowed values for this variable. An empty slice
-	 * means any value is accepted. */
-	EnumValues []string
+// DefaultValue returns the default value for this variable.
+func (v ServerVariable) DefaultValue() string {
+	return v.defaultValue
+}
+
+// Description returns the human-readable description of this variable.
+func (v ServerVariable) Description() string {
+	return v.description
+}
+
+// EnumValues returns the allowed values for this variable. An empty slice means
+// any value is accepted. A copy is returned so callers cannot mutate the shared
+// configuration.
+func (v ServerVariable) EnumValues() []string {
+	if len(v.enumValues) == 0 {
+		return nil
+	}
+	out := make([]string, len(v.enumValues))
+	copy(out, v.enumValues)
+	return out
 }
 
 // ServerConfiguration represents a single server entry from the OpenAPI specification.
@@ -35,15 +73,50 @@ type ServerVariable struct {
 // "https://{env}.api.example.com/v{version}"). Use URL to resolve the URL
 // with default variable values, or URL with overrides to substitute specific
 // variables.
+//
+// Its state is immutable: fields are set once at construction via
+// NewServerConfiguration and read through the getter methods. The generated
+// Server* values are shared package-level pointers, so immutability prevents a
+// caller from corrupting the configuration process-wide.
 type ServerConfiguration struct {
-	/* URLTemplate is the raw URL template before variable substitution. */
-	URLTemplate string
+	urlTemplate string
+	description string
+	variables   map[string]ServerVariable
+}
 
-	/* Description is a human-readable description of this server. */
-	Description string
+// NewServerConfiguration constructs a ServerConfiguration with fixed state. The
+// variables map is defensively copied so the constructed value cannot be mutated
+// through the caller's map.
+func NewServerConfiguration(urlTemplate, description string, variables map[string]ServerVariable) *ServerConfiguration {
+	varsCopy := make(map[string]ServerVariable, len(variables))
+	for k, v := range variables {
+		varsCopy[k] = v
+	}
+	return &ServerConfiguration{
+		urlTemplate: urlTemplate,
+		description: description,
+		variables:   varsCopy,
+	}
+}
 
-	/* Variables contains the server variables and their definitions. */
-	Variables map[string]ServerVariable
+// URLTemplate returns the raw URL template before variable substitution.
+func (s *ServerConfiguration) URLTemplate() string {
+	return s.urlTemplate
+}
+
+// Description returns the human-readable description of this server.
+func (s *ServerConfiguration) Description() string {
+	return s.description
+}
+
+// Variables returns the server variables and their definitions. A copy is
+// returned so callers cannot mutate the shared configuration.
+func (s *ServerConfiguration) Variables() map[string]ServerVariable {
+	out := make(map[string]ServerVariable, len(s.variables))
+	for k, v := range s.variables {
+		out[k] = v
+	}
+	return out
 }
 
 // URL resolves the URL template using default variable values or the given overrides.
@@ -51,23 +124,23 @@ type ServerConfiguration struct {
 // Variables not present in overrides use their default values. If a variable
 // has an enum constraint, the override value is validated against the allowed values.
 func (s *ServerConfiguration) URL(overrides map[string]string) (string, error) {
-	result := s.URLTemplate
-	for varName, variable := range s.Variables {
-		value := variable.DefaultValue
+	result := s.urlTemplate
+	for varName, variable := range s.variables {
+		value := variable.defaultValue
 		if override, ok := overrides[varName]; ok {
 			value = override
 		}
 
-		if len(variable.EnumValues) > 0 {
+		if len(variable.enumValues) > 0 {
 			valid := false
-			for _, enumVal := range variable.EnumValues {
+			for _, enumVal := range variable.enumValues {
 				if enumVal == value {
 					valid = true
 					break
 				}
 			}
 			if !valid {
-				return "", fmt.Errorf("invalid value '%s' for variable '%s'; allowed: %v", value, varName, variable.EnumValues)
+				return "", fmt.Errorf("invalid value '%s' for variable '%s'; allowed: %v", value, varName, variable.enumValues)
 			}
 		}
 
