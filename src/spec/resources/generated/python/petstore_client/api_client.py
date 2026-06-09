@@ -7,7 +7,7 @@
 
 from typing import Any, Dict, Protocol, runtime_checkable
 
-from petstore_client.api_response import ApiResponse
+from petstore_client.api_response import ApiHttpResponse
 
 
 @runtime_checkable
@@ -30,7 +30,7 @@ class ApiClient(Protocol):
         headers: Dict[str, str],
         body: Any = None,
         no_redirect: bool = False,
-    ) -> ApiResponse:
+    ) -> ApiHttpResponse:
         """Send an HTTP request and return the response.
 
         :param method: HTTP method (GET, POST, PUT, DELETE, etc.)
@@ -45,6 +45,6 @@ class ApiClient(Protocol):
             endpoint. Implementations are still free to follow 301/302/303
             (which strip the request body and downgrade to GET) per the
             usual security guards.
-        :return: ApiResponse containing status code, body, and headers
+        :return: ApiHttpResponse containing status code, body, and headers
         """
         ...

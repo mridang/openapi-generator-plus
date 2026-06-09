@@ -85,12 +85,12 @@ class BaseApiTest {
     @Nullable Object capturedBody = null;
 
     @Override
-    public ApiResponse sendRequest(
+    public ApiHttpResponse sendRequest(
         String method, String url, Map<String, String> headers, @Nullable Object body) {
       this.capturedUrl = url;
       this.capturedHeaders = headers;
       this.capturedBody = body;
-      return new ApiResponse(200, "{}", Map.of("Content-Type", "application/json"));
+      return new ApiHttpResponse(200, "{}", Map.of("Content-Type", "application/json"));
     }
   }
 
@@ -307,7 +307,7 @@ class BaseApiTest {
                   JSON_NODE_TYPE,
                   null);
       // rawBody is part of the public ApiResult contract and is sourced
-      // from the always-present ApiResponse.body() — it must never be
+      // from the always-present ApiHttpResponse.body() — it must never be
       // null (empty string for a no-body response).
       assertNotNull(result.rawBody());
     }
@@ -823,12 +823,12 @@ class BaseApiTest {
       var client =
           new CapturingApiClient() {
             @Override
-            public ApiResponse sendRequest(
+            public ApiHttpResponse sendRequest(
                 String method, String url, Map<String, String> headers, @Nullable Object body) {
               this.capturedUrl = url;
               this.capturedHeaders = headers;
               this.capturedBody = body;
-              return new ApiResponse(200, "hello", Map.of("Content-Type", "text/plain"));
+              return new ApiHttpResponse(200, "hello", Map.of("Content-Type", "text/plain"));
             }
           };
       var testApi = new TestableApi(client, "http://localhost");
@@ -853,12 +853,12 @@ class BaseApiTest {
       var client =
           new CapturingApiClient() {
             @Override
-            public ApiResponse sendRequest(
+            public ApiHttpResponse sendRequest(
                 String method, String url, Map<String, String> headers, @Nullable Object body) {
               this.capturedUrl = url;
               this.capturedHeaders = headers;
               this.capturedBody = body;
-              return new ApiResponse(
+              return new ApiHttpResponse(
                   200,
                   "{\"title\":\"Not Found\"}",
                   Map.of("Content-Type", "application/problem+json"));
@@ -937,9 +937,9 @@ class BaseApiTest {
       var client =
           new CapturingApiClient() {
             @Override
-            public ApiResponse sendRequest(
+            public ApiHttpResponse sendRequest(
                 String method, String url, Map<String, String> headers, @Nullable Object body) {
-              return new ApiResponse(
+              return new ApiHttpResponse(
                   200, encoded, Map.of("Content-Type", "application/octet-stream"));
             }
           };
@@ -967,9 +967,9 @@ class BaseApiTest {
       var client =
           new CapturingApiClient() {
             @Override
-            public ApiResponse sendRequest(
+            public ApiHttpResponse sendRequest(
                 String method, String url, Map<String, String> headers, @Nullable Object body) {
-              return new ApiResponse(
+              return new ApiHttpResponse(
                   200, "AP9C", Map.of("Content-Type", "application/octet-stream"));
             }
           };
@@ -987,10 +987,10 @@ class BaseApiTest {
       var client =
           new CapturingApiClient() {
             @Override
-            public ApiResponse sendRequest(
+            public ApiHttpResponse sendRequest(
                 String method, String url, Map<String, String> headers, @Nullable Object body) {
               // A tiny valid base64-encoded PNG placeholder
-              return new ApiResponse(200, "iVBORw0KGgo=", Map.of("Content-Type", "image/png"));
+              return new ApiHttpResponse(200, "iVBORw0KGgo=", Map.of("Content-Type", "image/png"));
             }
           };
       var rawResponse = client.sendRequest("GET", "/api/image", Map.of(), null);
@@ -1006,9 +1006,9 @@ class BaseApiTest {
       var client =
           new CapturingApiClient() {
             @Override
-            public ApiResponse sendRequest(
+            public ApiHttpResponse sendRequest(
                 String method, String url, Map<String, String> headers, @Nullable Object body) {
-              return new ApiResponse(
+              return new ApiHttpResponse(
                   200, "{\"key\":\"value\"}", Map.of("Content-Type", "application/json"));
             }
           };
@@ -1034,9 +1034,9 @@ class BaseApiTest {
       var client =
           new CapturingApiClient() {
             @Override
-            public ApiResponse sendRequest(
+            public ApiHttpResponse sendRequest(
                 String method, String url, Map<String, String> headers, @Nullable Object body) {
-              return new ApiResponse(200, "hello", Map.of("Content-Type", "text/plain"));
+              return new ApiHttpResponse(200, "hello", Map.of("Content-Type", "text/plain"));
             }
           };
       var testApi = new TestableApi(client, "http://localhost");
@@ -1061,9 +1061,10 @@ class BaseApiTest {
       var client =
           new CapturingApiClient() {
             @Override
-            public ApiResponse sendRequest(
+            public ApiHttpResponse sendRequest(
                 String method, String url, Map<String, String> headers, @Nullable Object body) {
-              return new ApiResponse(200, "", Map.of("Content-Type", "application/octet-stream"));
+              return new ApiHttpResponse(
+                  200, "", Map.of("Content-Type", "application/octet-stream"));
             }
           };
       var rawResponse = client.sendRequest("GET", "/api/binary/empty", Map.of(), null);
@@ -1221,10 +1222,10 @@ class BaseApiTest {
       var client =
           new CapturingApiClient() {
             @Override
-            public ApiResponse sendRequest(
+            public ApiHttpResponse sendRequest(
                 String method, String url, Map<String, String> headers, @Nullable Object body) {
               capturedRedirectHeaders.putAll(headers);
-              return new ApiResponse(200, "{}", Map.of("Content-Type", "application/json"));
+              return new ApiHttpResponse(200, "{}", Map.of("Content-Type", "application/json"));
             }
           };
       // Simulate a call with Authorization header on same-origin
@@ -1277,11 +1278,11 @@ class BaseApiTest {
       var client =
           new CapturingApiClient() {
             @Override
-            public ApiResponse sendRequest(
+            public ApiHttpResponse sendRequest(
                 String method, String url, Map<String, String> headers, @Nullable Object body) {
               this.capturedHeaders = headers;
               this.capturedBody = body;
-              return new ApiResponse(200, "{}", Map.of("Content-Type", "application/json"));
+              return new ApiHttpResponse(200, "{}", Map.of("Content-Type", "application/json"));
             }
           };
       var testApi = new TestableApi(client, "http://localhost");
@@ -1365,7 +1366,7 @@ class BaseApiTest {
       TransportOptions transport = TransportOptions.builder().proxy(proxyUrlWithAuth).build();
 
       DefaultApiClient client = new DefaultApiClient(transport);
-      ApiResponse response =
+      ApiHttpResponse response =
           client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
 
       assertEquals(200, response.statusCode());

@@ -22,5 +22,6 @@ data class DryFood(
     val foodType: String = "dry",
     /** Example: `null` */
     @SerialName("weightKg")
+    @Serializable(with = com.example.petstore.StrictDoubleSerializer::class)
     val weightKg: Double,
 )

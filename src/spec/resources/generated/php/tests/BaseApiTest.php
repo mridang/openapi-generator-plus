@@ -9,7 +9,7 @@ use PetstoreClient\Api\Options\FindPetsByStatusOptions;
 use PetstoreClient\Api\PetApi;
 use PetstoreClient\ApiClient;
 use PetstoreClient\ApiException;
-use PetstoreClient\ApiResponse;
+use PetstoreClient\ApiHttpResponse;
 use PetstoreClient\Auth\Authenticator;
 use PetstoreClient\Configuration;
 use PetstoreClient\DefaultApiClient;
@@ -39,11 +39,11 @@ class CapturingApiClient implements ApiClient
         array $headers,
         mixed $body,
         bool $noRedirect = false,
-    ): ApiResponse {
+    ): ApiHttpResponse {
         $this->capturedUrl = $url;
         $this->capturedHeaders = $headers;
         $this->capturedBody = $body;
-        return new ApiResponse(200, '{}', ['Content-Type' => 'application/json']);
+        return new ApiHttpResponse(200, '{}', ['Content-Type' => 'application/json']);
     }
 }
 
@@ -541,8 +541,8 @@ test('skips deserialization for non json content type', function (): void {
             array $headers,
             mixed $body,
             bool $noRedirect = false,
-        ): ApiResponse {
-            return new ApiResponse(200, 'hello', ['Content-Type' => 'text/plain']);
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, 'hello', ['Content-Type' => 'text/plain']);
         }
     };
     $config = new Configuration('http://localhost');
@@ -569,8 +569,8 @@ test('deserializes vendor json mime types', function (): void {
             array $headers,
             mixed $body,
             bool $noRedirect = false,
-        ): ApiResponse {
-            return new ApiResponse(200, '{"title":"Not Found"}', ['Content-Type' => 'application/problem+json']);
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, '{"title":"Not Found"}', ['Content-Type' => 'application/problem+json']);
         }
     };
     $config = new Configuration('http://localhost');
@@ -715,8 +715,8 @@ test('octet stream response decoded as base 64 bytes', function (): void {
             array $headers,
             mixed $body,
             bool $noRedirect = false,
-        ): ApiResponse {
-            return new ApiResponse(200, $this->body, ['Content-Type' => 'application/octet-stream']);
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, $this->body, ['Content-Type' => 'application/octet-stream']);
         }
     };
     $client->body = $encoded;
@@ -746,8 +746,8 @@ test('image png response decoded as bytes', function (): void {
             array $headers,
             mixed $body,
             bool $noRedirect = false,
-        ): ApiResponse {
-            return new ApiResponse(200, $this->body, ['Content-Type' => 'image/png']);
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, $this->body, ['Content-Type' => 'image/png']);
         }
     };
     $client->body = $encoded;
@@ -779,8 +779,8 @@ test('binary response roundtrips nul and high bytes', function (): void {
             array $headers,
             mixed $body,
             bool $noRedirect = false,
-        ): ApiResponse {
-            return new ApiResponse(200, $this->body, ['Content-Type' => 'application/octet-stream']);
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, $this->body, ['Content-Type' => 'application/octet-stream']);
         }
     };
     $client->body = $encoded;
@@ -808,8 +808,8 @@ test('empty binary body yields null', function (): void {
             array $headers,
             mixed $body,
             bool $noRedirect = false,
-        ): ApiResponse {
-            return new ApiResponse(200, '', ['Content-Type' => 'application/octet-stream']);
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, '', ['Content-Type' => 'application/octet-stream']);
         }
     };
     $config = new Configuration('http://localhost');
@@ -835,8 +835,8 @@ test('json response parsed to object', function (): void {
             array $headers,
             mixed $body,
             bool $noRedirect = false,
-        ): ApiResponse {
-            return new ApiResponse(200, '{"id":42,"name":"test"}', ['Content-Type' => 'application/json']);
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, '{"id":42,"name":"test"}', ['Content-Type' => 'application/json']);
         }
     };
     $config = new Configuration('http://localhost');
@@ -862,8 +862,8 @@ test('text plain response returns string', function (): void {
             array $headers,
             mixed $body,
             bool $noRedirect = false,
-        ): ApiResponse {
-            return new ApiResponse(200, 'hello world', ['Content-Type' => 'text/plain']);
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, 'hello world', ['Content-Type' => 'text/plain']);
         }
     };
     $config = new Configuration('http://localhost');
@@ -890,8 +890,8 @@ test('empty body yields null', function (): void {
             array $headers,
             mixed $body,
             bool $noRedirect = false,
-        ): ApiResponse {
-            return new ApiResponse(200, '', ['Content-Type' => 'application/octet-stream']);
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, '', ['Content-Type' => 'application/octet-stream']);
         }
     };
     $config = new Configuration('http://localhost');

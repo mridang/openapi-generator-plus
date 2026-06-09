@@ -262,7 +262,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/InternalServerErrorException.mustache", errorsFolder, "InternalServerErrorException.java"),
             new SupportingFileSpec("api_client.mustache", invokerFolder, "ApiClient.java"),
             new SupportingFileSpec("default_api_client.mustache", invokerFolder, "DefaultApiClient.java"),
-            new SupportingFileSpec("api_response.mustache", invokerFolder, "ApiResponse.java"),
+            new SupportingFileSpec("api_response.mustache", invokerFolder, "ApiHttpResponse.java"),
             new SupportingFileSpec("api_result.mustache", invokerFolder, "ApiResult.java"),
             new SupportingFileSpec("base_api.mustache", Path.of(invokerFolder, "api").toString(), "BaseApi.java"),
             new SupportingFileSpec("configuration.mustache", invokerFolder, "Configuration.java"),

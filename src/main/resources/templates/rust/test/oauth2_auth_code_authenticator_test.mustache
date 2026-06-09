@@ -6,14 +6,14 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
 use {{packageName}}::api_client::{ApiClient, RequestBody};
-use {{packageName}}::api_response::ApiResponse;
+use {{packageName}}::api_response::ApiHttpResponse;
 use {{packageName}}::auth::oauth::AuthCodeNotExchangedError;
 use {{packageName}}::auth::oauth::OAuth2AuthorizationCodeAuthenticator;
 use {{packageName}}::auth::Authenticator;
 use {{packageName}}::auth::HttpAwareAuthenticator;
 
 struct FakeApiClient {
-    responses: Mutex<Vec<ApiResponse>>,
+    responses: Mutex<Vec<ApiHttpResponse>>,
     last_url: Mutex<Option<String>>,
     last_body: Mutex<Option<String>>,
 }
@@ -29,7 +29,7 @@ impl FakeApiClient {
 
     fn enqueue(&self, body: &str, status_code: u16) {
         let mut responses = self.responses.lock().unwrap();
-        responses.push(ApiResponse::new(status_code, body.to_string(), HashMap::new()));
+        responses.push(ApiHttpResponse::new(status_code, body.to_string(), HashMap::new()));
     }
 
     fn last_body(&self) -> Option<String> {
@@ -44,7 +44,7 @@ impl ApiClient for FakeApiClient {
         url: &str,
         _headers: &HashMap<String, String>,
         body: Option<&RequestBody>,
-    ) -> Pin<Box<dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+    ) -> Pin<Box<dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         {
             let mut last_url = self.last_url.lock().unwrap();
             *last_url = Some(url.to_string());

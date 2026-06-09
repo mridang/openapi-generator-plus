@@ -12,14 +12,14 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
-use PetstoreClient\ApiResponse;
+use PetstoreClient\ApiHttpResponse;
 use PetstoreClient\Auth\OAuth\OpenIdConnectAuthenticator;
 
 function makeOpenIdConnectMockClientWithDiscovery(): MockTokenApiClient
 {
     $client = new MockTokenApiClient();
     // Discovery document response
-    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'authorization_endpoint' => 'https://auth.example.com/authorize',
         'token_endpoint' => 'https://auth.example.com/token',
     ]), ['Content-Type' => 'application/json']));
@@ -57,12 +57,12 @@ test('builds authorization url from discovery', function (): void {
 test('obtains token after code exchange', function (): void {
     $client = new MockTokenApiClient();
     // Discovery document
-    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'authorization_endpoint' => 'https://auth.example.com/authorize',
         'token_endpoint' => 'https://auth.example.com/token',
     ]), ['Content-Type' => 'application/json']));
     // Token exchange response
-    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'oidc-token',
         'expires_in' => 3600,
     ]), ['Content-Type' => 'application/json']));
@@ -91,12 +91,12 @@ test('obtains token after code exchange', function (): void {
 test('oidc get auth headers returns bearer after exchange', function (): void {
     $client = new MockTokenApiClient();
     // Discovery document
-    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'authorization_endpoint' => 'https://auth.example.com/authorize',
         'token_endpoint' => 'https://auth.example.com/token',
     ]), ['Content-Type' => 'application/json']));
     // Token exchange response
-    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'oidc-tok',
         'expires_in' => 3600,
     ]), ['Content-Type' => 'application/json']));
@@ -120,7 +120,7 @@ test('oidc get auth headers returns bearer after exchange', function (): void {
 test('fetches discovery document', function (): void {
     $client = new MockTokenApiClient();
     // Only one discovery response needed
-    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'authorization_endpoint' => 'https://auth.example.com/authorize',
         'token_endpoint' => 'https://auth.example.com/token',
     ]), ['Content-Type' => 'application/json']));
@@ -167,7 +167,7 @@ test('oidc throws when discovery returns non-2xx status', function (): void {
     $client = new MockTokenApiClient();
     // A non-2xx discovery response (e.g. a 500 HTML error page) must surface
     // as a clear error, not as an "invalid JSON" parse failure of the body.
-    $client->enqueueResponse(new ApiResponse(
+    $client->enqueueResponse(new ApiHttpResponse(
         500,
         '<html>internal server error</html>',
         ['Content-Type' => 'text/html']

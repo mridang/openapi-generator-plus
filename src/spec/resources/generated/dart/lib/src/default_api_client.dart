@@ -139,7 +139,7 @@ class DefaultApiClient implements ApiClient {
   }
 
   @override
-  Future<HttpApiResponse> sendRequest(
+  Future<ApiHttpResponse> sendRequest(
     String method,
     String url,
     Map<String, String> headers,
@@ -438,7 +438,7 @@ class DefaultApiClient implements ApiClient {
       });
     }
 
-    return HttpApiResponse(
+    return ApiHttpResponse(
       statusCode: streamedResponse.statusCode,
       body: responseBody,
       headers: responseHeaders,

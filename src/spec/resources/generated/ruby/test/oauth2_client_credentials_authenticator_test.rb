@@ -19,7 +19,7 @@ class FakeClientCredentialsClient
     @last_url = url
     @last_headers = headers
     @last_body = body
-    PetstoreClient::ApiResponse.new(
+    PetstoreClient::ApiHttpResponse.new(
       status_code: 200,
       body: { 'access_token' => 'cc_tok_abc', 'expires_in' => 3600 }.to_json,
       headers: { 'content-type' => 'application/json' }
@@ -40,7 +40,7 @@ class ConfigurableClientCredentialsClient
   def send_request(_method, _url, _headers, _body, no_redirect: false)
     response = @responses[@call_count] || @responses.last
     @call_count += 1
-    PetstoreClient::ApiResponse.new(
+    PetstoreClient::ApiHttpResponse.new(
       status_code: response[:status],
       body: response[:body].to_json,
       headers: { 'content-type' => 'application/json' }

@@ -147,7 +147,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     /// then dispatches via URLSession.
     public func sendRequest(
         method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool = false
-    ) async throws -> HttpResponse {
+    ) async throws -> ApiHttpResponse {
         /* Gap T-D4: using the client after close() must surface a uniform
            SDK error, not a foreign URLSession invalidation exception. */
         if closedFlag.isSet {
@@ -280,7 +280,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             responseBody = data.base64EncodedString()
         }
 
-        return HttpResponse(
+        return ApiHttpResponse(
             statusCode: httpResponse.statusCode,
             body: responseBody,
             headers: respHeaders

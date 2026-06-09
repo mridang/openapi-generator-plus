@@ -207,7 +207,7 @@ func (a *PetApi) AddPetWithHTTPInfo(pet Pet, options *opts.AddPetOptions) (*ApiR
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
-			 * could be carried in HttpResponse.Body (a string); decode it back
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
@@ -304,7 +304,7 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *opts.AddPetPhoto
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
-			 * could be carried in HttpResponse.Body (a string); decode it back
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
@@ -395,7 +395,7 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(petId int64, petTreatment PetTreatm
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
-			 * could be carried in HttpResponse.Body (a string); decode it back
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
@@ -551,7 +551,7 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) 
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
-			 * could be carried in HttpResponse.Body (a string); decode it back
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
@@ -651,7 +651,7 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *opts.FindPetsByStatusOpti
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
-			 * could be carried in HttpResponse.Body (a string); decode it back
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
@@ -742,7 +742,7 @@ func (a *PetApi) GetExternalPetInfoWithHTTPInfo(petId int64, server GetExternalP
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
-			 * could be carried in HttpResponse.Body (a string); decode it back
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
@@ -833,7 +833,7 @@ func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(petId int64, server GetMultiS
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
-			 * could be carried in HttpResponse.Body (a string); decode it back
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
@@ -919,7 +919,7 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(petId int64) (*ApiResult[[]byte], erro
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
-			 * could be carried in HttpResponse.Body (a string); decode it back
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
@@ -1005,7 +1005,7 @@ func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(petId int64) (*ApiResult[[]by
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
-			 * could be carried in HttpResponse.Body (a string); decode it back
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
@@ -1103,7 +1103,7 @@ func (a *PetApi) GetPetByIdWithHTTPInfo(petId int64, server GetPetByIdServer) (*
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
-			 * could be carried in HttpResponse.Body (a string); decode it back
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
@@ -1200,7 +1200,7 @@ func (a *PetApi) GetPetByNameWithHTTPInfo(name string, options *opts.GetPetByNam
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
-			 * could be carried in HttpResponse.Body (a string); decode it back
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
@@ -1286,7 +1286,7 @@ func (a *PetApi) GetPetPassportWithHTTPInfo(petId int64) (*ApiResult[PetPassport
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
-			 * could be carried in HttpResponse.Body (a string); decode it back
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
@@ -1377,7 +1377,7 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
-			 * could be carried in HttpResponse.Body (a string); decode it back
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
@@ -1483,7 +1483,7 @@ func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *opt
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
-			 * could be carried in HttpResponse.Body (a string); decode it back
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
@@ -1574,7 +1574,7 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(petId int64, server GetStagingPet
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
-			 * could be carried in HttpResponse.Body (a string); decode it back
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
@@ -1778,7 +1778,7 @@ func (a *PetApi) SetPetPreferencesWithHTTPInfo(petId int64, options *opts.SetPet
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
-			 * could be carried in HttpResponse.Body (a string); decode it back
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
@@ -1865,7 +1865,7 @@ func (a *PetApi) UpdatePetWithHTTPInfo(petId int64, pet Pet) (*ApiResult[Pet], e
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
-			 * could be carried in HttpResponse.Body (a string); decode it back
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
@@ -1958,7 +1958,7 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *opts.Upl
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
-			 * could be carried in HttpResponse.Body (a string); decode it back
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
@@ -2057,7 +2057,7 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *opts.Upload
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
-			 * could be carried in HttpResponse.Body (a string); decode it back
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {

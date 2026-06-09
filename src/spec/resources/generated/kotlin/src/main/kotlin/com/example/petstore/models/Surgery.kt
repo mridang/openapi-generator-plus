@@ -22,5 +22,6 @@ data class Surgery(
     val procedureName: String,
     /** Example: `null` */
     @SerialName("durationMinutes")
+    @Serializable(with = com.example.petstore.StrictIntSerializer::class)
     val durationMinutes: Int? = null,
 )

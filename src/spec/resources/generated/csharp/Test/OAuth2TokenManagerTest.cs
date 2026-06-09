@@ -15,11 +15,13 @@ public class OAuth2TokenManagerTest
 {
     private sealed class FakeApiClient : IApiClient
     {
-        private readonly Queue<ApiResponse> _responses = new();
+        private readonly Queue<ApiHttpResponse> _responses = new();
 
         public void Enqueue(string body, int statusCode = 200)
         {
-            _responses.Enqueue(new ApiResponse(statusCode, body, new Dictionary<string, string>()));
+            _responses.Enqueue(
+                new ApiHttpResponse(statusCode, body, new Dictionary<string, string>())
+            );
         }
 
         public string? LastBody { get; private set; }
@@ -27,7 +29,7 @@ public class OAuth2TokenManagerTest
         public bool LastNoRedirect { get; private set; }
         public int CallCount { get; private set; }
 
-        public Task<ApiResponse> SendRequestAsync(
+        public Task<ApiHttpResponse> SendRequestAsync(
             string method,
             Uri url,
             Dictionary<string, string> headers,
@@ -212,7 +214,7 @@ public class OAuth2TokenManagerTest
 
         public int CallCount => _callCount;
 
-        public async Task<ApiResponse> SendRequestAsync(
+        public async Task<ApiHttpResponse> SendRequestAsync(
             string method,
             Uri url,
             Dictionary<string, string> headers,
@@ -224,7 +226,7 @@ public class OAuth2TokenManagerTest
             // Hold the "in flight" request long enough that all concurrent
             // callers pile up behind the single-flight lock.
             await Task.Delay(50).ConfigureAwait(false);
-            return new ApiResponse(200, _body, new Dictionary<string, string>());
+            return new ApiHttpResponse(200, _body, new Dictionary<string, string>());
         }
     }
 
@@ -596,7 +598,7 @@ public class OAuth2TokenManagerTest
 
         public int CallCount => _callCount;
 
-        public async Task<ApiResponse> SendRequestAsync(
+        public async Task<ApiHttpResponse> SendRequestAsync(
             string method,
             Uri url,
             Dictionary<string, string> headers,
@@ -608,7 +610,7 @@ public class OAuth2TokenManagerTest
             // Hold the request in flight so concurrent callers pile up behind
             // the single-flight lock.
             await Task.Delay(50).ConfigureAwait(false);
-            return new ApiResponse(
+            return new ApiHttpResponse(
                 200,
                 "{\"access_token\":\"tok" + n + "\",\"expires_in\":3600}",
                 new Dictionary<string, string>()

@@ -89,7 +89,7 @@ pub(crate) mod value_serializer;
 
 pub use api_client::ApiClient;
 pub use api_error::ApiError;
-pub use api_response::ApiResponse;
+pub use api_response::ApiHttpResponse;
 pub use api_result::ApiResult;
 pub use auth::Authenticator;
 pub use client::Client;

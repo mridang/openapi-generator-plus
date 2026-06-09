@@ -9,7 +9,7 @@ package com.example.petstore.auth.oauth;
 
 import com.example.petstore.ApiClient;
 import com.example.petstore.ApiException;
-import com.example.petstore.ApiResponse;
+import com.example.petstore.ApiHttpResponse;
 import com.example.petstore.auth.HttpAwareAuthenticator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -91,7 +91,7 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
     try {
       Map<String, String> headers = new HashMap<>();
       headers.put("Accept", "application/json");
-      ApiResponse response = apiClient.sendRequest("GET", openIdConnectUrl, headers, null);
+      ApiHttpResponse response = apiClient.sendRequest("GET", openIdConnectUrl, headers, null);
       /* Guard the HTTP status before parsing: a 5xx/4xx discovery
        * response is typically an HTML/text error page, which would
        * otherwise surface as a confusing "invalid JSON" error instead

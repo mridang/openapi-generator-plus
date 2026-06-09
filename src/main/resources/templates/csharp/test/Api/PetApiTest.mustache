@@ -165,7 +165,7 @@ public class PetApiTest
         var result = await _api.UploadPetCertificateAsync(1L, new UploadPetCertificateOptions { File = fileData });
 
         Assert.NotNull(result);
-        Assert.IsType<{{packageName}}.ApiResponse>(result);
+        Assert.IsType<{{packageName}}.Models.ApiResponse>(result);
     }
 
     [Fact]
@@ -175,7 +175,7 @@ public class PetApiTest
         var result = await _api.UploadPetDocumentAsync(1L, new UploadPetDocumentOptions { File = fileData, DocumentType = "vaccination", Notes = "Annual rabies vaccination" });
 
         Assert.NotNull(result);
-        Assert.IsType<{{packageName}}.ApiResponse>(result);
+        Assert.IsType<{{packageName}}.Models.ApiResponse>(result);
     }
 
     [Fact]
@@ -332,10 +332,10 @@ public class PetApiTest
             _body = body;
         }
 
-        public Task<{{packageName}}.ApiResponse> SendRequestAsync(
+        public Task<{{packageName}}.ApiHttpResponse> SendRequestAsync(
             string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
         {
-            return Task.FromResult(new {{packageName}}.ApiResponse(_statusCode, _body, new Dictionary<string, string>
+            return Task.FromResult(new {{packageName}}.ApiHttpResponse(_statusCode, _body, new Dictionary<string, string>
             {
                 { "Content-Type", _contentType }
             }));
@@ -346,11 +346,11 @@ public class PetApiTest
     {
         public Uri? CapturedUrl { get; private set; }
 
-        public Task<{{packageName}}.ApiResponse> SendRequestAsync(
+        public Task<{{packageName}}.ApiHttpResponse> SendRequestAsync(
             string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
         {
             CapturedUrl = url;
-            return Task.FromResult(new {{packageName}}.ApiResponse(200, "{\"name\":\"x\",\"photoUrls\":[]}",
+            return Task.FromResult(new {{packageName}}.ApiHttpResponse(200, "{\"name\":\"x\",\"photoUrls\":[]}",
                 new Dictionary<string, string> { { "Content-Type", "application/json" } }));
         }
     }
@@ -359,11 +359,11 @@ public class PetApiTest
     {
         public Dictionary<string, string> CapturedHeaders { get; private set; } = new();
 
-        public Task<{{packageName}}.ApiResponse> SendRequestAsync(
+        public Task<{{packageName}}.ApiHttpResponse> SendRequestAsync(
             string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
         {
             CapturedHeaders = new Dictionary<string, string>(headers);
-            return Task.FromResult(new {{packageName}}.ApiResponse(200, "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}",
+            return Task.FromResult(new {{packageName}}.ApiHttpResponse(200, "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}",
                 new Dictionary<string, string> { { "Content-Type", "application/json" } }));
         }
     }
@@ -517,11 +517,11 @@ public class PetApiTest
     {
         public object? CapturedBody { get; private set; }
 
-        public Task<{{packageName}}.ApiResponse> SendRequestAsync(
+        public Task<{{packageName}}.ApiHttpResponse> SendRequestAsync(
             string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
         {
             CapturedBody = body;
-            return Task.FromResult(new {{packageName}}.ApiResponse(200, "",
+            return Task.FromResult(new {{packageName}}.ApiHttpResponse(200, "",
                 new Dictionary<string, string> { { "Content-Type", "application/json" } }));
         }
     }

@@ -809,7 +809,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
      * for the WithHTTPInfo variant).
      *
      * <p>The transport layer carries the response body as a base64
-     * string in {@code HttpResponse.Body} and the api template's
+     * string in {@code ApiHttpResponse.Body} and the api template's
      * deserialization path already decodes a {@code *[]byte} return type
      * via {@code decodeBinaryResponse}, so {@code []byte} is the single
      * type the transport can cleanly produce. Rewriting the return type

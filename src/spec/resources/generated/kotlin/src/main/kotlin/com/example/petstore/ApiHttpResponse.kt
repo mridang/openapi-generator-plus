@@ -8,9 +8,9 @@
 package com.example.petstore
 
 /**
- * Represents an HTTP API response.
+ * Represents a low-level HTTP transport response returned by [ApiClient.sendRequest].
  */
-data class ApiResponse(
+data class ApiHttpResponse(
     val statusCode: Int,
     val body: String,
     val headers: Map<String, String>,

@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 from urllib.parse import urlparse, parse_qs
 
 from petstore_client.auth.oauth.oauth2_auth_code_authenticator import OAuth2AuthorizationCodeAuthenticator
-from petstore_client.api_response import ApiResponse
+from petstore_client.api_response import ApiHttpResponse
 
 
 def _create_authenticator() -> OAuth2AuthorizationCodeAuthenticator:
@@ -69,7 +69,7 @@ class TestOAuth2AuthorizationCodeAuthenticator:
     def test_exchanges_code_with_correct_grant_type(self) -> None:
         auth = _create_authenticator()
         mock_client = MagicMock()
-        mock_client.send_request.return_value = ApiResponse(
+        mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
             body=json.dumps(
                 {
@@ -98,7 +98,7 @@ class TestOAuth2AuthorizationCodeAuthenticator:
         auth = _create_authenticator()
         mock_client = MagicMock()
         # First call: exchange_code returns a refresh token with immediate expiry
-        mock_client.send_request.return_value = ApiResponse(
+        mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
             body=json.dumps(
                 {
@@ -113,7 +113,7 @@ class TestOAuth2AuthorizationCodeAuthenticator:
         auth.exchange_code('code')
 
         # Second call: get_auth_headers triggers refresh
-        mock_client.send_request.return_value = ApiResponse(
+        mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
             body=json.dumps(
                 {

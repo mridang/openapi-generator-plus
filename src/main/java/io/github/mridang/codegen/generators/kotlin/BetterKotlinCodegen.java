@@ -285,7 +285,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/InternalServerErrorException.mustache", errorsFolder, "InternalServerErrorException.kt"),
             new SupportingFileSpec("api_client.mustache", invokerFolder, "ApiClient.kt"),
             new SupportingFileSpec("default_api_client.mustache", invokerFolder, "DefaultApiClient.kt"),
-            new SupportingFileSpec("api_response.mustache", invokerFolder, "ApiResponse.kt"),
+            new SupportingFileSpec("api_response.mustache", invokerFolder, "ApiHttpResponse.kt"),
             new SupportingFileSpec("api_result.mustache", invokerFolder, "ApiResult.kt"),
             new SupportingFileSpec("base_api.mustache", Path.of(invokerFolder, "api").toString(), "BaseApi.kt"),
             new SupportingFileSpec("configuration.mustache", invokerFolder, "Configuration.kt"),

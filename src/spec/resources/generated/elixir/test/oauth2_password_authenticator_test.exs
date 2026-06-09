@@ -48,7 +48,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
     test "sends password grant type" do
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
           }
@@ -66,7 +66,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
     test "sends username and password" do
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
           }
@@ -85,7 +85,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
     test "sends client id and secret" do
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
           }
@@ -104,7 +104,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
     test "returns authorization bearer header" do
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "tok-pwd", "expires_in" => 3600})
           }
@@ -121,11 +121,11 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
     test "uses refresh token on subsequent calls" do
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "tok1", "refresh_token" => "ref1", "expires_in" => 1})
           },
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
           }
@@ -158,7 +158,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
       # (not raw) before the colon-join + base64.
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "at", "expires_in" => 3600})
           }

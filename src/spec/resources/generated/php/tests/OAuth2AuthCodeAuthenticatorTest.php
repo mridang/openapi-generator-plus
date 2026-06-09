@@ -12,7 +12,7 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
-use PetstoreClient\ApiResponse;
+use PetstoreClient\ApiHttpResponse;
 use PetstoreClient\Auth\OAuth\OAuth2AuthorizationCodeAuthenticator;
 
 function makeOAuth2AuthCodeMockClient(
@@ -24,7 +24,7 @@ function makeOAuth2AuthCodeMockClient(
     if ($refreshToken !== null) {
         $body['refresh_token'] = $refreshToken;
     }
-    $client->enqueueResponse(new ApiResponse(
+    $client->enqueueResponse(new ApiHttpResponse(
         200,
         (string) json_encode($body),
         ['Content-Type' => 'application/json']
@@ -126,13 +126,13 @@ test('exchange code rejects whitespace only code', function (): void {
 test('includes refresh token on refresh', function (): void {
     $client = new MockTokenApiClient();
     // First call (exchangeCode) returns a refresh token with an expired access token
-    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'access1',
         'refresh_token' => 'refresh1',
         'expires_in' => 0,
     ]), ['Content-Type' => 'application/json']));
     // Second call (getAuthHeaders refresh) returns new token
-    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'access2',
         'expires_in' => 3600,
     ]), ['Content-Type' => 'application/json']));

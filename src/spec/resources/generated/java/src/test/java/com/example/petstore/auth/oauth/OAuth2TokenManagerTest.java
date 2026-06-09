@@ -10,7 +10,7 @@ package com.example.petstore.auth.oauth;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.example.petstore.ApiClient;
-import com.example.petstore.ApiResponse;
+import com.example.petstore.ApiHttpResponse;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -24,7 +24,7 @@ class OAuth2TokenManagerTest {
   }
 
   private ApiClient fakeClient(int statusCode, String responseBody) {
-    return (method, url, headers, body) -> new ApiResponse(statusCode, responseBody, Map.of());
+    return (method, url, headers, body) -> new ApiHttpResponse(statusCode, responseBody, Map.of());
   }
 
   @Test
@@ -58,7 +58,8 @@ class OAuth2TokenManagerTest {
     ApiClient client =
         (method, url, headers, body) -> {
           callCount.incrementAndGet();
-          return new ApiResponse(200, "{\"access_token\":\"tok1\",\"expires_in\":3600}", Map.of());
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"tok1\",\"expires_in\":3600}", Map.of());
         };
 
     OAuth2TokenManager manager = new OAuth2TokenManager();
@@ -85,10 +86,10 @@ class OAuth2TokenManagerTest {
         (method, url, headers, body) -> {
           responses.call++;
           if (responses.call == 1) {
-            return new ApiResponse(
+            return new ApiHttpResponse(
                 200, "{\"access_token\":\"expired-token\",\"expires_in\":0}", Map.of());
           }
-          return new ApiResponse(
+          return new ApiHttpResponse(
               200, "{\"access_token\":\"fresh-token\",\"expires_in\":3600}", Map.of());
         };
 
@@ -123,7 +124,7 @@ class OAuth2TokenManagerTest {
     ApiClient client =
         (method, url, headers, body) -> {
           int n = callCount.incrementAndGet();
-          return new ApiResponse(
+          return new ApiHttpResponse(
               200, "{\"access_token\":\"tok" + n + "\",\"expires_in\":3600}", Map.of());
         };
 
@@ -169,7 +170,7 @@ class OAuth2TokenManagerTest {
           } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
           }
-          return new ApiResponse(
+          return new ApiHttpResponse(
               200, "{\"access_token\":\"shared-tok\",\"expires_in\":3600}", Map.of());
         };
     OAuth2TokenManager manager = new OAuth2TokenManager();
@@ -212,7 +213,8 @@ class OAuth2TokenManagerTest {
     ApiClient client =
         (method, url, headers, body) -> {
           callCount.incrementAndGet();
-          return new ApiResponse(200, "{\"access_token\":\"short\",\"expires_in\":10}", Map.of());
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"short\",\"expires_in\":10}", Map.of());
         };
 
     OAuth2TokenManager manager = new OAuth2TokenManager();
@@ -235,7 +237,8 @@ class OAuth2TokenManagerTest {
     ApiClient client =
         (method, url, headers, body) -> {
           callCount.incrementAndGet();
-          return new ApiResponse(200, "{\"access_token\":\"long\",\"expires_in\":3600}", Map.of());
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"long\",\"expires_in\":3600}", Map.of());
         };
 
     OAuth2TokenManager manager = new OAuth2TokenManager();
@@ -259,7 +262,7 @@ class OAuth2TokenManagerTest {
     ApiClient client =
         (method, url, headers, body) -> {
           int n = callCount.incrementAndGet();
-          return new ApiResponse(
+          return new ApiHttpResponse(
               200, "{\"access_token\":\"edge" + n + "\",\"expires_in\":30}", Map.of());
         };
 
@@ -289,13 +292,13 @@ class OAuth2TokenManagerTest {
           responses.call++;
           if (responses.call == 1) {
             // Seed with refresh_token "old_refresh" and a short-lived access token.
-            return new ApiResponse(
+            return new ApiHttpResponse(
                 200,
                 "{\"access_token\":\"old_access\",\"refresh_token\":\"old_refresh\",\"expires_in\":1}",
                 Map.of());
           }
           // Refresh response: empty refresh_token MUST NOT clobber the cached one.
-          return new ApiResponse(
+          return new ApiHttpResponse(
               200,
               "{\"access_token\":\"new_access\",\"expires_in\":3600,\"refresh_token\":\"\"}",
               Map.of());
@@ -329,7 +332,7 @@ class OAuth2TokenManagerTest {
     ApiClient client =
         (method, url, headers, body) -> {
           callCount.incrementAndGet();
-          return new ApiResponse(
+          return new ApiHttpResponse(
               200, "{\"access_token\":\"str-tok\",\"expires_in\":\"3600\"}", Map.of());
         };
 
@@ -356,7 +359,7 @@ class OAuth2TokenManagerTest {
     ApiClient client =
         (method, url, headers, body) -> {
           callCount.incrementAndGet();
-          return new ApiResponse(
+          return new ApiHttpResponse(
               200, "{\"access_token\":\"flt-tok\",\"expires_in\":3600.5}", Map.of());
         };
 
@@ -383,7 +386,7 @@ class OAuth2TokenManagerTest {
     ApiClient client =
         (method, url, headers, body) -> {
           int n = callCount.incrementAndGet();
-          return new ApiResponse(
+          return new ApiHttpResponse(
               200, "{\"access_token\":\"neg" + n + "\",\"expires_in\":-1}", Map.of());
         };
 
@@ -476,22 +479,24 @@ class OAuth2TokenManagerTest {
     ApiClient client =
         new ApiClient() {
           @Override
-          public ApiResponse sendRequest(
+          public ApiHttpResponse sendRequest(
               String method, String url, Map<String, String> headers, @Nullable Object body) {
             // Must NOT be called: the manager must use the 5-arg overload.
             seenFlag.set(false);
-            return new ApiResponse(200, "{\"access_token\":\"t\",\"expires_in\":3600}", Map.of());
+            return new ApiHttpResponse(
+                200, "{\"access_token\":\"t\",\"expires_in\":3600}", Map.of());
           }
 
           @Override
-          public ApiResponse sendRequest(
+          public ApiHttpResponse sendRequest(
               String method,
               String url,
               Map<String, String> headers,
               @Nullable Object body,
               boolean noRedirect) {
             seenFlag.set(noRedirect);
-            return new ApiResponse(200, "{\"access_token\":\"t\",\"expires_in\":3600}", Map.of());
+            return new ApiHttpResponse(
+                200, "{\"access_token\":\"t\",\"expires_in\":3600}", Map.of());
           }
         };
     OAuth2TokenManager manager = new OAuth2TokenManager();
@@ -517,19 +522,20 @@ class OAuth2TokenManagerTest {
     ApiClient client =
         new ApiClient() {
           @Override
-          public ApiResponse sendRequest(
+          public ApiHttpResponse sendRequest(
               String method, String url, Map<String, String> headers, @Nullable Object body) {
             return sendRequest(method, url, headers, body, false);
           }
 
           @Override
-          public ApiResponse sendRequest(
+          public ApiHttpResponse sendRequest(
               String method,
               String url,
               Map<String, String> headers,
               @Nullable Object body,
               boolean noRedirect) {
-            return new ApiResponse(status, "", Map.of("location", "https://attacker.example/take"));
+            return new ApiHttpResponse(
+                status, "", Map.of("location", "https://attacker.example/take"));
           }
         };
     OAuth2TokenManager manager = new OAuth2TokenManager();
@@ -567,7 +573,7 @@ class OAuth2TokenManagerTest {
           } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
           }
-          return new ApiResponse(
+          return new ApiHttpResponse(
               200, "{\"access_token\":\"tok" + n + "\",\"expires_in\":3600}", Map.of());
         };
     OAuth2TokenManager manager = new OAuth2TokenManager();
@@ -619,19 +625,20 @@ class OAuth2TokenManagerTest {
     ApiClient client =
         new ApiClient() {
           @Override
-          public ApiResponse sendRequest(
+          public ApiHttpResponse sendRequest(
               String method, String url, Map<String, String> headers, @Nullable Object body) {
             return sendRequest(method, url, headers, body, false);
           }
 
           @Override
-          public ApiResponse sendRequest(
+          public ApiHttpResponse sendRequest(
               String method,
               String url,
               Map<String, String> headers,
               @Nullable Object body,
               boolean noRedirect) {
-            return new ApiResponse(307, "", Map.of("location", "https://attacker.example/steal"));
+            return new ApiHttpResponse(
+                307, "", Map.of("location", "https://attacker.example/steal"));
           }
         };
     OAuth2TokenManager manager = new OAuth2TokenManager();

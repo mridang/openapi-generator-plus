@@ -235,7 +235,7 @@ public final class DefaultApiClient implements ApiClient {
   }
 
   @Override
-  public ApiResponse sendRequest(
+  public ApiHttpResponse sendRequest(
       String method, String url, Map<String, String> headers, @Nullable Object body)
       throws ApiException {
     return sendRequest(method, url, headers, body, false);
@@ -270,7 +270,7 @@ public final class DefaultApiClient implements ApiClient {
    * as-is.
    */
   @Override
-  public ApiResponse sendRequest(
+  public ApiHttpResponse sendRequest(
       String method,
       String url,
       Map<String, String> headers,
@@ -484,7 +484,7 @@ public final class DefaultApiClient implements ApiClient {
               ? new String(decompressedBytes, responseCharset)
               : Base64.getEncoder().encodeToString(decompressedBytes);
 
-      return new ApiResponse(response.statusCode(), responseBody, responseHeaders);
+      return new ApiHttpResponse(response.statusCode(), responseBody, responseHeaders);
     } catch (IOException e) {
       throw new ApiException(e.toString(), e);
     } catch (InterruptedException e) {

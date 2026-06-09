@@ -18,7 +18,7 @@ from {{packageName}}.errors.not_found_exception import NotFoundException
 from {{packageName}}.errors.conflict_exception import ConflictException
 from {{packageName}}.errors.unprocessable_entity_exception import UnprocessableEntityException
 from {{packageName}}.errors.internal_server_error_exception import InternalServerErrorException
-from {{packageName}}.api_response import ApiResponse
+from {{packageName}}.api_response import ApiHttpResponse
 from {{packageName}}.models import Category
 from {{packageName}} import servers as Servers
 
@@ -31,11 +31,11 @@ class CapturingApiClient:
         self.captured_headers: dict[str, str] = {}
         self.captured_body: Any = None
 
-    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiResponse:
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiHttpResponse:
         self.captured_url = url
         self.captured_headers = headers
         self.captured_body = body
-        return ApiResponse(status_code=200, body='{}', headers={'content-type': 'application/json'})
+        return ApiHttpResponse(status_code=200, body='{}', headers={'content-type': 'application/json'})
 
 
 class StubApi(BaseApi):
@@ -126,14 +126,14 @@ class TestErrorHeaders:
     """
 
     def test_empty_headers_pass_through_as_empty_dict_not_none(self) -> None:
-        resp = ApiResponse(status_code=400, body='{"error":"bad"}', headers={})
+        resp = ApiHttpResponse(status_code=400, body='{"error":"bad"}', headers={})
         with pytest.raises(BadRequestException) as exc_info:
             BaseApi._throw_api_exception(resp)
         assert exc_info.value.response_headers == {}
         assert exc_info.value.response_headers is not None
 
     def test_present_headers_pass_through(self) -> None:
-        resp = ApiResponse(
+        resp = ApiHttpResponse(
             status_code=400,
             body='{"error":"bad"}',
             headers={'content-type': 'application/json'},
@@ -428,17 +428,17 @@ class TestBodySerialization:
 class PlainTextApiClient(CapturingApiClient):
     """API client that returns a plain-text response instead of JSON."""
 
-    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiResponse:
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiHttpResponse:
         super().send_request(method, url, headers, body)
-        return ApiResponse(status_code=200, body='hello', headers={'Content-Type': 'text/plain'})
+        return ApiHttpResponse(status_code=200, body='hello', headers={'Content-Type': 'text/plain'})
 
 
 class VendorJsonApiClient(CapturingApiClient):
     """API client that returns a vendor JSON response (application/problem+json)."""
 
-    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiResponse:
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiHttpResponse:
         super().send_request(method, url, headers, body)
-        return ApiResponse(status_code=200, body='{"title":"Not Found"}', headers={'Content-Type': 'application/problem+json'})
+        return ApiHttpResponse(status_code=200, body='{"title":"Not Found"}', headers={'Content-Type': 'application/problem+json'})
 
 
 class TestContentTypeDeserialization:
@@ -515,9 +515,9 @@ class BinaryOctetStreamApiClient(CapturingApiClient):
         super().__init__()
         self._encoded_body = encoded_body
 
-    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiResponse:
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiHttpResponse:
         super().send_request(method, url, headers, body)
-        return ApiResponse(status_code=200, body=self._encoded_body, headers={'Content-Type': 'application/octet-stream'})
+        return ApiHttpResponse(status_code=200, body=self._encoded_body, headers={'Content-Type': 'application/octet-stream'})
 
 
 class ImagePngApiClient(CapturingApiClient):
@@ -527,17 +527,17 @@ class ImagePngApiClient(CapturingApiClient):
         super().__init__()
         self._encoded_body = encoded_body
 
-    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiResponse:
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiHttpResponse:
         super().send_request(method, url, headers, body)
-        return ApiResponse(status_code=200, body=self._encoded_body, headers={'Content-Type': 'image/png'})
+        return ApiHttpResponse(status_code=200, body=self._encoded_body, headers={'Content-Type': 'image/png'})
 
 
 class EmptyBinaryApiClient(CapturingApiClient):
     """API client that returns an empty application/octet-stream response."""
 
-    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiResponse:
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiHttpResponse:
         super().send_request(method, url, headers, body)
-        return ApiResponse(status_code=200, body='', headers={'Content-Type': 'application/octet-stream'})
+        return ApiHttpResponse(status_code=200, body='', headers={'Content-Type': 'application/octet-stream'})
 
 
 class TestBinaryResponse:

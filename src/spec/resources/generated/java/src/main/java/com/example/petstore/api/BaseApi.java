@@ -9,7 +9,7 @@ package com.example.petstore.api;
 
 import com.example.petstore.ApiClient;
 import com.example.petstore.ApiException;
-import com.example.petstore.ApiResponse;
+import com.example.petstore.ApiHttpResponse;
 import com.example.petstore.ApiResult;
 import com.example.petstore.Configuration;
 import com.example.petstore.DefaultApiClient;
@@ -236,7 +236,7 @@ public abstract class BaseApi {
       headers.remove("Content-Type");
     }
 
-    ApiResponse response = apiClient.sendRequest(method, url, headers, requestBody);
+    ApiHttpResponse response = apiClient.sendRequest(method, url, headers, requestBody);
 
     if (response.statusCode() < 200 || response.statusCode() >= 300) {
       throwApiException(response);
@@ -337,7 +337,7 @@ public abstract class BaseApi {
    * @param response the API response with a non-2xx status code
    * @throws ApiException always
    */
-  private void throwApiException(ApiResponse response) throws ApiException {
+  private void throwApiException(ApiHttpResponse response) throws ApiException {
     int code = response.statusCode();
     String message = "API returned status code " + code;
     String body = response.body();

@@ -31,11 +31,11 @@ type fakeOIDCResponse struct {
 	statusCode int
 }
 
-func (c *fakeOIDCClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.HttpResponse, error) {
+func (c *fakeOIDCClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.ApiHttpResponse, error) {
 	return c.SendRequestWithOptions(method, url, headers, body, nil)
 }
 
-func (c *fakeOIDCClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *auth.RequestOptions) (*auth.HttpResponse, error) {
+func (c *fakeOIDCClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *auth.RequestOptions) (*auth.ApiHttpResponse, error) {
 	_ = opts
 	c.LastMethod = method
 	c.LastURL = url
@@ -49,7 +49,7 @@ func (c *fakeOIDCClient) SendRequestWithOptions(method, url string, headers map[
 	}
 	idx := atomic.AddInt32(&c.index, 1) - 1
 	resp := c.responses[idx]
-	return &auth.HttpResponse{
+	return &auth.ApiHttpResponse{
 		StatusCode: resp.statusCode,
 		Body:       resp.body,
 		Headers:    map[string]string{},

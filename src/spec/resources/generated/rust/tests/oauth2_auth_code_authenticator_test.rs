@@ -11,14 +11,14 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
 use petstore::api_client::{ApiClient, RequestBody};
-use petstore::api_response::ApiResponse;
+use petstore::api_response::ApiHttpResponse;
 use petstore::auth::Authenticator;
 use petstore::auth::HttpAwareAuthenticator;
 use petstore::auth::oauth::AuthCodeNotExchangedError;
 use petstore::auth::oauth::OAuth2AuthorizationCodeAuthenticator;
 
 struct FakeApiClient {
-    responses: Mutex<Vec<ApiResponse>>,
+    responses: Mutex<Vec<ApiHttpResponse>>,
     last_url: Mutex<Option<String>>,
     last_body: Mutex<Option<String>>,
 }
@@ -34,7 +34,7 @@ impl FakeApiClient {
 
     fn enqueue(&self, body: &str, status_code: u16) {
         let mut responses = self.responses.lock().unwrap();
-        responses.push(ApiResponse::new(
+        responses.push(ApiHttpResponse::new(
             status_code,
             body.to_string(),
             HashMap::new(),
@@ -55,7 +55,7 @@ impl ApiClient for FakeApiClient {
         body: Option<&RequestBody>,
     ) -> Pin<
         Box<
-            dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
+            dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>>
                 + Send
                 + '_,
         >,

@@ -21,12 +21,15 @@ import java.time.OffsetDateTime
 data class Order(
     /** Example: `10` */
     @SerialName("id")
+    @Serializable(with = com.example.petstore.StrictLongSerializer::class)
     val id: Long? = null,
     /** Example: `198772` */
     @SerialName("petId")
+    @Serializable(with = com.example.petstore.StrictLongSerializer::class)
     val petId: Long? = null,
     /** Example: `7` */
     @SerialName("quantity")
+    @Serializable(with = com.example.petstore.StrictIntSerializer::class)
     val quantity: Int? = null,
     /** Example: `null` */
     @SerialName("shipDate")
@@ -41,6 +44,7 @@ data class Order(
     val status: StatusEnum? = StatusEnum.PLACED,
     /** Example: `null` */
     @SerialName("complete")
+    @Serializable(with = com.example.petstore.StrictBooleanSerializer::class)
     val complete: Boolean? = null,
 ) {
     @Serializable

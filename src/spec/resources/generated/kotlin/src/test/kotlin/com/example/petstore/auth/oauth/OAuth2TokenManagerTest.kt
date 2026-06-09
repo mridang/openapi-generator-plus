@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class OAuth2TokenManagerTest {
     private class FakeApiClient : ApiClient {
-        private val responses = LinkedList<ApiResponse>()
+        private val responses = LinkedList<ApiHttpResponse>()
         var lastBody: String? = null
             private set
         var lastUrl: String? = null
@@ -34,7 +34,7 @@ class OAuth2TokenManagerTest {
             body: String,
             statusCode: Int = 200,
         ) {
-            responses.add(ApiResponse(statusCode, body, emptyMap()))
+            responses.add(ApiHttpResponse(statusCode, body, emptyMap()))
         }
 
         override suspend fun sendRequest(
@@ -43,7 +43,7 @@ class OAuth2TokenManagerTest {
             headers: Map<String, String>,
             body: Any?,
             noRedirect: Boolean,
-        ): ApiResponse {
+        ): ApiHttpResponse {
             lastUrl = url
             lastBody = body?.toString()
             lastNoRedirect = noRedirect
@@ -235,11 +235,11 @@ class OAuth2TokenManagerTest {
                     headers: Map<String, String>,
                     body: Any?,
                     noRedirect: Boolean,
-                ): ApiResponse {
+                ): ApiHttpResponse {
                     networkCalls.incrementAndGet()
                     // Tiny suspension to widen the race window for other coroutines.
                     delay(50)
-                    return ApiResponse(200, """{"access_token":"shared-tok","expires_in":3600}""", emptyMap())
+                    return ApiHttpResponse(200, """{"access_token":"shared-tok","expires_in":3600}""", emptyMap())
                 }
             }
         val manager = OAuth2TokenManager()
@@ -450,9 +450,9 @@ class OAuth2TokenManagerTest {
                     headers: Map<String, String>,
                     body: Any?,
                     noRedirect: Boolean,
-                ): ApiResponse {
+                ): ApiHttpResponse {
                     networkCalls.incrementAndGet()
-                    return ApiResponse(200, """{"access_token":"short","expires_in":10}""", emptyMap())
+                    return ApiHttpResponse(200, """{"access_token":"short","expires_in":10}""", emptyMap())
                 }
             }
         val manager = OAuth2TokenManager()
@@ -484,9 +484,9 @@ class OAuth2TokenManagerTest {
                     headers: Map<String, String>,
                     body: Any?,
                     noRedirect: Boolean,
-                ): ApiResponse {
+                ): ApiHttpResponse {
                     networkCalls.incrementAndGet()
-                    return ApiResponse(200, """{"access_token":"long","expires_in":3600}""", emptyMap())
+                    return ApiHttpResponse(200, """{"access_token":"long","expires_in":3600}""", emptyMap())
                 }
             }
         val manager = OAuth2TokenManager()
@@ -516,9 +516,9 @@ class OAuth2TokenManagerTest {
                     headers: Map<String, String>,
                     body: Any?,
                     noRedirect: Boolean,
-                ): ApiResponse {
+                ): ApiHttpResponse {
                     val n = networkCalls.incrementAndGet()
-                    return ApiResponse(200, """{"access_token":"edge$n","expires_in":30}""", emptyMap())
+                    return ApiHttpResponse(200, """{"access_token":"edge$n","expires_in":30}""", emptyMap())
                 }
             }
         val manager = OAuth2TokenManager()
@@ -549,10 +549,10 @@ class OAuth2TokenManagerTest {
                     headers: Map<String, String>,
                     body: Any?,
                     noRedirect: Boolean,
-                ): ApiResponse {
+                ): ApiHttpResponse {
                     val n = networkCalls.incrementAndGet()
                     delay(50)
-                    return ApiResponse(200, """{"access_token":"tok$n","expires_in":3600}""", emptyMap())
+                    return ApiHttpResponse(200, """{"access_token":"tok$n","expires_in":3600}""", emptyMap())
                 }
             }
         val manager = OAuth2TokenManager()

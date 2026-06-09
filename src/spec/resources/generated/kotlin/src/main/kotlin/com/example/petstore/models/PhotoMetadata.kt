@@ -25,6 +25,7 @@ data class PhotoMetadata(
     val caption: String? = null,
     /** Example: `null` */
     @SerialName("isPrimary")
+    @Serializable(with = com.example.petstore.StrictBooleanSerializer::class)
     val isPrimary: Boolean? = null,
     /** Example: `null` */
     @SerialName("takenAt")

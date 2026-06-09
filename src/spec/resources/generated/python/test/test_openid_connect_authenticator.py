@@ -12,7 +12,7 @@ from urllib.parse import urlparse, parse_qs
 
 from petstore_client.auth.oauth.openid_connect_authenticator import OpenIdConnectAuthenticator
 from petstore_client.auth.oauth.oauth2_token_manager import OAuth2TokenError
-from petstore_client.api_response import ApiResponse
+from petstore_client.api_response import ApiHttpResponse
 
 
 def _create_authenticator() -> OpenIdConnectAuthenticator:
@@ -30,7 +30,7 @@ def _create_authenticator_with_discovery() -> tuple[OpenIdConnectAuthenticator, 
     """Helper that creates an authenticator and mocks the discovery endpoint."""
     auth = _create_authenticator()
     mock_client = MagicMock()
-    discovery_response = ApiResponse(
+    discovery_response = ApiHttpResponse(
         status_code=200,
         body=json.dumps(
             {
@@ -76,7 +76,7 @@ class TestOpenIdConnectAuthenticator:
 
         # Reset mock to track new calls for exchange_code
         mock_client.reset_mock()
-        mock_client.send_request.return_value = ApiResponse(
+        mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
             body=json.dumps(
                 {
@@ -103,7 +103,7 @@ class TestOpenIdConnectAuthenticator:
 
         # Exchange code - returns token
         mock_client.reset_mock()
-        mock_client.send_request.return_value = ApiResponse(
+        mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
             body=json.dumps(
                 {
@@ -138,7 +138,7 @@ class TestOpenIdConnectAuthenticator:
         # confusing "invalid JSON" from json.loads.
         auth = _create_authenticator()
         mock_client = MagicMock()
-        mock_client.send_request.return_value = ApiResponse(
+        mock_client.send_request.return_value = ApiHttpResponse(
             status_code=500,
             body='<html>Internal Server Error</html>',
             headers={'content-type': 'text/html'},
@@ -150,7 +150,7 @@ class TestOpenIdConnectAuthenticator:
     def test_discovery_missing_authorization_endpoint_raises(self) -> None:
         auth = _create_authenticator()
         mock_client = MagicMock()
-        mock_client.send_request.return_value = ApiResponse(
+        mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
             body=json.dumps({'token_endpoint': 'https://auth.example.com/token'}),
             headers={'content-type': 'application/json'},
@@ -172,7 +172,7 @@ class TestOpenIdConnectAuthenticator:
     def test_discovery_empty_token_endpoint_raises(self) -> None:
         auth = _create_authenticator()
         mock_client = MagicMock()
-        mock_client.send_request.return_value = ApiResponse(
+        mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
             body=json.dumps(
                 {

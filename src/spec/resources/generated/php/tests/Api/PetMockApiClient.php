@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace PetstoreClient\Test\Api;
 
 use PetstoreClient\ApiClient;
-use PetstoreClient\ApiResponse;
+use PetstoreClient\ApiHttpResponse;
 
 /**
  * A mock API client that returns a canned response for testing error and binary handling.
@@ -26,7 +26,7 @@ class PetMockApiClient implements ApiClient
         array $headers,
         mixed $body,
         bool $noRedirect = false,
-    ): ApiResponse {
-        return new ApiResponse($this->statusCode, $this->body, ['Content-Type' => $this->contentType]);
+    ): ApiHttpResponse {
+        return new ApiHttpResponse($this->statusCode, $this->body, ['Content-Type' => $this->contentType]);
     }
 }

@@ -294,10 +294,10 @@ function newBodyCapturingPetApi(): array
         {
         }
 
-        public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false): \{{invokerPackage}}\ApiResponse
+        public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false): \{{invokerPackage}}\ApiHttpResponse
         {
             $this->captured->body = is_string($body) ? $body : '';
-            return new \{{invokerPackage}}\ApiResponse(
+            return new \{{invokerPackage}}\ApiHttpResponse(
                 200,
                 '{"code":200,"type":"ok","message":"saved"}',
                 ['Content-Type' => 'application/json']
@@ -426,10 +426,10 @@ function newHeaderCapturingPetApi(): array
         {
         }
 
-        public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false): \{{invokerPackage}}\ApiResponse
+        public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false): \{{invokerPackage}}\ApiHttpResponse
         {
             $this->captured->headers = $headers;
-            return new \{{invokerPackage}}\ApiResponse(
+            return new \{{invokerPackage}}\ApiHttpResponse(
                 200,
                 '{"id":1,"name":"x","photoUrls":[]}',
                 ['Content-Type' => 'application/json']

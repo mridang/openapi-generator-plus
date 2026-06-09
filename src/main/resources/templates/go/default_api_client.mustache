@@ -76,7 +76,7 @@ func NewDefaultApiClient(transportOptions *TransportOptions) *DefaultApiClient {
 //
 // Convenience wrapper that delegates to SendRequestWithOptions with no
 // per-request overrides.
-func (c *DefaultApiClient) SendRequest(method, url string, headers map[string]string, body any) (*HttpResponse, error) {
+func (c *DefaultApiClient) SendRequest(method, url string, headers map[string]string, body any) (*ApiHttpResponse, error) {
 	return c.SendRequestWithOptions(method, url, headers, body, nil)
 }
 
@@ -88,7 +88,7 @@ func (c *DefaultApiClient) SendRequest(method, url string, headers map[string]st
 // loop refuses every 3xx response and returns it to the caller verbatim —
 // used by OAuth2TokenManager on token endpoint POSTs so 307/308 cannot
 // replay the form-encoded client_secret onto an attacker host.
-func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *RequestOptions) (*HttpResponse, error) {
+func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *RequestOptions) (*ApiHttpResponse, error) {
 	if c.closed.Load() {
 		return nil, errors_pkg.NewApiError(
 			0,
@@ -206,7 +206,7 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 		responseBody = base64.StdEncoding.EncodeToString(respBody)
 	}
 
-	return &HttpResponse{
+	return &ApiHttpResponse{
 		StatusCode: resp.StatusCode,
 		Body:       responseBody,
 		Headers:    respHeaders,

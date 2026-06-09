@@ -334,7 +334,7 @@ class DefaultApiClientUnitTest {
         fun sendsGetRequestAndReturnsResponse() {
             val client = mockClient(body = "{\"method\":\"GET\"}")
             val apiClient = DefaultApiClient(client)
-            var response: ApiResponse? = null
+            var response: ApiHttpResponse? = null
             runBlocking {
                 response = apiClient.sendRequest("GET", "http://localhost/echo", emptyMap(), null)
             }
@@ -347,7 +347,7 @@ class DefaultApiClientUnitTest {
         fun sendsPostWithJsonBody() {
             val client = mockClient(body = "{\"method\":\"POST\",\"body\":\"key\"}")
             val apiClient = DefaultApiClient(client)
-            var response: ApiResponse? = null
+            var response: ApiHttpResponse? = null
             runBlocking {
                 response =
                     apiClient.sendRequest(
@@ -375,7 +375,7 @@ class DefaultApiClientUnitTest {
                 }
             val client = HttpClient(engine) { followRedirects = false }
             val apiClient = DefaultApiClient(client)
-            var response: ApiResponse? = null
+            var response: ApiHttpResponse? = null
             runBlocking {
                 response = apiClient.sendRequest("GET", "http://localhost/echo", emptyMap(), null)
             }
@@ -392,7 +392,7 @@ class DefaultApiClientUnitTest {
         fun returnsNon2xxStatusCode() {
             val client = mockClient(statusCode = HttpStatusCode.NotFound, body = "not found")
             val apiClient = DefaultApiClient(client)
-            var response: ApiResponse? = null
+            var response: ApiHttpResponse? = null
             runBlocking {
                 response = apiClient.sendRequest("GET", "http://localhost/not-found", emptyMap(), null)
             }
@@ -405,7 +405,7 @@ class DefaultApiClientUnitTest {
         fun sendsPutRequest() {
             val client = mockClient(body = "{\"method\":\"PUT\"}")
             val apiClient = DefaultApiClient(client)
-            var response: ApiResponse? = null
+            var response: ApiHttpResponse? = null
             runBlocking {
                 response = apiClient.sendRequest("PUT", "http://localhost/echo", emptyMap(), "update")
             }
@@ -418,7 +418,7 @@ class DefaultApiClientUnitTest {
         fun sendsDeleteRequest() {
             val client = mockClient(body = "{\"method\":\"DELETE\"}")
             val apiClient = DefaultApiClient(client)
-            var response: ApiResponse? = null
+            var response: ApiHttpResponse? = null
             runBlocking {
                 response = apiClient.sendRequest("DELETE", "http://localhost/echo", emptyMap(), null)
             }
@@ -439,7 +439,7 @@ class DefaultApiClientUnitTest {
                 }
             val client = HttpClient(engine) { followRedirects = false }
             val apiClient = DefaultApiClient(client)
-            var response: ApiResponse? = null
+            var response: ApiHttpResponse? = null
             runBlocking {
                 response = apiClient.sendRequest("GET", "http://localhost/vendor-json", emptyMap(), null)
             }
@@ -522,7 +522,7 @@ class DefaultApiClientUnitTest {
                 }
             val client = HttpClient(engine) { followRedirects = false }
             val apiClient = DefaultApiClient(client)
-            var response: ApiResponse? = null
+            var response: ApiHttpResponse? = null
             runBlocking {
                 response = apiClient.sendRequest("GET", "http://localhost/multi-header", emptyMap(), null)
             }

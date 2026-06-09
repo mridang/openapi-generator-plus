@@ -138,7 +138,7 @@ func (a *StoreApi) GetInventoryWithHTTPInfo() (*ApiResult[map[string]int32], err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
-			 * could be carried in HttpResponse.Body (a string); decode it back
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
@@ -224,7 +224,7 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], e
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
-			 * could be carried in HttpResponse.Body (a string); decode it back
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
@@ -304,7 +304,7 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(order *Order) (*ApiResult[Order], erro
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
-			 * could be carried in HttpResponse.Body (a string); decode it back
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {

@@ -25,7 +25,7 @@ class CapturingApiClient
     @captured_url = url
     @captured_headers = headers
     @captured_body = body
-    PetstoreClient::ApiResponse.new(status_code: 200, body: '{}', headers: { 'content-type' => 'application/json' })
+    PetstoreClient::ApiHttpResponse.new(status_code: 200, body: '{}', headers: { 'content-type' => 'application/json' })
   end
 end
 
@@ -419,7 +419,7 @@ describe PetstoreClient::Api::BaseApi do
   it 'skips deserialization for non-JSON content type' do
     client = CapturingApiClient.new
     def client.send_request(_method, _url, _headers, _body)
-      PetstoreClient::ApiResponse.new(status_code: 200, body: 'hello', headers: { 'Content-Type' => 'text/plain' })
+      PetstoreClient::ApiHttpResponse.new(status_code: 200, body: 'hello', headers: { 'Content-Type' => 'text/plain' })
     end
     config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
@@ -431,7 +431,7 @@ describe PetstoreClient::Api::BaseApi do
   it 'deserializes vendor JSON MIME types like application/problem+json' do
     client = CapturingApiClient.new
     def client.send_request(_method, _url, _headers, _body)
-      PetstoreClient::ApiResponse.new(
+      PetstoreClient::ApiHttpResponse.new(
         status_code: 200,
         body: '{"title":"Not Found"}',
         headers: { 'Content-Type' => 'application/problem+json' }
@@ -512,7 +512,7 @@ describe PetstoreClient::Api::BaseApi do
     encoded = Base64.strict_encode64(original_bytes)
     client = CapturingApiClient.new
     def client.send_request(_method, _url, _headers, _body)
-      PetstoreClient::ApiResponse.new(status_code: 200, body: @_encoded, headers: { 'Content-Type' => 'application/octet-stream' })
+      PetstoreClient::ApiHttpResponse.new(status_code: 200, body: @_encoded, headers: { 'Content-Type' => 'application/octet-stream' })
     end
     client.instance_variable_set(:@_encoded, encoded)
     config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
@@ -529,7 +529,7 @@ describe PetstoreClient::Api::BaseApi do
     encoded = Base64.strict_encode64(original_bytes)
     client = CapturingApiClient.new
     def client.send_request(_method, _url, _headers, _body)
-      PetstoreClient::ApiResponse.new(status_code: 200, body: @_encoded, headers: { 'Content-Type' => 'image/png' })
+      PetstoreClient::ApiHttpResponse.new(status_code: 200, body: @_encoded, headers: { 'Content-Type' => 'image/png' })
     end
     client.instance_variable_set(:@_encoded, encoded)
     config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
@@ -552,7 +552,7 @@ describe PetstoreClient::Api::BaseApi do
   it 'returns string for text/plain response' do
     client = CapturingApiClient.new
     def client.send_request(_method, _url, _headers, _body)
-      PetstoreClient::ApiResponse.new(status_code: 200, body: 'hello world', headers: { 'Content-Type' => 'text/plain' })
+      PetstoreClient::ApiHttpResponse.new(status_code: 200, body: 'hello world', headers: { 'Content-Type' => 'text/plain' })
     end
     config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
@@ -564,7 +564,7 @@ describe PetstoreClient::Api::BaseApi do
   it 'returns nil when response body is empty' do
     client = CapturingApiClient.new
     def client.send_request(_method, _url, _headers, _body)
-      PetstoreClient::ApiResponse.new(status_code: 200, body: '', headers: { 'Content-Type' => 'application/octet-stream' })
+      PetstoreClient::ApiHttpResponse.new(status_code: 200, body: '', headers: { 'Content-Type' => 'application/octet-stream' })
     end
     config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
@@ -578,7 +578,7 @@ describe PetstoreClient::Api::BaseApi do
   it 'ApiResult#raw_body is a non-nil String even for an empty body' do
     client = CapturingApiClient.new
     def client.send_request(_method, _url, _headers, _body)
-      PetstoreClient::ApiResponse.new(status_code: 204, body: '', headers: { 'Content-Type' => 'application/json' })
+      PetstoreClient::ApiHttpResponse.new(status_code: 204, body: '', headers: { 'Content-Type' => 'application/json' })
     end
     config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)

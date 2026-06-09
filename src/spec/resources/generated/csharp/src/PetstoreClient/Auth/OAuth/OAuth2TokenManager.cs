@@ -228,7 +228,7 @@ public sealed class OAuth2TokenManager
          * not an RFC 6749 §5.2 server error body, so we raise OAuth2TokenError
          * (reserving OAuth2ServerError for 4xx/5xx error bodies) — matching the
          * other 11 SDKs, which all throw their token/transport error here. */
-        ApiResponse response = await _apiClient
+        ApiHttpResponse response = await _apiClient
             .SendRequestAsync("POST", tokenUrl, headers, body, noRedirect: true)
             .ConfigureAwait(false);
 

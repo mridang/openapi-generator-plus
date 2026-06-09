@@ -7,7 +7,7 @@
 
 import { OAuth2TokenManager, OAuth2TokenError, OAuth2ServerError } from '../src/auth/oauth/oauth2-token-manager.js';
 import type { ApiClient, SendRequestOptions } from '../src/api-client.js';
-import type { ApiResponse } from '../src/api-response.js';
+import type { ApiHttpResponse } from '../src/api-response.js';
 
 class MockApiClient implements ApiClient {
   lastMethod = '';
@@ -26,7 +26,7 @@ class MockApiClient implements ApiClient {
     headers: Record<string, string>,
     body: string | Buffer | null,
     options?: SendRequestOptions
-  ): Promise<ApiResponse> {
+  ): Promise<ApiHttpResponse> {
     this.lastMethod = method;
     this.lastUrl = url;
     this.lastHeaders = headers;
@@ -150,7 +150,7 @@ describe('OAuth2TokenManager', () => {
     // performs a fresh network round-trip.
     let n = 0;
     const stepClient: ApiClient = {
-      async sendRequest(): Promise<ApiResponse> {
+      async sendRequest(): Promise<ApiHttpResponse> {
         n++;
         return {
           statusCode: 200,
@@ -180,7 +180,7 @@ describe('OAuth2TokenManager', () => {
     // MUST NOT clobber the cached refresh_token.
     let n = 0;
     const stepClient: ApiClient = {
-      async sendRequest(): Promise<ApiResponse> {
+      async sendRequest(): Promise<ApiHttpResponse> {
         n++;
         if (n === 1) {
           return {
@@ -267,7 +267,7 @@ describe('OAuth2TokenManager', () => {
     // immediately stale so the very next call refetches.
     let n = 0;
     const stepClient: ApiClient = {
-      async sendRequest(): Promise<ApiResponse> {
+      async sendRequest(): Promise<ApiHttpResponse> {
         n++;
         if (n === 1) {
           return {
@@ -384,7 +384,7 @@ describe('OAuth2TokenManager', () => {
     // Gap CM: expires_in == 30 collapses expiry to now, forcing refetch.
     let n = 0;
     const stepClient: ApiClient = {
-      async sendRequest(): Promise<ApiResponse> {
+      async sendRequest(): Promise<ApiHttpResponse> {
         n++;
         return {
           statusCode: 200,
@@ -409,13 +409,13 @@ describe('OAuth2TokenManager', () => {
   });
 
   test('coalesces concurrent refresh calls into single token request', async () => {
-    let pendingResolve: ((value: ApiResponse) => void) | null = null;
+    let pendingResolve: ((value: ApiHttpResponse) => void) | null = null;
     let networkCalls = 0;
 
     class SlowMockApiClient implements ApiClient {
-      async sendRequest(): Promise<ApiResponse> {
+      async sendRequest(): Promise<ApiHttpResponse> {
         networkCalls++;
-        return new Promise<ApiResponse>((resolve) => {
+        return new Promise<ApiHttpResponse>((resolve) => {
           pendingResolve = resolve;
         });
       }

@@ -46,7 +46,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
     test "sends client credentials grant type" do
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
           }
@@ -64,7 +64,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
     test "sends client id and secret" do
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
           }
@@ -83,7 +83,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
     test "sends scopes" do
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
           }
@@ -101,7 +101,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
     test "returns authorization bearer header" do
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "tok-abc", "expires_in" => 3600})
           }
@@ -118,7 +118,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
     test "sends request to token URL" do
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
           }
@@ -145,7 +145,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
       # unauthenticated and produce a confusing downstream 401.
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 401,
             body: Jason.encode!(%{"error" => "invalid_client"})
           }
@@ -167,7 +167,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
       # raise, proving single-flight.
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "cached-cc-token", "expires_in" => 3600})
           }
@@ -191,7 +191,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
       # (not raw) before the colon-join + base64.
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "at", "expires_in" => 3600})
           }

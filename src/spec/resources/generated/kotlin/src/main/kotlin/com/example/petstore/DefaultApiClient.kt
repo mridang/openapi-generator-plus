@@ -106,7 +106,7 @@ class DefaultApiClient internal constructor(
         headers: Map<String, String>,
         body: Any?,
         noRedirect: Boolean,
-    ): ApiResponse {
+    ): ApiHttpResponse {
         if (closed) {
             throw ApiException("ApiClient has been closed and can no longer send requests")
         }
@@ -308,7 +308,7 @@ class DefaultApiClient internal constructor(
                     .getEncoder()
                     .encodeToString(rawBytes)
             }
-        return ApiResponse(
+        return ApiHttpResponse(
             statusCode = response.status.value,
             body = responseBody,
             headers = responseHeaders,

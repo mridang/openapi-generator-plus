@@ -15,7 +15,7 @@ namespace PetstoreClient\Api;
 
 use PetstoreClient\ApiClient;
 use PetstoreClient\ApiException;
-use PetstoreClient\ApiResponse;
+use PetstoreClient\ApiHttpResponse;
 use PetstoreClient\ApiResult;
 use PetstoreClient\Auth\Authenticator;
 use PetstoreClient\Configuration;
@@ -244,7 +244,7 @@ class BaseApi
      *
      * @throws ApiException always
      */
-    private function throwApiException(ApiResponse $response): never
+    private function throwApiException(ApiHttpResponse $response): never
     {
         $code = $response->statusCode;
         $message = "API returned status code $code";

@@ -28,7 +28,7 @@ class BaseApiTest {
             accepts: Array<String> = arrayOf("application/json"),
             contentType: String = "application/json",
             auth: Authenticator? = null
-        ): ApiResponse {
+        ): ApiHttpResponse {
             return invokeApi(method, path, queryParams, headerParams, body, accepts, contentType, auth)
         }
     }
@@ -46,7 +46,7 @@ class BaseApiTest {
             accepts: Array<String> = arrayOf("application/json"),
             contentType: String = "application/json",
             auth: Authenticator? = null
-        ): ApiResponse {
+        ): ApiHttpResponse {
             return invokeApi(method, path, queryParams, headerParams, body, accepts, contentType, auth)
         }
 
@@ -78,7 +78,7 @@ class BaseApiTest {
             accepts: Array<String> = arrayOf("application/json"),
             contentType: String = "application/json",
             auth: Authenticator? = null
-        ): ApiResponse {
+        ): ApiHttpResponse {
             return invokeApi(method, path, queryParams, headerParams, body, accepts, contentType, auth)
         }
     }
@@ -94,11 +94,11 @@ class BaseApiTest {
             headers: Map<String, String>,
             body: Any?,
             noRedirect: Boolean
-        ): ApiResponse {
+        ): ApiHttpResponse {
             capturedUrl = url
             capturedHeaders = headers
             capturedBody = body
-            return ApiResponse(200, "{}", mapOf("Content-Type" to "application/json"))
+            return ApiHttpResponse(200, "{}", mapOf("Content-Type" to "application/json"))
         }
     }
 
@@ -361,10 +361,10 @@ class BaseApiTest {
                     headers: Map<String, String>,
                     body: Any?,
                     noRedirect: Boolean
-                ): ApiResponse {
+                ): ApiHttpResponse {
                     capturedHeaders = headers
                     capturedBody = body
-                    return ApiResponse(200, "hello", mapOf("Content-Type" to "text/plain"))
+                    return ApiHttpResponse(200, "hello", mapOf("Content-Type" to "text/plain"))
                 }
             }
             val testApi = TestableApiWithClient(client, "http://localhost")
@@ -388,10 +388,10 @@ class BaseApiTest {
                     headers: Map<String, String>,
                     body: Any?,
                     noRedirect: Boolean
-                ): ApiResponse {
+                ): ApiHttpResponse {
                     capturedHeaders = headers
                     capturedBody = body
-                    return ApiResponse(200, "{\"title\":\"Not Found\"}", mapOf("Content-Type" to "application/problem+json"))
+                    return ApiHttpResponse(200, "{\"title\":\"Not Found\"}", mapOf("Content-Type" to "application/problem+json"))
                 }
             }
             val testApi = TestableApiWithClient(client, "http://localhost")
@@ -698,8 +698,8 @@ class BaseApiTest {
             val client = object : CapturingApiClient() {
                 override suspend fun sendRequest(
                     method: String, url: String, headers: Map<String, String>, body: Any?, noRedirect: Boolean
-                ): ApiResponse {
-                    return ApiResponse(200, encoded, mapOf("Content-Type" to "application/octet-stream"))
+                ): ApiHttpResponse {
+                    return ApiHttpResponse(200, encoded, mapOf("Content-Type" to "application/octet-stream"))
                 }
             }
             val response = runBlocking { client.sendRequest("GET", "/api/binary", emptyMap(), null) }
@@ -713,8 +713,8 @@ class BaseApiTest {
             val client = object : CapturingApiClient() {
                 override suspend fun sendRequest(
                     method: String, url: String, headers: Map<String, String>, body: Any?, noRedirect: Boolean
-                ): ApiResponse {
-                    return ApiResponse(200, "iVBORw0KGgo=", mapOf("Content-Type" to "image/png"))
+                ): ApiHttpResponse {
+                    return ApiHttpResponse(200, "iVBORw0KGgo=", mapOf("Content-Type" to "image/png"))
                 }
             }
             val response = runBlocking { client.sendRequest("GET", "/api/image", emptyMap(), null) }
@@ -729,8 +729,8 @@ class BaseApiTest {
             val client = object : CapturingApiClient() {
                 override suspend fun sendRequest(
                     method: String, url: String, headers: Map<String, String>, body: Any?, noRedirect: Boolean
-                ): ApiResponse {
-                    return ApiResponse(200, "{\"key\":\"value\"}", mapOf("Content-Type" to "application/json"))
+                ): ApiHttpResponse {
+                    return ApiHttpResponse(200, "{\"key\":\"value\"}", mapOf("Content-Type" to "application/json"))
                 }
             }
             val testApi = TestableApiWithClient(client, "http://localhost")
@@ -747,8 +747,8 @@ class BaseApiTest {
             val client = object : CapturingApiClient() {
                 override suspend fun sendRequest(
                     method: String, url: String, headers: Map<String, String>, body: Any?, noRedirect: Boolean
-                ): ApiResponse {
-                    return ApiResponse(200, "hello", mapOf("Content-Type" to "text/plain"))
+                ): ApiHttpResponse {
+                    return ApiHttpResponse(200, "hello", mapOf("Content-Type" to "text/plain"))
                 }
             }
             val testApi = TestableApiWithClient(client, "http://localhost")
@@ -765,8 +765,8 @@ class BaseApiTest {
             val client = object : CapturingApiClient() {
                 override suspend fun sendRequest(
                     method: String, url: String, headers: Map<String, String>, body: Any?, noRedirect: Boolean
-                ): ApiResponse {
-                    return ApiResponse(200, "", mapOf("Content-Type" to "application/octet-stream"))
+                ): ApiHttpResponse {
+                    return ApiHttpResponse(200, "", mapOf("Content-Type" to "application/octet-stream"))
                 }
             }
             val response = runBlocking { client.sendRequest("GET", "/api/binary/empty", emptyMap(), null) }
@@ -787,9 +787,9 @@ class BaseApiTest {
             val client = object : CapturingApiClient() {
                 override suspend fun sendRequest(
                     method: String, url: String, headers: Map<String, String>, body: Any?, noRedirect: Boolean
-                ): ApiResponse {
+                ): ApiHttpResponse {
                     capturedHeaders.putAll(headers)
-                    return ApiResponse(200, "{}", mapOf("Content-Type" to "application/json"))
+                    return ApiHttpResponse(200, "{}", mapOf("Content-Type" to "application/json"))
                 }
             }
             val headers = mutableMapOf("Authorization" to "Bearer token123")

@@ -57,6 +57,166 @@ internal object Base64ByteArraySerializer : KSerializer<ByteArray> {
     override fun deserialize(decoder: Decoder): ByteArray = Base64.getDecoder().decode(decoder.decodeString())
 }
 
+/*
+ * Strict per-field primitive (de)serializers.
+ *
+ * kotlinx-serialization SILENTLY coerces a quoted scalar (e.g. {"id":"42"})
+ * into a numeric/boolean field even with isLenient=false — the parser reads
+ * the JSON string token and parses its content. That masks a payload type
+ * mismatch the same way Jackson's ALLOW_COERCION_OF_SCALARS did before it was
+ * disabled on the Java SDK. These serializers close that gap: on deserialize
+ * they read the raw JsonElement and require the JSON primitive to be the right
+ * kind, rejecting string->number, string->boolean, number->boolean and
+ * boolean->number with a SerializationException (which the SDK surfaces as its
+ * serialization error). Serialization is unchanged, so valid values still
+ * round-trip.
+ *
+ * Applied to model properties via @Serializable(with = ...) in model.mustache.
+ */
+
+/** Require the decoded element to be an unquoted JSON number (reject quoted scalars). */
+private fun requireJsonNumber(
+    decoder: Decoder,
+    type: String,
+): JsonPrimitive {
+    val element =
+        (decoder as? JsonDecoder)?.decodeJsonElement()
+            ?: throw kotlinx.serialization.SerializationException(
+                "Strict $type serializer requires a JSON decoder",
+            )
+    val primitive =
+        element as? JsonPrimitive
+            ?: throw kotlinx.serialization.SerializationException(
+                "Expected a JSON number for $type but found ${element::class.simpleName}",
+            )
+    if (primitive.isString) {
+        throw kotlinx.serialization.SerializationException(
+            "Expected a JSON number for $type but found a quoted string: ${primitive.content}",
+        )
+    }
+    return primitive
+}
+
+internal object StrictIntSerializer : KSerializer<Int> {
+    override val descriptor = PrimitiveSerialDescriptor("Int", PrimitiveKind.INT)
+
+    override fun serialize(
+        encoder: Encoder,
+        value: Int,
+    ) = encoder.encodeInt(value)
+
+    override fun deserialize(decoder: Decoder): Int {
+        val p = requireJsonNumber(decoder, "Int")
+        return p.content.toIntOrNull()
+            ?: throw kotlinx.serialization.SerializationException("Invalid Int: ${p.content}")
+    }
+}
+
+internal object StrictLongSerializer : KSerializer<Long> {
+    override val descriptor = PrimitiveSerialDescriptor("Long", PrimitiveKind.LONG)
+
+    override fun serialize(
+        encoder: Encoder,
+        value: Long,
+    ) = encoder.encodeLong(value)
+
+    override fun deserialize(decoder: Decoder): Long {
+        val p = requireJsonNumber(decoder, "Long")
+        return p.content.toLongOrNull()
+            ?: throw kotlinx.serialization.SerializationException("Invalid Long: ${p.content}")
+    }
+}
+
+internal object StrictDoubleSerializer : KSerializer<Double> {
+    override val descriptor = PrimitiveSerialDescriptor("Double", PrimitiveKind.DOUBLE)
+
+    override fun serialize(
+        encoder: Encoder,
+        value: Double,
+    ) = encoder.encodeDouble(value)
+
+    override fun deserialize(decoder: Decoder): Double {
+        val p = requireJsonNumber(decoder, "Double")
+        return p.content.toDoubleOrNull()
+            ?: throw kotlinx.serialization.SerializationException("Invalid Double: ${p.content}")
+    }
+}
+
+internal object StrictFloatSerializer : KSerializer<Float> {
+    override val descriptor = PrimitiveSerialDescriptor("Float", PrimitiveKind.FLOAT)
+
+    override fun serialize(
+        encoder: Encoder,
+        value: Float,
+    ) = encoder.encodeFloat(value)
+
+    override fun deserialize(decoder: Decoder): Float {
+        val p = requireJsonNumber(decoder, "Float")
+        return p.content.toFloatOrNull()
+            ?: throw kotlinx.serialization.SerializationException("Invalid Float: ${p.content}")
+    }
+}
+
+internal object StrictShortSerializer : KSerializer<Short> {
+    override val descriptor = PrimitiveSerialDescriptor("Short", PrimitiveKind.SHORT)
+
+    override fun serialize(
+        encoder: Encoder,
+        value: Short,
+    ) = encoder.encodeShort(value)
+
+    override fun deserialize(decoder: Decoder): Short {
+        val p = requireJsonNumber(decoder, "Short")
+        return p.content.toShortOrNull()
+            ?: throw kotlinx.serialization.SerializationException("Invalid Short: ${p.content}")
+    }
+}
+
+internal object StrictByteSerializer : KSerializer<Byte> {
+    override val descriptor = PrimitiveSerialDescriptor("Byte", PrimitiveKind.BYTE)
+
+    override fun serialize(
+        encoder: Encoder,
+        value: Byte,
+    ) = encoder.encodeByte(value)
+
+    override fun deserialize(decoder: Decoder): Byte {
+        val p = requireJsonNumber(decoder, "Byte")
+        return p.content.toByteOrNull()
+            ?: throw kotlinx.serialization.SerializationException("Invalid Byte: ${p.content}")
+    }
+}
+
+internal object StrictBooleanSerializer : KSerializer<Boolean> {
+    override val descriptor = PrimitiveSerialDescriptor("Boolean", PrimitiveKind.BOOLEAN)
+
+    override fun serialize(
+        encoder: Encoder,
+        value: Boolean,
+    ) = encoder.encodeBoolean(value)
+
+    override fun deserialize(decoder: Decoder): Boolean {
+        val element =
+            (decoder as? JsonDecoder)?.decodeJsonElement()
+                ?: throw kotlinx.serialization.SerializationException(
+                    "Strict Boolean serializer requires a JSON decoder",
+                )
+        val primitive =
+            element as? JsonPrimitive
+                ?: throw kotlinx.serialization.SerializationException(
+                    "Expected a JSON boolean but found ${element::class.simpleName}",
+                )
+        // Reject quoted scalars ("true") and numbers (1); accept only the
+        // bare JSON literals true / false.
+        if (primitive.isString || (primitive.content != "true" && primitive.content != "false")) {
+            throw kotlinx.serialization.SerializationException(
+                "Expected a JSON boolean but found: ${primitive.content}",
+            )
+        }
+        return primitive.content == "true"
+    }
+}
+
 /**
  * Handles JSON serialization and deserialization for API requests and responses.
  *

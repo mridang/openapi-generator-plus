@@ -8,7 +8,7 @@
 package com.example.petstore.auth.oauth
 
 import com.example.petstore.ApiClient
-import com.example.petstore.ApiResponse
+import com.example.petstore.ApiHttpResponse
 import io.ktor.http.encodeURLQueryComponent
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -172,7 +172,7 @@ class OAuth2TokenManager {
         // credentials (client_secret, refresh_token, password) in the form
         // body to a redirect target; 301/302/303 are rejected too so a
         // misconfigured or malicious server cannot bounce the request at all.
-        val response: ApiResponse = client.sendRequest("POST", tokenUrl, headers, body, noRedirect = true)
+        val response: ApiHttpResponse = client.sendRequest("POST", tokenUrl, headers, body, noRedirect = true)
         if (response.statusCode in 300..399) {
             throw OAuth2TokenError(
                 "Refusing to follow ${response.statusCode} redirect on OAuth2 token " +

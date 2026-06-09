@@ -15,7 +15,7 @@ import java.util.LinkedList
 
 class OpenIdConnectAuthenticatorTest {
     private class FakeApiClient : ApiClient {
-        private val responses = LinkedList<ApiResponse>()
+        private val responses = LinkedList<ApiHttpResponse>()
         var lastBody: String? = null
             private set
         var lastUrl: String? = null
@@ -29,7 +29,7 @@ class OpenIdConnectAuthenticatorTest {
             body: String,
             statusCode: Int = 200,
         ) {
-            responses.add(ApiResponse(statusCode, body, emptyMap()))
+            responses.add(ApiHttpResponse(statusCode, body, emptyMap()))
         }
 
         override suspend fun sendRequest(
@@ -38,7 +38,7 @@ class OpenIdConnectAuthenticatorTest {
             headers: Map<String, String>,
             body: Any?,
             noRedirect: Boolean,
-        ): ApiResponse {
+        ): ApiHttpResponse {
             lastMethod = method
             lastUrl = url
             lastBody = body?.toString()

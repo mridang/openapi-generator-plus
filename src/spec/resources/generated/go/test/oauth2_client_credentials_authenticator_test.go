@@ -31,11 +31,11 @@ type fakeClientCredsResponse struct {
 	statusCode int
 }
 
-func (c *fakeClientCredsClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.HttpResponse, error) {
+func (c *fakeClientCredsClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.ApiHttpResponse, error) {
 	return c.SendRequestWithOptions(method, url, headers, body, nil)
 }
 
-func (c *fakeClientCredsClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *auth.RequestOptions) (*auth.HttpResponse, error) {
+func (c *fakeClientCredsClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *auth.RequestOptions) (*auth.ApiHttpResponse, error) {
 	_ = opts
 	c.LastURL = url
 	c.LastHeaders = headers
@@ -46,7 +46,7 @@ func (c *fakeClientCredsClient) SendRequestWithOptions(method, url string, heade
 	}
 	idx := atomic.AddInt32(&c.index, 1) - 1
 	resp := c.responses[idx]
-	return &auth.HttpResponse{
+	return &auth.ApiHttpResponse{
 		StatusCode: resp.statusCode,
 		Body:       resp.body,
 		Headers:    map[string]string{},

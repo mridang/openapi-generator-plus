@@ -19,12 +19,14 @@ import kotlinx.serialization.UseSerializers
 data class Photo(
     /** Example: `null` */
     @SerialName("id")
+    @Serializable(with = com.example.petstore.StrictLongSerializer::class)
     val id: Long? = null,
     /** Example: `null` */
     @SerialName("caption")
     val caption: String? = null,
     /** Example: `null` */
     @SerialName("isPrimary")
+    @Serializable(with = com.example.petstore.StrictBooleanSerializer::class)
     val isPrimary: Boolean? = null,
     /** Example: `null` */
     @SerialName("url")

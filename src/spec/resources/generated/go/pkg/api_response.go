@@ -7,8 +7,8 @@
 
 package petstore
 
-// HttpResponse wraps an HTTP response with status code, body, and headers.
-type HttpResponse struct {
+// ApiHttpResponse wraps an HTTP response with status code, body, and headers.
+type ApiHttpResponse struct {
 	/* StatusCode is the HTTP status code of the response. */
 	StatusCode int
 

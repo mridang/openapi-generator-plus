@@ -33,7 +33,7 @@ class DefaultApiClientTest {
       TransportOptions transport = TransportOptions.builder().verifySsl(false).build();
 
       DefaultApiClient client = new DefaultApiClient(transport);
-      ApiResponse response =
+      ApiHttpResponse response =
           client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
 
       assertEquals(200, response.statusCode());
@@ -85,7 +85,7 @@ class DefaultApiClientTest {
       TransportOptions transport = TransportOptions.builder().verifySsl(false).build();
 
       DefaultApiClient client = new DefaultApiClient(transport);
-      ApiResponse response =
+      ApiHttpResponse response =
           client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
 
       assertEquals(200, response.statusCode());
@@ -107,7 +107,7 @@ class DefaultApiClientTest {
           TransportOptions.builder().verifySsl(true).caCertPath(CA_CERT_PATH).build();
 
       DefaultApiClient client = new DefaultApiClient(transport);
-      ApiResponse response =
+      ApiHttpResponse response =
           client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
 
       assertEquals(200, response.statusCode());
@@ -129,7 +129,7 @@ class DefaultApiClientTest {
       TransportOptions transport = TransportOptions.builder().proxy(proxyUrl).build();
 
       DefaultApiClient client = new DefaultApiClient(transport);
-      ApiResponse response =
+      ApiHttpResponse response =
           client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
 
       assertEquals(200, response.statusCode());
@@ -176,7 +176,7 @@ class DefaultApiClientTest {
           TransportOptions.builder().proxy(proxyUrl).verifySsl(false).build();
 
       DefaultApiClient client = new DefaultApiClient(transport);
-      ApiResponse response =
+      ApiHttpResponse response =
           client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
 
       assertEquals(200, response.statusCode());
@@ -214,7 +214,7 @@ class DefaultApiClientTest {
       TransportOptions transport = TransportOptions.builder().userAgent("MyApp/1.0").build();
 
       DefaultApiClient client = new DefaultApiClient(transport);
-      ApiResponse response =
+      ApiHttpResponse response =
           client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
 
       assertEquals(200, response.statusCode());
@@ -235,7 +235,7 @@ class DefaultApiClientTest {
       TransportOptions transport = TransportOptions.builder().injectRequestId(true).build();
 
       DefaultApiClient client = new DefaultApiClient(transport);
-      ApiResponse response =
+      ApiHttpResponse response =
           client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
 
       assertEquals(200, response.statusCode());
@@ -256,12 +256,12 @@ class DefaultApiClientTest {
       DefaultApiClient client = new DefaultApiClient(transport);
       ObjectMapper mapper = new ObjectMapper();
 
-      ApiResponse response1 =
+      ApiHttpResponse response1 =
           client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
       String requestId1 =
           mapper.readTree(response1.body()).get("headers").get("x-request-id").asText();
 
-      ApiResponse response2 =
+      ApiHttpResponse response2 =
           client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
       String requestId2 =
           mapper.readTree(response2.body()).get("headers").get("x-request-id").asText();
@@ -283,7 +283,7 @@ class DefaultApiClientTest {
           TransportOptions.builder().defaultHeader("X-Custom", "custom-value").build();
 
       DefaultApiClient client = new DefaultApiClient(transport);
-      ApiResponse response =
+      ApiHttpResponse response =
           client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
 
       assertEquals(200, response.statusCode());
@@ -302,7 +302,7 @@ class DefaultApiClientTest {
       DefaultApiClient client = new DefaultApiClient(transport);
       Map<String, String> callerHeaders = new HashMap<>();
       callerHeaders.put("Accept", "application/json");
-      ApiResponse response =
+      ApiHttpResponse response =
           client.sendRequest("GET", chasmUrl + "/test/echo", callerHeaders, null);
 
       assertEquals(200, response.statusCode());
@@ -323,7 +323,7 @@ class DefaultApiClientTest {
       TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
 
       DefaultApiClient client = new DefaultApiClient(transport);
-      ApiResponse response =
+      ApiHttpResponse response =
           client.sendRequest("GET", chasmUrl + "/test/redirect/302", new HashMap<>(), null);
 
       assertEquals(200, response.statusCode());
@@ -337,7 +337,7 @@ class DefaultApiClientTest {
       TransportOptions transport = TransportOptions.builder().followRedirects(false).build();
 
       DefaultApiClient client = new DefaultApiClient(transport);
-      ApiResponse response =
+      ApiHttpResponse response =
           client.sendRequest("GET", chasmUrl + "/test/redirect/302", new HashMap<>(), null);
 
       assertEquals(302, response.statusCode());
@@ -354,7 +354,7 @@ class DefaultApiClientTest {
       DefaultApiClient client = new DefaultApiClient(transport);
       Map<String, String> headers = new HashMap<>();
       headers.put("Content-Type", "application/json");
-      ApiResponse response =
+      ApiHttpResponse response =
           client.sendRequest("POST", chasmUrl + "/test/redirect/303", headers, "hello-body");
 
       assertEquals(200, response.statusCode());
@@ -384,7 +384,7 @@ class DefaultApiClientTest {
 
       // Chasm echoes the redirected request; 200 with method=POST and
       // a non-empty body confirms the multipart body was replayed.
-      ApiResponse response =
+      ApiHttpResponse response =
           client.sendRequest(
               "POST", chasmUrl + "/test/redirect/307-multipart", new HashMap<>(), formFields);
 
@@ -450,7 +450,7 @@ class DefaultApiClientTest {
       formFields.put("file", "file content".getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
       DefaultApiClient client = new DefaultApiClient();
-      ApiResponse response =
+      ApiHttpResponse response =
           client.sendRequest("POST", chasmUrl + "/test/echo", new HashMap<>(), formFields);
 
       assertNotNull(response);
@@ -507,7 +507,7 @@ class DefaultApiClientTest {
       DefaultApiClient client = new DefaultApiClient();
       HashMap<String, String> headers = new HashMap<>();
       headers.put("Accept-Encoding", "gzip");
-      ApiResponse response = client.sendRequest("GET", COMPRESSION_URL, headers, null);
+      ApiHttpResponse response = client.sendRequest("GET", COMPRESSION_URL, headers, null);
 
       assertEquals(200, response.statusCode());
       assertTrue(response.body().contains("userId"));
@@ -519,7 +519,7 @@ class DefaultApiClientTest {
       DefaultApiClient client = new DefaultApiClient();
       HashMap<String, String> headers = new HashMap<>();
       headers.put("Accept-Encoding", "br");
-      ApiResponse response = client.sendRequest("GET", COMPRESSION_URL, headers, null);
+      ApiHttpResponse response = client.sendRequest("GET", COMPRESSION_URL, headers, null);
 
       assertEquals(200, response.statusCode());
       assertTrue(response.body().contains("userId"));
@@ -531,7 +531,7 @@ class DefaultApiClientTest {
       DefaultApiClient client = new DefaultApiClient();
       HashMap<String, String> headers = new HashMap<>();
       headers.put("Accept-Encoding", "zstd");
-      ApiResponse response = client.sendRequest("GET", COMPRESSION_URL, headers, null);
+      ApiHttpResponse response = client.sendRequest("GET", COMPRESSION_URL, headers, null);
 
       assertEquals(200, response.statusCode());
       assertTrue(response.body().contains("userId"));
@@ -637,7 +637,7 @@ class DefaultApiClientTest {
       String chasmUrl = ChasmContainer.getBaseUrl();
 
       DefaultApiClient client = new DefaultApiClient();
-      ApiResponse response =
+      ApiHttpResponse response =
           client.sendRequest("POST", chasmUrl + "/test/echo", new HashMap<>(), null);
 
       assertEquals(200, response.statusCode());

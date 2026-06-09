@@ -8,7 +8,7 @@
 import * as util from 'node:util';
 import { OAuth2AuthorizationCodeAuthenticator } from '../src/auth/oauth/oauth2-auth-code-authenticator.js';
 import type { ApiClient } from '../src/api-client.js';
-import type { ApiResponse } from '../src/api-response.js';
+import type { ApiHttpResponse } from '../src/api-response.js';
 
 class MockApiClient implements ApiClient {
   lastMethod = '';
@@ -23,7 +23,7 @@ class MockApiClient implements ApiClient {
     url: string,
     headers: Record<string, string>,
     body: string | Buffer | null
-  ): Promise<ApiResponse> {
+  ): Promise<ApiHttpResponse> {
     this.lastMethod = method;
     this.lastUrl = url;
     this.lastHeaders = headers;

@@ -31,6 +31,7 @@ import kotlin.collections.Set
 data class Pet(
     /** Example: `10` */
     @SerialName("id")
+    @Serializable(with = com.example.petstore.StrictLongSerializer::class)
     val id: Long? = null,
     /** Example: `doggie` */
     @SerialName("name")

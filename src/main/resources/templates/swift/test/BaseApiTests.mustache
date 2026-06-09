@@ -36,12 +36,12 @@ import Testing
         var responseBody: String = "{}"
         var responseHeaders: [String: String] = ["Content-Type": "application/json"]
 
-        func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool) async throws -> HttpResponse {
+        func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool) async throws -> ApiHttpResponse {
             lastMethod = method
             lastURL = url
             lastHeaders = headers
             lastBody = body as? Data
-            return HttpResponse(
+            return ApiHttpResponse(
                 statusCode: responseStatusCode,
                 body: responseBody,
                 headers: responseHeaders

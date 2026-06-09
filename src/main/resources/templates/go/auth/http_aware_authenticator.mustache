@@ -1,10 +1,10 @@
 {{>api_info}}
 package auth
 
-// HttpResponse wraps an HTTP response from the API client.
+// ApiHttpResponse wraps an HTTP response from the API client.
 //
-// Mirrors the main package's HttpResponse to avoid circular imports.
-type HttpResponse struct {
+// Mirrors the main package's ApiHttpResponse to avoid circular imports.
+type ApiHttpResponse struct {
 	/* StatusCode is the HTTP status code of the response. */
 	StatusCode int
 
@@ -33,13 +33,13 @@ type RequestOptions struct {
 // auth subpackage and the root module package.
 type ApiClient interface {
 	/* SendRequest sends an HTTP request and returns the response. */
-	SendRequest(method, url string, headers map[string]string, body any) (*HttpResponse, error)
+	SendRequest(method, url string, headers map[string]string, body any) (*ApiHttpResponse, error)
 
 	/* SendRequestWithOptions sends an HTTP request applying the supplied
 	 * per-request RequestOptions on top of the transport-level defaults.
 	 * Implementations MUST treat a nil opts the same as a zero-value
 	 * RequestOptions. */
-	SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *RequestOptions) (*HttpResponse, error)
+	SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *RequestOptions) (*ApiHttpResponse, error)
 }
 
 // HttpAwareAuthenticator is implemented by authentication schemes that

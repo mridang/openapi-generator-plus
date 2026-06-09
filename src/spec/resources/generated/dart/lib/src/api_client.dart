@@ -26,8 +26,8 @@ abstract class ApiClient {
   ///     token endpoints (Gap 3.2), where silently replaying client
   ///     credentials to a different host would be a credential leak.
   ///
-  /// Returns an [HttpApiResponse] and throws on transport errors.
-  Future<HttpApiResponse> sendRequest(
+  /// Returns an [ApiHttpResponse] and throws on transport errors.
+  Future<ApiHttpResponse> sendRequest(
     String method,
     String url,
     Map<String, String> headers,

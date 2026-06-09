@@ -71,7 +71,7 @@ module {{moduleName}}
     ALL: Array[ServerConfiguration]
   end
 
-  class ApiResponse
+  class ApiHttpResponse
     attr_reader status_code: Integer
     attr_reader body: String
     attr_reader headers: Hash[String, String]
@@ -132,13 +132,13 @@ module {{moduleName}}
   end
 
   class ApiClient
-    def send_request: (Symbol, String, Hash[String, String], untyped, ?no_redirect: bool) -> ApiResponse
+    def send_request: (Symbol, String, Hash[String, String], untyped, ?no_redirect: bool) -> ApiHttpResponse
   end
 
   class DefaultApiClient < ApiClient
     EXTRA_SENSITIVE_HEADER_NAMES: Array[String]
     def initialize: (?TransportOptions?) -> void
-    def send_request: (Symbol, String, Hash[String, String], untyped, ?no_redirect: bool) -> ApiResponse
+    def send_request: (Symbol, String, Hash[String, String], untyped, ?no_redirect: bool) -> ApiHttpResponse
     def close: () -> void
     def self.supported_encodings: () -> String
     private
@@ -396,7 +396,7 @@ module {{moduleName}}
       def invoke_api_for_result: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, Auth::Authenticator?) -> ApiResult[untyped]
       def invoke_api: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, Auth::Authenticator?) -> untyped
       private
-      def throw_api_error: (ApiResponse) -> void
+      def throw_api_error: (ApiHttpResponse) -> void
       def build_query_string: (Hash[String, untyped]) -> String
       def serialize_body: (untyped, String?) -> untyped
       def binary_return_type?: (String?) -> bool

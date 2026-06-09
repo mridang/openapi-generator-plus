@@ -32,7 +32,7 @@ defmodule PetstoreClient.ApiClient do
 
   ## Returns
 
-    An `#{inspect(PetstoreClient.ApiResponse)}` struct.
+    An `#{inspect(PetstoreClient.ApiHttpResponse)}` struct.
   """
   @callback send_request(
               client :: struct(),
@@ -40,7 +40,7 @@ defmodule PetstoreClient.ApiClient do
               url :: String.t(),
               headers :: %{optional(String.t()) => String.t()},
               body :: term() | nil
-            ) :: PetstoreClient.ApiResponse.t()
+            ) :: PetstoreClient.ApiHttpResponse.t()
 
   @doc """
   Variant of `send_request/5` that carries a per-request `opts` keyword list.
@@ -54,7 +54,7 @@ defmodule PetstoreClient.ApiClient do
               headers :: %{optional(String.t()) => String.t()},
               body :: term() | nil,
               opts :: keyword()
-            ) :: PetstoreClient.ApiResponse.t()
+            ) :: PetstoreClient.ApiHttpResponse.t()
 
   @doc """
   Gap T6: release any resources held by the client.

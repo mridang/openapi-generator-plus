@@ -36,7 +36,7 @@ public class BaseApi: @unchecked Sendable {
     }
 
     /// Dispatches an API request and returns the raw response.
-    func invokeAPI(_ params: InvokeAPIParams) async throws -> HttpResponse {
+    func invokeAPI(_ params: InvokeAPIParams) async throws -> ApiHttpResponse {
         var requestURL = params.path
         if !requestURL.hasPrefix("http://") && !requestURL.hasPrefix("https://") {
             /* Strip trailing slash from baseUrl when path starts with `/` so
@@ -435,7 +435,7 @@ public class BaseApi: @unchecked Sendable {
         }
     }
 
-    static func throwAPIError(_ response: HttpResponse) -> ApiError {
+    static func throwAPIError(_ response: ApiHttpResponse) -> ApiError {
         let code = response.statusCode
         let msg = "API returned status code \(code)"
         let body = response.body

@@ -19,6 +19,7 @@ import kotlinx.serialization.UseSerializers
 data class Category(
     /** Example: `1` */
     @SerialName("id")
+    @Serializable(with = com.example.petstore.StrictLongSerializer::class)
     val id: Long? = null,
     /** Example: `Dogs` */
     // Example "Small breed" — Toy or small breed dogs; value: Chihuahua

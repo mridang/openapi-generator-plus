@@ -7,18 +7,18 @@ import 'package:test/test.dart';
 import 'package:{{packageName}}/{{packageName}}.dart';
 
 class _FakeApiClient implements ApiClient {
-  final List<HttpApiResponse> _responses = [];
+  final List<ApiHttpResponse> _responses = [];
   String? lastBody;
   String? lastUrl;
   String? lastMethod;
   int getCount = 0;
 
   void enqueue(String body, {int statusCode = 200}) {
-    _responses.add(HttpApiResponse(statusCode: statusCode, body: body, headers: {}));
+    _responses.add(ApiHttpResponse(statusCode: statusCode, body: body, headers: {}));
   }
 
   @override
-  Future<HttpApiResponse> sendRequest(
+  Future<ApiHttpResponse> sendRequest(
     String method,
     String url,
     Map<String, String> headers,

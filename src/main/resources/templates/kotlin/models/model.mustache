@@ -235,7 +235,20 @@ class {{classname}}(
   /* Example "{{summary}}" — {{description}}; value: {{value}} */
   {{/vendorExtensions.pluralExamples}}
   @SerialName("{{baseName}}")
-{{#isDateTime}}  @Contextual
+{{^isEnum}}{{!
+    Strict per-field serializers, keyed off the property's Kotlin type. The
+    OpenAPI integer flags overlap (an int32 sets both isInteger and isShort),
+    so the integer family is nested most-specific-first and Short/Byte only
+    fire when neither isLong nor isInteger is set, guaranteeing exactly one
+    @Serializable(with=...) per numeric/boolean property.
+}}{{#isLong}}  @Serializable(with = {{invokerPackage}}.StrictLongSerializer::class)
+{{/isLong}}{{^isLong}}{{#isInteger}}  @Serializable(with = {{invokerPackage}}.StrictIntSerializer::class)
+{{/isInteger}}{{^isInteger}}{{#isShort}}  @Serializable(with = {{invokerPackage}}.StrictShortSerializer::class)
+{{/isShort}}{{^isShort}}{{#isByte}}  @Serializable(with = {{invokerPackage}}.StrictByteSerializer::class)
+{{/isByte}}{{/isShort}}{{/isInteger}}{{/isLong}}{{#isFloat}}  @Serializable(with = {{invokerPackage}}.StrictFloatSerializer::class)
+{{/isFloat}}{{^isFloat}}{{#isDouble}}  @Serializable(with = {{invokerPackage}}.StrictDoubleSerializer::class)
+{{/isDouble}}{{/isFloat}}{{#isBoolean}}  @Serializable(with = {{invokerPackage}}.StrictBooleanSerializer::class)
+{{/isBoolean}}{{/isEnum}}{{#isDateTime}}  @Contextual
 {{/isDateTime}}{{#isDate}}  @Contextual
 {{/isDate}}{{#isUuid}}  @Contextual
 {{/isUuid}}{{#isUri}}  @Contextual

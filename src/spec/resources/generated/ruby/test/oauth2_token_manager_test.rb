@@ -26,7 +26,7 @@ class FakeTokenClient
     @last_no_redirect = no_redirect
     @call_count += 1
     response = @responses[@call_count - 1] || @responses.last
-    PetstoreClient::ApiResponse.new(
+    PetstoreClient::ApiHttpResponse.new(
       status_code: response[:status],
       body: response[:body].to_json,
       headers: { 'content-type' => 'application/json' }
@@ -48,7 +48,7 @@ class SlowCountingTokenClient
   def send_request(_method, _url, _headers, _body, **_kwargs)
     @mutex.synchronize { @call_count += 1 }
     sleep 0.05
-    PetstoreClient::ApiResponse.new(
+    PetstoreClient::ApiHttpResponse.new(
       status_code: 200,
       body: @body.to_json,
       headers: { 'content-type' => 'application/json' }
@@ -69,7 +69,7 @@ class NumberingSlowTokenClient
   def send_request(_method, _url, _headers, _body, **_kwargs)
     n = @mutex.synchronize { @call_count += 1 }
     sleep 0.05
-    PetstoreClient::ApiResponse.new(
+    PetstoreClient::ApiHttpResponse.new(
       status_code: 200,
       body: { 'access_token' => "tok#{n}", 'expires_in' => 3600 }.to_json,
       headers: { 'content-type' => 'application/json' }

@@ -7,9 +7,9 @@
 
 use std::collections::HashMap;
 
-/// ApiResponse wraps an HTTP response with status code, body, and headers.
+/// ApiHttpResponse wraps an HTTP response with status code, body, and headers.
 #[derive(Debug, Clone)]
-pub struct ApiResponse {
+pub struct ApiHttpResponse {
     /// The HTTP status code of the response.
     status_code: u16,
 
@@ -20,8 +20,8 @@ pub struct ApiResponse {
     headers: HashMap<String, String>,
 }
 
-impl ApiResponse {
-    /// Creates a new ApiResponse with the given values.
+impl ApiHttpResponse {
+    /// Creates a new ApiHttpResponse with the given values.
     pub fn new(status_code: u16, body: String, headers: HashMap<String, String>) -> Self {
         Self {
             status_code,

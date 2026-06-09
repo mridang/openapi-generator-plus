@@ -11,11 +11,11 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
 use petstore::api_client::{ApiClient, RequestBody, RequestOptions};
-use petstore::api_response::ApiResponse;
+use petstore::api_response::ApiHttpResponse;
 use petstore::auth::oauth::{OAuth2ServerError, OAuth2TokenError, OAuth2TokenManager};
 
 struct FakeApiClient {
-    responses: Mutex<Vec<ApiResponse>>,
+    responses: Mutex<Vec<ApiHttpResponse>>,
     last_url: Mutex<Option<String>>,
     last_body: Mutex<Option<String>>,
     last_no_redirect: Mutex<Option<bool>>,
@@ -33,7 +33,7 @@ impl FakeApiClient {
 
     fn enqueue(&self, body: &str, status_code: u16) {
         let mut responses = self.responses.lock().unwrap();
-        responses.push(ApiResponse::new(
+        responses.push(ApiHttpResponse::new(
             status_code,
             body.to_string(),
             HashMap::new(),
@@ -50,7 +50,7 @@ impl ApiClient for FakeApiClient {
         body: Option<&RequestBody>,
     ) -> Pin<
         Box<
-            dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
+            dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>>
                 + Send
                 + '_,
         >,
@@ -70,7 +70,7 @@ impl ApiClient for FakeApiClient {
         options: &RequestOptions,
     ) -> Pin<
         Box<
-            dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
+            dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>>
                 + Send
                 + '_,
         >,
@@ -272,7 +272,7 @@ impl ApiClient for CountingApiClient {
         _body: Option<&RequestBody>,
     ) -> Pin<
         Box<
-            dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
+            dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>>
                 + Send
                 + '_,
         >,
@@ -285,7 +285,7 @@ impl ApiClient for CountingApiClient {
         let delay = self.delay_ms;
         Box::pin(async move {
             tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
-            Ok(ApiResponse::new(200, body, HashMap::new()))
+            Ok(ApiHttpResponse::new(200, body, HashMap::new()))
         })
     }
 }

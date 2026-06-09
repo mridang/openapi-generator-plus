@@ -40,7 +40,7 @@ class _CapturingApiClient implements ApiClient {
   String capturedUrl = '';
 
   @override
-  Future<HttpApiResponse> sendRequest(
+  Future<ApiHttpResponse> sendRequest(
     String method,
     String url,
     Map<String, String> headers,
@@ -48,7 +48,7 @@ class _CapturingApiClient implements ApiClient {
     bool noRedirect = false,
   }) async {
     capturedUrl = url;
-    return const HttpApiResponse(
+    return const ApiHttpResponse(
       statusCode: 200,
       body: '{}',
       headers: {'content-type': 'application/json'},

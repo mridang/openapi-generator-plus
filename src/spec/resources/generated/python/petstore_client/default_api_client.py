@@ -17,7 +17,7 @@ from urllib.parse import quote as _url_quote, urlsplit, urlunsplit
 
 import urllib3
 
-from petstore_client.api_response import ApiResponse
+from petstore_client.api_response import ApiHttpResponse
 from petstore_client.errors import ApiException
 from petstore_client.transport_options import TransportOptions
 
@@ -251,7 +251,7 @@ class DefaultApiClient:
         headers: Dict[str, str],
         body: Any = None,
         no_redirect: bool = False,
-    ) -> ApiResponse:
+    ) -> ApiHttpResponse:
         """Send an HTTP request and return the response.
 
         Applies transport-level header injection (default headers, User-Agent,
@@ -272,7 +272,7 @@ class DefaultApiClient:
                 inspects and rejects the 3xx itself.
 
         Returns:
-            :class:`ApiResponse` containing status code, body, and headers.
+            :class:`ApiHttpResponse` containing status code, body, and headers.
         """
         # Use-after-close must surface the SDK's own error type rather than
         # a foreign urllib3 exception (or silently succeeding against a
@@ -425,7 +425,7 @@ class DefaultApiClient:
                 values = response.headers.getlist(name) if hasattr(response.headers, 'getlist') else [response.headers[name]]
                 response_headers[name.lower()] = ', '.join(values)
 
-        return ApiResponse(status_code=response.status, body=response_body, headers=response_headers)
+        return ApiHttpResponse(status_code=response.status, body=response_body, headers=response_headers)
 
     # Sensitive headers that MUST be stripped on a cross-origin redirect
     # to avoid leaking bearer tokens / cookies / proxy credentials to an

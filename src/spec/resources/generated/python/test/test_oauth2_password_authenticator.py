@@ -14,7 +14,7 @@ import pytest
 
 from petstore_client.auth.oauth.client_auth_method import ClientAuthMethod
 from petstore_client.auth.oauth.oauth2_password_authenticator import OAuth2PasswordAuthenticator
-from petstore_client.api_response import ApiResponse
+from petstore_client.api_response import ApiHttpResponse
 
 
 def _create_authenticator() -> OAuth2PasswordAuthenticator:
@@ -32,7 +32,7 @@ def _create_authenticator() -> OAuth2PasswordAuthenticator:
 def _create_authenticator_with_mock() -> tuple[OAuth2PasswordAuthenticator, MagicMock]:
     auth = _create_authenticator()
     mock_client = MagicMock()
-    mock_client.send_request.return_value = ApiResponse(
+    mock_client.send_request.return_value = ApiHttpResponse(
         status_code=200,
         body=json.dumps(
             {
@@ -79,7 +79,7 @@ class TestOAuth2PasswordAuthenticator:
     def test_returns_authorization_bearer_header(self) -> None:
         auth = _create_authenticator()
         mock_client = MagicMock()
-        mock_client.send_request.return_value = ApiResponse(
+        mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
             body=json.dumps(
                 {
@@ -99,7 +99,7 @@ class TestOAuth2PasswordAuthenticator:
         auth = _create_authenticator()
         mock_client = MagicMock()
         mock_client.send_request.side_effect = [
-            ApiResponse(
+            ApiHttpResponse(
                 status_code=200,
                 body=json.dumps(
                     {
@@ -110,7 +110,7 @@ class TestOAuth2PasswordAuthenticator:
                 ),
                 headers={'content-type': 'application/json'},
             ),
-            ApiResponse(
+            ApiHttpResponse(
                 status_code=200,
                 body=json.dumps(
                     {
@@ -153,7 +153,7 @@ class TestOAuth2PasswordAuthenticator:
             client_auth_method=ClientAuthMethod.BASIC,
         )
         mock_client = MagicMock()
-        mock_client.send_request.return_value = ApiResponse(
+        mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
             body=json.dumps({'access_token': 'at', 'expires_in': 3600}),
             headers={'content-type': 'application/json'},

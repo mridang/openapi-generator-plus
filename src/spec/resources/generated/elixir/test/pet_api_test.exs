@@ -185,7 +185,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     def send_request(_method, url, _headers, _body) do
       name = Process.get(__MODULE__)
       Agent.update(name, fn _ -> url end)
-      %PetstoreClient.ApiResponse{status_code: 200, body: "", headers: %{"Content-Type" => "application/json"}}
+      %PetstoreClient.ApiHttpResponse{status_code: 200, body: "", headers: %{"Content-Type" => "application/json"}}
     end
   end
 
@@ -396,7 +396,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     def send_request(_method, _url, headers, _body) do
       name = Process.get(__MODULE__)
       Agent.update(name, fn _ -> headers end)
-      %PetstoreClient.ApiResponse{status_code: 200, body: "", headers: %{"Content-Type" => "application/json"}}
+      %PetstoreClient.ApiHttpResponse{status_code: 200, body: "", headers: %{"Content-Type" => "application/json"}}
     end
   end
 
@@ -472,7 +472,7 @@ defmodule PetstoreClient.Api.PetApiTest do
   end
 
   # apiresult-rawbody-nullability: ApiResult.raw_body is typed String.t() (never
-  # nil) because ApiResponse.body is always populated. Even an empty 200 body
+  # nil) because ApiHttpResponse.body is always populated. Even an empty 200 body
   # surfaces raw_body as a binary, not nil.
   test "api_result raw_body is always a binary, never nil" do
     api = new_pet_api_for_mock(200, "application/json", "")

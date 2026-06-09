@@ -151,7 +151,7 @@ class DefaultApiClientUnitTest {
   @Test
   void sendsGetRequestAndReturnsResponse() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
-    ApiResponse response = client.sendRequest("GET", baseUrl + "/echo", Map.of(), null);
+    ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo", Map.of(), null);
     assertEquals(200, response.statusCode());
     assertTrue(response.body().contains("\"method\":\"GET\""));
   }
@@ -161,7 +161,7 @@ class DefaultApiClientUnitTest {
     DefaultApiClient client = new DefaultApiClient();
     Map<String, String> headers = new HashMap<>();
     headers.put("Content-Type", "application/json");
-    ApiResponse response =
+    ApiHttpResponse response =
         client.sendRequest("POST", baseUrl + "/echo", headers, "{\"key\":\"value\"}");
     assertEquals(200, response.statusCode());
     assertTrue(response.body().contains("\"method\":\"POST\""));
@@ -171,7 +171,7 @@ class DefaultApiClientUnitTest {
   @Test
   void returnsResponseHeaders() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
-    ApiResponse response = client.sendRequest("GET", baseUrl + "/echo", Map.of(), null);
+    ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo", Map.of(), null);
     assertNotNull(response.headers());
     // Header names may be lowercased by the HTTP client
     String value =
@@ -186,7 +186,7 @@ class DefaultApiClientUnitTest {
   @Test
   void returnsNon2xxStatusCode() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
-    ApiResponse response = client.sendRequest("GET", baseUrl + "/not-found", Map.of(), null);
+    ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/not-found", Map.of(), null);
     assertEquals(404, response.statusCode());
     assertEquals("not found", response.body());
   }
@@ -194,7 +194,7 @@ class DefaultApiClientUnitTest {
   @Test
   void sendsPutRequest() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
-    ApiResponse response = client.sendRequest("PUT", baseUrl + "/echo", Map.of(), "update");
+    ApiHttpResponse response = client.sendRequest("PUT", baseUrl + "/echo", Map.of(), "update");
     assertEquals(200, response.statusCode());
     assertTrue(response.body().contains("\"method\":\"PUT\""));
   }
@@ -202,7 +202,7 @@ class DefaultApiClientUnitTest {
   @Test
   void sendsDeleteRequest() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
-    ApiResponse response = client.sendRequest("DELETE", baseUrl + "/echo", Map.of(), null);
+    ApiHttpResponse response = client.sendRequest("DELETE", baseUrl + "/echo", Map.of(), null);
     assertEquals(200, response.statusCode());
     assertTrue(response.body().contains("\"method\":\"DELETE\""));
   }
@@ -210,7 +210,7 @@ class DefaultApiClientUnitTest {
   @Test
   void returnsJsonBodyForVendorJsonContentType() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
-    ApiResponse response = client.sendRequest("GET", baseUrl + "/vendor-json", Map.of(), null);
+    ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/vendor-json", Map.of(), null);
     assertEquals(200, response.statusCode());
     assertTrue(response.body().contains("\"format\":\"vendor\""));
   }
@@ -229,7 +229,7 @@ class DefaultApiClientUnitTest {
           }
         });
     DefaultApiClient client = new DefaultApiClient();
-    ApiResponse response = client.sendRequest("GET", baseUrl + "/multi-header", Map.of(), null);
+    ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/multi-header", Map.of(), null);
     assertEquals(200, response.statusCode());
     String cookieValue =
         response.headers().entrySet().stream()
@@ -244,7 +244,7 @@ class DefaultApiClientUnitTest {
   void injectsCustomUserAgent() throws Exception {
     TransportOptions transport = TransportOptions.builder().userAgent("MyApp/1.0").build();
     DefaultApiClient client = new DefaultApiClient(transport);
-    ApiResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
+    ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
     assertEquals(200, response.statusCode());
     assertTrue(response.body().contains("\"user-agent\":\"MyApp/1.0\""));
   }
@@ -252,7 +252,7 @@ class DefaultApiClientUnitTest {
   @Test
   void injectsDefaultUserAgentWhenNotExplicitlySet() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
-    ApiResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
+    ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
     assertEquals(200, response.statusCode());
     assertTrue(response.body().contains("\"user-agent\":"));
   }
@@ -261,7 +261,7 @@ class DefaultApiClientUnitTest {
   void injectsRequestId() throws Exception {
     TransportOptions transport = TransportOptions.builder().injectRequestId(true).build();
     DefaultApiClient client = new DefaultApiClient(transport);
-    ApiResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
+    ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
     assertEquals(200, response.statusCode());
     assertTrue(response.body().contains("\"x-request-id\":"));
     // Parse out the UUID value and verify format
@@ -276,7 +276,7 @@ class DefaultApiClientUnitTest {
   void doesNotInjectRequestIdWhenDisabled() throws Exception {
     TransportOptions transport = TransportOptions.builder().injectRequestId(false).build();
     DefaultApiClient client = new DefaultApiClient(transport);
-    ApiResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
+    ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
     assertEquals(200, response.statusCode());
     assertFalse(response.body().contains("\"x-request-id\":"));
   }
@@ -287,7 +287,7 @@ class DefaultApiClientUnitTest {
     DefaultApiClient client = new DefaultApiClient(transport);
     Map<String, String> headers = new HashMap<>();
     headers.put("X-Request-ID", "caller-provided-id");
-    ApiResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", headers, null);
+    ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", headers, null);
     assertEquals(200, response.statusCode());
     assertTrue(response.body().contains("\"x-request-id\":\"caller-provided-id\""));
   }
@@ -296,8 +296,10 @@ class DefaultApiClientUnitTest {
   void generatesUniqueRequestIds() throws Exception {
     TransportOptions transport = TransportOptions.builder().injectRequestId(true).build();
     DefaultApiClient client = new DefaultApiClient(transport);
-    ApiResponse response1 = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
-    ApiResponse response2 = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
+    ApiHttpResponse response1 =
+        client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
+    ApiHttpResponse response2 =
+        client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
     String body1 = response1.body();
     String body2 = response2.body();
     int idx1 = body1.indexOf("\"x-request-id\":\"");
@@ -313,7 +315,7 @@ class DefaultApiClientUnitTest {
     TransportOptions transport =
         TransportOptions.builder().defaultHeader("X-Custom", "custom-value").build();
     DefaultApiClient client = new DefaultApiClient(transport);
-    ApiResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
+    ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
     assertEquals(200, response.statusCode());
     assertTrue(response.body().contains("\"x-custom\":\"custom-value\""));
   }
@@ -366,7 +368,7 @@ class DefaultApiClientUnitTest {
     DefaultApiClient client = new DefaultApiClient(transport);
     Map<String, String> callerHeaders = new HashMap<>();
     callerHeaders.put("Accept", "application/json");
-    ApiResponse response =
+    ApiHttpResponse response =
         client.sendRequest("GET", baseUrl + "/echo-headers", callerHeaders, null);
     assertEquals(200, response.statusCode());
     assertTrue(response.body().contains("\"accept\":\"application/json\""));
@@ -404,7 +406,7 @@ class DefaultApiClientUnitTest {
   void noRedirectReturns307Response() throws Exception {
     TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
     DefaultApiClient client = new DefaultApiClient(transport);
-    ApiResponse response =
+    ApiHttpResponse response =
         client.sendRequest("POST", baseUrl + "/redirect-307", Map.of(), "credentials=secret", true);
     assertEquals(
         307,
@@ -416,7 +418,7 @@ class DefaultApiClientUnitTest {
   void noRedirectFalseFollowsRedirectsAsBefore() throws Exception {
     TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
     DefaultApiClient client = new DefaultApiClient(transport);
-    ApiResponse response =
+    ApiHttpResponse response =
         client.sendRequest("POST", baseUrl + "/redirect-307", Map.of(), "data", false);
     // 307 is followed to /echo-headers which returns 200
     assertEquals(200, response.statusCode());
@@ -428,7 +430,8 @@ class DefaultApiClientUnitTest {
     // behaviour of honouring TransportOptions.followRedirects().
     TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
     DefaultApiClient client = new DefaultApiClient(transport);
-    ApiResponse response = client.sendRequest("POST", baseUrl + "/redirect-307", Map.of(), "data");
+    ApiHttpResponse response =
+        client.sendRequest("POST", baseUrl + "/redirect-307", Map.of(), "data");
     assertEquals(200, response.statusCode());
   }
 
@@ -621,7 +624,7 @@ class DefaultApiClientUnitTest {
   void noRedirectReturns308Response() throws Exception {
     TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
     DefaultApiClient client = new DefaultApiClient(transport);
-    ApiResponse response =
+    ApiHttpResponse response =
         client.sendRequest("POST", baseUrl + "/redirect-308", Map.of(), "credentials=secret", true);
     assertEquals(
         308,
@@ -651,14 +654,14 @@ class DefaultApiClientUnitTest {
   @Test
   void decodesResponseBodyUsingDeclaredCharset() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
-    ApiResponse response = client.sendRequest("GET", baseUrl + "/latin1", Map.of(), null);
+    ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/latin1", Map.of(), null);
     assertEquals("é", response.body());
   }
 
   @Test
   void decodesResponseBodyAsUtf8WhenNoCharsetSpecified() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
-    ApiResponse response = client.sendRequest("GET", baseUrl + "/utf8-default", Map.of(), null);
+    ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/utf8-default", Map.of(), null);
     assertEquals("héllo", response.body());
   }
 
@@ -666,7 +669,8 @@ class DefaultApiClientUnitTest {
   void fallsBackToUtf8WhenCharsetIsUnknown() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     // Must not throw despite the unknown charset.
-    ApiResponse response = client.sendRequest("GET", baseUrl + "/unknown-charset", Map.of(), null);
+    ApiHttpResponse response =
+        client.sendRequest("GET", baseUrl + "/unknown-charset", Map.of(), null);
     assertEquals("héllo", response.body());
   }
 
@@ -708,7 +712,7 @@ class DefaultApiClientUnitTest {
       Map<String, String> headers = new HashMap<>();
       headers.put("Authorization", "Bearer secret");
       headers.put("X-Trace", "keep");
-      ApiResponse response = client.sendRequest("GET", originUrl, headers, null);
+      ApiHttpResponse response = client.sendRequest("GET", originUrl, headers, null);
       assertEquals(200, response.statusCode());
       assertNull(seenAuth.get(), "Authorization must be stripped on cross-origin redirect");
       assertEquals("keep", seenTrace.get(), "non-sensitive headers must be preserved");

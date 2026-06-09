@@ -12,13 +12,13 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
-use PetstoreClient\ApiResponse;
+use PetstoreClient\ApiHttpResponse;
 use PetstoreClient\Auth\OAuth\ClientAuthMethod;
 use PetstoreClient\Auth\OAuth\OAuth2PasswordAuthenticator;
 
 test('sends password grant type', function (): void {
     $client = new MockTokenApiClient();
-    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'pw-token',
         'expires_in' => 3600,
     ]), ['Content-Type' => 'application/json']));
@@ -42,7 +42,7 @@ test('sends password grant type', function (): void {
 
 test('sends username and password', function (): void {
     $client = new MockTokenApiClient();
-    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'pw-token',
         'expires_in' => 3600,
     ]), ['Content-Type' => 'application/json']));
@@ -67,7 +67,7 @@ test('sends username and password', function (): void {
 
 test('password sends client id and secret', function (): void {
     $client = new MockTokenApiClient();
-    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'pw-token',
         'expires_in' => 3600,
     ]), ['Content-Type' => 'application/json']));
@@ -92,7 +92,7 @@ test('password sends client id and secret', function (): void {
 
 test('password returns authorization bearer header', function (): void {
     $client = new MockTokenApiClient();
-    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'pw-token',
         'expires_in' => 3600,
     ]), ['Content-Type' => 'application/json']));
@@ -116,13 +116,13 @@ test('password returns authorization bearer header', function (): void {
 test('uses refresh token on subsequent calls', function (): void {
     $client = new MockTokenApiClient();
     // First call returns refresh token with expired access token
-    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'pw-token-1',
         'refresh_token' => 'refresh-1',
         'expires_in' => 0,
     ]), ['Content-Type' => 'application/json']));
     // Second call uses refresh token
-    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'pw-token-2',
         'expires_in' => 3600,
     ]), ['Content-Type' => 'application/json']));
@@ -166,7 +166,7 @@ test('password basic auth url encodes client id and secret', function (): void {
     // client_id and client_secret MUST be application/x-www-form-
     // urlencoded BEFORE being joined with ':' and base64-encoded.
     $client = new MockTokenApiClient();
-    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'at',
         'expires_in' => 3600,
     ]), ['Content-Type' => 'application/json']));

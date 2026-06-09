@@ -248,7 +248,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/InternalServerErrorException.mustache", errorsFolder, "InternalServerErrorException.php"),
             new SupportingFileSpec("header_selector.mustache", invokerFolder, "HeaderSelector.php"),
             new SupportingFileSpec("trace_context_util.mustache", invokerFolder, "TraceContextUtil.php"),
-            new SupportingFileSpec("api_response.mustache", invokerFolder, "ApiResponse.php"),
+            new SupportingFileSpec("api_response.mustache", invokerFolder, "ApiHttpResponse.php"),
             new SupportingFileSpec("api_result.mustache", invokerFolder, "ApiResult.php"),
             new SupportingFileSpec("cancellation_token.mustache", invokerFolder, "CancellationToken.php"),
             new SupportingFileSpec("cancellation_exception.mustache", invokerFolder, "CancellationException.php"),

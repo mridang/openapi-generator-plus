@@ -58,7 +58,7 @@ type invokeApiParams struct {
 }
 
 // invokeApiForResult dispatches an API request and returns the full result.
-func (b *baseApi) invokeApiForResult(params invokeApiParams) (*HttpResponse, error) {
+func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, error) {
 	requestURL := params.path
 	if !strings.HasPrefix(requestURL, "http://") && !strings.HasPrefix(requestURL, "https://") {
 		// Strip trailing slash from baseUrl when path starts with `/` so
@@ -200,7 +200,7 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*HttpResponse, err
 }
 
 // invokeApi dispatches an API request and returns just the response.
-func (b *baseApi) invokeApi(params invokeApiParams) (*HttpResponse, error) {
+func (b *baseApi) invokeApi(params invokeApiParams) (*ApiHttpResponse, error) {
 	return b.invokeApiForResult(params)
 }
 
@@ -418,7 +418,7 @@ func writeJSONMultipartPart(writer *multipart.Writer, name string, value any) er
 /* decodeBinaryResponse decodes the transport's base64-encoded response body
  * back to its original raw bytes. The DefaultApiClient base64-encodes any
  * non-text response so that the body can be carried as a string in
- * HttpResponse; this helper reverses that encoding for callers that expect
+ * ApiHttpResponse; this helper reverses that encoding for callers that expect
  * a []byte return type. */
 func decodeBinaryResponse(body string) ([]byte, error) {
 	if body == "" {
@@ -571,7 +571,7 @@ func newEmptyBodyError(operationID string, statusCode int, rawBody string, heade
 	)
 }
 
-func throwAPIError(response *HttpResponse) error {
+func throwAPIError(response *ApiHttpResponse) error {
 	code := response.StatusCode
 	msg := fmt.Sprintf("API returned status code %d", code)
 	body := response.Body

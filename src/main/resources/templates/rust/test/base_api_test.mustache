@@ -256,9 +256,9 @@ impl {{packageName}}::api_client::ApiClient for PlainTextApiClient {
         _url: &str,
         _headers: &HashMap<String, String>,
         _body: Option<&{{packageName}}::api_client::RequestBody>,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<{{packageName}}::api_response::ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<{{packageName}}::api_response::ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         Box::pin(async {
-            Ok({{packageName}}::api_response::ApiResponse::new(200, "hello plain text".to_string(), {
+            Ok({{packageName}}::api_response::ApiHttpResponse::new(200, "hello plain text".to_string(), {
                     let mut h = HashMap::new();
                     h.insert("Content-Type".to_string(), "text/plain".to_string());
                     h
@@ -296,9 +296,9 @@ impl {{packageName}}::api_client::ApiClient for VendorJsonApiClient {
         _url: &str,
         _headers: &HashMap<String, String>,
         _body: Option<&{{packageName}}::api_client::RequestBody>,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<{{packageName}}::api_response::ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<{{packageName}}::api_response::ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         Box::pin(async {
-            Ok({{packageName}}::api_response::ApiResponse::new(200, r#"{"title":"Not Found"}"#.to_string(), {
+            Ok({{packageName}}::api_response::ApiHttpResponse::new(200, r#"{"title":"Not Found"}"#.to_string(), {
                     let mut h = HashMap::new();
                     h.insert("Content-Type".to_string(), "application/problem+json".to_string());
                     h
@@ -363,7 +363,7 @@ impl {{packageName}}::api_client::ApiClient for CapturingApiClient {
         url: &str,
         headers: &HashMap<String, String>,
         body: Option<&{{packageName}}::api_client::RequestBody>,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<{{packageName}}::api_response::ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<{{packageName}}::api_response::ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         *self.captured_url.lock().unwrap() = url.to_string();
         *self.captured_headers.lock().unwrap() = headers.clone();
         *self.captured_body.lock().unwrap() = match body {
@@ -371,7 +371,7 @@ impl {{packageName}}::api_client::ApiClient for CapturingApiClient {
             _ => None,
         };
         Box::pin(async {
-            Ok({{packageName}}::api_response::ApiResponse::new(200, "{}".to_string(), {
+            Ok({{packageName}}::api_response::ApiHttpResponse::new(200, "{}".to_string(), {
                     let mut h = HashMap::new();
                     h.insert("Content-Type".to_string(), "application/json".to_string());
                     h
@@ -676,10 +676,10 @@ impl {{packageName}}::api_client::ApiClient for QueryCapturingApiClient {
         url: &str,
         _headers: &HashMap<String, String>,
         _body: Option<&{{packageName}}::api_client::RequestBody>,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<{{packageName}}::api_response::ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<{{packageName}}::api_response::ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         *self.captured_url.lock().unwrap() = url.to_string();
         Box::pin(async {
-            Ok({{packageName}}::api_response::ApiResponse::new(200, "{}".to_string(), {
+            Ok({{packageName}}::api_response::ApiHttpResponse::new(200, "{}".to_string(), {
                     let mut h = HashMap::new();
                     h.insert("Content-Type".to_string(), "application/json".to_string());
                     h
@@ -820,11 +820,11 @@ impl {{packageName}}::api_client::ApiClient for BinaryResponseApiClient {
         _url: &str,
         _headers: &HashMap<String, String>,
         _body: Option<&{{packageName}}::api_client::RequestBody>,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<{{packageName}}::api_response::ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<{{packageName}}::api_response::ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         let body = self.body.clone();
         let ct = self.content_type.clone();
         Box::pin(async move {
-            Ok({{packageName}}::api_response::ApiResponse::new(200, body, {
+            Ok({{packageName}}::api_response::ApiHttpResponse::new(200, body, {
                     let mut h = HashMap::new();
                     h.insert("Content-Type".to_string(), ct);
                     h
@@ -1012,14 +1012,14 @@ impl {{packageName}}::api_client::ApiClient for HeaderCapturingApiClient {
         _url: &str,
         headers: &HashMap<String, String>,
         body: Option<&{{packageName}}::api_client::RequestBody>,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<{{packageName}}::api_response::ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<{{packageName}}::api_response::ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         *self.captured_headers.lock().unwrap() = headers.clone();
         *self.captured_body.lock().unwrap() = match body {
             Some({{packageName}}::api_client::RequestBody::Bytes(b)) => Some(b.clone()),
             _ => None,
         };
         Box::pin(async {
-            Ok({{packageName}}::api_response::ApiResponse::new(200, "{}".to_string(), {
+            Ok({{packageName}}::api_response::ApiHttpResponse::new(200, "{}".to_string(), {
                     let mut h = HashMap::new();
                     h.insert("Content-Type".to_string(), "application/json".to_string());
                     h
@@ -1232,7 +1232,7 @@ fn test_api_error_typed_body_returns_err_when_body_invalid() {
     assert!(parsed.is_err(), "typed_body must return Err for unparseable bodies");
 }
 
-// immutability regression: ApiResult and ApiResponse expose their state only
+// immutability regression: ApiResult and ApiHttpResponse expose their state only
 // through accessors. The fields are private, so a `with_http_info` caller can
 // read but never mutate the status / body / headers / data after the SDK
 // produced them.
@@ -1254,7 +1254,7 @@ fn test_api_result_and_response_accessor_only() {
     assert_eq!(result.headers().get("content-type").map(String::as_str), Some("application/json"));
     assert_eq!(result.into_data(), Some(42));
 
-    let response = {{packageName}}::api_response::ApiResponse::new(
+    let response = {{packageName}}::api_response::ApiHttpResponse::new(
         204,
         "no content".to_string(),
         headers,

@@ -6,11 +6,11 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
 use {{packageName}}::api_client::{ApiClient, RequestBody, RequestOptions};
-use {{packageName}}::api_response::ApiResponse;
+use {{packageName}}::api_response::ApiHttpResponse;
 use {{packageName}}::auth::oauth::{OAuth2ServerError, OAuth2TokenError, OAuth2TokenManager};
 
 struct FakeApiClient {
-    responses: Mutex<Vec<ApiResponse>>,
+    responses: Mutex<Vec<ApiHttpResponse>>,
     last_url: Mutex<Option<String>>,
     last_body: Mutex<Option<String>>,
     last_no_redirect: Mutex<Option<bool>>,
@@ -28,7 +28,7 @@ impl FakeApiClient {
 
     fn enqueue(&self, body: &str, status_code: u16) {
         let mut responses = self.responses.lock().unwrap();
-        responses.push(ApiResponse::new(status_code, body.to_string(), HashMap::new()));
+        responses.push(ApiHttpResponse::new(status_code, body.to_string(), HashMap::new()));
     }
 }
 
@@ -39,7 +39,7 @@ impl ApiClient for FakeApiClient {
         url: &str,
         headers: &HashMap<String, String>,
         body: Option<&RequestBody>,
-    ) -> Pin<Box<dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+    ) -> Pin<Box<dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         // Delegate so the no_redirect flag is captured (some callers go
         // through send_request directly, e.g. the OpenID Connect
         // authenticator's GET /.well-known/openid-configuration discovery).
@@ -53,7 +53,7 @@ impl ApiClient for FakeApiClient {
         _headers: &HashMap<String, String>,
         body: Option<&RequestBody>,
         options: &RequestOptions,
-    ) -> Pin<Box<dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+    ) -> Pin<Box<dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         {
             let mut last_url = self.last_url.lock().unwrap();
             *last_url = Some(url.to_string());
@@ -249,7 +249,7 @@ impl ApiClient for CountingApiClient {
         _url: &str,
         _headers: &HashMap<String, String>,
         _body: Option<&RequestBody>,
-    ) -> Pin<Box<dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+    ) -> Pin<Box<dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         {
             let mut count = self.call_count.lock().unwrap();
             *count += 1;
@@ -258,7 +258,7 @@ impl ApiClient for CountingApiClient {
         let delay = self.delay_ms;
         Box::pin(async move {
             tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
-            Ok(ApiResponse::new(200, body, HashMap::new()))
+            Ok(ApiHttpResponse::new(200, body, HashMap::new()))
         })
     }
 }

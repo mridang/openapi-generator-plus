@@ -22,5 +22,6 @@ data class WetFood(
     val foodType: String = "wet",
     /** Example: `null` */
     @SerialName("volumeMl")
+    @Serializable(with = com.example.petstore.StrictIntSerializer::class)
     val volumeMl: Int,
 )

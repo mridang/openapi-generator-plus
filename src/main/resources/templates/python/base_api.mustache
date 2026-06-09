@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, TypeVar
 from urllib.parse import urlencode
 
 from ..api_client import ApiClient
-from ..api_response import ApiResponse
+from ..api_response import ApiHttpResponse
 from ..api_result import ApiResult
 from ..default_api_client import DefaultApiClient
 from ..configuration import Configuration
@@ -295,7 +295,7 @@ class BaseApi:
         return result.data
 
     @staticmethod
-    def _throw_api_exception(response: 'ApiResponse') -> None:
+    def _throw_api_exception(response: 'ApiHttpResponse') -> None:
         """Throw the appropriate exception subclass for the given error response.
 
         Attempts to parse the response body as JSON so that structured error

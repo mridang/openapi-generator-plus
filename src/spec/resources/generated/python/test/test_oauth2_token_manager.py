@@ -17,14 +17,14 @@ from petstore_client.auth.oauth.oauth2_token_manager import (
     OAuth2TokenError,
     OAuth2TokenManager,
 )
-from petstore_client.api_response import ApiResponse
+from petstore_client.api_response import ApiHttpResponse
 
 
 class TestOAuth2TokenManager:
     def test_extracts_access_token_from_response(self) -> None:
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
-        mock_client.send_request.return_value = ApiResponse(
+        mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
             body=json.dumps(
                 {
@@ -48,7 +48,7 @@ class TestOAuth2TokenManager:
     def test_stores_refresh_token(self) -> None:
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
-        mock_client.send_request.return_value = ApiResponse(
+        mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
             body=json.dumps(
                 {
@@ -74,7 +74,7 @@ class TestOAuth2TokenManager:
     def test_returns_cached_token_when_not_expired(self) -> None:
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
-        mock_client.send_request.return_value = ApiResponse(
+        mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
             body=json.dumps(
                 {
@@ -100,7 +100,7 @@ class TestOAuth2TokenManager:
 
         # First response: token that expires immediately
         mock_client.send_request.side_effect = [
-            ApiResponse(
+            ApiHttpResponse(
                 status_code=200,
                 body=json.dumps(
                     {
@@ -110,7 +110,7 @@ class TestOAuth2TokenManager:
                 ),
                 headers={'content-type': 'application/json'},
             ),
-            ApiResponse(
+            ApiHttpResponse(
                 status_code=200,
                 body=json.dumps(
                     {
@@ -148,7 +148,7 @@ class TestOAuth2TokenManager:
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
         mock_client.send_request.side_effect = [
-            ApiResponse(
+            ApiHttpResponse(
                 status_code=200,
                 body=json.dumps(
                     {
@@ -158,7 +158,7 @@ class TestOAuth2TokenManager:
                 ),
                 headers={'content-type': 'application/json'},
             ),
-            ApiResponse(
+            ApiHttpResponse(
                 status_code=200,
                 body=json.dumps(
                     {
@@ -199,12 +199,12 @@ class TestOAuth2TokenManager:
         network_calls = [0]
         call_lock = threading.Lock()
 
-        def slow_send_request(*_args: object, **_kwargs: object) -> ApiResponse:
+        def slow_send_request(*_args: object, **_kwargs: object) -> ApiHttpResponse:
             with call_lock:
                 network_calls[0] += 1
             # Tiny sleep to widen the race window for the other threads.
             time.sleep(0.05)
-            return ApiResponse(
+            return ApiHttpResponse(
                 status_code=200,
                 body=json.dumps({'access_token': 'shared-tok', 'expires_in': 3600}),
                 headers={'content-type': 'application/json'},
@@ -236,7 +236,7 @@ class TestOAuth2TokenManager:
         # not a storm of retries inside the manager.
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
-        mock_client.send_request.return_value = ApiResponse(
+        mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
             body=json.dumps({'access_token': 'short', 'expires_in': 10}),
             headers={'content-type': 'application/json'},
@@ -256,7 +256,7 @@ class TestOAuth2TokenManager:
         # A second call inside the same instant must serve from cache.
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
-        mock_client.send_request.return_value = ApiResponse(
+        mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
             body=json.dumps({'access_token': 'long', 'expires_in': 3600}),
             headers={'content-type': 'application/json'},
@@ -277,12 +277,12 @@ class TestOAuth2TokenManager:
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
         mock_client.send_request.side_effect = [
-            ApiResponse(
+            ApiHttpResponse(
                 status_code=200,
                 body=json.dumps({'access_token': 'edge1', 'expires_in': 30}),
                 headers={'content-type': 'application/json'},
             ),
-            ApiResponse(
+            ApiHttpResponse(
                 status_code=200,
                 body=json.dumps({'access_token': 'edge2', 'expires_in': 30}),
                 headers={'content-type': 'application/json'},
@@ -304,7 +304,7 @@ class TestOAuth2TokenManager:
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
         mock_client.send_request.side_effect = [
-            ApiResponse(
+            ApiHttpResponse(
                 status_code=200,
                 body=json.dumps(
                     {
@@ -315,7 +315,7 @@ class TestOAuth2TokenManager:
                 ),
                 headers={'content-type': 'application/json'},
             ),
-            ApiResponse(
+            ApiHttpResponse(
                 status_code=200,
                 body=json.dumps(
                     {
@@ -344,7 +344,7 @@ class TestOAuth2TokenManager:
         # second call within the buffer window must serve from cache.
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
-        mock_client.send_request.return_value = ApiResponse(
+        mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
             body=json.dumps({'access_token': 'str-tok', 'expires_in': '3600'}),
             headers={'content-type': 'application/json'},
@@ -364,7 +364,7 @@ class TestOAuth2TokenManager:
         # The manager must floor it and cache the token.
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
-        mock_client.send_request.return_value = ApiResponse(
+        mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
             body=json.dumps({'access_token': 'flt-tok', 'expires_in': 3600.5}),
             headers={'content-type': 'application/json'},
@@ -385,12 +385,12 @@ class TestOAuth2TokenManager:
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
         mock_client.send_request.side_effect = [
-            ApiResponse(
+            ApiHttpResponse(
                 status_code=200,
                 body=json.dumps({'access_token': 'neg1', 'expires_in': -1}),
                 headers={'content-type': 'application/json'},
             ),
-            ApiResponse(
+            ApiHttpResponse(
                 status_code=200,
                 body=json.dumps({'access_token': 'neg2', 'expires_in': 3600}),
                 headers={'content-type': 'application/json'},
@@ -409,7 +409,7 @@ class TestOAuth2TokenManager:
     def test_throws_when_token_request_fails(self) -> None:
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
-        mock_client.send_request.return_value = ApiResponse(
+        mock_client.send_request.return_value = ApiHttpResponse(
             status_code=401,
             body=json.dumps({'error': 'invalid_client'}),
             headers={'content-type': 'application/json'},
@@ -430,7 +430,7 @@ class TestOAuth2TokenManager:
         # typed OAuth2TokenError, not silently cache an empty token.
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
-        mock_client.send_request.return_value = ApiResponse(
+        mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
             body=json.dumps({'refresh_token': 'x'}),
             headers={'content-type': 'application/json'},
@@ -451,7 +451,7 @@ class TestOAuth2TokenManager:
         # as a typed OAuth2ServerError carrying code/description/uri.
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
-        mock_client.send_request.return_value = ApiResponse(
+        mock_client.send_request.return_value = ApiHttpResponse(
             status_code=400,
             body=json.dumps(
                 {
@@ -484,7 +484,7 @@ class TestOAuth2TokenManager:
         chains; this is the client-side enforcement."""
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
-        mock_client.send_request.return_value = ApiResponse(
+        mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
             body=json.dumps({'access_token': 't', 'expires_in': 3600}),
             headers={'content-type': 'application/json'},
@@ -509,7 +509,7 @@ class TestOAuth2TokenManager:
         for status in (301, 302, 303, 307, 308):
             manager = OAuth2TokenManager()
             mock_client = MagicMock()
-            mock_client.send_request.return_value = ApiResponse(
+            mock_client.send_request.return_value = ApiHttpResponse(
                 status_code=status,
                 body='',
                 headers={'location': 'https://attacker.example/steal'},
@@ -532,12 +532,12 @@ class TestOAuth2TokenManager:
         network_calls = [0]
         call_lock = threading.Lock()
 
-        def numbering_send_request(*_args: object, **_kwargs: object) -> ApiResponse:
+        def numbering_send_request(*_args: object, **_kwargs: object) -> ApiHttpResponse:
             with call_lock:
                 network_calls[0] += 1
                 n = network_calls[0]
             time.sleep(0.05)
-            return ApiResponse(
+            return ApiHttpResponse(
                 status_code=200,
                 body=json.dumps({'access_token': f'tok{n}', 'expires_in': 3600}),
                 headers={'content-type': 'application/json'},
@@ -576,7 +576,7 @@ class TestOAuth2TokenManager:
         # the status code and token endpoint URL, not the Location target.
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
-        mock_client.send_request.return_value = ApiResponse(
+        mock_client.send_request.return_value = ApiHttpResponse(
             status_code=307,
             body='',
             headers={'location': 'https://attacker.example/steal'},

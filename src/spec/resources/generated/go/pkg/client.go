@@ -68,17 +68,17 @@ func NewClientWithToken(host, accessToken string, transportOptions *TransportOpt
 }
 
 // authApiClientAdapter adapts the main package's ApiClient interface to the
-// auth package's ApiClient interface, bridging the HttpResponse types to
+// auth package's ApiClient interface, bridging the ApiHttpResponse types to
 // avoid circular imports between the root module and the auth subpackage.
 type authApiClientAdapter struct {
 	inner ApiClient
 }
 
-func (a *authApiClientAdapter) SendRequest(method, url string, headers map[string]string, body any) (*auth.HttpResponse, error) {
+func (a *authApiClientAdapter) SendRequest(method, url string, headers map[string]string, body any) (*auth.ApiHttpResponse, error) {
 	return a.SendRequestWithOptions(method, url, headers, body, nil)
 }
 
-func (a *authApiClientAdapter) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *auth.RequestOptions) (*auth.HttpResponse, error) {
+func (a *authApiClientAdapter) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *auth.RequestOptions) (*auth.ApiHttpResponse, error) {
 	var inner *RequestOptions
 	if opts != nil {
 		inner = &RequestOptions{NoRedirect: opts.NoRedirect}
@@ -87,7 +87,7 @@ func (a *authApiClientAdapter) SendRequestWithOptions(method, url string, header
 	if err != nil {
 		return nil, err
 	}
-	return &auth.HttpResponse{
+	return &auth.ApiHttpResponse{
 		StatusCode: resp.StatusCode,
 		Body:       resp.Body,
 		Headers:    resp.Headers,

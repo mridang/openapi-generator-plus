@@ -300,7 +300,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     @impl true
     def send_request(_method, _url, _headers, _body) do
-      %PetstoreClient.ApiResponse{
+      %PetstoreClient.ApiHttpResponse{
         status_code: 200,
         body: "{\"title\":\"Not Found\"}",
         headers: %{"Content-Type" => "application/problem+json"}
@@ -336,7 +336,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     @impl true
     def send_request(_method, _url, _headers, _body) do
-      %PetstoreClient.ApiResponse{status_code: 200, body: "raw body content", headers: %{}}
+      %PetstoreClient.ApiHttpResponse{status_code: 200, body: "raw body content", headers: %{}}
     end
   end
 
@@ -407,7 +407,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     def send_request(_method, url, _headers, _body) do
       name = Process.get(__MODULE__)
       Agent.update(name, fn _ -> url end)
-      %PetstoreClient.ApiResponse{status_code: 200, body: "", headers: %{"Content-Type" => "application/json"}}
+      %PetstoreClient.ApiHttpResponse{status_code: 200, body: "", headers: %{"Content-Type" => "application/json"}}
     end
   end
 
@@ -859,7 +859,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
       binary_data = <<0x00, 0xFF, 0x42>>
       encoded = Base.encode64(binary_data)
 
-      %PetstoreClient.ApiResponse{
+      %PetstoreClient.ApiHttpResponse{
         status_code: 200,
         body: encoded,
         headers: %{"Content-Type" => "application/octet-stream"}
@@ -874,7 +874,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     def send_request(_method, _url, _headers, _body) do
       binary_data = <<0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D>>
       encoded = Base.encode64(binary_data)
-      %PetstoreClient.ApiResponse{status_code: 200, body: encoded, headers: %{"Content-Type" => "image/png"}}
+      %PetstoreClient.ApiHttpResponse{status_code: 200, body: encoded, headers: %{"Content-Type" => "image/png"}}
     end
   end
 
@@ -883,7 +883,11 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     @impl true
     def send_request(_method, _url, _headers, _body) do
-      %PetstoreClient.ApiResponse{status_code: 200, body: "", headers: %{"Content-Type" => "application/octet-stream"}}
+      %PetstoreClient.ApiHttpResponse{
+        status_code: 200,
+        body: "",
+        headers: %{"Content-Type" => "application/octet-stream"}
+      }
     end
   end
 
@@ -1062,7 +1066,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     def send_request(_method, _url, headers, _body) do
       name = Process.get(__MODULE__)
       Agent.update(name, fn _ -> headers end)
-      %PetstoreClient.ApiResponse{status_code: 200, body: "{}", headers: %{"Content-Type" => "application/json"}}
+      %PetstoreClient.ApiHttpResponse{status_code: 200, body: "{}", headers: %{"Content-Type" => "application/json"}}
     end
   end
 
@@ -1235,7 +1239,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     def send_request(_method, _url, headers, _body) do
       name = Process.get(__MODULE__)
       Agent.update(name, fn _ -> headers end)
-      %PetstoreClient.ApiResponse{status_code: 200, body: "{}", headers: %{"Content-Type" => "application/json"}}
+      %PetstoreClient.ApiHttpResponse{status_code: 200, body: "{}", headers: %{"Content-Type" => "application/json"}}
     end
   end
 
@@ -1337,7 +1341,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     def send_request(_method, url, _headers, _body) do
       name = Process.get(__MODULE__)
       Agent.update(name, fn _ -> url end)
-      %PetstoreClient.ApiResponse{status_code: 200, body: "", headers: %{"Content-Type" => "application/json"}}
+      %PetstoreClient.ApiHttpResponse{status_code: 200, body: "", headers: %{"Content-Type" => "application/json"}}
     end
   end
 
@@ -1468,7 +1472,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     def send_request(_method, _url, _headers, _body) do
       # 200 OK with a declared JSON content type but a body that cannot be
       # parsed against the declared return type.
-      %PetstoreClient.ApiResponse{
+      %PetstoreClient.ApiHttpResponse{
         status_code: 200,
         body: "{",
         headers: %{"Content-Type" => "application/json"}
@@ -1495,11 +1499,11 @@ defmodule PetstoreClient.Api.BaseApiTest do
     end
   end
 
-  # apiresponse-body-nullable-elixir: ApiResponse.body is non-null (a
+  # apiresponse-body-nullable-elixir: ApiHttpResponse.body is non-null (a
   # guaranteed string, defaulting to ""), matching the other 11 SDKs —
   # callers never need to nil-check it.
-  test "ApiResponse.body defaults to an empty string, not nil" do
-    resp = %PetstoreClient.ApiResponse{status_code: 204, headers: %{}}
+  test "ApiHttpResponse.body defaults to an empty string, not nil" do
+    resp = %PetstoreClient.ApiHttpResponse{status_code: 204, headers: %{}}
     assert resp.body == ""
     assert is_binary(resp.body)
   end
@@ -1570,7 +1574,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     def send_request(_method, _url, _headers, body) do
       name = Process.get(__MODULE__)
       Agent.update(name, fn _ -> body end)
-      %PetstoreClient.ApiResponse{status_code: 200, body: "", headers: %{"Content-Type" => "application/json"}}
+      %PetstoreClient.ApiHttpResponse{status_code: 200, body: "", headers: %{"Content-Type" => "application/json"}}
     end
   end
 

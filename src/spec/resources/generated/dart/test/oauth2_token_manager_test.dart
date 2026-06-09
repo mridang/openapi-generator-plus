@@ -13,7 +13,7 @@ import 'package:test/test.dart';
 import 'package:petstore_client/petstore_client.dart';
 
 class _FakeApiClient implements ApiClient {
-  final List<HttpApiResponse> _responses = [];
+  final List<ApiHttpResponse> _responses = [];
   String? lastBody;
   String? lastUrl;
   bool? lastNoRedirect;
@@ -21,12 +21,12 @@ class _FakeApiClient implements ApiClient {
 
   void enqueue(String body, {int statusCode = 200}) {
     _responses.add(
-      HttpApiResponse(statusCode: statusCode, body: body, headers: {}),
+      ApiHttpResponse(statusCode: statusCode, body: body, headers: {}),
     );
   }
 
   @override
-  Future<HttpApiResponse> sendRequest(
+  Future<ApiHttpResponse> sendRequest(
     String method,
     String url,
     Map<String, String> headers,
@@ -53,7 +53,7 @@ class _GatedApiClient implements ApiClient {
   _GatedApiClient(this.gate, this.responseBody);
 
   @override
-  Future<HttpApiResponse> sendRequest(
+  Future<ApiHttpResponse> sendRequest(
     String method,
     String url,
     Map<String, String> headers,
@@ -62,7 +62,7 @@ class _GatedApiClient implements ApiClient {
   }) async {
     requestCount++;
     await gate.future;
-    return HttpApiResponse(statusCode: 200, body: responseBody, headers: {});
+    return ApiHttpResponse(statusCode: 200, body: responseBody, headers: {});
   }
 }
 

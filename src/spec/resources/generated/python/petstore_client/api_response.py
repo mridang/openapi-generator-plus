@@ -10,7 +10,7 @@ from typing import Dict
 
 
 @dataclass(frozen=True)
-class ApiResponse:
+class ApiHttpResponse:
     """Represents an HTTP API response."""
 
     status_code: int

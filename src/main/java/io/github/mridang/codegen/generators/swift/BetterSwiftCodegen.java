@@ -281,7 +281,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("object_serializer.mustache", srcDir, "ObjectSerializer.swift"),
             new SupportingFileSpec("value_serializer.mustache", srcDir, "ValueSerializer.swift"),
             new SupportingFileSpec("trace_context_util.mustache", srcDir, "TraceContextUtil.swift"),
-            new SupportingFileSpec("api_response.mustache", srcDir, "HTTPApiResponse.swift"),
+            new SupportingFileSpec("api_response.mustache", srcDir, "ApiHttpResponse.swift"),
             new SupportingFileSpec("api_result.mustache", srcDir, "ApiResult.swift"),
             new SupportingFileSpec("api_client.mustache", srcDir, "ApiClient.swift"),
             new SupportingFileSpec("default_api_client.mustache", srcDir, "DefaultApiClient.swift"),

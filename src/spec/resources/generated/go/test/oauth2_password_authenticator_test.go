@@ -31,11 +31,11 @@ type fakePasswordResponse struct {
 	statusCode int
 }
 
-func (c *fakePasswordClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.HttpResponse, error) {
+func (c *fakePasswordClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.ApiHttpResponse, error) {
 	return c.SendRequestWithOptions(method, url, headers, body, nil)
 }
 
-func (c *fakePasswordClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *auth.RequestOptions) (*auth.HttpResponse, error) {
+func (c *fakePasswordClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *auth.RequestOptions) (*auth.ApiHttpResponse, error) {
 	_ = opts
 	c.LastURL = url
 	c.LastHeaders = headers
@@ -46,7 +46,7 @@ func (c *fakePasswordClient) SendRequestWithOptions(method, url string, headers 
 	}
 	idx := atomic.AddInt32(&c.index, 1) - 1
 	resp := c.responses[idx]
-	return &auth.HttpResponse{
+	return &auth.ApiHttpResponse{
 		StatusCode: resp.statusCode,
 		Body:       resp.body,
 		Headers:    map[string]string{},

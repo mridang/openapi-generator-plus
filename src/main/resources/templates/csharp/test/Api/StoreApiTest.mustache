@@ -118,10 +118,10 @@ public class StoreApiTest
             _body = body;
         }
 
-        public Task<{{packageName}}.ApiResponse> SendRequestAsync(
+        public Task<{{packageName}}.ApiHttpResponse> SendRequestAsync(
             string method, Uri url, Dictionary<string, string> headers, object? body, bool noRedirect = false)
         {
-            return Task.FromResult(new {{packageName}}.ApiResponse(_statusCode, _body, new Dictionary<string, string>
+            return Task.FromResult(new {{packageName}}.ApiHttpResponse(_statusCode, _body, new Dictionary<string, string>
             {
                 { "Content-Type", _contentType }
             }));

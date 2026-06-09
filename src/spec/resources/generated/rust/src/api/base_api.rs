@@ -13,7 +13,7 @@ use serde::de::DeserializeOwned;
 
 use crate::api_client::{ApiClient, MultipartValue, RequestBody};
 use crate::api_error::ApiError;
-use crate::api_response::ApiResponse;
+use crate::api_response::ApiHttpResponse;
 use crate::api_result::ApiResult;
 use crate::auth::Authenticator;
 use crate::configuration::Configuration;
@@ -78,7 +78,7 @@ impl BaseApi {
     pub async fn invoke_api(
         &self,
         params: InvokeApiParams<'_>,
-    ) -> Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>> {
         let mut request_url = params.path.to_string();
         if !request_url.starts_with("http://") && !request_url.starts_with("https://") {
             /* Strip trailing slash from baseUrl when path starts with `/`
@@ -420,7 +420,7 @@ fn form_scalar_to_string(value: &serde_json::Value) -> String {
     }
 }
 
-fn throw_api_error(response: &ApiResponse) -> Box<dyn std::error::Error + Send + Sync> {
+fn throw_api_error(response: &ApiHttpResponse) -> Box<dyn std::error::Error + Send + Sync> {
     let code = response.status_code();
     let msg = format!("API returned status code {}", code);
     let body = response.body().to_string();

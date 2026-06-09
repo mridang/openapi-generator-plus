@@ -1,6 +1,6 @@
 {{>api_info}}
 
-import type { ApiResponse } from './api-response{{importFileExtension}}';
+import type { ApiHttpResponse } from './api-response{{importFileExtension}}';
 
 /**
  * Per-request transport overrides accepted by {@link ApiClient.sendRequest}.
@@ -31,7 +31,7 @@ export interface ApiClient {
    * @param headers HTTP headers
    * @param body Request body (serialized JSON string, raw Buffer, or null)
    * @param options optional per-request transport overrides (e.g. `noRedirect`)
-   * @returns ApiResponse containing status code, body, and headers
+   * @returns ApiHttpResponse containing status code, body, and headers
    */
   sendRequest(
     method: string,
@@ -39,5 +39,5 @@ export interface ApiClient {
     headers: Record<string, string>,
     body: string | Buffer | Record<string, unknown> | null,
     options?: SendRequestOptions
-  ): Promise<ApiResponse>;
+  ): Promise<ApiHttpResponse>;
 }

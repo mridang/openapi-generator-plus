@@ -9,7 +9,7 @@ package com.example.petstore.api
 
 import com.example.petstore.ApiClient
 import com.example.petstore.ApiException
-import com.example.petstore.ApiResponse
+import com.example.petstore.ApiHttpResponse
 import com.example.petstore.ApiResult
 import com.example.petstore.Configuration
 import com.example.petstore.DefaultApiClient
@@ -114,7 +114,7 @@ abstract class BaseApi {
      * @param accepts     acceptable response content types
      * @param contentType request content type
      * @param auth        optional authenticator for operation-specific auth
-     * @return ApiResponse containing status code, body, and headers
+     * @return ApiHttpResponse containing status code, body, and headers
      * @throws ApiException if the API call fails
      */
     protected suspend fun invokeApi(
@@ -126,7 +126,7 @@ abstract class BaseApi {
         accepts: Array<String>,
         contentType: String,
         auth: Authenticator?,
-    ): ApiResponse {
+    ): ApiHttpResponse {
         var url =
             if (path.startsWith("http://") || path.startsWith("https://")) {
                 path
@@ -235,7 +235,7 @@ abstract class BaseApi {
      * Invoke an API operation and return the full result including status code,
      * headers, and raw body alongside the deserialized data.
      *
-     * Calls [invokeApi] to get the raw [ApiResponse], then deserializes the
+     * Calls [invokeApi] to get the raw [ApiHttpResponse], then deserializes the
      * response body using the [ObjectSerializer] when a return type is expected.
      *
      * @param T          the return type
@@ -306,7 +306,7 @@ abstract class BaseApi {
      * @param response the API response with a non-2xx status code
      * @throws ApiException always
      */
-    private fun throwApiException(response: ApiResponse): Nothing {
+    private fun throwApiException(response: ApiHttpResponse): Nothing {
         val code = response.statusCode
         val message = "API returned status code $code"
         val body = response.body

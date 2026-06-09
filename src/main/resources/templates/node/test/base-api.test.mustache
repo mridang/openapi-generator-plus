@@ -16,7 +16,7 @@ import { ConflictError } from '../src/errors/conflict-error{{importFileExtension
 import { UnprocessableEntityError } from '../src/errors/unprocessable-entity-error{{importFileExtension}}';
 import { InternalServerError } from '../src/errors/internal-server-error{{importFileExtension}}';
 import type { ApiClient } from '../src/api-client{{importFileExtension}}';
-import type { ApiResponse } from '../src/api-response{{importFileExtension}}';
+import type { ApiHttpResponse } from '../src/api-response{{importFileExtension}}';
 import type { ApiResult } from '../src/api-result{{importFileExtension}}';
 import { PetApi } from '../src/api/pet-api{{importFileExtension}}';
 import { Category } from '../src/models/index{{importFileExtension}}';
@@ -28,7 +28,7 @@ class CapturingApiClient implements ApiClient {
   capturedBody: string | Buffer | Record<string, unknown> | null = null;
   responseBody = '{}';
   responseHeaders: Record<string, string> = { 'content-type': 'application/json' };
-  async sendRequest(method: string, url: string, headers: Record<string, string>, body: string | Buffer | Record<string, unknown> | null): Promise<ApiResponse> {
+  async sendRequest(method: string, url: string, headers: Record<string, string>, body: string | Buffer | Record<string, unknown> | null): Promise<ApiHttpResponse> {
     this.capturedUrl = url;
     this.capturedHeaders = headers;
     this.capturedBody = body;

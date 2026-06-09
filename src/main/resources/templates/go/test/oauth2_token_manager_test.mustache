@@ -29,11 +29,11 @@ type fakeResponse struct {
 	statusCode int
 }
 
-func (c *fakeTokenClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.HttpResponse, error) {
+func (c *fakeTokenClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.ApiHttpResponse, error) {
 	return c.SendRequestWithOptions(method, url, headers, body, nil)
 }
 
-func (c *fakeTokenClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *auth.RequestOptions) (*auth.HttpResponse, error) {
+func (c *fakeTokenClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *auth.RequestOptions) (*auth.ApiHttpResponse, error) {
 	c.LastURL = url
 	if opts != nil {
 		c.LastNoRedirect = opts.NoRedirect
@@ -47,7 +47,7 @@ func (c *fakeTokenClient) SendRequestWithOptions(method, url string, headers map
 	}
 	idx := atomic.AddInt32(&c.index, 1) - 1
 	resp := c.responses[idx]
-	return &auth.HttpResponse{
+	return &auth.ApiHttpResponse{
 		StatusCode: resp.statusCode,
 		Body:       resp.body,
 		Headers:    map[string]string{},
@@ -280,16 +280,16 @@ type slowFakeTokenClient struct {
 	delay     time.Duration
 }
 
-func (c *slowFakeTokenClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.HttpResponse, error) {
+func (c *slowFakeTokenClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.ApiHttpResponse, error) {
 	return c.SendRequestWithOptions(method, url, headers, body, nil)
 }
 
-func (c *slowFakeTokenClient) SendRequestWithOptions(_, _ string, _ map[string]string, _ any, _ *auth.RequestOptions) (*auth.HttpResponse, error) {
+func (c *slowFakeTokenClient) SendRequestWithOptions(_, _ string, _ map[string]string, _ any, _ *auth.RequestOptions) (*auth.ApiHttpResponse, error) {
 	atomic.AddInt32(&c.callCount, 1)
 	if c.delay > 0 {
 		time.Sleep(c.delay)
 	}
-	return &auth.HttpResponse{StatusCode: 200, Body: c.body, Headers: map[string]string{}}, nil
+	return &auth.ApiHttpResponse{StatusCode: 200, Body: c.body, Headers: map[string]string{}}, nil
 }
 
 func TestOAuth2TokenManager_SingleFlightCoalescesConcurrentCallers(t *testing.T) {
@@ -636,17 +636,17 @@ type numberingSlowTokenClient struct {
 	delay     time.Duration
 }
 
-func (c *numberingSlowTokenClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.HttpResponse, error) {
+func (c *numberingSlowTokenClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.ApiHttpResponse, error) {
 	return c.SendRequestWithOptions(method, url, headers, body, nil)
 }
 
-func (c *numberingSlowTokenClient) SendRequestWithOptions(_, _ string, _ map[string]string, _ any, _ *auth.RequestOptions) (*auth.HttpResponse, error) {
+func (c *numberingSlowTokenClient) SendRequestWithOptions(_, _ string, _ map[string]string, _ any, _ *auth.RequestOptions) (*auth.ApiHttpResponse, error) {
 	n := atomic.AddInt32(&c.callCount, 1)
 	if c.delay > 0 {
 		time.Sleep(c.delay)
 	}
 	body := `{"access_token":"tok` + string(rune('0'+n)) + `","expires_in":3600}`
-	return &auth.HttpResponse{StatusCode: 200, Body: body, Headers: map[string]string{}}, nil
+	return &auth.ApiHttpResponse{StatusCode: 200, Body: body, Headers: map[string]string{}}, nil
 }
 
 func TestOAuth2TokenManager_InvalidateTriggersSingleRefetchUnderConcurrency(t *testing.T) {

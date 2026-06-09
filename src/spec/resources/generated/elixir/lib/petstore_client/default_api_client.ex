@@ -145,7 +145,7 @@ defmodule PetstoreClient.DefaultApiClient do
           url :: String.t(),
           headers :: %{optional(String.t()) => String.t()},
           body :: term() | nil
-        ) :: PetstoreClient.ApiResponse.t()
+        ) :: PetstoreClient.ApiHttpResponse.t()
   def send_request(%__MODULE__{} = client, method, url, headers, body) do
     send_request(client, method, url, headers, body, [])
   end
@@ -169,7 +169,7 @@ defmodule PetstoreClient.DefaultApiClient do
           headers :: %{optional(String.t()) => String.t()},
           body :: term() | nil,
           opts :: keyword()
-        ) :: PetstoreClient.ApiResponse.t()
+        ) :: PetstoreClient.ApiHttpResponse.t()
   def send_request(%__MODULE__{} = client, method, url, headers, body, request_opts)
       when is_list(request_opts) do
     # Gap T6 / close-lifecycle: reject use-after-close with a typed SDK
@@ -276,7 +276,7 @@ defmodule PetstoreClient.DefaultApiClient do
         Base.encode64(body_binary)
       end
 
-    %PetstoreClient.ApiResponse{
+    %PetstoreClient.ApiHttpResponse{
       status_code: response.status,
       body: response_body,
       headers: headers

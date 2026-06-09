@@ -10,7 +10,7 @@ package com.example.petstore.auth.oauth;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.example.petstore.ApiClient;
-import com.example.petstore.ApiResponse;
+import com.example.petstore.ApiHttpResponse;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -33,7 +33,8 @@ class OAuth2ClientCredentialsAuthenticatorTest {
     ApiClient client =
         (method, url, headers, body) -> {
           capturedBody.set(body != null ? body.toString() : "");
-          return new ApiResponse(200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
         };
 
     OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
@@ -52,7 +53,8 @@ class OAuth2ClientCredentialsAuthenticatorTest {
     ApiClient client =
         (method, url, headers, body) -> {
           capturedBody.set(body != null ? body.toString() : "");
-          return new ApiResponse(200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
         };
 
     OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
@@ -72,7 +74,8 @@ class OAuth2ClientCredentialsAuthenticatorTest {
     ApiClient client =
         (method, url, headers, body) -> {
           capturedBody.set(body != null ? body.toString() : "");
-          return new ApiResponse(200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
         };
 
     OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
@@ -89,7 +92,8 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   void returnsAuthorizationBearerHeader() {
     ApiClient client =
         (method, url, headers, body) ->
-            new ApiResponse(200, "{\"access_token\":\"tok-abc\",\"expires_in\":3600}", Map.of());
+            new ApiHttpResponse(
+                200, "{\"access_token\":\"tok-abc\",\"expires_in\":3600}", Map.of());
 
     OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
     auth.setApiClient(client);
@@ -105,7 +109,8 @@ class OAuth2ClientCredentialsAuthenticatorTest {
     ApiClient client =
         (method, url, headers, body) -> {
           capturedUrl.set(url);
-          return new ApiResponse(200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
         };
 
     OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
@@ -131,7 +136,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
     // unauthenticated and produce a confusing downstream 401.
     ApiClient client =
         (method, url, headers, body) ->
-            new ApiResponse(401, "{\"error\":\"invalid_client\"}", Map.of());
+            new ApiHttpResponse(401, "{\"error\":\"invalid_client\"}", Map.of());
 
     OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
     auth.setApiClient(client);
@@ -149,7 +154,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
     ApiClient client =
         (method, url, headers, body) -> {
           calls.incrementAndGet();
-          return new ApiResponse(
+          return new ApiHttpResponse(
               200, "{\"access_token\":\"cached-cc-token\",\"expires_in\":3600}", Map.of());
         };
 
@@ -175,7 +180,8 @@ class OAuth2ClientCredentialsAuthenticatorTest {
     ApiClient client =
         (method, url, headers, body) -> {
           capturedHeaders.set(headers);
-          return new ApiResponse(200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
         };
 
     OAuth2ClientCredentialsAuthenticator auth =

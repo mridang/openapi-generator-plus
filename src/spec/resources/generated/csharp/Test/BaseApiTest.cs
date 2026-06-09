@@ -115,7 +115,7 @@ public class BaseApiTest
         public Dictionary<string, string> CapturedHeaders { get; private set; } = new();
         public object? CapturedBody { get; private set; }
 
-        public Task<ApiResponse> SendRequestAsync(
+        public Task<ApiHttpResponse> SendRequestAsync(
             string method,
             Uri url,
             Dictionary<string, string> headers,
@@ -127,7 +127,7 @@ public class BaseApiTest
             CapturedHeaders = new Dictionary<string, string>(headers);
             CapturedBody = body;
             return Task.FromResult(
-                new ApiResponse(
+                new ApiHttpResponse(
                     200,
                     "{}",
                     new Dictionary<string, string> { { "Content-Type", "application/json" } }
@@ -351,7 +351,7 @@ public class BaseApiTest
 
     private sealed class TextPlainApiClient : IApiClient
     {
-        public Task<ApiResponse> SendRequestAsync(
+        public Task<ApiHttpResponse> SendRequestAsync(
             string method,
             Uri url,
             Dictionary<string, string> headers,
@@ -360,7 +360,7 @@ public class BaseApiTest
         )
         {
             return Task.FromResult(
-                new ApiResponse(
+                new ApiHttpResponse(
                     200,
                     "hello",
                     new Dictionary<string, string> { { "Content-Type", "text/plain" } }
@@ -389,7 +389,7 @@ public class BaseApiTest
 
     private sealed class VendorJsonApiClient : IApiClient
     {
-        public Task<ApiResponse> SendRequestAsync(
+        public Task<ApiHttpResponse> SendRequestAsync(
             string method,
             Uri url,
             Dictionary<string, string> headers,
@@ -398,7 +398,7 @@ public class BaseApiTest
         )
         {
             return Task.FromResult(
-                new ApiResponse(
+                new ApiHttpResponse(
                     200,
                     "{\"title\":\"Not Found\"}",
                     new Dictionary<string, string>
@@ -812,7 +812,7 @@ public class BaseApiTest
         public string ContentType { get; set; } = "application/octet-stream";
         public string Body { get; set; } = "";
 
-        public Task<ApiResponse> SendRequestAsync(
+        public Task<ApiHttpResponse> SendRequestAsync(
             string method,
             Uri url,
             Dictionary<string, string> headers,
@@ -821,7 +821,7 @@ public class BaseApiTest
         )
         {
             return Task.FromResult(
-                new ApiResponse(
+                new ApiHttpResponse(
                     200,
                     Body,
                     new Dictionary<string, string> { { "Content-Type", ContentType } }

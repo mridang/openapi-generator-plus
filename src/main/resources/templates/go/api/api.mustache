@@ -353,7 +353,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
-			 * could be carried in HttpResponse.Body (a string); decode it back
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {

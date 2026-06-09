@@ -259,6 +259,75 @@ class ObjectSerializerTest {
     }
 
     @Nested
+    @DisplayName("StrictPrimitiveCoercionTests")
+    inner class StrictPrimitiveCoercionTests {
+
+        @Test
+        @DisplayName("quoted-scalar-into-numeric-field: {\"id\":\"42\"} on a Long field throws")
+        fun quotedScalarIntoLongFieldThrows() {
+            // Residual kotlinx gap: even with isLenient=false the parser would
+            // silently coerce the quoted "42" into the numeric id. The strict
+            // per-field serializer rejects a JSON string for a numeric field,
+            // matching Jackson ALLOW_COERCION_OF_SCALARS=false on the Java SDK.
+            val json = "{\"id\":\"42\",\"name\":\"Dogs\"}"
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Category>(json)
+            }
+        }
+
+        @Test
+        @DisplayName("quoted-scalar-into-int-field: {\"quantity\":\"3\"} on an Int field throws")
+        fun quotedScalarIntoIntFieldThrows() {
+            val json = "{\"quantity\":\"3\"}"
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Order>(json)
+            }
+        }
+
+        @Test
+        @DisplayName("number-into-boolean-field: {\"complete\":1} on a Boolean field throws")
+        fun numberIntoBooleanFieldThrows() {
+            val json = "{\"complete\":1}"
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Order>(json)
+            }
+        }
+
+        @Test
+        @DisplayName("quoted-scalar-into-boolean-field: {\"complete\":\"true\"} on a Boolean field throws")
+        fun quotedScalarIntoBooleanFieldThrows() {
+            val json = "{\"complete\":\"true\"}"
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Order>(json)
+            }
+        }
+
+        @Test
+        @DisplayName("control: a valid typed payload still deserializes correctly")
+        fun validTypedPayloadRoundTrips() {
+            val json = "{\"id\":42,\"petId\":7,\"quantity\":3,\"complete\":true}"
+            val order = serializer.deserialize<{{modelPackage}}.Order>(json)
+            assertNotNull(order)
+            assertEquals(42L, order!!.id)
+            assertEquals(7L, order.petId)
+            assertEquals(3, order.quantity)
+            assertEquals(true, order.complete)
+        }
+
+        @Test
+        @DisplayName("control: round-trip serialize then deserialize preserves numeric and boolean values")
+        fun numericBooleanRoundTrip() {
+            val original = {{modelPackage}}.Order(id = 9L, petId = 1L, quantity = 5, complete = false)
+            val encoded = serializer.serialize(original)
+            val decoded = serializer.deserialize<{{modelPackage}}.Order>(encoded)
+            assertNotNull(decoded)
+            assertEquals(9L, decoded!!.id)
+            assertEquals(5, decoded.quantity)
+            assertEquals(false, decoded.complete)
+        }
+    }
+
+    @Nested
     @DisplayName("stringify")
     inner class StringifyTests {
 

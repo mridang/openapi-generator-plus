@@ -5,7 +5,7 @@ package {{invokerPackage}}.auth.oauth;
 import static org.junit.jupiter.api.Assertions.*;
 
 import {{invokerPackage}}.ApiClient;
-import {{invokerPackage}}.ApiResponse;
+import {{invokerPackage}}.ApiHttpResponse;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -51,7 +51,7 @@ class OAuth2AuthCodeAuthenticatorTest {
         AtomicReference<String> capturedBody = new AtomicReference<>();
         ApiClient client = (method, url, headers, body) -> {
             capturedBody.set(body != null ? body.toString() : "");
-            return new ApiResponse(200,
+            return new ApiHttpResponse(200,
                     "{\"access_token\":\"at\",\"refresh_token\":\"rt\",\"expires_in\":3600}",
                     Map.of());
         };
@@ -77,11 +77,11 @@ class OAuth2AuthCodeAuthenticatorTest {
             calls.count++;
             capturedBody.set(body != null ? body.toString() : "");
             if (calls.count == 1) {
-                return new ApiResponse(200,
+                return new ApiHttpResponse(200,
                         "{\"access_token\":\"at\",\"refresh_token\":\"rt\",\"expires_in\":0}",
                         Map.of());
             }
-            return new ApiResponse(200,
+            return new ApiHttpResponse(200,
                     "{\"access_token\":\"at2\",\"expires_in\":3600}",
                     Map.of());
         };
@@ -117,7 +117,7 @@ class OAuth2AuthCodeAuthenticatorTest {
     void exchangeCodeRejectsEmptyCode() {
         OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
         auth.setApiClient((method, url, headers, body) ->
-                new ApiResponse(200, "{\"access_token\":\"at\"}", Map.of()));
+                new ApiHttpResponse(200, "{\"access_token\":\"at\"}", Map.of()));
 
         // No exchangeCode(null) case: the code parameter is @NonNull, so
         // NullAway rejects a literal null at compile time. Empty + whitespace
@@ -133,7 +133,7 @@ class OAuth2AuthCodeAuthenticatorTest {
         // any token POST is issued (trim().isEmpty() guard).
         OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
         auth.setApiClient((method, url, headers, body) ->
-                new ApiResponse(200, "{\"access_token\":\"at\"}", Map.of()));
+                new ApiHttpResponse(200, "{\"access_token\":\"at\"}", Map.of()));
 
         assertThrows(IllegalArgumentException.class, () -> auth.exchangeCode("   "));
     }

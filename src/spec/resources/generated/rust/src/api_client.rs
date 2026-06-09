@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 
-use crate::api_response::ApiResponse;
+use crate::api_response::ApiHttpResponse;
 
 /// Represents the body of an HTTP request.
 ///
@@ -76,7 +76,7 @@ pub trait ApiClient: Send + Sync {
     ///
     /// # Returns
     ///
-    /// An `ApiResponse` on success, or an error.
+    /// An `ApiHttpResponse` on success, or an error.
     fn send_request(
         &self,
         method: &str,
@@ -85,7 +85,7 @@ pub trait ApiClient: Send + Sync {
         body: Option<&RequestBody>,
     ) -> Pin<
         Box<
-            dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
+            dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>>
                 + Send
                 + '_,
         >,
@@ -106,7 +106,7 @@ pub trait ApiClient: Send + Sync {
         _options: &RequestOptions,
     ) -> Pin<
         Box<
-            dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
+            dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>>
                 + Send
                 + '_,
         >,

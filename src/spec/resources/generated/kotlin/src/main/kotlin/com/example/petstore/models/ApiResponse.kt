@@ -19,6 +19,7 @@ import kotlinx.serialization.UseSerializers
 data class ApiResponse(
     /** Example: `null` */
     @SerialName("code")
+    @Serializable(with = com.example.petstore.StrictIntSerializer::class)
     val code: Int? = null,
     /** Example: `null` */
     @SerialName("type")

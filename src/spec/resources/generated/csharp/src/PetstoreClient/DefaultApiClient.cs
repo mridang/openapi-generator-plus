@@ -254,7 +254,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     }
 
     /// <inheritdoc/>
-    public async Task<ApiResponse> SendRequestAsync(
+    public async Task<ApiHttpResponse> SendRequestAsync(
         string method,
         Uri url,
         Dictionary<string, string> headers,
@@ -590,7 +590,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             responseHeaders[AsciiLower(header.Key)] = string.Join(", ", header.Value);
         }
 
-        return new ApiResponse((int)response.StatusCode, responseBody, responseHeaders);
+        return new ApiHttpResponse((int)response.StatusCode, responseBody, responseHeaders);
     }
 
     private static bool IsRedirectStatus(int code)

@@ -14,7 +14,7 @@ import pytest
 
 from petstore_client.auth.oauth.client_auth_method import ClientAuthMethod
 from petstore_client.auth.oauth.oauth2_client_credentials_authenticator import OAuth2ClientCredentialsAuthenticator
-from petstore_client.api_response import ApiResponse
+from petstore_client.api_response import ApiHttpResponse
 
 
 def _create_authenticator() -> OAuth2ClientCredentialsAuthenticator:
@@ -30,7 +30,7 @@ def _create_authenticator() -> OAuth2ClientCredentialsAuthenticator:
 def _create_authenticator_with_mock() -> tuple[OAuth2ClientCredentialsAuthenticator, MagicMock]:
     auth = _create_authenticator()
     mock_client = MagicMock()
-    mock_client.send_request.return_value = ApiResponse(
+    mock_client.send_request.return_value = ApiHttpResponse(
         status_code=200,
         body=json.dumps(
             {
@@ -76,7 +76,7 @@ class TestOAuth2ClientCredentialsAuthenticator:
     def test_returns_authorization_bearer_header(self) -> None:
         auth = _create_authenticator()
         mock_client = MagicMock()
-        mock_client.send_request.return_value = ApiResponse(
+        mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
             body=json.dumps(
                 {
@@ -112,7 +112,7 @@ class TestOAuth2ClientCredentialsAuthenticator:
         # unauthenticated and produce a confusing downstream 401.
         auth = _create_authenticator()
         mock_client = MagicMock()
-        mock_client.send_request.return_value = ApiResponse(
+        mock_client.send_request.return_value = ApiHttpResponse(
             status_code=401,
             body=json.dumps({'error': 'invalid_client'}),
             headers={'content-type': 'application/json'},
@@ -148,7 +148,7 @@ class TestOAuth2ClientCredentialsAuthenticator:
             client_auth_method=ClientAuthMethod.BASIC,
         )
         mock_client = MagicMock()
-        mock_client.send_request.return_value = ApiResponse(
+        mock_client.send_request.return_value = ApiHttpResponse(
             status_code=200,
             body=json.dumps({'access_token': 'at', 'expires_in': 3600}),
             headers={'content-type': 'application/json'},

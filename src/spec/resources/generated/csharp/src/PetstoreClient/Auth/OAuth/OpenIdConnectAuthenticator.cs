@@ -87,7 +87,7 @@ public partial class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareA
         }
 
         Dictionary<string, string> headers = new() { ["Accept"] = "application/json" };
-        ApiResponse response = await _apiClient
+        ApiHttpResponse response = await _apiClient
             .SendRequestAsync("GET", _openIdConnectUrl, headers, null)
             .ConfigureAwait(false);
 

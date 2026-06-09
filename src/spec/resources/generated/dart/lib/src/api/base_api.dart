@@ -48,7 +48,7 @@ class BaseApi {
   final Authenticator? _authenticator;
 
   /// Dispatches an API request and returns the full result.
-  Future<HttpApiResponse> invokeApi({
+  Future<ApiHttpResponse> invokeApi({
     required String method,
     required String path,
     Map<String, Object?>? queryParams,
@@ -161,7 +161,7 @@ class BaseApi {
   /// Dispatches an API request and returns the full result including
   /// deserialized data, status code, raw body, and headers.
   ///
-  /// Calls [invokeApi] to get the raw [HttpApiResponse], then deserializes
+  /// Calls [invokeApi] to get the raw [ApiHttpResponse], then deserializes
   /// the response body when [returnType] is not empty.
   Future<ApiResult<T>> invokeApiForResult<T>({
     required String method,
@@ -433,7 +433,7 @@ class BaseApi {
         '${hex.substring(20, 32)}';
   }
 
-  ApiError _throwApiError(HttpApiResponse response) {
+  ApiError _throwApiError(ApiHttpResponse response) {
     final code = response.statusCode;
     final msg = 'API returned status code $code';
     final body = response.body;

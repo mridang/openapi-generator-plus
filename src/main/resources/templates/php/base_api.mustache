@@ -4,7 +4,7 @@ namespace {{apiPackage}};
 
 use {{invokerPackage}}\ApiClient;
 use {{invokerPackage}}\ApiException;
-use {{invokerPackage}}\ApiResponse;
+use {{invokerPackage}}\ApiHttpResponse;
 use {{invokerPackage}}\ApiResult;
 use {{invokerPackage}}\Configuration;
 use {{invokerPackage}}\DefaultApiClient;
@@ -233,7 +233,7 @@ class BaseApi
      *
      * @throws ApiException always
      */
-    private function throwApiException(ApiResponse $response): never
+    private function throwApiException(ApiHttpResponse $response): never
     {
         $code = $response->statusCode;
         $message = "API returned status code $code";

@@ -47,7 +47,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
       # Simulate a slow OP so concurrent callers genuinely race.
       Process.sleep(50)
 
-      %{{moduleName}}.ApiResponse{
+      %{{moduleName}}.ApiHttpResponse{
         status_code: 200,
         body: Jason.encode!(%{"access_token" => "shared-tok", "expires_in" => 3600})
       }
@@ -74,7 +74,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
       # Simulate a slow OP so concurrent callers genuinely race.
       Process.sleep(50)
 
-      %{{moduleName}}.ApiResponse{
+      %{{moduleName}}.ApiHttpResponse{
         status_code: 200,
         body: Jason.encode!(%{"access_token" => "tok#{n}", "expires_in" => 3600})
       }
@@ -97,7 +97,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
     def send_request(%__MODULE__{opts_agent: opts_agent}, _method, _url, _headers, _body, opts) do
       Agent.update(opts_agent, fn _ -> opts end)
 
-      %{{moduleName}}.ApiResponse{
+      %{{moduleName}}.ApiHttpResponse{
         status_code: 200,
         body: Jason.encode!(%{"access_token" => "tok", "expires_in" => 3600})
       }
@@ -107,7 +107,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
   describe "OAuth2TokenManager" do
     test "extracts access token from response" do
       fake_client = FakeApiClient.new([
-        %{{moduleName}}.ApiResponse{
+        %{{moduleName}}.ApiHttpResponse{
           status_code: 200,
           body: Jason.encode!(%{"access_token" => "tok123", "expires_in" => 3600})
         }
@@ -127,7 +127,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
 
     test "stores refresh token" do
       fake_client = FakeApiClient.new([
-        %{{moduleName}}.ApiResponse{
+        %{{moduleName}}.ApiHttpResponse{
           status_code: 200,
           body: Jason.encode!(%{"access_token" => "tok1", "refresh_token" => "ref1", "expires_in" => 3600})
         }
@@ -147,7 +147,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
 
     test "returns cached token when not expired" do
       fake_client = FakeApiClient.new([
-        %{{moduleName}}.ApiResponse{
+        %{{moduleName}}.ApiHttpResponse{
           status_code: 200,
           body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
         }
@@ -168,11 +168,11 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
 
     test "refetches token when expired" do
       fake_client = FakeApiClient.new([
-        %{{moduleName}}.ApiResponse{
+        %{{moduleName}}.ApiHttpResponse{
           status_code: 200,
           body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 1})
         },
-        %{{moduleName}}.ApiResponse{
+        %{{moduleName}}.ApiHttpResponse{
           status_code: 200,
           body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
         }
@@ -206,11 +206,11 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
 
     test "invalidate_access_token forces refetch" do
       fake_client = FakeApiClient.new([
-        %{{moduleName}}.ApiResponse{
+        %{{moduleName}}.ApiHttpResponse{
           status_code: 200,
           body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
         },
-        %{{moduleName}}.ApiResponse{
+        %{{moduleName}}.ApiHttpResponse{
           status_code: 200,
           body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
         }
@@ -269,7 +269,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
       # Gap CM: short-lived token (expires_in < buffer) must produce exactly
       # ONE network call from a single get_access_token invocation.
       fake_client = FakeApiClient.new([
-        %{{moduleName}}.ApiResponse{
+        %{{moduleName}}.ApiHttpResponse{
           status_code: 200,
           body: Jason.encode!(%{"access_token" => "short", "expires_in" => 10})
         }
@@ -291,7 +291,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
     test "expires_in long-lived token applies full buffer" do
       # Gap CM: long-lived token gets full 30s buffer; second call uses cache.
       fake_client = FakeApiClient.new([
-        %{{moduleName}}.ApiResponse{
+        %{{moduleName}}.ApiHttpResponse{
           status_code: 200,
           body: Jason.encode!(%{"access_token" => "long", "expires_in" => 3600})
         }
@@ -314,11 +314,11 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
     test "expires_in exactly buffer returns zero buffer" do
       # Gap CM: expires_in == 30 collapses expiry to now, forcing refetch.
       fake_client = FakeApiClient.new([
-        %{{moduleName}}.ApiResponse{
+        %{{moduleName}}.ApiHttpResponse{
           status_code: 200,
           body: Jason.encode!(%{"access_token" => "edge1", "expires_in" => 30})
         },
-        %{{moduleName}}.ApiResponse{
+        %{{moduleName}}.ApiHttpResponse{
           status_code: 200,
           body: Jason.encode!(%{"access_token" => "edge2", "expires_in" => 30})
         }
@@ -342,11 +342,11 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
       # Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
       # MUST NOT clobber the cached refresh_token.
       fake_client = FakeApiClient.new([
-        %{{moduleName}}.ApiResponse{
+        %{{moduleName}}.ApiHttpResponse{
           status_code: 200,
           body: Jason.encode!(%{"access_token" => "old_access", "refresh_token" => "old_refresh", "expires_in" => 1})
         },
-        %{{moduleName}}.ApiResponse{
+        %{{moduleName}}.ApiHttpResponse{
           status_code: 200,
           body: Jason.encode!(%{"access_token" => "new_access", "expires_in" => 3600, "refresh_token" => ""})
         }
@@ -372,7 +372,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
       # quoted string. The manager must accept it and cache the token; a
       # second call within the buffer window must serve from cache.
       fake_client = FakeApiClient.new([
-        %{{moduleName}}.ApiResponse{
+        %{{moduleName}}.ApiHttpResponse{
           status_code: 200,
           body: Jason.encode!(%{"access_token" => "str-tok", "expires_in" => "3600"})
         }
@@ -396,7 +396,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
       # D1: some providers send expires_in as a JSON float (e.g. 3600.5).
       # The manager must floor it and cache the token.
       fake_client = FakeApiClient.new([
-        %{{moduleName}}.ApiResponse{
+        %{{moduleName}}.ApiHttpResponse{
           status_code: 200,
           body: Jason.encode!(%{"access_token" => "flt-tok", "expires_in" => 3600.5})
         }
@@ -420,11 +420,11 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
       # D1: a negative expires_in (e.g. -1) must mark the token as
       # immediately stale so the very next call refetches.
       fake_client = FakeApiClient.new([
-        %{{moduleName}}.ApiResponse{
+        %{{moduleName}}.ApiHttpResponse{
           status_code: 200,
           body: Jason.encode!(%{"access_token" => "neg1", "expires_in" => -1})
         },
-        %{{moduleName}}.ApiResponse{
+        %{{moduleName}}.ApiHttpResponse{
           status_code: 200,
           body: Jason.encode!(%{"access_token" => "neg2", "expires_in" => 3600})
         }
@@ -446,7 +446,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
 
     test "throws when token request fails" do
       fake_client = FakeApiClient.new([
-        %{{moduleName}}.ApiResponse{
+        %{{moduleName}}.ApiHttpResponse{
           status_code: 401,
           body: Jason.encode!(%{"error" => "invalid_client"})
         }
@@ -470,7 +470,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
       # A 2xx response whose body omits access_token must surface as the typed
       # OAuth2TokenError, not silently cache an empty token.
       fake_client = FakeApiClient.new([
-        %{{moduleName}}.ApiResponse{
+        %{{moduleName}}.ApiHttpResponse{
           status_code: 200,
           body: Jason.encode!(%{"refresh_token" => "x"})
         }
@@ -519,7 +519,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
       test "refuses #{@redirect_status} from token endpoint with OAuth2TokenError" do
         fake_client =
           FakeApiClient.new([
-            %{{moduleName}}.ApiResponse{
+            %{{moduleName}}.ApiHttpResponse{
               status_code: @redirect_status,
               headers: %{"location" => "https://attacker.example/token"},
               body: ""
@@ -544,7 +544,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
       # to coerce a body+method-preserving replay of client_credentials.
       # We surface this as OAuth2TokenError instead of following.
       fake_client = FakeApiClient.new([
-        %{{moduleName}}.ApiResponse{
+        %{{moduleName}}.ApiHttpResponse{
           status_code: 307,
           headers: %{"location" => "https://attacker.example/token"},
           body: ""
@@ -565,7 +565,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
 
     test "refuses 308 from token endpoint with OAuth2TokenError" do
       fake_client = FakeApiClient.new([
-        %{{moduleName}}.ApiResponse{
+        %{{moduleName}}.ApiHttpResponse{
           status_code: 308,
           headers: %{"location" => "https://attacker.example/token"},
           body: ""
@@ -588,7 +588,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
       # RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a
       # typed OAuth2ServerError carrying code/description/uri.
       fake_client = FakeApiClient.new([
-        %{{moduleName}}.ApiResponse{
+        %{{moduleName}}.ApiHttpResponse{
           status_code: 400,
           body: Jason.encode!(%{
             "error" => "invalid_grant",
@@ -654,7 +654,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
     @tag :skip
     test "redirect-refusal error includes the Location header for diagnostics" do
       fake_client = FakeApiClient.new([
-        %{{moduleName}}.ApiResponse{
+        %{{moduleName}}.ApiHttpResponse{
           status_code: 307,
           headers: %{"location" => "https://attacker.example/token"},
           body: ""

@@ -21,10 +21,10 @@ public interface ApiClient extends AutoCloseable {
      * @param headers HTTP headers
      * @param body    Request body (serialized JSON string, byte[] for binary, or
      *                {@code Map<String, Object>} for multipart form data; may be null)
-     * @return ApiResponse containing status code, body, and headers
+     * @return ApiHttpResponse containing status code, body, and headers
      * @throws ApiException if the request fails
      */
-    ApiResponse sendRequest(String method, String url, Map<String, String> headers, @Nullable Object body)
+    ApiHttpResponse sendRequest(String method, String url, Map<String, String> headers, @Nullable Object body)
             throws ApiException;
 
     /**
@@ -47,10 +47,10 @@ public interface ApiClient extends AutoCloseable {
      * @param headers    HTTP headers
      * @param body       Request body (may be null)
      * @param noRedirect when {@code true}, do not follow 3xx responses
-     * @return ApiResponse containing status code, body, and headers
+     * @return ApiHttpResponse containing status code, body, and headers
      * @throws ApiException if the request fails
      */
-    default ApiResponse sendRequest(
+    default ApiHttpResponse sendRequest(
             String method,
             String url,
             Map<String, String> headers,

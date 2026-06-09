@@ -10,7 +10,7 @@ package com.example.petstore.auth.oauth;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.example.petstore.ApiClient;
-import com.example.petstore.ApiResponse;
+import com.example.petstore.ApiHttpResponse;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -57,7 +57,7 @@ class OAuth2AuthCodeAuthenticatorTest {
     ApiClient client =
         (method, url, headers, body) -> {
           capturedBody.set(body != null ? body.toString() : "");
-          return new ApiResponse(
+          return new ApiHttpResponse(
               200,
               "{\"access_token\":\"at\",\"refresh_token\":\"rt\",\"expires_in\":3600}",
               Map.of());
@@ -88,12 +88,13 @@ class OAuth2AuthCodeAuthenticatorTest {
           calls.count++;
           capturedBody.set(body != null ? body.toString() : "");
           if (calls.count == 1) {
-            return new ApiResponse(
+            return new ApiHttpResponse(
                 200,
                 "{\"access_token\":\"at\",\"refresh_token\":\"rt\",\"expires_in\":0}",
                 Map.of());
           }
-          return new ApiResponse(200, "{\"access_token\":\"at2\",\"expires_in\":3600}", Map.of());
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at2\",\"expires_in\":3600}", Map.of());
         };
 
     OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
@@ -128,7 +129,7 @@ class OAuth2AuthCodeAuthenticatorTest {
     OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
     auth.setApiClient(
         (method, url, headers, body) ->
-            new ApiResponse(200, "{\"access_token\":\"at\"}", Map.of()));
+            new ApiHttpResponse(200, "{\"access_token\":\"at\"}", Map.of()));
 
     // No exchangeCode(null) case: the code parameter is @NonNull, so
     // NullAway rejects a literal null at compile time. Empty + whitespace
@@ -145,7 +146,7 @@ class OAuth2AuthCodeAuthenticatorTest {
     OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
     auth.setApiClient(
         (method, url, headers, body) ->
-            new ApiResponse(200, "{\"access_token\":\"at\"}", Map.of()));
+            new ApiHttpResponse(200, "{\"access_token\":\"at\"}", Map.of()));
 
     assertThrows(IllegalArgumentException.class, () -> auth.exchangeCode("   "));
   }

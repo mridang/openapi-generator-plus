@@ -146,13 +146,13 @@ private final class MockApiClient: ApiClient, @unchecked Sendable {
     func sendRequest(
         method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
     )
-        async throws -> HttpResponse
+        async throws -> ApiHttpResponse
     {
         lastMethod = method
         lastURL = url
         lastHeaders = headers
         lastBody = body as? Data
-        return HttpResponse(
+        return ApiHttpResponse(
             statusCode: responseStatusCode,
             body: responseBody,
             headers: responseHeaders

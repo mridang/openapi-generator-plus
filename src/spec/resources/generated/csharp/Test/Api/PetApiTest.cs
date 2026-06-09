@@ -180,7 +180,7 @@ public class PetApiTest
         );
 
         Assert.NotNull(result);
-        Assert.IsType<PetstoreClient.ApiResponse>(result);
+        Assert.IsType<PetstoreClient.Models.ApiResponse>(result);
     }
 
     [Fact]
@@ -198,7 +198,7 @@ public class PetApiTest
         );
 
         Assert.NotNull(result);
-        Assert.IsType<PetstoreClient.ApiResponse>(result);
+        Assert.IsType<PetstoreClient.Models.ApiResponse>(result);
     }
 
     [Fact]
@@ -359,7 +359,7 @@ public class PetApiTest
             _body = body;
         }
 
-        public Task<PetstoreClient.ApiResponse> SendRequestAsync(
+        public Task<PetstoreClient.ApiHttpResponse> SendRequestAsync(
             string method,
             Uri url,
             Dictionary<string, string> headers,
@@ -368,7 +368,7 @@ public class PetApiTest
         )
         {
             return Task.FromResult(
-                new PetstoreClient.ApiResponse(
+                new PetstoreClient.ApiHttpResponse(
                     _statusCode,
                     _body,
                     new Dictionary<string, string> { { "Content-Type", _contentType } }
@@ -381,7 +381,7 @@ public class PetApiTest
     {
         public Uri? CapturedUrl { get; private set; }
 
-        public Task<PetstoreClient.ApiResponse> SendRequestAsync(
+        public Task<PetstoreClient.ApiHttpResponse> SendRequestAsync(
             string method,
             Uri url,
             Dictionary<string, string> headers,
@@ -391,7 +391,7 @@ public class PetApiTest
         {
             CapturedUrl = url;
             return Task.FromResult(
-                new PetstoreClient.ApiResponse(
+                new PetstoreClient.ApiHttpResponse(
                     200,
                     "{\"name\":\"x\",\"photoUrls\":[]}",
                     new Dictionary<string, string> { { "Content-Type", "application/json" } }
@@ -404,7 +404,7 @@ public class PetApiTest
     {
         public Dictionary<string, string> CapturedHeaders { get; private set; } = new();
 
-        public Task<PetstoreClient.ApiResponse> SendRequestAsync(
+        public Task<PetstoreClient.ApiHttpResponse> SendRequestAsync(
             string method,
             Uri url,
             Dictionary<string, string> headers,
@@ -414,7 +414,7 @@ public class PetApiTest
         {
             CapturedHeaders = new Dictionary<string, string>(headers);
             return Task.FromResult(
-                new PetstoreClient.ApiResponse(
+                new PetstoreClient.ApiHttpResponse(
                     200,
                     "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}",
                     new Dictionary<string, string> { { "Content-Type", "application/json" } }
@@ -594,7 +594,7 @@ public class PetApiTest
     {
         public object? CapturedBody { get; private set; }
 
-        public Task<PetstoreClient.ApiResponse> SendRequestAsync(
+        public Task<PetstoreClient.ApiHttpResponse> SendRequestAsync(
             string method,
             Uri url,
             Dictionary<string, string> headers,
@@ -604,7 +604,7 @@ public class PetApiTest
         {
             CapturedBody = body;
             return Task.FromResult(
-                new PetstoreClient.ApiResponse(
+                new PetstoreClient.ApiHttpResponse(
                     200,
                     "",
                     new Dictionary<string, string> { { "Content-Type", "application/json" } }

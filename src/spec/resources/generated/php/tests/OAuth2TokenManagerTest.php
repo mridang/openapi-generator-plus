@@ -12,7 +12,7 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
-use PetstoreClient\ApiResponse;
+use PetstoreClient\ApiHttpResponse;
 use PetstoreClient\Auth\OAuth\OAuth2ServerError;
 use PetstoreClient\Auth\OAuth\OAuth2TokenError;
 use PetstoreClient\Auth\OAuth\OAuth2TokenManager;
@@ -21,12 +21,12 @@ function makeOAuth2TokenManagerResponse(
     string $accessToken,
     int $expiresIn = 3600,
     ?string $refreshToken = null
-): ApiResponse {
+): ApiHttpResponse {
     $body = ['access_token' => $accessToken, 'expires_in' => $expiresIn];
     if ($refreshToken !== null) {
         $body['refresh_token'] = $refreshToken;
     }
-    return new ApiResponse(200, (string) json_encode($body), ['Content-Type' => 'application/json']);
+    return new ApiHttpResponse(200, (string) json_encode($body), ['Content-Type' => 'application/json']);
 }
 
 test('stores refresh token', function (): void {
@@ -179,7 +179,7 @@ test('refresh token empty string preserves existing', function (): void {
     // short-lived access token so the next call triggers a refresh.
     $client->enqueueResponse(makeOAuth2TokenManagerResponse('old_access', 1, 'old_refresh'));
     // Refresh response: explicit empty refresh_token must not overwrite cache.
-    $client->enqueueResponse(new ApiResponse(
+    $client->enqueueResponse(new ApiHttpResponse(
         200,
         (string) json_encode(['access_token' => 'new_access', 'expires_in' => 3600, 'refresh_token' => '']),
         ['Content-Type' => 'application/json']
@@ -200,7 +200,7 @@ test('expires in as json string is accepted', function (): void {
     // quoted string. The manager must accept it and cache the token; a
     // second call within the buffer window must serve from cache.
     $client = new MockTokenApiClient();
-    $client->enqueueResponse(new ApiResponse(
+    $client->enqueueResponse(new ApiHttpResponse(
         200,
         (string) json_encode(['access_token' => 'str-tok', 'expires_in' => '3600']),
         ['Content-Type' => 'application/json']
@@ -221,7 +221,7 @@ test('expires in as float is floored', function (): void {
     // D1: some providers send expires_in as a JSON float (e.g. 3600.5).
     // The manager must floor it and cache the token.
     $client = new MockTokenApiClient();
-    $client->enqueueResponse(new ApiResponse(
+    $client->enqueueResponse(new ApiHttpResponse(
         200,
         (string) json_encode(['access_token' => 'flt-tok', 'expires_in' => 3600.5]),
         ['Content-Type' => 'application/json']
@@ -242,7 +242,7 @@ test('expires in negative skips caching', function (): void {
     // D1: a negative expires_in (e.g. -1) must mark the token as
     // immediately stale so the very next call refetches.
     $client = new MockTokenApiClient();
-    $client->enqueueResponse(new ApiResponse(
+    $client->enqueueResponse(new ApiHttpResponse(
         200,
         (string) json_encode(['access_token' => 'neg1', 'expires_in' => -1]),
         ['Content-Type' => 'application/json']
@@ -262,7 +262,7 @@ test('expires in negative skips caching', function (): void {
 
 test('throws when token request fails', function (): void {
     $client = new MockTokenApiClient();
-    $client->enqueueResponse(new ApiResponse(
+    $client->enqueueResponse(new ApiHttpResponse(
         401,
         (string) json_encode(['error' => 'invalid_client']),
         ['Content-Type' => 'application/json']
@@ -279,7 +279,7 @@ test('missing access_token in 2xx response throws typed OAuth2TokenError', funct
     // A 2xx response whose body omits access_token must surface as the typed
     // OAuth2TokenError, not silently cache an empty token.
     $client = new MockTokenApiClient();
-    $client->enqueueResponse(new ApiResponse(
+    $client->enqueueResponse(new ApiHttpResponse(
         200,
         (string) json_encode(['refresh_token' => 'x']),
         ['Content-Type' => 'application/json']
@@ -296,7 +296,7 @@ test('server error response parsed to typed OAuth2ServerError', function (): voi
     // RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a
     // typed OAuth2ServerError carrying code/description/uri.
     $client = new MockTokenApiClient();
-    $client->enqueueResponse(new ApiResponse(
+    $client->enqueueResponse(new ApiHttpResponse(
         400,
         (string) json_encode([
             'error' => 'invalid_grant',
@@ -340,7 +340,7 @@ test('token post requests no redirect from transport', function (): void {
 // 301/303/308) rather than only the body-preserving 307/308.
 test('token post refuses 3xx redirect', function (int $status): void {
     $client = new MockTokenApiClient();
-    $client->enqueueResponse(new ApiResponse($status, '', ['Location' => 'https://attacker.example.com/token']));
+    $client->enqueueResponse(new ApiHttpResponse($status, '', ['Location' => 'https://attacker.example.com/token']));
 
     $manager = new OAuth2TokenManager();
     $manager->setApiClient($client);

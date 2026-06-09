@@ -25,6 +25,7 @@ import kotlinx.serialization.UseSerializers
 data class Tag(
     /** Example: `null` */
     @SerialName("id")
+    @Serializable(with = com.example.petstore.StrictLongSerializer::class)
     val id: Long? = null,
     /** Example: `null` */
     @SerialName("name")

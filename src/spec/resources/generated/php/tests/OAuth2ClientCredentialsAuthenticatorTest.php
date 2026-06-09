@@ -12,13 +12,13 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
-use PetstoreClient\ApiResponse;
+use PetstoreClient\ApiHttpResponse;
 use PetstoreClient\Auth\OAuth\ClientAuthMethod;
 use PetstoreClient\Auth\OAuth\OAuth2ClientCredentialsAuthenticator;
 
 test('sends client credentials grant type', function (): void {
     $client = new MockTokenApiClient();
-    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'cc-token',
         'expires_in' => 3600,
     ]), ['Content-Type' => 'application/json']));
@@ -42,7 +42,7 @@ test('sends client credentials grant type', function (): void {
 
 test('sends client id and secret', function (): void {
     $client = new MockTokenApiClient();
-    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'cc-token',
         'expires_in' => 3600,
     ]), ['Content-Type' => 'application/json']));
@@ -65,7 +65,7 @@ test('sends client id and secret', function (): void {
 
 test('sends scopes', function (): void {
     $client = new MockTokenApiClient();
-    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'cc-token',
         'expires_in' => 3600,
     ]), ['Content-Type' => 'application/json']));
@@ -99,7 +99,7 @@ test('client credentials get host returns configured host', function (): void {
 
 test('client credentials returns authorization bearer header', function (): void {
     $client = new MockTokenApiClient();
-    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'cached-cc-token',
         'expires_in' => 3600,
     ]), ['Content-Type' => 'application/json']));
@@ -126,7 +126,7 @@ test('client credentials basic auth url encodes client id and secret', function 
     // client_id and client_secret MUST be application/x-www-form-
     // urlencoded BEFORE being joined with ':' and base64-encoded.
     $client = new MockTokenApiClient();
-    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'at',
         'expires_in' => 3600,
     ]), ['Content-Type' => 'application/json']));
@@ -154,7 +154,7 @@ test('client credentials basic auth url encodes client id and secret', function 
 
 test('client credentials sends request to token url', function (): void {
     $client = new MockTokenApiClient();
-    $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'cc-token',
         'expires_in' => 3600,
     ]), ['Content-Type' => 'application/json']));
@@ -180,7 +180,7 @@ test('client credentials token fetch error is surfaced not swallowed', function 
      * swallowed into an empty header map that would send the API request
      * unauthenticated and produce a confusing downstream 401. */
     $client = new MockTokenApiClient();
-    $client->enqueueResponse(new ApiResponse(401, (string) json_encode([
+    $client->enqueueResponse(new ApiHttpResponse(401, (string) json_encode([
         'error' => 'invalid_client',
     ]), ['Content-Type' => 'application/json']));
 

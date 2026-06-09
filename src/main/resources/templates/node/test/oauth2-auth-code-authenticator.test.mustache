@@ -3,7 +3,7 @@
 import * as util from 'node:util';
 import { OAuth2AuthorizationCodeAuthenticator } from '../src/auth/oauth/oauth2-auth-code-authenticator{{importFileExtension}}';
 import type { ApiClient } from '../src/api-client{{importFileExtension}}';
-import type { ApiResponse } from '../src/api-response{{importFileExtension}}';
+import type { ApiHttpResponse } from '../src/api-response{{importFileExtension}}';
 
 class MockApiClient implements ApiClient {
   lastMethod = '';
@@ -18,7 +18,7 @@ class MockApiClient implements ApiClient {
     url: string,
     headers: Record<string, string>,
     body: string | Buffer | null
-  ): Promise<ApiResponse> {
+  ): Promise<ApiHttpResponse> {
     this.lastMethod = method;
     this.lastUrl = url;
     this.lastHeaders = headers;

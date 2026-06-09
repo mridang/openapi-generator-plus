@@ -69,7 +69,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
     test "builds authorization URL from discovery" do
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body:
               Jason.encode!(%{
@@ -93,7 +93,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
     test "fetches discovery document" do
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body:
               Jason.encode!(%{
@@ -115,7 +115,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
     test "obtains token after code exchange" do
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body:
               Jason.encode!(%{
@@ -123,7 +123,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
                 "token_endpoint" => "https://auth.example.com/token"
               })
           },
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "oidc-tok", "expires_in" => 3600})
           }
@@ -142,7 +142,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
     test "get_auth_headers returns Bearer after exchange" do
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body:
               Jason.encode!(%{
@@ -150,11 +150,11 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
                 "token_endpoint" => "https://auth.example.com/token"
               })
           },
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "oidc-tok", "expires_in" => 3600})
           },
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "oidc-tok", "expires_in" => 3600})
           }
@@ -183,7 +183,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
     test "raises on non-2xx discovery response instead of parsing it as JSON" do
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 500,
             body: "<html><body>Internal Server Error</body></html>"
           }
@@ -203,7 +203,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
     test "raises when discovery document is missing authorization_endpoint" do
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"token_endpoint" => "https://auth.example.com/token"})
           }
@@ -220,7 +220,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
     test "raises when discovery document is missing token_endpoint" do
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"authorization_endpoint" => "https://auth.example.com/authorize"})
           }
@@ -252,7 +252,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
     test "fetches discovery document only once" do
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body:
               Jason.encode!(%{
@@ -260,7 +260,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
                 "token_endpoint" => "https://auth.example.com/token"
               })
           },
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body:
               Jason.encode!(%{

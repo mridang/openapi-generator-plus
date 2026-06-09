@@ -84,7 +84,7 @@ module PetstoreClient
     #   OAuth2 token-endpoint POST so credentials in the form body are
     #   never silently replayed to a redirect target — the token manager
     #   inspects and rejects the 3xx itself (Bucket 3.2).
-    # @return [ApiResponse] the HTTP response
+    # @return [ApiHttpResponse] the HTTP response
     def send_request(method, url, headers, body, no_redirect: false)
       # Bucket 3: using the client after #close has released its connection
       # pool is a caller error. Surface it loudly as an ApiError instead of
@@ -258,7 +258,7 @@ module PetstoreClient
         normalized_headers[name.to_s.downcase] = joined
       end
 
-      ApiResponse.new(
+      ApiHttpResponse.new(
         status_code: response.status,
         body: response_body,
         headers: normalized_headers

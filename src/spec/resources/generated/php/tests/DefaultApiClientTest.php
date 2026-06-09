@@ -318,7 +318,7 @@ test('sends multipart form data', function (): void {
     $formData = ['description' => 'A test file', 'file' => 'file content'];
     $response = $client->sendRequest('POST', $chasmUrl . '/test/echo', [], $formData);
 
-    expect($response)->toBeInstanceOf(\PetstoreClient\ApiResponse::class);
+    expect($response)->toBeInstanceOf(\PetstoreClient\ApiHttpResponse::class);
 });
 
 /**

@@ -115,6 +115,18 @@ These are real cross-language gaps that have been triaged and explicitly
 deferred. Don't reopen them without an owner sign-off — the cost of fixing
 exceeds the value of the fix for this project's use case.
 
+### Swift HTTP proxy on Linux (WONTFIX)
+
+The Swift SDK supports HTTP proxies on Apple platforms but throws a typed
+`ApiError` ("Proxy configuration is not supported on Linux") when a proxy is
+configured on Linux. This is a platform limitation of swift-corelibs-foundation
+(the Linux Foundation port), whose `URLSession` does not implement
+`connectionProxyDictionary`. The other 11 SDKs support proxies everywhere
+because their HTTP libraries do. Supporting it on Linux would require swapping
+Swift's transport to a libcurl-based client — a disproportionate rewrite. The
+SDK already fails fast with a clear, typed error rather than silently ignoring
+the proxy, so the behaviour is safe and observable. WONTFIX.
+
 ### Numeric precision (`format: int64` > 2^53, BigDecimal, `format: decimal`)
 
 Six SDKs silently lose precision on JSON numbers that exceed their native

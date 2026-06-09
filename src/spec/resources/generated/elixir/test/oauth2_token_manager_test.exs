@@ -56,7 +56,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       # Simulate a slow OP so concurrent callers genuinely race.
       Process.sleep(50)
 
-      %PetstoreClient.ApiResponse{
+      %PetstoreClient.ApiHttpResponse{
         status_code: 200,
         body: Jason.encode!(%{"access_token" => "shared-tok", "expires_in" => 3600})
       }
@@ -85,7 +85,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       # Simulate a slow OP so concurrent callers genuinely race.
       Process.sleep(50)
 
-      %PetstoreClient.ApiResponse{
+      %PetstoreClient.ApiHttpResponse{
         status_code: 200,
         body: Jason.encode!(%{"access_token" => "tok#{n}", "expires_in" => 3600})
       }
@@ -112,7 +112,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
     def send_request(%__MODULE__{opts_agent: opts_agent}, _method, _url, _headers, _body, opts) do
       Agent.update(opts_agent, fn _ -> opts end)
 
-      %PetstoreClient.ApiResponse{
+      %PetstoreClient.ApiHttpResponse{
         status_code: 200,
         body: Jason.encode!(%{"access_token" => "tok", "expires_in" => 3600})
       }
@@ -123,7 +123,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
     test "extracts access token from response" do
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "tok123", "expires_in" => 3600})
           }
@@ -145,7 +145,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
     test "stores refresh token" do
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "tok1", "refresh_token" => "ref1", "expires_in" => 3600})
           }
@@ -166,7 +166,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
     test "returns cached token when not expired" do
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
           }
@@ -188,11 +188,11 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
     test "refetches token when expired" do
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 1})
           },
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
           }
@@ -228,11 +228,11 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
     test "invalidate_access_token forces refetch" do
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
           },
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
           }
@@ -292,7 +292,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       # ONE network call from a single get_access_token invocation.
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "short", "expires_in" => 10})
           }
@@ -316,7 +316,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       # Gap CM: long-lived token gets full 30s buffer; second call uses cache.
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "long", "expires_in" => 3600})
           }
@@ -340,11 +340,11 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       # Gap CM: expires_in == 30 collapses expiry to now, forcing refetch.
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "edge1", "expires_in" => 30})
           },
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "edge2", "expires_in" => 30})
           }
@@ -369,11 +369,11 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       # MUST NOT clobber the cached refresh_token.
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "old_access", "refresh_token" => "old_refresh", "expires_in" => 1})
           },
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "new_access", "expires_in" => 3600, "refresh_token" => ""})
           }
@@ -400,7 +400,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       # second call within the buffer window must serve from cache.
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "str-tok", "expires_in" => "3600"})
           }
@@ -425,7 +425,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       # The manager must floor it and cache the token.
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "flt-tok", "expires_in" => 3600.5})
           }
@@ -450,11 +450,11 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       # immediately stale so the very next call refetches.
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "neg1", "expires_in" => -1})
           },
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "neg2", "expires_in" => 3600})
           }
@@ -477,7 +477,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
     test "throws when token request fails" do
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 401,
             body: Jason.encode!(%{"error" => "invalid_client"})
           }
@@ -502,7 +502,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       # OAuth2TokenError, not silently cache an empty token.
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"refresh_token" => "x"})
           }
@@ -551,7 +551,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       test "refuses #{@redirect_status} from token endpoint with OAuth2TokenError" do
         fake_client =
           FakeApiClient.new([
-            %PetstoreClient.ApiResponse{
+            %PetstoreClient.ApiHttpResponse{
               status_code: @redirect_status,
               headers: %{"location" => "https://attacker.example/token"},
               body: ""
@@ -577,7 +577,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       # We surface this as OAuth2TokenError instead of following.
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 307,
             headers: %{"location" => "https://attacker.example/token"},
             body: ""
@@ -599,7 +599,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
     test "refuses 308 from token endpoint with OAuth2TokenError" do
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 308,
             headers: %{"location" => "https://attacker.example/token"},
             body: ""
@@ -623,7 +623,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       # typed OAuth2ServerError carrying code/description/uri.
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 400,
             body:
               Jason.encode!(%{
@@ -691,7 +691,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
     test "redirect-refusal error includes the Location header for diagnostics" do
       fake_client =
         FakeApiClient.new([
-          %PetstoreClient.ApiResponse{
+          %PetstoreClient.ApiHttpResponse{
             status_code: 307,
             headers: %{"location" => "https://attacker.example/token"},
             body: ""

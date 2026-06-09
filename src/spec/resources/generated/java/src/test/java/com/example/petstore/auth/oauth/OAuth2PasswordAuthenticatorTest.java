@@ -10,7 +10,7 @@ package com.example.petstore.auth.oauth;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.example.petstore.ApiClient;
-import com.example.petstore.ApiResponse;
+import com.example.petstore.ApiHttpResponse;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -35,7 +35,8 @@ class OAuth2PasswordAuthenticatorTest {
     ApiClient client =
         (method, url, headers, body) -> {
           capturedBody.set(body != null ? body.toString() : "");
-          return new ApiResponse(200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
         };
 
     OAuth2PasswordAuthenticator auth = createAuthenticator();
@@ -54,7 +55,8 @@ class OAuth2PasswordAuthenticatorTest {
     ApiClient client =
         (method, url, headers, body) -> {
           capturedBody.set(body != null ? body.toString() : "");
-          return new ApiResponse(200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
         };
 
     OAuth2PasswordAuthenticator auth = createAuthenticator();
@@ -74,7 +76,8 @@ class OAuth2PasswordAuthenticatorTest {
     ApiClient client =
         (method, url, headers, body) -> {
           capturedBody.set(body != null ? body.toString() : "");
-          return new ApiResponse(200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
         };
 
     OAuth2PasswordAuthenticator auth = createAuthenticator();
@@ -92,7 +95,8 @@ class OAuth2PasswordAuthenticatorTest {
   void returnsAuthorizationBearerHeader() {
     ApiClient client =
         (method, url, headers, body) ->
-            new ApiResponse(200, "{\"access_token\":\"tok-pwd\",\"expires_in\":3600}", Map.of());
+            new ApiHttpResponse(
+                200, "{\"access_token\":\"tok-pwd\",\"expires_in\":3600}", Map.of());
 
     OAuth2PasswordAuthenticator auth = createAuthenticator();
     auth.setApiClient(client);
@@ -114,12 +118,13 @@ class OAuth2PasswordAuthenticatorTest {
           calls.count++;
           capturedBody.set(body != null ? body.toString() : "");
           if (calls.count == 1) {
-            return new ApiResponse(
+            return new ApiHttpResponse(
                 200,
                 "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}",
                 Map.of());
           }
-          return new ApiResponse(200, "{\"access_token\":\"tok2\",\"expires_in\":3600}", Map.of());
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"tok2\",\"expires_in\":3600}", Map.of());
         };
 
     OAuth2PasswordAuthenticator auth = createAuthenticator();
@@ -154,7 +159,8 @@ class OAuth2PasswordAuthenticatorTest {
     ApiClient client =
         (method, url, headers, body) -> {
           capturedHeaders.set(headers);
-          return new ApiResponse(200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
         };
 
     OAuth2PasswordAuthenticator auth =

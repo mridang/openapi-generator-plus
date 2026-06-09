@@ -21,8 +21,8 @@ public interface IApiClient
     /// replay client credentials to an attacker-controlled host (Gap 3.2).
     /// Default <c>false</c> preserves the existing redirect-following behaviour.
     /// </param>
-    /// <returns>ApiResponse containing status code, body, and headers</returns>
-    Task<ApiResponse> SendRequestAsync(
+    /// <returns>ApiHttpResponse containing status code, body, and headers</returns>
+    Task<ApiHttpResponse> SendRequestAsync(
         string method,
         Uri url,
         Dictionary<string, string> headers,

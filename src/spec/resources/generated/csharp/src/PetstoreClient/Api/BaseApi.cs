@@ -251,7 +251,7 @@ public abstract class BaseApi
             }
         }
 
-        ApiResponse response = await ApiClient
+        ApiHttpResponse response = await ApiClient
             .SendRequestAsync(method, new Uri(url), headers, requestBody)
             .ConfigureAwait(false);
 
@@ -339,7 +339,7 @@ public abstract class BaseApi
     /// error data (e.g. from a <c>default</c> response schema) is available
     /// via <see cref="ApiException.ErrorBody"/>.
     /// </summary>
-    private void ThrowApiException(ApiResponse response)
+    private void ThrowApiException(ApiHttpResponse response)
     {
         int code = response.StatusCode;
         string message = $"API returned status code {code}";

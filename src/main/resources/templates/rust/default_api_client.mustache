@@ -14,7 +14,7 @@ use uuid::Uuid;
 
 use crate::api_client::{ApiClient, MultipartValue, RequestBody, RequestOptions};
 use crate::api_error::ApiError;
-use crate::api_response::ApiResponse;
+use crate::api_response::ApiHttpResponse;
 use crate::transport_options::TransportOptions;
 use crate::transport_options::TransportOptionsBuilder;
 
@@ -104,7 +104,7 @@ impl ApiClient for DefaultApiClient {
         url: &str,
         headers: &HashMap<String, String>,
         body: Option<&RequestBody>,
-    ) -> Pin<Box<dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+    ) -> Pin<Box<dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         self.send_request_with_options(method, url, headers, body, &RequestOptions::default())
     }
 
@@ -120,7 +120,7 @@ impl ApiClient for DefaultApiClient {
         headers: &HashMap<String, String>,
         body: Option<&RequestBody>,
         options: &RequestOptions,
-    ) -> Pin<Box<dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+    ) -> Pin<Box<dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         let method = method.to_string();
         let url = url.to_string();
         let headers = headers.clone();
@@ -425,7 +425,7 @@ impl ApiClient for DefaultApiClient {
                 base64::engine::general_purpose::STANDARD.encode(&resp_bytes)
             };
 
-            Ok(ApiResponse::new(status_code, resp_body, resp_headers))
+            Ok(ApiHttpResponse::new(status_code, resp_body, resp_headers))
         })
     }
 }

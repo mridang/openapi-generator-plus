@@ -26,7 +26,7 @@ class FakePasswordClient
     @last_body = body
     response = @responses[@call_count] || @responses.last
     @call_count += 1
-    PetstoreClient::ApiResponse.new(
+    PetstoreClient::ApiHttpResponse.new(
       status_code: response[:status],
       body: response[:body].to_json,
       headers: { 'content-type' => 'application/json' }

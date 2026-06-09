@@ -7,8 +7,8 @@
 
 import Foundation
 
-/// HttpResponse wraps an HTTP response with status code, body, and headers.
-public struct HttpResponse: Sendable {
+/// ApiHttpResponse wraps an HTTP response with status code, body, and headers.
+public struct ApiHttpResponse: Sendable {
     /// The HTTP status code of the response.
     public let statusCode: Int
 

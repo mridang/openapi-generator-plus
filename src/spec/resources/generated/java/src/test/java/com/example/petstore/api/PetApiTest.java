@@ -461,14 +461,14 @@ class PetApiTest {
     @javax.annotation.Nullable String capturedUrl;
 
     @Override
-    public com.example.petstore.ApiResponse sendRequest(
+    public com.example.petstore.ApiHttpResponse sendRequest(
         String method,
         String url,
         java.util.Map<String, String> headers,
         @javax.annotation.Nullable Object body) {
       this.capturedBody = body;
       this.capturedUrl = url;
-      return new com.example.petstore.ApiResponse(
+      return new com.example.petstore.ApiHttpResponse(
           200,
           "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}",
           java.util.Map.of("Content-Type", "application/json"));

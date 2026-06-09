@@ -14,12 +14,12 @@ declare(strict_types=1);
 namespace PetstoreClient;
 
 /**
- * ApiResponse Class
+ * ApiHttpResponse Class
  *
  * @category Class
  * @package  PetstoreClient
  */
-class ApiResponse
+class ApiHttpResponse
 {
     /**
      * @param int                    $statusCode HTTP status code

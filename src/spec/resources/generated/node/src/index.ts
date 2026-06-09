@@ -29,9 +29,10 @@ export * from './models/index.js';
  *
  * The transport response shape carried by `ApiClient.sendRequest` lives in
  * `./api-response` and is exposed structurally through the exported
- * `ApiClient` interface; it is intentionally NOT re-exported by name here so
- * it cannot collide with a spec model that happens to be named `ApiResponse`
- * (the model wins via the `./models` star export).
+ * `ApiClient` interface; the `ApiHttpResponse` type is intentionally NOT
+ * re-exported by name here so it cannot collide with a spec model that
+ * happens to be named `ApiResponse` (the model wins via the `./models` star
+ * export).
  */
 export type { ApiClient, SendRequestOptions } from './api-client.js';
 export type { ApiResult } from './api-result.js';

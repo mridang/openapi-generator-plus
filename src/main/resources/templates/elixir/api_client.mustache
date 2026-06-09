@@ -27,7 +27,7 @@ defmodule {{moduleName}}.ApiClient do
 
   ## Returns
 
-    An `#{inspect({{moduleName}}.ApiResponse)}` struct.
+    An `#{inspect({{moduleName}}.ApiHttpResponse)}` struct.
   """
   @callback send_request(
               client :: struct(),
@@ -35,7 +35,7 @@ defmodule {{moduleName}}.ApiClient do
               url :: String.t(),
               headers :: %{optional(String.t()) => String.t()},
               body :: term() | nil
-            ) :: {{moduleName}}.ApiResponse.t()
+            ) :: {{moduleName}}.ApiHttpResponse.t()
 
   @doc """
   Variant of `send_request/5` that carries a per-request `opts` keyword list.
@@ -49,7 +49,7 @@ defmodule {{moduleName}}.ApiClient do
               headers :: %{optional(String.t()) => String.t()},
               body :: term() | nil,
               opts :: keyword()
-            ) :: {{moduleName}}.ApiResponse.t()
+            ) :: {{moduleName}}.ApiHttpResponse.t()
 
   @doc """
   Gap T6: release any resources held by the client.

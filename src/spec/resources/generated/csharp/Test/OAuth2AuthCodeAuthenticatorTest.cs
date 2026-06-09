@@ -15,17 +15,19 @@ public class OAuth2AuthCodeAuthenticatorTest
 {
     private sealed class FakeApiClient : IApiClient
     {
-        private readonly Queue<ApiResponse> _responses = new();
+        private readonly Queue<ApiHttpResponse> _responses = new();
 
         public void Enqueue(string body, int statusCode = 200)
         {
-            _responses.Enqueue(new ApiResponse(statusCode, body, new Dictionary<string, string>()));
+            _responses.Enqueue(
+                new ApiHttpResponse(statusCode, body, new Dictionary<string, string>())
+            );
         }
 
         public string? LastBody { get; private set; }
         public Uri? LastUrl { get; private set; }
 
-        public Task<ApiResponse> SendRequestAsync(
+        public Task<ApiHttpResponse> SendRequestAsync(
             string method,
             Uri url,
             Dictionary<string, string> headers,

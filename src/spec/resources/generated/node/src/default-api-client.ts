@@ -7,7 +7,7 @@
 
 import type { ApiClient, SendRequestOptions } from './api-client.js';
 import { ApiError } from './api-error.js';
-import type { ApiResponse } from './api-response.js';
+import type { ApiHttpResponse } from './api-response.js';
 import { TransportOptions } from './transport-options.js';
 import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
@@ -158,7 +158,7 @@ export class DefaultApiClient implements ApiClient {
    * @param url fully qualified URL
    * @param headers HTTP headers from the caller
    * @param body request body (serialized JSON string, raw Buffer, or null)
-   * @returns ApiResponse containing status code, body, and headers
+   * @returns ApiHttpResponse containing status code, body, and headers
    */
   async sendRequest(
     method: string,
@@ -166,7 +166,7 @@ export class DefaultApiClient implements ApiClient {
     headers: Record<string, string>,
     body: string | Buffer | Record<string, unknown> | null,
     options?: SendRequestOptions
-  ): Promise<ApiResponse> {
+  ): Promise<ApiHttpResponse> {
     if (this.closed) {
       throw new ApiError(0, 'ApiClient has been closed and can no longer be used', null, null, null);
     }

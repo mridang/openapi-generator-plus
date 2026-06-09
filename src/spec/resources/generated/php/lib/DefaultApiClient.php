@@ -171,7 +171,7 @@ class DefaultApiClient implements ApiClient
      *                                          (Gap 3.2 — used by {@see OAuth2TokenManager}
      *                                          to refuse 307/308 on token POSTs)
      *
-     * @return ApiResponse the HTTP response
+     * @return ApiHttpResponse the HTTP response
      *
      * @throws \RuntimeException if the request fails at the transport level
      */
@@ -181,7 +181,7 @@ class DefaultApiClient implements ApiClient
         array $headers,
         mixed $body,
         bool $noRedirect = false,
-    ): ApiResponse {
+    ): ApiHttpResponse {
         /* Gap T-D4: refuse to send on a closed client. The other SDKs raise
          * an SDK-typed error here; PHP matches by throwing ApiException
          * rather than silently re-using the reset Symfony client. */
@@ -456,7 +456,7 @@ class DefaultApiClient implements ApiClient
                 $responseBody = $this->decodeTextBody($responseBody, $contentType);
             }
 
-            return new ApiResponse(
+            return new ApiHttpResponse(
                 statusCode: $response->getStatusCode(),
                 body: $responseBody,
                 headers: $responseHeaders

@@ -27,7 +27,7 @@ interface ApiClient : AutoCloseable {
         headers: Map<String, String>,
         body: Any?,
         noRedirect: Boolean = false,
-    ): ApiResponse
+    ): ApiHttpResponse
 
     /**
      * Releases resources held by the underlying HTTP client. Default

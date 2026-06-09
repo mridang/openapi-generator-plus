@@ -15,7 +15,7 @@ import Testing
     // MARK: - Mock ApiClient
 
     private final class MockApiClient: ApiClient, @unchecked Sendable {
-        var responses: [HttpResponse] = []
+        var responses: [ApiHttpResponse] = []
         var lastMethod: String = ""
         var lastURL: String = ""
         var lastHeaders: [String: String] = [:]
@@ -24,7 +24,7 @@ import Testing
 
         func sendRequest(
             method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
-        ) async throws -> HttpResponse {
+        ) async throws -> ApiHttpResponse {
             lastMethod = method
             lastURL = url
             lastHeaders = headers
@@ -36,8 +36,8 @@ import Testing
         }
     }
 
-    private func makeResponse(body: String, statusCode: Int = 200) -> HttpResponse {
-        return HttpResponse(statusCode: statusCode, body: body, headers: [:])
+    private func makeResponse(body: String, statusCode: Int = 200) -> ApiHttpResponse {
+        return ApiHttpResponse(statusCode: statusCode, body: body, headers: [:])
     }
 
     private func createAuthenticator() -> OpenIdConnectAuthenticator {

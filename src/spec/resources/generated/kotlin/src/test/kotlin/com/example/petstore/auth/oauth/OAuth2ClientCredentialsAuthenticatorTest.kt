@@ -16,7 +16,7 @@ import java.util.LinkedList
 
 class OAuth2ClientCredentialsAuthenticatorTest {
     private class FakeApiClient : ApiClient {
-        private val responses = LinkedList<ApiResponse>()
+        private val responses = LinkedList<ApiHttpResponse>()
         var lastBody: String? = null
             private set
         var lastUrl: String? = null
@@ -28,7 +28,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
             body: String,
             statusCode: Int = 200,
         ) {
-            responses.add(ApiResponse(statusCode, body, emptyMap()))
+            responses.add(ApiHttpResponse(statusCode, body, emptyMap()))
         }
 
         override suspend fun sendRequest(
@@ -37,7 +37,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
             headers: Map<String, String>,
             body: Any?,
             noRedirect: Boolean,
-        ): ApiResponse {
+        ): ApiHttpResponse {
             lastUrl = url
             lastHeaders = headers
             lastBody = body?.toString()

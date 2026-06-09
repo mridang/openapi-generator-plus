@@ -9,7 +9,7 @@
 
 module PetstoreClient
   # Wraps an HTTP response with status code, body, and headers.
-  class ApiResponse
+  class ApiHttpResponse
     attr_reader :status_code, :body, :headers
 
     def initialize(status_code:, body:, headers:)

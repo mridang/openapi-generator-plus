@@ -8,7 +8,7 @@
 /**
  * Represents an HTTP API response.
  */
-export interface ApiResponse {
+export interface ApiHttpResponse {
   readonly statusCode: number;
   readonly body: string;
   readonly headers: Readonly<Record<string, string>>;

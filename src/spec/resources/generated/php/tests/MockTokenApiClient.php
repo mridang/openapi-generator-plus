@@ -13,18 +13,18 @@ declare(strict_types=1);
 namespace PetstoreClient\Test;
 
 use PetstoreClient\ApiClient;
-use PetstoreClient\ApiResponse;
+use PetstoreClient\ApiHttpResponse;
 
 class MockTokenApiClient implements ApiClient
 {
-    /** @var ApiResponse[] */
+    /** @var ApiHttpResponse[] */
     private array $responses = [];
     private int $callIndex = 0;
 
     /** @var array<int, array{method: string, url: string, headers: array<string, string>, body: string|null, noRedirect: bool}> */
     public array $capturedRequests = [];
 
-    public function enqueueResponse(ApiResponse $response): void
+    public function enqueueResponse(ApiHttpResponse $response): void
     {
         $this->responses[] = $response;
     }
@@ -36,7 +36,7 @@ class MockTokenApiClient implements ApiClient
         array $headers,
         mixed $body,
         bool $noRedirect = false,
-    ): ApiResponse {
+    ): ApiHttpResponse {
         $this->capturedRequests[] = [
             'method' => $method,
             'url' => $url,
@@ -44,6 +44,6 @@ class MockTokenApiClient implements ApiClient
             'body' => is_string($body) ? $body : null,
             'noRedirect' => $noRedirect,
         ];
-        return $this->responses[$this->callIndex++] ?? new ApiResponse(500, '{}', []);
+        return $this->responses[$this->callIndex++] ?? new ApiHttpResponse(500, '{}', []);
     }
 }

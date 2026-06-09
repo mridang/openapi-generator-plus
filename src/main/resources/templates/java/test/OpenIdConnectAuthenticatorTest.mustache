@@ -5,7 +5,7 @@ package {{invokerPackage}}.auth.oauth;
 import static org.junit.jupiter.api.Assertions.*;
 
 import {{invokerPackage}}.ApiClient;
-import {{invokerPackage}}.ApiResponse;
+import {{invokerPackage}}.ApiHttpResponse;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -32,7 +32,7 @@ class OpenIdConnectAuthenticatorTest {
         AtomicReference<String> capturedUrl = new AtomicReference<>();
         ApiClient client = (method, url, headers, body) -> {
             capturedUrl.set(url);
-            return new ApiResponse(200, DISCOVERY_RESPONSE, Map.of());
+            return new ApiHttpResponse(200, DISCOVERY_RESPONSE, Map.of());
         };
 
         OpenIdConnectAuthenticator auth = createAuthenticator();
@@ -54,7 +54,7 @@ class OpenIdConnectAuthenticatorTest {
         ApiClient client = (method, url, headers, body) -> {
             capturedMethod.set(method);
             capturedUrl.set(url);
-            return new ApiResponse(200, DISCOVERY_RESPONSE, Map.of());
+            return new ApiHttpResponse(200, DISCOVERY_RESPONSE, Map.of());
         };
 
         OpenIdConnectAuthenticator auth = createAuthenticator();
@@ -74,9 +74,9 @@ class OpenIdConnectAuthenticatorTest {
             calls.count++;
             capturedBody.set(body != null ? body.toString() : "");
             if (calls.count == 1) {
-                return new ApiResponse(200, DISCOVERY_RESPONSE, Map.of());
+                return new ApiHttpResponse(200, DISCOVERY_RESPONSE, Map.of());
             }
-            return new ApiResponse(200,
+            return new ApiHttpResponse(200,
                     "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}", Map.of());
         };
 
@@ -97,9 +97,9 @@ class OpenIdConnectAuthenticatorTest {
         ApiClient client = (method, url, headers, body) -> {
             calls.count++;
             if (calls.count == 1) {
-                return new ApiResponse(200, DISCOVERY_RESPONSE, Map.of());
+                return new ApiHttpResponse(200, DISCOVERY_RESPONSE, Map.of());
             }
-            return new ApiResponse(200,
+            return new ApiHttpResponse(200,
                     "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}", Map.of());
         };
 
@@ -129,7 +129,7 @@ class OpenIdConnectAuthenticatorTest {
     @Test
     void throwsWhenDiscoveryReturnsNon2xxStatus() {
         ApiClient client = (method, url, headers, body) ->
-                new ApiResponse(500, "<html>internal server error</html>", Map.of());
+                new ApiHttpResponse(500, "<html>internal server error</html>", Map.of());
 
         OpenIdConnectAuthenticator auth = createAuthenticator();
         auth.setApiClient(client);
@@ -142,7 +142,7 @@ class OpenIdConnectAuthenticatorTest {
     @Test
     void throwsWhenDiscoveryMissingAuthorizationEndpoint() {
         ApiClient client = (method, url, headers, body) ->
-                new ApiResponse(200,
+                new ApiHttpResponse(200,
                         "{\"token_endpoint\":\"https://auth.example.com/token\"}", Map.of());
 
         OpenIdConnectAuthenticator auth = createAuthenticator();
@@ -156,7 +156,7 @@ class OpenIdConnectAuthenticatorTest {
     @Test
     void throwsWhenDiscoveryMissingTokenEndpoint() {
         ApiClient client = (method, url, headers, body) ->
-                new ApiResponse(200,
+                new ApiHttpResponse(200,
                         "{\"authorization_endpoint\":\"https://auth.example.com/authorize\"}",
                         Map.of());
 
@@ -173,7 +173,7 @@ class OpenIdConnectAuthenticatorTest {
             if ("GET".equals(method)) {
                 getCalls.incrementAndGet();
             }
-            return new ApiResponse(200, DISCOVERY_RESPONSE, Map.of());
+            return new ApiHttpResponse(200, DISCOVERY_RESPONSE, Map.of());
         };
 
         OpenIdConnectAuthenticator auth = createAuthenticator();

@@ -21,7 +21,7 @@ import { ConflictError } from '../src/errors/conflict-error.js';
 import { UnprocessableEntityError } from '../src/errors/unprocessable-entity-error.js';
 import { InternalServerError } from '../src/errors/internal-server-error.js';
 import type { ApiClient } from '../src/api-client.js';
-import type { ApiResponse } from '../src/api-response.js';
+import type { ApiHttpResponse } from '../src/api-response.js';
 import type { ApiResult } from '../src/api-result.js';
 import { PetApi } from '../src/api/pet-api.js';
 import { Category } from '../src/models/index.js';
@@ -37,7 +37,7 @@ class CapturingApiClient implements ApiClient {
     url: string,
     headers: Record<string, string>,
     body: string | Buffer | Record<string, unknown> | null
-  ): Promise<ApiResponse> {
+  ): Promise<ApiHttpResponse> {
     this.capturedUrl = url;
     this.capturedHeaders = headers;
     this.capturedBody = body;

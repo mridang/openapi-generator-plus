@@ -9,7 +9,7 @@ package com.example.petstore.auth.oauth;
 
 import com.example.petstore.ApiClient;
 import com.example.petstore.ApiException;
-import com.example.petstore.ApiResponse;
+import com.example.petstore.ApiHttpResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -178,7 +178,7 @@ public class OAuth2TokenManager {
        * the credential. The ApiClient honours noRedirect=true by
        * surfacing the first 3xx straight to us; we treat any redirect
        * here as a server misconfiguration and abort. */
-      ApiResponse response =
+      ApiHttpResponse response =
           apiClient.sendRequest("POST", tokenUrl, headers, body.toString(), true);
       if (response.statusCode() >= 300 && response.statusCode() < 400) {
         throw new OAuth2TokenError(

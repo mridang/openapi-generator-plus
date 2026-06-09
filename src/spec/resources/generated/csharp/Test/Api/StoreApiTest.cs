@@ -124,7 +124,7 @@ public class StoreApiTest
             _body = body;
         }
 
-        public Task<PetstoreClient.ApiResponse> SendRequestAsync(
+        public Task<PetstoreClient.ApiHttpResponse> SendRequestAsync(
             string method,
             Uri url,
             Dictionary<string, string> headers,
@@ -133,7 +133,7 @@ public class StoreApiTest
         )
         {
             return Task.FromResult(
-                new PetstoreClient.ApiResponse(
+                new PetstoreClient.ApiHttpResponse(
                     _statusCode,
                     _body,
                     new Dictionary<string, string> { { "Content-Type", _contentType } }

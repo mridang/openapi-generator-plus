@@ -134,7 +134,7 @@ defmodule {{moduleName}}.DefaultApiClient do
           url :: String.t(),
           headers :: %{optional(String.t()) => String.t()},
           body :: term() | nil
-        ) :: {{moduleName}}.ApiResponse.t()
+        ) :: {{moduleName}}.ApiHttpResponse.t()
   def send_request(%__MODULE__{} = client, method, url, headers, body) do
     send_request(client, method, url, headers, body, [])
   end
@@ -158,7 +158,7 @@ defmodule {{moduleName}}.DefaultApiClient do
           headers :: %{optional(String.t()) => String.t()},
           body :: term() | nil,
           opts :: keyword()
-        ) :: {{moduleName}}.ApiResponse.t()
+        ) :: {{moduleName}}.ApiHttpResponse.t()
   def send_request(%__MODULE__{} = client, method, url, headers, body, request_opts)
       when is_list(request_opts) do
     # Gap T6 / close-lifecycle: reject use-after-close with a typed SDK
@@ -265,7 +265,7 @@ defmodule {{moduleName}}.DefaultApiClient do
         Base.encode64(body_binary)
       end
 
-    %{{moduleName}}.ApiResponse{
+    %{{moduleName}}.ApiHttpResponse{
       status_code: response.status,
       body: response_body,
       headers: headers

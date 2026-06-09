@@ -4,7 +4,7 @@ package {{invokerPackage}}.auth.oauth;
 
 import {{invokerPackage}}.ApiClient;
 import {{invokerPackage}}.ApiException;
-import {{invokerPackage}}.ApiResponse;
+import {{invokerPackage}}.ApiHttpResponse;
 import {{invokerPackage}}.auth.HttpAwareAuthenticator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -82,7 +82,7 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
         try {
             Map<String, String> headers = new HashMap<>();
             headers.put("Accept", "application/json");
-            ApiResponse response = apiClient.sendRequest(
+            ApiHttpResponse response = apiClient.sendRequest(
                     "GET", openIdConnectUrl, headers, null);
             /* Guard the HTTP status before parsing: a 5xx/4xx discovery
              * response is typically an HTML/text error page, which would

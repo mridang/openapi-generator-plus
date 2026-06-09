@@ -39,5 +39,5 @@ interface ApiClient
         array $headers,
         mixed $body,
         bool $noRedirect = false,
-    ): ApiResponse;
+    ): ApiHttpResponse;
 }

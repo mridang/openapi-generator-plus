@@ -8,14 +8,14 @@
 import * as util from 'node:util';
 import { OpenIdConnectAuthenticator } from '../src/auth/oauth/openid-connect-authenticator.js';
 import type { ApiClient } from '../src/api-client.js';
-import type { ApiResponse } from '../src/api-response.js';
+import type { ApiHttpResponse } from '../src/api-response.js';
 
 class MockApiClient implements ApiClient {
   lastMethod = '';
   lastUrl = '';
   lastHeaders: Record<string, string> = {};
   lastBody: string | Buffer | null = null;
-  responses: ApiResponse[] = [];
+  responses: ApiHttpResponse[] = [];
   callCount = 0;
 
   async sendRequest(
@@ -23,7 +23,7 @@ class MockApiClient implements ApiClient {
     url: string,
     headers: Record<string, string>,
     body: string | Buffer | null
-  ): Promise<ApiResponse> {
+  ): Promise<ApiHttpResponse> {
     this.lastMethod = method;
     this.lastUrl = url;
     this.lastHeaders = headers;
