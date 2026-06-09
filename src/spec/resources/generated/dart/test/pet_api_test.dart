@@ -529,6 +529,23 @@ void main() {
       }
     });
 
+    /* required-string-empty-rejected: for a REQUIRED string param, an empty
+     * string "" is treated as "absent" (parity with go/rust/swift/elixir),
+     * so the call must fail-fast with an ArgumentError rather than sending an
+     * empty value on the wire. getPetByName's `category` is a required string
+     * query param carried on the required Options object. */
+    test('getPetByName rejects empty-string required category', () async {
+      final config = ConfigurationBuilder()
+          .baseUrl('http://localhost:1')
+          .build();
+      final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+      await expectLater(
+        api.getPetByName('Rex', const GetPetByNameOptions(category: '')),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
     test('errorHandling_notFound', () async {
       final config = ConfigurationBuilder()
           .baseUrl('$chasmHttpUrl/test/status/404')

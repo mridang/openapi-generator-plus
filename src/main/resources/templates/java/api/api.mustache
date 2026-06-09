@@ -212,7 +212,7 @@ public class {{classname}} extends BaseApi {
 {{/hasAuthMethods}}
 {{#pathParams}}
 {{#required}}
-        if ({{paramName}} == null) {
+        if ({{paramName}} == null{{#isString}} || {{paramName}}.isEmpty(){{/isString}}) {
             throw new IllegalArgumentException(
                     "Missing the required parameter '{{paramName}}' when calling {{operationId}}");
         }
@@ -228,7 +228,7 @@ public class {{classname}} extends BaseApi {
 {{/bodyParam}}
 {{#queryParams}}
 {{#required}}
-        if (options.{{paramName}}() == null) {
+        if (options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
             throw new IllegalArgumentException(
                     "Missing the required parameter '{{baseName}}' when calling {{operationId}}");
         }
@@ -236,7 +236,7 @@ public class {{classname}} extends BaseApi {
 {{/queryParams}}
 {{#headerParams}}
 {{#required}}
-        if (options.{{paramName}}() == null) {
+        if (options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
             throw new IllegalArgumentException(
                     "Missing the required parameter '{{baseName}}' when calling {{operationId}}");
         }
@@ -244,7 +244,7 @@ public class {{classname}} extends BaseApi {
 {{/headerParams}}
 {{#formParams}}
 {{#required}}
-        if (options.{{paramName}}() == null) {
+        if (options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
             throw new IllegalArgumentException(
                     "Missing the required parameter '{{baseName}}' when calling {{operationId}}");
         }
@@ -252,7 +252,7 @@ public class {{classname}} extends BaseApi {
 {{/formParams}}
 {{#cookieParams}}
 {{#required}}
-        if (options.{{paramName}}() == null) {
+        if (options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
             throw new IllegalArgumentException(
                     "Missing the required parameter '{{baseName}}' when calling {{operationId}}");
         }

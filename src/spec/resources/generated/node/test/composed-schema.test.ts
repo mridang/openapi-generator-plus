@@ -142,6 +142,18 @@ describe('Composed Schema', () => {
     expect(() => ObjectSerializer.deserialize(data, PetTreatment)).toThrow(DeserializationError);
   });
 
+  test('anyOf: PetTreatment rejects a type-invalid variant field', () => {
+    // oneof-nondiscriminator-type-invalid-silent: a non-discriminated variant
+    // was matched purely structurally via plainToInstance + a hasValues check,
+    // without re-running the variant model's constructor type-assertions. A
+    // type-wrong field (here durationMinutes carrying a string on a numeric
+    // field) was silently retained. The union loop now routes each candidate
+    // through its own constructor, so a type-invalid candidate is skipped and
+    // resolution falls through to the no-match throw.
+    const data = { procedureName: 'Spay', durationMinutes: 'forty-five' };
+    expect(() => ObjectSerializer.deserialize(data, PetTreatment)).toThrow(DeserializationError);
+  });
+
   test('anyOf: PetTreatment serialize round-trip', () => {
     const data = { drugName: 'Amoxicillin', dosage: '500mg' };
     const result = ObjectSerializer.deserialize(data, PetTreatment);

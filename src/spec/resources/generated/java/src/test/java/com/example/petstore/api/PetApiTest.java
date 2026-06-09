@@ -513,6 +513,23 @@ class PetApiTest {
   }
 
   @Test
+  void getPetByNameEmptyRequiredStringQueryParamThrows() throws Exception {
+    // Parity with go/rust/swift/elixir: a required STRING param that is the
+    // empty string "" is treated as absent and must fail client-side with
+    // the same missing-required-parameter error, before any request is made.
+    CapturingApiClient capturing = new CapturingApiClient();
+    Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+    PetApi petApi = new PetApi(capturing, config);
+
+    GetPetByNameOptions options = new GetPetByNameOptions("");
+
+    assertThatThrownBy(() -> petApi.getPetByName("Rex", options))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("category");
+    assertThat(capturing.capturedUrl).isNull();
+  }
+
+  @Test
   void setPetPreferencesFormBodyIsCanonical() throws Exception {
     // Parity regression: application/x-www-form-urlencoded body must encode
     //   - a space as '+' (nickname="a b" -> nickname=a+b)

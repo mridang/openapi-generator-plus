@@ -791,10 +791,10 @@ export class PetApi extends BaseApi {
    * @throws {ApiError} if fails to make API call
    */
   async getPetByName(name: string, options: GetPetByNameOptions): Promise<Pet> {
-    if (name == null) {
+    if (name == null || name === '') {
       throw new Error('Missing required parameter "name" when calling getPetByName');
     }
-    if (options?.category == null) {
+    if (options?.category == null || options.category === '') {
       throw new Error('Missing required parameter "category" when calling getPetByName');
     }
     const getPetByNameResult = await this.getPetByNameWithHttpInfo(name, options);
@@ -818,10 +818,10 @@ export class PetApi extends BaseApi {
    * @throws {ApiError} if fails to make API call
    */
   async getPetByNameWithHttpInfo(name: string, options: GetPetByNameOptions): Promise<ApiResult<Pet>> {
-    if (name == null) {
+    if (name == null || name === '') {
       throw new Error('Missing required parameter "name" when calling getPetByName');
     }
-    if (options?.category == null) {
+    if (options?.category == null || options.category === '') {
       throw new Error('Missing required parameter "category" when calling getPetByName');
     }
     let path = `/pet/byName/{name}`;
@@ -990,7 +990,7 @@ export class PetApi extends BaseApi {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling getPetTag');
     }
-    if (tagName == null) {
+    if (tagName == null || tagName === '') {
       throw new Error('Missing required parameter "tagName" when calling getPetTag');
     }
     const getPetTagResult = await this.getPetTagWithHttpInfo(petId, tagName, options);
@@ -1017,7 +1017,7 @@ export class PetApi extends BaseApi {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling getPetTag');
     }
-    if (tagName == null) {
+    if (tagName == null || tagName === '') {
       throw new Error('Missing required parameter "tagName" when calling getPetTag');
     }
     let path = `/pet/{petId}/tag/{tagName}`;
@@ -1242,7 +1242,7 @@ export class PetApi extends BaseApi {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling setPetPreferences');
     }
-    if (options?.nickname == null) {
+    if (options?.nickname == null || options.nickname === '') {
       throw new Error('Missing required parameter "nickname" when calling setPetPreferences');
     }
     const setPetPreferencesResult = await this.setPetPreferencesWithHttpInfo(petId, options);
@@ -1272,7 +1272,7 @@ export class PetApi extends BaseApi {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling setPetPreferences');
     }
-    if (options?.nickname == null) {
+    if (options?.nickname == null || options.nickname === '') {
       throw new Error('Missing required parameter "nickname" when calling setPetPreferences');
     }
     let path = `/pet/{petId}/preferences`;

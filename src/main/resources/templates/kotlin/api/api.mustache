@@ -142,6 +142,11 @@ class {{classname}} : BaseApi {
         requireNotNull({{paramName}}) {
             "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
         }
+{{#isString}}
+        require({{paramName}}.isNotEmpty()) {
+            "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
+        }
+{{/isString}}
 {{/required}}
 {{/pathParams}}
 {{#bodyParam}}
@@ -159,6 +164,11 @@ class {{classname}} : BaseApi {
         requireNotNull(options.{{paramName}}) {
             "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
         }
+{{#isString}}
+        require(options.{{paramName}}.isNotEmpty()) {
+            "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
+        }
+{{/isString}}
 {{/required}}
 {{/queryParams}}
 {{#headerParams}}
@@ -166,6 +176,11 @@ class {{classname}} : BaseApi {
         requireNotNull(options.{{paramName}}) {
             "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
         }
+{{#isString}}
+        require(options.{{paramName}}.isNotEmpty()) {
+            "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
+        }
+{{/isString}}
 {{/required}}
 {{/headerParams}}
 {{#formParams}}
@@ -173,6 +188,11 @@ class {{classname}} : BaseApi {
         requireNotNull(options.{{paramName}}) {
             "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
         }
+{{#isString}}
+        require(options.{{paramName}}.isNotEmpty()) {
+            "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
+        }
+{{/isString}}
 {{/required}}
 {{/formParams}}
 {{#cookieParams}}
@@ -180,6 +200,11 @@ class {{classname}} : BaseApi {
         requireNotNull(options.{{paramName}}) {
             "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
         }
+{{#isString}}
+        require(options.{{paramName}}.isNotEmpty()) {
+            "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
+        }
+{{/isString}}
 {{/required}}
 {{/cookieParams}}
         var path{{^pathParams}} = "{{{path}}}"{{/pathParams}}{{#pathParams}}{{#-first}} =

@@ -8,7 +8,7 @@ import re
 import ssl
 import uuid
 import zlib
-from urllib.parse import quote as _url_quote, urlsplit, urlunsplit
+from urllib.parse import quote as _url_quote, unquote as _url_unquote, urlsplit, urlunsplit
 
 import urllib3
 
@@ -212,6 +212,22 @@ class DefaultApiClient:
 
             # --- Proxy ---
             if transport_options.proxy:
+                # urllib3 2.x does NOT auto-extract userinfo embedded in the
+                # proxy URL (``ProxyManager('http://user:pass@host').proxy_headers``
+                # is ``{}``), so an authenticated proxy would 407 and the SDK
+                # would be non-functional. Parse the userinfo here and emit an
+                # explicit ``Proxy-Authorization: Basic base64(user:pass)``
+                # header, matching the other 11 SDKs. The userinfo is
+                # percent-decoded before base64 (mirroring Java/Kotlin which
+                # URLDecode first) so credentials containing reserved
+                # characters round-trip correctly.
+                parsed_proxy = urlsplit(transport_options.proxy)
+                if parsed_proxy.username is not None:
+                    user = _url_unquote(parsed_proxy.username)
+                    pwd = _url_unquote(parsed_proxy.password or '')
+                    kwargs['proxy_headers'] = urllib3.util.make_headers(
+                        proxy_basic_auth=f'{user}:{pwd}'
+                    )
                 self._pool_manager = urllib3.ProxyManager(transport_options.proxy, **kwargs)
             else:
                 self._pool_manager = urllib3.PoolManager(**kwargs)

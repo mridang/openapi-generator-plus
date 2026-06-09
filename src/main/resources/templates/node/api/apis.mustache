@@ -134,7 +134,7 @@ export class {{classname}} extends BaseApi {
   async {{nickname}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{paramName}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/isPath}}{{#isBody}}{{paramName}}{{#nullable}}?{{/nullable}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/isBody}}{{#isOptions}}options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}: {{{dataType}}}{{/isOptions}}{{#isServer}}server?: {{{dataType}}}{{/isServer}}{{/vendorExtensions.op.signatureArgs}}): Promise<{{{returnType}}}{{^returnType}}void{{/returnType}}> {
 {{#pathParams}}
 {{#required}}
-    if ({{paramName}} == null) {
+    if ({{paramName}} == null{{#isString}} || {{paramName}} === ''{{/isString}}) {
       throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
     }
 {{/required}}
@@ -148,28 +148,28 @@ export class {{classname}} extends BaseApi {
 {{/bodyParam}}
 {{#queryParams}}
 {{#required}}
-    if (options?.{{paramName}} == null) {
+    if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
       throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
     }
 {{/required}}
 {{/queryParams}}
 {{#headerParams}}
 {{#required}}
-    if (options?.{{paramName}} == null) {
+    if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
       throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
     }
 {{/required}}
 {{/headerParams}}
 {{#formParams}}
 {{#required}}
-    if (options?.{{paramName}} == null) {
+    if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
       throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
     }
 {{/required}}
 {{/formParams}}
 {{#cookieParams}}
 {{#required}}
-    if (options?.{{paramName}} == null) {
+    if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
       throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
     }
 {{/required}}
@@ -202,7 +202,7 @@ export class {{classname}} extends BaseApi {
   async {{nickname}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{paramName}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/isPath}}{{#isBody}}{{paramName}}{{#nullable}}?{{/nullable}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/isBody}}{{#isOptions}}options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}: {{{dataType}}}{{/isOptions}}{{#isServer}}server?: {{{dataType}}}{{/isServer}}{{/vendorExtensions.op.signatureArgs}}): Promise<ApiResult<{{{returnType}}}{{^returnType}}void{{/returnType}}>> {
 {{#pathParams}}
 {{#required}}
-    if ({{paramName}} == null) {
+    if ({{paramName}} == null{{#isString}} || {{paramName}} === ''{{/isString}}) {
       throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
     }
 {{/required}}
@@ -216,28 +216,28 @@ export class {{classname}} extends BaseApi {
 {{/bodyParam}}
 {{#queryParams}}
 {{#required}}
-    if (options?.{{paramName}} == null) {
+    if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
       throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
     }
 {{/required}}
 {{/queryParams}}
 {{#headerParams}}
 {{#required}}
-    if (options?.{{paramName}} == null) {
+    if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
       throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
     }
 {{/required}}
 {{/headerParams}}
 {{#formParams}}
 {{#required}}
-    if (options?.{{paramName}} == null) {
+    if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
       throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
     }
 {{/required}}
 {{/formParams}}
 {{#cookieParams}}
 {{#required}}
-    if (options?.{{paramName}} == null) {
+    if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
       throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
     }
 {{/required}}

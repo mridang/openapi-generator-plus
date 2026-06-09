@@ -101,12 +101,25 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
       );
     }
     const discovery = JSON.parse(response.body) as Record<string, unknown>;
+    /* Reject a malformed/partial discovery document before building the
+     * delegate: an absent/null/empty authorization_endpoint or
+     * token_endpoint would otherwise be passed through as `undefined` and
+     * cause credentials to be POSTed to a malformed URL. Parity with the
+     * other SDKs which fail loudly here. */
+    const authorizationEndpoint = discovery.authorization_endpoint;
+    if (typeof authorizationEndpoint !== 'string' || authorizationEndpoint.length === 0) {
+      throw new Error('OIDC discovery document is missing authorization_endpoint');
+    }
+    const tokenEndpoint = discovery.token_endpoint;
+    if (typeof tokenEndpoint !== 'string' || tokenEndpoint.length === 0) {
+      throw new Error('OIDC discovery document is missing token_endpoint');
+    }
     this.delegate = new OAuth2AuthorizationCodeAuthenticator(
       this.host,
       this.clientId,
       this.clientSecret,
-      discovery.authorization_endpoint as string,
-      discovery.token_endpoint as string,
+      authorizationEndpoint,
+      tokenEndpoint,
       this.redirectUri,
       [...this.scopes]
     );

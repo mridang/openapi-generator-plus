@@ -663,7 +663,13 @@ class PetApi : BaseApi {
         requireNotNull(name) {
             "Missing the required parameter 'name' when calling getPetByName"
         }
+        require(name.isNotEmpty()) {
+            "Missing the required parameter 'name' when calling getPetByName"
+        }
         requireNotNull(options.category) {
+            "Missing the required parameter 'category' when calling getPetByName"
+        }
+        require(options.category.isNotEmpty()) {
             "Missing the required parameter 'category' when calling getPetByName"
         }
         var path =
@@ -800,6 +806,9 @@ class PetApi : BaseApi {
             "Missing the required parameter 'petId' when calling getPetTag"
         }
         requireNotNull(tagName) {
+            "Missing the required parameter 'tagName' when calling getPetTag"
+        }
+        require(tagName.isNotEmpty()) {
             "Missing the required parameter 'tagName' when calling getPetTag"
         }
         var path =
@@ -1006,6 +1015,9 @@ class PetApi : BaseApi {
             "Missing the required parameter 'petId' when calling setPetPreferences"
         }
         requireNotNull(options.nickname) {
+            "Missing the required parameter 'nickname' when calling setPetPreferences"
+        }
+        require(options.nickname.isNotEmpty()) {
             "Missing the required parameter 'nickname' when calling setPetPreferences"
         }
         var path =

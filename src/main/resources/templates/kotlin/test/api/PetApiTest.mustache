@@ -524,6 +524,28 @@ class PetApiTest {
         }
 
         @Test
+        @DisplayName("required-nested-param-validation: empty required string query param fails loud")
+        fun testGetPetByNameEmptyRequiredQueryFailsLoud() {
+            // required-nested-param-validation: a REQUIRED string param must be
+            // rejected when it is the empty string, not just when it is null.
+            // This mirrors go/rust/swift/elixir, which treat "" as missing for a
+            // required string. The generated guard adds an isNotEmpty() check
+            // alongside the requireNotNull, so an empty `category` fails loud.
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(), config)
+
+            assertThrows(IllegalArgumentException::class.java) {
+                runBlocking {
+                    api.getPetByName("Rex", GetPetByNameOptions(category = ""))
+                }
+            }
+        }
+
+        @Test
         @DisplayName("per-call auth override on base method wins on the wire")
         fun testAddPetPerCallAuthOverride() {
             // Verify the auth argument on the BASE operation method (not just the

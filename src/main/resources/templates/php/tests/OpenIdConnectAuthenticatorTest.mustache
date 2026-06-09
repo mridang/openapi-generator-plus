@@ -202,22 +202,43 @@ test('oidc get host returns configured host', function (): void {
 });
 
 test('oidc throws when discovery omits authorization_endpoint', function (): void {
-    /* Feature gap: getDelegate() reads $discovery['authorization_endpoint']
-     * directly with no missing-key guard, so an absent endpoint is not
-     * surfaced as a deliberate "missing authorization_endpoint" discovery
-     * error. Recorded as a feature gap; skipped so the scenario count
-     * matches the other SDKs. */
-    test()->markTestSkipped(
-        'No missing-endpoint guard: authorization_endpoint is read without validation.'
+    $client = new MockTokenApiClient();
+    // Discovery document missing authorization_endpoint must fail loudly.
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
     );
+    $authenticator->setApiClient($client);
+
+    expect(fn () => $authenticator->buildAuthorizationUrl())
+        ->toThrow(\RuntimeException::class, 'OIDC discovery document is missing authorization_endpoint');
 });
 
 test('oidc throws when discovery omits token_endpoint', function (): void {
-    /* Feature gap: getDelegate() reads $discovery['token_endpoint'] directly
-     * with no missing-key guard, so an absent endpoint is not surfaced as a
-     * deliberate "missing token_endpoint" discovery error. Recorded as a
-     * feature gap; skipped so the scenario count matches the other SDKs. */
-    test()->markTestSkipped(
-        'No missing-endpoint guard: token_endpoint is read without validation.'
+    $client = new MockTokenApiClient();
+    // Discovery document missing token_endpoint must fail loudly.
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
     );
+    $authenticator->setApiClient($client);
+
+    expect(fn () => $authenticator->buildAuthorizationUrl())
+        ->toThrow(\RuntimeException::class, 'OIDC discovery document is missing token_endpoint');
 });

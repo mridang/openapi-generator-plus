@@ -122,14 +122,29 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
             );
         }
 
-        /** @var array{authorization_endpoint: string, token_endpoint: string} $discovery */
+        /** @var array{authorization_endpoint?: string, token_endpoint?: string} $discovery */
         $discovery = json_decode($response->body, true);
+
+        /* Reject a malformed/partial discovery document before building the
+         * delegate: an absent/null/empty authorization_endpoint or
+         * token_endpoint would otherwise be passed through and cause
+         * credentials to be POSTed to a malformed URL. Parity with the other
+         * SDKs which fail loudly here. */
+        $authorizationEndpoint = $discovery['authorization_endpoint'] ?? null;
+        if (!is_string($authorizationEndpoint) || $authorizationEndpoint === '') {
+            throw new \RuntimeException('OIDC discovery document is missing authorization_endpoint');
+        }
+        $tokenEndpoint = $discovery['token_endpoint'] ?? null;
+        if (!is_string($tokenEndpoint) || $tokenEndpoint === '') {
+            throw new \RuntimeException('OIDC discovery document is missing token_endpoint');
+        }
+
         $this->delegate = new OAuth2AuthorizationCodeAuthenticator(
             $this->host,
             $this->clientId,
             $this->clientSecret,
-            $discovery['authorization_endpoint'],
-            $discovery['token_endpoint'],
+            $authorizationEndpoint,
+            $tokenEndpoint,
             $this->redirectUri,
             $this->scopes
         );

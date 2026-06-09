@@ -161,34 +161,34 @@ $client = new Client($fake);
 
 ## Error Handling
 
-All API errors extend `ApiError`. The exception hierarchy is:
+All API errors extend `ApiException`. The exception hierarchy is:
 
-- `ApiError` (base)
-  - `ClientError` (4xx)
-    - `BadRequestError` (400)
-    - `UnauthorizedError` (401)
-    - `ForbiddenError` (403)
-    - `NotFoundError` (404)
-    - `ConflictError` (409)
-    - `UnprocessableEntityError` (422)
-  - `ServerError` (5xx)
-    - `InternalServerError` (500)
+- `ApiException` (base)
+  - `ClientException` (4xx)
+    - `BadRequestException` (400)
+    - `UnauthorizedException` (401)
+    - `ForbiddenException` (403)
+    - `NotFoundException` (404)
+    - `ConflictException` (409)
+    - `UnprocessableEntityException` (422)
+  - `ServerException` (5xx)
+    - `InternalServerErrorException` (500)
 
 ```php
-use PetstoreClient\Errors\NotFoundError;
-use PetstoreClient\Errors\ClientError;
-use PetstoreClient\Errors\ServerError;
-use PetstoreClient\Errors\ApiError;
+use PetstoreClient\ApiException;
+use PetstoreClient\Errors\NotFoundException;
+use PetstoreClient\Errors\ClientException;
+use PetstoreClient\Errors\ServerException;
 
 try {
     $result = $client->petApi->getPetById($petId);
-} catch (NotFoundError $e) {
+} catch (NotFoundException $e) {
     echo "Not found: " . $e->getMessage();
-} catch (ClientError $e) {
+} catch (ClientException $e) {
     echo "Client error " . $e->getStatusCode() . ": " . $e->getMessage();
-} catch (ServerError $e) {
+} catch (ServerException $e) {
     echo "Server error: " . $e->getMessage();
-} catch (ApiError $e) {
+} catch (ApiException $e) {
     echo "API error: " . $e->getMessage();
 }
 ```

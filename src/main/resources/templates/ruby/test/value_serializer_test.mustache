@@ -375,6 +375,14 @@ describe {{moduleName}}::ValueSerializer do
       _({{moduleName}}::ValueSerializer.serialize('a+b', :path, 'string')).must_equal('a+b')
     end
 
+    it 'tilde preserved (RFC 3986 unreserved)' do
+      # '~' is an RFC 3986 unreserved character and must never be
+      # percent-encoded. URI.encode_www_form_component emits %7E; the
+      # canonical encoding (Java, Kotlin, Node, C#, etc.) keeps a literal '~'.
+      _({{moduleName}}::ValueSerializer.serialize('a~b', :path, 'string')).must_equal('a~b')
+      _({{moduleName}}::ValueSerializer.serialize('~', :path, 'string')).must_equal('~')
+    end
+
     it 'unicode encoded as UTF-8 percent' do
       _({{moduleName}}::ValueSerializer.serialize('日本', :path, 'string')).must_equal('%E6%97%A5%E6%9C%AC')
     end

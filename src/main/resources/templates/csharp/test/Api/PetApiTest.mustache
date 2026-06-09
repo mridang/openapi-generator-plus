@@ -102,6 +102,18 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task TestGetPetByNameEmptyRequiredStringQueryParamThrows()
+    {
+        // The required 'category' query parameter is a string. An empty string is
+        // treated as a missing value (parity with go/rust/swift/elixir) and must
+        // fail fast with an ArgumentException naming the offending parameter —
+        // before any HTTP request is made — rather than sending an empty value.
+        var ex = await Assert.ThrowsAsync<ArgumentException>(
+            () => _api.GetPetByNameAsync("Rex", new GetPetByNameOptions { Category = "" }));
+        Assert.Equal("options.Category", ex.ParamName);
+    }
+
+    [Fact]
     public async Task TestUpdatePet()
     {
         var pet = new Pet("UpdatedDog", new HashSet<string> { "http://example.com/updated.jpg" })

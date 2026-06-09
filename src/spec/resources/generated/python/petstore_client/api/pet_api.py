@@ -922,10 +922,10 @@ class PetApi(BaseApi):
         :return: Pet
         :raises ApiException: if fails to make API call
         """
-        if name is None:
+        if name is None or name == '':
             raise ValueError("Missing the required parameter 'name'")
 
-        if options is None or options.category is None:
+        if options is None or options.category is None or options.category == '':
             raise ValueError("Missing the required parameter 'category'")
 
         result = await self.get_pet_by_name_with_http_info(name, options)
@@ -956,10 +956,10 @@ class PetApi(BaseApi):
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
-        if name is None:
+        if name is None or name == '':
             raise ValueError("Missing the required parameter 'name'")
 
-        if options is None or options.category is None:
+        if options is None or options.category is None or options.category == '':
             raise ValueError("Missing the required parameter 'category'")
 
         path = '/pet/byName/{name}'
@@ -1133,7 +1133,7 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        if tag_name is None:
+        if tag_name is None or tag_name == '':
             raise ValueError("Missing the required parameter 'tag_name'")
 
         result = await self.get_pet_tag_with_http_info(pet_id, tag_name, options)
@@ -1169,7 +1169,7 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        if tag_name is None:
+        if tag_name is None or tag_name == '':
             raise ValueError("Missing the required parameter 'tag_name'")
 
         path = '/pet/{petId}/tag/{tagName}'
@@ -1400,7 +1400,7 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        if options is None or options.nickname is None:
+        if options is None or options.nickname is None or options.nickname == '':
             raise ValueError("Missing the required parameter 'nickname'")
 
         result = await self.set_pet_preferences_with_http_info(pet_id, options)
@@ -1435,7 +1435,7 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        if options is None or options.nickname is None:
+        if options is None or options.nickname is None or options.nickname == '':
             raise ValueError("Missing the required parameter 'nickname'")
 
         path = '/pet/{petId}/preferences'

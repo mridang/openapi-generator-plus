@@ -228,6 +228,18 @@ export class ObjectSerializer {
               const instance = plainToInstance(schemaCls, json, { excludeExtraneousValues: true });
               const hasValues = Object.values(instance as Record<string, unknown>).some(v => v !== undefined);
               if (hasValues) {
+                /**
+                 * Gap S (union): class-transformer's plainToInstance bypasses
+                 * the variant model's constructor, so a candidate with a
+                 * type-wrong field (e.g. a string on a numeric field) would be
+                 * silently retained. Route the candidate through the variant
+                 * model's own constructor so its primitive-type assertions
+                 * fire; if they throw, this variant doesn't match and we fall
+                 * through to the next candidate (and ultimately the no-match
+                 * throw below) — matching the strict validate-each-variant
+                 * canonical used by the other SDKs.
+                 */
+                new (schemaCls as unknown as new (i: unknown) => unknown)(instance);
                 return new (cls as unknown as new (i: unknown) => T)(instance);
               }
             } catch {

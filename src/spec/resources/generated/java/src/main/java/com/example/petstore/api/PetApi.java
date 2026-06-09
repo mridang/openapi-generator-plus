@@ -1121,11 +1121,11 @@ public class PetApi extends BaseApi {
    */
   public ApiResult<Pet> getPetByNameWithHttpInfo(String name, GetPetByNameOptions options)
       throws ApiException {
-    if (name == null) {
+    if (name == null || name.isEmpty()) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'name' when calling getPetByName");
     }
-    if (options.category() == null) {
+    if (options.category() == null || options.category().isEmpty()) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'category' when calling getPetByName");
     }
@@ -1321,7 +1321,7 @@ public class PetApi extends BaseApi {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling getPetTag");
     }
-    if (tagName == null) {
+    if (tagName == null || tagName.isEmpty()) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'tagName' when calling getPetTag");
     }
@@ -1586,7 +1586,7 @@ public class PetApi extends BaseApi {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling setPetPreferences");
     }
-    if (options.nickname() == null) {
+    if (options.nickname() == null || options.nickname().isEmpty()) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'nickname' when calling setPetPreferences");
     }

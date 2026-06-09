@@ -204,11 +204,10 @@ describe('OpenIdConnectAuthenticator', () => {
   // oauth-oidc-missing-endpoint-guard: a discovery document missing the
   // authorization/token endpoint should fail loudly rather than build a
   // delegate with an undefined endpoint URL.
-  test.skip('throws when discovery is missing authorization_endpoint', async () => {
-    // Feature gap: getDelegate() casts discovery.authorization_endpoint to
-    // string without a missing-key guard, so an absent endpoint yields
-    // `undefined` rather than a thrown discovery error. Skipped so the
-    // scenario count matches the other SDKs.
+  test('throws when discovery is missing authorization_endpoint', async () => {
+    // getDelegate() now guards the discovery document: an absent
+    // authorization_endpoint surfaces a clear discovery error rather than
+    // building a delegate with an `undefined` endpoint URL.
     mockClient.responses = [
       {
         statusCode: 200,
@@ -217,14 +216,15 @@ describe('OpenIdConnectAuthenticator', () => {
       }
     ];
 
-    await expect(authenticator.buildAuthorizationUrl()).rejects.toThrow();
+    await expect(authenticator.buildAuthorizationUrl()).rejects.toThrow(
+      'OIDC discovery document is missing authorization_endpoint'
+    );
   });
 
-  test.skip('throws when discovery is missing token_endpoint', async () => {
-    // Feature gap: getDelegate() casts discovery.token_endpoint to string
-    // without a missing-key guard, so an absent endpoint yields `undefined`
-    // rather than a thrown discovery error. Skipped so the scenario count
-    // matches the other SDKs.
+  test('throws when discovery is missing token_endpoint', async () => {
+    // getDelegate() now guards the discovery document: an absent
+    // token_endpoint surfaces a clear discovery error rather than building a
+    // delegate with an `undefined` endpoint URL.
     mockClient.responses = [
       {
         statusCode: 200,
@@ -233,6 +233,8 @@ describe('OpenIdConnectAuthenticator', () => {
       }
     ];
 
-    await expect(authenticator.buildAuthorizationUrl()).rejects.toThrow();
+    await expect(authenticator.buildAuthorizationUrl()).rejects.toThrow(
+      'OIDC discovery document is missing token_endpoint'
+    );
   });
 });

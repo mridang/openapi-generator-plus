@@ -305,6 +305,21 @@ describe('PetApi error handling', () => {
     }
   });
 
+  // required-string-param-empty-string: a required STRING parameter must reject
+  // the empty string the same way it rejects null, matching go/rust/swift/elixir.
+  // Validation happens before any HTTP call, so no mock server is needed.
+  test('required string query param rejects empty string', async () => {
+    await expect(api.getPetByName('Rex', { category: '' })).rejects.toThrow(
+      'Missing required parameter "category" when calling getPetByName'
+    );
+  });
+
+  test('required string path param rejects empty string', async () => {
+    await expect(api.getPetByName('', { category: 'dog' })).rejects.toThrow(
+      'Missing required parameter "name" when calling getPetByName'
+    );
+  });
+
   // per-call-auth-override: an authenticator passed to the BASE operation method
   // (not just WithHttpInfo) must be applied to the outgoing request. The default
   // header carries one token; the per-call authenticator carries a different one

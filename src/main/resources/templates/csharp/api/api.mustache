@@ -225,21 +225,45 @@ public class {{classname}} : BaseApi
 {{#queryParams}}
 {{#required}}
         ArgumentNullException.ThrowIfNull(options.{{vendorExtensions.pascalName}}, nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+{{#isString}}
+        if (options.{{vendorExtensions.pascalName}}.Length == 0)
+        {
+            throw new ArgumentException("missing required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}", nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+        }
+{{/isString}}
 {{/required}}
 {{/queryParams}}
 {{#headerParams}}
 {{#required}}
         ArgumentNullException.ThrowIfNull(options.{{vendorExtensions.pascalName}}, nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+{{#isString}}
+        if (options.{{vendorExtensions.pascalName}}.Length == 0)
+        {
+            throw new ArgumentException("missing required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}", nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+        }
+{{/isString}}
 {{/required}}
 {{/headerParams}}
 {{#formParams}}
 {{#required}}
         ArgumentNullException.ThrowIfNull(options.{{vendorExtensions.pascalName}}, nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+{{#isString}}
+        if (options.{{vendorExtensions.pascalName}}.Length == 0)
+        {
+            throw new ArgumentException("missing required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}", nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+        }
+{{/isString}}
 {{/required}}
 {{/formParams}}
 {{#cookieParams}}
 {{#required}}
         ArgumentNullException.ThrowIfNull(options.{{vendorExtensions.pascalName}}, nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+{{#isString}}
+        if (options.{{vendorExtensions.pascalName}}.Length == 0)
+        {
+            throw new ArgumentException("missing required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}", nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+        }
+{{/isString}}
 {{/required}}
 {{/cookieParams}}
         string path = "{{{path}}}";
@@ -247,6 +271,12 @@ public class {{classname}} : BaseApi
 {{^isPrimitiveType}}
         ArgumentNullException.ThrowIfNull({{paramName}}, nameof({{paramName}}));
 {{/isPrimitiveType}}
+{{#isString}}
+        if ({{paramName}}.Length == 0)
+        {
+            throw new ArgumentException("missing required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}", nameof({{paramName}}));
+        }
+{{/isString}}
         path = path.Replace(
             "{" + nameof({{paramName}}) + "}",
             (string)ValueSerializer.SerializeStyled(nameof({{paramName}}), {{paramName}}, "path", "{{{dataType}}}", null, "{{style}}", {{isExplode}})!,

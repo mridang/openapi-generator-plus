@@ -155,18 +155,18 @@ var client = new Client(new FakeAuthenticator());
 
 ## Error Handling
 
-All API errors inherit from `ApiError`. The error hierarchy is:
+All API errors inherit from `ApiException`. The exception hierarchy is:
 
-- `ApiError` (base)
-  - `ClientError` (4xx)
-    - `BadRequestError` (400)
-    - `UnauthorizedError` (401)
-    - `ForbiddenError` (403)
-    - `NotFoundError` (404)
-    - `ConflictError` (409)
-    - `UnprocessableEntityError` (422)
-  - `ServerError` (5xx)
-    - `InternalServerError` (500)
+- `ApiException` (base)
+  - `ClientException` (4xx)
+    - `BadRequestException` (400)
+    - `UnauthorizedException` (401)
+    - `ForbiddenException` (403)
+    - `NotFoundException` (404)
+    - `ConflictException` (409)
+    - `UnprocessableEntityException` (422)
+  - `ServerException` (5xx)
+    - `InternalServerErrorException` (500)
 
 ```csharp
 using PetstoreClient.Errors;
@@ -175,19 +175,19 @@ try
 {
     var result = await client.PetApi.GetPetByIdAsync(petId);
 }
-catch (NotFoundError e)
+catch (NotFoundException e)
 {
     Console.WriteLine($"Not found: {e.Message}");
 }
-catch (ClientError e)
+catch (ClientException e)
 {
     Console.WriteLine($"Client error {e.StatusCode}: {e.Message}");
 }
-catch (ServerError e)
+catch (ServerException e)
 {
     Console.WriteLine($"Server error: {e.Message}");
 }
-catch (ApiError e)
+catch (ApiException e)
 {
     Console.WriteLine($"API error: {e.Message}");
 }

@@ -171,31 +171,32 @@ val client = Client(fake)
 
 ## Error Handling
 
-All API errors extend `ApiError`. The error hierarchy is:
+All API errors extend `ApiException`. The error hierarchy is:
 
-- `ApiError` (base)
-  - `ClientError` (4xx)
-    - `BadRequestError` (400)
-    - `UnauthorizedError` (401)
-    - `ForbiddenError` (403)
-    - `NotFoundError` (404)
-    - `ConflictError` (409)
-    - `UnprocessableEntityError` (422)
-  - `ServerError` (5xx)
-    - `InternalServerError` (500)
+- `ApiException` (base)
+  - `ClientException` (4xx)
+    - `BadRequestException` (400)
+    - `UnauthorizedException` (401)
+    - `ForbiddenException` (403)
+    - `NotFoundException` (404)
+    - `ConflictException` (409)
+    - `UnprocessableEntityException` (422)
+  - `ServerException` (5xx)
+    - `InternalServerErrorException` (500)
 
 ```kotlin
+import com.example.petstore.ApiException
 import com.example.petstore.errors.*
 
 try {
     val result = client.petApi.getPetById(petId)
-} catch (e: NotFoundError) {
+} catch (e: NotFoundException) {
     println("Not found: ${e.message}")
-} catch (e: ClientError) {
+} catch (e: ClientException) {
     println("Client error ${e.statusCode}: ${e.message}")
-} catch (e: ServerError) {
+} catch (e: ServerException) {
     println("Server error: ${e.message}")
-} catch (e: ApiError) {
+} catch (e: ApiException) {
     println("API error: ${e.message}")
 }
 ```

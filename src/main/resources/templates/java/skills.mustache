@@ -193,31 +193,31 @@ var client = new {{clientClassName}}(fake);
 
 ## Error Handling
 
-All API errors extend `ApiError`. The error hierarchy is:
+All API errors extend `ApiException`. The error hierarchy is:
 
-- `ApiError` (base)
-  - `ClientError` (4xx)
-    - `BadRequestError` (400)
-    - `UnauthorizedError` (401)
-    - `ForbiddenError` (403)
-    - `NotFoundError` (404)
-    - `ConflictError` (409)
-    - `UnprocessableEntityError` (422)
-  - `ServerError` (5xx)
-    - `InternalServerError` (500)
+- `ApiException` (base)
+  - `ClientException` (4xx)
+    - `BadRequestException` (400)
+    - `UnauthorizedException` (401)
+    - `ForbiddenException` (403)
+    - `NotFoundException` (404)
+    - `ConflictException` (409)
+    - `UnprocessableEntityException` (422)
+  - `ServerException` (5xx)
+    - `InternalServerErrorException` (500)
 
 ```java
 import {{invokerPackage}}.errors.*;
 
 try {
     var result = client.petApi.getPetById(petId);
-} catch (NotFoundError e) {
+} catch (NotFoundException e) {
     System.out.println("Not found: " + e.getMessage());
-} catch (ClientError e) {
+} catch (ClientException e) {
     System.out.println("Client error " + e.getStatusCode() + ": " + e.getMessage());
-} catch (ServerError e) {
+} catch (ServerException e) {
     System.out.println("Server error: " + e.getMessage());
-} catch (ApiError e) {
+} catch (ApiException e) {
     System.out.println("API error: " + e.getMessage());
 }
 ```

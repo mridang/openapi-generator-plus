@@ -142,44 +142,89 @@ class {{classname}} extends BaseApi {
 {{!  - Options OPTIONAL: the object itself can be null, which would silently }}
 {{!    drop the required param; guard the whole object so the call throws }}
 {{!    instead of sending an incomplete request. }}
+{{! }}
+{{! For a REQUIRED STRING param we additionally reject the empty string "", }}
+{{! matching go/rust/swift/elixir which treat "" as "absent" for required }}
+{{! string params. The check is gated on isString so non-string params are }}
+{{! unaffected. The null check above is preserved. }}
 {{#queryParams}}{{#required}}
 {{#vendorExtensions.op.optionsParamRequired}}
     ArgumentError.checkNotNull(options.{{paramName}}, '{{paramName}}');
+{{#isString}}
+    if (options.{{paramName}} == '') {
+      throw ArgumentError("Missing the required parameter '{{paramName}}'");
+    }
+{{/isString}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options?.{{paramName}} == null) {
       throw ArgumentError("Missing the required parameter '{{paramName}}'");
     }
+{{#isString}}
+    if (options?.{{paramName}} == '') {
+      throw ArgumentError("Missing the required parameter '{{paramName}}'");
+    }
+{{/isString}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/required}}{{/queryParams}}
 {{#headerParams}}{{#required}}
 {{#vendorExtensions.op.optionsParamRequired}}
     ArgumentError.checkNotNull(options.{{paramName}}, '{{paramName}}');
+{{#isString}}
+    if (options.{{paramName}} == '') {
+      throw ArgumentError("Missing the required parameter '{{paramName}}'");
+    }
+{{/isString}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options?.{{paramName}} == null) {
       throw ArgumentError("Missing the required parameter '{{paramName}}'");
     }
+{{#isString}}
+    if (options?.{{paramName}} == '') {
+      throw ArgumentError("Missing the required parameter '{{paramName}}'");
+    }
+{{/isString}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/required}}{{/headerParams}}
 {{#formParams}}{{#required}}
 {{#vendorExtensions.op.optionsParamRequired}}
     ArgumentError.checkNotNull(options.{{paramName}}, '{{paramName}}');
+{{#isString}}
+    if (options.{{paramName}} == '') {
+      throw ArgumentError("Missing the required parameter '{{paramName}}'");
+    }
+{{/isString}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options?.{{paramName}} == null) {
       throw ArgumentError("Missing the required parameter '{{paramName}}'");
     }
+{{#isString}}
+    if (options?.{{paramName}} == '') {
+      throw ArgumentError("Missing the required parameter '{{paramName}}'");
+    }
+{{/isString}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/required}}{{/formParams}}
 {{#cookieParams}}{{#required}}
 {{#vendorExtensions.op.optionsParamRequired}}
     ArgumentError.checkNotNull(options.{{paramName}}, '{{paramName}}');
+{{#isString}}
+    if (options.{{paramName}} == '') {
+      throw ArgumentError("Missing the required parameter '{{paramName}}'");
+    }
+{{/isString}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options?.{{paramName}} == null) {
       throw ArgumentError("Missing the required parameter '{{paramName}}'");
     }
+{{#isString}}
+    if (options?.{{paramName}} == '') {
+      throw ArgumentError("Missing the required parameter '{{paramName}}'");
+    }
+{{/isString}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/required}}{{/cookieParams}}
 

@@ -159,9 +159,9 @@ client = Client(FakeAuthenticator())
 
 ## Error Handling
 
-All API errors extend `ApiError`. The exception hierarchy is:
+All API errors extend `ApiException`. The exception hierarchy is:
 
-- `ApiError` (base)
+- `ApiException` (base)
   - `ClientException` (4xx)
     - `BadRequestException` (400)
     - `UnauthorizedException` (401)
@@ -177,7 +177,7 @@ from petstore_client.errors import (
     NotFoundException,
     ClientException,
     ServerException,
-    ApiError,
+    ApiException,
 )
 
 try:
@@ -188,7 +188,7 @@ except ClientException as e:
     print(f"Client error {e.status_code}: {e}")
 except ServerException as e:
     print(f"Server error: {e}")
-except ApiError as e:
+except ApiException as e:
     print(f"API error: {e}")
 ```
 

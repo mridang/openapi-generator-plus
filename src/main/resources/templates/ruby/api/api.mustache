@@ -115,6 +115,13 @@ module {{moduleName}}
           raise ArgumentError,
                 "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         end
+{{#isString}}
+
+        if {{{paramName}}} == ''
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{/isString}}
 
 {{/required}}
 {{/pathParams}}
@@ -133,6 +140,13 @@ module {{moduleName}}
           raise ArgumentError,
                 "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         end
+{{#isString}}
+
+        if options.{{paramName}} == ''
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{/isString}}
 
 {{/required}}
 {{/queryParams}}
@@ -142,6 +156,13 @@ module {{moduleName}}
           raise ArgumentError,
                 "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         end
+{{#isString}}
+
+        if options.{{paramName}} == ''
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{/isString}}
 
 {{/required}}
 {{/headerParams}}
@@ -151,6 +172,13 @@ module {{moduleName}}
           raise ArgumentError,
                 "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         end
+{{#isString}}
+
+        if options.{{paramName}} == ''
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{/isString}}
 
 {{/required}}
 {{/formParams}}
@@ -160,6 +188,13 @@ module {{moduleName}}
           raise ArgumentError,
                 "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         end
+{{#isString}}
+
+        if options.{{paramName}} == ''
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{/isString}}
 
 {{/required}}
 {{/cookieParams}}
@@ -194,6 +229,13 @@ module {{moduleName}}
           raise ArgumentError,
                 "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         end
+{{#isString}}
+
+        if {{{paramName}}} == ''
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{/isString}}
 
 {{/required}}
 {{/pathParams}}
@@ -212,6 +254,13 @@ module {{moduleName}}
           raise ArgumentError,
                 "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         end
+{{#isString}}
+
+        if options.{{paramName}} == ''
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{/isString}}
 
 {{/required}}
 {{/queryParams}}
@@ -221,6 +270,13 @@ module {{moduleName}}
           raise ArgumentError,
                 "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         end
+{{#isString}}
+
+        if options.{{paramName}} == ''
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{/isString}}
 
 {{/required}}
 {{/headerParams}}
@@ -230,6 +286,13 @@ module {{moduleName}}
           raise ArgumentError,
                 "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         end
+{{#isString}}
+
+        if options.{{paramName}} == ''
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{/isString}}
 
 {{/required}}
 {{/formParams}}
@@ -239,6 +302,13 @@ module {{moduleName}}
           raise ArgumentError,
                 "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         end
+{{#isString}}
+
+        if options.{{paramName}} == ''
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+{{/isString}}
 
 {{/required}}
 {{/cookieParams}}

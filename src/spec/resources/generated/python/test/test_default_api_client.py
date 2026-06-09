@@ -41,20 +41,36 @@ class TestHttpProxy:
 class TestProxyWithCredentials:
     # Gap AK: userinfo embedded in the proxy URL must be base64-encoded
     # and surfaced as Proxy-Authorization so the proxy can authenticate
-    # the tunnel — otherwise the proxy 407s. urllib3.ProxyManager reads
-    # userinfo natively from the URL; we assert TransportOptions
-    # preserves the userinfo end-to-end.
+    # the tunnel — otherwise the proxy 407s. urllib3 2.x does NOT extract
+    # userinfo from the proxy URL natively (ProxyManager(url).proxy_headers
+    # is {}), so the client must build the header itself. Assert the live
+    # pool manager actually carries the Proxy-Authorization header, not just
+    # that the URL string preserves the userinfo.
     def test_proxy_with_credentials_injects_basic_authorization(self) -> None:
-        import base64
-        from urllib.parse import urlparse, unquote
-
         transport = TransportOptions.builder().proxy('http://alice:s3cret@127.0.0.1:3128').build()
-        parsed = urlparse(transport.proxy)
-        assert parsed.username == 'alice'
-        assert parsed.password == 's3cret'
-        raw = f'{unquote(parsed.username)}:{unquote(parsed.password)}'
-        encoded = base64.b64encode(raw.encode('utf-8')).decode('ascii')
-        assert f'Basic {encoded}' == 'Basic YWxpY2U6czNjcmV0'
+        client = DefaultApiClient(transport)
+        # urllib3.util.make_headers emits the header with a lowercase key,
+        # so look it up case-insensitively. HTTP header names are
+        # case-insensitive on the wire regardless.
+        proxy_headers = {k.lower(): v for k, v in client._pool_manager.proxy_headers.items()}
+        assert proxy_headers.get('proxy-authorization') == 'Basic YWxpY2U6czNjcmV0'
+
+    def test_proxy_with_percent_encoded_credentials_are_decoded(self) -> None:
+        import base64
+
+        # Reserved characters in the userinfo are percent-encoded in the URL
+        # and must be decoded before base64 (matching Java/Kotlin URLDecode).
+        transport = TransportOptions.builder().proxy('http://al%40ice:p%3Ass@127.0.0.1:3128').build()
+        client = DefaultApiClient(transport)
+        proxy_headers = {k.lower(): v for k, v in client._pool_manager.proxy_headers.items()}
+        expected = 'Basic ' + base64.b64encode(b'al@ice:p:ss').decode('ascii')
+        assert proxy_headers.get('proxy-authorization') == expected
+
+    def test_proxy_without_credentials_has_no_proxy_authorization(self) -> None:
+        transport = TransportOptions.builder().proxy('http://127.0.0.1:3128').build()
+        client = DefaultApiClient(transport)
+        proxy_headers = {k.lower(): v for k, v in client._pool_manager.proxy_headers.items()}
+        assert 'proxy-authorization' not in proxy_headers
 
 
 class TestHttpProxyWithTls:

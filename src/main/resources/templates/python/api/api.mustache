@@ -131,7 +131,7 @@ class {{classname}}(BaseApi):
         """
 {{#pathParams}}
 {{#required}}
-        if {{paramName}} is None:
+        if {{paramName}} is None{{#isString}} or {{paramName}} == ''{{/isString}}:
             raise ValueError("Missing the required parameter '{{paramName}}'")
 
 {{/required}}
@@ -145,28 +145,28 @@ class {{classname}}(BaseApi):
 {{/bodyParam}}
 {{#queryParams}}
 {{#required}}
-        if options is None or options.{{paramName}} is None:
+        if options is None or options.{{paramName}} is None{{#isString}} or options.{{paramName}} == ''{{/isString}}:
             raise ValueError("Missing the required parameter '{{paramName}}'")
 
 {{/required}}
 {{/queryParams}}
 {{#headerParams}}
 {{#required}}
-        if options is None or options.{{paramName}} is None:
+        if options is None or options.{{paramName}} is None{{#isString}} or options.{{paramName}} == ''{{/isString}}:
             raise ValueError("Missing the required parameter '{{paramName}}'")
 
 {{/required}}
 {{/headerParams}}
 {{#formParams}}
 {{#required}}
-        if options is None or options.{{paramName}} is None:
+        if options is None or options.{{paramName}} is None{{#isString}} or options.{{paramName}} == ''{{/isString}}:
             raise ValueError("Missing the required parameter '{{paramName}}'")
 
 {{/required}}
 {{/formParams}}
 {{#cookieParams}}
 {{#required}}
-        if options is None or options.{{paramName}} is None:
+        if options is None or options.{{paramName}} is None{{#isString}} or options.{{paramName}} == ''{{/isString}}:
             raise ValueError("Missing the required parameter '{{paramName}}'")
 
 {{/required}}
@@ -212,7 +212,7 @@ class {{classname}}(BaseApi):
         """
 {{#pathParams}}
 {{#required}}
-        if {{paramName}} is None:
+        if {{paramName}} is None{{#isString}} or {{paramName}} == ''{{/isString}}:
             raise ValueError("Missing the required parameter '{{paramName}}'")
 
 {{/required}}
@@ -226,28 +226,28 @@ class {{classname}}(BaseApi):
 {{/bodyParam}}
 {{#queryParams}}
 {{#required}}
-        if options is None or options.{{paramName}} is None:
+        if options is None or options.{{paramName}} is None{{#isString}} or options.{{paramName}} == ''{{/isString}}:
             raise ValueError("Missing the required parameter '{{paramName}}'")
 
 {{/required}}
 {{/queryParams}}
 {{#headerParams}}
 {{#required}}
-        if options is None or options.{{paramName}} is None:
+        if options is None or options.{{paramName}} is None{{#isString}} or options.{{paramName}} == ''{{/isString}}:
             raise ValueError("Missing the required parameter '{{paramName}}'")
 
 {{/required}}
 {{/headerParams}}
 {{#formParams}}
 {{#required}}
-        if options is None or options.{{paramName}} is None:
+        if options is None or options.{{paramName}} is None{{#isString}} or options.{{paramName}} == ''{{/isString}}:
             raise ValueError("Missing the required parameter '{{paramName}}'")
 
 {{/required}}
 {{/formParams}}
 {{#cookieParams}}
 {{#required}}
-        if options is None or options.{{paramName}} is None:
+        if options is None or options.{{paramName}} is None{{#isString}} or options.{{paramName}} == ''{{/isString}}:
             raise ValueError("Missing the required parameter '{{paramName}}'")
 
 {{/required}}

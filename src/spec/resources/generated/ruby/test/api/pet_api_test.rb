@@ -208,6 +208,23 @@ describe PetstoreClient::Api::PetApi do
       end
       _(err.message).must_include 'name'
     end
+
+    it 'raises ArgumentError when the required string query param category is empty' do
+      # required-string-empty parity (go/rust/swift/elixir): an empty
+      # string for a required string param means the caller omitted it,
+      # so it must be rejected exactly like nil.
+      err = assert_raises(ArgumentError) do
+        @api.get_pet_by_name('Rex', PetstoreClient::Api::Options::GetPetByNameOptions.new(category: ''))
+      end
+      _(err.message).must_include 'category'
+    end
+
+    it 'raises ArgumentError when the required string path param name is empty' do
+      err = assert_raises(ArgumentError) do
+        @api.get_pet_by_name('', PetstoreClient::Api::Options::GetPetByNameOptions.new(category: 'dogs'))
+      end
+      _(err.message).must_include 'name'
+    end
   end
 
   describe 'error handling' do

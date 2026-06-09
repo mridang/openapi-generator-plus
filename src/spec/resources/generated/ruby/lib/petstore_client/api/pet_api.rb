@@ -782,7 +782,17 @@ module PetstoreClient
             "Missing the required parameter 'name' when calling PetApi.get_pet_by_name"
         end
 
+        if name == ''
+          raise ArgumentError,
+            "Missing the required parameter 'name' when calling PetApi.get_pet_by_name"
+        end
+
         if options.nil? || options.category.nil?
+          raise ArgumentError,
+            "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
+        end
+
+        if options.category == ''
           raise ArgumentError,
             "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
         end
@@ -812,7 +822,17 @@ module PetstoreClient
             "Missing the required parameter 'name' when calling PetApi.get_pet_by_name"
         end
 
+        if name == ''
+          raise ArgumentError,
+            "Missing the required parameter 'name' when calling PetApi.get_pet_by_name"
+        end
+
         if options.nil? || options.category.nil?
+          raise ArgumentError,
+            "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
+        end
+
+        if options.category == ''
           raise ArgumentError,
             "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
         end
@@ -977,6 +997,11 @@ module PetstoreClient
             "Missing the required parameter 'tag_name' when calling PetApi.get_pet_tag"
         end
 
+        if tag_name == ''
+          raise ArgumentError,
+            "Missing the required parameter 'tag_name' when calling PetApi.get_pet_tag"
+        end
+
         result = get_pet_tag_with_http_info(pet_id, tag_name, options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
@@ -1003,6 +1028,11 @@ module PetstoreClient
         end
 
         if tag_name.nil?
+          raise ArgumentError,
+            "Missing the required parameter 'tag_name' when calling PetApi.get_pet_tag"
+        end
+
+        if tag_name == ''
           raise ArgumentError,
             "Missing the required parameter 'tag_name' when calling PetApi.get_pet_tag"
         end
@@ -1219,6 +1249,11 @@ module PetstoreClient
             "Missing the required parameter 'nickname' when calling PetApi.set_pet_preferences"
         end
 
+        if options.nickname == ''
+          raise ArgumentError,
+            "Missing the required parameter 'nickname' when calling PetApi.set_pet_preferences"
+        end
+
         result = set_pet_preferences_with_http_info(pet_id, options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
@@ -1245,6 +1280,11 @@ module PetstoreClient
         end
 
         if options.nil? || options.nickname.nil?
+          raise ArgumentError,
+            "Missing the required parameter 'nickname' when calling PetApi.set_pet_preferences"
+        end
+
+        if options.nickname == ''
           raise ArgumentError,
             "Missing the required parameter 'nickname' when calling PetApi.set_pet_preferences"
         end

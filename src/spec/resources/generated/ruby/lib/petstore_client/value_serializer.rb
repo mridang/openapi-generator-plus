@@ -17,11 +17,14 @@ module PetstoreClient
   class ValueSerializer # :nodoc:
     # Percent-encodes a string for use as a path segment, preserving
     # sub-delimiters that OAS 3.0 path styles use as structural separators.
+    # '~' is an RFC 3986 unreserved character and must never be
+    # percent-encoded. URI.encode_www_form_component over-encodes it to
+    # %7E; restore it to a literal '~' to match the other SDKs.
     PRESERVE_ENCODED = {
       '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
       '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
       '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
-      '%2B' => '+'
+      '%2B' => '+', '%7E' => '~'
     }.freeze
 
     def self.encode_path_segment(value)

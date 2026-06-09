@@ -1123,7 +1123,21 @@ public class PetApi : BaseApi
             options.Category,
             nameof(options) + "." + nameof(options.Category)
         );
+        if (options.Category.Length == 0)
+        {
+            throw new ArgumentException(
+                "missing required parameter 'category' when calling PetApi.GetPetByName",
+                nameof(options) + "." + nameof(options.Category)
+            );
+        }
         string path = "/pet/byName/{name}";
+        if (name.Length == 0)
+        {
+            throw new ArgumentException(
+                "missing required parameter 'name' when calling PetApi.GetPetByName",
+                nameof(name)
+            );
+        }
         path = path.Replace(
             "{" + nameof(name) + "}",
             (string)
@@ -1378,6 +1392,13 @@ public class PetApi : BaseApi
                 )!,
             StringComparison.Ordinal
         );
+        if (tagName.Length == 0)
+        {
+            throw new ArgumentException(
+                "missing required parameter 'tagName' when calling PetApi.GetPetTag",
+                nameof(tagName)
+            );
+        }
         path = path.Replace(
             "{" + nameof(tagName) + "}",
             (string)
@@ -1697,6 +1718,13 @@ public class PetApi : BaseApi
             options.Nickname,
             nameof(options) + "." + nameof(options.Nickname)
         );
+        if (options.Nickname.Length == 0)
+        {
+            throw new ArgumentException(
+                "missing required parameter 'nickname' when calling PetApi.SetPetPreferences",
+                nameof(options) + "." + nameof(options.Nickname)
+            );
+        }
         string path = "/pet/{petId}/preferences";
         path = path.Replace(
             "{" + nameof(petId) + "}",
