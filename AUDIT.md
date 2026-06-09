@@ -31,7 +31,7 @@ ApiClient), asserts the corrected behaviour, must be red before the fix.
 - **required-nested-param-validation** (MED): only path/body required params validated; add a client-side guard for required query/header/form/cookie params (node/python already do). `java/api/api.mustache`. Exercise via `getPetByName.category`.
 
 ### kotlin
-- **primitive-type-coercion-lenient** (HIGH): `createDefaultJson()` sets `isLenient=true` → quoted-scalar coercion. Set `isLenient=false` (confirm no remaining coercion). `kotlin/object_serializer.mustache`.
+- **primitive-type-coercion-lenient** (HIGH): ✅ DONE. `isLenient=false` hardened bare literals, but kotlinx still accepts a *quoted* scalar into a numeric field regardless of `isLenient`. Closed fully with strict per-field `KSerializer`s (StrictInt/Long/Double/Float/Short/Byte/Boolean) applied via `@Serializable(with=...)` in `models/model.mustache`, rejecting quoted-scalar→numeric and string/number→boolean to match Java's `ALLOW_COERCION_OF_SCALARS=false`. Committed `d153f41d`.
 - **java-kotlin-tilde-overencoded** (MED): same `~`→`%7E` fix in `kotlin/value_serializer.mustache`.
 - **required-nested-param-validation** (MED): `kotlin/api/api.mustache`.
 
@@ -43,7 +43,7 @@ ApiClient), asserts the corrected behaviour, must be red before the fix.
 - **required-nested-param-validation** (MED): C# null-checks the whole options obj but not the specific required nested param. `csharp/api/api.mustache`.
 
 ### go
-- **response-type-name** (MED): DEFERRED — shared_dep/structural. The petstore spec defines an `ApiResponse` *schema* (model); Go dot-imports models and Swift/Dart are flat-namespace, so the wrapper cannot be named `ApiResponse` without colliding with the model (this is precisely why Go/Swift used `HttpResponse` and Dart `HttpApiResponse`). True uniformity would need either model-qualification in shared codegen (Go) or renaming the wrapper to a collision-free name (e.g. `HttpResponse`) in all 9 others. Needs a cross-cutting decision; not fixed in this pass.
+- **response-type-name** (MED): ✅ DONE — the transport wrapper is renamed to `ApiHttpResponse` in all 12 SDKs (was `ApiResponse` in 9, `HttpResponse` in go/swift, `HttpApiResponse` in dart). `ApiHttpResponse` is collision-free with the spec's `ApiResponse` *model*. Filename-sensitive langs (java/kotlin/php/csharp/swift) also got the matching `ApiHttpResponse.<ext>` supporting-file name via shared codegen; module-named langs kept their file. The `ApiResponse` model is untouched. Committed `d153f41d`, CI green.
 - **skills-oauth-async-ordering** (LOW): reorder Go's OAuth2-lifecycle `####` subsections to Async-first (matches 11). `go/skills.mustache`.
 - **user-agent-caveat** (LOW): drop the inaccurate "User-Agent not normalised" readme caveat (UA is in fact uniform). `go/readme.mustache`.
 - **required-nested-param-validation** (MED): `go/api/api.mustache`.
@@ -57,13 +57,13 @@ ApiClient), asserts the corrected behaviour, must be red before the fix.
 - **required-nested-param-validation** (MED): `rust/api/api.mustache`.
 
 ### swift
-- **response-type-name** (MED): DEFERRED — same collision as go (the `ApiResponse` model already exists in the flat Swift module). Not fixed.
+- **response-type-name** (MED): ✅ DONE (see go) — wrapper renamed to `ApiHttpResponse` across all 12.
 - **optional-enum-default-omitted** (MED): init optional enum field to the default variant (currently `= nil`). `swift/models/model.mustache`.
 - **required-nested-param-validation** (MED): `swift/api/api.mustache`.
 - (swift-linux-proxy-refusal: genuine swift-corelibs-foundation platform limit, already fail-fast — NOT fixed.)
 
 ### dart
-- **response-type-name** (MED): DEFERRED — same collision as go (the `ApiResponse` model exists; that's why dart used `HttpApiResponse`). Not fixed.
+- **response-type-name** (MED): ✅ DONE (see go) — wrapper renamed to `ApiHttpResponse` across all 12.
 - **optional-enum-default-omitted** (MED): init optional enum field to the default variant (currently no default in ctor). `dart/models/model.mustache`.
 - **required-nested-param-validation** (MED): `dart/api/api.mustache`.
 
@@ -102,6 +102,6 @@ ApiClient), asserts the corrected behaviour, must be red before the fix.
 ---
 
 ## NOT FIXED (with reason)
-- `swift-linux-proxy-refusal` — swift-corelibs-foundation has no `connectionProxyDictionary`; already throws a clear SDK error. Documented platform limit, no in-library fix.
+- `swift-linux-proxy-refusal` — swift-corelibs-foundation has no `connectionProxyDictionary`; already throws a clear SDK error. Now recorded as WONTFIX in `AGENT.md` (platform limit, no in-library fix).
 - UNIFORM-GAPs (const-not-validated, deepobject-key-encoding, license-file, apikey-query/cookie-encoding) — all 12 identical; feature requests, not parity defects.
 - `*Exception` vs `*Error` suffix — WONTFIX (idiomatic, documented).
