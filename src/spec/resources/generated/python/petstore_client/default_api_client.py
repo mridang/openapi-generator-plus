@@ -230,7 +230,12 @@ class DefaultApiClient:
                 if parsed_proxy.username is not None:
                     user = _url_unquote(parsed_proxy.username)
                     pwd = _url_unquote(parsed_proxy.password or '')
-                    kwargs['proxy_headers'] = urllib3.util.make_headers(proxy_basic_auth=f'{user}:{pwd}')
+                    # Build the header manually rather than via
+                    # ``urllib3.util.make_headers`` (which is untyped and trips
+                    # mypy's no-untyped-call in strict mode). Same wire result:
+                    # ``Proxy-Authorization: Basic base64(user:pass)``.
+                    _proxy_token = base64.b64encode(f'{user}:{pwd}'.encode('utf-8')).decode('ascii')
+                    kwargs['proxy_headers'] = {'proxy-authorization': f'Basic {_proxy_token}'}
                 self._pool_manager = urllib3.ProxyManager(transport_options.proxy, **kwargs)
             else:
                 self._pool_manager = urllib3.PoolManager(**kwargs)
