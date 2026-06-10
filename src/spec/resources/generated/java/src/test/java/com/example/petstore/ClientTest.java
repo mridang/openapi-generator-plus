@@ -20,14 +20,14 @@ class ClientTest {
       new BearerAuthenticator("/api/v3", "test-token");
 
   @Test
-  void constructWithAuthenticatorOnly() {
+  void constructWithAuthenticatorOnly() throws ApiException {
     Client client = new Client(authenticator);
 
     assertNotNull(client);
   }
 
   @Test
-  void constructWithAuthenticatorAndTransportOptions() {
+  void constructWithAuthenticatorAndTransportOptions() throws ApiException {
     TransportOptions transport = TransportOptions.builder().build();
 
     Client client = new Client(authenticator, transport);
@@ -118,7 +118,7 @@ class ClientTest {
   }
 
   @Test
-  void apiGroupsAreAccessible() {
+  void apiGroupsAreAccessible() throws ApiException {
     Client client = new Client(authenticator);
 
     assertNotNull(client.pet);

@@ -89,10 +89,24 @@ public final class DefaultApiClient implements ApiClient {
     /**
      * Create a client with default transport settings.
      *
-     * <p>Equivalent to {@code new DefaultApiClient(TransportOptions.builder().build())}.
+     * <p>The default {@link TransportOptions} configure no custom CA
+     * certificate, so the throwing CA-certificate validation path is never
+     * reached and this convenience constructor cannot fail.
      */
     public DefaultApiClient() {
-        this(TransportOptions.builder().build());
+        this.transportOptions = TransportOptions.builder().build();
+        this.proxyAuthHeader  = null;
+        try {
+            /* Default options never set caCertPath, so buildHttpClient's
+             * CA-certificate validation path is unreachable here; the
+             * declared ApiException can never actually be thrown. Catch and
+             * rewrap defensively so this convenience constructor stays
+             * non-throwing and callers like BaseApi() need no throws clause. */
+            this.httpClient = buildHttpClient(this.transportOptions);
+        } catch (ApiException e) {
+            throw new IllegalStateException(
+                    "default transport configuration unexpectedly failed", e);
+        }
     }
 
     /**
@@ -101,10 +115,42 @@ public final class DefaultApiClient implements ApiClient {
      * <p>Applies proxy, custom CA certificate, TLS verification, timeout,
      * and redirect settings to the underlying {@link HttpClient}.
      *
+     * <p>When {@link TransportOptions#getCaCertPath()} is set, the certificate
+     * is read, parsed, and installed eagerly here so a missing, unreadable, or
+     * malformed CA certificate fails fast at construction rather than silently
+     * falling back to the system trust store — TLS pinning that silently no-ops
+     * is a security hole. The failure surfaces as the SDK's own typed
+     * {@link ApiException} (status code 0, original cause preserved) so a caller
+     * wrapping construction in {@code catch (ApiException)} cannot miss it.
+     *
      * @param transportOptions transport configuration to apply
+     * @throws ApiException if a configured CA certificate cannot be read or parsed
      */
-    public DefaultApiClient(TransportOptions transportOptions) {
+    public DefaultApiClient(TransportOptions transportOptions) throws ApiException {
         this.transportOptions = transportOptions;
+        this.proxyAuthHeader  = computeProxyAuthHeader(transportOptions);
+        this.httpClient       = buildHttpClient(transportOptions);
+    }
+
+    /**
+     * Build the underlying {@link HttpClient} from the given transport options.
+     *
+     * <p>Configures proxy routing, TLS verification, a custom CA certificate
+     * (if configured), redirect handling, and connect timeout.
+     *
+     * <p>A configured CA certificate is read, parsed, and installed eagerly so
+     * a missing, unreadable, or malformed certificate fails fast as a typed
+     * {@link ApiException} rather than silently disabling TLS pinning. Other
+     * (non-CA) SSL/TLS setup errors remain wrapped in {@link RuntimeException}
+     * because they reflect a JVM/algorithm misconfiguration rather than caller
+     * input.
+     *
+     * @param transportOptions transport configuration to apply
+     * @return the configured {@link HttpClient}
+     * @throws ApiException if a configured CA certificate cannot be read or parsed
+     */
+    private static HttpClient buildHttpClient(TransportOptions transportOptions)
+            throws ApiException {
         try {
             HttpClient.Builder builder = HttpClient.newBuilder();
 
@@ -116,22 +162,6 @@ public final class DefaultApiClient implements ApiClient {
                 }
                 builder.proxy(
                         ProxySelector.of(new InetSocketAddress(proxyUri.getHost(), port)));
-                /* java.net.http.HttpClient has no native Proxy-Authorization
-                 * support; if the proxy URL embeds userinfo (`http://user:pass@
-                 * host:port`), the JDK silently drops it. Extract here and we
-                 * inject the Proxy-Authorization header per request below. The
-                 * other 11 SDKs all do this via library defaults; Java is the
-                 * lone outlier without manual extraction. */
-                String userInfo = proxyUri.getRawUserInfo();
-                if (userInfo != null && !userInfo.isEmpty()) {
-                    this.proxyAuthHeader = "Basic " + Base64.getEncoder().encodeToString(
-                            java.net.URLDecoder.decode(userInfo, StandardCharsets.UTF_8)
-                                    .getBytes(StandardCharsets.UTF_8));
-                } else {
-                    this.proxyAuthHeader = null;
-                }
-            } else {
-                this.proxyAuthHeader = null;
             }
 
             if (!transportOptions.isVerifySsl()) {
@@ -149,20 +179,7 @@ public final class DefaultApiClient implements ApiClient {
                 sslParameters.setEndpointIdentificationAlgorithm(null);
                 builder.sslParameters(sslParameters);
             } else if (transportOptions.getCaCertPath() != null) {
-                CertificateFactory cf = CertificateFactory.getInstance("X.509");
-                X509Certificate caCert;
-                try (FileInputStream fis = new FileInputStream(transportOptions.getCaCertPath())) {
-                    caCert = (X509Certificate) cf.generateCertificate(fis);
-                }
-                KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
-                trustStore.load(null, null);
-                trustStore.setCertificateEntry("ca", caCert);
-                TrustManagerFactory tmf =
-                        TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-                tmf.init(trustStore);
-                SSLContext sslContext = SSLContext.getInstance("TLS");
-                sslContext.init(null, tmf.getTrustManagers(), null);
-                builder.sslContext(sslContext);
+                builder.sslContext(buildPinnedSslContext(transportOptions.getCaCertPath()));
             }
 
             /*
@@ -182,10 +199,77 @@ public final class DefaultApiClient implements ApiClient {
                 builder.connectTimeout(Duration.ofMillis(transportOptions.getTimeout()));
             }
 
-            this.httpClient = builder.build();
-        } catch (GeneralSecurityException | IOException e) {
+            return builder.build();
+        } catch (GeneralSecurityException e) {
             throw new RuntimeException("Failed to configure SSL/TLS", e);
         }
+    }
+
+    /**
+     * Read, parse, and install a user-supplied CA certificate into a fresh
+     * {@link SSLContext} for TLS pinning.
+     *
+     * <p>A caller that sets {@code caCertPath} is explicitly opting into
+     * certificate pinning; if the file is missing, unreadable, or not a valid
+     * X.509 certificate we must fail loudly rather than silently fall back to
+     * the system trust store. The failure is surfaced as the SDK's own typed
+     * {@link ApiException} (status code 0, original cause preserved) so a caller
+     * wrapping construction in {@code catch (ApiException)} cannot miss this
+     * security-relevant misconfiguration — matching the already-typed SDKs.
+     *
+     * @param caCertPath path to the PEM/DER X.509 CA certificate
+     * @return an {@link SSLContext} trusting only the given CA certificate
+     * @throws ApiException if the certificate cannot be read or parsed
+     */
+    private static SSLContext buildPinnedSslContext(String caCertPath) throws ApiException {
+        try {
+            CertificateFactory cf = CertificateFactory.getInstance("X.509");
+            X509Certificate caCert;
+            try (FileInputStream fis = new FileInputStream(caCertPath)) {
+                caCert = (X509Certificate) cf.generateCertificate(fis);
+            }
+            KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+            trustStore.load(null, null);
+            trustStore.setCertificateEntry("ca", caCert);
+            TrustManagerFactory tmf =
+                    TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            tmf.init(trustStore);
+            SSLContext sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(null, tmf.getTrustManagers(), null);
+            return sslContext;
+        } catch (IOException | GeneralSecurityException e) {
+            throw new ApiException(
+                    "failed to read or parse CA certificate from " + caCertPath + ": " + e, e);
+        }
+    }
+
+    /**
+     * Pre-compute the {@code Proxy-Authorization: Basic <b64(user:pass)>} header
+     * from any userinfo embedded in the proxy URL.
+     *
+     * <p>java.net.http.HttpClient has no native Proxy-Authorization support; if
+     * the proxy URL embeds userinfo ({@code http://user:pass@host:port}) the JDK
+     * silently drops it. We extract it here and inject the header per request.
+     * The other 11 SDKs all do this via library defaults; Java is the lone
+     * outlier without manual extraction.
+     *
+     * @param transportOptions transport configuration to inspect
+     * @return the pre-built {@code Basic <b64>} value, or {@code null} when there
+     *     is no proxy or no embedded credentials
+     */
+    @Nullable
+    private static String computeProxyAuthHeader(TransportOptions transportOptions) {
+        if (transportOptions.getProxy() == null) {
+            return null;
+        }
+        URI proxyUri = URI.create(transportOptions.getProxy());
+        String userInfo = proxyUri.getRawUserInfo();
+        if (userInfo == null || userInfo.isEmpty()) {
+            return null;
+        }
+        return "Basic " + Base64.getEncoder().encodeToString(
+                java.net.URLDecoder.decode(userInfo, StandardCharsets.UTF_8)
+                        .getBytes(StandardCharsets.UTF_8));
     }
 
     /**

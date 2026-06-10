@@ -13,6 +13,9 @@ import com.example.petstore.auth.BearerAuthenticator
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.io.File
+import java.nio.file.Path
 
 class ClientTest {
     private val authenticator = BearerAuthenticator("/api/v3", "test-token")
@@ -89,6 +92,51 @@ class ClientTest {
             mapOf("api_key" to "kéy"),
             ApiKeyAuthenticator("/api/v3", "api_key", "kéy", ApiKeyLocation.QUERY).getQueryParams(),
         )
+    }
+
+    @Test
+    @DisplayName("T-CA-ERRTYPE: missing CA cert surfaces ApiException, not raw JDK exception")
+    fun missingCaCertThrowsApiException() {
+        // A custom CA cert path that does not exist is a TLS-pinning
+        // misconfiguration. Construction must fail fast with the SDK's own
+        // typed ApiException so a caller wrapping construction in
+        // `catch (ApiException)` does not miss it (a raw FileNotFoundException
+        // would slip through).
+        val transport =
+            TransportOptions
+                .builder()
+                .caCertPath("/nonexistent/path/to/ca-cert.pem")
+                .build()
+
+        val ex =
+            assertThrows(ApiException::class.java) {
+                Client(authenticator, transport)
+            }
+        assertTrue(ex.message!!.contains("CA certificate"))
+    }
+
+    @Test
+    @DisplayName("T-CA-ERRTYPE: garbage CA cert surfaces ApiException, not raw JDK exception")
+    fun invalidCaCertThrowsApiException(
+        @TempDir tempDir: Path,
+    ) {
+        // A readable file whose contents are not a valid PEM certificate must
+        // also surface as the SDK's typed ApiException (wrapping the underlying
+        // CertificateException), never a raw java.security.cert.CertificateException.
+        val badCert = File(tempDir.toFile(), "bad-ca.pem")
+        badCert.writeText("not a valid certificate")
+
+        val transport =
+            TransportOptions
+                .builder()
+                .caCertPath(badCert.absolutePath)
+                .build()
+
+        val ex =
+            assertThrows(ApiException::class.java) {
+                Client(authenticator, transport)
+            }
+        assertTrue(ex.message!!.contains("CA certificate"))
     }
 
     @Test

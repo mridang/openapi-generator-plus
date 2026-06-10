@@ -56,11 +56,29 @@ class DefaultApiClient implements ApiClient {
   /// If [transportOptions] is null, default transport settings are used.
   /// An [IOClient] is created and configured from [TransportOptions]
   /// settings (TLS verification, CA certificates, proxy routing).
-  DefaultApiClient({TransportOptions? transportOptions})
-      : _transportOptions = transportOptions ?? TransportOptionsBuilder().build(),
-        _httpClient = _createHttpClient(transportOptions ?? TransportOptionsBuilder().build()),
-        _proxyAuthHeader = _buildProxyAuthHeader(
-            (transportOptions ?? TransportOptionsBuilder().build()).proxy);
+  ///
+  /// A factory body (rather than an initializer list) is used so that a
+  /// failure to read/load/parse a caller-supplied custom CA certificate
+  /// is caught and rethrown as the SDK's typed [ApiError] (statusCode 0,
+  /// original error preserved as [ApiError.underlyingError]) instead of
+  /// leaking a raw `dart:io` FileSystemException / TlsException — matching
+  /// the typed-error behaviour of the other SDKs. A try/catch cannot wrap
+  /// a call made from an initializer list, hence the factory. The public
+  /// constructor API is unchanged.
+  factory DefaultApiClient({TransportOptions? transportOptions}) {
+    final options = transportOptions ?? TransportOptionsBuilder().build();
+    return DefaultApiClient._(
+      options,
+      _createHttpClient(options),
+      _buildProxyAuthHeader(options.proxy),
+    );
+  }
+
+  DefaultApiClient._(
+    this._transportOptions,
+    this._httpClient,
+    this._proxyAuthHeader,
+  );
 
   /// Builds a `Basic <base64>` Proxy-Authorization value from the userinfo
   /// embedded in the proxy URL, or returns null when no credentials are
@@ -89,7 +107,24 @@ class DefaultApiClient implements ApiClient {
   static http.Client _createHttpClient(TransportOptions options) {
     final context = SecurityContext(withTrustedRoots: true);
     if (options.caCertPath != null) {
-      context.setTrustedCertificates(options.caCertPath!);
+      /* A caller-supplied custom CA certificate (TLS pinning) that is
+       * missing, unreadable, or unparseable must fail fast — but as the
+       * SDK's typed ApiError, not the raw dart:io FileSystemException /
+       * TlsException that setTrustedCertificates throws. A caller guarding
+       * construction with `on ApiError` would otherwise MISS this
+       * security-relevant TLS-pinning misconfiguration. statusCode 0 marks
+       * a pre-flight (no HTTP exchange) failure; the original error is
+       * preserved as underlyingError. */
+      try {
+        context.setTrustedCertificates(options.caCertPath!);
+      } catch (e) {
+        throw ApiError(
+          statusCode: 0,
+          message:
+              'failed to read or parse CA certificate from ${options.caCertPath}: $e',
+          underlyingError: e,
+        );
+      }
     }
 
     final ioClient = HttpClient(context: context);

@@ -894,17 +894,60 @@ void main() {
       }
     });
 
-    test('non-existent caCertPath fails fast at construction', () {
-      // An explicitly configured CA certificate path that cannot be read or
-      // parsed must fail fast at construction rather than silently falling
-      // back to the system trust store (security theater).
+    /* T-CA-ERRTYPE: an explicitly configured CA certificate path that cannot
+     * be read or parsed must fail fast at construction with the SDK's typed
+     * ApiError (statusCode 0) — NOT a raw dart:io FileSystemException /
+     * TlsException. A caller guarding construction with `on ApiError` would
+     * otherwise miss this security-relevant TLS-pinning misconfiguration. */
+    test('non-existent caCertPath throws ApiError at construction', () {
       final transport = TransportOptionsBuilder()
           .caCertPath('/nonexistent/ca.pem')
           .build();
       expect(
         () => DefaultApiClient(transportOptions: transport),
-        throwsA(isA<Exception>()),
+        throwsA(
+          isA<ApiError>()
+              .having((e) => e.statusCode, 'statusCode', 0)
+              .having((e) => e.message, 'message', contains('CA certificate'))
+              .having((e) => e.underlyingError, 'underlyingError', isNotNull),
+        ),
       );
+      // It must NOT leak the raw dart:io exception type.
+      expect(
+        () => DefaultApiClient(transportOptions: transport),
+        throwsA(isNot(isA<FileSystemException>())),
+      );
+    });
+
+    test('garbage-PEM caCertPath throws ApiError at construction', () async {
+      final dir = await Directory.systemTemp.createTemp('ca_cert_test');
+      final badPem = File('${dir.path}/garbage.pem');
+      await badPem.writeAsString(
+        '-----BEGIN CERTIFICATE-----\n'
+        'this is not valid base64 PEM content\n'
+        '-----END CERTIFICATE-----\n',
+      );
+      try {
+        final transport = TransportOptionsBuilder()
+            .caCertPath(badPem.path)
+            .build();
+        expect(
+          () => DefaultApiClient(transportOptions: transport),
+          throwsA(
+            isA<ApiError>()
+                .having((e) => e.statusCode, 'statusCode', 0)
+                .having((e) => e.message, 'message', contains('CA certificate'))
+                .having((e) => e.underlyingError, 'underlyingError', isNotNull),
+          ),
+        );
+        // It must NOT leak the raw dart:io TlsException type.
+        expect(
+          () => DefaultApiClient(transportOptions: transport),
+          throwsA(isNot(isA<TlsException>())),
+        );
+      } finally {
+        await dir.delete(recursive: true);
+      }
     });
 
     // -- Gap BI / Gap F: multipart filename directive + validation --

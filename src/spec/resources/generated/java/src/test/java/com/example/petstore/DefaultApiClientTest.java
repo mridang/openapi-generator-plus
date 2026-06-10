@@ -60,7 +60,7 @@ class DefaultApiClientTest {
     @Test
     @DisplayName(
         "verifySsl=true rejects hostname mismatch (cert is for localhost, request is to 127.0.0.1)")
-    void verifySslTrueRejectsHostnameMismatch() {
+    void verifySslTrueRejectsHostnameMismatch() throws ApiException {
       int httpsPort = java.net.URI.create(ChasmContainer.getHttpsBaseUrl()).getPort();
       String chasmUrl = "https://127.0.0.1:" + httpsPort;
 
@@ -190,7 +190,7 @@ class DefaultApiClientTest {
 
     @Test
     @DisplayName("times out on slow endpoint")
-    void timesOutOnSlowEndpoint() {
+    void timesOutOnSlowEndpoint() throws ApiException {
       String chasmUrl = ChasmContainer.getBaseUrl();
 
       TransportOptions transport = TransportOptions.builder().timeout(1).build();
@@ -414,7 +414,7 @@ class DefaultApiClientTest {
 
     @Test
     @DisplayName("throws when redirect budget is exhausted")
-    void throwsWhenRedirectBudgetExhausted() {
+    void throwsWhenRedirectBudgetExhausted() throws ApiException {
       String chasmUrl = ChasmContainer.getBaseUrl();
 
       // followRedirects=true but maxRedirects=0: the server still

@@ -106,16 +106,25 @@ internal actual fun buildPlatformHttpClient(options: TransportOptions): HttpClie
         // not strip credentials cross-origin, so we never install it here.
     }
 
-private fun loadCaCertTrustManager(caCertPath: String): X509TrustManager {
-    val cf = CertificateFactory.getInstance("X.509")
-    val caCert =
-        FileInputStream(caCertPath).use { fis ->
-            cf.generateCertificate(fis) as X509Certificate
-        }
-    val trustStore = KeyStore.getInstance(KeyStore.getDefaultType())
-    trustStore.load(null, null)
-    trustStore.setCertificateEntry("ca", caCert)
-    val tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
-    tmf.init(trustStore)
-    return tmf.trustManagers[0] as X509TrustManager
-}
+private fun loadCaCertTrustManager(caCertPath: String): X509TrustManager =
+    try {
+        val cf = CertificateFactory.getInstance("X.509")
+        val caCert =
+            FileInputStream(caCertPath).use { fis ->
+                cf.generateCertificate(fis) as X509Certificate
+            }
+        val trustStore = KeyStore.getInstance(KeyStore.getDefaultType())
+        trustStore.load(null, null)
+        trustStore.setCertificateEntry("ca", caCert)
+        val tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+        tmf.init(trustStore)
+        tmf.trustManagers[0] as X509TrustManager
+    } catch (e: java.io.IOException) {
+        // Gap T-CA-ERRTYPE: a missing/unreadable/unparseable CA cert must surface as
+        // the SDK's own typed ApiException (statusCode 0, cause preserved) so callers
+        // wrapping construction in `catch (ApiException)` don't miss this TLS-pinning
+        // misconfiguration. Match the typed-SDK message style and keep fail-fast timing.
+        throw ApiException("failed to read or parse CA certificate from $caCertPath: $e", e)
+    } catch (e: java.security.GeneralSecurityException) {
+        throw ApiException("failed to read or parse CA certificate from $caCertPath: $e", e)
+    }

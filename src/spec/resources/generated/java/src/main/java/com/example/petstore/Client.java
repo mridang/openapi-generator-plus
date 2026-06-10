@@ -49,8 +49,10 @@ public final class Client {
    * Creates a new client with the given authenticator and default transport settings.
    *
    * @param authenticator provides host URL and auth credentials
+   * @throws ApiException if the transport cannot be configured (never thrown for default transport,
+   *     which configures no custom CA certificate)
    */
-  public Client(Authenticator authenticator) {
+  public Client(Authenticator authenticator) throws ApiException {
     this(authenticator, TransportOptions.builder().build());
   }
 
@@ -63,8 +65,10 @@ public final class Client {
    *
    * @param authenticator provides host URL and auth credentials
    * @param transportOptions HTTP transport configuration (proxy, TLS, timeouts, etc.)
+   * @throws ApiException if a configured custom CA certificate cannot be read or parsed
    */
-  public Client(Authenticator authenticator, TransportOptions transportOptions) {
+  public Client(Authenticator authenticator, TransportOptions transportOptions)
+      throws ApiException {
     ApiClient apiClient = new DefaultApiClient(transportOptions);
 
     if (authenticator instanceof HttpAwareAuthenticator httpAware) {
@@ -83,11 +87,11 @@ public final class Client {
    * @param accessToken Bearer token
    * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
    * @return configured client instance
+   * @throws ApiException if a configured custom CA certificate cannot be read or parsed
    */
   public static Client withToken(
-      String host,
-      String accessToken,
-      @javax.annotation.Nullable TransportOptions transportOptions) {
+      String host, String accessToken, @javax.annotation.Nullable TransportOptions transportOptions)
+      throws ApiException {
     Client client =
         (transportOptions != null)
             ? new Client(new BearerAuthenticator(host, accessToken), transportOptions)
@@ -101,8 +105,9 @@ public final class Client {
    * @param host API base URL
    * @param accessToken Bearer token
    * @return configured client instance
+   * @throws ApiException if a configured custom CA certificate cannot be read or parsed
    */
-  public static Client withToken(String host, String accessToken) {
+  public static Client withToken(String host, String accessToken) throws ApiException {
     return withToken(host, accessToken, null);
   }
 }
