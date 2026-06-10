@@ -272,10 +272,12 @@ class OAuth2TokenManager {
   }
 }
 
-/// Thrown when the OAuth2 token endpoint returns a 2xx response whose body
-/// is missing or contains an empty `access_token` field. Distinct from
-/// [OAuth2ServerError] (which represents RFC 6749 §5.2 error responses on
-/// 4xx/5xx) so callers can recover differently via `on OAuth2TokenError`.
+/// Thrown when the token endpoint returns a 2xx response whose body is
+/// missing or contains an empty `access_token` field.
+///
+/// A token-endpoint HTTP error (4xx/5xx) instead throws the sibling
+/// [OAuth2ServerError] (RFC 6749 §5.2), matching the other SDKs where the
+/// two are independent error types.
 class OAuth2TokenError implements Exception {
   final String message;
 
@@ -297,6 +299,7 @@ class OAuth2ServerError implements Exception {
   final String? description;
   final String? uri;
   final String rawBody;
+  final String message;
 
   OAuth2ServerError(
     this.statusCode,
@@ -304,16 +307,23 @@ class OAuth2ServerError implements Exception {
     this.description,
     this.uri,
     this.rawBody,
-  );
+  ) : message = _buildMessage(statusCode, code, description, rawBody);
 
-  @override
-  String toString() {
+  static String _buildMessage(
+    int statusCode,
+    String? code,
+    String? description,
+    String rawBody,
+  ) {
     if (code == null) {
-      return 'OAuth2ServerError: Token request failed with status $statusCode: $rawBody';
+      return 'Token request failed with status $statusCode: $rawBody';
     }
     if (description != null) {
-      return 'OAuth2ServerError: Token request failed with status $statusCode: $code -- $description';
+      return 'Token request failed with status $statusCode: $code -- $description';
     }
-    return 'OAuth2ServerError: Token request failed with status $statusCode: $code';
+    return 'Token request failed with status $statusCode: $code';
   }
+
+  @override
+  String toString() => 'OAuth2ServerError: $message';
 }

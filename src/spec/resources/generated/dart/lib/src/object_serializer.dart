@@ -15,6 +15,52 @@ export 'iso8601_duration.dart'
         parseIso8601Duration,
         validatePartialTime;
 
+/// Canonical RFC 4122 UUID shape. Case-insensitive; matches all variants
+/// (`format: uuid` is intentionally permissive about which variant is on the
+/// wire), but rejects anything that is not the 8-4-4-4-12 hex form.
+final RegExp _uuidPattern = RegExp(
+  r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+  caseSensitive: false,
+);
+
+/// A validated RFC 4122 UUID value.
+///
+/// OpenAPI `format: uuid` values are surfaced as [UuidValue] rather than a
+/// raw `String`, so the public API is typed and construction validates the
+/// wire shape. The canonical 8-4-4-4-12 hex form is enforced in
+/// [UuidValue.fromString], which throws [FormatException] on malformed input
+/// — matching how the other SDKs validate UUID strings before letting them
+/// into the typed surface.
+///
+/// This intentionally shadows `package:uuid`'s `UuidValue`, whose
+/// `fromString` performs no validation; generated models import this type so
+/// the validating constructor is the only one reachable from the typed API.
+class UuidValue {
+  /// The canonical lowercase 36-character UUID string.
+  final String uuid;
+
+  const UuidValue._(this.uuid);
+
+  /// Parses [source] into a [UuidValue], validating the canonical RFC 4122
+  /// 8-4-4-4-12 hex form. Throws [FormatException] on malformed input.
+  factory UuidValue.fromString(String source) {
+    if (!_uuidPattern.hasMatch(source)) {
+      throw FormatException('not a valid RFC 4122 UUID', source);
+    }
+    return UuidValue._(source.toLowerCase());
+  }
+
+  @override
+  String toString() => uuid;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || (other is UuidValue && other.uuid == uuid);
+
+  @override
+  int get hashCode => uuid.hashCode;
+}
+
 /// SerializationError is thrown when serialization or deserialization fails.
 class SerializationError implements Exception {
   final String message;

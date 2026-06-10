@@ -1316,13 +1316,18 @@ void main() {
         0x1a,
         0x0a,
       ]);
-      final encoded = base64.encode(binaryData);
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
+        // The server returns the RAW binary bytes; the transport is the
+        // layer responsible for base64-encoding a non-text body into
+        // `resp.body` (see DefaultApiClient._handleResponse). Writing the
+        // already-base64 string here would double-encode and is what the
+        // `..add(rawBytes)` form (matching the downloadBinaryMock test)
+        // avoids.
         request.response
           ..statusCode = 200
           ..headers.set('content-type', 'application/octet-stream')
-          ..write(encoded)
+          ..add(binaryData)
           ..close();
       });
 
@@ -1358,13 +1363,14 @@ void main() {
         0x00,
         0x0d,
       ]);
-      final encoded = base64.encode(binaryData);
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
+        // Raw image bytes on the wire; the transport base64-encodes the
+        // non-text body into `resp.body`, which the test then decodes once.
         request.response
           ..statusCode = 200
           ..headers.set('content-type', 'image/png')
-          ..write(encoded)
+          ..add(binaryData)
           ..close();
       });
 

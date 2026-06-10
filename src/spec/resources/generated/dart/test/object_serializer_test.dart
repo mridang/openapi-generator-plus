@@ -8,7 +8,6 @@
 import 'dart:convert';
 
 import 'package:test/test.dart';
-import 'package:uuid/uuid.dart';
 import 'package:petstore_client/petstore_client.dart';
 import 'package:petstore_client/src/object_serializer.dart';
 

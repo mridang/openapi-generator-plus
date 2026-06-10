@@ -398,17 +398,17 @@ void main() {
       final manager = OAuth2TokenManager();
       manager.setApiClient(client);
 
-      /* The token manager maps a 4xx token-endpoint response to a
-       * typed OAuth2TokenError (see oauth2_token_manager.mustache
-       * `_parseOAuth2ServerError`). Tests use that type — not the
-       * generic StateError used elsewhere — so callers can
-       * `catch (OAuth2TokenError)` and recover with a refresh. */
+      /* The token manager maps a 4xx/5xx token-endpoint response to a
+       * typed OAuth2ServerError (RFC 6749 §5.2), the same canonical type
+       * the other SDKs throw and assert for an HTTP-error token response.
+       * OAuth2ServerError and OAuth2TokenError are siblings (both wrap an
+       * SDK error), matching the 11 sibling SDKs. */
       await expectLater(
         () => manager.getAccessToken(
           'https://auth.example.com/token',
           {'grant_type': 'client_credentials'},
         ),
-        throwsA(isA<OAuth2TokenError>()),
+        throwsA(isA<OAuth2ServerError>()),
       );
     });
 

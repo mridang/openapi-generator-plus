@@ -430,6 +430,15 @@ class DefaultApiClient implements ApiClient {
       throw ApiError(statusCode: 0, message: e.message, underlyingError: e);
     } on HttpException catch (e) {
       throw ApiError(statusCode: 0, message: e.message, underlyingError: e);
+    } on http.ClientException catch (e) {
+      /* A body-read or response-parse failure that surfaces AFTER the
+       * headers arrive (truncated/malformed chunked body, connection
+       * reset mid-stream) is raised by package:http as a ClientException
+       * rather than a dart:io SocketException. Wrap it in the uniform
+       * ApiError (statusCode 0, underlying preserved) so callers guarding
+       * with `on ApiError` see body-read failures the same way they see
+       * send-phase failures. */
+      throw ApiError(statusCode: 0, message: e.message, underlyingError: e);
     } on TimeoutException catch (e) {
       throw ApiError(
         statusCode: 0,

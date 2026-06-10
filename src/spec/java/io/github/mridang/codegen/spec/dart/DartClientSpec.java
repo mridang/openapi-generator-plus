@@ -16,7 +16,7 @@ public class DartClientSpec extends AbstractClientSpec implements DartSpec {
     protected String[] getBuildCommands() {
         return new String[] {
             "mkdir -p .out/reports",
-            "dart test --coverage=.out/coverage --reporter json | dart run junitreport:tojunit --output .out/reports/junit.xml",
+            "bash -c 'set -o pipefail; dart test --coverage=.out/coverage --reporter json | dart run junitreport:tojunit --output .out/reports/junit.xml'",
             "dart run coverage:format_coverage --lcov --in=.out/coverage --out=.out/coverage.xml --report-on=lib"
         };
     }

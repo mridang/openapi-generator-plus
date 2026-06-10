@@ -8,8 +8,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:uuid/uuid.dart';
-
 import '../object_serializer.dart';
 
 /// ApiResponse is a model class generated from the OpenAPI schema.

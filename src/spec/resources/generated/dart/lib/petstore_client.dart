@@ -46,7 +46,7 @@ export 'src/errors/server_error.dart';
 export 'src/errors/unauthorized_error.dart';
 export 'src/errors/unprocessable_entity_error.dart';
 export 'src/iso8601_duration.dart';
-export 'src/object_serializer.dart' show SerializationError;
+export 'src/object_serializer.dart' show SerializationError, UuidValue;
 export 'src/models/api_response.dart';
 export 'src/models/category.dart';
 export 'src/models/dry_food.dart';
