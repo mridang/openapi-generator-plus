@@ -5,6 +5,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nullable;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
+import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
@@ -37,6 +38,7 @@ import java.util.Set;
 import java.util.EnumSet;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.apache.commons.text.StringEscapeUtils;
 import org.openapitools.codegen.CliOption;
 import org.openapitools.codegen.CodegenDiscriminator;
 import org.openapitools.codegen.CodegenModel;
@@ -3498,6 +3500,190 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
+     * Decodes HTML entities in human-facing doc text across the whole spec,
+     * after any normalizer has run and before models/operations are built.
+     *
+     * <p>Specs produced by buf / protoc-gen-openapi (the Zitadel pipeline)
+     * HTML-escape proto comment text: a quoted permission such as
+     * "user.grant.write" arrives in an OpenAPI description with its quotes
+     * encoded as the &amp;quot; entity, and an angle-bracketed token arrives
+     * with &amp;lt; / &amp;gt;. Decoding here — at the {@link Schema} /
+     * {@link Operation} level — is the only funnel that reaches every
+     * language, because the per-language templates variously read the escaped
+     * {@code description} <em>or</em> the raw {@code unescapedNotes}; patching
+     * one path (e.g. overriding {@code escapeText}) fixes some templates and
+     * misses others. It is also deliberately narrow: only {@code description},
+     * {@code summary}, and {@code title} are touched, never default values,
+     * enum literals, or examples, whose entities may be semantically
+     * significant.
+     *
+     * <p>{@link StringEscapeUtils#unescapeHtml4} is null-safe and a no-op on
+     * text without entities, so this is inert for hand-written specs.
+     */
+    @Override
+    public void preprocessOpenAPI(OpenAPI openAPI) {
+        super.preprocessOpenAPI(openAPI);
+        if (openAPI == null) {
+            return;
+        }
+        if (openAPI.getInfo() != null) {
+            openAPI.getInfo().setTitle(htmlUnescape(openAPI.getInfo().getTitle()));
+            openAPI.getInfo().setDescription(htmlUnescape(openAPI.getInfo().getDescription()));
+            openAPI.getInfo().setSummary(htmlUnescape(openAPI.getInfo().getSummary()));
+        }
+        if (openAPI.getTags() != null) {
+            for (Tag tag : openAPI.getTags()) {
+                tag.setDescription(htmlUnescape(tag.getDescription()));
+            }
+        }
+        if (openAPI.getComponents() != null && openAPI.getComponents().getSchemas() != null) {
+            final Set<Schema<?>> seen =
+                    Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+            for (Schema<?> schema : openAPI.getComponents().getSchemas().values()) {
+                unescapeSchemaDocText(schema, seen);
+            }
+        }
+        if (openAPI.getPaths() != null) {
+            final Set<Schema<?>> seen =
+                    Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+            for (PathItem item : openAPI.getPaths().values()) {
+                if (item == null) {
+                    continue;
+                }
+                item.setSummary(htmlUnescape(item.getSummary()));
+                item.setDescription(htmlUnescape(item.getDescription()));
+                for (Operation op : item.readOperations()) {
+                    unescapeOperationDocText(op, seen);
+                }
+            }
+        }
+    }
+
+    private static String htmlUnescape(String input) {
+        return StringEscapeUtils.unescapeHtml4(input);
+    }
+
+    private static void unescapeOperationDocText(Operation op, Set<Schema<?>> seen) {
+        if (op == null) {
+            return;
+        }
+        op.setSummary(htmlUnescape(op.getSummary()));
+        op.setDescription(htmlUnescape(op.getDescription()));
+        if (op.getParameters() != null) {
+            op.getParameters()
+                    .forEach(
+                            p -> {
+                                if (p != null) {
+                                    p.setDescription(htmlUnescape(p.getDescription()));
+                                    unescapeSchemaDocText(p.getSchema(), seen);
+                                }
+                            });
+        }
+        if (op.getRequestBody() != null) {
+            op.getRequestBody().setDescription(htmlUnescape(op.getRequestBody().getDescription()));
+            unescapeContentDocText(op.getRequestBody().getContent(), seen);
+        }
+        if (op.getResponses() != null) {
+            op.getResponses()
+                    .values()
+                    .forEach(
+                            r -> {
+                                if (r != null) {
+                                    r.setDescription(htmlUnescape(r.getDescription()));
+                                    unescapeContentDocText(r.getContent(), seen);
+                                }
+                            });
+        }
+    }
+
+    private static void unescapeContentDocText(
+            io.swagger.v3.oas.models.media.Content content, Set<Schema<?>> seen) {
+        if (content == null) {
+            return;
+        }
+        content.values()
+                .forEach(
+                        mt -> {
+                            if (mt != null) {
+                                unescapeSchemaDocText(mt.getSchema(), seen);
+                            }
+                        });
+    }
+
+    private static void unescapeSchemaDocText(Schema<?> schema, Set<Schema<?>> seen) {
+        if (schema == null || !seen.add(schema)) {
+            return;
+        }
+        schema.setTitle(htmlUnescape(schema.getTitle()));
+        schema.setDescription(htmlUnescape(schema.getDescription()));
+        if (schema.getProperties() != null) {
+            schema.getProperties().values().forEach(p -> unescapeSchemaDocText(p, seen));
+        }
+        unescapeSchemaDocText(schema.getItems(), seen);
+        if (schema.getAdditionalProperties() instanceof Schema) {
+            unescapeSchemaDocText((Schema<?>) schema.getAdditionalProperties(), seen);
+        }
+        if (schema.getAllOf() != null) {
+            schema.getAllOf().forEach(s -> unescapeSchemaDocText(s, seen));
+        }
+        if (schema.getAnyOf() != null) {
+            schema.getAnyOf().forEach(s -> unescapeSchemaDocText(s, seen));
+        }
+        if (schema.getOneOf() != null) {
+            schema.getOneOf().forEach(s -> unescapeSchemaDocText(s, seen));
+        }
+        unescapeSchemaDocText(schema.getNot(), seen);
+    }
+
+    /**
+     * Decodes HTML entities on a resolved {@link CodegenOperation}: its summary
+     * and notes (both the escaped {@code notes} and the raw
+     * {@code unescapedNotes} that some templates render), every parameter
+     * description across the location-specific lists, and each response
+     * message. Counterpart to {@link #unescapeSchemaDocText} for operations,
+     * applied from {@link #postProcessOperationsWithModels}.
+     */
+    private static void unescapeOperationDoc(CodegenOperation op) {
+        if (op == null) {
+            return;
+        }
+        op.summary = htmlUnescape(op.summary);
+        op.notes = htmlUnescape(op.notes);
+        op.unescapedNotes = htmlUnescape(op.unescapedNotes);
+        unescapeParamDocs(op.allParams);
+        unescapeParamDocs(op.pathParams);
+        unescapeParamDocs(op.queryParams);
+        unescapeParamDocs(op.headerParams);
+        unescapeParamDocs(op.cookieParams);
+        unescapeParamDocs(op.formParams);
+        if (op.bodyParam != null) {
+            op.bodyParam.description = htmlUnescape(op.bodyParam.description);
+            op.bodyParam.unescapedDescription = htmlUnescape(op.bodyParam.unescapedDescription);
+        }
+        if (op.responses != null) {
+            op.responses.forEach(
+                    r -> {
+                        if (r != null) {
+                            r.message = htmlUnescape(r.message);
+                        }
+                    });
+        }
+    }
+
+    private static void unescapeParamDocs(List<CodegenParameter> params) {
+        if (params == null) {
+            return;
+        }
+        params.forEach(
+                p -> {
+                    if (p != null) {
+                        p.description = htmlUnescape(p.description);
+                        p.unescapedDescription = htmlUnescape(p.unescapedDescription);
+                    }
+                });
+    }
+
+    /**
      * Overrides {@link DefaultCodegen#fromProperty} so that named plural
      * examples declared on a schema (OAS 3.1 {@code examples} list or the
      * {@code x-examples} extension on OAS 3.0 schemas) are carried through
@@ -3575,6 +3761,16 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             injectTagMetadata(operations);
             final List<CodegenOperation> ops =
                     (List<CodegenOperation>) operations.get("operation");
+            // Decode HTML entities in operation doc text here, not in
+            // preprocessOpenAPI: the Zitadel index.json $refs its path items, so
+            // operations are not inline on the OpenAPI object at preprocess time
+            // (only component schemas are, which is why models come out clean).
+            // By this stage openapi-generator has resolved the refs and built the
+            // CodegenOperation objects, so this is the funnel that actually
+            // reaches every API doc comment. See preprocessOpenAPI for the why.
+            if (ops != null) {
+                ops.forEach(AbstractBetterCodegen::unescapeOperationDoc);
+            }
             boolean anyOpHasAuth = false;
             if (ops != null) {
                 for (final CodegenOperation op : ops) {

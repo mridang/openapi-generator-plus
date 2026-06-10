@@ -368,7 +368,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
     public {{{dataType}}} ${{name}} = {{{.}}};
 {{/defaultValue}}
 {{^defaultValue}}
-    public ?{{{dataType}}} ${{name}} = null;
+    public {{^isAnyType}}?{{/isAnyType}}{{{dataType}}} ${{name}} = null;
 {{/defaultValue}}
 {{/isContainer}}
 {{^isContainer}}
@@ -385,7 +385,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
     public {{{dataType}}} ${{name}} = {{{.}}};
 {{/defaultValue}}
 {{^defaultValue}}
-    public ?{{{dataType}}} ${{name}} = null;
+    public {{^isAnyType}}?{{/isAnyType}}{{{dataType}}} ${{name}} = null;
 {{/defaultValue}}
 {{/isEnum}}
 {{/isContainer}}
@@ -471,7 +471,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
         {{{dataType}}} ${{name}} = {{{.}}},
 {{/defaultValue}}
 {{^defaultValue}}
-        ?{{{dataType}}} ${{name}} = null,
+        {{^isAnyType}}?{{/isAnyType}}{{{dataType}}} ${{name}} = null,
 {{/defaultValue}}
 {{/isContainer}}
 {{^isContainer}}
@@ -488,7 +488,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
         {{{dataType}}} ${{name}} = {{{.}}},
 {{/defaultValue}}
 {{^defaultValue}}
-        ?{{{dataType}}} ${{name}} = null,
+        {{^isAnyType}}?{{/isAnyType}}{{{dataType}}} ${{name}} = null,
 {{/defaultValue}}
 {{/isEnum}}
 {{/isContainer}}

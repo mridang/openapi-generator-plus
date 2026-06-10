@@ -44,7 +44,7 @@ class {{serverTypeName}}{{pascalName}}(str, Enum):
 
 class {{serverTypeName}}{{variantName}}({{serverTypeName}}):
 {{#hasDescription}}
-    """{{description}}"""
+    """{{{description}}}"""
 {{/hasDescription}}
 
     def __init__(self{{#serverVariables}}, {{snakeName}}: {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}str{{/hasEnumValues}}{{/serverVariables}}) -> None:
@@ -67,12 +67,12 @@ class {{serverTypeName}}{{variantName}}({{serverTypeName}}):
 class {{classname}}(BaseApi):
     """{{classname}} provides methods for the {{baseName}} API group.
 {{#tagDescription}}
-    {{.}}
+    {{{.}}}
 {{/tagDescription}}
 {{#tagExternalDocs}}
 
     .. seealso::
-        `{{description}} <{{url}}>`_
+        `{{{description}}} <{{url}}>`_
 {{/tagExternalDocs}}
     """
 
@@ -91,23 +91,23 @@ class {{classname}}(BaseApi):
         {{paramName}}: {{#isPath}}{{{dataType}}}{{/isPath}}{{#isBody}}{{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}}{{/isBody}}{{#isOptions}}Optional[{{{dataType}}}] = None{{/isOptions}}{{#isServer}}Optional['{{{dataType}}}'] = None{{/isServer}},
 {{/vendorExtensions.op.signatureArgs}}
     ) -> {{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}:
-        """{{summary}}
+        """{{{summary}}}
 {{#notes}}
-        {{.}}
+        {{{.}}}
 {{/notes}}
 {{#pathParams}}
-        :param {{paramName}}: {{description}}{{vendorExtensions.requiredLabelWithDefault}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+        :param {{paramName}}: {{{description}}}{{vendorExtensions.requiredLabelWithDefault}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
-        # {{summary}}
-        # {{description}}
+        # {{{summary}}}
+        # {{{description}}}
         # >>> {{value}}
 {{/vendorExtensions.pluralExamples}}
 {{/pathParams}}
 {{#bodyParam}}
-        :param {{paramName}}: {{description}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+        :param {{paramName}}: {{{description}}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
-        # {{summary}}
-        # {{description}}
+        # {{{summary}}}
+        # {{{description}}}
         # >>> {{value}}
 {{/vendorExtensions.pluralExamples}}
 {{/bodyParam}}
@@ -126,7 +126,7 @@ class {{classname}}(BaseApi):
 {{#externalDocs}}
 
         .. seealso::
-            `{{description}} <{{url}}>`_
+            `{{{description}}} <{{url}}>`_
 {{/externalDocs}}
         """
 {{#pathParams}}
@@ -194,15 +194,15 @@ class {{classname}}(BaseApi):
         {{paramName}}: {{#isPath}}{{{dataType}}}{{/isPath}}{{#isBody}}{{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}}{{/isBody}}{{#isOptions}}Optional[{{{dataType}}}] = None{{/isOptions}}{{#isServer}}Optional['{{{dataType}}}'] = None{{/isServer}},
 {{/vendorExtensions.op.signatureArgs}}
     ) -> 'ApiResult[{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}]':
-        """{{summary}} (with HTTP info)
+        """{{{summary}}} (with HTTP info)
 {{#notes}}
-        {{.}}
+        {{{.}}}
 {{/notes}}
 {{#pathParams}}
-        :param {{paramName}}: {{description}}{{vendorExtensions.requiredLabelWithDefault}}
+        :param {{paramName}}: {{{description}}}{{vendorExtensions.requiredLabelWithDefault}}
 {{/pathParams}}
 {{#bodyParam}}
-        :param {{paramName}}: {{description}}{{vendorExtensions.requiredLabel}}
+        :param {{paramName}}: {{{description}}}{{vendorExtensions.requiredLabel}}
 {{/bodyParam}}
 {{#vendorExtensions.op.signatureArgs}}{{#isOptions}}
         :param options: options for query, header, form, and cookie parameters

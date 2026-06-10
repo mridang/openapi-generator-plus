@@ -20,7 +20,7 @@ end
 
 defmodule {{moduleName}}.Api.{{serverTypeName}}.{{variantName}} do
   {{#hasDescription}}
-  @moduledoc "{{description}}"
+  @moduledoc "{{{description}}}"
   {{/hasDescription}}
   {{^hasDescription}}
   @moduledoc "{{variantName}} server variant."
@@ -59,7 +59,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
   {{classname}} provides functions for the {{baseName}} API group.
   {{#tagDescription}}
 
-  {{.}}
+  {{{.}}}
   {{/tagDescription}}
   """
 
@@ -93,10 +93,10 @@ defmodule {{moduleName}}.Api.{{classname}} do
 {{#operation}}
 
   @doc """
-  {{summary}}
+  {{{summary}}}
   {{#notes}}
 
-  {{.}}
+  {{{.}}}
   {{/notes}}
   {{#isDeprecated}}
 
@@ -105,19 +105,19 @@ defmodule {{moduleName}}.Api.{{classname}} do
 
   ## Parameters
   {{#pathParams}}
-    * `{{paramName}}` - {{{dataType}}}{{#description}} - {{.}}{{/description}}
+    * `{{paramName}}` - {{{dataType}}}{{#description}} - {{{.}}}{{/description}}
   {{#vendorExtensions.pluralExamples}}
 
-  ### `{{paramName}}` example — {{summary}}
+  ### `{{paramName}}` example — {{{summary}}}
 
       {{value}}
   {{/vendorExtensions.pluralExamples}}
   {{/pathParams}}
   {{#bodyParam}}
-    * `{{paramName}}` - {{{dataType}}}{{#description}} - {{.}}{{/description}}
+    * `{{paramName}}` - {{{dataType}}}{{#description}} - {{{.}}}{{/description}}
   {{#vendorExtensions.pluralExamples}}
 
-  ### `{{paramName}}` example — {{summary}}
+  ### `{{paramName}}` example — {{{summary}}}
 
       {{value}}
   {{/vendorExtensions.pluralExamples}}

@@ -16,10 +16,10 @@ use {{invokerPackage}}\Api\Options\{{optionsClassName}};
 /**
  * {{classname}} provides methods for the {{baseName}} API group.
 {{#tagDescription}}
- * {{.}}
+ * {{{.}}}
 {{/tagDescription}}
 {{#tagExternalDocs}}
- * @see {{url}} {{description}}
+ * @see {{url}} {{{description}}}
 {{/tagExternalDocs}}
  */
 {{#serverTypeDefs}}
@@ -46,7 +46,7 @@ enum {{serverTypeName}}{{pascalName}}: string
 
 {{#hasDescription}}
 /**
- * {{description}}
+ * {{{description}}}
  */
 {{/hasDescription}}
 final class {{serverTypeName}}{{variantName}} extends {{serverTypeName}}
@@ -89,13 +89,13 @@ class {{classname}} extends BaseApi
 {
 {{#operation}}
     /**
-     * {{summary}}
+     * {{{summary}}}
 {{#notes}}
-     * {{.}}
+     * {{{.}}}
 {{/notes}}
 {{#pathParams}}
 {{#description}}
-     * @param {{{dataType}}} ${{paramName}} {{.}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+     * @param {{{dataType}}} ${{paramName}} {{{.}}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{/description}}
 {{^description}}
 {{#isArray}}
@@ -103,12 +103,12 @@ class {{classname}} extends BaseApi
 {{/isArray}}
 {{/description}}
 {{#vendorExtensions.pluralExamples}}
-     * @example {{value}} {{summary}}
+     * @example {{value}} {{{summary}}}
 {{/vendorExtensions.pluralExamples}}
 {{/pathParams}}
 {{#bodyParam}}
 {{#description}}
-     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{.}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{{.}}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{/description}}
 {{^description}}
 {{#isArray}}
@@ -116,7 +116,7 @@ class {{classname}} extends BaseApi
 {{/isArray}}
 {{/description}}
 {{#vendorExtensions.pluralExamples}}
-     * @example {{value}} {{summary}}
+     * @example {{value}} {{{summary}}}
 {{/vendorExtensions.pluralExamples}}
 {{/bodyParam}}
 {{#queryParams}}{{#-first}}
@@ -136,7 +136,7 @@ class {{classname}} extends BaseApi
      * @deprecated This operation is deprecated.
 {{/isDeprecated}}
 {{#externalDocs}}
-     * @see {{url}} {{description}}
+     * @see {{url}} {{{description}}}
 {{/externalDocs}}
      */
 {{#returnType}}
@@ -164,7 +164,7 @@ class {{classname}} extends BaseApi
     /**
 {{#pathParams}}
 {{#description}}
-     * @param {{{dataType}}} ${{paramName}} {{.}}
+     * @param {{{dataType}}} ${{paramName}} {{{.}}}
 {{/description}}
 {{^description}}
 {{#isArray}}
@@ -174,7 +174,7 @@ class {{classname}} extends BaseApi
 {{/pathParams}}
 {{#bodyParam}}
 {{#description}}
-     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{.}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{{.}}}
 {{/description}}
 {{^description}}
 {{#isArray}}
@@ -384,7 +384,7 @@ class {{classname}} extends BaseApi
     /**
 {{#pathParams}}
 {{#description}}
-     * @param {{{dataType}}} ${{paramName}} {{.}}
+     * @param {{{dataType}}} ${{paramName}} {{{.}}}
 {{/description}}
 {{^description}}
 {{#isArray}}
@@ -394,7 +394,7 @@ class {{classname}} extends BaseApi
 {{/pathParams}}
 {{#bodyParam}}
 {{#description}}
-     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{.}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{{.}}}
 {{/description}}
 {{^description}}
 {{#isArray}}

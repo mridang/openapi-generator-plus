@@ -4,7 +4,7 @@ namespace {{namespace}};
 {{#hasModelImports}}
 
 {{#modelImports}}
-use {{invokerPackage}}\Models\{{.}};
+use {{invokerPackage}}\Models\{{{.}}};
 {{/modelImports}}
 {{/hasModelImports}}
 {{#hasAuthField}}
@@ -21,7 +21,7 @@ class {{className}}
     /**
 {{#params}}
 {{#hasDocType}}
-     * @param {{phpDocType}}{{^required}}|null{{/required}} ${{paramName}}{{#description}} {{description}}{{/description}}
+     * @param {{phpDocType}}{{^required}}|null{{/required}} ${{paramName}}{{#description}} {{{description}}}{{/description}}
 {{/hasDocType}}
 {{/params}}
      */

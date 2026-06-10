@@ -26,10 +26,10 @@ import javax.annotation.Nullable;
 /**
  * {{classname}} provides methods for the {{baseName}} API group.
 {{#tagDescription}}
- * {{.}}
+ * {{{.}}}
 {{/tagDescription}}
 {{#tagExternalDocs}}
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{url}}">{{{description}}}</a>
 {{/tagExternalDocs}}
  */
 public class {{classname}} extends BaseApi {
@@ -85,7 +85,7 @@ public class {{classname}} extends BaseApi {
 {{#variants}}
 
         /**
-         * {{#hasDescription}}{{description}}{{/hasDescription}}{{^hasDescription}}The {{variantName}} server variant.{{/hasDescription}}
+         * {{#hasDescription}}{{{description}}}{{/hasDescription}}{{^hasDescription}}The {{variantName}} server variant.{{/hasDescription}}
 {{#serverVariables}}
          *
          * @param {{camelName}} the {@code {{name}}} server variable
@@ -152,7 +152,7 @@ public class {{classname}} extends BaseApi {
 {{/-first}}{{/servers}}
 {{#vendorExtensions.op.optionsArgOptional}}
     /**
-     * {{summary}}
+     * {{{summary}}}
      *
      * <p>Convenience overload that omits the optional {@code options} argument;
      * any per-call authenticator and optional parameters default to unset and
@@ -171,7 +171,7 @@ public class {{classname}} extends BaseApi {
     }
 
     /**
-     * {{summary}}
+     * {{{summary}}}
      *
      * <p>Convenience overload that omits the optional {@code options} argument;
      * any per-call authenticator and optional parameters default to unset and

@@ -19,10 +19,10 @@ import {{package}}.options.{{optionsClassName}}
 /**
  * {{classname}} provides methods for the {{baseName}} API group.
 {{#tagDescription}}
- * {{.}}
+ * {{{.}}}
 {{/tagDescription}}
 {{#tagExternalDocs}}
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{url}}">{{{description}}}</a>
 {{/tagExternalDocs}}
  */
 class {{classname}} : BaseApi {
@@ -48,7 +48,7 @@ class {{classname}} : BaseApi {
 {{#variants}}
 
 {{#hasDescription}}
-        /** {{description}} */
+        /** {{{description}}} */
 {{/hasDescription}}
 {{#hasVariables}}
         data class {{variantName}}({{#serverVariables}}val {{camelName}}: {{#hasEnumValues}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}}{{^-last}}, {{/-last}}{{/serverVariables}}) : {{serverTypeName}} {
@@ -80,20 +80,20 @@ class {{classname}} : BaseApi {
     {{#operation}}
 
     /**
-     * {{summary}}
+     * {{{summary}}}
 {{#notes}}
-     * {{.}}
+     * {{{.}}}
 {{/notes}}
 {{#pathParams}}
-     * @param {{paramName}} {{description}}{{vendorExtensions.requiredLabelWithDefault}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+     * @param {{paramName}} {{{description}}}{{vendorExtensions.requiredLabelWithDefault}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
-     * Example — {{summary}}: `{{value}}`
+     * Example — {{{summary}}}: `{{value}}`
 {{/vendorExtensions.pluralExamples}}
 {{/pathParams}}
 {{#bodyParam}}
-     * @param {{paramName}} {{description}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+     * @param {{paramName}} {{{description}}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
-     * Example — {{summary}}: `{{value}}`
+     * Example — {{{summary}}}: `{{value}}`
 {{/vendorExtensions.pluralExamples}}
 {{/bodyParam}}
 {{#vendorExtensions.op.hasOptionsParam}}
@@ -112,8 +112,8 @@ class {{classname}} : BaseApi {
      * @deprecated This operation is deprecated.
 {{/isDeprecated}}
 {{#externalDocs}}
-     * {{description}}
-     * @see <a href="{{url}}">{{summary}} Documentation</a>
+     * {{{description}}}
+     * @see <a href="{{url}}">{{{summary}}} Documentation</a>
 {{/externalDocs}}
      */
 {{#isDeprecated}}

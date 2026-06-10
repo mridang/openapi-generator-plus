@@ -29,7 +29,7 @@ module {{moduleName}}
 {{#variants}}
 
 {{#hasDescription}}
-    # {{description}}
+    # {{{description}}}
 {{/hasDescription}}
 {{^hasDescription}}
     # {{variantName}} server variant.
@@ -66,10 +66,10 @@ module {{moduleName}}
 
     # {{classname}} provides methods for the {{baseName}} API group.
 {{#tagDescription}}
-    # {{.}}
+    # {{{tagDescription}}}
 {{/tagDescription}}
 {{#tagExternalDocs}}
-    # @see {{url}} {{description}}
+    # @see {{url}} {{{description}}}
 {{/tagExternalDocs}}
     class {{classname}} < BaseApi
       def initialize(api_client = nil, config = {{moduleName}}::Configuration.default, authenticator = nil)
@@ -77,23 +77,23 @@ module {{moduleName}}
       end
     {{#operation}}
 
-      # {{summary}}
+      # {{{summary}}}
 {{#notes}}
-      # {{.}}
+      # {{{notes}}}
 {{/notes}}
 {{#pathParams}}
-      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{.}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{{description}}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
-      # {{summary}}
-      # {{description}}
+      # {{{summary}}}
+      # {{{description}}}
       # Example: {{value}}
 {{/vendorExtensions.pluralExamples}}
 {{/pathParams}}
 {{#bodyParam}}
-      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{.}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{{description}}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
-      # {{summary}}
-      # {{description}}
+      # {{{summary}}}
+      # {{{description}}}
       # Example: {{value}}
 {{/vendorExtensions.pluralExamples}}
 {{/bodyParam}}
@@ -106,7 +106,7 @@ module {{moduleName}}
       # @deprecated This operation is deprecated.
 {{/isDeprecated}}
 {{#externalDocs}}
-      # @see {{url}} {{description}}
+      # @see {{url}} {{{description}}}
 {{/externalDocs}}
       def {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}} = nil{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}})
 {{#pathParams}}

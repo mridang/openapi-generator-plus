@@ -49,8 +49,13 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     static {
         final Map<String, String> imports = new HashMap<>();
         imports.put("date", "from datetime import date");
-        imports.put("datetime.time", "from datetime import time");
-        imports.put("datetime.timedelta", "from datetime import timedelta");
+        // These datatypes are emitted module-qualified ("datetime.time",
+        // "datetime.timedelta") by typeMapping and the object serializer, so
+        // the module itself must be imported. A `from datetime import time`
+        // would bind the bare name and leave `datetime.time` unresolved
+        // (NameError) on every model that carries a time/duration field.
+        imports.put("datetime.time", "import datetime");
+        imports.put("datetime.timedelta", "import datetime");
         imports.put("Decimal", "from decimal import Decimal");
         imports.put("uuid.UUID", "import uuid");
         // Pydantic 2 native types
@@ -154,6 +159,21 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     @Override
     public String getName() {
         return "python-plus";
+    }
+
+    /**
+     * Escapes a reserved word with a <em>trailing</em> underscore (PEP 8
+     * convention: {@code class_}, {@code and_}), overriding the base
+     * generator's leading-underscore scheme. A leading underscore makes the
+     * attribute private as far as pydantic v2 is concerned — it refuses to
+     * register a model field whose name starts with {@code _}, so a property
+     * literally named {@code and}/{@code or}/{@code not} would crash at import
+     * time. The wire name is preserved separately via the field's
+     * {@code alias}, so only the Python attribute name changes.
+     */
+    @Override
+    public String escapeReservedWord(String name) {
+        return name + "_";
     }
 
     /** Returns a short description shown in the help output. */
