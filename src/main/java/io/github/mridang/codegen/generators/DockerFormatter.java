@@ -1,5 +1,6 @@
 package io.github.mridang.codegen.generators;
 
+import com.google.common.base.Splitter;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
 import java.io.File;
@@ -66,6 +67,15 @@ final class DockerFormatter {
      * @param dockerCmd the complete process command line
      */
     static void run(String dockerImage, String workDir, List<String> dockerCmd) {
+        if (skipFormatting()) {
+            LOGGER.warn(
+                    "Skipping {} formatting in {} — docker is unavailable or"
+                            + " SKIP_DOCKER_FORMAT is set; generated output is left"
+                            + " unformatted.",
+                    dockerImage,
+                    workDir);
+            return;
+        }
         synchronized (LOCK) {
             RuntimeException last = null;
             for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -137,6 +147,37 @@ final class DockerFormatter {
             throw new IllegalStateException(
                     "Docker formatter " + dockerImage + " was interrupted in " + workDir, e);
         }
+    }
+
+    /**
+     * Whether to skip Docker-based formatting. True when {@code
+     * SKIP_DOCKER_FORMAT} is set (explicit control) or when the {@code docker}
+     * executable is not on {@code PATH} (e.g. the generator itself is running
+     * inside a container with no docker-in-docker). When docker IS present, a
+     * formatter failure still surfaces loudly per {@link #run}.
+     */
+    private static boolean skipFormatting() {
+        if (Boolean.parseBoolean(System.getenv().getOrDefault("SKIP_DOCKER_FORMAT", "false"))) {
+            return true;
+        }
+        return !dockerAvailable();
+    }
+
+    @SuppressFBWarnings(
+            value = "PATH_TRAVERSAL_IN",
+            justification =
+                    "Scans the trusted process PATH for the docker executable; not user input")
+    private static boolean dockerAvailable() {
+        final String path = System.getenv("PATH");
+        if (path == null) {
+            return false;
+        }
+        for (String dir : Splitter.on(File.pathSeparatorChar).split(path)) {
+            if (!dir.isEmpty() && new File(dir, "docker").canExecute()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String tail(List<String> lines) {

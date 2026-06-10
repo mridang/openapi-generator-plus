@@ -1,5 +1,5 @@
 {
-    "name": "openapi/{{#lambda.lowercase}}{{invokerPackage}}{{/lambda.lowercase}}",
+    "name": "{{#packageName}}{{packageName}}{{/packageName}}{{^packageName}}openapi/{{#lambda.lowercase}}{{invokerPackage}}{{/lambda.lowercase}}{{/packageName}}",
     "description": "{{#appDescription}}{{appDescription}}{{/appDescription}}{{^appDescription}}API client for openapi/{{#lambda.lowercase}}{{invokerPackage}}{{/lambda.lowercase}}{{/appDescription}}",
     "license": "MIT",
     "version": "{{packageVersion}}",
