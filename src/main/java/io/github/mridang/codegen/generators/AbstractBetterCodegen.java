@@ -110,6 +110,20 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      */
     private final Set<String> unevaluatedPropertiesFalseSchemas = new HashSet<>();
 
+    /**
+     * Names of models that are themselves enums. Populated by
+     * {@link #fromModel(String, Schema)} (which runs for every model before any
+     * post-processing) and consumed by {@link #needsTypeDecorator(CodegenProperty)}
+     * and the property decorator pass to distinguish a property whose
+     * {@code complexType} references a named enum from one that references a
+     * class. A referenced enum has {@code prop.isEnum == false} but its
+     * {@code complexType} names an enum model, so the plain {@code !prop.isEnum}
+     * check is insufficient to suppress class-only decorators (e.g. the
+     * class-transformer {@code @Type(() => X)} decorator, which requires a class
+     * constructor and breaks on enums).
+     */
+    private final Set<String> enumModelNames = new HashSet<>();
+
     protected boolean hasBasicAuth;
     protected boolean hasBearerAuth;
     protected boolean hasApiKeyAuth;
@@ -1438,7 +1452,28 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 unevaluatedPropertiesFalseSchemas.add(name);
             }
         }
-        return super.fromModel(name, schema);
+        final CodegenModel built = super.fromModel(name, schema);
+        // Record enum models so referenced-enum properties (which carry
+        // isEnum == false but a complexType naming the enum) can be told apart
+        // from class-referencing properties during decorator emission.
+        if (built != null && built.isEnum) {
+            if (built.classname != null) {
+                enumModelNames.add(built.classname);
+            }
+            if (built.name != null) {
+                enumModelNames.add(built.name);
+            }
+        }
+        return built;
+    }
+
+    /**
+     * Returns {@code true} when {@code typeName} names a model that is itself an
+     * enum (as recorded by {@link #fromModel(String, Schema)}). Used to suppress
+     * class-only decorators on properties that reference a named enum.
+     */
+    protected final boolean isEnumModel(@Nullable String typeName) {
+        return typeName != null && enumModelNames.contains(typeName);
     }
 
     /**
@@ -2350,6 +2385,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 && !prop.isArray
                 && prop.complexType != null
                 && !prop.isEnum
+                && !isEnumModel(prop.complexType)
                 && !prop.isFreeFormObject) {
             return true;
         }
@@ -2363,6 +2399,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 && !prop.items.isPrimitiveType
                 && prop.items.complexType != null
                 && !prop.items.isEnum
+                && !isEnumModel(prop.items.complexType)
                 && !prop.items.isFreeFormObject;
     }
 
@@ -3047,6 +3084,45 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                         && property.items != null
                         && property.items.isModel;
         d.put("isContainerOfModel", isContainerOfModel);
+
+        // A property whose complexType references a named enum carries
+        // isEnum == false yet must not receive class-only decorators (e.g.
+        // class-transformer's @Type(() => X), which needs a class constructor).
+        // Surface enum-ness of the referenced type so templates can suppress it.
+        d.put("complexTypeIsEnum", isEnumModel(property.complexType));
+        final boolean itemsComplexTypeIsEnum =
+                property.items != null && isEnumModel(property.items.complexType);
+        d.put("itemsComplexTypeIsEnum", itemsComplexTypeIsEnum);
+        // Mirror the flag onto the item's OWN decorator namespace. The array
+        // @Type block renders inside the {{#items}} scope, and JMustache stops
+        // walking the context chain at the (non-null) item.vendorExtensions map
+        // — so a flag that lives only on the parent property is invisible there.
+        if (property.items != null) {
+            if (property.items.vendorExtensions == null) {
+                property.items.vendorExtensions = new HashMap<>();
+            }
+            final Map<String, Object> itemDeco =
+                    decoratorMap(property.items.vendorExtensions, PROP_DECORATOR_NS);
+            itemDeco.put("itemsComplexTypeIsEnum", itemsComplexTypeIsEnum);
+            itemDeco.put("complexTypeIsEnum", isEnumModel(property.items.complexType));
+        }
+
+        // For a map-of-model property (Record<string, Model>), surface the
+        // value model's complexType at the property level so the deep-deserialise
+        // block can reference the OUTER property name ({{name}}) together with the
+        // value type without descending into the {{#items}} scope (where {{name}}
+        // would resolve to the synthetic item name, not the field name).
+        final boolean isMapOfModel =
+                property.isMap
+                        && property.items != null
+                        && !property.items.isPrimitiveType
+                        && property.items.complexType != null
+                        && !property.items.isEnum
+                        && !isEnumModel(property.items.complexType);
+        d.put("isMapOfModel", isMapOfModel);
+        if (isMapOfModel) {
+            d.put("mapValueComplexType", property.items.complexType);
+        }
     }
 
     /**

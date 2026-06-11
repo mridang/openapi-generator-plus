@@ -263,9 +263,11 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{^isArray}}
 {{#complexType}}
 {{^isEnum}}
+{{^vendorExtensions.prop.complexTypeIsEnum}}
 {{^isFreeFormObject}}
   @Type(() => {{complexType}})
 {{/isFreeFormObject}}
+{{/vendorExtensions.prop.complexTypeIsEnum}}
 {{/isEnum}}
 {{/complexType}}
 {{/isArray}}
@@ -283,9 +285,11 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{^isPrimitiveType}}
 {{#complexType}}
 {{^isEnum}}
+{{^vendorExtensions.prop.itemsComplexTypeIsEnum}}
 {{^isFreeFormObject}}
   @Type(() => {{complexType}})
 {{/isFreeFormObject}}
+{{/vendorExtensions.prop.itemsComplexTypeIsEnum}}
 {{/isEnum}}
 {{/complexType}}
 {{/isPrimitiveType}}
@@ -492,37 +496,29 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     }
 {{/isArray}}
 {{/isPrimitiveType}}
-{{^isPrimitiveType}}
-{{#isMap}}
-{{#items}}
-{{^isPrimitiveType}}
-{{#complexType}}
+{{#vendorExtensions.prop.isMapOfModel}}
     /**
      * 4.6 — Map-of-Model deep deserialise. When a field is typed
-     * `Record<string, {{complexType}}>`, the wire payload arrives as a
-     * plain JSON object whose values are bag-of-keys, not `{{complexType}}`
-     * instances. Walk each entry and route it back through the model's
-     * constructor (via ObjectSerializer) so the resulting record actually
-     * contains typed model instances.
+     * `Record<string, {{vendorExtensions.prop.mapValueComplexType}}>`, the wire
+     * payload arrives as a plain JSON object whose values are bag-of-keys, not
+     * `{{vendorExtensions.prop.mapValueComplexType}}` instances. Walk each entry
+     * and route it back through the model's constructor so the resulting record
+     * actually contains typed model instances.
      */
     if (this.{{name}} != null && typeof this.{{name}} === 'object' && !Array.isArray(this.{{name}})) {
       const __raw_{{name}} = this.{{name}} as unknown as Record<string, unknown>;
-      const __out_{{name}}: Record<string, {{complexType}}> = {};
+      const __out_{{name}}: Record<string, {{vendorExtensions.prop.mapValueComplexType}}> = {};
       for (const __k of Object.keys(__raw_{{name}})) {
         const __v = __raw_{{name}}[__k];
-        if (__v instanceof {{complexType}}) {
+        if (__v instanceof {{vendorExtensions.prop.mapValueComplexType}}) {
           __out_{{name}}[__k] = __v;
         } else if (__v != null && typeof __v === 'object') {
-          __out_{{name}}[__k] = new {{complexType}}(__v as Partial<{{complexType}}>);
+          __out_{{name}}[__k] = new {{vendorExtensions.prop.mapValueComplexType}}(__v as Partial<{{vendorExtensions.prop.mapValueComplexType}}>);
         }
       }
       this.{{name}} = __out_{{name}} as unknown as {{{dataType}}};
     }
-{{/complexType}}
-{{/isPrimitiveType}}
-{{/items}}
-{{/isMap}}
-{{/isPrimitiveType}}
+{{/vendorExtensions.prop.isMapOfModel}}
 {{/isEnum}}
 {{/vars}}
 {{#hasEnums}}

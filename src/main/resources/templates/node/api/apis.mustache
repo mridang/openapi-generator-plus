@@ -8,6 +8,9 @@ import { BaseApi } from './base-api{{importFileExtension}}';
 import { Configuration } from '../configuration{{importFileExtension}}';
 import { ObjectSerializer } from '../object-serializer{{importFileExtension}}';
 import { ValueSerializer } from '../value-serializer{{importFileExtension}}';
+{{#hasDeepInputBody}}
+import type { DeepInput } from '../deep-input{{importFileExtension}}';
+{{/hasDeepInputBody}}
 {{#imports.0}}
 import { {{#imports}}{{className}}{{^-last}}, {{/-last}}{{/imports}} } from '../models/index{{importFileExtension}}';
 {{/imports.0}}
@@ -131,51 +134,9 @@ export class {{classname}} extends BaseApi {
    * @see {@link {{url}}} {{description}}
 {{/externalDocs}}
    */
-  async {{nickname}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{paramName}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/isPath}}{{#isBody}}{{paramName}}{{#nullable}}?{{/nullable}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/isBody}}{{#isOptions}}options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}: {{{dataType}}}{{/isOptions}}{{#isServer}}server?: {{{dataType}}}{{/isServer}}{{/vendorExtensions.op.signatureArgs}}): Promise<{{{returnType}}}{{^returnType}}void{{/returnType}}> {
-{{#pathParams}}
-{{#required}}
-    if ({{paramName}} == null{{#isString}} || {{paramName}} === ''{{/isString}}) {
-      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
-    }
-{{/required}}
-{{/pathParams}}
-{{#bodyParam}}
-{{#required}}
-    if ({{paramName}} == null) {
-      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
-    }
-{{/required}}
-{{/bodyParam}}
-{{#queryParams}}
-{{#required}}
-    if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
-      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
-    }
-{{/required}}
-{{/queryParams}}
-{{#headerParams}}
-{{#required}}
-    if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
-      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
-    }
-{{/required}}
-{{/headerParams}}
-{{#formParams}}
-{{#required}}
-    if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
-      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
-    }
-{{/required}}
-{{/formParams}}
-{{#cookieParams}}
-{{#required}}
-    if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
-      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
-    }
-{{/required}}
-{{/cookieParams}}
+  async {{nickname}}({{#vendorExtensions.op.hasRequestWrapper}}requestParameters{{^vendorExtensions.op.requestWrapperRequired}}?{{/vendorExtensions.op.requestWrapperRequired}}: { {{#vendorExtensions.op.requestWrapperFields}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}{{^-last}}; {{/-last}}{{/vendorExtensions.op.requestWrapperFields}} }{{/vendorExtensions.op.hasRequestWrapper}}): Promise<{{{returnType}}}{{^returnType}}void{{/returnType}}> {
 {{#returnType}}
-    const {{nickname}}Result = await this.{{nickname}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}});
+    const {{nickname}}Result = await this.{{nickname}}WithHttpInfo({{#vendorExtensions.op.hasRequestWrapper}}requestParameters{{/vendorExtensions.op.hasRequestWrapper}});
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -191,7 +152,7 @@ export class {{classname}} extends BaseApi {
     return {{nickname}}Result.data as {{{returnType}}};
 {{/returnType}}
 {{^returnType}}
-    await this.{{nickname}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}});
+    await this.{{nickname}}WithHttpInfo({{#vendorExtensions.op.hasRequestWrapper}}requestParameters{{/vendorExtensions.op.hasRequestWrapper}});
 {{/returnType}}
   }
 
@@ -199,7 +160,10 @@ export class {{classname}} extends BaseApi {
    * {{&summary}} (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async {{nickname}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{paramName}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/isPath}}{{#isBody}}{{paramName}}{{#nullable}}?{{/nullable}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/isBody}}{{#isOptions}}options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}: {{{dataType}}}{{/isOptions}}{{#isServer}}server?: {{{dataType}}}{{/isServer}}{{/vendorExtensions.op.signatureArgs}}): Promise<ApiResult<{{{returnType}}}{{^returnType}}void{{/returnType}}>> {
+  async {{nickname}}WithHttpInfo({{#vendorExtensions.op.hasRequestWrapper}}requestParameters{{^vendorExtensions.op.requestWrapperRequired}}?{{/vendorExtensions.op.requestWrapperRequired}}: { {{#vendorExtensions.op.requestWrapperFields}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}{{^-last}}; {{/-last}}{{/vendorExtensions.op.requestWrapperFields}} }{{/vendorExtensions.op.hasRequestWrapper}}): Promise<ApiResult<{{{returnType}}}{{^returnType}}void{{/returnType}}>> {
+{{#vendorExtensions.op.hasRequestWrapper}}
+    const { {{#vendorExtensions.op.requestWrapperFields}}{{name}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}} } = requestParameters{{^vendorExtensions.op.requestWrapperRequired}} ?? {}{{/vendorExtensions.op.requestWrapperRequired}};
+{{/vendorExtensions.op.hasRequestWrapper}}
 {{#pathParams}}
 {{#required}}
     if ({{paramName}} == null{{#isString}} || {{paramName}} === ''{{/isString}}) {

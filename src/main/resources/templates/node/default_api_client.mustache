@@ -233,7 +233,7 @@ export class DefaultApiClient implements ApiClient {
     let currentUrl = url;
     const originalUrl = url;
     try {
-      response = await fetch(url, fetchOptions as RequestInit);
+      response = await fetch(url, fetchOptions as Parameters<typeof fetch>[1]);
       const noRedirect = options?.noRedirect === true;
       if (this.transportOptions.followRedirects && !noRedirect) {
         const maxRedirects = this.transportOptions.maxRedirects ?? 20;
@@ -333,7 +333,7 @@ export class DefaultApiClient implements ApiClient {
           currentMethod = nextMethod;
           currentBody = nextBody;
           currentHeaders = redirectHeaders;
-          response = await fetch(nextUrl, redirectOptions as RequestInit);
+          response = await fetch(nextUrl, redirectOptions as Parameters<typeof fetch>[1]);
           hops++;
         }
         /* T-D1: exhausting the redirect budget must fail loudly. The

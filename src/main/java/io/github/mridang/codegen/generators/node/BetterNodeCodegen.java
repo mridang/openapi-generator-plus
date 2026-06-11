@@ -300,6 +300,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("errors/unprocessable-entity-error.mustache", "src/errors", "unprocessable-entity-error.ts"),
             new SupportingFileSpec("errors/internal-server-error.mustache", "src/errors", "internal-server-error.ts"),
             new SupportingFileSpec("brand.mustache", "src", "brand.ts"),
+            new SupportingFileSpec("deep_input.mustache", "src", "deep-input.ts"),
             new SupportingFileSpec("object_serializer.mustache", "src", "object-serializer.ts"),
             new SupportingFileSpec("value_serializer.mustache", "src", "value-serializer.ts"),
             new SupportingFileSpec("header_selector.mustache", "src", "header-selector.ts"),
@@ -607,7 +608,17 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                                     opIdCamelCase + param.enumName;
                         }
                     }
+                    populateRequestWrapper(op);
                 }
+                boolean hasDeepInputBody = false;
+                for (final CodegenOperation op : ops) {
+                    if (op.bodyParam != null
+                            && !op.bodyParam.dataType.equals(deepInputType(op.bodyParam))) {
+                        hasDeepInputBody = true;
+                        break;
+                    }
+                }
+                objs.put("hasDeepInputBody", hasDeepInputBody);
                 objs.put("hasEnums", hasEnums);
             }
         }
@@ -640,6 +651,133 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             }
         }
         return objs;
+    }
+
+    /**
+     * Computes the single request-parameters wrapper object for an operation
+     * and stamps it onto {@code op.vendorExtensions["op"]} for the api template.
+     *
+     * <p>The public SDK contract (and the upstream {@code useSingleRequestParameter}
+     * convention) is that every operation method takes one object argument whose
+     * keys are the operation's parameters, e.g.
+     * {@code addHumanUser({ userServiceAddHumanUserRequest })} rather than
+     * positional {@code addHumanUser(userServiceAddHumanUserRequest)}. This mirrors
+     * the structural ordering of {@code signatureArgs} (path params, then body,
+     * then the synthetic {@code options} object, then {@code server}) but renders
+     * it as the fields of one wrapper interface.
+     *
+     * <p>Populated keys (all under the {@code op} decorator namespace):
+     * <ul>
+     *   <li>{@code requestWrapperFields} — ordered list of maps, each with
+     *       {@code name}, {@code type}, {@code optional} (boolean) and
+     *       {@code -last} handled by Mustache, for rendering both the inline
+     *       object type and the destructure</li>
+     *   <li>{@code hasRequestWrapper} — true iff the operation has at least one
+     *       parameter (i.e. the wrapper has any field)</li>
+     *   <li>{@code requestWrapperRequired} — true iff at least one field is
+     *       required (the wrapper argument itself is then non-optional)</li>
+     * </ul>
+     */
+    @SuppressWarnings("unchecked")
+    private void populateRequestWrapper(CodegenOperation op) {
+        if (op == null) {
+            return;
+        }
+        if (op.vendorExtensions == null) {
+            op.vendorExtensions = new HashMap<>();
+        }
+        final Object opDecoObj = op.vendorExtensions.get("op");
+        if (!(opDecoObj instanceof Map)) {
+            return;
+        }
+        final Map<String, Object> d = (Map<String, Object>) opDecoObj;
+
+        final String pascal = NamingConvention.PASCAL_CASE.apply(
+                op.operationId == null ? "" : op.operationId);
+        final String optionsClassName = pascal + "Options";
+        final String serverClassName = pascal + "Server";
+
+        final List<Map<String, Object>> fields = new ArrayList<>();
+
+        if (op.pathParams != null) {
+            for (final CodegenParameter p : op.pathParams) {
+                fields.add(wrapperField(p.paramName, nullableType(p.dataType, p.isNullable), false));
+            }
+        }
+        if (op.bodyParam != null) {
+            // Request bodies are routinely supplied as plain object literals; a
+            // bare class type would force callers to instantiate every nested
+            // model just to satisfy structural typing. DeepInput<T> accepts both
+            // a plain (deeply-partial, method-free) literal and a real instance.
+            fields.add(
+                    wrapperField(
+                            op.bodyParam.paramName,
+                            nullableType(
+                                    deepInputType(op.bodyParam), op.bodyParam.isNullable),
+                            !op.bodyParam.required));
+        }
+        final boolean hasQuery = op.queryParams != null && !op.queryParams.isEmpty();
+        final boolean hasHeader = op.headerParams != null && !op.headerParams.isEmpty();
+        final boolean hasForm = op.formParams != null && !op.formParams.isEmpty();
+        final boolean hasCookie = op.cookieParams != null && !op.cookieParams.isEmpty();
+        if (hasQuery || hasHeader || hasForm || hasCookie || op.hasAuthMethods) {
+            final boolean optionsRequired = Boolean.TRUE.equals(d.get("optionsParamRequired"));
+            fields.add(wrapperField("options", optionsClassName, !optionsRequired));
+        }
+        if (op.servers != null && !op.servers.isEmpty()) {
+            fields.add(wrapperField("server", serverClassName, true));
+        }
+
+        boolean anyRequired = false;
+        for (final Map<String, Object> f : fields) {
+            if (!Boolean.TRUE.equals(f.get("optional"))) {
+                anyRequired = true;
+                break;
+            }
+        }
+
+        d.put("requestWrapperFields", fields);
+        d.put("hasRequestWrapper", !fields.isEmpty());
+        d.put("requestWrapperRequired", anyRequired);
+    }
+
+    private static String nullableType(String dataType, boolean isNullable) {
+        return isNullable ? dataType + " | null" : dataType;
+    }
+
+    /**
+     * Returns the request-input type for a body parameter: the declared type
+     * wrapped in {@code DeepInput<...>} when it (or its array element) references
+     * a generated model, so plain object literals are accepted. Primitive and
+     * primitive-array bodies are returned unchanged — there is no class to relax.
+     */
+    private String deepInputType(CodegenParameter body) {
+        final boolean elementIsModel =
+                body.items != null
+                        && !body.items.isPrimitiveType
+                        && body.items.complexType != null
+                        && !body.items.isEnum
+                        && !isEnumModel(body.items.complexType);
+        final boolean isModel =
+                !body.isPrimitiveType
+                        && !body.isArray
+                        && body.baseType != null
+                        && !languageSpecificPrimitives.contains(body.baseType)
+                        && !body.isEnum
+                        && !isEnumModel(body.baseType);
+        if (isModel || elementIsModel) {
+            return "DeepInput<" + body.dataType + ">";
+        }
+        return body.dataType;
+    }
+
+    private static Map<String, Object> wrapperField(
+            String name, String type, boolean optional) {
+        final Map<String, Object> m = new HashMap<>();
+        m.put("name", name);
+        m.put("type", type);
+        m.put("optional", optional);
+        return m;
     }
 
     /** {@inheritDoc} */
