@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.util.StdDateFormat;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 {{#openApiNullable}}
@@ -232,27 +233,34 @@ public final class ObjectSerializer {
     }
 
     static ObjectMapper createDefaultObjectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
-        mapper.setVisibility(PropertyAccessor.GETTER, JsonAutoDetect.Visibility.NONE);
-        mapper.setVisibility(PropertyAccessor.IS_GETTER, JsonAutoDetect.Visibility.NONE);
-        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        mapper.enable(SerializationFeature.WRITE_ENUMS_USING_TO_STRING);
-        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        /* Strict scalar typing: a quoted number ("42") for an int field or a
-           numeric (1) for a boolean field must fail, not be silently coerced.
-           Matches the other SDKs, which reject wrong-typed primitives. */
-        mapper.configure(MapperFeature.ALLOW_COERCION_OF_SCALARS, false);
-        /* Strict discriminator resolution: an unknown/invalid oneOf subtype must
-           fail loudly rather than deserialize to null, matching the other 11 SDKs. */
-        mapper.configure(DeserializationFeature.FAIL_ON_INVALID_SUBTYPE, true);
-        mapper.enable(DeserializationFeature.READ_ENUMS_USING_TO_STRING);
-        mapper.registerModule(new JavaTimeModule());
-        {{#openApiNullable}}
-        mapper.registerModule(new JsonNullableModule());
-        {{/openApiNullable}}
-        mapper.setDateFormat(new StdDateFormat().withColonInTimeZone(true));
+        /* Build via JsonMapper.builder() rather than configuring a constructed
+           ObjectMapper: the setter-style mutators (setSerializationInclusion,
+           configure(MapperFeature, ...)) are deprecated in current Jackson, so
+           the builder is the supported path for these settings. */
+        JsonMapper mapper = JsonMapper.builder()
+                .visibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY)
+                .visibility(PropertyAccessor.GETTER, JsonAutoDetect.Visibility.NONE)
+                .visibility(PropertyAccessor.IS_GETTER, JsonAutoDetect.Visibility.NONE)
+                .defaultPropertyInclusion(JsonInclude.Value.construct(JsonInclude.Include.NON_NULL, JsonInclude.Include.ALWAYS))
+                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+                .enable(SerializationFeature.WRITE_ENUMS_USING_TO_STRING)
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+                /* Strict scalar typing: a quoted number ("42") for an int field
+                   or a numeric (1) for a boolean field must fail, not be
+                   silently coerced. Matches the other SDKs, which reject
+                   wrong-typed primitives. */
+                .configure(MapperFeature.ALLOW_COERCION_OF_SCALARS, false)
+                /* Strict discriminator resolution: an unknown/invalid oneOf
+                   subtype must fail loudly rather than deserialize to null,
+                   matching the other 11 SDKs. */
+                .configure(DeserializationFeature.FAIL_ON_INVALID_SUBTYPE, true)
+                .enable(DeserializationFeature.READ_ENUMS_USING_TO_STRING)
+                .addModule(new JavaTimeModule())
+                {{#openApiNullable}}
+                .addModule(new JsonNullableModule())
+                {{/openApiNullable}}
+                .defaultDateFormat(new StdDateFormat().withColonInTimeZone(true))
+                .build();
         return mapper;
     }
 

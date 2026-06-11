@@ -303,6 +303,32 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         additionalProperties.put("gemVersion", gemVersion);
         additionalProperties.put("userAgentDefault", gemName + "/" + gemVersion + " (ruby)");
 
+        // Nested-module rendering for files that may be `require`d standalone
+        // (e.g. lib/.../version.rb pulled in by the gemspec before Zeitwerk has
+        // defined the namespace). A compact `module Zitadel::Client` crashes
+        // when `Zitadel` is not yet defined, so emit fully nested modules:
+        //   module Zitadel
+        //     module Client
+        //       VERSION = '...'
+        // The parts below let the version template build that nesting generically
+        // for any `::`-separated moduleName.
+        final java.util.List<String> moduleParts =
+            com.google.common.base.Splitter.on("::").splitToList(moduleName);
+        final StringBuilder nestedOpen = new StringBuilder();
+        final StringBuilder nestedClose = new StringBuilder();
+        for (int i = 0; i < moduleParts.size(); i++) {
+            nestedOpen.append("  ".repeat(i)).append("module ").append(moduleParts.get(i)).append('\n');
+        }
+        for (int i = moduleParts.size() - 1; i >= 0; i--) {
+            nestedClose.append("  ".repeat(i)).append("end");
+            if (i > 0) {
+                nestedClose.append('\n');
+            }
+        }
+        additionalProperties.put("moduleNameNestedOpen", nestedOpen.toString());
+        additionalProperties.put("moduleNameNestedClose", nestedClose.toString());
+        additionalProperties.put("moduleNameNestedIndent", "  ".repeat(moduleParts.size()));
+
         setModelPackage("models");
         setApiPackage("api");
 

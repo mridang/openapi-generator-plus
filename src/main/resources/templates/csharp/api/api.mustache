@@ -42,7 +42,7 @@ public sealed class {{pascalName}}Value
 {{#variants}}
 
 {{#hasDescription}}
-/// <summary>{{{description}}}</summary>
+/// <summary>{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}</summary>
 {{/hasDescription}}
 {{^hasDescription}}
 /// <summary>Server variant {{variantName}} for the {{operationId}} operation.</summary>
@@ -85,11 +85,11 @@ public sealed class {{variantName}} : {{serverTypeName}}
 /// <summary>
 /// {{classname}} provides methods for the {{baseName}} API group.
 {{#tagDescription}}
-/// {{{.}}}
+/// {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}
 {{/tagDescription}}
 /// </summary>
 {{#tagExternalDocs}}
-/// <seealso href="{{url}}">{{{description}}}</seealso>
+/// <seealso href="{{url}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}</seealso>
 {{/tagExternalDocs}}
 public class {{classname}} : BaseApi
 {
@@ -115,21 +115,21 @@ public class {{classname}} : BaseApi
     {{#operation}}
 
     /// <summary>
-    /// {{{summary}}}
+    /// {{#lambda.escapeXml}}{{{summary}}}{{/lambda.escapeXml}}
     /// </summary>
 {{#notes}}
-    /// <remarks>{{{.}}}</remarks>
+    /// <remarks>{{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}</remarks>
 {{/notes}}
     {{#pathParams}}
-    /// <param name="{{paramName}}">{{{description}}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
+    /// <param name="{{paramName}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
     {{#vendorExtensions.pluralExamples}}
-    /// <example>{{{summary}}}: {{value}}</example>
+    /// <example>{{#lambda.escapeXml}}{{{summary}}}: {{value}}{{/lambda.escapeXml}}</example>
     {{/vendorExtensions.pluralExamples}}
     {{/pathParams}}
     {{#bodyParam}}
-    /// <param name="{{paramName}}">{{{description}}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
+    /// <param name="{{paramName}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
     {{#vendorExtensions.pluralExamples}}
-    /// <example>{{{summary}}}: {{value}}</example>
+    /// <example>{{#lambda.escapeXml}}{{{summary}}}: {{value}}{{/lambda.escapeXml}}</example>
     {{/vendorExtensions.pluralExamples}}
     {{/bodyParam}}
 {{#vendorExtensions.op.signatureArgs}}
@@ -146,7 +146,7 @@ public class {{classname}} : BaseApi
     /// <returns><![CDATA[{{{returnType}}}]]></returns>
     {{/returnType}}
 {{#externalDocs}}
-    /// <seealso href="{{url}}">{{{description}}}</seealso>
+    /// <seealso href="{{url}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}</seealso>
 {{/externalDocs}}
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
 {{#isDeprecated}}
@@ -176,16 +176,16 @@ public class {{classname}} : BaseApi
     }
 
     /// <summary>
-    /// {{{summary}}} (with HTTP info)
+    /// {{#lambda.escapeXml}}{{{summary}}}{{/lambda.escapeXml}} (with HTTP info)
     /// </summary>
 {{#notes}}
-    /// <remarks>{{{.}}}</remarks>
+    /// <remarks>{{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}</remarks>
 {{/notes}}
     {{#pathParams}}
-    /// <param name="{{paramName}}">{{{description}}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
+    /// <param name="{{paramName}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
     {{/pathParams}}
     {{#bodyParam}}
-    /// <param name="{{paramName}}">{{{description}}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
+    /// <param name="{{paramName}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
     {{/bodyParam}}
 {{#vendorExtensions.op.signatureArgs}}
 {{#isOptions}}

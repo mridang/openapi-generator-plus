@@ -633,47 +633,41 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         switch (value)
         {
             case byte[] bytes:
-            {
                 ValidateMultipartFilename(name);
-                ByteArrayContent content = new(bytes);
-                content.Headers.ContentType =
+                ByteArrayContent bytesContent = new(bytes);
+                bytesContent.Headers.ContentType =
                     new System.Net.Http.Headers.MediaTypeHeaderValue(GetMimeType(name));
-                _ = content.Headers.Remove("Content-Disposition");
-                _ = content.Headers.TryAddWithoutValidation(
+                _ = bytesContent.Headers.Remove("Content-Disposition");
+                _ = bytesContent.Headers.TryAddWithoutValidation(
                     "Content-Disposition",
                     EncodeHeaderValueUtf8(
                         "form-data; name=\"" + EscapeQuotedString(name) + "\"; "
                             + BuildFilenameDirective(name)));
-                multipart.Add(content);
+                multipart.Add(bytesContent);
                 break;
-            }
             case Stream stream:
-            {
                 ValidateMultipartFilename(name);
-                StreamContent content = new(stream);
-                content.Headers.ContentType =
+                StreamContent streamContent = new(stream);
+                streamContent.Headers.ContentType =
                     new System.Net.Http.Headers.MediaTypeHeaderValue(GetMimeType(name));
-                _ = content.Headers.Remove("Content-Disposition");
-                _ = content.Headers.TryAddWithoutValidation(
+                _ = streamContent.Headers.Remove("Content-Disposition");
+                _ = streamContent.Headers.TryAddWithoutValidation(
                     "Content-Disposition",
                     EncodeHeaderValueUtf8(
                         "form-data; name=\"" + EscapeQuotedString(name) + "\"; "
                             + BuildFilenameDirective(name)));
-                multipart.Add(content);
+                multipart.Add(streamContent);
                 break;
-            }
             case string s:
-            {
                 ValidateMultipartFilename(name);
-                StringContent content = BuildTextPart(s);
-                _ = content.Headers.Remove("Content-Disposition");
-                _ = content.Headers.TryAddWithoutValidation(
+                StringContent stringContent = BuildTextPart(s);
+                _ = stringContent.Headers.Remove("Content-Disposition");
+                _ = stringContent.Headers.TryAddWithoutValidation(
                     "Content-Disposition",
                     EncodeHeaderValueUtf8(
                         "form-data; name=\"" + EscapeQuotedString(name) + "\""));
-                multipart.Add(content);
+                multipart.Add(stringContent);
                 break;
-            }
             default:
                 if (value is int or long or float or double or bool or decimal)
                 {

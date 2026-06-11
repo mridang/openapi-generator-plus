@@ -14,11 +14,11 @@ public sealed class {{className}}
 {
 {{#params}}
 {{#required}}
-    /// <summary>{{#description}} {{{.}}}{{/description}}</summary>
+    /// <summary>{{#description}} {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}{{/description}}</summary>
     public required {{{dataType}}} {{pascalParamName}} { get; init; }
 {{/required}}
 {{^required}}
-    /// <summary>{{#description}} {{{.}}}{{/description}}</summary>
+    /// <summary>{{#description}} {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}{{/description}}</summary>
     public {{{dataType}}}? {{pascalParamName}} { get; init; }
 {{/required}}
 

@@ -2,7 +2,7 @@
 
 from typing import List
 
-from {{packageName}}.server_configuration import ServerConfiguration, ServerVariable
+from {{packageName}}.server_configuration import ServerConfiguration{{#hasAnyServerVariables}}, ServerVariable{{/hasAnyServerVariables}}
 
 
 {{#serverConfigs}}

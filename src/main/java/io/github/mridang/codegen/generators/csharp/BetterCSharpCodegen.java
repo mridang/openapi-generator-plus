@@ -1,5 +1,7 @@
 package io.github.mridang.codegen.generators.csharp;
 
+import com.google.common.collect.ImmutableMap;
+import com.samskivert.mustache.Mustache;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.NamingConvention;
@@ -195,6 +197,31 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     @Override
     protected String getEmptyEnumVarName() {
         return "Empty";
+    }
+
+    /**
+     * Overrides the base class to add an {@code escapeXml} lambda that
+     * escapes the XML metacharacters {@code &}, {@code <}, and {@code >}
+     * in C# {@code ///} doc-comment prose. Schema descriptions, summaries,
+     * and examples are copied verbatim into XML doc comments; an
+     * unescaped {@code <} or {@code &} produces a CS1570 "XML comment has
+     * badly formed XML" warning (an error under {@code -warnaserror}).
+     * The lambda is applied only at prose sites in the model, api, and
+     * options templates, never to code-emitting triple-mustache (type
+     * names, defaults, paths).
+     */
+    @Override
+    protected ImmutableMap.Builder<String, Mustache.Lambda> addMustacheLambdas() {
+        return super.addMustacheLambdas()
+                .put(
+                        "escapeXml",
+                        (fragment, writer) ->
+                                writer.write(
+                                        fragment
+                                                .execute()
+                                                .replace("&", "&amp;")
+                                                .replace("<", "&lt;")
+                                                .replace(">", "&gt;")));
     }
 
     /**

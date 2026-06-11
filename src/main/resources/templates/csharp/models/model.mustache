@@ -9,7 +9,7 @@ namespace {{packageName}}.Models;
 
 {{#description}}
 /// <summary>
-/// {{{.}}}
+/// {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}
 /// </summary>
 {{/description}}
 [JsonConverter(typeof(JsonStringEnumConverter))]
@@ -37,7 +37,7 @@ namespace {{packageName}}.Models;
 {{#isDeprecated}}
 {{#description}}
 /// <summary>
-/// {{{.}}}
+/// {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}
 /// </summary>
 {{/description}}
 /// <remarks>Deprecated.</remarks>
@@ -49,7 +49,7 @@ namespace {{packageName}}.Models;
 {{^isDeprecated}}
 {{#description}}
 /// <summary>
-/// {{{.}}}
+/// {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}
 /// </summary>
 {{/description}}
 {{#externalDocumentation}}
@@ -133,7 +133,7 @@ namespace {{packageName}}.Models;
 {{#isDeprecated}}
 {{#description}}
 /// <summary>
-/// {{{.}}}
+/// {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}
 /// </summary>
 {{/description}}
 /// <remarks>Deprecated.</remarks>
@@ -145,7 +145,7 @@ namespace {{packageName}}.Models;
 {{^isDeprecated}}
 {{#description}}
 /// <summary>
-/// {{{.}}}
+/// {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}
 /// </summary>
 {{/description}}
 {{#externalDocumentation}}
@@ -191,7 +191,7 @@ namespace {{packageName}}.Models;
 
 {{#description}}
 /// <summary>
-/// {{{.}}}
+/// {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}
 /// </summary>
 {{/description}}
 {{#hasRequired}}
@@ -226,14 +226,14 @@ public class {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/
     {{#vars}}
     {{#description}}
     /// <summary>
-    /// {{{.}}}
+    /// {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}
     /// </summary>
     {{/description}}
 {{#example}}
-    /// <example>{{{.}}}</example>
+    /// <example>{{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}</example>
 {{/example}}
 {{#vendorExtensions.pluralExamples}}
-    /// <example>{{summary}}: {{value}}</example>
+    /// <example>{{#lambda.escapeXml}}{{summary}}: {{value}}{{/lambda.escapeXml}}</example>
 {{/vendorExtensions.pluralExamples}}
 {{#isReadOnly}}
     /// <remarks>This property is read-only.</remarks>
@@ -300,9 +300,9 @@ public class {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/
     {
         return other is not null
             && (ReferenceEquals(this, other)
-                || ({{^vars}}true{{/vars}}{{#vars}}EqualityComparer<{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}>.Default.Equals(this.{{name}}, other.{{name}}){{^-last}}
+                || {{^vars}}true{{/vars}}{{#vars}}EqualityComparer<{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}>.Default.Equals(this.{{name}}, other.{{name}}){{^-last}}
                     && {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}
-                    && EqualityComparer<Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}>?>.Default.Equals(this.AdditionalProperties, other.AdditionalProperties){{/isAdditionalPropertiesTrue}}));
+                    && EqualityComparer<Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}>?>.Default.Equals(this.AdditionalProperties, other.AdditionalProperties){{/isAdditionalPropertiesTrue}});
     }
 
     public override bool Equals(object? obj)
@@ -354,14 +354,14 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
     {{#vars}}
     {{#description}}
     /// <summary>
-    /// {{{.}}}
+    /// {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}
     /// </summary>
     {{/description}}
 {{#example}}
-    /// <example>{{{.}}}</example>
+    /// <example>{{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}</example>
 {{/example}}
 {{#vendorExtensions.pluralExamples}}
-    /// <example>{{summary}}: {{value}}</example>
+    /// <example>{{#lambda.escapeXml}}{{summary}}: {{value}}{{/lambda.escapeXml}}</example>
 {{/vendorExtensions.pluralExamples}}
 {{#isReadOnly}}
     /// <remarks>This property is read-only.</remarks>
@@ -412,9 +412,9 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
     {
         return other is not null
             && (ReferenceEquals(this, other)
-                || ({{^vars}}true{{/vars}}{{#vars}}EqualityComparer<{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}>.Default.Equals(this.{{name}}, other.{{name}}){{^-last}}
+                || {{^vars}}true{{/vars}}{{#vars}}EqualityComparer<{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}>.Default.Equals(this.{{name}}, other.{{name}}){{^-last}}
                     && {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}
-                    && EqualityComparer<Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}>?>.Default.Equals(this.AdditionalProperties, other.AdditionalProperties){{/isAdditionalPropertiesTrue}}));
+                    && EqualityComparer<Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}>?>.Default.Equals(this.AdditionalProperties, other.AdditionalProperties){{/isAdditionalPropertiesTrue}});
     }
 
     public override bool Equals(object? obj)
