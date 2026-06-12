@@ -210,7 +210,7 @@ public final class TransportOptionsBuilder {
 }
 
 /// Errors that can occur when building ``TransportOptions``.
-public enum TransportOptionsError: Error, CustomStringConvertible {
+public enum TransportOptionsError: ZitadelError, CustomStringConvertible {
     case invalidProxyURL(String)
 
     public var description: String {

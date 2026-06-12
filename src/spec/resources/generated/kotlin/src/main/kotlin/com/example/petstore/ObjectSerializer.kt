@@ -561,9 +561,9 @@ internal class ObjectSerializer(
  * Declared at the top level (rather than nested inside [ObjectSerializer])
  * so it remains part of the public API even though [ObjectSerializer] itself
  * is internal transport machinery. Catchable by callers alongside the typed
- * [ApiException] hierarchy.
+ * [ApiException] hierarchy; both share the branded [ZitadelException] root.
  */
-class SerializationException : RuntimeException {
+class SerializationException : ZitadelException {
     constructor(message: String, cause: Throwable) : super(message, cause)
     constructor(message: String) : super(message)
 }

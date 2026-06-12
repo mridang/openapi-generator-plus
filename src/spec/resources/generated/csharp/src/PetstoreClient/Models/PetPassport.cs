@@ -46,8 +46,7 @@ public class PetPassport : IEquatable<PetPassport>
         return other is not null
             && (
                 ReferenceEquals(this, other)
-                || (
-                    EqualityComparer<Pet?>.Default.Equals(this.Pet, other.Pet)
+                || EqualityComparer<Pet?>.Default.Equals(this.Pet, other.Pet)
                     && EqualityComparer<byte[]?>.Default.Equals(this.Thumbnail, other.Thumbnail)
                     && EqualityComparer<List<byte[]>?>.Default.Equals(this.Scans, other.Scans)
                     && EqualityComparer<DateTimeOffset?>.Default.Equals(
@@ -58,7 +57,6 @@ public class PetPassport : IEquatable<PetPassport>
                         this.BiometricChip,
                         other.BiometricChip
                     )
-                )
             );
     }
 

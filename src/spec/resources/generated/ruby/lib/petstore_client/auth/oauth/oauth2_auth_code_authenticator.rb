@@ -104,7 +104,7 @@ module PetstoreClient
 
         # @return [Hash{String => String}]
         def auth_headers
-          raise 'Must call exchange_code before making API requests' unless @token_exchanged
+          raise PetstoreClient::ApiError, 'Must call exchange_code before making API requests' unless @token_exchanged
 
           params = {
             'grant_type' => 'refresh_token',

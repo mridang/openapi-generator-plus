@@ -357,7 +357,7 @@ public final class OAuth2TokenManager: @unchecked Sendable {
 /// is missing or contains an empty `access_token` field. Distinct from
 /// ``OAuth2ServerError`` (which represents RFC 6749 §5.2 error responses
 /// on 4xx/5xx) so callers can recover differently via `catch`.
-public enum OAuth2TokenError: Error, Equatable {
+public enum OAuth2TokenError: ZitadelError, Equatable {
     case missingAccessToken(String)
     /// Thrown when the token endpoint responds with a 3xx redirect. RFC 6749
     /// §3.2 forbids redirects there; following one would replay the
@@ -371,7 +371,7 @@ public enum OAuth2TokenError: Error, Equatable {
 /// human-readable description and a URL to a page describing the error.
 /// `rawBody` preserves the original response payload for diagnostics when
 /// the body is not a well-formed OAuth2 error object.
-public struct OAuth2ServerError: Error, Equatable {
+public struct OAuth2ServerError: ZitadelError, Equatable {
     public let statusCode: Int
     public let code: String?
     public let description: String?

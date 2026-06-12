@@ -1,6 +1,7 @@
 {{>api_info}}
 
 using System.Text.Json;
+using {{packageName}};
 
 namespace {{packageName}}.Auth.OAuth;
 
@@ -404,7 +405,7 @@ public sealed class OAuth2TokenManager
    we only ever throw this from one site with a fixed-shape message. */
 /* IDE0290: primary-constructor form makes the XML doc less natural. */
 /* CA1710/CA1032/IDE0290 are silenced project-wide in .editorconfig. */
-public sealed class OAuth2TokenError : Exception
+public sealed class OAuth2TokenError : ZitadelException
 {
     /// <summary>Creates a new <see cref="OAuth2TokenError"/> with the given message.</summary>
     public OAuth2TokenError(string message) : base(message) { }
@@ -426,7 +427,7 @@ public sealed class OAuth2TokenError : Exception
    what the server sent without forcing System.Uri's stricter parsing. */
 /* IDE0290: primary-constructor form is awkward with the BuildMessage call. */
 /* CA1710/CA1032/CA1054/CA1056/IDE0290 are silenced project-wide in .editorconfig. */
-public sealed class OAuth2ServerError : Exception
+public sealed class OAuth2ServerError : ZitadelException
 {
     /// <summary>HTTP status code returned by the token endpoint.</summary>
     public int StatusCode { get; }

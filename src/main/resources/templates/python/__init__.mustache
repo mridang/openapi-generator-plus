@@ -11,6 +11,7 @@ __all__ = [
     'TransportOptions',
     'ServerConfiguration',
     'ServerVariable',
+    'ZitadelException',
     'OpenApiException',
     'ApiException',
     {{#hasHttpSignatureMethods}}'HttpSigningConfiguration',
@@ -29,6 +30,7 @@ from {{packageName}}.configuration import Configuration as Configuration
 from {{packageName}}.transport_options import TransportOptions as TransportOptions
 from {{packageName}}.server_configuration import ServerConfiguration as ServerConfiguration
 from {{packageName}}.server_configuration import ServerVariable as ServerVariable
+from {{packageName}}.errors import ZitadelException as ZitadelException
 from {{packageName}}.errors import OpenApiException as OpenApiException
 from {{packageName}}.errors import ApiException as ApiException
 {{#hasHttpSignatureMethods}}

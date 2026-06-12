@@ -57,8 +57,7 @@ public class Order : IEquatable<Order>
         return other is not null
             && (
                 ReferenceEquals(this, other)
-                || (
-                    EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
+                || EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
                     && EqualityComparer<long?>.Default.Equals(this.PetId, other.PetId)
                     && EqualityComparer<int?>.Default.Equals(this.Quantity, other.Quantity)
                     && EqualityComparer<DateTimeOffset?>.Default.Equals(
@@ -67,7 +66,6 @@ public class Order : IEquatable<Order>
                     )
                     && EqualityComparer<StatusEnum?>.Default.Equals(this.Status, other.Status)
                     && EqualityComparer<bool?>.Default.Equals(this.Complete, other.Complete)
-                )
             );
     }
 

@@ -55,7 +55,7 @@ public final class {{clientClassName}} {
      * @throws ApiException if the transport cannot be configured (never thrown for
      *     default transport, which configures no custom CA certificate)
      */
-    public {{clientClassName}}(Authenticator authenticator) throws ApiException {
+    public {{clientClassName}}(Authenticator authenticator) {
         this(authenticator, TransportOptions.builder().build());
     }
 
@@ -70,8 +70,7 @@ public final class {{clientClassName}} {
      * @param transportOptions HTTP transport configuration (proxy, TLS, timeouts, etc.)
      * @throws ApiException if a configured custom CA certificate cannot be read or parsed
      */
-    public {{clientClassName}}(Authenticator authenticator, TransportOptions transportOptions)
-            throws ApiException {
+    public {{clientClassName}}(Authenticator authenticator, TransportOptions transportOptions) {
         ApiClient apiClient = new DefaultApiClient(transportOptions);
 
         if (authenticator instanceof HttpAwareAuthenticator httpAware) {
@@ -102,8 +101,7 @@ public final class {{clientClassName}} {
     public static {{clientClassName}} withToken(
             String host,
             String accessToken,
-            @javax.annotation.Nullable TransportOptions transportOptions)
-            throws ApiException {
+            @javax.annotation.Nullable TransportOptions transportOptions) {
         {{clientClassName}} client = (transportOptions != null)
                 ? new {{clientClassName}}(new BearerAuthenticator(host, accessToken), transportOptions)
                 : new {{clientClassName}}(new BearerAuthenticator(host, accessToken));
@@ -118,8 +116,7 @@ public final class {{clientClassName}} {
      * @return configured client instance
      * @throws ApiException if a configured custom CA certificate cannot be read or parsed
      */
-    public static {{clientClassName}} withToken(String host, String accessToken)
-            throws ApiException {
+    public static {{clientClassName}} withToken(String host, String accessToken) {
         return withToken(host, accessToken, null);
     }
 }

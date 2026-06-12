@@ -51,6 +51,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterRubyCodegen.class);
 
     private static final String DEFAULT_GEM_VERSION = "1.0.0";
+    private static final String DEFAULT_API_ERROR_PARENT = "StandardError";
     private static final String LIB_FOLDER = "lib";
 
     @Nullable protected String gemName;
@@ -129,6 +130,13 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                 .defaultValue("1.0.0"));
         cliOptions.add(CliOption.newString(CodegenConstants.MODULE_NAME,
                 CodegenConstants.MODULE_NAME_DESC));
+        cliOptions.add(CliOption.newString("apiErrorParent",
+                "Fully-qualified superclass for the generated ApiError, and the SDK-wide "
+                        + "error base under which all serialization/HTTP errors are rooted. "
+                        + "Set this to a hand-written base (e.g. a gem's ZitadelError) so a "
+                        + "single `rescue <base>` catches every SDK error. Defaults to "
+                        + "StandardError.")
+                .defaultValue(DEFAULT_API_ERROR_PARENT));
     }
 
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */
@@ -303,6 +311,32 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         additionalProperties.put("gemVersion", gemVersion);
         additionalProperties.put("userAgentDefault", gemName + "/" + gemVersion + " (ruby)");
 
+        // SDK-wide error base. ApiError (and through it the whole HTTP/OAuth
+        // error tree) and the serializer errors all subclass this, so a single
+        // `rescue <apiErrorParent>` catches every SDK error. Defaults to
+        // StandardError; an SDK with a hand-written base (e.g. ZitadelError)
+        // points this at that class so the two roots collapse into one.
+        final String apiErrorParent =
+                getPropertyOrDefault("apiErrorParent", DEFAULT_API_ERROR_PARENT);
+        additionalProperties.put("apiErrorParent", apiErrorParent);
+
+        // When the error base is a custom, hand-written class (e.g. ZitadelError)
+        // rather than StandardError, api_error.rb must be able to load it before
+        // evaluating `class ApiError < <parent>`. The entrypoint uses fixed-order
+        // explicit requires and never pulls the hand-written base in first, so we
+        // make api_error.rb self-sufficient with a `require_relative`. The base
+        // lives in the same dir as api_error.rb, so the relative file name is the
+        // snake_case of the parent's unqualified class name (Zitadel::Client::
+        // ZitadelError -> zitadel_error). StandardError emits nothing, keeping the
+        // petstore default byte-identical.
+        if (!DEFAULT_API_ERROR_PARENT.equals(apiErrorParent)) {
+            final int sep = apiErrorParent.lastIndexOf("::");
+            final String parentSimpleName =
+                    sep < 0 ? apiErrorParent : apiErrorParent.substring(sep + 2);
+            additionalProperties.put(
+                    "apiErrorParentFile", NamingConvention.SNAKE_CASE.apply(parentSimpleName));
+        }
+
         // Nested-module rendering for files that may be `require`d standalone
         // (e.g. lib/.../version.rb pulled in by the gemspec before Zeitwerk has
         // defined the namespace). A compact `module Zitadel::Client` crashes
@@ -334,6 +368,13 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
 
         final String modulePath = NamingConvention.SNAKE_CASE.apply(moduleName.replaceAll("::", "/"));
         final String libPath = Path.of(LIB_FOLDER, modulePath).toString();
+
+        // Lib-relative require root, mirroring the module nesting (e.g.
+        // moduleName "Zitadel::Client" -> "zitadel/client"). This is the path
+        // under lib/ where intra-gem files live and MUST be used for `require`
+        // statements; gemName (e.g. "zitadel-client") differs whenever the
+        // module name has multiple segments and would produce a LoadError.
+        additionalProperties.put("modulePath", modulePath.replace('\\', '/'));
 
         final String clientClassName =
                 Objects.requireNonNull((String) additionalProperties.get("clientClassName"));

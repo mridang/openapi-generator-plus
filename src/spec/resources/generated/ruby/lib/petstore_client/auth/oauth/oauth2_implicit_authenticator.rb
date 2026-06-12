@@ -94,7 +94,7 @@ module PetstoreClient
 
         # @return [Hash{String => String}]
         def auth_headers
-          raise 'Must set access_token before making API requests' if @access_token.nil?
+          raise PetstoreClient::ApiError, 'Must set access_token before making API requests' if @access_token.nil?
 
           { 'Authorization' => "Bearer #{@access_token}" }
         end

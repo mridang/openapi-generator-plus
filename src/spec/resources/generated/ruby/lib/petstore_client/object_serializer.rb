@@ -109,10 +109,12 @@ module PetstoreClient
       when Tod::TimeOfDay
         # 4.8: format: time → HH:MM:SS wire form (seconds precision).
         value.strftime('%H:%M:%S')
+      when ISO8601::Duration
+        # format: duration → protobuf-JSON duration ("3600s"), the wire
+        # form Zitadel (and other protobuf-derived APIs) require. The
+        # native ISO-8601 #to_s ("PT1H") is rejected by the server.
+        duration_to_protobuf_json(value)
       else
-        # ISO8601::Duration#to_s already emits canonical form (PT1H30M),
-        # so it falls into this branch alongside everything else with a
-        # meaningful #to_s. format: duration is handled here implicitly.
         value.to_s
       end
     end
@@ -173,11 +175,13 @@ module PetstoreClient
         nil
       when String, Integer, Float, TrueClass, FalseClass
         object
-      when Date, ISO8601::Duration
-        # Date#to_s emits ISO-8601 calendar form; ISO8601::Duration#to_s
-        # emits canonical ISO-8601 duration form (e.g. PT1H30M). Both
-        # collapse into the same call site.
+      when Date
+        # Date#to_s emits ISO-8601 calendar form.
         object.to_s
+      when ISO8601::Duration
+        # format: duration → protobuf-JSON duration ("3600s"). See
+        # #duration_to_protobuf_json; the native ISO-8601 form is rejected.
+        duration_to_protobuf_json(object)
       when Time, DateTime
         object.strftime(DEFAULT_DATETIME_FORMAT)
       when Tod::TimeOfDay
@@ -280,12 +284,12 @@ module PetstoreClient
 
         Tod::TimeOfDay.parse(data.to_s)
       when 'ISO8601::Duration'
-        # 4.8: format: duration — parse canonical ISO-8601 duration.
-        # ISO8601::Duration.new raises ISO8601::Errors::UnknownPattern
-        # on malformed input; the outer rescue wraps it.
+        # 4.8: format: duration — parse protobuf-JSON duration ("3600s").
+        # The native type stays ISO8601::Duration; only the wire form is
+        # protobuf-JSON. Malformed input raises SerializationError.
         return data if data.is_a?(ISO8601::Duration)
 
-        ISO8601::Duration.new(data.to_s)
+        duration_from_protobuf_json(data.to_s)
       when 'Object'
         data
       when /\AArray<(.+)>\z/
@@ -389,6 +393,66 @@ module PetstoreClient
       end
 
       value
+    end
+
+    # Wire form accepted by the protobuf-JSON duration parser: optional
+    # sign, integer seconds, optional fractional part (1–9 digits), and a
+    # trailing "s" (e.g. "3600s", "3600.000000001s", "-1.5s").
+    PROTOBUF_DURATION_REGEX = /\A-?\d+(\.\d{1,9})?s\z/
+
+    # Render an ISO8601::Duration as a protobuf-JSON duration string.
+    #
+    # Protobuf-JSON encodes durations as total seconds with a trailing
+    # "s" — "3600s" or, when sub-second precision is present, fractional
+    # seconds trimmed to 3, 6, or 9 digits ("3600.000000001s"). This is
+    # the form Zitadel and other protobuf-derived APIs require; the
+    # native ISO-8601 form ("PT1H") is rejected by the server.
+    def self.duration_to_protobuf_json(duration)
+      total = duration.to_seconds
+      sign = total.negative? ? '-' : ''
+      abs = total.abs
+      secs = abs.floor
+      nanos = ((abs - secs) * 1_000_000_000).round
+
+      # Rounding may carry into the whole-seconds part (e.g. 0.9999999999).
+      if nanos >= 1_000_000_000
+        secs += 1
+        nanos -= 1_000_000_000
+      end
+
+      return "#{sign}#{secs}s" if nanos.zero?
+
+      frac = format('%09d', nanos)
+      # Trim to the smallest of 3/6/9 digits that preserves all non-zero
+      # nanos, matching the protobuf-JSON canonical encoding.
+      frac = if (frac[3..] || '').match?(/\A0*\z/)
+               frac[0, 3]
+             elsif (frac[6..] || '').match?(/\A0*\z/)
+               frac[0, 6]
+             else
+               frac
+             end
+      "#{sign}#{secs}.#{frac}s"
+    end
+
+    # Parse a protobuf-JSON duration string into an ISO8601::Duration.
+    #
+    # Accepts the protobuf-JSON wire form ("3600s", "3600.000000001s")
+    # and rebuilds the native ISO8601::Duration from the total seconds.
+    # Malformed input raises SerializationError, consistent with the
+    # other format parsers in this class.
+    def self.duration_from_protobuf_json(value)
+      unless PROTOBUF_DURATION_REGEX.match?(value)
+        raise SerializationError, "Invalid protobuf-JSON duration for format: duration: #{value.inspect}"
+      end
+
+      sign = value.start_with?('-') ? -1 : 1
+      digits = value.delete_prefix('-').delete_suffix('s')
+      int_part, frac_part = digits.split('.', 2)
+      secs = int_part.to_i
+      nanos = frac_part.nil? ? 0 : frac_part.ljust(9, '0').to_i
+      total_seconds = sign * (secs + (nanos / 1_000_000_000.0))
+      ISO8601::Duration.new("PT#{total_seconds}S")
     end
 
     # Apply +format+-specific encoding before JSON serialization.

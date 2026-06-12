@@ -112,7 +112,10 @@ describe PetstoreClient::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
     )
     error_auth.api_client = error_client
 
-    _(-> { error_auth.auth_headers }).must_raise RuntimeError
+    # The failed token exchange surfaces as the typed OAuth2ServerError,
+    # which subclasses the SDK's common ApiError base.
+    error = _(-> { error_auth.auth_headers }).must_raise PetstoreClient::ApiError
+    _(error).must_be_kind_of PetstoreClient::Auth::OAuth::OAuth2ServerError
   end
 
   it 'caches token across calls' do

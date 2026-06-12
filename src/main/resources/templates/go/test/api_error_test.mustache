@@ -2,10 +2,32 @@
 package {{packageName}}_test
 
 import (
+	"errors"
 	"testing"
 
+	"{{packageName}}/pkg"
 	apierrors "{{packageName}}/pkg/errors"
 	"{{packageName}}/pkg/models"
+)
+
+// Compile-time proof that every SDK-thrown error type satisfies the branded
+// ZitadelError root. Go has no inheritance, so the hierarchy is expressed
+// through interface conformance: *ApiError and the typed 4xx/5xx subclasses
+// (which embed ApiError) plus *SerializationError all implement error and
+// therefore ZitadelError. If any of these stops satisfying the brand, the
+// package fails to compile rather than failing a test at runtime.
+var (
+	_ apierrors.ZitadelError = (*apierrors.ApiError)(nil)
+	_ apierrors.ZitadelError = (*apierrors.ClientError)(nil)
+	_ apierrors.ZitadelError = (*apierrors.ServerError)(nil)
+	_ apierrors.ZitadelError = (*apierrors.BadRequestError)(nil)
+	_ apierrors.ZitadelError = (*apierrors.UnauthorizedError)(nil)
+	_ apierrors.ZitadelError = (*apierrors.ForbiddenError)(nil)
+	_ apierrors.ZitadelError = (*apierrors.NotFoundError)(nil)
+	_ apierrors.ZitadelError = (*apierrors.ConflictError)(nil)
+	_ apierrors.ZitadelError = (*apierrors.UnprocessableEntityError)(nil)
+	_ apierrors.ZitadelError = (*apierrors.InternalServerError)(nil)
+	_ apierrors.ZitadelError = (*{{packageName}}.SerializationError)(nil)
 )
 
 func TestApiError_ExposesStatusMessageBodyHeadersErrorBody(t *testing.T) {
@@ -185,3 +207,61 @@ func TestApiError_TypedFactoryProducesSubclassesWithSharedState(t *testing.T) {
 		}
 	}
 }
+
+// TestApiError_SatisfiesZitadelError confirms a plain *ApiError is recognised as
+// the branded root, both by direct assertion and via errors.As.
+func TestApiError_SatisfiesZitadelError(t *testing.T) {
+	t.Parallel()
+	var err error = apierrors.NewApiError(500, "boom", "", nil, nil, nil)
+
+	if _, ok := err.(apierrors.ZitadelError); !ok {
+		t.Errorf("expected *ApiError to satisfy ZitadelError, got %T", err)
+	}
+
+	var ze apierrors.ZitadelError
+	if !errors.As(err, &ze) {
+		t.Error("expected errors.As to match *ApiError against ZitadelError")
+	}
+
+	var apiErr *apierrors.ApiError
+	if !errors.As(err, &apiErr) {
+		t.Error("expected errors.As to match *ApiError against *ApiError")
+	}
+}
+
+// TestTypedError_SatisfiesZitadelErrorAndApiError confirms a typed 4xx/5xx error
+// is matchable as ZitadelError and as the specific typed error through
+// errors.As, and — because it embeds ApiError — promotes the ApiError getters.
+// This preserves how consumers currently narrow typed errors while adding the
+// branded root.
+func TestTypedError_SatisfiesZitadelErrorAndApiError(t *testing.T) {
+	t.Parallel()
+	err := apierrors.NewTypedApiError(404, "missing", `{"k":"v"}`, nil, nil, nil)
+
+	if _, ok := err.(apierrors.ZitadelError); !ok {
+		t.Errorf("expected typed error to satisfy ZitadelError, got %T", err)
+	}
+
+	var ze apierrors.ZitadelError
+	if !errors.As(err, &ze) {
+		t.Error("expected errors.As to match *NotFoundError against ZitadelError")
+	}
+
+	var notFound *apierrors.NotFoundError
+	if !errors.As(err, &notFound) {
+		t.Errorf("expected errors.As to match the specific *NotFoundError, got %T", err)
+	}
+
+	// The typed error embeds ApiError by value, so it promotes the ApiError
+	// getters; assert the base state is reachable through the brand.
+	type statusReader interface{ StatusCode() int }
+	if sr, ok := err.(statusReader); !ok || sr.StatusCode() != 404 {
+		t.Errorf("expected typed error to promote ApiError.StatusCode() == 404, got %T", err)
+	}
+}
+
+// The *SerializationError type lives in the main package and is constructed
+// internally (unexported constructor), so it cannot be instantiated from this
+// black-box test. Its ZitadelError conformance is proven at compile time by the
+// var block above, and exercised at runtime via errors.As in the white-box
+// object_serializer_test.go where a real *SerializationError is available.

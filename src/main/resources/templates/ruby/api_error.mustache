@@ -1,10 +1,14 @@
 # frozen_string_literal: true
 
 {{> api_info}}
+{{#apiErrorParentFile}}
+require_relative '{{apiErrorParentFile}}'
+
+{{/apiErrorParentFile}}
 module {{moduleName}}
   # Represents an error returned by the API, including the HTTP status code,
   # response headers, and response body.
-  class ApiError < StandardError
+  class ApiError < {{apiErrorParent}}
     attr_reader :status_code, :response_headers, :response_body, :error_body
 
     # Usage examples:

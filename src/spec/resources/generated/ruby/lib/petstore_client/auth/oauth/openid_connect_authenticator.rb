@@ -97,15 +97,15 @@ module PetstoreClient
         # recommended default of 86400 seconds when absent.
         #
         # @return [OAuth2AuthorizationCodeAuthenticator]
-        # @raise [RuntimeError] if the API client has not been injected
+        # @raise [PetstoreClient::ApiError] if the API client has not been injected
         def resolve_delegate
           return @delegate if @delegate && Time.now < @discovery_expiry
 
           client = @api_client
           if client.nil?
-            raise 'ApiClient has not been injected. ' \
-                  'Ensure the Client constructor calls api_client= ' \
-                  'on HttpAwareAuthenticator before making API requests.'
+            raise PetstoreClient::ApiError, 'ApiClient has not been injected. ' \
+                                            'Ensure the Client constructor calls api_client= ' \
+                                            'on HttpAwareAuthenticator before making API requests.'
           end
 
           headers = { 'Accept' => 'application/json' }

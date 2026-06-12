@@ -170,7 +170,7 @@ class PetApi : BaseApi {
     }
 
     /**
-     * Add photos to the pet&#39;s gallery
+     * Add photos to the pet's gallery
      * Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
      * @param petId  (required)
      * @param options options for query, header, form, cookie parameters, and per-operation auth
@@ -515,8 +515,8 @@ class PetApi : BaseApi {
     }
 
     /**
-     * Get the pet&#39;s profile photo
-     * Returns the raw image bytes of the pet&#39;s current avatar.
+     * Get the pet's profile photo
+     * Returns the raw image bytes of the pet's current avatar.
      * @param petId  (required)
      * @return ByteArray
      * @throws ApiException if fails to make API call
@@ -551,7 +551,7 @@ class PetApi : BaseApi {
     }
 
     /**
-     * Get the pet&#39;s avatar thumbnail as base64
+     * Get the pet's avatar thumbnail as base64
      * Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
      * @param petId  (required)
      * @return ByteArray
@@ -696,8 +696,8 @@ class PetApi : BaseApi {
     }
 
     /**
-     * Get the pet&#39;s passport
-     * Returns a single JSON document combining the pet&#39;s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
+     * Get the pet's passport
+     * Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
      * @param petId  (required)
      * @return PetPassport
      * @throws ApiException if fails to make API call
@@ -902,7 +902,7 @@ class PetApi : BaseApi {
     }
 
     /**
-     * Set the pet&#39;s profile photo
+     * Set the pet's profile photo
      * Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
      * @param petId  (required)
      * @param body  (required)
@@ -947,7 +947,7 @@ class PetApi : BaseApi {
     }
 
     /**
-     * Set the pet&#39;s avatar thumbnail as base64
+     * Set the pet's avatar thumbnail as base64
      * Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
      * @param petId  (required)
      * @param setPetAvatarThumbnailRequest  (required)
@@ -992,7 +992,7 @@ class PetApi : BaseApi {
     }
 
     /**
-     * Update a pet&#39;s notification preferences
+     * Update a pet's notification preferences
      * Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
      * @param petId  (required)
      * @param options options for query, header, form, cookie parameters, and per-operation auth
@@ -1095,7 +1095,7 @@ class PetApi : BaseApi {
     }
 
     /**
-     * Upload the pet&#39;s adoption certificate
+     * Upload the pet's adoption certificate
      * Attaches a single adoption certificate document. No metadata fields are required alongside the file.
      * @param petId  (required)
      * @param options options for query, header, form, cookie parameters, and per-operation auth

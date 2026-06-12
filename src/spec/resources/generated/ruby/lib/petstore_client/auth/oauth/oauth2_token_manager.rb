@@ -54,7 +54,7 @@ module PetstoreClient
         # @param token_url [String] the OAuth2 token endpoint URL
         # @param params [Hash{String => String}] the token request parameters
         # @return [String] a valid access token
-        # @raise [RuntimeError] if no API client has been injected or token fetch fails
+        # @raise [PetstoreClient::ApiError] if no API client has been injected or token fetch fails
         def get_access_token(token_url, params, extra_headers = {})
           @mutex.synchronize do
             return @access_token if token_still_valid?
@@ -121,7 +121,7 @@ module PetstoreClient
         # @param token_url [String] the OAuth2 token endpoint URL
         # @param params [Hash{String => String}] the token request parameters
         # @return [void]
-        # @raise [RuntimeError] if no API client has been injected or the request fails
+        # @raise [PetstoreClient::ApiError] if no API client has been injected or the request fails
         def fetch_token(token_url, params, extra_headers = {})
           client = require_api_client
           headers = {
@@ -174,6 +174,7 @@ module PetstoreClient
 
         def require_api_client
           @api_client || raise(
+            PetstoreClient::ApiError,
             'ApiClient has not been injected. ' \
             'Ensure the Client constructor calls api_client= ' \
             'on HttpAwareAuthenticator before making API requests.'
@@ -238,7 +239,7 @@ module PetstoreClient
       # body is missing or contains an empty +access_token+ field. Distinct
       # from {OAuth2ServerError} (which represents RFC 6749 §5.2 error
       # responses on 4xx/5xx) so callers can rescue them separately.
-      class OAuth2TokenError < RuntimeError
+      class OAuth2TokenError < PetstoreClient::ApiError
       end
 
       # Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
@@ -247,7 +248,7 @@ module PetstoreClient
       # human-readable description and a URL to a page describing the error.
       # +raw_body+ preserves the original response payload for diagnostics
       # when the body is not a well-formed OAuth2 error object.
-      class OAuth2ServerError < RuntimeError
+      class OAuth2ServerError < PetstoreClient::ApiError
         attr_reader :status_code, :code, :description, :uri, :raw_body
 
         def initialize(status_code, code, description, uri, raw_body)

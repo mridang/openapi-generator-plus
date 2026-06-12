@@ -1625,7 +1625,7 @@ components:
         retryAfter:
           type: string
           format: duration
-          description: Back-off interval before retrying (ISO-8601 duration)
+          description: Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")
         expiresAt:
           type: string
           format: date-time

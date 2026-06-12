@@ -12,8 +12,6 @@
  * If the @opentelemetry/api package is not installed, this function silently no-ops.
  */
 
-const OTEL_MODULE = '@opentelemetry/api';
-
 /**
  * Inject the current OpenTelemetry trace context into the given headers object.
  *
@@ -21,7 +19,9 @@ const OTEL_MODULE = '@opentelemetry/api';
  */
 export async function injectTraceContext(headers: Record<string, string>): Promise<void> {
   try {
-    const otel = await (import(OTEL_MODULE) as Promise<{
+    // Static specifier (not a variable) so no-unsanitized/method is satisfied;
+    // the import is still optional at runtime via the surrounding try/catch.
+    const otel = await (import('@opentelemetry/api') as Promise<{
       propagation: { inject: (ctx: unknown, carrier: unknown) => void };
       context: { active: () => unknown };
     }>);

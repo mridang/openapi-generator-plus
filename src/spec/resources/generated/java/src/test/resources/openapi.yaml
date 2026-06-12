@@ -1566,3 +1566,67 @@ components:
         - type: number
           format: double
         - type: string
+
+    # Standalone string-enum component (NOT an inline property enum like
+    # Order.status). Exercises the top-level enum template path: in Java that
+    # path emits @JsonValue / @JsonCreator and must self-import the Jackson
+    # annotations, which only the inline-enum and object-model paths did before.
+    Color:
+      type: string
+      description: A standalone, reusable colour enumeration
+      enum:
+        - red
+        - green
+        - blue
+
+    # Collected real-world shapes that the petstore previously lacked, each of
+    # which broke at least one generator against the Zitadel spec.
+    EdgeCases:
+      type: object
+      description: >-
+        Edge-case property shapes mirrored from real protobuf-derived specs.
+      properties:
+        # Bug 1 — nullable free-form (any-typed) property. Optional + no type
+        # ⇒ "mixed" in PHP. The PHP template used to emit `public ?mixed`,
+        # a fatal parse error (mixed already includes null). Must come out as
+        # bare `mixed`. Legal-but-redundant nullable-any everywhere else.
+        freeFormAny:
+          description: Arbitrary JSON value; may be absent or null
+        # Bug 2 — reference to the standalone enum component above.
+        favoriteColor:
+          $ref: '#/components/schemas/Color'
+        # Bug 3 — description carrying HTML entities, exactly as buf emits
+        # quoted/angled proto comment text. Must be decoded to its readable
+        # form ("user.grant.write", <admin>, & , don't) in every language's
+        # generated comments, and must never appear as a raw entity or as the
+        # `\&quot;` that tripped Python's invalid-escape SyntaxWarning.
+        permissionsNote:
+          type: string
+          description: >-
+            Required permission is &quot;user.grant.write&quot; for
+            &lt;admin&gt; &amp; owner roles (don&#39;t skip it)
+        # Bug 4 — properties literally named after language keywords. Python
+        # (pydantic v2) rejects a leading-underscore field, so `and`→`_and`
+        # crashed at import; the fix mangles to a trailing underscore (`and_`)
+        # with the wire name preserved via the field alias.
+        and:
+          type: boolean
+        or:
+          type: boolean
+        not:
+          type: boolean
+        class:
+          type: string
+        return:
+          type: string
+        # Bug 5 — protobuf Duration ⇒ Python datetime.timedelta (module-
+        # qualified), which needs `import datetime`, not `from datetime import
+        # timedelta`. Paired with a date-time field.
+        retryAfter:
+          type: string
+          format: duration
+          description: Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")
+        expiresAt:
+          type: string
+          format: date-time
+          description: Absolute expiry instant

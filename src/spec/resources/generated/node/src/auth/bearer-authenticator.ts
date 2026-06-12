@@ -49,6 +49,10 @@ export class BearerAuthenticator extends BaseAuthenticator {
     return { Authorization: `Bearer ${value}` };
   }
 
+  getAuthHeadersAsync(): Promise<Record<string, string>> {
+    return Promise.resolve(this.getAuthHeaders());
+  }
+
   /* Redact the token from the default string/inspect representation so
    * `console.log(auth)` / `util.inspect(auth)` / JSON.stringify never
    * exfiltrate the live bearer token into application logs. */

@@ -6,7 +6,7 @@ import Foundation
 /// It is `public` so callers can catch a serialization failure by type
 /// (`catch let error as SerializationError`), matching the public error types
 /// the other SDKs expose. It conforms to `Error` and `LocalizedError`.
-public struct SerializationError: Error, LocalizedError {
+public struct SerializationError: ZitadelError, LocalizedError {
     public let message: String
     public let cause: Error?
 

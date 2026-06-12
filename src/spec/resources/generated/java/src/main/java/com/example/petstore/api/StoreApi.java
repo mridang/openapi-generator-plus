@@ -63,7 +63,7 @@ public class StoreApi extends BaseApi {
    * @param orderId ID of the order to delete (required)
    * @throws ApiException if fails to make API call
    */
-  public void deleteOrder(Long orderId) throws ApiException {
+  public void deleteOrder(Long orderId) {
     deleteOrderWithHttpInfo(orderId);
   }
 
@@ -74,7 +74,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Void> deleteOrderWithHttpInfo(Long orderId) throws ApiException {
+  public ApiResult<Void> deleteOrderWithHttpInfo(Long orderId) {
     if (orderId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'orderId' when calling deleteOrder");
@@ -106,7 +106,7 @@ public class StoreApi extends BaseApi {
    * @return {@code Map<String, Integer>}
    * @throws ApiException if fails to make API call
    */
-  public Map<String, Integer> getInventory() throws ApiException {
+  public Map<String, Integer> getInventory() {
     return requireBody(getInventoryWithHttpInfo(), "getInventory");
   }
 
@@ -116,7 +116,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code Map<String, Integer>}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Map<String, Integer>> getInventoryWithHttpInfo() throws ApiException {
+  public ApiResult<Map<String, Integer>> getInventoryWithHttpInfo() {
     String path = "/store/inventory";
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
@@ -139,7 +139,7 @@ public class StoreApi extends BaseApi {
    * @return {@code Order}
    * @throws ApiException if fails to make API call
    */
-  public Order getOrderById(Long orderId) throws ApiException {
+  public Order getOrderById(Long orderId) {
     return requireBody(getOrderByIdWithHttpInfo(orderId), "getOrderById");
   }
 
@@ -150,7 +150,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code Order}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Order> getOrderByIdWithHttpInfo(Long orderId) throws ApiException {
+  public ApiResult<Order> getOrderByIdWithHttpInfo(Long orderId) {
     if (orderId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'orderId' when calling getOrderById");
@@ -183,7 +183,7 @@ public class StoreApi extends BaseApi {
    * @return {@code Order}
    * @throws ApiException if fails to make API call
    */
-  public Order placeOrder(@Nullable Order order) throws ApiException {
+  public Order placeOrder(@Nullable Order order) {
     return requireBody(placeOrderWithHttpInfo(order), "placeOrder");
   }
 
@@ -194,7 +194,7 @@ public class StoreApi extends BaseApi {
    * @return the API result wrapping {@code Order}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Order> placeOrderWithHttpInfo(@Nullable Order order) throws ApiException {
+  public ApiResult<Order> placeOrderWithHttpInfo(@Nullable Order order) {
     String path = "/store/order";
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
@@ -222,7 +222,7 @@ public class StoreApi extends BaseApi {
    * @return the non-null response body
    * @throws ApiException if the result carries no body
    */
-  private static <T> T requireBody(ApiResult<T> result, String operation) throws ApiException {
+  private static <T> T requireBody(ApiResult<T> result, String operation) {
     T data = result.data();
     if (data == null) {
       throw new ApiException(

@@ -143,7 +143,7 @@ class OpenIdConnectAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        assertThrows(RuntimeException::class.java) {
+        assertThrows(ZitadelException::class.java) {
             runBlocking { auth.buildAuthorizationUrl() }
         }
     }
@@ -158,7 +158,7 @@ class OpenIdConnectAuthenticatorTest {
 
         // Missing authorization_endpoint must throw rather than build a
         // delegate with a null/empty endpoint URL.
-        assertThrows(RuntimeException::class.java) {
+        assertThrows(ZitadelException::class.java) {
             runBlocking { auth.buildAuthorizationUrl() }
         }
     }
@@ -171,7 +171,7 @@ class OpenIdConnectAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        assertThrows(RuntimeException::class.java) {
+        assertThrows(ZitadelException::class.java) {
             runBlocking { auth.buildAuthorizationUrl() }
         }
     }

@@ -8,6 +8,14 @@
 use std::collections::HashMap;
 
 use petstore::ApiError;
+use petstore::SerializationError;
+use petstore::ZitadelError;
+use petstore::auth::BasicAuthError;
+use petstore::auth::oauth::{AuthCodeNotExchangedError, OAuth2ServerError, OAuth2TokenError};
+use petstore::errors::{
+    BadRequestError, ClientError, ConflictError, ForbiddenError, InternalServerError,
+    NotFoundError, ServerError, UnauthorizedError, UnprocessableEntityError,
+};
 use petstore::models::Category;
 
 #[test]
@@ -125,4 +133,211 @@ fn test_api_error_fields_are_accessor_only() {
             .map(String::as_str),
         Some("abc"),
     );
+}
+
+// -- Branded error hierarchy: ZitadelError ---------------------------------
+//
+// Rust expresses the "every SDK-thrown error is a ZitadelError" relationship
+// (a base class in the OO SDKs) as a marker trait. These tests pin that every
+// error type the client can produce is reachable as `&dyn ZitadelError`, that
+// the supertrait gives `std::error::Error` (Display + source chaining), and
+// that the brand is honoured.
+
+/// Coerces any reference to a `&dyn ZitadelError`. The call only compiles when
+/// `T: ZitadelError`, so each call site below is a compile-time proof that the
+/// concrete error type implements the branded root trait.
+fn assert_is_zitadel_error<T: ZitadelError>(err: &T) -> &dyn ZitadelError {
+    err
+}
+
+/// Builds the per-status wrapper chain ApiError -> ClientError -> <status>.
+fn client_chain(status: u16, message: &str) -> ClientError {
+    ClientError::from(ApiError::new(status, message.to_string(), None, None))
+}
+
+/// Builds the per-status wrapper chain ApiError -> ServerError -> <status>.
+fn server_chain(status: u16, message: &str) -> ServerError {
+    ServerError::from(ApiError::new(status, message.to_string(), None, None))
+}
+
+#[test]
+fn test_api_error_is_zitadel_error() {
+    let err = ApiError::new(404, "not found".to_string(), None, None);
+    let branded = assert_is_zitadel_error(&err);
+    // Supertrait gives Display and source() for free.
+    assert!(!branded.to_string().is_empty());
+    // No transport cause was supplied, so the chain terminates here.
+    assert!(std::error::Error::source(branded).is_none());
+}
+
+#[test]
+fn test_api_error_kind_is_zitadel_error() {
+    // ApiErrorKind is the pattern-matching enum view of an ApiError.
+    let kind =
+        petstore::api_error::ApiErrorKind::from(ApiError::new(400, "bad".to_string(), None, None));
+    let branded = assert_is_zitadel_error(&kind);
+    assert_eq!(kind.status_code(), 400);
+    assert!(!branded.to_string().is_empty());
+}
+
+#[test]
+fn test_client_error_is_zitadel_error_and_chains_to_api_error() {
+    let err = client_chain(400, "bad request");
+    let branded = assert_is_zitadel_error(&err);
+    // source() must walk down to the wrapped ApiError.
+    let source = std::error::Error::source(branded).expect("ClientError chains to ApiError");
+    assert!(source.downcast_ref::<ApiError>().is_some());
+    assert_eq!(err.api_error().status_code(), 400);
+}
+
+#[test]
+fn test_server_error_is_zitadel_error_and_chains_to_api_error() {
+    let err = server_chain(503, "unavailable");
+    let branded = assert_is_zitadel_error(&err);
+    let source = std::error::Error::source(branded).expect("ServerError chains to ApiError");
+    assert!(source.downcast_ref::<ApiError>().is_some());
+    assert_eq!(err.api_error().status_code(), 503);
+}
+
+#[test]
+fn test_bad_request_error_is_zitadel_error_and_chains() {
+    let err = BadRequestError::from(client_chain(400, "bad request"));
+    let branded = assert_is_zitadel_error(&err);
+    // source() -> ClientError -> ApiError(400).
+    let client = std::error::Error::source(branded)
+        .and_then(|s| s.downcast_ref::<ClientError>())
+        .expect("BadRequestError chains to ClientError");
+    assert_eq!(client.api_error().status_code(), 400);
+}
+
+#[test]
+fn test_unauthorized_error_is_zitadel_error_and_chains() {
+    let err = UnauthorizedError::from(client_chain(401, "nope"));
+    let branded = assert_is_zitadel_error(&err);
+    let client = std::error::Error::source(branded)
+        .and_then(|s| s.downcast_ref::<ClientError>())
+        .expect("UnauthorizedError chains to ClientError");
+    assert_eq!(client.api_error().status_code(), 401);
+}
+
+#[test]
+fn test_forbidden_error_is_zitadel_error_and_chains() {
+    let err = ForbiddenError::from(client_chain(403, "denied"));
+    let branded = assert_is_zitadel_error(&err);
+    let client = std::error::Error::source(branded)
+        .and_then(|s| s.downcast_ref::<ClientError>())
+        .expect("ForbiddenError chains to ClientError");
+    assert_eq!(client.api_error().status_code(), 403);
+}
+
+#[test]
+fn test_not_found_error_is_zitadel_error_and_chains() {
+    let err = NotFoundError::from(client_chain(404, "missing"));
+    let branded = assert_is_zitadel_error(&err);
+    let client = std::error::Error::source(branded)
+        .and_then(|s| s.downcast_ref::<ClientError>())
+        .expect("NotFoundError chains to ClientError");
+    assert_eq!(client.api_error().status_code(), 404);
+}
+
+#[test]
+fn test_conflict_error_is_zitadel_error_and_chains() {
+    let err = ConflictError::from(client_chain(409, "conflict"));
+    let branded = assert_is_zitadel_error(&err);
+    let client = std::error::Error::source(branded)
+        .and_then(|s| s.downcast_ref::<ClientError>())
+        .expect("ConflictError chains to ClientError");
+    assert_eq!(client.api_error().status_code(), 409);
+}
+
+#[test]
+fn test_unprocessable_entity_error_is_zitadel_error_and_chains() {
+    let err = UnprocessableEntityError::from(client_chain(422, "unprocessable"));
+    let branded = assert_is_zitadel_error(&err);
+    let client = std::error::Error::source(branded)
+        .and_then(|s| s.downcast_ref::<ClientError>())
+        .expect("UnprocessableEntityError chains to ClientError");
+    assert_eq!(client.api_error().status_code(), 422);
+}
+
+#[test]
+fn test_internal_server_error_is_zitadel_error_and_chains() {
+    let err = InternalServerError::from(server_chain(500, "boom"));
+    let branded = assert_is_zitadel_error(&err);
+    // source() -> ServerError -> ApiError(500).
+    let server = std::error::Error::source(branded)
+        .and_then(|s| s.downcast_ref::<ServerError>())
+        .expect("InternalServerError chains to ServerError");
+    assert_eq!(server.api_error().status_code(), 500);
+}
+
+#[test]
+fn test_serialization_error_is_zitadel_error() {
+    // The (de)serialization branch of the hierarchy is equally a ZitadelError.
+    let err = SerializationError::new("failed to parse".to_string(), None);
+    let branded = assert_is_zitadel_error(&err);
+    assert!(branded.to_string().contains("failed to parse"));
+    assert!(std::error::Error::source(branded).is_none());
+}
+
+#[test]
+fn test_heterogeneous_errors_collect_as_zitadel_trait_objects() {
+    // The whole point of the branded root: one container can hold any
+    // SDK-thrown error behind a single `Box<dyn ZitadelError>`, and each still
+    // behaves as a std::error::Error. The mix below deliberately spans all
+    // three branches of the hierarchy: transport/API, (de)serialization, and
+    // the auth-layer precondition errors.
+    let errors: Vec<Box<dyn ZitadelError>> = vec![
+        Box::new(ApiError::new(500, "api".to_string(), None, None)),
+        Box::new(BadRequestError::from(client_chain(400, "bad"))),
+        Box::new(InternalServerError::from(server_chain(500, "boom"))),
+        Box::new(SerializationError::new("serde".to_string(), None)),
+        Box::new(BasicAuthError::UsernameContainsColon),
+        Box::new(AuthCodeNotExchangedError),
+    ];
+    for err in &errors {
+        // Display (from the std::error::Error supertrait) is available on the
+        // trait object without knowing the concrete type.
+        assert!(!err.to_string().is_empty());
+    }
+    assert_eq!(errors.len(), 6);
+}
+
+// -- Branded error hierarchy: auth-layer errors ----------------------------
+//
+// The OAuth2 / HTTP-Basic authenticators surface their own typed errors. They
+// live outside `crate::errors` (gated on which auth schemes the spec declares)
+// but are equally part of the branded hierarchy: every SDK-thrown error must be
+// reachable as `&dyn ZitadelError`. `OAuth2TokenError` / `OAuth2ServerError`
+// have no public constructor (they only arise from a real token exchange), so
+// their brand is proven at compile time via the bound on this helper rather
+// than by constructing an instance.
+
+/// Compile-time proof that `T: ZitadelError`. The body never runs; the bound
+/// alone fails to compile if the brand is missing.
+fn assert_type_is_zitadel_error<T: ZitadelError>() {}
+
+#[test]
+fn test_basic_auth_error_is_zitadel_error() {
+    let err = BasicAuthError::PasswordContainsControlChar;
+    let branded = assert_is_zitadel_error(&err);
+    // Supertrait gives Display; this is a leaf precondition error with no cause.
+    assert!(!branded.to_string().is_empty());
+    assert!(std::error::Error::source(branded).is_none());
+}
+
+#[test]
+fn test_auth_code_not_exchanged_error_is_zitadel_error() {
+    let err = AuthCodeNotExchangedError;
+    let branded = assert_is_zitadel_error(&err);
+    assert!(!branded.to_string().is_empty());
+    assert!(std::error::Error::source(branded).is_none());
+}
+
+#[test]
+fn test_oauth2_token_and_server_errors_are_zitadel_errors() {
+    // These have private fields and no public constructor, so assert the brand
+    // at the type level: the call only compiles when the bound is satisfied.
+    assert_type_is_zitadel_error::<OAuth2TokenError>();
+    assert_type_is_zitadel_error::<OAuth2ServerError>();
 }

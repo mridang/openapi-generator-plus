@@ -29,10 +29,8 @@ public class DryFood(double weightKg) : PetFood, IEquatable<DryFood>
         return other is not null
             && (
                 ReferenceEquals(this, other)
-                || (
-                    EqualityComparer<string>.Default.Equals(this.FoodType, other.FoodType)
+                || EqualityComparer<string>.Default.Equals(this.FoodType, other.FoodType)
                     && EqualityComparer<double>.Default.Equals(this.WeightKg, other.WeightKg)
-                )
             );
     }
 

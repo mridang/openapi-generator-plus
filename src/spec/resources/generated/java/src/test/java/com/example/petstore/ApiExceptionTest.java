@@ -44,10 +44,15 @@ class ApiExceptionTest {
   }
 
   @Test
-  void isAnExceptionWithStatusInMessage() {
+  void isAnUncheckedExceptionWithStatusInMessage() {
+    // Unified hierarchy: ApiException extends the branded root
+    // ZitadelException, which extends RuntimeException — so the whole SDK
+    // error tree is unchecked and a single catch on ZitadelException covers
+    // every API/HTTP failure.
     ApiException ex = new ApiException(500, "boom", null, null);
 
-    assertInstanceOf(Exception.class, ex);
+    assertInstanceOf(ZitadelException.class, ex);
+    assertInstanceOf(RuntimeException.class, ex);
     assertTrue(ex.getMessage().contains("500"));
   }
 
@@ -78,5 +83,40 @@ class ApiExceptionTest {
     ApiException ex = new ApiException(422, "unprocessable", Map.of(), null, "not-a-category");
 
     assertNull(ex.getTypedErrorBody(com.example.petstore.models.Category.class));
+  }
+
+  @Test
+  void typedErrorsExtendApiExceptionSoBaseCatchWorks() {
+    // #5: typed HTTP errors must extend the common ApiException base so a
+    // single catch / assertThrows(ApiException) catches every concrete
+    // subtype. The full chain for a 4xx leaf is:
+    // BadRequestException → ClientException → ApiException →
+    // ZitadelException → RuntimeException.
+    com.example.petstore.errors.BadRequestException badRequest =
+        new com.example.petstore.errors.BadRequestException("bad request", Map.of(), null, null);
+
+    assertInstanceOf(com.example.petstore.errors.ClientException.class, badRequest);
+    assertInstanceOf(ApiException.class, badRequest);
+    assertInstanceOf(ZitadelException.class, badRequest);
+    assertInstanceOf(RuntimeException.class, badRequest);
+
+    ApiException caught =
+        assertThrows(
+            ApiException.class,
+            () -> {
+              throw badRequest;
+            });
+    assertEquals(400, caught.getStatusCode());
+  }
+
+  @Test
+  void serializationExceptionExtendsTheSdkRoot() {
+    // The serializer's failure type lives under the same branded root, so a
+    // single catch on ZitadelException covers serialization errors too.
+    ObjectSerializer.SerializationException ex =
+        new ObjectSerializer.SerializationException("bad json");
+
+    assertInstanceOf(ZitadelException.class, ex);
+    assertInstanceOf(RuntimeException.class, ex);
   }
 }

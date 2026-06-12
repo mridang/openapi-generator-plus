@@ -411,6 +411,23 @@ public class OAuth2TokenManagerTest
                 new Dictionary<string, string> { ["grant_type"] = "client_credentials" }));
     }
 
+    {{! unified-exception-hierarchy: the OAuth2 token/server errors are auth }}
+    {{! failures, not HTTP-status ApiException subtypes, so they hang directly }}
+    {{! off the branded root — one catch (ZitadelException) still covers them. }}
+    [Fact]
+    public void OAuth2ErrorsDeriveFromBrandedRoot()
+    {
+        var tokenError = new OAuth2TokenError("missing access_token");
+        Assert.IsAssignableFrom<ZitadelException>(tokenError);
+        Assert.IsAssignableFrom<Exception>(tokenError);
+        Assert.IsNotAssignableFrom<ApiException>(tokenError);
+
+        var serverError = new OAuth2ServerError(400, "invalid_grant", null, null, "{}");
+        Assert.IsAssignableFrom<ZitadelException>(serverError);
+        Assert.IsAssignableFrom<Exception>(serverError);
+        Assert.IsNotAssignableFrom<ApiException>(serverError);
+    }
+
     {{! A 2xx response whose body omits access_token must surface as the typed }}
     {{! OAuth2TokenError, not silently cache an empty token. }}
     [Fact]

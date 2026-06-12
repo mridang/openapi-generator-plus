@@ -766,81 +766,106 @@ public class ObjectSerializerTest
         }
 
         [Fact]
-        public void TimeSpanStringifiesAsIso8601Duration()
+        public void TimeSpanStringifiesAsProtobufDuration()
         {
-            // 1h30m → PT1H30M
+            // 1h30m → 5400 seconds → "5400s"
             var ts = new TimeSpan(1, 30, 0);
-            Assert.Equal("PT1H30M", ObjectSerializer.Stringify(ts));
+            Assert.Equal("5400s", ObjectSerializer.Stringify(ts));
         }
 
         [Fact]
-        public void TimeSpanZeroStringifiesAsPT0S()
+        public void TimeSpanZeroStringifiesAs0s()
         {
-            Assert.Equal("PT0S", ObjectSerializer.Stringify(TimeSpan.Zero));
+            Assert.Equal("0s", ObjectSerializer.Stringify(TimeSpan.Zero));
         }
 
         [Fact]
-        public void DurationConverterRoundTrip_HoursMinutes()
+        public void DurationConverterRoundTrip_WholeSeconds()
         {
+            // 2h15m30s → 8130 seconds → "8130s"
             var original = new TimeSpan(2, 15, 30);
-            string formatted = Iso8601DurationConverter.Format(original);
-            Assert.Equal("PT2H15M30S", formatted);
-            TimeSpan parsed = Iso8601DurationConverter.Parse(formatted);
+            string formatted = ProtobufDurationConverter.Format(original);
+            Assert.Equal("8130s", formatted);
+            TimeSpan parsed = ProtobufDurationConverter.Parse(formatted);
             Assert.Equal(original, parsed);
         }
 
         [Fact]
         public void DurationConverterRoundTrip_DaysAndTime()
         {
+            // 3d4h5m6s → 273906 seconds → "273906s"
             var original = new TimeSpan(3, 4, 5, 6);
-            string formatted = Iso8601DurationConverter.Format(original);
-            Assert.Equal("P3DT4H5M6S", formatted);
-            Assert.Equal(original, Iso8601DurationConverter.Parse(formatted));
+            string formatted = ProtobufDurationConverter.Format(original);
+            Assert.Equal("273906s", formatted);
+            Assert.Equal(original, ProtobufDurationConverter.Parse(formatted));
         }
 
         [Fact]
         public void DurationConverterRoundTrip_Negative()
         {
             var original = new TimeSpan(0, -45, 0);
-            string formatted = Iso8601DurationConverter.Format(original);
-            Assert.Equal("-PT45M", formatted);
-            Assert.Equal(original, Iso8601DurationConverter.Parse(formatted));
+            string formatted = ProtobufDurationConverter.Format(original);
+            Assert.Equal("-2700s", formatted);
+            Assert.Equal(original, ProtobufDurationConverter.Parse(formatted));
         }
 
         [Fact]
-        public void DurationConverterParsesWeeks()
+        public void DurationConverterFormatsSubSecondPrecision()
         {
-            // 2 weeks = 14 days
-            TimeSpan parsed = Iso8601DurationConverter.Parse("P2W");
-            Assert.Equal(TimeSpan.FromDays(14), parsed);
+            // 1 tick = 100ns → 9-digit fraction "3600.000000100s"
+            var oneHourPlusTick = TimeSpan.FromHours(1) + TimeSpan.FromTicks(1);
+            Assert.Equal("3600.000000100s", ProtobufDurationConverter.Format(oneHourPlusTick));
+
+            // Millisecond fraction trims to 3 digits (protobuf emits 3/6/9).
+            Assert.Equal(
+                "1.500s",
+                ProtobufDurationConverter.Format(TimeSpan.FromMilliseconds(1500))
+            );
         }
 
         [Fact]
         public void DurationConverterParsesFractionalSeconds()
         {
-            TimeSpan parsed = Iso8601DurationConverter.Parse("PT1.5S");
+            TimeSpan parsed = ProtobufDurationConverter.Parse("1.5s");
             Assert.Equal(TimeSpan.FromMilliseconds(1500), parsed);
+        }
+
+        [Fact]
+        public void DurationConverterParsesNanosecondFraction()
+        {
+            // "3600.000000001s" rounds to 0 ticks of fraction (100ns resolution).
+            TimeSpan parsed = ProtobufDurationConverter.Parse("3600.000000001s");
+            Assert.Equal(TimeSpan.FromHours(1), parsed);
+            // "3600.000000100s" is exactly one tick beyond an hour.
+            TimeSpan parsedTick = ProtobufDurationConverter.Parse("3600.000000100s");
+            Assert.Equal(TimeSpan.FromHours(1) + TimeSpan.FromTicks(1), parsedTick);
         }
 
         [Fact]
         public void DurationConverterRejectsInvalid()
         {
             Assert.Throws<System.Text.Json.JsonException>(() =>
-                Iso8601DurationConverter.Parse("not-a-duration")
+                ProtobufDurationConverter.Parse("not-a-duration")
             );
+            // missing 's' suffix
             Assert.Throws<System.Text.Json.JsonException>(() =>
-                Iso8601DurationConverter.Parse("P")
+                ProtobufDurationConverter.Parse("3600")
+            );
+            // bare integer (protobuf number, not the string form)
+            Assert.Throws<System.Text.Json.JsonException>(() =>
+                ProtobufDurationConverter.Parse("18000.000000000")
             );
         }
 
         [Fact]
-        public void DurationConverterRejectsCalendarMonthsAndYears()
+        public void DurationConverterRejectsIso8601()
         {
+            // ISO-8601 durations are rejected by protobuf/gRPC-gateway backends.
             Assert.Throws<System.Text.Json.JsonException>(() =>
-                Iso8601DurationConverter.Parse("P1Y")
+                ProtobufDurationConverter.Parse("PT1H")
             );
             Assert.Throws<System.Text.Json.JsonException>(() =>
-                Iso8601DurationConverter.Parse("P1M")
+                ProtobufDurationConverter.Parse("P1Y")
             );
         }
 
@@ -849,13 +874,13 @@ public class ObjectSerializerTest
         {
             var ts = new TimeSpan(1, 30, 0);
             string json = _serializer.Serialize(ts);
-            Assert.Equal("\"PT1H30M\"", json);
+            Assert.Equal("\"5400s\"", json);
         }
 
         [Fact]
         public void DurationDeserializesThroughObjectSerializer()
         {
-            TimeSpan ts = _serializer.Deserialize<TimeSpan>("\"PT2H15M\"");
+            TimeSpan ts = _serializer.Deserialize<TimeSpan>("\"8100s\"");
             Assert.Equal(new TimeSpan(2, 15, 0), ts);
         }
 

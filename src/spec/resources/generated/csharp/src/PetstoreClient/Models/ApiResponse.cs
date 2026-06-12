@@ -29,11 +29,9 @@ public class ApiResponse : IEquatable<ApiResponse>
         return other is not null
             && (
                 ReferenceEquals(this, other)
-                || (
-                    EqualityComparer<int?>.Default.Equals(this.Code, other.Code)
+                || EqualityComparer<int?>.Default.Equals(this.Code, other.Code)
                     && EqualityComparer<string?>.Default.Equals(this.Type, other.Type)
                     && EqualityComparer<string?>.Default.Equals(this.Message, other.Message)
-                )
             );
     }
 

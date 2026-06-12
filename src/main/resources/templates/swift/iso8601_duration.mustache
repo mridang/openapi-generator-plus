@@ -2,7 +2,7 @@
 import Foundation
 
 /// ISO8601DurationError signals an invalid ISO-8601 duration literal.
-public struct ISO8601DurationError: Error, LocalizedError {
+public struct ISO8601DurationError: ZitadelError, LocalizedError {
     public let message: String
 
     public init(_ message: String) {

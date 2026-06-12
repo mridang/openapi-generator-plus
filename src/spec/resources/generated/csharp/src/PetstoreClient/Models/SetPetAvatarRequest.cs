@@ -41,10 +41,8 @@ public class SetPetAvatarRequest(byte[] data, string mimeType) : IEquatable<SetP
         return other is not null
             && (
                 ReferenceEquals(this, other)
-                || (
-                    EqualityComparer<byte[]>.Default.Equals(this.Data, other.Data)
+                || EqualityComparer<byte[]>.Default.Equals(this.Data, other.Data)
                     && EqualityComparer<string>.Default.Equals(this.MimeType, other.MimeType)
-                )
             );
     }
 

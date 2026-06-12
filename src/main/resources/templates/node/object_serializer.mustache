@@ -4,11 +4,14 @@ import 'reflect-metadata';
 import { plainToInstance, type ClassConstructor } from 'class-transformer';
 import { Temporal } from 'temporal-polyfill';
 import * as models from './models/index{{importFileExtension}}';
+import { ZitadelError } from './errors/zitadel-error{{importFileExtension}}';
 
 /**
- * Exception raised when serialization or deserialization fails.
+ * Exception raised when serialization or deserialization fails. Extends the
+ * branded {@link ZitadelError} root so it shares a common `instanceof
+ * ZitadelError` ancestor with the transport-level {@link ApiError} hierarchy.
  */
-export class SerializationError extends Error {
+export class SerializationError extends ZitadelError {
   public readonly cause?: Error;
 
   constructor(message: string, cause?: Error) {
@@ -31,6 +34,102 @@ export class DeserializationError extends SerializationError {
     super(message, cause);
     this.name = 'DeserializationError';
   }
+}
+
+/**
+ * Number of nanoseconds in one second, as a BigInt, for exact
+ * protobuf-JSON duration arithmetic without floating-point loss.
+ */
+const NANOS_PER_SECOND = 1_000_000_000n;
+
+/**
+ * Validates a protobuf-JSON duration string: an optional sign, one or
+ * more integer-second digits, and an optional fractional part of 1-9
+ * digits, terminated by a literal `s` (e.g. `"3600s"`, `"3600.000000001s"`,
+ * `"-1.5s"`).
+ */
+const PROTO_DURATION_PATTERN = /^-?\d+(\.\d{1,9})?s$/;
+
+/**
+ * Total nanoseconds in a {@link Temporal.Duration} as an exact BigInt.
+ *
+ * Avoids `Duration.prototype.total()` (which returns a `number` and loses
+ * integer precision past 2^53 ns, i.e. ~104 days) by summing the duration's
+ * own integer fields with BigInt arithmetic. A protobuf Duration carries
+ * only seconds + nanos, so days/weeks are folded in at fixed lengths
+ * (1 day = 86400 s, 1 week = 604800 s — the ISO-calendar, DST-free
+ * convention protobuf uses). Years/months cannot appear on a
+ * google.protobuf.Duration; if present they are ignored here.
+ */
+function durationTotalNanos(d: Temporal.Duration): bigint {
+  const SEC = NANOS_PER_SECOND;
+  return (
+    BigInt(d.weeks) * 604800n * SEC +
+    BigInt(d.days) * 86400n * SEC +
+    BigInt(d.hours) * 3600n * SEC +
+    BigInt(d.minutes) * 60n * SEC +
+    BigInt(d.seconds) * SEC +
+    BigInt(d.milliseconds) * 1_000_000n +
+    BigInt(d.microseconds) * 1_000n +
+    BigInt(d.nanoseconds)
+  );
+}
+
+/**
+ * Serialize a {@link Temporal.Duration} to the protobuf-JSON wire format
+ * (https://protobuf.dev/programming-guides/json/): a decimal number of
+ * seconds suffixed with `s`, e.g. `"3600s"` or `"3600.000000001s"`.
+ *
+ * Zitadel (and any google.protobuf.Duration field) rejects ISO-8601
+ * durations like `"PT1H"`; this is the only accepted shape. Computed via
+ * BigInt nanosecond arithmetic so large durations do not lose precision,
+ * with the fractional part trimmed to 3, 6, or 9 digits (the smallest
+ * width that preserves all non-zero nanos).
+ */
+export function durationToProtoJson(d: Temporal.Duration): string {
+  const totalNs = durationTotalNanos(d);
+  const sign = totalNs < 0n ? '-' : '';
+  const abs = totalNs < 0n ? -totalNs : totalNs;
+  const secs = abs / NANOS_PER_SECOND;
+  const nanos = abs % NANOS_PER_SECOND;
+  if (nanos === 0n) {
+    return `${sign}${secs}s`;
+  }
+  let frac = nanos.toString().padStart(9, '0');
+  /* Trim trailing zeros down to the smallest 3/6/9-digit width that still
+   * preserves every non-zero nanosecond, matching the protobuf encoder. */
+  if (frac.endsWith('000000')) {
+    frac = frac.slice(0, 3);
+  } else if (frac.endsWith('000')) {
+    frac = frac.slice(0, 6);
+  }
+  return `${sign}${secs}.${frac}s`;
+}
+
+/**
+ * Parse a protobuf-JSON duration string (see {@link durationToProtoJson})
+ * back into a {@link Temporal.Duration}.
+ *
+ * @throws SerializationError if the input is not a valid protobuf-JSON
+ *   duration (e.g. an ISO-8601 `"PT1H"`, a bare number, or a trailing
+ *   fractional `s` with more than 9 digits).
+ */
+export function durationFromProtoJson(value: string): Temporal.Duration {
+  if (!PROTO_DURATION_PATTERN.test(value)) {
+    throw new SerializationError(
+      `Invalid protobuf-JSON duration ${JSON.stringify(value)}: ` +
+        `expected a decimal number of seconds suffixed with "s" (e.g. "3600s").`
+    );
+  }
+  const negative = value.startsWith('-');
+  const body = value.slice(0, -1).replace(/^-/, '');
+  const [secPart, fracPart = ''] = body.split('.');
+  const seconds = Number(secPart);
+  const nanoseconds = Number(fracPart.padEnd(9, '0').slice(0, 9));
+  return Temporal.Duration.from({
+    seconds: negative ? -seconds : seconds,
+    nanoseconds: negative ? -nanoseconds : nanoseconds,
+  });
 }
 
 /**
@@ -141,13 +240,15 @@ export class ObjectSerializer {
          */
         if (Buffer.isBuffer(this[_key])) return (this[_key] as Buffer).toString('base64');
         /**
-         * 4.8 — `format: time` and `format: duration` map to
-         * Temporal.PlainTime / Temporal.Duration. Both serialise to their
-         * canonical ISO 8601 string via toString(); without this branch
-         * JSON.stringify would emit the polyfill's internal object shape.
+         * 4.8 — `format: time` maps to Temporal.PlainTime and serialises to
+         * its canonical ISO 8601 string. `format: duration` maps to
+         * Temporal.Duration but must serialise to the protobuf-JSON wire
+         * shape (`"3600s"`, not ISO-8601 `"PT1H"`) — Zitadel and any
+         * google.protobuf.Duration field reject the ISO form. Without these
+         * branches JSON.stringify would emit the polyfill's internal object.
          */
         if (this[_key] instanceof Temporal.PlainTime) return (this[_key] as Temporal.PlainTime).toString();
-        if (this[_key] instanceof Temporal.Duration) return (this[_key] as Temporal.Duration).toString();
+        if (this[_key] instanceof Temporal.Duration) return durationToProtoJson(this[_key] as Temporal.Duration);
         if (value === null && _key !== '') return undefined;
         return value;
       });
@@ -347,16 +448,16 @@ export class ObjectSerializer {
       return ObjectSerializer.formatDateTimeOffset(value);
     }
     /**
-     * 4.8 — Temporal types: emit their canonical ISO 8601 representation
-     * (e.g. "14:30:00" for PlainTime, "PT15M" for Duration). Calling the
-     * default String() would invoke the polyfill's toString, but going
-     * through `.toString()` explicitly documents the wire shape.
+     * 4.8 — Temporal types. PlainTime emits its canonical ISO 8601 form
+     * (e.g. "14:30:00"). Duration emits the protobuf-JSON wire shape
+     * (e.g. "3600s") rather than ISO-8601 ("PT15M"); google.protobuf.Duration
+     * fields (Zitadel) accept only the seconds-suffixed form.
      */
     if (value instanceof Temporal.PlainTime) {
       return value.toString();
     }
     if (value instanceof Temporal.Duration) {
-      return value.toString();
+      return durationToProtoJson(value);
     }
     return String(value);
   }

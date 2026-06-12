@@ -46,6 +46,10 @@ export class BasicAuthenticator extends BaseAuthenticator {
     return { Authorization: authHeader };
   }
 
+  getAuthHeadersAsync(): Promise<Record<string, string>> {
+    return Promise.resolve(this.getAuthHeaders());
+  }
+
   /* Redact the password from the default string/inspect representation so
    * logging or inspecting the authenticator never leaks the credential. */
   [Symbol.for('nodejs.util.inspect.custom')](): string {

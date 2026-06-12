@@ -1,9 +1,3 @@
-module Base64
-  def self.strict_encode64: (String) -> String
-  def self.strict_decode64: (String) -> String
-  def self.decode64: (String) -> String
-end
-
 module Dry
   def self.Types: () -> Module
 
@@ -15,6 +9,13 @@ module Dry
   class Struct
     def self.attribute: (Symbol, untyped) -> void
     def self.transform_keys: () { (untyped) -> untyped } -> void
+
+    # Dry::Struct instances are built from keyword attributes (the generated
+    # Models::* classes declare attr_readers but inherit construction from here).
+    # Accept arbitrary keywords so `Model.new(field: value)` type-checks; the
+    # readers on each subclass provide the precise per-field types.
+    def self.new: (**untyped) -> instance
+    def initialize: (**untyped) -> void
   end
 end
 
@@ -33,51 +34,6 @@ module Types
   Hash: untyped
   Array: untyped
   Nil: untyped
-end
-
-module URI
-  def self.parse: (String) -> URI::Generic
-  def self.encode_www_form: (Hash[String, String]) -> String
-
-  class Generic
-    def host: () -> String?
-    def port: () -> Integer?
-    def scheme: () -> String?
-    def path: () -> String
-  end
-end
-
-module Net
-  class HTTP
-    def self.get_response: (URI::Generic) -> HTTPResponse
-    def self.new: (String?, Integer?) -> HTTP
-
-    attr_accessor use_ssl: bool
-
-    def request: (HTTPRequest) -> HTTPResponse
-  end
-
-  class HTTPRequest
-    def []=: (String, String) -> void
-    attr_accessor body: String?
-  end
-
-  class HTTPResponse
-    def body: () -> String
-    def code: () -> String
-    def is_a?: (Class) -> bool
-  end
-
-  class HTTPSuccess < HTTPResponse
-  end
-
-  module HTTP::Post
-    def self.new: (String) -> HTTPRequest
-  end
-end
-
-module JSON
-  def self.parse: (String) -> untyped
 end
 
 module Brotli
@@ -110,44 +66,12 @@ module ISO8601
   end
 end
 
+# Faraday signatures come from the gem_rbs_collection (.gem_rbs_collection/faraday).
+# Do NOT redeclare its classes (e.g. TimeoutError) — that triggers conflicting
+# superclass errors. Only reopen to ADD the few accessors the collection omits
+# but the generated client uses.
 module Faraday
-  def self.new: (?String?) ?{ (Connection) -> void } -> Connection
-
   class Connection
-    attr_accessor proxy: String?
-    attr_accessor ssl: SSLOptions
-    attr_accessor options: RequestOptions
-    def run_request: (Symbol, String?, String?, Hash[String, String]?) -> Response
-    def response: (Symbol, **untyped) -> void
-  end
-
-  class SSLOptions
-    attr_accessor verify: bool
-    attr_accessor ca_file: String?
-    attr_accessor client_cert: String?
-    attr_accessor client_key: String?
-  end
-
-  class RequestOptions
-    attr_accessor timeout: (Integer | Float)?
-    attr_accessor open_timeout: (Integer | Float)?
-  end
-
-  class Response
-    def status: () -> Integer
-    def body: () -> String
-    def headers: () -> Hash[String, String]
-  end
-
-  class Error < StandardError
-  end
-
-  class ConnectionFailed < Error
-  end
-
-  class TimeoutError < Error
-  end
-
-  class SSLError < Error
+    def proxy=: (String?) -> void
   end
 end

@@ -30,8 +30,7 @@ public interface ApiClient extends AutoCloseable {
    * @throws ApiException if the request fails
    */
   ApiHttpResponse sendRequest(
-      String method, String url, Map<String, String> headers, @Nullable Object body)
-      throws ApiException;
+      String method, String url, Map<String, String> headers, @Nullable Object body);
 
   /**
    * Send an HTTP request, optionally refusing to follow redirects.
@@ -58,8 +57,7 @@ public interface ApiClient extends AutoCloseable {
       String url,
       Map<String, String> headers,
       @Nullable Object body,
-      boolean noRedirect)
-      throws ApiException {
+      boolean noRedirect) {
     return sendRequest(method, url, headers, body);
   }
 

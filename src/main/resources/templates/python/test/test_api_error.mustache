@@ -1,7 +1,14 @@
 import pytest
 
-from {{packageName}}.errors import ApiException
+from {{packageName}}.errors import (
+    ApiException,
+    BadRequestException,
+    ClientException,
+    OpenApiException,
+    ZitadelException,
+)
 from {{packageName}}.models import Category
+from {{packageName}}.object_serializer import SerializationError
 
 
 class TestApiErrorShape:
@@ -40,6 +47,30 @@ class TestApiErrorShape:
 
         assert isinstance(err, Exception)
         assert str(err) != ''
+
+
+class TestExceptionHierarchy:
+    def test_typed_error_inherits_through_to_branded_root(self) -> None:
+        # BadRequest -> ClientException -> ApiException -> ZitadelException
+        err = BadRequestException(status_code=400, message='bad request')
+
+        assert isinstance(err, ClientException)
+        assert isinstance(err, ApiException)
+        assert isinstance(err, ZitadelException)
+        assert issubclass(BadRequestException, ClientException)
+        assert issubclass(ClientException, ApiException)
+        assert issubclass(ApiException, ZitadelException)
+
+    def test_serialization_error_inherits_from_branded_root(self) -> None:
+        err = SerializationError('boom')
+
+        assert isinstance(err, ZitadelException)
+        assert issubclass(SerializationError, ZitadelException)
+
+    def test_open_api_exception_is_branded_root_alias(self) -> None:
+        # Back-compat alias: the historical root name resolves to the
+        # branded root so existing `import OpenApiException` keeps working.
+        assert OpenApiException is ZitadelException
 
 
 class TestApiErrorImmutability:

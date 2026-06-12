@@ -52,7 +52,7 @@ public final class Client {
    * @throws ApiException if the transport cannot be configured (never thrown for default transport,
    *     which configures no custom CA certificate)
    */
-  public Client(Authenticator authenticator) throws ApiException {
+  public Client(Authenticator authenticator) {
     this(authenticator, TransportOptions.builder().build());
   }
 
@@ -67,8 +67,7 @@ public final class Client {
    * @param transportOptions HTTP transport configuration (proxy, TLS, timeouts, etc.)
    * @throws ApiException if a configured custom CA certificate cannot be read or parsed
    */
-  public Client(Authenticator authenticator, TransportOptions transportOptions)
-      throws ApiException {
+  public Client(Authenticator authenticator, TransportOptions transportOptions) {
     ApiClient apiClient = new DefaultApiClient(transportOptions);
 
     if (authenticator instanceof HttpAwareAuthenticator httpAware) {
@@ -90,8 +89,9 @@ public final class Client {
    * @throws ApiException if a configured custom CA certificate cannot be read or parsed
    */
   public static Client withToken(
-      String host, String accessToken, @javax.annotation.Nullable TransportOptions transportOptions)
-      throws ApiException {
+      String host,
+      String accessToken,
+      @javax.annotation.Nullable TransportOptions transportOptions) {
     Client client =
         (transportOptions != null)
             ? new Client(new BearerAuthenticator(host, accessToken), transportOptions)
@@ -107,7 +107,7 @@ public final class Client {
    * @return configured client instance
    * @throws ApiException if a configured custom CA certificate cannot be read or parsed
    */
-  public static Client withToken(String host, String accessToken) throws ApiException {
+  public static Client withToken(String host, String accessToken) {
     return withToken(host, accessToken, null);
   }
 }

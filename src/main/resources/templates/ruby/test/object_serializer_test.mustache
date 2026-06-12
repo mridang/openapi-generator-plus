@@ -37,9 +37,13 @@ module {{moduleName}}
     # real model template so that ObjectSerializer treats it identically.
     unless const_defined?(:TestFormatModel)
       class TestFormatModel < Dry::Struct
-        ATTRIBUTE_MAP = { blob: 'blob', identifier: 'identifier', note: 'note' }.freeze
+        ATTRIBUTE_MAP = { blob: 'blob', identifier: 'identifier', note: 'note', ttl: 'ttl' }.freeze
         JSON_KEY_MAP = ATTRIBUTE_MAP.invert.freeze
-        OPENAPI_TYPES = { blob: 'String', identifier: 'String', note: 'String' }.freeze
+        OPENAPI_TYPES = { blob: 'String', identifier: 'String', note: 'String', ttl: 'ISO8601::Duration' }.freeze
+        # Mirrors the real model template: `duration` is NOT listed here.
+        # ISO8601::Duration values flow through ObjectSerializer's type
+        # dispatch (which routes them to duration_to_protobuf_json), not
+        # through apply_format_on_serialize.
         OPENAPI_FORMATS = { blob: 'byte', identifier: 'uuid' }.freeze
 
         transform_keys do |key|
@@ -49,6 +53,7 @@ module {{moduleName}}
         attribute :blob, Types::Any.optional.meta(omittable: true)
         attribute :identifier, Types::Any.optional.meta(omittable: true)
         attribute :note, Types::Any.optional.meta(omittable: true)
+        attribute :ttl, Types::Any.optional.meta(omittable: true)
       end
     end
   end
@@ -644,28 +649,63 @@ describe {{moduleName}}::ObjectSerializer do
   # ── format: duration (ISO8601::Duration surface, 4.8) ──
 
   describe 'format: duration round-tripping' do
-    it 'stringify emits canonical ISO-8601 for an ISO8601::Duration' do
+    # The native surface stays ISO8601::Duration, but the wire form is
+    # protobuf-JSON duration ("3600s") -- the form Zitadel and other
+    # protobuf-derived APIs require. The ISO-8601 form ("PT1H") is rejected.
+    it 'stringify emits protobuf-JSON seconds for an ISO8601::Duration' do
       d = ISO8601::Duration.new('PT1H30M')
       out = {{moduleName}}::ObjectSerializer.stringify(d)
-      _(out).must_equal('PT1H30M')
+      _(out).must_equal('5400s')
     end
 
-    it 'serialize emits the canonical duration string inside a hash' do
+    it 'serialize emits the protobuf-JSON duration string inside a hash' do
       d = ISO8601::Duration.new('PT5M')
       json = {{moduleName}}::ObjectSerializer.serialize({ 'ttl' => d })
-      _(JSON.parse(json)['ttl']).must_equal('PT5M')
+      _(JSON.parse(json)['ttl']).must_equal('300s')
     end
 
-    it 'serialize emits a duration with days' do
+    it 'serialize emits a duration with days as total seconds' do
       d = ISO8601::Duration.new('P2DT3H')
       json = {{moduleName}}::ObjectSerializer.serialize({ 'window' => d })
-      _(JSON.parse(json)['window']).must_equal('P2DT3H')
+      _(JSON.parse(json)['window']).must_equal('183600s')
     end
 
-    it 'convert_to_type parses ISO-8601 into an ISO8601::Duration' do
-      result = {{moduleName}}::ObjectSerializer.convert_to_type('PT1H30M', 'ISO8601::Duration')
+    it 'serialize emits protobuf-JSON seconds for a duration field on a model body' do
+      # Request-body path: a dry-struct model carrying an ISO8601::Duration
+      # field must serialize that field as protobuf-JSON ("3600s"), not the
+      # native ISO-8601 form ("PT1H") which Zitadel rejects. `duration` is
+      # intentionally absent from OPENAPI_FORMATS, so this exercises the
+      # type-dispatch route through duration_to_protobuf_json rather than
+      # apply_format_on_serialize.
+      model = TestFormatModel.new(ttl: ISO8601::Duration.new('PT1H'))
+      json = {{moduleName}}::ObjectSerializer.serialize(model)
+      _(JSON.parse(json)['ttl']).must_equal('3600s')
+    end
+
+    it 'stringify emits fractional seconds trimmed to nanos precision' do
+      d = ISO8601::Duration.new('PT3600.000000001S')
+      _({{moduleName}}::ObjectSerializer.stringify(d)).must_equal('3600.000000001s')
+    end
+
+    it 'stringify trims trailing zeros to three fractional digits' do
+      d = ISO8601::Duration.new('PT1.5S')
+      _({{moduleName}}::ObjectSerializer.stringify(d)).must_equal('1.500s')
+    end
+
+    it 'stringify preserves the sign for a negative duration' do
+      d = ISO8601::Duration.new('-PT1H')
+      _({{moduleName}}::ObjectSerializer.stringify(d)).must_equal('-3600s')
+    end
+
+    it 'convert_to_type parses protobuf-JSON seconds into an ISO8601::Duration' do
+      result = {{moduleName}}::ObjectSerializer.convert_to_type('5400s', 'ISO8601::Duration')
       _(result).must_be_kind_of(ISO8601::Duration)
       _(result.to_seconds).must_equal(5400)
+    end
+
+    it 'convert_to_type parses fractional protobuf-JSON seconds' do
+      result = {{moduleName}}::ObjectSerializer.convert_to_type('3600.000000001s', 'ISO8601::Duration')
+      _(result.to_seconds).must_be_close_to(3600.000000001, 1e-9)
     end
 
     it 'convert_to_type passes through an existing ISO8601::Duration' do
@@ -677,13 +717,14 @@ describe {{moduleName}}::ObjectSerializer do
     it 'round-trip duration yields equivalent value' do
       original = ISO8601::Duration.new('P1DT2H3M4S')
       serialized = {{moduleName}}::ObjectSerializer.stringify(original)
+      _(serialized).must_equal('93784s')
       parsed = {{moduleName}}::ObjectSerializer.convert_to_type(serialized, 'ISO8601::Duration')
       _(parsed.to_seconds).must_equal(original.to_seconds)
     end
 
     it 'convert_to_type raises on malformed duration string' do
-      assert_raises(StandardError) do
-        {{moduleName}}::ObjectSerializer.convert_to_type('not-a-duration', 'ISO8601::Duration')
+      assert_raises({{moduleName}}::SerializationError) do
+        {{moduleName}}::ObjectSerializer.convert_to_type('PT1H', 'ISO8601::Duration')
       end
     end
   end

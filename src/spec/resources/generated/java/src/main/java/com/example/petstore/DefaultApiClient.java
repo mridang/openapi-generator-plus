@@ -130,7 +130,7 @@ public final class DefaultApiClient implements ApiClient {
    * @param transportOptions transport configuration to apply
    * @throws ApiException if a configured CA certificate cannot be read or parsed
    */
-  public DefaultApiClient(TransportOptions transportOptions) throws ApiException {
+  public DefaultApiClient(TransportOptions transportOptions) {
     this.transportOptions = transportOptions;
     this.proxyAuthHeader = computeProxyAuthHeader(transportOptions);
     this.httpClient = buildHttpClient(transportOptions);
@@ -152,7 +152,7 @@ public final class DefaultApiClient implements ApiClient {
    * @return the configured {@link HttpClient}
    * @throws ApiException if a configured CA certificate cannot be read or parsed
    */
-  private static HttpClient buildHttpClient(TransportOptions transportOptions) throws ApiException {
+  private static HttpClient buildHttpClient(TransportOptions transportOptions) {
     try {
       HttpClient.Builder builder = HttpClient.newBuilder();
 
@@ -221,7 +221,7 @@ public final class DefaultApiClient implements ApiClient {
    * @return an {@link SSLContext} trusting only the given CA certificate
    * @throws ApiException if the certificate cannot be read or parsed
    */
-  private static SSLContext buildPinnedSslContext(String caCertPath) throws ApiException {
+  private static SSLContext buildPinnedSslContext(String caCertPath) {
     try {
       CertificateFactory cf = CertificateFactory.getInstance("X.509");
       X509Certificate caCert;
@@ -312,8 +312,7 @@ public final class DefaultApiClient implements ApiClient {
 
   @Override
   public ApiHttpResponse sendRequest(
-      String method, String url, Map<String, String> headers, @Nullable Object body)
-      throws ApiException {
+      String method, String url, Map<String, String> headers, @Nullable Object body) {
     return sendRequest(method, url, headers, body, false);
   }
 
@@ -351,8 +350,7 @@ public final class DefaultApiClient implements ApiClient {
       String url,
       Map<String, String> headers,
       @Nullable Object body,
-      boolean noRedirect)
-      throws ApiException {
+      boolean noRedirect) {
 
     if (this.closed) {
       throw new ApiException("ApiClient has been closed");

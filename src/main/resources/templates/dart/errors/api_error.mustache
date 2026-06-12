@@ -1,13 +1,21 @@
 {{>api_info}}
 import 'dart:convert';
 
+import 'zitadel_exception.dart';
+
 /// ApiError represents an error returned by the API, including the HTTP status
 /// code, response headers, and response body.
-class ApiError implements Exception {
+///
+/// Extends [ZitadelException], the branded root of the exception hierarchy, so
+/// that `apiError is ZitadelException` holds. The typed subclasses
+/// ([ClientError], [ServerError] and their leaves) extend [ApiError] and are
+/// therefore [ZitadelException]s as well.
+class ApiError extends ZitadelException {
   /// The HTTP status code.
   final int statusCode;
 
   /// The error message.
+  @override
   final String message;
 
   /// The raw response body, or null when the transport failed before a

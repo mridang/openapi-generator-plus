@@ -59,6 +59,10 @@ export class ApiKeyAuthenticator extends BaseAuthenticator {
     return {};
   }
 
+  getAuthHeadersAsync(): Promise<Record<string, string>> {
+    return Promise.resolve(this.getAuthHeaders());
+  }
+
   override getQueryParams(): Record<string, string> {
     if (this.location === ApiKeyLocation.QUERY) {
       return { [this.keyParamName]: this.apiKey };

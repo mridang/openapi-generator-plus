@@ -33,10 +33,8 @@ public class Medication(string drugName) : IEquatable<Medication>
         return other is not null
             && (
                 ReferenceEquals(this, other)
-                || (
-                    EqualityComparer<string>.Default.Equals(this.DrugName, other.DrugName)
+                || EqualityComparer<string>.Default.Equals(this.DrugName, other.DrugName)
                     && EqualityComparer<string?>.Default.Equals(this.Dosage, other.Dosage)
-                )
             );
     }
 

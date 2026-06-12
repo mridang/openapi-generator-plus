@@ -108,7 +108,11 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         // Item 5: format: date-time → AwareDatetime (rejects naive datetimes)
         typeMapping.put("DateTime", "AwareDatetime");
         typeMapping.put("time", "datetime.time");
-        typeMapping.put("duration", "datetime.timedelta");
+        // format: duration → a pydantic Annotated alias (datetime.timedelta +
+        // Before/PlainSerializer) so model_dump_json emits the protobuf-JSON
+        // form "3600s" instead of pydantic's default ISO-8601 "PT1H". The
+        // alias and its helpers live in the dependency-free `_duration` module.
+        typeMapping.put("duration", "ProtobufDuration");
         typeMapping.put("UUID", "uuid.UUID");
         // Item 1: format: uri → pydantic.HttpUrl (uri-reference/uri-template
         // are downgraded back to StrictStr in postProcessModelProperty).
@@ -127,6 +131,12 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                         Arrays.asList(
                                 "int", "float", "bool", "str", "bytes", "object",
                                 "date", "datetime", "datetime.time", "datetime.timedelta",
+                                // ProtobufDuration is the Annotated alias for
+                                // format: duration; treated as a primitive so the
+                                // generic-import machinery doesn't try to emit
+                                // `from <pkg>.models.ProtobufDuration import ...`.
+                                // Its real import comes from getPropertyTypeImportMap.
+                                "ProtobufDuration",
                                 "uuid.UUID", "List", "Dict", "Set",
                                 "Tuple", "Optional",
                                 // Pydantic 2 native types treated as primitives so the
@@ -286,6 +296,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             new SupportingFileSpec("errors/conflict_exception.mustache", errorsPath, "conflict_exception.py"),
             new SupportingFileSpec("errors/unprocessable_entity_exception.mustache", errorsPath, "unprocessable_entity_exception.py"),
             new SupportingFileSpec("errors/internal_server_error_exception.mustache", errorsPath, "internal_server_error_exception.py"),
+            new SupportingFileSpec("_duration.mustache", packagePath, "_duration.py"),
             new SupportingFileSpec("object_serializer.mustache", packagePath, "object_serializer.py"),
             new SupportingFileSpec("value_serializer.mustache", packagePath, "value_serializer.py"),
             new SupportingFileSpec("header_selector.mustache", packagePath, "header_selector.py"),
@@ -667,7 +678,15 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     /** {@inheritDoc} */
     @Override
     protected Map<String, String> getPropertyTypeImportMap() {
-        return TYPE_IMPORTS;
+        // ProtobufDuration's import is package-qualified, so it cannot live in
+        // the static TYPE_IMPORTS map (packageName is only known per-run).
+        // Augment the static map with it here so every `format: duration` model
+        // field gets `from <pkg>._duration import ProtobufDuration` emitted.
+        final Map<String, String> map = new HashMap<>(TYPE_IMPORTS);
+        map.put(
+                "ProtobufDuration",
+                "from " + packageName + "._duration import ProtobufDuration");
+        return map;
     }
 
     /** {@inheritDoc} */

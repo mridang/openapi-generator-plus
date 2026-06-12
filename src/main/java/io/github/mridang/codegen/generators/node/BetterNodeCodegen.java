@@ -290,6 +290,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("api_error.mustache", "src", "api-error.ts"),
             new SupportingFileSpec("base_api.mustache", "src/api", "base-api.ts"),
             new SupportingFileSpec("errors/index.mustache", "src/errors", "index.ts"),
+            new SupportingFileSpec("errors/zitadel-error.mustache", "src/errors", "zitadel-error.ts"),
             new SupportingFileSpec("errors/client-error.mustache", "src/errors", "client-error.ts"),
             new SupportingFileSpec("errors/server-error.mustache", "src/errors", "server-error.ts"),
             new SupportingFileSpec("errors/bad-request-error.mustache", "src/errors", "bad-request-error.ts"),
@@ -1036,6 +1037,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
     protected Map<String, String> getModelContextFlags() {
         return Map.of(
                 "type:Temporal.", "hasTemporalImport",
+                "type:Temporal.Duration", "hasDurationImport",
                 "type:UUID", "hasUuidImport",
                 "type:URI", "hasUriImport",
                 "type:Email", "hasEmailImport",

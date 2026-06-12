@@ -19,6 +19,6 @@ namespace PetstoreClient;
  * @category Class
  * @package  PetstoreClient
  */
-final class CancellationException extends \RuntimeException
+final class CancellationException extends ZitadelException
 {
 }

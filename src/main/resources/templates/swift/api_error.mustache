@@ -3,7 +3,7 @@ import Foundation
 
 /// ApiError represents an error returned by the API, including the HTTP status
 /// code, response headers, and response body.
-public class ApiError: Error, LocalizedError, @unchecked Sendable {
+public class ApiError: ZitadelError, LocalizedError, @unchecked Sendable {
     /// The HTTP status code.
     public let statusCode: Int
 

@@ -42,6 +42,44 @@ describe PetstoreClient::ApiError do
     _(err.message).wont_be_empty
   end
 
+  # Unified exception hierarchy: every SDK-thrown error must reach the
+  # branded root (StandardError) so a single rescue catches them all.
+  it 'roots ApiError at the branded base' do
+    err = PetstoreClient::ApiError.new(status_code: 500, message: 'boom')
+
+    _(err).must_be_kind_of(StandardError)
+  end
+
+  it 'chains a typed status error up through ClientError, ApiError and the branded base' do
+    err = PetstoreClient::Errors::BadRequestError.new(message: 'bad input')
+
+    _(err).must_be_kind_of(PetstoreClient::Errors::ClientError)
+    _(err).must_be_kind_of(PetstoreClient::ApiError)
+    _(err).must_be_kind_of(StandardError)
+  end
+
+  it 'roots SerializationError at the branded base' do
+    err = PetstoreClient::SerializationError.new('boom')
+
+    _(err).must_be_kind_of(StandardError)
+  end
+
+  it 'roots SchemaMismatchError at the branded base' do
+    err = PetstoreClient::SchemaMismatchError.new('no variant matched')
+
+    _(err).must_be_kind_of(StandardError)
+  end
+
+  it 'roots OAuth2 token-manager errors at the branded base' do
+    token_err = PetstoreClient::Auth::OAuth::OAuth2TokenError.new('missing access_token')
+    server_err = PetstoreClient::Auth::OAuth::OAuth2ServerError.new(400, 'invalid_grant', nil, nil, '{}')
+
+    _(token_err).must_be_kind_of(PetstoreClient::ApiError)
+    _(token_err).must_be_kind_of(StandardError)
+    _(server_err).must_be_kind_of(PetstoreClient::ApiError)
+    _(server_err).must_be_kind_of(StandardError)
+  end
+
   it 'typed_error_body deserializes the body into the typed model' do
     err = PetstoreClient::ApiError.new(
       status_code: 400,

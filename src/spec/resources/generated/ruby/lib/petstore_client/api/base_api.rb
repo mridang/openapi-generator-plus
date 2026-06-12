@@ -13,6 +13,8 @@ require 'json'
 require 'base64'
 require 'stringio'
 
+require 'petstore_client/object_serializer'
+
 # :nodoc:
 module PetstoreClient
   module Api

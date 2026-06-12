@@ -15,6 +15,7 @@ namespace PetstoreClient\Auth\OAuth;
 
 use PetstoreClient\ApiClient;
 use PetstoreClient\ApiException;
+use PetstoreClient\ZitadelException;
 
 /**
  * Manages OAuth2 token lifecycle including fetching, caching, and refreshing tokens.
@@ -302,7 +303,7 @@ final class OAuth2TokenManager
  * {@see OAuth2ServerError} (which represents RFC 6749 §5.2 error responses
  * on 4xx/5xx) so callers can recover differently.
  */
-class OAuth2TokenError extends \RuntimeException
+class OAuth2TokenError extends ZitadelException
 {
 }
 
@@ -314,7 +315,7 @@ class OAuth2TokenError extends \RuntimeException
  * `rawBody` preserves the original response payload for diagnostics when
  * the body is not a well-formed OAuth2 error object.
  */
-class OAuth2ServerError extends \RuntimeException
+class OAuth2ServerError extends ZitadelException
 {
     public function __construct(
         public readonly int $statusCode,

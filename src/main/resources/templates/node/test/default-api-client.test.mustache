@@ -2,6 +2,7 @@
 
 import { DefaultApiClient } from '../src/default-api-client{{importFileExtension}}';
 import { TransportOptions } from '../src/transport-options{{importFileExtension}}';
+import { OAuth2TokenManager, OAuth2TokenError } from '../src/auth/oauth/oauth2-token-manager{{importFileExtension}}';
 import * as zlib from 'node:zlib';
 
 describe('DefaultApiClient', () => {
@@ -178,6 +179,54 @@ describe('DefaultApiClient', () => {
         client.sendRequest('GET', `${chasmUrl}/test/slow`, {}, null)
       ).rejects.toThrow();
     });
+  });
+
+  /*
+   * #4 — the OAuth2/OIDC auth path (token exchange, discovery) must honour
+   * the SAME transport options (custom CA, verifySsl, timeout) as the main
+   * API client. The auth helpers route every HTTP call through the injected
+   * ApiClient, which the unified client constructs from the user's
+   * TransportOptions — so a self-signed endpoint is reachable on the auth
+   * path exactly when verifySsl=false is set, and rejected otherwise.
+   */
+  describe('auth path honours transport TLS options (#4)', () => {
+    test('token exchange reaches a self-signed endpoint with verifySsl=false', async () => {
+      const chasmUrl = process.env['CHASM_HTTPS_URL']!;
+
+      const transport = TransportOptions.builder()
+        .verifySsl(false)
+        .build();
+
+      const manager = new OAuth2TokenManager();
+      manager.setApiClient(new DefaultApiClient(transport));
+
+      /* The echo endpoint returns 200 with a JSON body that has no
+       * access_token, so the manager rejects with OAuth2TokenError —
+       * proving the POST actually reached the server over the self-signed
+       * TLS. If transport options were ignored on the auth path, the
+       * request would instead reject with a certificate error before any
+       * response was received. */
+      await expect(
+        manager.getAccessToken(`${chasmUrl}/test/echo`, { grant_type: 'client_credentials' })
+      ).rejects.toBeInstanceOf(OAuth2TokenError);
+    }, 30000);
+
+    test('token exchange rejects a self-signed endpoint when verifySsl is left on', async () => {
+      const chasmUrl = process.env['CHASM_HTTPS_URL']!;
+
+      // Default transport: verifySsl is ON. The self-signed chasm cert is
+      // not in the system trust store, so the token POST must fail at the
+      // TLS layer (a different error than the missing-access_token case
+      // above), confirming the auth path does not silently weaken TLS.
+      const manager = new OAuth2TokenManager();
+      manager.setApiClient(new DefaultApiClient());
+
+      const error = await manager
+        .getAccessToken(`${chasmUrl}/test/echo`, { grant_type: 'client_credentials' })
+        .then(() => null, (e: unknown) => e);
+      expect(error).not.toBeNull();
+      expect(error).not.toBeInstanceOf(OAuth2TokenError);
+    }, 30000);
   });
 
   describe('User-Agent header', () => {

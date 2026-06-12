@@ -130,7 +130,7 @@ describe PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator do
       %w[openid]
     )
 
-    assert_raises(RuntimeError) do
+    assert_raises(PetstoreClient::ApiError) do
       auth.build_authorization_url
     end
   end

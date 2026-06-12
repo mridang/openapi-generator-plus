@@ -110,8 +110,7 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
         return other is not null
             && (
                 ReferenceEquals(this, other)
-                || (
-                    EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
+                || EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
                     && EqualityComparer<string>.Default.Equals(this.Name, other.Name)
                     && EqualityComparer<Category?>.Default.Equals(this.Category, other.Category)
                     && EqualityComparer<HashSet<string>>.Default.Equals(
@@ -132,7 +131,6 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
                     )
                     && EqualityComparer<string?>.Default.Equals(this.OwnerEmail, other.OwnerEmail)
                     && EqualityComparer<decimal?>.Default.Equals(this.WeightKg, other.WeightKg)
-                )
             );
     }
 

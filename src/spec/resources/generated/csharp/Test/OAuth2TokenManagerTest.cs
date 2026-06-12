@@ -444,6 +444,20 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
+    public void OAuth2ErrorsDeriveFromBrandedRoot()
+    {
+        var tokenError = new OAuth2TokenError("missing access_token");
+        Assert.IsAssignableFrom<ZitadelException>(tokenError);
+        Assert.IsAssignableFrom<Exception>(tokenError);
+        Assert.IsNotAssignableFrom<ApiException>(tokenError);
+
+        var serverError = new OAuth2ServerError(400, "invalid_grant", null, null, "{}");
+        Assert.IsAssignableFrom<ZitadelException>(serverError);
+        Assert.IsAssignableFrom<Exception>(serverError);
+        Assert.IsNotAssignableFrom<ApiException>(serverError);
+    }
+
+    [Fact]
     public async Task TokenResponseMissingAccessTokenThrowsTypedError()
     {
         var client = new FakeApiClient();

@@ -78,4 +78,44 @@ defmodule PetstoreClient.ApiErrorTest do
     assert body.id == 1
     assert body.name == "Cat"
   end
+
+  describe "Zitadel SDK error grouping" do
+    test "ApiError, a typed error and the Serialization error are all recognised" do
+      api_error = PetstoreClient.ApiError.exception(status_code: 500, message: "boom")
+      typed_error = PetstoreClient.Errors.BadRequestError.exception(%{message: "nope"})
+      serialization_error = %PetstoreClient.SerializationError{message: "bad json"}
+
+      assert PetstoreClient.Error.zitadel_error?(api_error)
+      assert PetstoreClient.Error.zitadel_error?(typed_error)
+      assert PetstoreClient.Error.zitadel_error?(serialization_error)
+    end
+
+    test "every SDK exception module is listed in exceptions/0" do
+      modules = PetstoreClient.Error.exceptions()
+
+      assert PetstoreClient.ApiError in modules
+      assert PetstoreClient.Errors.BadRequestError in modules
+      assert PetstoreClient.SerializationError in modules
+    end
+
+    test "a single rescue clause catches any SDK error via exceptions/0" do
+      sdk_errors = PetstoreClient.Error.exceptions()
+
+      caught =
+        try do
+          raise PetstoreClient.Errors.BadRequestError, %{message: "nope"}
+        rescue
+          e in sdk_errors -> e
+        end
+
+      assert PetstoreClient.Error.zitadel_error?(caught)
+    end
+
+    test "non-SDK exceptions are not recognised" do
+      refute PetstoreClient.Error.zitadel_error?(%RuntimeError{message: "unrelated"})
+      refute PetstoreClient.Error.zitadel_error?(%ArgumentError{message: "unrelated"})
+      refute PetstoreClient.Error.zitadel_error?(:not_an_exception)
+      refute PetstoreClient.Error.zitadel_error?(%{message: "plain map"})
+    end
+  end
 end

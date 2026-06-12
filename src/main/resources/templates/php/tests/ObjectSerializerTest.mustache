@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use {{invokerPackage}}\ObjectSerializer;
 use {{invokerPackage}}\Models\Category;
+use {{invokerPackage}}\Models\EdgeCases;
 use {{invokerPackage}}\Models\Pet;
 
 // -- toPathValue --
@@ -374,6 +375,15 @@ test('serialize handles null', function (): void {
     expect($json)->toBe('null');
 });
 
+test('serialize empty object body emits {} not []', function (): void {
+    /* #3: an empty request body must go on the wire as a JSON object `{}`,
+     * never an empty JSON array `[]`. PHP's json_encode([]) yields `[]`,
+     * which protobuf-JSON servers reject; an empty stdClass / all-null model
+     * must therefore serialize to `{}` like the other SDKs. */
+    expect(ObjectSerializer::serialize(new \stdClass()))->toBe('{}');
+    expect(ObjectSerializer::serialize([]))->toBe('{}');
+});
+
 test('serialize includes fields set to default values', function (): void {
     $category = new Category();
     $category->id = 0;
@@ -494,48 +504,151 @@ test('serialize DateTimeImmutable round trip via stringify', function (): void {
     expect($stringified)->toContain('2024-01-15T10:20:30');
 });
 
-test('deserialize duration as DateInterval parses iso8601', function (): void {
+test('deserialize duration as DateInterval parses protobuf seconds', function (): void {
+    /* google.protobuf.Duration wire form is "<seconds>s". The interval is
+     * built as PT<seconds>S; PHP's DateInterval does not normalize seconds
+     * into hours, so ->s carries the whole-second total verbatim. */
     /** @var \DateInterval|null $result */
-    $result = ObjectSerializer::deserialize('"P1DT2H30M"', 'DateInterval');
+    $result = ObjectSerializer::deserialize('"3600s"', 'DateInterval');
     expect($result)->toBeInstanceOf(\DateInterval::class);
     /** @var \DateInterval $result */
-    expect($result->d)->toBe(1);
-    expect($result->h)->toBe(2);
-    expect($result->i)->toBe(30);
+    expect($result->s)->toBe(3600);
+    expect($result->invert)->toBe(0);
+    // round-trips back to the canonical protobuf form.
+    expect(ObjectSerializer::formatProtobufDuration($result))->toBe('3600s');
 });
 
-test('serialize DateInterval formats canonical iso8601', function (): void {
+test('deserialize duration parses fractional protobuf seconds', function (): void {
+    /** @var \DateInterval|null $result */
+    $result = ObjectSerializer::deserialize('"3600.000000001s"', 'DateInterval');
+    expect($result)->toBeInstanceOf(\DateInterval::class);
+    /** @var \DateInterval $result */
+    expect($result->s)->toBe(3600);
+    expect(round($result->f, 9))->toBe(0.000000001);
+    expect(ObjectSerializer::formatProtobufDuration($result))->toBe('3600.000000001s');
+});
+
+test('deserialize negative protobuf duration sets invert', function (): void {
+    /** @var \DateInterval|null $result */
+    $result = ObjectSerializer::deserialize('"-1.5s"', 'DateInterval');
+    expect($result)->toBeInstanceOf(\DateInterval::class);
+    /** @var \DateInterval $result */
+    expect($result->s)->toBe(1);
+    expect(round($result->f, 9))->toBe(0.5);
+    expect($result->invert)->toBe(1);
+    expect(ObjectSerializer::formatProtobufDuration($result))->toBe('-1.500s');
+});
+
+test('serialize DateInterval formats whole protobuf seconds', function (): void {
     $interval = new \DateInterval('PT1H30M');
-    expect(ObjectSerializer::formatIso8601Duration($interval))->toBe('PT1H30M');
+    // 1h30m = 5400 seconds; protobuf-JSON has no h/m suffixes.
+    expect(ObjectSerializer::formatProtobufDuration($interval))->toBe('5400s');
 });
 
-test('serialize DateInterval with date and time components', function (): void {
-    $interval = new \DateInterval('P1Y2M3DT4H5M6S');
-    expect(ObjectSerializer::formatIso8601Duration($interval))->toBe('P1Y2M3DT4H5M6S');
+test('serialize DateInterval folds days into protobuf seconds', function (): void {
+    // google.protobuf.Duration has no day/month/year components; days fold
+    // into seconds and ->y/->m are ignored.
+    $interval = new \DateInterval('P1DT2H');
+    expect(ObjectSerializer::formatProtobufDuration($interval))->toBe('93600s');
 });
 
-test('serialize zero DateInterval emits PT0S', function (): void {
+test('serialize zero DateInterval emits 0s', function (): void {
     $interval = new \DateInterval('PT0S');
-    expect(ObjectSerializer::formatIso8601Duration($interval))->toBe('PT0S');
+    expect(ObjectSerializer::formatProtobufDuration($interval))->toBe('0s');
 });
 
-test('serialize DateInterval omits zero components', function (): void {
-    $interval = new \DateInterval('P0Y0M1DT0H0M0S');
-    expect(ObjectSerializer::formatIso8601Duration($interval))->toBe('P1D');
+test('serialize DateInterval keeps nanosecond precision', function (): void {
+    $interval = new \DateInterval('PT1H');
+    $interval->f = 0.000000001;
+    expect(ObjectSerializer::formatProtobufDuration($interval))->toBe('3600.000000001s');
 });
 
-test('DateInterval round trips through stringify', function (): void {
+test('serialize DateInterval trims fraction to three digits', function (): void {
+    $interval = new \DateInterval('PT0S');
+    $interval->f = 0.5;
+    expect(ObjectSerializer::formatProtobufDuration($interval))->toBe('0.500s');
+});
+
+test('serialize negative DateInterval prefixes minus', function (): void {
+    $interval = new \DateInterval('PT1H');
+    $interval->invert = 1;
+    expect(ObjectSerializer::formatProtobufDuration($interval))->toBe('-3600s');
+});
+
+test('serialize model with DateInterval property emits protobuf seconds', function (): void {
+    /* BUG 1 regression: a \DateInterval that lives on a MODEL routes through
+     * the Symfony Serializer (sanitizeForSerialization delegates the
+     * is_object branch to getSerializer()->normalize()). Symfony's built-in
+     * DateIntervalNormalizer would emit ISO-8601 ("PT1H") here, bypassing
+     * formatProtobufDuration() and getting rejected by a protobuf-JSON server
+     * with HTTP 400. The custom DurationNormalizer — registered before any
+     * default DateInterval handling — must win so the property serializes to
+     * the "3600s" wire form, NOT ISO-8601. */
+    $model = new EdgeCases(retryAfter: new \DateInterval('PT1H'));
+
+    $json = ObjectSerializer::serialize($model);
+    /** @var array<string, mixed> $decoded */
+    $decoded = json_decode($json, true);
+
+    expect($decoded)->toBeArray();
+    expect($decoded['retryAfter'])->toBe('3600s');
+    // Guard against a regression to the ISO-8601 form.
+    expect($json)->not->toContain('PT1H');
+    expect($json)->not->toContain('P0Y');
+});
+
+test('serialize model DateInterval property keeps fractional seconds', function (): void {
+    $interval = new \DateInterval('PT1H');
+    $interval->f = 0.000000001;
+    $model = new EdgeCases(retryAfter: $interval);
+
+    /** @var array<string, mixed> $decoded */
+    $decoded = json_decode(ObjectSerializer::serialize($model), true);
+    expect($decoded['retryAfter'])->toBe('3600.000000001s');
+});
+
+test('deserialize model with DateInterval property parses protobuf seconds', function (): void {
+    /** @var EdgeCases $model */
+    $model = ObjectSerializer::deserialize('{"retryAfter":"3600s"}', EdgeCases::class);
+
+    expect($model)->toBeInstanceOf(EdgeCases::class);
+    expect($model->retryAfter)->toBeInstanceOf(\DateInterval::class);
+    /** @var \DateInterval $retryAfter */
+    $retryAfter = $model->retryAfter;
+    expect(ObjectSerializer::formatProtobufDuration($retryAfter))->toBe('3600s');
+});
+
+test('DateInterval round trips through stringify as protobuf duration', function (): void {
     $interval = new \DateInterval('PT45M');
     $stringified = ObjectSerializer::stringify($interval);
-    expect($stringified)->toBe('PT45M');
+    // 45 minutes = 2700 seconds; protobuf-JSON carries only a seconds total.
+    expect($stringified)->toBe('2700s');
+    /** @var \DateInterval $deserialized */
     $deserialized = ObjectSerializer::deserialize('"' . $stringified . '"', 'DateInterval');
     expect($deserialized)->toBeInstanceOf(\DateInterval::class);
+    // The wire→interval→wire round-trip preserves the canonical string.
+    expect(ObjectSerializer::stringify($deserialized))->toBe('2700s');
+});
+
+test('DateInterval fractional value round trips', function (): void {
+    $interval = new \DateInterval('PT0S');
+    $interval->f = 0.000000001;
+    $stringified = ObjectSerializer::stringify($interval);
+    expect($stringified)->toBe('0.000000001s');
     /** @var \DateInterval $deserialized */
-    expect($deserialized->i)->toBe(45);
+    $deserialized = ObjectSerializer::deserialize('"' . $stringified . '"', 'DateInterval');
+    expect(round($deserialized->f, 9))->toBe(0.000000001);
+    expect(ObjectSerializer::stringify($deserialized))->toBe('0.000000001s');
 });
 
 test('DateInterval invalid string surfaces exception', function (): void {
-    expect(fn () => ObjectSerializer::deserialize('"not-a-duration"', 'DateInterval'))
+    // ISO-8601 "PT1H" is no longer accepted — protobuf-JSON only.
+    expect(fn () => ObjectSerializer::deserialize('"PT1H"', 'DateInterval'))
+        ->toThrow(\{{invokerPackage}}\SerializationException::class);
+});
+
+test('DateInterval bare number without suffix is rejected', function (): void {
+    expect(fn () => ObjectSerializer::deserialize('"3600"', 'DateInterval'))
         ->toThrow(\{{invokerPackage}}\SerializationException::class);
 });
 

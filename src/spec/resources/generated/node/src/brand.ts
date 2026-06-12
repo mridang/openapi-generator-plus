@@ -56,8 +56,14 @@ export type URI = string & { readonly __brand: 'URI' };
 /**
  * Brand a raw string as a {@link URI}. Zero-cost cast; callers asserting
  * the input is a valid absolute URI.
+ *
+ * Declared under a distinct local name and re-exported as `URI` so the value
+ * and the `URI` type share a public name (TypeScript merges them) without
+ * tripping eslint's `no-redeclare`, which — unlike the type-aware rule — does
+ * not understand declaration merging.
  */
-export const URI = (s: string): URI => s as URI;
+const makeUri = (s: string): URI => s as URI;
+export { makeUri as URI };
 
 /**
  * Branded string type for OpenAPI `format: email` values. The brand exists
@@ -67,9 +73,11 @@ export type Email = string & { readonly __brand: 'Email' };
 
 /**
  * Brand a raw string as an {@link Email}. Zero-cost cast; callers asserting
- * the input is a valid email address.
+ * the input is a valid email address. Re-exported under the `Email` name (see
+ * {@link URI}) to merge value and type without tripping `no-redeclare`.
  */
-export const Email = (s: string): Email => s as Email;
+const makeEmail = (s: string): Email => s as Email;
+export { makeEmail as Email };
 
 /**
  * Branded string type for OpenAPI `type: number` (no format) and
@@ -80,6 +88,9 @@ export type Decimal = string & { readonly __brand: 'Decimal' };
 
 /**
  * Brand a raw string as a {@link Decimal}. Zero-cost cast; callers
- * asserting the input is a syntactically valid decimal number.
+ * asserting the input is a syntactically valid decimal number. Re-exported
+ * under the `Decimal` name (see {@link URI}) to merge value and type without
+ * tripping `no-redeclare`.
  */
-export const Decimal = (s: string): Decimal => s as Decimal;
+const makeDecimal = (s: string): Decimal => s as Decimal;
+export { makeDecimal as Decimal };

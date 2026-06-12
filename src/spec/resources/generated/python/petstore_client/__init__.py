@@ -18,11 +18,14 @@ __all__ = [
     'TransportOptions',
     'ServerConfiguration',
     'ServerVariable',
+    'ZitadelException',
     'OpenApiException',
     'ApiException',
     'ApiResponse',
     'Category',
+    'Color',
     'DryFood',
+    'EdgeCases',
     'Medication',
     'Metadata',
     'Order',
@@ -54,6 +57,7 @@ from petstore_client.configuration import Configuration as Configuration
 from petstore_client.transport_options import TransportOptions as TransportOptions
 from petstore_client.server_configuration import ServerConfiguration as ServerConfiguration
 from petstore_client.server_configuration import ServerVariable as ServerVariable
+from petstore_client.errors import ZitadelException as ZitadelException
 from petstore_client.errors import OpenApiException as OpenApiException
 from petstore_client.errors import ApiException as ApiException
 
@@ -64,8 +68,14 @@ from petstore_client.models.api_response import (
 from petstore_client.models.category import (
     Category as Category,
 )
+from petstore_client.models.color import (
+    Color as Color,
+)
 from petstore_client.models.dry_food import (
     DryFood as DryFood,
+)
+from petstore_client.models.edge_cases import (
+    EdgeCases as EdgeCases,
 )
 from petstore_client.models.medication import (
     Medication as Medication,

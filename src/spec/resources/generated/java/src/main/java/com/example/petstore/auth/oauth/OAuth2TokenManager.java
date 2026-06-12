@@ -10,6 +10,7 @@ package com.example.petstore.auth.oauth;
 import com.example.petstore.ApiClient;
 import com.example.petstore.ApiException;
 import com.example.petstore.ApiHttpResponse;
+import com.example.petstore.ZitadelException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -299,7 +300,7 @@ public class OAuth2TokenManager {
    * RFC 6749 §5.2 error responses on 4xx/5xx) so callers can recover differently — typically a
    * malformed-server-response bug needs operator attention rather than a client-side retry.
    */
-  public static class OAuth2TokenError extends RuntimeException {
+  public static class OAuth2TokenError extends ZitadelException {
     private static final long serialVersionUID = 1L;
 
     /**
@@ -319,7 +320,7 @@ public class OAuth2TokenManager {
    * error. {@code rawBody} preserves the original response payload for diagnostics when the body is
    * not a well-formed OAuth2 error object.
    */
-  public static class OAuth2ServerError extends RuntimeException {
+  public static class OAuth2ServerError extends ZitadelException {
     private static final long serialVersionUID = 1L;
 
     /** The HTTP status code of the error response. */

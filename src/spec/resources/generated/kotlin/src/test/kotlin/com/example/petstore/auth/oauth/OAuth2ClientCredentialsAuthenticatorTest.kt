@@ -144,7 +144,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        assertThrows(RuntimeException::class.java) {
+        assertThrows(ZitadelException::class.java) {
             runBlocking { auth.getAuthHeaders() }
         }
     }

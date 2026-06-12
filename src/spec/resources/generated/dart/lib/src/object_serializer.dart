@@ -7,6 +7,7 @@
 
 import 'dart:convert';
 
+import 'errors/zitadel_exception.dart';
 import 'iso8601_duration.dart';
 export 'iso8601_duration.dart'
     show
@@ -62,7 +63,12 @@ class UuidValue {
 }
 
 /// SerializationError is thrown when serialization or deserialization fails.
-class SerializationError implements Exception {
+///
+/// Extends [ZitadelException], the branded root of the exception hierarchy, so
+/// that `serializationError is ZitadelException` holds alongside the API
+/// errors.
+class SerializationError extends ZitadelException {
+  @override
   final String message;
   final Object? cause;
 

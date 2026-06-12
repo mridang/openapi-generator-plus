@@ -27,6 +27,6 @@ namespace PetstoreClient;
  * @category Class
  * @package  PetstoreClient
  */
-final class SerializationException extends \RuntimeException
+final class SerializationException extends ZitadelException
 {
 }

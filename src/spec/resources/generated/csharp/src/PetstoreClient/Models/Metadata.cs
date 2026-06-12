@@ -25,16 +25,11 @@ public class Metadata : IEquatable<Metadata>
         return other is not null
             && (
                 ReferenceEquals(this, other)
-                || (
-                    EqualityComparer<DateTimeOffset?>.Default.Equals(
-                        this.CreatedAt,
-                        other.CreatedAt
-                    )
+                || EqualityComparer<DateTimeOffset?>.Default.Equals(this.CreatedAt, other.CreatedAt)
                     && EqualityComparer<Dictionary<string, object>?>.Default.Equals(
                         this.AdditionalProperties,
                         other.AdditionalProperties
                     )
-                )
             );
     }
 

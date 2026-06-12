@@ -347,7 +347,7 @@ class OAuth2TokenManagerTest {
         val manager = OAuth2TokenManager()
         manager.apiClient = client
 
-        assertThrows(RuntimeException::class.java) {
+        assertThrows(ZitadelException::class.java) {
             runBlocking {
                 manager.getAccessToken(
                     "https://auth.example.com/token",

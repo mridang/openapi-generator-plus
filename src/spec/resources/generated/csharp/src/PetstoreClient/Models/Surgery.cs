@@ -33,13 +33,11 @@ public class Surgery(string procedureName) : IEquatable<Surgery>
         return other is not null
             && (
                 ReferenceEquals(this, other)
-                || (
-                    EqualityComparer<string>.Default.Equals(this.ProcedureName, other.ProcedureName)
+                || EqualityComparer<string>.Default.Equals(this.ProcedureName, other.ProcedureName)
                     && EqualityComparer<int?>.Default.Equals(
                         this.DurationMinutes,
                         other.DurationMinutes
                     )
-                )
             );
     }
 

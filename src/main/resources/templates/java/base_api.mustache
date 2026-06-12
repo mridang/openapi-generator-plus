@@ -122,8 +122,7 @@ public abstract class BaseApi {
             String[] accepts,
             String contentType,
             @Nullable Type returnType,
-            @Nullable Authenticator auth)
-            throws ApiException {
+            @Nullable Authenticator auth) {
 
         String url;
         if (path.startsWith("http://") || path.startsWith("https://")) {
@@ -336,8 +335,7 @@ public abstract class BaseApi {
             String[] accepts,
             String contentType,
             @Nullable Type returnType,
-            @Nullable Authenticator auth)
-            throws ApiException {
+            @Nullable Authenticator auth) {
         {{! Explicit <T> witness: returnType is a non-generic java.lang.reflect.Type,
             so invokeApiForResult's <T> can only be inferred from the assignment
             target; chaining .data() defeats that inference and would default <T>
@@ -357,7 +355,7 @@ public abstract class BaseApi {
      * @param response the API response with a non-2xx status code
      * @throws ApiException always
      */
-    private void throwApiException(ApiHttpResponse response) throws ApiException {
+    private void throwApiException(ApiHttpResponse response) {
         int code = response.statusCode();
         String message = "API returned status code " + code;
         String body = response.body();

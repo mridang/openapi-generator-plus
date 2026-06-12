@@ -39,6 +39,12 @@ impl fmt::Display for AuthCodeNotExchangedError {
 
 impl Error for AuthCodeNotExchangedError {}
 
+// Brands this SDK-thrown error as part of the `ZitadelError` hierarchy so a
+// single `&dyn ZitadelError` / `Box<dyn ZitadelError>` can hold it alongside
+// the transport/API errors. The supertrait bounds (Error + Send + Sync) are
+// satisfied by the `impl Error` above and the unit struct.
+impl crate::errors::ZitadelError for AuthCodeNotExchangedError {}
+
 /// OAuth2AuthorizationCodeAuthenticator provides OAuth2 authorization code
 /// flow authentication.
 ///

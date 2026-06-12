@@ -14,6 +14,7 @@ pub mod not_found_error;
 pub mod server_error;
 pub mod unauthorized_error;
 pub mod unprocessable_entity_error;
+pub mod zitadel_error;
 
 pub use bad_request_error::BadRequestError;
 pub use client_error::ClientError;
@@ -24,3 +25,4 @@ pub use not_found_error::NotFoundError;
 pub use server_error::ServerError;
 pub use unauthorized_error::UnauthorizedError;
 pub use unprocessable_entity_error::UnprocessableEntityError;
+pub use zitadel_error::ZitadelError;

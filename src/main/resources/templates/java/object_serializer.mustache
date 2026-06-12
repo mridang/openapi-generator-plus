@@ -6,19 +6,28 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.util.StdDateFormat;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 {{#openApiNullable}}
 import org.openapitools.jackson.nullable.JsonNullableModule;
 {{/openApiNullable}}
+import java.io.IOException;
 import java.lang.reflect.Type;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
@@ -53,7 +62,7 @@ public final class ObjectSerializer {
      * @return JSON string representation, or "null" if object is null
      * @throws SerializationException if serialization fails
      */
-    public String serialize(@Nullable Object object) throws SerializationException {
+    public String serialize(@Nullable Object object) {
         try {
             if (object != null) {
                 try {
@@ -84,8 +93,7 @@ public final class ObjectSerializer {
      * @throws SerializationException if deserialization fails
      */
     @Nullable
-    public <T> T deserialize(@Nullable String jsonString, Type type)
-            throws SerializationException {
+    public <T> T deserialize(@Nullable String jsonString, Type type) {
         if (jsonString == null || jsonString.isEmpty()) {
             return null;
         }
@@ -126,6 +134,9 @@ public final class ObjectSerializer {
         if (value instanceof java.time.LocalDate ld) {
             return DateTimeFormatter.ISO_LOCAL_DATE.format(ld);
         }
+        if (value instanceof Duration d) {
+            return formatDuration(d);
+        }
         if (value instanceof TemporalAccessor t) {
             return DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssxxx").format(t);
         }
@@ -143,6 +154,81 @@ public final class ObjectSerializer {
             return e.name();
         }
         return String.valueOf(value);
+    }
+
+    /**
+     * Format a {@link Duration} as a protobuf-JSON duration string.
+     *
+     * <p>Follows the {@code google.protobuf.Duration} JSON mapping: a decimal
+     * count of seconds suffixed with {@code "s"}. Fractional seconds, when
+     * present, are emitted with 3, 6, or 9 digits — the smallest of those that
+     * preserves every non-zero nanosecond digit (e.g. {@code "3600s"},
+     * {@code "3600.000000001s"}, {@code "-1.500s"}). {@code Duration} normalises
+     * a negative value into a non-negative nanosecond remainder, so the sign is
+     * derived from the whole duration and applied to absolute parts.</p>
+     *
+     * @param duration the duration to format
+     * @return the protobuf-JSON duration string
+     */
+    static String formatDuration(Duration duration) {
+        String sign = duration.isNegative() ? "-" : "";
+        Duration abs = duration.abs();
+        long secs = abs.getSeconds();
+        int nanos = abs.getNano();
+        if (nanos == 0) {
+            return sign + secs + "s";
+        }
+        String frac = String.format("%09d", nanos);
+        int len = 9;
+        while (len > 3 && frac.charAt(len - 1) == '0') {
+            len--;
+        }
+        /* Round the kept-digit count up to the next of {3, 6, 9}. */
+        if (len <= 3) {
+            len = 3;
+        } else if (len <= 6) {
+            len = 6;
+        } else {
+            len = 9;
+        }
+        return sign + secs + "." + frac.substring(0, len) + "s";
+    }
+
+    /**
+     * Parse a protobuf-JSON duration string into a {@link Duration}.
+     *
+     * <p>Accepts the {@code google.protobuf.Duration} JSON form
+     * ({@code ^-?\d+(\.\d{1,9})?s$}). The fractional part is right-padded to
+     * nine digits to obtain nanoseconds, and the sign is applied to the whole
+     * value.</p>
+     *
+     * @param text the protobuf-JSON duration string
+     * @return the parsed duration
+     * @throws SerializationException if the text is not a valid duration string
+     */
+    static Duration parseDuration(String text) {
+        if (!text.matches("-?\\d+(\\.\\d{1,9})?s")) {
+            throw new SerializationException("Invalid protobuf duration: " + text);
+        }
+        String body = text.substring(0, text.length() - 1);
+        boolean negative = body.startsWith("-");
+        if (negative) {
+            body = body.substring(1);
+        }
+        int dot = body.indexOf('.');
+        long secs;
+        int nanos;
+        if (dot < 0) {
+            secs = Long.parseLong(body);
+            nanos = 0;
+        } else {
+            secs = Long.parseLong(body.substring(0, dot));
+            String fracPart = body.substring(dot + 1);
+            String padded = (fracPart + "000000000").substring(0, 9);
+            nanos = Integer.parseInt(padded);
+        }
+        Duration duration = Duration.ofSeconds(secs, nanos);
+        return negative ? duration.negated() : duration;
     }
 
     /**
@@ -243,6 +329,11 @@ public final class ObjectSerializer {
                 .visibility(PropertyAccessor.IS_GETTER, JsonAutoDetect.Visibility.NONE)
                 .defaultPropertyInclusion(JsonInclude.Value.construct(JsonInclude.Include.NON_NULL, JsonInclude.Include.ALWAYS))
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+                /* An empty/propertyless object body (e.g. a request that takes
+                   an empty object) must serialize to "{}" rather than throwing.
+                   Without this, Jackson raises InvalidDefinitionException for a
+                   bean with no discoverable properties. */
+                .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
                 .enable(SerializationFeature.WRITE_ENUMS_USING_TO_STRING)
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                 /* Strict scalar typing: a quoted number ("42") for an int field
@@ -256,12 +347,42 @@ public final class ObjectSerializer {
                 .configure(DeserializationFeature.FAIL_ON_INVALID_SUBTYPE, true)
                 .enable(DeserializationFeature.READ_ENUMS_USING_TO_STRING)
                 .addModule(new JavaTimeModule())
+                /* Registered after JavaTimeModule so it overrides that module's
+                   Duration handling: Zitadel (and protobuf-JSON generally)
+                   requires google.protobuf.Duration's decimal-seconds string
+                   form ("3600s"), not JavaTimeModule's numeric/ISO-8601 form. */
+                .addModule(durationModule())
                 {{#openApiNullable}}
                 .addModule(new JsonNullableModule())
                 {{/openApiNullable}}
                 .defaultDateFormat(new StdDateFormat().withColonInTimeZone(true))
                 .build();
         return mapper;
+    }
+
+    /**
+     * Build a Jackson module that (de)serializes {@link Duration} as a
+     * {@code google.protobuf.Duration} JSON string.
+     *
+     * @return the duration module
+     */
+    private static SimpleModule durationModule() {
+        SimpleModule module = new SimpleModule();
+        module.addSerializer(Duration.class, new JsonSerializer<Duration>() {
+            @Override
+            public void serialize(Duration value, JsonGenerator gen, SerializerProvider provider)
+                    throws IOException {
+                gen.writeString(formatDuration(value));
+            }
+        });
+        module.addDeserializer(Duration.class, new JsonDeserializer<Duration>() {
+            @Override
+            public Duration deserialize(JsonParser parser, DeserializationContext context)
+                    throws IOException {
+                return parseDuration(parser.getValueAsString());
+            }
+        });
+        return module;
     }
 
     /**
@@ -308,7 +429,7 @@ public final class ObjectSerializer {
     /**
      * Exception raised when serialization or deserialization fails.
      */
-    public static class SerializationException extends RuntimeException {
+    public static class SerializationException extends ZitadelException {
 
         private static final long serialVersionUID = 1L;
 

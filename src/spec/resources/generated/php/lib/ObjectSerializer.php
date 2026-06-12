@@ -17,6 +17,7 @@ use PetstoreClient\Serializer\DsAwareObjectNormalizer;
 use PetstoreClient\Serializer\DsMapNormalizer;
 use PetstoreClient\Serializer\DsSetNormalizer;
 use PetstoreClient\Serializer\DsVectorNormalizer;
+use PetstoreClient\Serializer\DurationNormalizer;
 use PetstoreClient\Serializer\UriNormalizer;
 use Symfony\Component\PropertyInfo\Extractor\PhpDocExtractor;
 use Symfony\Component\PropertyInfo\Extractor\ReflectionExtractor;
@@ -64,6 +65,16 @@ class ObjectSerializer
 
             self::$serializer = new Serializer([
                 new BackedEnumNormalizer(),
+                /* 4.8: register the protobuf-JSON DurationNormalizer BEFORE
+                 * any \DateInterval handling (Symfony's built-in
+                 * DateIntervalNormalizer would otherwise emit ISO-8601, which
+                 * a google.protobuf.Duration server rejects with HTTP 400).
+                 * Symfony tries normalizers in list order and the first whose
+                 * supportsNormalization() matches wins, so placing this first
+                 * makes every \DateInterval — standalone or as a model
+                 * property routed through DsAwareObjectNormalizer — serialize
+                 * to the "3600s" wire form and denormalize back. */
+                new DurationNormalizer(),
                 new DateTimeNormalizer([DateTimeNormalizer::FORMAT_KEY => self::DATE_TIME_FORMAT]),
                 new UriNormalizer(),
                 new DsMapNormalizer(),
@@ -106,12 +117,11 @@ class ObjectSerializer
         }
 
         if ($data instanceof \DateInterval) {
-            /* 4.8: serialize OAS `format: duration` as a canonical
-             * ISO-8601 duration string. \DateInterval::format does not
-             * implement ISO-8601 directly, so we assemble it explicitly:
-             * the date portion (PnYnMnD) followed by the time portion
-             * (TnHnMnS) when any time component is non-zero. */
-            return self::formatIso8601Duration($data);
+            /* 4.8: serialize OAS `format: duration` as a protobuf-JSON
+             * duration string (e.g. "3600s" / "3600.000000001s"). This is
+             * the wire form google.protobuf.Duration expects — an ISO-8601
+             * duration is rejected by protobuf-JSON servers. */
+            return self::formatProtobufDuration($data);
         }
 
         if ($data instanceof \Symfony\Component\Uid\Uuid) {
@@ -160,7 +170,7 @@ class ObjectSerializer
         }
 
         if ($value instanceof \DateInterval) {
-            return self::formatIso8601Duration($value);
+            return self::formatProtobufDuration($value);
         }
 
         if ($value instanceof \Symfony\Component\Uid\Uuid) {
@@ -199,7 +209,15 @@ class ObjectSerializer
     public static function serialize(mixed $data): string
     {
         try {
-            $json = json_encode(self::sanitizeForSerialization($data));
+            $sanitized = self::sanitizeForSerialization($data);
+            /* #3: an empty body must serialize to a JSON object `{}`, not an
+             * empty JSON array `[]`. A model whose fields are all null
+             * normalizes to an empty array (SKIP_NULL_VALUES), and PHP's
+             * json_encode([]) yields `[]` — which protobuf-JSON servers
+             * reject. Force object encoding for the empty-array case so the
+             * wire form matches the `{}` the other SDKs send. */
+            $flags = $sanitized === [] ? JSON_FORCE_OBJECT : 0;
+            $json = json_encode($sanitized, $flags);
             if ($json === false) {
                 throw new \RuntimeException('JSON encoding failed: ' . json_last_error_msg());
             }
@@ -444,11 +462,12 @@ class ObjectSerializer
         }
 
         if ($class === 'DateInterval') {
-            /* 4.8: OAS `format: duration` is an ISO-8601 duration string
-             * (e.g. "P1DT2H30M"). \DateInterval's constructor parses this
-             * format natively, so deserialization is a one-liner. Invalid
-             * strings surface as the \Exception that the constructor
-             * throws. */
+            /* 4.8: OAS `format: duration` is a protobuf-JSON duration
+             * string (e.g. "3600s" / "3600.000000001s" / "-1.5s"). The
+             * ISO-8601 form \DateInterval's constructor parses is NOT the
+             * wire form here, so we parse the protobuf-JSON shape and build
+             * a round-tripping interval. Invalid strings surface as the
+             * SerializationException used elsewhere for bad input. */
             if (is_string($data)) {
                 $decoded = json_decode($data, true);
                 if (is_string($decoded)) {
@@ -456,7 +475,7 @@ class ObjectSerializer
                 }
             }
             if (is_string($data) && $data !== '') {
-                return new \DateInterval($data);
+                return self::parseProtobufDuration($data);
             }
             return null;
         }
@@ -855,45 +874,78 @@ class ObjectSerializer
     }
 
     /**
-     * 4.8: format a \DateInterval as an ISO-8601 duration string.
+     * 4.8: format a \DateInterval as a protobuf-JSON duration string.
      *
-     * \DateInterval::format does not emit ISO-8601 directly (it lets the
-     * caller assemble the parts), so this helper composes the canonical
-     * form: "P[nY][nM][nD][T[nH][nM][nS]]". Zero-valued components are
-     * omitted so a one-hour interval round-trips as "PT1H" rather than
-     * "P0Y0M0DT1H0M0S". An all-zero interval serializes as "PT0S" so the
-     * value stays a syntactically valid ISO-8601 duration.
+     * google.protobuf.Duration is encoded as the number of seconds followed
+     * by an "s" suffix (e.g. "3600s"); fractional seconds are written as a
+     * decimal with 3, 6, or 9 digits — the smallest precision that preserves
+     * the value (e.g. "3600.000000001s"). google.protobuf.Duration has no
+     * month/year components, so the interval's ->y/->m are ignored (protobuf
+     * durations never set them); days are folded into seconds. A negative
+     * interval (->invert === 1) is prefixed with "-".
      */
-    public static function formatIso8601Duration(\DateInterval $interval): string
+    public static function formatProtobufDuration(\DateInterval $interval): string
     {
-        $date = '';
-        if ($interval->y > 0) {
-            $date .= $interval->y . 'Y';
+        $sign = $interval->invert === 1 ? '-' : '';
+
+        $seconds = (((($interval->d * 24) + $interval->h) * 60) + $interval->i) * 60
+            + $interval->s;
+        /* ->f is fractional seconds in the range [0, 1); scale to nanos and
+         * round to the nearest whole nanosecond. */
+        $nanos = (int) round($interval->f * 1_000_000_000);
+        if ($nanos >= 1_000_000_000) {
+            $seconds += intdiv($nanos, 1_000_000_000);
+            $nanos %= 1_000_000_000;
         }
-        if ($interval->m > 0) {
-            $date .= $interval->m . 'M';
+
+        if ($nanos === 0) {
+            return $sign . $seconds . 's';
         }
-        if ($interval->d > 0) {
-            $date .= $interval->d . 'D';
+
+        /* Zero-pad to 9 digits, then trim trailing zeros down to the nearest
+         * 3/6/9-digit boundary so the fraction stays a valid protobuf-JSON
+         * sub-second value. */
+        $frac = str_pad((string) $nanos, 9, '0', STR_PAD_LEFT);
+        if (str_ends_with($frac, '000000')) {
+            $frac = substr($frac, 0, 3);
+        } elseif (str_ends_with($frac, '000')) {
+            $frac = substr($frac, 0, 6);
         }
-        $time = '';
-        if ($interval->h > 0) {
-            $time .= $interval->h . 'H';
+
+        return $sign . $seconds . '.' . $frac . 's';
+    }
+
+    /**
+     * 4.8: parse a protobuf-JSON duration string into a \DateInterval.
+     *
+     * Accepts the wire form "[-]<seconds>[.<frac>]s" (e.g. "3600s",
+     * "3600.000000001s", "-1.5s"). The whole-seconds part becomes the
+     * interval's seconds; the fractional part is right-padded to 9 digits and
+     * stored as ->f so the value round-trips through formatProtobufDuration.
+     * A leading "-" sets ->invert. Any other shape throws the SDK-owned
+     * SerializationException used elsewhere for malformed input.
+     */
+    public static function parseProtobufDuration(string $value): \DateInterval
+    {
+        if (preg_match('/^(-?)(\d+)(?:\.(\d{1,9}))?s$/', $value, $m) !== 1) {
+            throw new SerializationException(
+                "Invalid protobuf-JSON duration '$value': "
+                . 'expected "<seconds>[.<fraction>]s"'
+            );
         }
-        if ($interval->i > 0) {
-            $time .= $interval->i . 'M';
+
+        $seconds = (int) $m[2];
+        $interval = new \DateInterval('PT' . $seconds . 'S');
+
+        if (isset($m[3]) && $m[3] !== '') {
+            $interval->f = (int) str_pad($m[3], 9, '0', STR_PAD_RIGHT) / 1_000_000_000;
         }
-        if ($interval->s > 0) {
-            $time .= $interval->s . 'S';
+
+        if ($m[1] === '-') {
+            $interval->invert = 1;
         }
-        if ($date === '' && $time === '') {
-            return 'PT0S';
-        }
-        $result = 'P' . $date;
-        if ($time !== '') {
-            $result .= 'T' . $time;
-        }
-        return $result;
+
+        return $interval;
     }
 
     /**

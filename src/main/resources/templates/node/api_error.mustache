@@ -1,11 +1,14 @@
 {{>api_info}}
 
 import { ObjectSerializer } from './object-serializer{{importFileExtension}}';
+import { ZitadelError } from './errors/zitadel-error{{importFileExtension}}';
 
 /**
- * Base error class for all API errors.
+ * Base error class for all API (transport-level) errors. Extends the branded
+ * {@link ZitadelError} root so every error this SDK throws shares a common
+ * `instanceof ZitadelError` ancestor.
  */
-export class ApiError<T = unknown> extends Error {
+export class ApiError<T = unknown> extends ZitadelError {
   /** HTTP status code. */
   public readonly statusCode: number;
 

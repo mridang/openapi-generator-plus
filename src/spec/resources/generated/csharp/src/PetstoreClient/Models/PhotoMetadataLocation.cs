@@ -25,10 +25,8 @@ public class PhotoMetadataLocation : IEquatable<PhotoMetadataLocation>
         return other is not null
             && (
                 ReferenceEquals(this, other)
-                || (
-                    EqualityComparer<double?>.Default.Equals(this.Lat, other.Lat)
+                || EqualityComparer<double?>.Default.Equals(this.Lat, other.Lat)
                     && EqualityComparer<double?>.Default.Equals(this.Lng, other.Lng)
-                )
             );
     }
 

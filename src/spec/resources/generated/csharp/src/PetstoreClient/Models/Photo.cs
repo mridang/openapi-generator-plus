@@ -33,12 +33,10 @@ public class Photo : IEquatable<Photo>
         return other is not null
             && (
                 ReferenceEquals(this, other)
-                || (
-                    EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
+                || EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
                     && EqualityComparer<string?>.Default.Equals(this.Caption, other.Caption)
                     && EqualityComparer<bool?>.Default.Equals(this.IsPrimary, other.IsPrimary)
                     && EqualityComparer<string?>.Default.Equals(this.Url, other.Url)
-                )
             );
     }
 

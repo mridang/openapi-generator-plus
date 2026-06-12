@@ -49,6 +49,12 @@ impl fmt::Display for BasicAuthError {
 
 impl Error for BasicAuthError {}
 
+// Brands this SDK-thrown error as part of the `ZitadelError` hierarchy so a
+// single `&dyn ZitadelError` / `Box<dyn ZitadelError>` can hold it alongside
+// the transport/API errors. The supertrait bounds (Error + Send + Sync) are
+// satisfied by the `impl Error` above and the unit-like variants.
+impl crate::errors::ZitadelError for BasicAuthError {}
+
 /// BasicAuthenticator provides HTTP Basic authentication.
 pub struct BasicAuthenticator {
     host: String,

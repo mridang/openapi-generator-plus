@@ -526,6 +526,17 @@ class ObjectSerializerTest {
     }
 
     @Test
+    @DisplayName("empty propertyless object serializes to {}")
+    void emptyObjectSerializesToEmptyBraces() {
+      // #3: an empty request body (settings.getGeneralSettings({})) must
+      // serialize to "{}" rather than throwing InvalidDefinitionException
+      // for a bean with no discoverable properties
+      // (FAIL_ON_EMPTY_BEANS disabled).
+      String json = serializer.serialize(new Object());
+      assertEquals("{}", json);
+    }
+
+    @Test
     @DisplayName("omits fields that are null from JSON output")
     void omitsNullFieldsFromJson() {
       // Gap #13: nulls must be discarded on serialize (Jackson NON_NULL inclusion).
@@ -604,16 +615,100 @@ class ObjectSerializerTest {
   class DurationSerializationTests {
 
     @Test
-    @DisplayName("Duration stringifies as ISO-8601 duration")
-    void durationStringifiesAsIso8601() {
+    @DisplayName("whole-second Duration stringifies as protobuf seconds")
+    void durationStringifiesAsProtobufSeconds() {
       java.time.Duration d = java.time.Duration.ofHours(1).plusMinutes(30);
-      assertEquals("PT1H30M", ObjectSerializer.stringify(d));
+      assertEquals("5400s", ObjectSerializer.stringify(d));
     }
 
     @Test
-    @DisplayName("zero Duration stringifies as PT0S")
+    @DisplayName("zero Duration stringifies as 0s")
     void zeroDurationStringifies() {
-      assertEquals("PT0S", ObjectSerializer.stringify(java.time.Duration.ZERO));
+      assertEquals("0s", ObjectSerializer.stringify(java.time.Duration.ZERO));
+    }
+
+    @Test
+    @DisplayName("one-nanosecond Duration keeps all 9 fractional digits")
+    void singleNanoKeepsNineDigits() {
+      java.time.Duration d = java.time.Duration.ofSeconds(3600, 1);
+      assertEquals("3600.000000001s", ObjectSerializer.stringify(d));
+    }
+
+    @Test
+    @DisplayName("millisecond Duration trims to 3 fractional digits")
+    void millisTrimsToThreeDigits() {
+      java.time.Duration d = java.time.Duration.ofSeconds(1, 500_000_000);
+      assertEquals("1.500s", ObjectSerializer.stringify(d));
+    }
+
+    @Test
+    @DisplayName("microsecond Duration trims to 6 fractional digits")
+    void microsTrimsToSixDigits() {
+      java.time.Duration d = java.time.Duration.ofSeconds(0, 123_456_000);
+      assertEquals("0.123456s", ObjectSerializer.stringify(d));
+    }
+
+    @Test
+    @DisplayName("negative Duration carries the sign on the whole value")
+    void negativeDurationSigned() {
+      java.time.Duration d = java.time.Duration.ofSeconds(-1, -500_000_000);
+      assertEquals("-1.500s", ObjectSerializer.stringify(d));
+    }
+
+    @Test
+    @DisplayName("Duration field serializes as protobuf string in a model body")
+    void durationFieldSerializesInModelBody() throws Exception {
+      DurationHolder holder = new DurationHolder(java.time.Duration.ofSeconds(3600, 1));
+      String json = serializer.serialize(holder);
+      assertTrue(
+          json.contains("\"ttl\":\"3600.000000001s\""),
+          "Duration field should serialize as protobuf string, got: " + json);
+    }
+
+    @Test
+    @DisplayName("protobuf Duration string deserializes within a model body")
+    void durationFieldDeserializesInModelBody() {
+      DurationHolder holder =
+          serializer.deserialize(
+              "{\"ttl\":\"3600.000000001s\"}",
+              new com.fasterxml.jackson.core.type.TypeReference<DurationHolder>() {}.getType());
+      assertNotNull(holder);
+      assertEquals(java.time.Duration.ofSeconds(3600, 1), holder.ttl);
+    }
+
+    @Test
+    @DisplayName("Duration round-trips through a model body")
+    void durationRoundTripsInModelBody() {
+      DurationHolder original = new DurationHolder(java.time.Duration.ofSeconds(90, 123_456_789));
+      String json = serializer.serialize(original);
+      DurationHolder decoded =
+          serializer.deserialize(
+              json,
+              new com.fasterxml.jackson.core.type.TypeReference<DurationHolder>() {}.getType());
+      assertNotNull(decoded);
+      assertEquals(original.ttl, decoded.ttl);
+    }
+
+    @Test
+    @DisplayName("ISO-8601 Duration string fails to deserialize")
+    void iso8601DurationStringRejected() {
+      assertThrows(
+          ObjectSerializer.SerializationException.class,
+          () ->
+              serializer.deserialize(
+                  "{\"ttl\":\"PT1H\"}",
+                  new com.fasterxml.jackson.core.type.TypeReference<
+                      DurationHolder>() {}.getType()));
+    }
+  }
+
+  static class DurationHolder {
+    public @javax.annotation.Nullable java.time.Duration ttl;
+
+    public DurationHolder() {}
+
+    public DurationHolder(java.time.Duration ttl) {
+      this.ttl = ttl;
     }
   }
 

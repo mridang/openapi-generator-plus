@@ -121,8 +121,7 @@ public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerNa
         return other is not null
             && (
                 ReferenceEquals(this, other)
-                || (
-                    EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
+                || EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
                     && EqualityComparer<string>.Default.Equals(this.Name, other.Name)
                     && EqualityComparer<Category?>.Default.Equals(this.Category, other.Category)
                     && EqualityComparer<HashSet<string>>.Default.Equals(
@@ -144,7 +143,6 @@ public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerNa
                     && EqualityComparer<string?>.Default.Equals(this.OwnerEmail, other.OwnerEmail)
                     && EqualityComparer<decimal?>.Default.Equals(this.WeightKg, other.WeightKg)
                     && EqualityComparer<string>.Default.Equals(this.OwnerName, other.OwnerName)
-                )
             );
     }
 

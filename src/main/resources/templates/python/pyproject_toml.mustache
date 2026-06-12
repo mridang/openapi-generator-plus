@@ -7,7 +7,6 @@ requires-python = ">=3.13"
 dependencies = [
     "urllib3>=2.1.0,<3.0.0",
     "python_dateutil>=2.8.2",
-    "isodate>=0.6.1",
     "pydantic[email]>=2,<3",
     "typing-extensions>=4.7.1",
     "brotli>=1.0.0",
@@ -90,13 +89,13 @@ cache_dir = ".mypy"
 python_version = "3.13"
 
 # Optional runtime dependencies imported behind try/except ImportError shims.
-# These ship no type stubs (brotli, isodate) or are an optional, possibly
-# absent integration (opentelemetry), so resolving them as untyped is the
+# These ship no type stubs (brotli) or are an optional, possibly absent
+# integration (opentelemetry), so resolving them as untyped is the
 # documented, intentional behavior rather than a real type error. Treating the
 # modules as Any also lets the `_zstandard = None` / `_brotli = None` fallback
 # assignments type-check without an inline override.
 [[tool.mypy.overrides]]
-module = ["brotli", "isodate", "zstandard", "opentelemetry.*"]
+module = ["brotli", "zstandard", "opentelemetry.*"]
 ignore_missing_imports = true
 
 [tool.pyright]

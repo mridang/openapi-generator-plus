@@ -13,7 +13,7 @@ import javax.annotation.Nullable;
 
 /** Exception thrown when an API call fails. */
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
-public class ApiException extends Exception {
+public class ApiException extends ZitadelException {
   private static final long serialVersionUID = 1L;
 
   /** The HTTP status code. */

@@ -308,7 +308,7 @@ public class PetApi extends BaseApi {
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public Pet addPet(Pet pet) throws ApiException {
+  public Pet addPet(Pet pet) {
     return addPet(pet, null);
   }
 
@@ -322,7 +322,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Pet> addPetWithHttpInfo(Pet pet) throws ApiException {
+  public ApiResult<Pet> addPetWithHttpInfo(Pet pet) {
     return addPetWithHttpInfo(pet, null);
   }
 
@@ -334,7 +334,7 @@ public class PetApi extends BaseApi {
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public Pet addPet(Pet pet, @Nullable AddPetOptions options) throws ApiException {
+  public Pet addPet(Pet pet, @Nullable AddPetOptions options) {
     return requireBody(addPetWithHttpInfo(pet, options), "addPet");
   }
 
@@ -346,13 +346,11 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Pet> addPetWithHttpInfo(Pet pet, @Nullable AddPetOptions options)
-      throws ApiException {
+  public ApiResult<Pet> addPetWithHttpInfo(Pet pet, @Nullable AddPetOptions options) {
     return addPetInternal(pet, options);
   }
 
-  private ApiResult<Pet> addPetInternal(Pet pet, @Nullable AddPetOptions options)
-      throws ApiException {
+  private ApiResult<Pet> addPetInternal(Pet pet, @Nullable AddPetOptions options) {
     Authenticator auth = options != null ? options.auth() : null;
     if (pet == null) {
       throw new IllegalArgumentException(
@@ -374,7 +372,7 @@ public class PetApi extends BaseApi {
   }
 
   /**
-   * Add photos to the pet&#39;s gallery Uploads one or more photos with structured metadata. The
+   * Add photos to the pet's gallery Uploads one or more photos with structured metadata. The
    * metadata part is serialised as JSON within the multipart body.
    *
    * @param petId (required)
@@ -383,12 +381,12 @@ public class PetApi extends BaseApi {
    * @return {@code List<Photo>}
    * @throws ApiException if fails to make API call
    */
-  public List<Photo> addPetPhotos(Long petId, AddPetPhotosOptions options) throws ApiException {
+  public List<Photo> addPetPhotos(Long petId, AddPetPhotosOptions options) {
     return requireBody(addPetPhotosWithHttpInfo(petId, options), "addPetPhotos");
   }
 
   /**
-   * Add photos to the pet&#39;s gallery Uploads one or more photos with structured metadata. The
+   * Add photos to the pet's gallery Uploads one or more photos with structured metadata. The
    * metadata part is serialised as JSON within the multipart body.
    *
    * @param petId (required)
@@ -397,8 +395,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code List<Photo>}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<List<Photo>> addPetPhotosWithHttpInfo(Long petId, AddPetPhotosOptions options)
-      throws ApiException {
+  public ApiResult<List<Photo>> addPetPhotosWithHttpInfo(Long petId, AddPetPhotosOptions options) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling addPetPhotos");
@@ -446,7 +443,7 @@ public class PetApi extends BaseApi {
    * @return {@code PetTreatment}
    * @throws ApiException if fails to make API call
    */
-  public PetTreatment addPetTreatment(Long petId, PetTreatment petTreatment) throws ApiException {
+  public PetTreatment addPetTreatment(Long petId, PetTreatment petTreatment) {
     return addPetTreatment(petId, petTreatment, null);
   }
 
@@ -460,8 +457,8 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code PetTreatment}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<PetTreatment> addPetTreatmentWithHttpInfo(Long petId, PetTreatment petTreatment)
-      throws ApiException {
+  public ApiResult<PetTreatment> addPetTreatmentWithHttpInfo(
+      Long petId, PetTreatment petTreatment) {
     return addPetTreatmentWithHttpInfo(petId, petTreatment, null);
   }
 
@@ -475,8 +472,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    */
   public PetTreatment addPetTreatment(
-      Long petId, PetTreatment petTreatment, @Nullable AddPetTreatmentOptions options)
-      throws ApiException {
+      Long petId, PetTreatment petTreatment, @Nullable AddPetTreatmentOptions options) {
     return requireBody(
         addPetTreatmentWithHttpInfo(petId, petTreatment, options), "addPetTreatment");
   }
@@ -491,14 +487,12 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    */
   public ApiResult<PetTreatment> addPetTreatmentWithHttpInfo(
-      Long petId, PetTreatment petTreatment, @Nullable AddPetTreatmentOptions options)
-      throws ApiException {
+      Long petId, PetTreatment petTreatment, @Nullable AddPetTreatmentOptions options) {
     return addPetTreatmentInternal(petId, petTreatment, options);
   }
 
   private ApiResult<PetTreatment> addPetTreatmentInternal(
-      Long petId, PetTreatment petTreatment, @Nullable AddPetTreatmentOptions options)
-      throws ApiException {
+      Long petId, PetTreatment petTreatment, @Nullable AddPetTreatmentOptions options) {
     Authenticator auth = options != null ? options.auth() : null;
     if (petId == null) {
       throw new IllegalArgumentException(
@@ -538,7 +532,7 @@ public class PetApi extends BaseApi {
    *
    * @throws ApiException if fails to make API call
    */
-  public void deletePet(Long petId) throws ApiException {
+  public void deletePet(Long petId) {
     deletePet(petId, null);
   }
 
@@ -552,7 +546,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Void> deletePetWithHttpInfo(Long petId) throws ApiException {
+  public ApiResult<Void> deletePetWithHttpInfo(Long petId) {
     return deletePetWithHttpInfo(petId, null);
   }
 
@@ -564,7 +558,7 @@ public class PetApi extends BaseApi {
    *     per-call authenticator
    * @throws ApiException if fails to make API call
    */
-  public void deletePet(Long petId, @Nullable DeletePetOptions options) throws ApiException {
+  public void deletePet(Long petId, @Nullable DeletePetOptions options) {
     deletePetWithHttpInfo(petId, options);
   }
 
@@ -577,13 +571,11 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Void> deletePetWithHttpInfo(Long petId, @Nullable DeletePetOptions options)
-      throws ApiException {
+  public ApiResult<Void> deletePetWithHttpInfo(Long petId, @Nullable DeletePetOptions options) {
     return deletePetInternal(petId, options);
   }
 
-  private ApiResult<Void> deletePetInternal(Long petId, @Nullable DeletePetOptions options)
-      throws ApiException {
+  private ApiResult<Void> deletePetInternal(Long petId, @Nullable DeletePetOptions options) {
     Authenticator auth = options != null ? options.auth() : null;
     if (petId == null) {
       throw new IllegalArgumentException(
@@ -629,7 +621,7 @@ public class PetApi extends BaseApi {
    * @return {@code InputStream}
    * @throws ApiException if fails to make API call
    */
-  public InputStream downloadPetDocument(Long petId, Long documentId) throws ApiException {
+  public InputStream downloadPetDocument(Long petId, Long documentId) {
     return requireBody(downloadPetDocumentWithHttpInfo(petId, documentId), "downloadPetDocument");
   }
 
@@ -642,8 +634,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code InputStream}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<InputStream> downloadPetDocumentWithHttpInfo(Long petId, Long documentId)
-      throws ApiException {
+  public ApiResult<InputStream> downloadPetDocumentWithHttpInfo(Long petId, Long documentId) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling downloadPetDocument");
@@ -689,7 +680,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    */
   @Deprecated
-  public List<Pet> findPetsByStatus() throws ApiException {
+  public List<Pet> findPetsByStatus() {
     return findPetsByStatus(null);
   }
 
@@ -704,7 +695,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    */
   @Deprecated
-  public ApiResult<List<Pet>> findPetsByStatusWithHttpInfo() throws ApiException {
+  public ApiResult<List<Pet>> findPetsByStatusWithHttpInfo() {
     return findPetsByStatusWithHttpInfo(null);
   }
 
@@ -719,7 +710,7 @@ public class PetApi extends BaseApi {
    * @see <a href="https://example.com/docs/filtering">Finds Pets by status Documentation</a>
    */
   @Deprecated
-  public List<Pet> findPetsByStatus(@Nullable FindPetsByStatusOptions options) throws ApiException {
+  public List<Pet> findPetsByStatus(@Nullable FindPetsByStatusOptions options) {
     return requireBody(findPetsByStatusWithHttpInfo(options), "findPetsByStatus");
   }
 
@@ -735,7 +726,7 @@ public class PetApi extends BaseApi {
    */
   @Deprecated
   public ApiResult<List<Pet>> findPetsByStatusWithHttpInfo(
-      @Nullable FindPetsByStatusOptions options) throws ApiException {
+      @Nullable FindPetsByStatusOptions options) {
     String path = "/pet/findByStatus";
     Map<String, Object> queryParams = new HashMap<>();
     if (options != null) {
@@ -771,7 +762,7 @@ public class PetApi extends BaseApi {
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public Pet getExternalPetInfo(Long petId) throws ApiException {
+  public Pet getExternalPetInfo(Long petId) {
     return getExternalPetInfo(petId, null);
   }
 
@@ -782,7 +773,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Pet> getExternalPetInfoWithHttpInfo(Long petId) throws ApiException {
+  public ApiResult<Pet> getExternalPetInfoWithHttpInfo(Long petId) {
     return getExternalPetInfoWithHttpInfo(petId, null);
   }
 
@@ -794,8 +785,7 @@ public class PetApi extends BaseApi {
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public Pet getExternalPetInfo(Long petId, @Nullable GetExternalPetInfoServer server)
-      throws ApiException {
+  public Pet getExternalPetInfo(Long petId, @Nullable GetExternalPetInfoServer server) {
     return requireBody(getExternalPetInfoWithHttpInfo(petId, server), "getExternalPetInfo");
   }
 
@@ -808,7 +798,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    */
   public ApiResult<Pet> getExternalPetInfoWithHttpInfo(
-      Long petId, @Nullable GetExternalPetInfoServer server) throws ApiException {
+      Long petId, @Nullable GetExternalPetInfoServer server) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling getExternalPetInfo");
@@ -847,7 +837,7 @@ public class PetApi extends BaseApi {
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public Pet getMultiServerPetInfo(Long petId) throws ApiException {
+  public Pet getMultiServerPetInfo(Long petId) {
     return getMultiServerPetInfo(petId, null);
   }
 
@@ -858,7 +848,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Pet> getMultiServerPetInfoWithHttpInfo(Long petId) throws ApiException {
+  public ApiResult<Pet> getMultiServerPetInfoWithHttpInfo(Long petId) {
     return getMultiServerPetInfoWithHttpInfo(petId, null);
   }
 
@@ -870,8 +860,7 @@ public class PetApi extends BaseApi {
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public Pet getMultiServerPetInfo(Long petId, @Nullable GetMultiServerPetInfoServer server)
-      throws ApiException {
+  public Pet getMultiServerPetInfo(Long petId, @Nullable GetMultiServerPetInfoServer server) {
     return requireBody(getMultiServerPetInfoWithHttpInfo(petId, server), "getMultiServerPetInfo");
   }
 
@@ -884,7 +873,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    */
   public ApiResult<Pet> getMultiServerPetInfoWithHttpInfo(
-      Long petId, @Nullable GetMultiServerPetInfoServer server) throws ApiException {
+      Long petId, @Nullable GetMultiServerPetInfoServer server) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling getMultiServerPetInfo");
@@ -917,24 +906,24 @@ public class PetApi extends BaseApi {
   }
 
   /**
-   * Get the pet&#39;s profile photo Returns the raw image bytes of the pet&#39;s current avatar.
+   * Get the pet's profile photo Returns the raw image bytes of the pet's current avatar.
    *
    * @param petId (required)
    * @return {@code InputStream}
    * @throws ApiException if fails to make API call
    */
-  public InputStream getPetAvatar(Long petId) throws ApiException {
+  public InputStream getPetAvatar(Long petId) {
     return requireBody(getPetAvatarWithHttpInfo(petId), "getPetAvatar");
   }
 
   /**
-   * Get the pet&#39;s profile photo Returns the raw image bytes of the pet&#39;s current avatar.
+   * Get the pet's profile photo Returns the raw image bytes of the pet's current avatar.
    *
    * @param petId (required)
    * @return the API result wrapping {@code InputStream}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<InputStream> getPetAvatarWithHttpInfo(Long petId) throws ApiException {
+  public ApiResult<InputStream> getPetAvatarWithHttpInfo(Long petId) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling getPetAvatar");
@@ -961,26 +950,26 @@ public class PetApi extends BaseApi {
   }
 
   /**
-   * Get the pet&#39;s avatar thumbnail as base64 Returns a compact base64-encoded thumbnail
-   * suitable for embedding directly in mobile UI without a separate image request.
+   * Get the pet's avatar thumbnail as base64 Returns a compact base64-encoded thumbnail suitable
+   * for embedding directly in mobile UI without a separate image request.
    *
    * @param petId (required)
    * @return {@code byte[]}
    * @throws ApiException if fails to make API call
    */
-  public byte[] getPetAvatarThumbnail(Long petId) throws ApiException {
+  public byte[] getPetAvatarThumbnail(Long petId) {
     return requireBody(getPetAvatarThumbnailWithHttpInfo(petId), "getPetAvatarThumbnail");
   }
 
   /**
-   * Get the pet&#39;s avatar thumbnail as base64 Returns a compact base64-encoded thumbnail
-   * suitable for embedding directly in mobile UI without a separate image request.
+   * Get the pet's avatar thumbnail as base64 Returns a compact base64-encoded thumbnail suitable
+   * for embedding directly in mobile UI without a separate image request.
    *
    * @param petId (required)
    * @return the API result wrapping {@code byte[]}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<byte[]> getPetAvatarThumbnailWithHttpInfo(Long petId) throws ApiException {
+  public ApiResult<byte[]> getPetAvatarThumbnailWithHttpInfo(Long petId) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling getPetAvatarThumbnail");
@@ -1017,7 +1006,7 @@ public class PetApi extends BaseApi {
    * @deprecated This operation is deprecated.
    */
   @Deprecated
-  public Pet getPetById(Long petId) throws ApiException {
+  public Pet getPetById(Long petId) {
     return getPetById(petId, null);
   }
 
@@ -1032,7 +1021,7 @@ public class PetApi extends BaseApi {
    * @deprecated This operation is deprecated.
    */
   @Deprecated
-  public ApiResult<Pet> getPetByIdWithHttpInfo(Long petId) throws ApiException {
+  public ApiResult<Pet> getPetByIdWithHttpInfo(Long petId) {
     return getPetByIdWithHttpInfo(petId, null);
   }
 
@@ -1048,7 +1037,7 @@ public class PetApi extends BaseApi {
    * @deprecated This operation is deprecated.
    */
   @Deprecated
-  public Pet getPetById(Long petId, @Nullable GetPetByIdServer server) throws ApiException {
+  public Pet getPetById(Long petId, @Nullable GetPetByIdServer server) {
     return requireBody(getPetByIdWithHttpInfo(petId, server), "getPetById");
   }
 
@@ -1064,8 +1053,7 @@ public class PetApi extends BaseApi {
    * @deprecated This operation is deprecated.
    */
   @Deprecated
-  public ApiResult<Pet> getPetByIdWithHttpInfo(Long petId, @Nullable GetPetByIdServer server)
-      throws ApiException {
+  public ApiResult<Pet> getPetByIdWithHttpInfo(Long petId, @Nullable GetPetByIdServer server) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling getPetById");
@@ -1106,7 +1094,7 @@ public class PetApi extends BaseApi {
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public Pet getPetByName(String name, GetPetByNameOptions options) throws ApiException {
+  public Pet getPetByName(String name, GetPetByNameOptions options) {
     return requireBody(getPetByNameWithHttpInfo(name, options), "getPetByName");
   }
 
@@ -1119,8 +1107,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Pet> getPetByNameWithHttpInfo(String name, GetPetByNameOptions options)
-      throws ApiException {
+  public ApiResult<Pet> getPetByNameWithHttpInfo(String name, GetPetByNameOptions options) {
     if (name == null || name.isEmpty()) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'name' when calling getPetByName");
@@ -1157,28 +1144,28 @@ public class PetApi extends BaseApi {
   }
 
   /**
-   * Get the pet&#39;s passport Returns a single JSON document combining the pet&#39;s profile with
-   * an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for
-   * mobile clients that prefer a single-request workflow.
+   * Get the pet's passport Returns a single JSON document combining the pet's profile with an
+   * embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile
+   * clients that prefer a single-request workflow.
    *
    * @param petId (required)
    * @return {@code PetPassport}
    * @throws ApiException if fails to make API call
    */
-  public PetPassport getPetPassport(Long petId) throws ApiException {
+  public PetPassport getPetPassport(Long petId) {
     return requireBody(getPetPassportWithHttpInfo(petId), "getPetPassport");
   }
 
   /**
-   * Get the pet&#39;s passport Returns a single JSON document combining the pet&#39;s profile with
-   * an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for
-   * mobile clients that prefer a single-request workflow.
+   * Get the pet's passport Returns a single JSON document combining the pet's profile with an
+   * embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile
+   * clients that prefer a single-request workflow.
    *
    * @param petId (required)
    * @return the API result wrapping {@code PetPassport}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<PetPassport> getPetPassportWithHttpInfo(Long petId) throws ApiException {
+  public ApiResult<PetPassport> getPetPassportWithHttpInfo(Long petId) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling getPetPassport");
@@ -1213,7 +1200,7 @@ public class PetApi extends BaseApi {
    * @return {@code InputStream}
    * @throws ApiException if fails to make API call
    */
-  public InputStream getPetPhoto(Long petId, Long photoId) throws ApiException {
+  public InputStream getPetPhoto(Long petId, Long photoId) {
     return requireBody(getPetPhotoWithHttpInfo(petId, photoId), "getPetPhoto");
   }
 
@@ -1226,8 +1213,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code InputStream}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<InputStream> getPetPhotoWithHttpInfo(Long petId, Long photoId)
-      throws ApiException {
+  public ApiResult<InputStream> getPetPhotoWithHttpInfo(Long petId, Long photoId) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling getPetPhoto");
@@ -1272,7 +1258,7 @@ public class PetApi extends BaseApi {
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public Pet getPetTag(Long petId, String tagName) throws ApiException {
+  public Pet getPetTag(Long petId, String tagName) {
     return getPetTag(petId, tagName, null);
   }
 
@@ -1286,7 +1272,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Pet> getPetTagWithHttpInfo(Long petId, String tagName) throws ApiException {
+  public ApiResult<Pet> getPetTagWithHttpInfo(Long petId, String tagName) {
     return getPetTagWithHttpInfo(petId, tagName, null);
   }
 
@@ -1300,8 +1286,7 @@ public class PetApi extends BaseApi {
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public Pet getPetTag(Long petId, String tagName, @Nullable GetPetTagOptions options)
-      throws ApiException {
+  public Pet getPetTag(Long petId, String tagName, @Nullable GetPetTagOptions options) {
     return requireBody(getPetTagWithHttpInfo(petId, tagName, options), "getPetTag");
   }
 
@@ -1316,7 +1301,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    */
   public ApiResult<Pet> getPetTagWithHttpInfo(
-      Long petId, String tagName, @Nullable GetPetTagOptions options) throws ApiException {
+      Long petId, String tagName, @Nullable GetPetTagOptions options) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling getPetTag");
@@ -1386,7 +1371,7 @@ public class PetApi extends BaseApi {
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public Pet getStagingPetInfo(Long petId) throws ApiException {
+  public Pet getStagingPetInfo(Long petId) {
     return getStagingPetInfo(petId, null);
   }
 
@@ -1397,7 +1382,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Pet> getStagingPetInfoWithHttpInfo(Long petId) throws ApiException {
+  public ApiResult<Pet> getStagingPetInfoWithHttpInfo(Long petId) {
     return getStagingPetInfoWithHttpInfo(petId, null);
   }
 
@@ -1409,8 +1394,7 @@ public class PetApi extends BaseApi {
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public Pet getStagingPetInfo(Long petId, @Nullable GetStagingPetInfoServer server)
-      throws ApiException {
+  public Pet getStagingPetInfo(Long petId, @Nullable GetStagingPetInfoServer server) {
     return requireBody(getStagingPetInfoWithHttpInfo(petId, server), "getStagingPetInfo");
   }
 
@@ -1423,7 +1407,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    */
   public ApiResult<Pet> getStagingPetInfoWithHttpInfo(
-      Long petId, @Nullable GetStagingPetInfoServer server) throws ApiException {
+      Long petId, @Nullable GetStagingPetInfoServer server) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling getStagingPetInfo");
@@ -1456,28 +1440,27 @@ public class PetApi extends BaseApi {
   }
 
   /**
-   * Set the pet&#39;s profile photo Accepts either raw image bytes (image/jpeg or image/png) or a
-   * JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
+   * Set the pet's profile photo Accepts either raw image bytes (image/jpeg or image/png) or a JSON
+   * envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
    *
    * @param petId (required)
    * @param body (required)
    * @throws ApiException if fails to make API call
    */
-  public void setPetAvatar(Long petId, InputStream body) throws ApiException {
+  public void setPetAvatar(Long petId, InputStream body) {
     setPetAvatarWithHttpInfo(petId, body);
   }
 
   /**
-   * Set the pet&#39;s profile photo Accepts either raw image bytes (image/jpeg or image/png) or a
-   * JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
+   * Set the pet's profile photo Accepts either raw image bytes (image/jpeg or image/png) or a JSON
+   * envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
    *
    * @param petId (required)
    * @param body (required)
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Void> setPetAvatarWithHttpInfo(Long petId, InputStream body)
-      throws ApiException {
+  public ApiResult<Void> setPetAvatarWithHttpInfo(Long petId, InputStream body) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling setPetAvatar");
@@ -1500,21 +1483,21 @@ public class PetApi extends BaseApi {
   }
 
   /**
-   * Set the pet&#39;s avatar thumbnail as base64 Accepts either a single base64-encoded thumbnail
-   * or an array of candidates; the server selects the most suitable one.
+   * Set the pet's avatar thumbnail as base64 Accepts either a single base64-encoded thumbnail or an
+   * array of candidates; the server selects the most suitable one.
    *
    * @param petId (required)
    * @param setPetAvatarThumbnailRequest (required)
    * @throws ApiException if fails to make API call
    */
   public void setPetAvatarThumbnail(
-      Long petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest) throws ApiException {
+      Long petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest) {
     setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest);
   }
 
   /**
-   * Set the pet&#39;s avatar thumbnail as base64 Accepts either a single base64-encoded thumbnail
-   * or an array of candidates; the server selects the most suitable one.
+   * Set the pet's avatar thumbnail as base64 Accepts either a single base64-encoded thumbnail or an
+   * array of candidates; the server selects the most suitable one.
    *
    * @param petId (required)
    * @param setPetAvatarThumbnailRequest (required)
@@ -1522,7 +1505,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    */
   public ApiResult<Void> setPetAvatarThumbnailWithHttpInfo(
-      Long petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest) throws ApiException {
+      Long petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling setPetAvatarThumbnail");
@@ -1554,7 +1537,7 @@ public class PetApi extends BaseApi {
   }
 
   /**
-   * Update a pet&#39;s notification preferences Submits preferences as an
+   * Update a pet's notification preferences Submits preferences as an
    * application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key)
    * serialization and optional-field omission so the wire bytes are identical across every SDK.
    *
@@ -1564,13 +1547,12 @@ public class PetApi extends BaseApi {
    * @return {@code ApiResponse}
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse setPetPreferences(Long petId, SetPetPreferencesOptions options)
-      throws ApiException {
+  public ApiResponse setPetPreferences(Long petId, SetPetPreferencesOptions options) {
     return requireBody(setPetPreferencesWithHttpInfo(petId, options), "setPetPreferences");
   }
 
   /**
-   * Update a pet&#39;s notification preferences Submits preferences as an
+   * Update a pet's notification preferences Submits preferences as an
    * application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key)
    * serialization and optional-field omission so the wire bytes are identical across every SDK.
    *
@@ -1581,7 +1563,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    */
   public ApiResult<ApiResponse> setPetPreferencesWithHttpInfo(
-      Long petId, SetPetPreferencesOptions options) throws ApiException {
+      Long petId, SetPetPreferencesOptions options) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling setPetPreferences");
@@ -1628,7 +1610,7 @@ public class PetApi extends BaseApi {
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public Pet updatePet(Long petId, Pet pet) throws ApiException {
+  public Pet updatePet(Long petId, Pet pet) {
     return requireBody(updatePetWithHttpInfo(petId, pet), "updatePet");
   }
 
@@ -1640,7 +1622,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<Pet> updatePetWithHttpInfo(Long petId, Pet pet) throws ApiException {
+  public ApiResult<Pet> updatePetWithHttpInfo(Long petId, Pet pet) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling updatePet");
@@ -1671,7 +1653,7 @@ public class PetApi extends BaseApi {
   }
 
   /**
-   * Upload the pet&#39;s adoption certificate Attaches a single adoption certificate document. No
+   * Upload the pet's adoption certificate Attaches a single adoption certificate document. No
    * metadata fields are required alongside the file.
    *
    * @param petId (required)
@@ -1680,13 +1662,12 @@ public class PetApi extends BaseApi {
    * @return {@code ApiResponse}
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse uploadPetCertificate(Long petId, UploadPetCertificateOptions options)
-      throws ApiException {
+  public ApiResponse uploadPetCertificate(Long petId, UploadPetCertificateOptions options) {
     return requireBody(uploadPetCertificateWithHttpInfo(petId, options), "uploadPetCertificate");
   }
 
   /**
-   * Upload the pet&#39;s adoption certificate Attaches a single adoption certificate document. No
+   * Upload the pet's adoption certificate Attaches a single adoption certificate document. No
    * metadata fields are required alongside the file.
    *
    * @param petId (required)
@@ -1696,7 +1677,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    */
   public ApiResult<ApiResponse> uploadPetCertificateWithHttpInfo(
-      Long petId, UploadPetCertificateOptions options) throws ApiException {
+      Long petId, UploadPetCertificateOptions options) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling uploadPetCertificate");
@@ -1740,8 +1721,7 @@ public class PetApi extends BaseApi {
    * @return {@code ApiResponse}
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse uploadPetDocument(Long petId, UploadPetDocumentOptions options)
-      throws ApiException {
+  public ApiResponse uploadPetDocument(Long petId, UploadPetDocumentOptions options) {
     return requireBody(uploadPetDocumentWithHttpInfo(petId, options), "uploadPetDocument");
   }
 
@@ -1757,7 +1737,7 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    */
   public ApiResult<ApiResponse> uploadPetDocumentWithHttpInfo(
-      Long petId, UploadPetDocumentOptions options) throws ApiException {
+      Long petId, UploadPetDocumentOptions options) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling uploadPetDocument");
@@ -1808,7 +1788,7 @@ public class PetApi extends BaseApi {
    * @return the non-null response body
    * @throws ApiException if the result carries no body
    */
-  private static <T> T requireBody(ApiResult<T> result, String operation) throws ApiException {
+  private static <T> T requireBody(ApiResult<T> result, String operation) {
     T data = result.data();
     if (data == null) {
       throw new ApiException(

@@ -13,6 +13,7 @@ import { BaseApi } from './base-api.js';
 import { Configuration } from '../configuration.js';
 import { ObjectSerializer } from '../object-serializer.js';
 import { ValueSerializer } from '../value-serializer.js';
+import type { DeepInput } from '../deep-input.js';
 import { ApiResponse, Pet, PetPassport, PetTreatment, Photo, SetPetAvatarThumbnailRequest } from '../models/index.js';
 import type { AddPetOptions } from './options/add-pet-options.js';
 import type { AddPetPhotosOptions } from './options/add-pet-photos-options.js';
@@ -125,11 +126,8 @@ export class PetApi extends BaseApi {
    * @return Pet
    * @throws {ApiError} if fails to make API call
    */
-  async addPet(pet: Pet, options?: AddPetOptions): Promise<Pet> {
-    if (pet == null) {
-      throw new Error('Missing required parameter "pet" when calling addPet');
-    }
-    const addPetResult = await this.addPetWithHttpInfo(pet, options);
+  async addPet(requestParameters: { pet: DeepInput<Pet>; options?: AddPetOptions }): Promise<Pet> {
+    const addPetResult = await this.addPetWithHttpInfo(requestParameters);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -149,7 +147,11 @@ export class PetApi extends BaseApi {
    * Add a new pet to the store (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async addPetWithHttpInfo(pet: Pet, options?: AddPetOptions): Promise<ApiResult<Pet>> {
+  async addPetWithHttpInfo(requestParameters: {
+    pet: DeepInput<Pet>;
+    options?: AddPetOptions;
+  }): Promise<ApiResult<Pet>> {
+    const { pet, options } = requestParameters;
     if (pet == null) {
       throw new Error('Missing required parameter "pet" when calling addPet');
     }
@@ -178,17 +180,8 @@ export class PetApi extends BaseApi {
    * @return Array<Photo>
    * @throws {ApiError} if fails to make API call
    */
-  async addPetPhotos(petId: number, options: AddPetPhotosOptions): Promise<Array<Photo>> {
-    if (petId == null) {
-      throw new Error('Missing required parameter "petId" when calling addPetPhotos');
-    }
-    if (options?.files == null) {
-      throw new Error('Missing required parameter "files" when calling addPetPhotos');
-    }
-    if (options?.metadata == null) {
-      throw new Error('Missing required parameter "metadata" when calling addPetPhotos');
-    }
-    const addPetPhotosResult = await this.addPetPhotosWithHttpInfo(petId, options);
+  async addPetPhotos(requestParameters: { petId: number; options: AddPetPhotosOptions }): Promise<Array<Photo>> {
+    const addPetPhotosResult = await this.addPetPhotosWithHttpInfo(requestParameters);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -208,7 +201,11 @@ export class PetApi extends BaseApi {
    * Add photos to the pet's gallery (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async addPetPhotosWithHttpInfo(petId: number, options: AddPetPhotosOptions): Promise<ApiResult<Array<Photo>>> {
+  async addPetPhotosWithHttpInfo(requestParameters: {
+    petId: number;
+    options: AddPetPhotosOptions;
+  }): Promise<ApiResult<Array<Photo>>> {
+    const { petId, options } = requestParameters;
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling addPetPhotos');
     }
@@ -254,18 +251,12 @@ export class PetApi extends BaseApi {
    * @return PetTreatment
    * @throws {ApiError} if fails to make API call
    */
-  async addPetTreatment(
-    petId: number,
-    petTreatment: PetTreatment,
-    options?: AddPetTreatmentOptions
-  ): Promise<PetTreatment> {
-    if (petId == null) {
-      throw new Error('Missing required parameter "petId" when calling addPetTreatment');
-    }
-    if (petTreatment == null) {
-      throw new Error('Missing required parameter "petTreatment" when calling addPetTreatment');
-    }
-    const addPetTreatmentResult = await this.addPetTreatmentWithHttpInfo(petId, petTreatment, options);
+  async addPetTreatment(requestParameters: {
+    petId: number;
+    petTreatment: DeepInput<PetTreatment>;
+    options?: AddPetTreatmentOptions;
+  }): Promise<PetTreatment> {
+    const addPetTreatmentResult = await this.addPetTreatmentWithHttpInfo(requestParameters);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -285,11 +276,12 @@ export class PetApi extends BaseApi {
    * Record a treatment for a pet (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async addPetTreatmentWithHttpInfo(
-    petId: number,
-    petTreatment: PetTreatment,
-    options?: AddPetTreatmentOptions
-  ): Promise<ApiResult<PetTreatment>> {
+  async addPetTreatmentWithHttpInfo(requestParameters: {
+    petId: number;
+    petTreatment: DeepInput<PetTreatment>;
+    options?: AddPetTreatmentOptions;
+  }): Promise<ApiResult<PetTreatment>> {
+    const { petId, petTreatment, options } = requestParameters;
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling addPetTreatment');
     }
@@ -323,18 +315,19 @@ export class PetApi extends BaseApi {
    * @param options.apiKey Session cookie used for authentication (optional)
    * @throws {ApiError} if fails to make API call
    */
-  async deletePet(petId: number, options?: DeletePetOptions): Promise<void> {
-    if (petId == null) {
-      throw new Error('Missing required parameter "petId" when calling deletePet');
-    }
-    await this.deletePetWithHttpInfo(petId, options);
+  async deletePet(requestParameters: { petId: number; options?: DeletePetOptions }): Promise<void> {
+    await this.deletePetWithHttpInfo(requestParameters);
   }
 
   /**
    * Deletes a pet (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async deletePetWithHttpInfo(petId: number, options?: DeletePetOptions): Promise<ApiResult<void>> {
+  async deletePetWithHttpInfo(requestParameters: {
+    petId: number;
+    options?: DeletePetOptions;
+  }): Promise<ApiResult<void>> {
+    const { petId, options } = requestParameters;
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling deletePet');
     }
@@ -375,14 +368,8 @@ export class PetApi extends BaseApi {
    * @return Buffer
    * @throws {ApiError} if fails to make API call
    */
-  async downloadPetDocument(petId: number, documentId: number): Promise<Buffer> {
-    if (petId == null) {
-      throw new Error('Missing required parameter "petId" when calling downloadPetDocument');
-    }
-    if (documentId == null) {
-      throw new Error('Missing required parameter "documentId" when calling downloadPetDocument');
-    }
-    const downloadPetDocumentResult = await this.downloadPetDocumentWithHttpInfo(petId, documentId);
+  async downloadPetDocument(requestParameters: { petId: number; documentId: number }): Promise<Buffer> {
+    const downloadPetDocumentResult = await this.downloadPetDocumentWithHttpInfo(requestParameters);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -402,7 +389,11 @@ export class PetApi extends BaseApi {
    * Download a vet document (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async downloadPetDocumentWithHttpInfo(petId: number, documentId: number): Promise<ApiResult<Buffer>> {
+  async downloadPetDocumentWithHttpInfo(requestParameters: {
+    petId: number;
+    documentId: number;
+  }): Promise<ApiResult<Buffer>> {
+    const { petId, documentId } = requestParameters;
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling downloadPetDocument');
     }
@@ -444,8 +435,8 @@ export class PetApi extends BaseApi {
    * @deprecated This operation is deprecated.
    * @see {@link https://example.com/docs/filtering} Find out more about filtering
    */
-  async findPetsByStatus(options?: FindPetsByStatusOptions): Promise<Array<Pet>> {
-    const findPetsByStatusResult = await this.findPetsByStatusWithHttpInfo(options);
+  async findPetsByStatus(requestParameters?: { options?: FindPetsByStatusOptions }): Promise<Array<Pet>> {
+    const findPetsByStatusResult = await this.findPetsByStatusWithHttpInfo(requestParameters);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -465,7 +456,10 @@ export class PetApi extends BaseApi {
    * Finds Pets by status (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async findPetsByStatusWithHttpInfo(options?: FindPetsByStatusOptions): Promise<ApiResult<Array<Pet>>> {
+  async findPetsByStatusWithHttpInfo(requestParameters?: {
+    options?: FindPetsByStatusOptions;
+  }): Promise<ApiResult<Array<Pet>>> {
+    const { options } = requestParameters ?? {};
     const path = `/pet/findByStatus`;
     const queryParams: Record<string, unknown> = {};
     if (options !== undefined) {
@@ -507,11 +501,8 @@ export class PetApi extends BaseApi {
    * @return Pet
    * @throws {ApiError} if fails to make API call
    */
-  async getExternalPetInfo(petId: number, server?: GetExternalPetInfoServer): Promise<Pet> {
-    if (petId == null) {
-      throw new Error('Missing required parameter "petId" when calling getExternalPetInfo');
-    }
-    const getExternalPetInfoResult = await this.getExternalPetInfoWithHttpInfo(petId, server);
+  async getExternalPetInfo(requestParameters: { petId: number; server?: GetExternalPetInfoServer }): Promise<Pet> {
+    const getExternalPetInfoResult = await this.getExternalPetInfoWithHttpInfo(requestParameters);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -531,7 +522,11 @@ export class PetApi extends BaseApi {
    * Get external pet info (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async getExternalPetInfoWithHttpInfo(petId: number, server?: GetExternalPetInfoServer): Promise<ApiResult<Pet>> {
+  async getExternalPetInfoWithHttpInfo(requestParameters: {
+    petId: number;
+    server?: GetExternalPetInfoServer;
+  }): Promise<ApiResult<Pet>> {
+    const { petId, server } = requestParameters;
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling getExternalPetInfo');
     }
@@ -562,11 +557,11 @@ export class PetApi extends BaseApi {
    * @return Pet
    * @throws {ApiError} if fails to make API call
    */
-  async getMultiServerPetInfo(petId: number, server?: GetMultiServerPetInfoServer): Promise<Pet> {
-    if (petId == null) {
-      throw new Error('Missing required parameter "petId" when calling getMultiServerPetInfo');
-    }
-    const getMultiServerPetInfoResult = await this.getMultiServerPetInfoWithHttpInfo(petId, server);
+  async getMultiServerPetInfo(requestParameters: {
+    petId: number;
+    server?: GetMultiServerPetInfoServer;
+  }): Promise<Pet> {
+    const getMultiServerPetInfoResult = await this.getMultiServerPetInfoWithHttpInfo(requestParameters);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -586,10 +581,11 @@ export class PetApi extends BaseApi {
    * Get multi-server pet info (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async getMultiServerPetInfoWithHttpInfo(
-    petId: number,
-    server?: GetMultiServerPetInfoServer
-  ): Promise<ApiResult<Pet>> {
+  async getMultiServerPetInfoWithHttpInfo(requestParameters: {
+    petId: number;
+    server?: GetMultiServerPetInfoServer;
+  }): Promise<ApiResult<Pet>> {
+    const { petId, server } = requestParameters;
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling getMultiServerPetInfo');
     }
@@ -621,11 +617,8 @@ export class PetApi extends BaseApi {
    * @return Buffer
    * @throws {ApiError} if fails to make API call
    */
-  async getPetAvatar(petId: number): Promise<Buffer> {
-    if (petId == null) {
-      throw new Error('Missing required parameter "petId" when calling getPetAvatar');
-    }
-    const getPetAvatarResult = await this.getPetAvatarWithHttpInfo(petId);
+  async getPetAvatar(requestParameters: { petId: number }): Promise<Buffer> {
+    const getPetAvatarResult = await this.getPetAvatarWithHttpInfo(requestParameters);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -645,7 +638,8 @@ export class PetApi extends BaseApi {
    * Get the pet's profile photo (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async getPetAvatarWithHttpInfo(petId: number): Promise<ApiResult<Buffer>> {
+  async getPetAvatarWithHttpInfo(requestParameters: { petId: number }): Promise<ApiResult<Buffer>> {
+    const { petId } = requestParameters;
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling getPetAvatar');
     }
@@ -676,11 +670,8 @@ export class PetApi extends BaseApi {
    * @return Buffer
    * @throws {ApiError} if fails to make API call
    */
-  async getPetAvatarThumbnail(petId: number): Promise<Buffer> {
-    if (petId == null) {
-      throw new Error('Missing required parameter "petId" when calling getPetAvatarThumbnail');
-    }
-    const getPetAvatarThumbnailResult = await this.getPetAvatarThumbnailWithHttpInfo(petId);
+  async getPetAvatarThumbnail(requestParameters: { petId: number }): Promise<Buffer> {
+    const getPetAvatarThumbnailResult = await this.getPetAvatarThumbnailWithHttpInfo(requestParameters);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -700,7 +691,8 @@ export class PetApi extends BaseApi {
    * Get the pet's avatar thumbnail as base64 (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async getPetAvatarThumbnailWithHttpInfo(petId: number): Promise<ApiResult<Buffer>> {
+  async getPetAvatarThumbnailWithHttpInfo(requestParameters: { petId: number }): Promise<ApiResult<Buffer>> {
+    const { petId } = requestParameters;
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling getPetAvatarThumbnail');
     }
@@ -734,11 +726,8 @@ export class PetApi extends BaseApi {
    * @throws {ApiError} if fails to make API call
    * @deprecated This operation is deprecated.
    */
-  async getPetById(petId: number, server?: GetPetByIdServer): Promise<Pet> {
-    if (petId == null) {
-      throw new Error('Missing required parameter "petId" when calling getPetById');
-    }
-    const getPetByIdResult = await this.getPetByIdWithHttpInfo(petId, server);
+  async getPetById(requestParameters: { petId: number; server?: GetPetByIdServer }): Promise<Pet> {
+    const getPetByIdResult = await this.getPetByIdWithHttpInfo(requestParameters);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -758,7 +747,11 @@ export class PetApi extends BaseApi {
    * Find pet by ID (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async getPetByIdWithHttpInfo(petId: number, server?: GetPetByIdServer): Promise<ApiResult<Pet>> {
+  async getPetByIdWithHttpInfo(requestParameters: {
+    petId: number;
+    server?: GetPetByIdServer;
+  }): Promise<ApiResult<Pet>> {
+    const { petId, server } = requestParameters;
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling getPetById');
     }
@@ -790,14 +783,8 @@ export class PetApi extends BaseApi {
    * @return Pet
    * @throws {ApiError} if fails to make API call
    */
-  async getPetByName(name: string, options: GetPetByNameOptions): Promise<Pet> {
-    if (name == null || name === '') {
-      throw new Error('Missing required parameter "name" when calling getPetByName');
-    }
-    if (options?.category == null || options.category === '') {
-      throw new Error('Missing required parameter "category" when calling getPetByName');
-    }
-    const getPetByNameResult = await this.getPetByNameWithHttpInfo(name, options);
+  async getPetByName(requestParameters: { name: string; options: GetPetByNameOptions }): Promise<Pet> {
+    const getPetByNameResult = await this.getPetByNameWithHttpInfo(requestParameters);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -817,7 +804,11 @@ export class PetApi extends BaseApi {
    * Look up a pet by name (simple string path param + required query) (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async getPetByNameWithHttpInfo(name: string, options: GetPetByNameOptions): Promise<ApiResult<Pet>> {
+  async getPetByNameWithHttpInfo(requestParameters: {
+    name: string;
+    options: GetPetByNameOptions;
+  }): Promise<ApiResult<Pet>> {
+    const { name, options } = requestParameters;
     if (name == null || name === '') {
       throw new Error('Missing required parameter "name" when calling getPetByName');
     }
@@ -862,11 +853,8 @@ export class PetApi extends BaseApi {
    * @return PetPassport
    * @throws {ApiError} if fails to make API call
    */
-  async getPetPassport(petId: number): Promise<PetPassport> {
-    if (petId == null) {
-      throw new Error('Missing required parameter "petId" when calling getPetPassport');
-    }
-    const getPetPassportResult = await this.getPetPassportWithHttpInfo(petId);
+  async getPetPassport(requestParameters: { petId: number }): Promise<PetPassport> {
+    const getPetPassportResult = await this.getPetPassportWithHttpInfo(requestParameters);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -886,7 +874,8 @@ export class PetApi extends BaseApi {
    * Get the pet's passport (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async getPetPassportWithHttpInfo(petId: number): Promise<ApiResult<PetPassport>> {
+  async getPetPassportWithHttpInfo(requestParameters: { petId: number }): Promise<ApiResult<PetPassport>> {
+    const { petId } = requestParameters;
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling getPetPassport');
     }
@@ -918,14 +907,8 @@ export class PetApi extends BaseApi {
    * @return Buffer
    * @throws {ApiError} if fails to make API call
    */
-  async getPetPhoto(petId: number, photoId: number): Promise<Buffer> {
-    if (petId == null) {
-      throw new Error('Missing required parameter "petId" when calling getPetPhoto');
-    }
-    if (photoId == null) {
-      throw new Error('Missing required parameter "photoId" when calling getPetPhoto');
-    }
-    const getPetPhotoResult = await this.getPetPhotoWithHttpInfo(petId, photoId);
+  async getPetPhoto(requestParameters: { petId: number; photoId: number }): Promise<Buffer> {
+    const getPetPhotoResult = await this.getPetPhotoWithHttpInfo(requestParameters);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -945,7 +928,8 @@ export class PetApi extends BaseApi {
    * Get a photo or its metadata (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async getPetPhotoWithHttpInfo(petId: number, photoId: number): Promise<ApiResult<Buffer>> {
+  async getPetPhotoWithHttpInfo(requestParameters: { petId: number; photoId: number }): Promise<ApiResult<Buffer>> {
+    const { petId, photoId } = requestParameters;
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling getPetPhoto');
     }
@@ -986,14 +970,8 @@ export class PetApi extends BaseApi {
    * @return Pet
    * @throws {ApiError} if fails to make API call
    */
-  async getPetTag(petId: number, tagName: string, options?: GetPetTagOptions): Promise<Pet> {
-    if (petId == null) {
-      throw new Error('Missing required parameter "petId" when calling getPetTag');
-    }
-    if (tagName == null || tagName === '') {
-      throw new Error('Missing required parameter "tagName" when calling getPetTag');
-    }
-    const getPetTagResult = await this.getPetTagWithHttpInfo(petId, tagName, options);
+  async getPetTag(requestParameters: { petId: number; tagName: string; options?: GetPetTagOptions }): Promise<Pet> {
+    const getPetTagResult = await this.getPetTagWithHttpInfo(requestParameters);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -1013,7 +991,12 @@ export class PetApi extends BaseApi {
    * Get a tag for a pet (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async getPetTagWithHttpInfo(petId: number, tagName: string, options?: GetPetTagOptions): Promise<ApiResult<Pet>> {
+  async getPetTagWithHttpInfo(requestParameters: {
+    petId: number;
+    tagName: string;
+    options?: GetPetTagOptions;
+  }): Promise<ApiResult<Pet>> {
+    const { petId, tagName, options } = requestParameters;
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling getPetTag');
     }
@@ -1087,11 +1070,8 @@ export class PetApi extends BaseApi {
    * @return Pet
    * @throws {ApiError} if fails to make API call
    */
-  async getStagingPetInfo(petId: number, server?: GetStagingPetInfoServer): Promise<Pet> {
-    if (petId == null) {
-      throw new Error('Missing required parameter "petId" when calling getStagingPetInfo');
-    }
-    const getStagingPetInfoResult = await this.getStagingPetInfoWithHttpInfo(petId, server);
+  async getStagingPetInfo(requestParameters: { petId: number; server?: GetStagingPetInfoServer }): Promise<Pet> {
+    const getStagingPetInfoResult = await this.getStagingPetInfoWithHttpInfo(requestParameters);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -1111,7 +1091,11 @@ export class PetApi extends BaseApi {
    * Get staging pet info (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async getStagingPetInfoWithHttpInfo(petId: number, server?: GetStagingPetInfoServer): Promise<ApiResult<Pet>> {
+  async getStagingPetInfoWithHttpInfo(requestParameters: {
+    petId: number;
+    server?: GetStagingPetInfoServer;
+  }): Promise<ApiResult<Pet>> {
+    const { petId, server } = requestParameters;
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling getStagingPetInfo');
     }
@@ -1143,21 +1127,16 @@ export class PetApi extends BaseApi {
    * @param body  (required)
    * @throws {ApiError} if fails to make API call
    */
-  async setPetAvatar(petId: number, body: Buffer): Promise<void> {
-    if (petId == null) {
-      throw new Error('Missing required parameter "petId" when calling setPetAvatar');
-    }
-    if (body == null) {
-      throw new Error('Missing required parameter "body" when calling setPetAvatar');
-    }
-    await this.setPetAvatarWithHttpInfo(petId, body);
+  async setPetAvatar(requestParameters: { petId: number; body: Buffer }): Promise<void> {
+    await this.setPetAvatarWithHttpInfo(requestParameters);
   }
 
   /**
    * Set the pet's profile photo (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async setPetAvatarWithHttpInfo(petId: number, body: Buffer): Promise<ApiResult<void>> {
+  async setPetAvatarWithHttpInfo(requestParameters: { petId: number; body: Buffer }): Promise<ApiResult<void>> {
+    const { petId, body } = requestParameters;
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling setPetAvatar');
     }
@@ -1181,27 +1160,22 @@ export class PetApi extends BaseApi {
    * @param setPetAvatarThumbnailRequest  (required)
    * @throws {ApiError} if fails to make API call
    */
-  async setPetAvatarThumbnail(
-    petId: number,
-    setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest | null
-  ): Promise<void> {
-    if (petId == null) {
-      throw new Error('Missing required parameter "petId" when calling setPetAvatarThumbnail');
-    }
-    if (setPetAvatarThumbnailRequest == null) {
-      throw new Error('Missing required parameter "setPetAvatarThumbnailRequest" when calling setPetAvatarThumbnail');
-    }
-    await this.setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest);
+  async setPetAvatarThumbnail(requestParameters: {
+    petId: number;
+    setPetAvatarThumbnailRequest: DeepInput<SetPetAvatarThumbnailRequest> | null;
+  }): Promise<void> {
+    await this.setPetAvatarThumbnailWithHttpInfo(requestParameters);
   }
 
   /**
    * Set the pet's avatar thumbnail as base64 (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async setPetAvatarThumbnailWithHttpInfo(
-    petId: number,
-    setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest | null
-  ): Promise<ApiResult<void>> {
+  async setPetAvatarThumbnailWithHttpInfo(requestParameters: {
+    petId: number;
+    setPetAvatarThumbnailRequest: DeepInput<SetPetAvatarThumbnailRequest> | null;
+  }): Promise<ApiResult<void>> {
+    const { petId, setPetAvatarThumbnailRequest } = requestParameters;
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling setPetAvatarThumbnail');
     }
@@ -1238,14 +1212,11 @@ export class PetApi extends BaseApi {
    * @return ApiResponse
    * @throws {ApiError} if fails to make API call
    */
-  async setPetPreferences(petId: number, options: SetPetPreferencesOptions): Promise<ApiResponse> {
-    if (petId == null) {
-      throw new Error('Missing required parameter "petId" when calling setPetPreferences');
-    }
-    if (options?.nickname == null || options.nickname === '') {
-      throw new Error('Missing required parameter "nickname" when calling setPetPreferences');
-    }
-    const setPetPreferencesResult = await this.setPetPreferencesWithHttpInfo(petId, options);
+  async setPetPreferences(requestParameters: {
+    petId: number;
+    options: SetPetPreferencesOptions;
+  }): Promise<ApiResponse> {
+    const setPetPreferencesResult = await this.setPetPreferencesWithHttpInfo(requestParameters);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -1265,10 +1236,11 @@ export class PetApi extends BaseApi {
    * Update a pet's notification preferences (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async setPetPreferencesWithHttpInfo(
-    petId: number,
-    options: SetPetPreferencesOptions
-  ): Promise<ApiResult<ApiResponse>> {
+  async setPetPreferencesWithHttpInfo(requestParameters: {
+    petId: number;
+    options: SetPetPreferencesOptions;
+  }): Promise<ApiResult<ApiResponse>> {
+    const { petId, options } = requestParameters;
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling setPetPreferences');
     }
@@ -1313,14 +1285,8 @@ export class PetApi extends BaseApi {
    * @return Pet
    * @throws {ApiError} if fails to make API call
    */
-  async updatePet(petId: number, pet: Pet): Promise<Pet> {
-    if (petId == null) {
-      throw new Error('Missing required parameter "petId" when calling updatePet');
-    }
-    if (pet == null) {
-      throw new Error('Missing required parameter "pet" when calling updatePet');
-    }
-    const updatePetResult = await this.updatePetWithHttpInfo(petId, pet);
+  async updatePet(requestParameters: { petId: number; pet: DeepInput<Pet> }): Promise<Pet> {
+    const updatePetResult = await this.updatePetWithHttpInfo(requestParameters);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -1340,7 +1306,8 @@ export class PetApi extends BaseApi {
    * Update an existing pet (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async updatePetWithHttpInfo(petId: number, pet: Pet): Promise<ApiResult<Pet>> {
+  async updatePetWithHttpInfo(requestParameters: { petId: number; pet: DeepInput<Pet> }): Promise<ApiResult<Pet>> {
+    const { petId, pet } = requestParameters;
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling updatePet');
     }
@@ -1375,14 +1342,11 @@ export class PetApi extends BaseApi {
    * @return ApiResponse
    * @throws {ApiError} if fails to make API call
    */
-  async uploadPetCertificate(petId: number, options: UploadPetCertificateOptions): Promise<ApiResponse> {
-    if (petId == null) {
-      throw new Error('Missing required parameter "petId" when calling uploadPetCertificate');
-    }
-    if (options?.file == null) {
-      throw new Error('Missing required parameter "file" when calling uploadPetCertificate');
-    }
-    const uploadPetCertificateResult = await this.uploadPetCertificateWithHttpInfo(petId, options);
+  async uploadPetCertificate(requestParameters: {
+    petId: number;
+    options: UploadPetCertificateOptions;
+  }): Promise<ApiResponse> {
+    const uploadPetCertificateResult = await this.uploadPetCertificateWithHttpInfo(requestParameters);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -1402,10 +1366,11 @@ export class PetApi extends BaseApi {
    * Upload the pet's adoption certificate (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async uploadPetCertificateWithHttpInfo(
-    petId: number,
-    options: UploadPetCertificateOptions
-  ): Promise<ApiResult<ApiResponse>> {
+  async uploadPetCertificateWithHttpInfo(requestParameters: {
+    petId: number;
+    options: UploadPetCertificateOptions;
+  }): Promise<ApiResult<ApiResponse>> {
+    const { petId, options } = requestParameters;
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling uploadPetCertificate');
     }
@@ -1447,14 +1412,11 @@ export class PetApi extends BaseApi {
    * @return ApiResponse
    * @throws {ApiError} if fails to make API call
    */
-  async uploadPetDocument(petId: number, options: UploadPetDocumentOptions): Promise<ApiResponse> {
-    if (petId == null) {
-      throw new Error('Missing required parameter "petId" when calling uploadPetDocument');
-    }
-    if (options?.file == null) {
-      throw new Error('Missing required parameter "file" when calling uploadPetDocument');
-    }
-    const uploadPetDocumentResult = await this.uploadPetDocumentWithHttpInfo(petId, options);
+  async uploadPetDocument(requestParameters: {
+    petId: number;
+    options: UploadPetDocumentOptions;
+  }): Promise<ApiResponse> {
+    const uploadPetDocumentResult = await this.uploadPetDocumentWithHttpInfo(requestParameters);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -1474,10 +1436,11 @@ export class PetApi extends BaseApi {
    * Attach a vet document or health record (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async uploadPetDocumentWithHttpInfo(
-    petId: number,
-    options: UploadPetDocumentOptions
-  ): Promise<ApiResult<ApiResponse>> {
+  async uploadPetDocumentWithHttpInfo(requestParameters: {
+    petId: number;
+    options: UploadPetDocumentOptions;
+  }): Promise<ApiResult<ApiResponse>> {
+    const { petId, options } = requestParameters;
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling uploadPetDocument');
     }

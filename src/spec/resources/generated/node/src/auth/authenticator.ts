@@ -21,6 +21,15 @@ export interface Authenticator {
   getAuthHeaders(): Record<string, string>;
 
   /**
+   * Returns the authentication headers to include in every request,
+   * fetching or refreshing tokens if needed. Authenticators that obtain
+   * credentials asynchronously (e.g. OAuth2/OIDC token exchange) populate
+   * the headers here; synchronous authenticators simply resolve with the
+   * result of {@link getAuthHeaders}.
+   */
+  getAuthHeadersAsync(): Promise<Record<string, string>>;
+
+  /**
    * Returns query parameters to include for authentication.
    */
   getQueryParams(): Record<string, string>;

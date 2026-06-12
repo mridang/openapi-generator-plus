@@ -18,77 +18,20 @@ from typing import Any, Callable, ClassVar, Optional, Type, TypeVar, Union, cast
 from dateutil.parser import parse
 from pydantic import BaseModel, SecretStr, TypeAdapter
 
-try:
-    import isodate as _isodate
-except ImportError:  # pragma: no cover - isodate is a hard dep at runtime
-    _isodate = None
+# The protobuf-JSON duration helpers live in a tiny dependency-free module so
+# both this serializer and the generated pydantic models (via the
+# ProtobufDuration annotated type) can import them without a circular import
+# back through petstore_client.models.
+from petstore_client._duration import (
+    _format_timedelta_protobuf,
+    _parse_timedelta_protobuf,
+)
 
-
-def _format_timedelta_iso8601(value: datetime.timedelta) -> str:
-    """Format a :class:`datetime.timedelta` as an ISO-8601 duration string.
-
-    Uses :mod:`isodate` when available (canonical formatter), falling back
-    to a small manual ``PnDTnHnMnS`` builder so the generated client works
-    even if isodate is unavailable for some reason. Negative durations are
-    rendered with a leading ``-``.
-    """
-    # Zero-duration canonical form is PT0S across every other SDK we
-    # ship — isodate emits "P0D" which the cross-lang round-trip tests
-    # treat as a wire-format drift, so short-circuit before delegating.
-    if value == datetime.timedelta(0):
-        return 'PT0S'
-    if _isodate is not None:
-        result: str = _isodate.duration_isoformat(value)
-        return result
-    total = value.total_seconds()
-    sign = '-' if total < 0 else ''
-    total = abs(total)
-    days, remainder = divmod(int(total), 86400)
-    hours, remainder = divmod(remainder, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    fractional = abs(value.total_seconds()) - int(total)
-    seconds_part: str
-    if fractional > 0:
-        seconds_part = f'{seconds + fractional:g}S'
-    elif seconds:
-        seconds_part = f'{seconds}S'
-    else:
-        seconds_part = ''
-    out = sign + 'P'
-    if days:
-        out += f'{days}D'
-    if hours or minutes or seconds_part:
-        out += 'T'
-        if hours:
-            out += f'{hours}H'
-        if minutes:
-            out += f'{minutes}M'
-        if seconds_part:
-            out += seconds_part
-    if out.endswith('P'):
-        out += 'T0S'
-    return out
-
-
-def _parse_timedelta_iso8601(value: str) -> datetime.timedelta:
-    """Parse an ISO-8601 duration string into a :class:`datetime.timedelta`.
-
-    Raises :class:`ValueError` on malformed input. Delegates to
-    :mod:`isodate` which handles all designators including ``Y`` / ``M``
-    on a best-effort basis (years/months over a timedelta are inexact and
-    isodate normalises by treating Y=365d, M=30d when forced; we reject
-    those explicitly to surface the ambiguity rather than silently lose
-    days).
-    """
-    if _isodate is None:
-        raise ValueError('isodate is required to parse ISO-8601 duration strings')
-    if 'Y' in value or ('M' in value.split('T', 1)[0]):
-        raise ValueError('ISO-8601 durations containing years or months are ambiguous for datetime.timedelta; use days/hours/minutes/seconds only')
-    parsed = _isodate.parse_duration(value)
-    if isinstance(parsed, datetime.timedelta):
-        return parsed
-    raise ValueError(f'Could not parse {value!r} as a fixed-length duration')
-
+# SerializationError inherits from the branded SDK root so callers can catch
+# every SDK error (transport + serde) with one `except ZitadelException`.
+# The errors module imports ObjectSerializer lazily (inside a method), so this
+# top-level import does not create a cycle.
+from petstore_client.errors import ZitadelException
 
 import petstore_client.models
 
@@ -122,7 +65,7 @@ def _dict_adapter(inner: Any) -> TypeAdapter[Any]:
     return cached
 
 
-class SerializationError(Exception):
+class SerializationError(ZitadelException):
     """Exception raised when serialization or deserialization fails."""
 
     def __init__(self, message: str, cause: Optional[Exception] = None):
@@ -263,7 +206,7 @@ class ObjectSerializer:
             # Must precede the datetime.date branch only because timedelta
             # is not a date subclass; ordered alongside the other temporal
             # types for readability.
-            return _format_timedelta_iso8601(obj)
+            return _format_timedelta_protobuf(obj)
         elif isinstance(obj, datetime.time):
             return obj.isoformat(timespec='seconds')
         elif isinstance(obj, datetime.date):
@@ -374,7 +317,7 @@ class ObjectSerializer:
         elif klass == datetime.timedelta:
             if isinstance(data, datetime.timedelta):
                 return data
-            return _parse_timedelta_iso8601(data)
+            return _parse_timedelta_protobuf(data)
         elif klass == decimal.Decimal:
             return decimal.Decimal(data)
         elif klass == uuid.UUID:
@@ -433,7 +376,7 @@ class ObjectSerializer:
             dt = value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
             return dt.isoformat(timespec='seconds')
         if isinstance(value, datetime.timedelta):
-            return _format_timedelta_iso8601(value)
+            return _format_timedelta_protobuf(value)
         if isinstance(value, datetime.time):
             return value.isoformat(timespec='seconds')
         if isinstance(value, datetime.date):

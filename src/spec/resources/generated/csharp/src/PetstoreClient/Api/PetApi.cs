@@ -294,7 +294,7 @@ public class PetApi : BaseApi
     }
 
     /// <summary>
-    /// Add photos to the pet&#39;s gallery
+    /// Add photos to the pet's gallery
     /// </summary>
     /// <remarks>Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.</remarks>
     /// <param name="petId"></param>
@@ -320,7 +320,7 @@ public class PetApi : BaseApi
     }
 
     /// <summary>
-    /// Add photos to the pet&#39;s gallery (with HTTP info)
+    /// Add photos to the pet's gallery (with HTTP info)
     /// </summary>
     /// <remarks>Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.</remarks>
     /// <param name="petId"></param>
@@ -865,9 +865,9 @@ public class PetApi : BaseApi
     }
 
     /// <summary>
-    /// Get the pet&#39;s profile photo
+    /// Get the pet's profile photo
     /// </summary>
-    /// <remarks>Returns the raw image bytes of the pet&#39;s current avatar.</remarks>
+    /// <remarks>Returns the raw image bytes of the pet's current avatar.</remarks>
     /// <param name="petId"></param>
     /// <returns><![CDATA[System.IO.Stream]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
@@ -890,9 +890,9 @@ public class PetApi : BaseApi
     }
 
     /// <summary>
-    /// Get the pet&#39;s profile photo (with HTTP info)
+    /// Get the pet's profile photo (with HTTP info)
     /// </summary>
-    /// <remarks>Returns the raw image bytes of the pet&#39;s current avatar.</remarks>
+    /// <remarks>Returns the raw image bytes of the pet's current avatar.</remarks>
     /// <param name="petId"></param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
@@ -931,7 +931,7 @@ public class PetApi : BaseApi
     }
 
     /// <summary>
-    /// Get the pet&#39;s avatar thumbnail as base64
+    /// Get the pet's avatar thumbnail as base64
     /// </summary>
     /// <remarks>Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.</remarks>
     /// <param name="petId"></param>
@@ -956,7 +956,7 @@ public class PetApi : BaseApi
     }
 
     /// <summary>
-    /// Get the pet&#39;s avatar thumbnail as base64 (with HTTP info)
+    /// Get the pet's avatar thumbnail as base64 (with HTTP info)
     /// </summary>
     /// <remarks>Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.</remarks>
     /// <param name="petId"></param>
@@ -1182,9 +1182,9 @@ public class PetApi : BaseApi
     }
 
     /// <summary>
-    /// Get the pet&#39;s passport
+    /// Get the pet's passport
     /// </summary>
-    /// <remarks>Returns a single JSON document combining the pet&#39;s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.</remarks>
+    /// <remarks>Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.</remarks>
     /// <param name="petId"></param>
     /// <returns><![CDATA[PetPassport]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
@@ -1207,9 +1207,9 @@ public class PetApi : BaseApi
     }
 
     /// <summary>
-    /// Get the pet&#39;s passport (with HTTP info)
+    /// Get the pet's passport (with HTTP info)
     /// </summary>
-    /// <remarks>Returns a single JSON document combining the pet&#39;s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.</remarks>
+    /// <remarks>Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.</remarks>
     /// <param name="petId"></param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
@@ -1550,7 +1550,7 @@ public class PetApi : BaseApi
     }
 
     /// <summary>
-    /// Set the pet&#39;s profile photo
+    /// Set the pet's profile photo
     /// </summary>
     /// <remarks>Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.</remarks>
     /// <param name="petId"></param>
@@ -1563,7 +1563,7 @@ public class PetApi : BaseApi
     }
 
     /// <summary>
-    /// Set the pet&#39;s profile photo (with HTTP info)
+    /// Set the pet's profile photo (with HTTP info)
     /// </summary>
     /// <remarks>Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.</remarks>
     /// <param name="petId"></param>
@@ -1608,7 +1608,7 @@ public class PetApi : BaseApi
     }
 
     /// <summary>
-    /// Set the pet&#39;s avatar thumbnail as base64
+    /// Set the pet's avatar thumbnail as base64
     /// </summary>
     /// <remarks>Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.</remarks>
     /// <param name="petId"></param>
@@ -1627,7 +1627,7 @@ public class PetApi : BaseApi
     }
 
     /// <summary>
-    /// Set the pet&#39;s avatar thumbnail as base64 (with HTTP info)
+    /// Set the pet's avatar thumbnail as base64 (with HTTP info)
     /// </summary>
     /// <remarks>Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.</remarks>
     /// <param name="petId"></param>
@@ -1672,7 +1672,7 @@ public class PetApi : BaseApi
     }
 
     /// <summary>
-    /// Update a pet&#39;s notification preferences
+    /// Update a pet's notification preferences
     /// </summary>
     /// <remarks>Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.</remarks>
     /// <param name="petId"></param>
@@ -1701,7 +1701,7 @@ public class PetApi : BaseApi
     }
 
     /// <summary>
-    /// Update a pet&#39;s notification preferences (with HTTP info)
+    /// Update a pet's notification preferences (with HTTP info)
     /// </summary>
     /// <remarks>Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.</remarks>
     /// <param name="petId"></param>
@@ -1834,7 +1834,7 @@ public class PetApi : BaseApi
     }
 
     /// <summary>
-    /// Upload the pet&#39;s adoption certificate
+    /// Upload the pet's adoption certificate
     /// </summary>
     /// <remarks>Attaches a single adoption certificate document. No metadata fields are required alongside the file.</remarks>
     /// <param name="petId"></param>
@@ -1863,7 +1863,7 @@ public class PetApi : BaseApi
     }
 
     /// <summary>
-    /// Upload the pet&#39;s adoption certificate (with HTTP info)
+    /// Upload the pet's adoption certificate (with HTTP info)
     /// </summary>
     /// <remarks>Attaches a single adoption certificate document. No metadata fields are required alongside the file.</remarks>
     /// <param name="petId"></param>

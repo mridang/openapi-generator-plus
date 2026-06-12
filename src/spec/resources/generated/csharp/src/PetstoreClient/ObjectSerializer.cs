@@ -101,7 +101,7 @@ internal class ObjectSerializer
     /// Convert a scalar value to its canonical string representation.
     /// Booleans are lowercased, date/time values use ISO 8601 round-trip format,
     /// <see cref="TimeOnly"/> uses HH:mm:ss (OAS <c>format:time</c>),
-    /// <see cref="TimeSpan"/> uses ISO-8601 duration form (OAS <c>format:duration</c>),
+    /// <see cref="TimeSpan"/> uses protobuf-JSON duration form (OAS <c>format:duration</c>),
     /// and null values return an empty string.
     /// </summary>
     public static string Stringify(object? value)
@@ -115,7 +115,7 @@ internal class ObjectSerializer
                 System.Globalization.CultureInfo.InvariantCulture
             ),
             TimeOnly t => t.ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture),
-            TimeSpan ts => Iso8601DurationConverter.Format(ts),
+            TimeSpan ts => ProtobufDurationConverter.Format(ts),
             DateTimeOffset dto => dto.ToString(
                 "yyyy-MM-dd'T'HH:mm:sszzz",
                 System.Globalization.CultureInfo.InvariantCulture
@@ -272,10 +272,11 @@ internal class ObjectSerializer
         options.Converters.Add(new DateTimeOffsetJsonConverter());
         /* 4.8: TimeSpan's default System.Text.Json form is the .NET
          * "[d.]hh:mm:ss[.fff]" string, which would not round-trip with
-         * any other language SDK. Register the ISO-8601 duration
+         * any other language SDK. Register the protobuf-JSON duration
          * converter so format:duration values are emitted as
-         * "PT1H30M"-style strings matching the OAS spec. */
-        options.Converters.Add(new Iso8601DurationConverter());
+         * "3600s"-style strings matching protobuf's canonical JSON
+         * mapping (the wire format Zitadel's gRPC-gateway expects). */
+        options.Converters.Add(new ProtobufDurationConverter());
         return options;
     }
 
@@ -322,7 +323,7 @@ internal class ObjectSerializer
 /// language clients, all of which throw an SDK-owned serialization error.
 /// The original native exception is preserved as <see cref="Exception.InnerException"/>.
 /// </summary>
-public class SerializationException : Exception
+public class SerializationException : ZitadelException
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="SerializationException"/> class.
@@ -348,21 +349,29 @@ public class SerializationException : Exception
 }
 
 /// <summary>
-/// Serializes <see cref="TimeSpan"/> values as ISO-8601 duration strings
-/// (RFC 3339 appendix A — <c>PT1H30M</c>, <c>P1DT2H</c>, …) so that
-/// <c>format:duration</c> schema values round-trip with the other
-/// language SDKs. .NET's default <c>TimeSpan</c> JSON form is
-/// <c>[d.]hh:mm:ss[.fff]</c>, which is non-portable.
+/// Serializes <see cref="TimeSpan"/> values as protobuf-JSON duration strings
+/// (the canonical JSON mapping of <c>google.protobuf.Duration</c>) so that
+/// <c>format:duration</c> schema values are accepted by protobuf/gRPC-gateway
+/// backends such as Zitadel. The wire form is a decimal number of seconds
+/// suffixed with <c>s</c> — e.g. <c>"3600s"</c> or <c>"3600.000000001s"</c> —
+/// NOT the ISO-8601 <c>PT1H</c> form (which such servers reject with 400).
 ///
-/// Supports days (<c>D</c>), hours (<c>H</c>), minutes (<c>M</c>),
-/// and seconds (<c>S</c>) including fractional seconds. Weeks (<c>W</c>)
-/// are accepted on parse only. Negative durations are emitted with a
-/// leading <c>-</c> per ISO-8601. Calendar-date designators
-/// (<c>Y</c>, month <c>M</c>) are rejected because <see cref="TimeSpan"/>
-/// has no concept of calendar months / years.
+/// .NET's default <c>TimeSpan</c> JSON form is <c>[d.]hh:mm:ss[.fff]</c>, which
+/// is also rejected. Fractional seconds carry up to nanosecond precision;
+/// because <see cref="TimeSpan"/> ticks are 100-ns, the smallest representable
+/// fraction is <c>0.0000001s</c>. Negative durations carry a leading <c>-</c>.
 /// </summary>
-internal sealed class Iso8601DurationConverter : JsonConverter<TimeSpan>
+internal sealed partial class ProtobufDurationConverter : JsonConverter<TimeSpan>
 {
+    /* protobuf-JSON Duration: optional sign, integer seconds, optional
+     * fractional part of 1..9 digits, mandatory 's' suffix. Anything else
+     * (ISO-8601 "PT1H", a bare number, a trailing-dot form) is rejected. */
+    [System.Text.RegularExpressions.GeneratedRegex(@"^-?\d+(\.\d{1,9})?s$")]
+    private static partial System.Text.RegularExpressions.Regex DurationPattern();
+
+    private const long TicksPerSecond = 10_000_000L;
+    private const long NanosPerTick = 100L;
+
     public override TimeSpan Read(
         ref Utf8JsonReader reader,
         Type typeToConvert,
@@ -372,7 +381,7 @@ internal sealed class Iso8601DurationConverter : JsonConverter<TimeSpan>
         string? s = reader.GetString();
         if (string.IsNullOrEmpty(s))
         {
-            throw new JsonException("ISO-8601 duration string must not be empty");
+            throw new JsonException("protobuf duration string must not be empty");
         }
         return Parse(s);
     }
@@ -384,188 +393,70 @@ internal sealed class Iso8601DurationConverter : JsonConverter<TimeSpan>
     }
 
     /// <summary>
-    /// Formats a <see cref="TimeSpan"/> as an ISO-8601 duration string.
-    /// Zero produces <c>PT0S</c> (the canonical empty-duration form).
+    /// Formats a <see cref="TimeSpan"/> as a protobuf-JSON duration string.
+    /// Zero produces <c>0s</c>. A whole-second value produces <c>{secs}s</c>;
+    /// a sub-second value produces <c>{secs}.{frac}s</c> with the fractional
+    /// digits trimmed to 3, 6, or 9 places (the smallest grouping that keeps
+    /// every non-zero digit), matching protobuf's canonical output.
     /// </summary>
     public static string Format(TimeSpan value)
     {
-        if (value == TimeSpan.Zero)
+        string sign = value.Ticks < 0 ? "-" : "";
+        long absTicks = Math.Abs(value.Ticks);
+        long secs = absTicks / TicksPerSecond;
+        long remainderTicks = absTicks % TicksPerSecond;
+        long nanos = remainderTicks * NanosPerTick;
+        if (nanos == 0L)
         {
-            return "PT0S";
+            return $"{sign}{secs}s";
         }
-        TimeSpan abs = value < TimeSpan.Zero ? value.Negate() : value;
-        System.Text.StringBuilder sb = new();
-        if (value < TimeSpan.Zero)
-        {
-            _ = sb.Append('-');
-        }
-        _ = sb.Append('P');
-        int days = abs.Days;
-        if (days > 0)
-        {
-            _ = sb.Append(days.ToString(System.Globalization.CultureInfo.InvariantCulture))
-                .Append('D');
-        }
-        int hours = abs.Hours;
-        int minutes = abs.Minutes;
-        int seconds = abs.Seconds;
-        int fractionalTicks = (int)(abs.Ticks % TimeSpan.TicksPerSecond);
-        bool hasTime = hours > 0 || minutes > 0 || seconds > 0 || fractionalTicks > 0;
-        if (hasTime)
-        {
-            _ = sb.Append('T');
-            if (hours > 0)
-            {
-                _ = sb.Append(hours.ToString(System.Globalization.CultureInfo.InvariantCulture))
-                    .Append('H');
-            }
-            if (minutes > 0)
-            {
-                _ = sb.Append(minutes.ToString(System.Globalization.CultureInfo.InvariantCulture))
-                    .Append('M');
-            }
-            if (seconds > 0 || fractionalTicks > 0)
-            {
-                if (fractionalTicks > 0)
-                {
-                    decimal secs = seconds + ((decimal)fractionalTicks / TimeSpan.TicksPerSecond);
-                    _ = sb.Append(
-                        secs.ToString(
-                            "0.#######",
-                            System.Globalization.CultureInfo.InvariantCulture
-                        )
-                    );
-                }
-                else
-                {
-                    _ = sb.Append(
-                        seconds.ToString(System.Globalization.CultureInfo.InvariantCulture)
-                    );
-                }
-                _ = sb.Append('S');
-            }
-        }
-        return sb.ToString();
+
+        /* Zero-pad nanos to 9 digits, then trim to a 3/6/9-digit group so the
+         * shortest representation that preserves every significant digit is
+         * emitted (protobuf canonical form). */
+        string frac = nanos.ToString("D9", System.Globalization.CultureInfo.InvariantCulture);
+        int width =
+            frac.EndsWith("000000", StringComparison.Ordinal) ? 3
+            : frac.EndsWith("000", StringComparison.Ordinal) ? 6
+            : 9;
+        frac = frac[..width];
+        return $"{sign}{secs}.{frac}s";
     }
 
     /// <summary>
-    /// Parses an ISO-8601 duration string into a <see cref="TimeSpan"/>.
-    /// Throws <see cref="JsonException"/> on malformed input.
+    /// Parses a protobuf-JSON duration string into a <see cref="TimeSpan"/>.
+    /// Throws <see cref="JsonException"/> on anything not matching
+    /// <c>^-?\d+(\.\d{1,9})?s$</c> (e.g. ISO-8601 or unsuffixed numbers).
     /// </summary>
     public static TimeSpan Parse(string text)
     {
         ArgumentNullException.ThrowIfNull(text);
-        int idx = 0;
-        bool negative = false;
-        if (idx < text.Length && (text[idx] == '-' || text[idx] == '+'))
+        if (!DurationPattern().IsMatch(text))
         {
-            negative = text[idx] == '-';
-            idx++;
-        }
-        if (idx >= text.Length || text[idx] != 'P')
-        {
-            throw new JsonException($"Invalid ISO-8601 duration (missing leading 'P'): {text}");
-        }
-        idx++;
-
-        long days = 0;
-        long hours = 0;
-        long minutes = 0;
-        decimal seconds = 0m;
-        bool inTime = false;
-        bool sawAny = false;
-
-        while (idx < text.Length)
-        {
-            if (text[idx] == 'T')
-            {
-                inTime = true;
-                idx++;
-                continue;
-            }
-            int numStart = idx;
-            while (
-                idx < text.Length
-                && (char.IsDigit(text[idx]) || text[idx] == '.' || text[idx] == ',')
-            )
-            {
-                idx++;
-            }
-            if (numStart == idx || idx >= text.Length)
-            {
-                throw new JsonException($"Invalid ISO-8601 duration: {text}");
-            }
-            string numText = text[numStart..idx].Replace(',', '.');
-            char designator = text[idx];
-            idx++;
-            sawAny = true;
-            if (!inTime)
-            {
-                switch (designator)
-                {
-                    case 'D':
-                        days = long.Parse(
-                            numText,
-                            System.Globalization.CultureInfo.InvariantCulture
-                        );
-                        break;
-                    case 'W':
-                        days +=
-                            long.Parse(numText, System.Globalization.CultureInfo.InvariantCulture)
-                            * 7L;
-                        break;
-                    case 'Y':
-                    case 'M':
-                        throw new JsonException(
-                            $"ISO-8601 duration designators 'Y' and date-'M' are not supported by TimeSpan: {text}"
-                        );
-                    default:
-                        throw new JsonException(
-                            $"Invalid date designator '{designator}' in ISO-8601 duration: {text}"
-                        );
-                }
-            }
-            else
-            {
-                switch (designator)
-                {
-                    case 'H':
-                        hours = long.Parse(
-                            numText,
-                            System.Globalization.CultureInfo.InvariantCulture
-                        );
-                        break;
-                    case 'M':
-                        minutes = long.Parse(
-                            numText,
-                            System.Globalization.CultureInfo.InvariantCulture
-                        );
-                        break;
-                    case 'S':
-                        seconds = decimal.Parse(
-                            numText,
-                            System.Globalization.CultureInfo.InvariantCulture
-                        );
-                        break;
-                    default:
-                        throw new JsonException(
-                            $"Invalid time designator '{designator}' in ISO-8601 duration: {text}"
-                        );
-                }
-            }
+            throw new JsonException($"Invalid protobuf duration: {text}");
         }
 
-        if (!sawAny)
+        bool negative = text[0] == '-';
+        string body = text[..^1]; // strip trailing 's'
+        if (negative)
         {
-            throw new JsonException($"Invalid ISO-8601 duration (no components): {text}");
+            body = body[1..];
         }
 
-        long totalTicks =
-            (days * TimeSpan.TicksPerDay)
-            + (hours * TimeSpan.TicksPerHour)
-            + (minutes * TimeSpan.TicksPerMinute)
-            + (long)(seconds * TimeSpan.TicksPerSecond);
-        TimeSpan result = TimeSpan.FromTicks(totalTicks);
-        return negative ? result.Negate() : result;
+        int dot = body.IndexOf('.', StringComparison.Ordinal);
+        string secsText = dot < 0 ? body : body[..dot];
+        long secs = long.Parse(secsText, System.Globalization.CultureInfo.InvariantCulture);
+
+        long nanos = 0L;
+        if (dot >= 0)
+        {
+            /* Right-pad the fractional part to 9 digits so each position keeps
+             * its nanosecond weight (".5" → 500_000_000ns). */
+            string fracText = body[(dot + 1)..].PadRight(9, '0');
+            nanos = long.Parse(fracText, System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        long ticks = (secs * TicksPerSecond) + (nanos / NanosPerTick);
+        return TimeSpan.FromTicks(negative ? -ticks : ticks);
     }
 }

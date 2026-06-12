@@ -114,6 +114,7 @@ public abstract class BaseApi {
    * @return ApiResult containing deserialized data, status code, raw body, and headers
    * @throws ApiException if the API call fails
    */
+  @SuppressWarnings("unchecked")
   protected <T> ApiResult<T> invokeApiForResult(
       String method,
       String path,
@@ -123,8 +124,7 @@ public abstract class BaseApi {
       String[] accepts,
       String contentType,
       @Nullable Type returnType,
-      @Nullable Authenticator auth)
-      throws ApiException {
+      @Nullable Authenticator auth) {
 
     String url;
     if (path.startsWith("http://") || path.startsWith("https://")) {
@@ -269,8 +269,8 @@ public abstract class BaseApi {
         if (returnType == InputStream.class) {
           /* Cast to the type variable T is guarded by the runtime
            * check above (returnType == InputStream.class),
-           * so it is provably safe; javac cannot see this and the
-           * unchecked lint is disabled project-wide in pom.xml. */
+           * so it is provably safe; javac cannot see this, hence the
+           * method-level @SuppressWarnings("unchecked"). */
           T streamBody = (T) new ByteArrayInputStream(rawBytes);
           data = streamBody;
         } else {
@@ -321,8 +321,7 @@ public abstract class BaseApi {
       String[] accepts,
       String contentType,
       @Nullable Type returnType,
-      @Nullable Authenticator auth)
-      throws ApiException {
+      @Nullable Authenticator auth) {
     return this.<T>invokeApiForResult(
             method, path, queryParams, headerParams, body, accepts, contentType, returnType, auth)
         .data();
@@ -337,7 +336,7 @@ public abstract class BaseApi {
    * @param response the API response with a non-2xx status code
    * @throws ApiException always
    */
-  private void throwApiException(ApiHttpResponse response) throws ApiException {
+  private void throwApiException(ApiHttpResponse response) {
     int code = response.statusCode();
     String message = "API returned status code " + code;
     String body = response.body();
@@ -372,12 +371,6 @@ public abstract class BaseApi {
     throw new ApiException(code, message, headers, body, errorBody);
   }
 
-  /**
-   * Build a query string from query parameters.
-   *
-   * @param queryParams the query parameters
-   * @return encoded query string
-   */
   /**
    * Returns true if the value is a valid RFC 6265 cookie name (token). Allowed chars: ALPHA / DIGIT
    * / "!#$%&'*+-.^_`|~".
@@ -455,6 +448,12 @@ public abstract class BaseApi {
         || mediaType.endsWith("+xml");
   }
 
+  /**
+   * Build a query string from query parameters.
+   *
+   * @param queryParams the query parameters
+   * @return encoded query string
+   */
   private String buildQueryString(Map<String, Object> queryParams) {
     if (queryParams == null || queryParams.isEmpty()) {
       return "";

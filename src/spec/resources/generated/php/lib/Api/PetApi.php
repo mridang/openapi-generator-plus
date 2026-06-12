@@ -218,7 +218,7 @@ class PetApi extends BaseApi
     }
 
     /**
-     * Add photos to the pet&#39;s gallery
+     * Add photos to the pet's gallery
      * Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
 
      * @param AddPetPhotosOptions $options Options for query, header, form, and cookie parameters
@@ -710,8 +710,8 @@ class PetApi extends BaseApi
     }
 
     /**
-     * Get the pet&#39;s profile photo
-     * Returns the raw image bytes of the pet&#39;s current avatar.
+     * Get the pet's profile photo
+     * Returns the raw image bytes of the pet's current avatar.
 
      * @return string
      * @throws ApiException
@@ -775,7 +775,7 @@ class PetApi extends BaseApi
     }
 
     /**
-     * Get the pet&#39;s avatar thumbnail as base64
+     * Get the pet's avatar thumbnail as base64
      * Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
 
      * @return string
@@ -993,8 +993,8 @@ class PetApi extends BaseApi
     }
 
     /**
-     * Get the pet&#39;s passport
-     * Returns a single JSON document combining the pet&#39;s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
+     * Get the pet's passport
+     * Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
 
      * @return \PetstoreClient\Models\PetPassport
      * @throws ApiException
@@ -1299,7 +1299,7 @@ class PetApi extends BaseApi
     }
 
     /**
-     * Set the pet&#39;s profile photo
+     * Set the pet's profile photo
      * Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
 
      * @throws ApiException
@@ -1347,7 +1347,7 @@ class PetApi extends BaseApi
     }
 
     /**
-     * Set the pet&#39;s avatar thumbnail as base64
+     * Set the pet's avatar thumbnail as base64
      * Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
 
      * @throws ApiException
@@ -1395,7 +1395,7 @@ class PetApi extends BaseApi
     }
 
     /**
-     * Update a pet&#39;s notification preferences
+     * Update a pet's notification preferences
      * Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
 
      * @param SetPetPreferencesOptions $options Options for query, header, form, and cookie parameters
@@ -1542,7 +1542,7 @@ class PetApi extends BaseApi
     }
 
     /**
-     * Upload the pet&#39;s adoption certificate
+     * Upload the pet's adoption certificate
      * Attaches a single adoption certificate document. No metadata fields are required alongside the file.
 
      * @param UploadPetCertificateOptions $options Options for query, header, form, and cookie parameters

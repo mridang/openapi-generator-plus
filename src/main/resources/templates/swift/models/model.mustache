@@ -81,12 +81,12 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 
 {{#hasVars}}
     /// Creates a new {{classname}} instance.
-    public init({{#requiredVars}}{{nameInCamelCase}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^isEnum}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{/isEnum}}{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{nameInCamelCase}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?{{#isEnum}}{{#defaultValue}} = {{classname}}{{enumName}}(rawValue: {{{.}}}){{/defaultValue}}{{^defaultValue}} = nil{{/defaultValue}}{{/isEnum}}{{^isEnum}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{^defaultValue}} = nil{{/defaultValue}}{{/isEnum}}{{^-last}}, {{/-last}}{{/optionalVars}}) {
+    public init({{#requiredVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^isEnum}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{/isEnum}}{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?{{#isEnum}}{{#defaultValue}} = {{classname}}{{enumName}}(rawValue: {{{.}}}){{/defaultValue}}{{^defaultValue}} = nil{{/defaultValue}}{{/isEnum}}{{^isEnum}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{^defaultValue}} = nil{{/defaultValue}}{{/isEnum}}{{^-last}}, {{/-last}}{{/optionalVars}}) {
 {{#requiredVars}}
-        self.{{name}} = {{nameInCamelCase}}
+        self.{{name}} = {{name}}
 {{/requiredVars}}
 {{#optionalVars}}
-        self.{{name}} = {{nameInCamelCase}}
+        self.{{name}} = {{name}}
 {{/optionalVars}}
     }
 
@@ -151,9 +151,9 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 
 {{#hasVars}}
     /// Creates a new {{classname}} instance.
-    public init({{#requiredVars}}{{nameInCamelCase}}: {{{dataType}}}, {{/requiredVars}}additionalProperties: [String: AnyCodable] = [:]) {
+    public init({{#requiredVars}}{{name}}: {{{dataType}}}, {{/requiredVars}}additionalProperties: [String: AnyCodable] = [:]) {
 {{#requiredVars}}
-        self.{{name}} = {{nameInCamelCase}}
+        self.{{name}} = {{name}}
 {{/requiredVars}}
         self.additionalProperties = additionalProperties
     }

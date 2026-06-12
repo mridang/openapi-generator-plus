@@ -86,7 +86,7 @@ module {{moduleName}}
     def initialize: (status_code: Integer, data: T, raw_body: String, headers: Hash[String, String]) -> void
   end
 
-  class ApiError < StandardError
+  class ApiError < {{apiErrorParent}}
     attr_reader status_code: Integer?
     attr_reader response_headers: Hash[String, String]?
     attr_reader response_body: String?
@@ -164,12 +164,12 @@ module {{moduleName}}
 
   UUID_REGEX: Regexp
 
-  class SerializationError < StandardError
+  class SerializationError < {{apiErrorParent}}
     attr_reader cause: Exception?
     def initialize: (String, ?Exception?) -> void
   end
 
-  class SchemaMismatchError < StandardError
+  class SchemaMismatchError < {{apiErrorParent}}
   end
 
   class ValueSerializer
@@ -190,6 +190,7 @@ module {{moduleName}}
 
   class ObjectSerializer
     DEFAULT_DATETIME_FORMAT: String
+    PROTOBUF_DURATION_REGEX: Regexp
     def self.stringify: (untyped) -> String
     def self.serialize: (untyped) -> String
     def self.deserialize: (untyped, String) -> untyped
@@ -209,6 +210,8 @@ module {{moduleName}}
     def self.validate_uuid: (untyped) -> String
     def self.encode_byte: (untyped) -> String
     def self.decode_byte: (untyped) -> String
+    def self.duration_to_protobuf_json: (ISO8601::Duration) -> String
+    def self.duration_from_protobuf_json: (String) -> ISO8601::Duration
   end
 
   class TraceContextUtil
@@ -357,10 +360,10 @@ module {{moduleName}}
         def parse_expires_in: (untyped) -> Integer
       end
 
-      class OAuth2TokenError < RuntimeError
+      class OAuth2TokenError < {{moduleName}}::ApiError
       end
 
-      class OAuth2ServerError < RuntimeError
+      class OAuth2ServerError < {{moduleName}}::ApiError
         attr_reader status_code: Integer
         attr_reader code: String?
         attr_reader description: String?

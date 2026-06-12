@@ -7,6 +7,8 @@
 
 package com.example.petstore
 
+import com.example.petstore.errors.BadRequestException
+import com.example.petstore.errors.ClientException
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
@@ -56,7 +58,33 @@ class ApiExceptionTest {
             )
 
         assertTrue(ex is Exception)
+        assertTrue(ex is ZitadelException)
         assertTrue(ex.message.contains("500"))
+    }
+
+    @Test
+    fun typedExceptionsShareTheBrandedRoot() {
+        // Unified hierarchy: BadRequest is-a Client is-a Api is-a Zitadel.
+        val ex =
+            BadRequestException(
+                message = "bad request",
+                responseHeaders = null,
+                responseBody = null,
+            )
+
+        assertTrue(ex is ClientException)
+        assertTrue(ex is ApiException)
+        assertTrue(ex is ZitadelException)
+        assertEquals(400, ex.statusCode)
+    }
+
+    @Test
+    fun serializationExceptionShareTheBrandedRoot() {
+        // SerializationException is-a Zitadel, so callers can catch the whole
+        // SDK error surface via the single branded root.
+        val ex = SerializationException("decode failed")
+
+        assertTrue(ex is ZitadelException)
     }
 
     @Test

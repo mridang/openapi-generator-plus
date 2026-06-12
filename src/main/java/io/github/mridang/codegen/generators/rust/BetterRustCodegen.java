@@ -435,6 +435,8 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 new SupportingFileSpec("servers.mustache", "src", "servers.rs"),
                 new SupportingFileSpec("api_error.mustache", "src", "api_error.rs"),
                 new SupportingFileSpec(
+                        "errors/zitadel_error.mustache", "src/errors", "zitadel_error.rs"),
+                new SupportingFileSpec(
                         "errors/client_error.mustache", "src/errors", "client_error.rs"),
                 new SupportingFileSpec(
                         "errors/server_error.mustache", "src/errors", "server_error.rs"),

@@ -244,6 +244,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
             new SupportingFileSpec("api_client.mustache", invokerFolder, "ApiClient.cs"),
             new SupportingFileSpec("default_api_client.mustache", invokerFolder, "DefaultApiClient.cs"),
+            new SupportingFileSpec("zitadel_exception.mustache", invokerFolder, "ZitadelException.cs"),
             new SupportingFileSpec("api_error.mustache", invokerFolder, "ApiException.cs"),
             new SupportingFileSpec("errors/ClientException.mustache", errorsFolder, "ClientException.cs"),
             new SupportingFileSpec("errors/ServerException.mustache", errorsFolder, "ServerException.cs"),

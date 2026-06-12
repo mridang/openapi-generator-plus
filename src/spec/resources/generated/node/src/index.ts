@@ -48,6 +48,7 @@ export { isUuid, uuid, URI, Email, Decimal } from './brand.js';
 export type { UUID } from './brand.js';
 
 /* Error hierarchy. */
+export { ZitadelError } from './errors/zitadel-error.js';
 export { ApiError } from './api-error.js';
 export * from './errors/index.js';
 export { SerializationError, DeserializationError } from './object-serializer.js';

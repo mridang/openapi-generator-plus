@@ -51,7 +51,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2ImplicitAuthenticator do
   end
 
   it 'throws when access token not set' do
-    assert_raises(RuntimeError) do
+    assert_raises(PetstoreClient::ApiError) do
       auth.auth_headers
     end
   end

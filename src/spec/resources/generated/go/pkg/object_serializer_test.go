@@ -14,8 +14,16 @@ import (
 	"testing"
 	"time"
 
+	apierrors "petstore/pkg/errors"
 	"petstore/pkg/models"
 )
+
+// Compile-time proof that *SerializationError satisfies the branded ZitadelError
+// root. SerializationError lives in this (main) package while ZitadelError lives
+// in the imported errors package; this assertion guarantees the brand spans the
+// package boundary. If SerializationError stops implementing error, the test
+// package fails to compile.
+var _ apierrors.ZitadelError = (*SerializationError)(nil)
 
 func TestSerialize_MapToJSON(t *testing.T) {
 	t.Parallel()
@@ -570,6 +578,28 @@ func TestSerializationError_IsCatchableViaErrorsAs(t *testing.T) {
 	}
 	if serErr.Error() == "" {
 		t.Error("SerializationError should report a non-empty message via Error()")
+	}
+}
+
+// TestSerializationError_SatisfiesZitadelError confirms a real
+// *SerializationError resolves to the branded ZitadelError root at runtime via
+// errors.As, so callers can treat a serialization failure uniformly alongside
+// ApiError and the typed HTTP errors as "an error this SDK threw".
+func TestSerializationError_SatisfiesZitadelError(t *testing.T) {
+	t.Parallel()
+	var result map[string]any
+	err := deserialize([]byte("not json"), &result)
+	if err == nil {
+		t.Fatal("expected error for invalid JSON")
+	}
+
+	if _, ok := err.(apierrors.ZitadelError); !ok {
+		t.Errorf("expected *SerializationError to satisfy ZitadelError, got %T", err)
+	}
+
+	var ze apierrors.ZitadelError
+	if !errors.As(err, &ze) {
+		t.Error("expected errors.As to match *SerializationError against ZitadelError")
 	}
 }
 

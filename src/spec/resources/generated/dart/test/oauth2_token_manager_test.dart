@@ -561,5 +561,22 @@ void main() {
       skip:
           'Dart OAuth2TokenManager redirect-refusal error does not surface the Location header',
     );
+
+    test('OAuth2TokenError is a ZitadelException (branded root)', () {
+      final err = OAuth2TokenError('boom');
+
+      expect(err, isA<OAuth2TokenError>());
+      expect(err, isA<ZitadelException>());
+      expect(err, isA<Exception>());
+      expect(err.message, equals('boom'));
+    });
+
+    test('OAuth2ServerError is a ZitadelException (branded root)', () {
+      final err = OAuth2ServerError(400, 'invalid_grant', null, null, '{}');
+
+      expect(err, isA<OAuth2ServerError>());
+      expect(err, isA<ZitadelException>());
+      expect(err, isA<Exception>());
+    });
   });
 }

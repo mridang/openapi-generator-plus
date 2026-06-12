@@ -121,7 +121,7 @@ export abstract class BaseApi {
     Object.assign(headers, this.config.defaultHeaders);
     Object.assign(headers, headerParams);
     if (effectiveAuth) {
-      Object.assign(headers, effectiveAuth.getAuthHeaders());
+      Object.assign(headers, await effectiveAuth.getAuthHeadersAsync());
       const cookies = effectiveAuth.getCookieParams();
       const cookieEntries = Object.entries(cookies);
       if (cookieEntries.length > 0) {

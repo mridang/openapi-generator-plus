@@ -7,7 +7,9 @@
 
 export * from './api-response.js';
 export * from './category.js';
+export * from './color.js';
 export * from './dry-food.js';
+export * from './edge-cases.js';
 export * from './medication.js';
 export * from './metadata.js';
 export * from './order.js';

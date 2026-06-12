@@ -161,7 +161,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
 
   it 'throws when no ApiClient injected' do
     manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
-    assert_raises(RuntimeError) do
+    assert_raises(PetstoreClient::ApiError) do
       manager.get_access_token('https://auth.example.com/token', {})
     end
   end
@@ -357,9 +357,13 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
     manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
-    assert_raises(RuntimeError) do
+    # A failed token request surfaces as the typed OAuth2ServerError, which
+    # subclasses the SDK's common ApiError base so a rescue on ApiError
+    # catches it alongside every other API error.
+    error = assert_raises(PetstoreClient::ApiError) do
       manager.get_access_token('https://auth.example.com/token', {})
     end
+    _(error).must_be_kind_of PetstoreClient::Auth::OAuth::OAuth2ServerError
   end
 
   it 'token POST requests no_redirect from transport (Bucket 3.2)' do

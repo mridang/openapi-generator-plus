@@ -29,10 +29,8 @@ public class WetFood(int volumeMl) : PetFood, IEquatable<WetFood>
         return other is not null
             && (
                 ReferenceEquals(this, other)
-                || (
-                    EqualityComparer<string>.Default.Equals(this.FoodType, other.FoodType)
+                || EqualityComparer<string>.Default.Equals(this.FoodType, other.FoodType)
                     && EqualityComparer<int>.Default.Equals(this.VolumeMl, other.VolumeMl)
-                )
             );
     }
 

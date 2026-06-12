@@ -304,6 +304,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("server_configuration.mustache", srcDir, "server_configuration.dart"),
             new SupportingFileSpec("servers.mustache", srcDir, "servers.dart"),
             new SupportingFileSpec("api_error.mustache", srcDir, "api_error.dart"),
+            new SupportingFileSpec("errors/zitadel_exception.mustache", errorsDir, "zitadel_exception.dart"),
             new SupportingFileSpec("errors/api_error.mustache", errorsDir, "api_error.dart"),
             new SupportingFileSpec("errors/client_error.mustache", errorsDir, "client_error.dart"),
             new SupportingFileSpec("errors/server_error.mustache", errorsDir, "server_error.dart"),

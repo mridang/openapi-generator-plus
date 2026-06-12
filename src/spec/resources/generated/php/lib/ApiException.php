@@ -13,13 +13,18 @@ declare(strict_types=1);
 
 namespace PetstoreClient;
 
-use Exception;
 use Throwable;
 
 /**
  * Represents an error response from the API.
+ *
+ * Extends {@see ZitadelException}, the single SDK exception root, so the full
+ * chain for a typed HTTP error reads
+ * UnauthorizedException → ClientException → ApiException → ZitadelException
+ * → \Exception. A caller catching {@see ZitadelException} therefore catches
+ * every API/HTTP error the SDK throws.
  */
-class ApiException extends Exception
+class ApiException extends ZitadelException
 {
     /**
      * The HTTP status code.

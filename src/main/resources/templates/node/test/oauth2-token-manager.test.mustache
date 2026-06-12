@@ -1,6 +1,7 @@
 {{>api_info}}
 
 import { OAuth2TokenManager, OAuth2TokenError, OAuth2ServerError } from '../src/auth/oauth/oauth2-token-manager{{importFileExtension}}';
+import { ZitadelError } from '../src/errors/zitadel-error{{importFileExtension}}';
 import type { ApiClient, SendRequestOptions } from '../src/api-client{{importFileExtension}}';
 import type { ApiHttpResponse } from '../src/api-response{{importFileExtension}}';
 
@@ -310,11 +311,12 @@ describe('OAuth2TokenManager', () => {
     mockClient.responseStatus = 200;
     mockClient.responseBody = JSON.stringify({ refresh_token: 'x' });
 
-    await expect(
-      tokenManager.getAccessToken('https://auth.example.com/token', {
-        grant_type: 'client_credentials'
-      })
-    ).rejects.toBeInstanceOf(OAuth2TokenError);
+    const promise = tokenManager.getAccessToken('https://auth.example.com/token', {
+      grant_type: 'client_credentials'
+    });
+    await expect(promise).rejects.toBeInstanceOf(OAuth2TokenError);
+    // INVARIANT: every SDK-thrown error reaches the branded ZitadelError root.
+    await expect(promise).rejects.toBeInstanceOf(ZitadelError);
   });
 
   test('server error response parsed to typed OAuth2ServerError', async () => {
@@ -331,6 +333,8 @@ describe('OAuth2TokenManager', () => {
       grant_type: 'client_credentials'
     });
     await expect(promise).rejects.toBeInstanceOf(OAuth2ServerError);
+    // INVARIANT: every SDK-thrown error reaches the branded ZitadelError root.
+    await expect(promise).rejects.toBeInstanceOf(ZitadelError);
     await promise.catch((err: OAuth2ServerError) => {
       expect(err.statusCode).toBe(400);
       expect(err.code).toBe('invalid_grant');
@@ -505,6 +509,13 @@ describe('OAuth2TokenManager', () => {
             client_secret: 'topsecret'
           })
         ).rejects.toBeInstanceOf(OAuth2TokenError);
+        // INVARIANT: every SDK-thrown error reaches the branded ZitadelError root.
+        await expect(
+          tokenManager.getAccessToken('https://auth.example.com/token', {
+            grant_type: 'client_credentials',
+            client_secret: 'topsecret'
+          })
+        ).rejects.toBeInstanceOf(ZitadelError);
         await expect(
           tokenManager.getAccessToken('https://auth.example.com/token', {
             grant_type: 'client_credentials',

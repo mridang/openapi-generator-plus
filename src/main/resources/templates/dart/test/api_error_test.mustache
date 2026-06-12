@@ -41,7 +41,15 @@ void main() {
       const err = ApiError(statusCode: 500, message: 'boom');
 
       expect(err, isA<Exception>());
+      expect(err, isA<ZitadelException>());
       expect(err.toString(), isNotEmpty);
+    });
+
+    test('is a ZitadelException (branded root)', () {
+      const err = ApiError(statusCode: 500, message: 'boom');
+
+      expect(err, isA<ZitadelException>());
+      expect(err, isA<Exception>());
     });
 
     test('typedErrorBody deserializes the body into the requested type', () {
@@ -78,6 +86,35 @@ void main() {
       expect(typed, isNotNull);
       expect(typed!.id, equals(1));
       expect(typed.name, equals('Cat'));
+    });
+  });
+
+  group('exception hierarchy', () {
+    test('BadRequestError is ClientError, ApiError and ZitadelException', () {
+      const err = BadRequestError(statusCode: 400, message: 'bad request');
+
+      expect(err, isA<BadRequestError>());
+      expect(err, isA<ClientError>());
+      expect(err, isA<ApiError>());
+      expect(err, isA<ZitadelException>());
+      expect(err, isA<Exception>());
+    });
+
+    test('InternalServerError is ServerError, ApiError and ZitadelException',
+        () {
+      const err = InternalServerError(statusCode: 500, message: 'boom');
+
+      expect(err, isA<ServerError>());
+      expect(err, isA<ApiError>());
+      expect(err, isA<ZitadelException>());
+    });
+
+    test('SerializationError is a ZitadelException', () {
+      const err = SerializationError('nope');
+
+      expect(err, isA<SerializationError>());
+      expect(err, isA<ZitadelException>());
+      expect(err, isA<Exception>());
     });
   });
 }

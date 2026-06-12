@@ -5,7 +5,7 @@ import Foundation
 /// violates the documented usage contract (e.g. requesting headers before
 /// exchanging an authorization code). Callers can catch this to recover
 /// gracefully instead of being terminated by a `fatalError`.
-public enum OAuth2AuthorizationCodeError: Error, Equatable {
+public enum OAuth2AuthorizationCodeError: ZitadelError, Equatable {
     /// `authHeadersOrThrow()` was called before `exchangeCode(_:)`.
     case codeNotExchanged
     /// `exchangeCode(_:)` was called with an empty or whitespace-only code.

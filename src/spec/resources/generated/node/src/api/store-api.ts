@@ -13,6 +13,7 @@ import { BaseApi } from './base-api.js';
 import { Configuration } from '../configuration.js';
 import { ObjectSerializer } from '../object-serializer.js';
 import { ValueSerializer } from '../value-serializer.js';
+import type { DeepInput } from '../deep-input.js';
 import { Order } from '../models/index.js';
 
 /**
@@ -29,18 +30,16 @@ export class StoreApi extends BaseApi {
    * @param orderId ID of the order to delete (required)
    * @throws {ApiError} if fails to make API call
    */
-  async deleteOrder(orderId: number): Promise<void> {
-    if (orderId == null) {
-      throw new Error('Missing required parameter "orderId" when calling deleteOrder');
-    }
-    await this.deleteOrderWithHttpInfo(orderId);
+  async deleteOrder(requestParameters: { orderId: number }): Promise<void> {
+    await this.deleteOrderWithHttpInfo(requestParameters);
   }
 
   /**
    * Delete purchase order by ID (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async deleteOrderWithHttpInfo(orderId: number): Promise<ApiResult<void>> {
+  async deleteOrderWithHttpInfo(requestParameters: { orderId: number }): Promise<ApiResult<void>> {
+    const { orderId } = requestParameters;
     if (orderId == null) {
       throw new Error('Missing required parameter "orderId" when calling deleteOrder');
     }
@@ -113,11 +112,8 @@ export class StoreApi extends BaseApi {
    * @return Order
    * @throws {ApiError} if fails to make API call
    */
-  async getOrderById(orderId: number): Promise<Order> {
-    if (orderId == null) {
-      throw new Error('Missing required parameter "orderId" when calling getOrderById');
-    }
-    const getOrderByIdResult = await this.getOrderByIdWithHttpInfo(orderId);
+  async getOrderById(requestParameters: { orderId: number }): Promise<Order> {
+    const getOrderByIdResult = await this.getOrderByIdWithHttpInfo(requestParameters);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -137,7 +133,8 @@ export class StoreApi extends BaseApi {
    * Find purchase order by ID (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async getOrderByIdWithHttpInfo(orderId: number): Promise<ApiResult<Order>> {
+  async getOrderByIdWithHttpInfo(requestParameters: { orderId: number }): Promise<ApiResult<Order>> {
+    const { orderId } = requestParameters;
     if (orderId == null) {
       throw new Error('Missing required parameter "orderId" when calling getOrderById');
     }
@@ -167,8 +164,8 @@ export class StoreApi extends BaseApi {
    * @return Order
    * @throws {ApiError} if fails to make API call
    */
-  async placeOrder(order?: Order): Promise<Order> {
-    const placeOrderResult = await this.placeOrderWithHttpInfo(order);
+  async placeOrder(requestParameters?: { order?: DeepInput<Order> }): Promise<Order> {
+    const placeOrderResult = await this.placeOrderWithHttpInfo(requestParameters);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -188,7 +185,8 @@ export class StoreApi extends BaseApi {
    * Place an order for a pet (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async placeOrderWithHttpInfo(order?: Order): Promise<ApiResult<Order>> {
+  async placeOrderWithHttpInfo(requestParameters?: { order?: DeepInput<Order> }): Promise<ApiResult<Order>> {
+    const { order } = requestParameters ?? {};
     const path = `/store/order`;
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};

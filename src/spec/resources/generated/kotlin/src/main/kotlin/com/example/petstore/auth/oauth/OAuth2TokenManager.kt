@@ -9,6 +9,7 @@ package com.example.petstore.auth.oauth
 
 import com.example.petstore.ApiClient
 import com.example.petstore.ApiHttpResponse
+import com.example.petstore.ZitadelException
 import io.ktor.http.encodeURLQueryComponent
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -276,7 +277,7 @@ class OAuth2TokenManager {
  */
 class OAuth2TokenError(
     message: String,
-) : RuntimeException(message)
+) : ZitadelException(message)
 
 /**
  * Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
@@ -292,7 +293,7 @@ class OAuth2ServerError(
     val description: String?,
     val uri: String?,
     val rawBody: String,
-) : RuntimeException(buildMessage(statusCode, code, description, rawBody)) {
+) : ZitadelException(buildMessage(statusCode, code, description, rawBody)) {
     private companion object {
         fun buildMessage(
             statusCode: Int,

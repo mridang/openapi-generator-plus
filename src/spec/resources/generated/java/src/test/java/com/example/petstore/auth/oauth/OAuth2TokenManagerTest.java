@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.example.petstore.ApiClient;
 import com.example.petstore.ApiHttpResponse;
+import com.example.petstore.ZitadelException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -421,17 +422,17 @@ class OAuth2TokenManagerTest {
   void token_response_missing_access_token_throws_typed_error() {
     // A 2xx response whose body omits access_token (e.g. only refresh_token)
     // must surface as the typed OAuth2TokenError, not silently cache an
-    // empty/null token. RuntimeException remains catchable for callers
-    // that don't distinguish the failure kind.
+    // empty/null token. The typed error extends the branded
+    // ZitadelException root, so a single catch covers all SDK failures.
     OAuth2TokenManager manager = new OAuth2TokenManager();
     manager.setApiClient(fakeClient(200, "{\"refresh_token\":\"x\"}"));
 
     Map<String, String> params = new HashMap<>();
     params.put("grant_type", "client_credentials");
 
-    RuntimeException ex =
+    ZitadelException ex =
         assertThrows(
-            RuntimeException.class,
+            ZitadelException.class,
             () -> manager.getAccessToken("https://auth.example.com/token", params));
     assertTrue(
         ex instanceof OAuth2TokenManager.OAuth2TokenError,
@@ -454,9 +455,9 @@ class OAuth2TokenManagerTest {
     Map<String, String> params = new HashMap<>();
     params.put("grant_type", "client_credentials");
 
-    RuntimeException ex =
+    ZitadelException ex =
         assertThrows(
-            RuntimeException.class,
+            ZitadelException.class,
             () -> manager.getAccessToken("https://auth.example.com/token", params));
     assertTrue(
         ex instanceof OAuth2TokenManager.OAuth2ServerError,

@@ -125,7 +125,7 @@ describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
       %w[openid]
     )
 
-    assert_raises(RuntimeError) do
+    assert_raises({{moduleName}}::ApiError) do
       auth.build_authorization_url
     end
   end

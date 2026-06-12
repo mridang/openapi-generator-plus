@@ -15,6 +15,16 @@ export abstract class BaseAuthenticator implements Authenticator {
   abstract getHost(): string;
   abstract getAuthHeaders(): Record<string, string>;
 
+  /**
+   * Returns the authentication headers, resolving any asynchronous work
+   * (e.g. OAuth token fetch/refresh). The default resolves with the
+   * synchronous {@link getAuthHeaders}; token-fetching authenticators
+   * override this to perform the exchange.
+   */
+  getAuthHeadersAsync(): Promise<Record<string, string>> {
+    return Promise.resolve(this.getAuthHeaders());
+  }
+
   getQueryParams(): Record<string, string> {
     return {};
   }

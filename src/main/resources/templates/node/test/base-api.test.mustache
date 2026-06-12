@@ -79,6 +79,7 @@ class TestAuthenticator implements Authenticator {
 
   getHost(): string { return ''; }
   getAuthHeaders(): Record<string, string> { return this.headers; }
+  getAuthHeadersAsync(): Promise<Record<string, string>> { return Promise.resolve(this.headers); }
   getQueryParams(): Record<string, string> { return this.queryParams; }
   getCookieParams(): Record<string, string> { return this.cookies; }
 }

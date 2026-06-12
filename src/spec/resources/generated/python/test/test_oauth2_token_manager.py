@@ -18,6 +18,7 @@ from petstore_client.auth.oauth.oauth2_token_manager import (
     OAuth2TokenManager,
 )
 from petstore_client.api_response import ApiHttpResponse
+from petstore_client.errors import ZitadelException
 
 
 class TestOAuth2TokenManager:
@@ -421,8 +422,8 @@ class TestOAuth2TokenManager:
                 'https://auth.example.com/token',
                 {'grant_type': 'client_credentials'},
             )
-            assert False, 'Expected RuntimeError'
-        except RuntimeError:
+            assert False, 'Expected ZitadelException'
+        except ZitadelException:
             pass
 
     def test_token_response_missing_access_token_throws_typed_error(self) -> None:

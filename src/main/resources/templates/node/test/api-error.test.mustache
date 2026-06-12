@@ -1,6 +1,11 @@
 {{>api_info}}
 
 import { ApiError } from '../src/api-error{{importFileExtension}}';
+import {
+  ZitadelError,
+  ClientError,
+  BadRequestError,
+} from '../src/errors/index{{importFileExtension}}';
 import { Category } from '../src/models/index{{importFileExtension}}';
 
 describe('ApiError', () => {
@@ -33,6 +38,26 @@ describe('ApiError', () => {
       const err = new ApiError(500, 'boom');
       expect(err.name).toBe('ApiError');
       expect(err).toBeInstanceOf(Error);
+    });
+
+    test('ApiError extends the branded ZitadelError root', () => {
+      const err = new ApiError(500, 'boom');
+      expect(err).toBeInstanceOf(ZitadelError);
+      expect(err).toBeInstanceOf(Error);
+    });
+  });
+
+  describe('unified exception hierarchy', () => {
+    // The full extends chain a BadRequestError must satisfy:
+    //   BadRequestError -> ClientError -> ApiError -> ZitadelError -> Error
+    test('a BadRequestError is a ClientError, ApiError, ZitadelError and Error', () => {
+      const err = new BadRequestError('bad input');
+      expect(err).toBeInstanceOf(ClientError);
+      expect(err).toBeInstanceOf(ApiError);
+      expect(err).toBeInstanceOf(ZitadelError);
+      expect(err).toBeInstanceOf(Error);
+      expect(err.statusCode).toBe(400);
+      expect(err.name).toBe('BadRequestError');
     });
   });
 

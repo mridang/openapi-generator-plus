@@ -394,38 +394,50 @@ class TestTimeFormat:
 
 class TestDurationFormat:
     """4.8: ``format: duration`` round-trips through ``datetime.timedelta``
-    using the ISO-8601 duration grammar (``PnDTnHnMnS``)."""
+    using the protobuf-JSON duration grammar (``-?\\d+(\\.\\d{1,9})?s``).
+    Zitadel validates google.protobuf.Duration, so the wire form is a
+    decimal second count with an ``s`` suffix, not ISO-8601."""
 
     def test_stringify_simple_duration(self) -> None:
         td = datetime.timedelta(hours=1, minutes=30)
-        # Either P1H30M or PT1H30M depending on the isodate canonicalisation,
-        # but the canonical form starts with PT for sub-day durations.
         out = ObjectSerializer.stringify(td)
-        assert out.startswith('P') and 'T' in out and '1H' in out and '30M' in out
+        assert out == '5400s'
 
     def test_stringify_duration_with_days(self) -> None:
         td = datetime.timedelta(days=3, hours=4)
         out = ObjectSerializer.stringify(td)
-        assert '3D' in out and '4H' in out
+        assert out == '273600s'
 
     def test_stringify_zero_duration(self) -> None:
         td = datetime.timedelta(0)
         out = ObjectSerializer.stringify(td)
-        # PT0S is the canonical zero-duration representation.
-        assert out == 'PT0S'
+        # "0s" is the canonical zero-duration representation.
+        assert out == '0s'
+
+    def test_stringify_fractional_duration(self) -> None:
+        td = datetime.timedelta(seconds=3600, microseconds=1)
+        out = ObjectSerializer.stringify(td)
+        # One microsecond is 1000 nanos -> six fractional digits.
+        assert out == '3600.000001s'
+
+    def test_stringify_negative_duration(self) -> None:
+        td = datetime.timedelta(seconds=-1)
+        out = ObjectSerializer.stringify(td)
+        assert out == '-1s'
 
     def test_serialize_duration_in_dict(self) -> None:
         td = datetime.timedelta(minutes=5)
         result = ObjectSerializer().serialize({'ttl': td})
-        assert 'PT5M' in result or 'P0DT5M' in result or 'T5M' in result
+        assert '300s' in result
 
-    def test_deserialize_duration_from_iso8601(self) -> None:
-        result = ObjectSerializer()._deserialize('PT1H30M', 'datetime.timedelta')
+    def test_deserialize_duration_from_protobuf(self) -> None:
+        result = ObjectSerializer()._deserialize('5400s', 'datetime.timedelta')
         assert result == datetime.timedelta(hours=1, minutes=30)
 
-    def test_deserialize_duration_with_days(self) -> None:
-        result = ObjectSerializer()._deserialize('P2DT3H', 'datetime.timedelta')
-        assert result == datetime.timedelta(days=2, hours=3)
+    def test_deserialize_fractional_duration(self) -> None:
+        result = ObjectSerializer()._deserialize('3600.000000001s', 'datetime.timedelta')
+        # Nanosecond precision below 1µs is truncated by timedelta resolution.
+        assert result == datetime.timedelta(seconds=3600)
 
     def test_round_trip_duration_yields_same_value(self) -> None:
         original = datetime.timedelta(days=1, hours=2, minutes=3, seconds=4)
@@ -433,15 +445,67 @@ class TestDurationFormat:
         parsed = ObjectSerializer()._deserialize(serialized, 'datetime.timedelta')
         assert parsed == original
 
-    def test_year_designator_is_rejected_as_ambiguous(self) -> None:
-        # P1Y could be 365 days or 366 days; we refuse rather than guess,
-        # matching the matrix's "no inexact widening" stance.
+    def test_iso8601_duration_is_rejected(self) -> None:
+        # ISO-8601 durations are not valid protobuf-JSON and Zitadel
+        # rejects them with 400; surface the mismatch as a ValueError.
         with pytest.raises(ValueError):
-            ObjectSerializer()._deserialize('P1Y', 'datetime.timedelta')
+            ObjectSerializer()._deserialize('PT1H', 'datetime.timedelta')
 
-    def test_month_designator_is_rejected_as_ambiguous(self) -> None:
+    def test_bare_integer_is_rejected(self) -> None:
+        # A second count without the trailing 's' is not a valid duration.
         with pytest.raises(ValueError):
-            ObjectSerializer()._deserialize('P1M', 'datetime.timedelta')
+            ObjectSerializer()._deserialize('3600', 'datetime.timedelta')
+
+
+class TestModelDurationField:
+    """4.8 (model level): a pydantic model carrying a ``format: duration``
+    field must itself emit the protobuf-JSON wire form. The request *body*
+    is a pydantic model serialized via ``model_dump_json``; pydantic's own
+    default would emit ISO-8601 ("PT1H"), which Zitadel rejects with 400.
+    The ``ProtobufDuration`` annotated alias forces "3600s" on the model
+    path too, so these tests guard the path that the helper-only tests above
+    do not cover."""
+
+    def test_model_dump_json_emits_protobuf_duration(self) -> None:
+        from {{packageName}}.models.edge_cases import EdgeCases
+
+        model = EdgeCases(retryAfter=datetime.timedelta(hours=1))
+        dumped = model.model_dump_json(by_alias=True, exclude_none=True)
+        # The protobuf-JSON form, NOT pydantic's default ISO-8601 "PT1H".
+        assert '"3600s"' in dumped
+        assert 'PT1H' not in dumped
+        assert 'PT' not in dumped
+
+    def test_serialize_model_emits_protobuf_duration(self) -> None:
+        from {{packageName}}.models.edge_cases import EdgeCases
+
+        # Routed through the production code path (ObjectSerializer.serialize
+        # → model_dump_json), exactly as the request body is built.
+        model = EdgeCases(retryAfter=datetime.timedelta(minutes=5))
+        out = ObjectSerializer().serialize(model)
+        assert '"retryAfter":"300s"' in out.replace(' ', '')
+
+    def test_model_validate_parses_protobuf_duration(self) -> None:
+        from {{packageName}}.models.edge_cases import EdgeCases
+
+        model = EdgeCases.model_validate({'retryAfter': '3600s'})
+        assert model.retry_after == datetime.timedelta(hours=1)
+
+    def test_model_duration_round_trips(self) -> None:
+        from {{packageName}}.models.edge_cases import EdgeCases
+
+        original = EdgeCases(retryAfter=datetime.timedelta(days=1, seconds=30))
+        wire = ObjectSerializer().serialize(original)
+        restored = ObjectSerializer().deserialize(wire, EdgeCases)
+        assert restored is not None
+        assert restored.retry_after == datetime.timedelta(days=1, seconds=30)
+
+    def test_model_fractional_duration_emits_fraction(self) -> None:
+        from {{packageName}}.models.edge_cases import EdgeCases
+
+        model = EdgeCases(retryAfter=datetime.timedelta(seconds=3600, microseconds=1))
+        dumped = model.model_dump_json(by_alias=True, exclude_none=True)
+        assert '"3600.000001s"' in dumped
 
 
 class TestDiscriminatorAutoInjection:

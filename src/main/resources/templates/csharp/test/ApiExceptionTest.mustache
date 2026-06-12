@@ -1,6 +1,7 @@
 {{>api_info}}
 
 using {{packageName}};
+using {{packageName}}.Errors;
 using {{packageName}}.Models;
 using Xunit;
 
@@ -84,5 +85,38 @@ public class ApiExceptionTest
         );
 
         Assert.Null(ex.GetTypedErrorBody<Category>());
+    }
+
+    [Fact]
+    public void ApiExceptionDerivesFromBrandedRoot()
+    {
+        // unified-exception-hierarchy: ApiException sits under the single
+        // branded root so one catch covers every SDK-originated failure.
+        var ex = new ApiException(500, "boom");
+
+        Assert.IsAssignableFrom<ZitadelException>(ex);
+        Assert.IsAssignableFrom<Exception>(ex);
+    }
+
+    [Fact]
+    public void TypedClientErrorWalksTheFullChain()
+    {
+        // BadRequest → ClientException → ApiException → ZitadelException.
+        var ex = new BadRequestException("bad request");
+
+        Assert.IsAssignableFrom<ClientException>(ex);
+        Assert.IsAssignableFrom<ApiException>(ex);
+        Assert.IsAssignableFrom<ZitadelException>(ex);
+        Assert.IsAssignableFrom<Exception>(ex);
+        Assert.Equal(400, ex.StatusCode);
+    }
+
+    [Fact]
+    public void SerializationExceptionDerivesFromBrandedRoot()
+    {
+        var ex = new SerializationException("nope");
+
+        Assert.IsAssignableFrom<ZitadelException>(ex);
+        Assert.IsAssignableFrom<Exception>(ex);
     }
 }

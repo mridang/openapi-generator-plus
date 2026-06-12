@@ -120,6 +120,20 @@ export class OAuth2ImplicitAuthenticator implements HttpAwareAuthenticator {
   }
 
   /**
+   * Returns the authentication headers with the Bearer token.
+   *
+   * The implicit grant has no token endpoint: the access token is supplied
+   * out-of-band via {@link setAccessToken}, so this simply resolves with
+   * the result of {@link getAuthHeaders}.
+   *
+   * @returns the authorization headers
+   * @throws Error if setAccessToken() has not been called
+   */
+  getAuthHeadersAsync(): Promise<Record<string, string>> {
+    return Promise.resolve(this.getAuthHeaders());
+  }
+
+  /**
    * Returns query parameters to include for authentication.
    *
    * @returns empty record (not used for OAuth2)

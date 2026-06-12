@@ -273,6 +273,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         return List.of(
             new SupportingFileSpec("readme.mustache", "", "README.md"),
             new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
+            new SupportingFileSpec("zitadel_exception.mustache", invokerFolder, "ZitadelException.kt"),
             new SupportingFileSpec("api_error.mustache", invokerFolder, "ApiException.kt"),
             new SupportingFileSpec("errors/ClientException.mustache", errorsFolder, "ClientException.kt"),
             new SupportingFileSpec("errors/ServerException.mustache", errorsFolder, "ServerException.kt"),
