@@ -98,16 +98,19 @@ defmodule PetstoreClient.ApiErrorTest do
       assert PetstoreClient.SerializationError in modules
     end
 
-    test "a single rescue clause catches any SDK error via exceptions/0" do
-      sdk_errors = PetstoreClient.Error.exceptions()
-
+    test "a rescued SDK error is recognised via exceptions/0" do
+      # Elixir's `rescue e in [...]` clause needs a compile-time literal list
+      # of exception modules, so a runtime list cannot be spliced in. The
+      # idiomatic equivalent is to rescue the error and assert membership in
+      # the canonical `exceptions/0` list, which is the single source of truth.
       caught =
         try do
           raise PetstoreClient.Errors.BadRequestError, %{message: "nope"}
         rescue
-          e in sdk_errors -> e
+          e -> e
         end
 
+      assert caught.__struct__ in PetstoreClient.Error.exceptions()
       assert PetstoreClient.Error.zitadel_error?(caught)
     end
 

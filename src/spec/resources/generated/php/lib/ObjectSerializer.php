@@ -924,6 +924,10 @@ class ObjectSerializer
      * stored as ->f so the value round-trips through formatProtobufDuration.
      * A leading "-" sets ->invert. Any other shape throws the SDK-owned
      * SerializationException used elsewhere for malformed input.
+     *
+     * Returns a {@see PreciseDuration} (a \DateInterval subclass) rather than a
+     * stock \DateInterval: native ->f truncates sub-microsecond fractions to
+     * 0.0, which would silently drop nanosecond durations on parse.
      */
     public static function parseProtobufDuration(string $value): \DateInterval
     {
@@ -934,10 +938,20 @@ class ObjectSerializer
             );
         }
 
-        $seconds = (int) $m[2];
-        $interval = new \DateInterval('PT' . $seconds . 'S');
+        /* PHP's \DateInterval::$f stores at most microsecond precision: any
+         * value below 1e-6 assigned to it is truncated to 0.0, so a plain
+         * \DateInterval cannot round-trip the nanosecond fractions that
+         * google.protobuf.Duration allows (e.g. "3600.000000001s"). Build a
+         * PreciseDuration instead — a \DateInterval subclass that bypasses the
+         * lossy native initialiser and keeps ->f as a full-precision float. */
+        $interval = new PreciseDuration();
+        $interval->s = (int) $m[2];
 
         if (isset($m[3])) {
+            /* Right-pad the captured fraction to 9 digits (nanoseconds) so the
+             * scale is fixed regardless of how many digits were written: ".1"
+             * -> "100000000" ns -> 0.1s, ".000000001" -> "000000001" -> 1 ns
+             * -> 1.0e-9 s. \d{1,9} guarantees a non-empty capture. */
             $interval->f = (int) str_pad($m[3], 9, '0', STR_PAD_RIGHT) / 1_000_000_000;
         }
 

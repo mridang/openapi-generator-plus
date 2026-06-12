@@ -788,4 +788,26 @@ describe {{moduleName}}::DefaultApiClient do
     end
     stubs.verify_stubbed_calls
   end
+
+  # Positive path: a brotli-encoded body decompresses through the `br` branch
+  # of decompress_body. Deterministic (no external host): the body is brotli-
+  # compressed in-process via the same gem the client uses to inflate it.
+  # Skipped when the optional brotli gem is absent (the alpine CI image sets
+  # BUNDLE_WITHOUT=optional), since there is then nothing to compress with.
+  it 'decompresses a valid brotli-encoded body' do
+    skip 'brotli gem not installed (optional group)' unless defined?(Brotli)
+
+    compressed = Brotli.deflate('{"ok":true}')
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/br') do
+        [200, { 'content-type' => 'application/json', 'content-encoding' => 'br' }, compressed]
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/br', {}, nil)
+      _(JSON.parse(response.body)['ok']).must_equal true
+    end
+    stubs.verify_stubbed_calls
+  end
 end

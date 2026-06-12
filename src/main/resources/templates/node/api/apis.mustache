@@ -134,9 +134,9 @@ export class {{classname}} extends BaseApi {
    * @see {@link {{url}}} {{description}}
 {{/externalDocs}}
    */
-  async {{nickname}}({{#vendorExtensions.op.hasRequestWrapper}}requestParameters{{^vendorExtensions.op.requestWrapperRequired}}?{{/vendorExtensions.op.requestWrapperRequired}}: { {{#vendorExtensions.op.requestWrapperFields}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}{{^-last}}; {{/-last}}{{/vendorExtensions.op.requestWrapperFields}} }{{/vendorExtensions.op.hasRequestWrapper}}): Promise<{{{returnType}}}{{^returnType}}void{{/returnType}}> {
+  async {{nickname}}({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}}): Promise<{{{returnType}}}{{^returnType}}void{{/returnType}}> {
 {{#returnType}}
-    const {{nickname}}Result = await this.{{nickname}}WithHttpInfo({{#vendorExtensions.op.hasRequestWrapper}}requestParameters{{/vendorExtensions.op.hasRequestWrapper}});
+    const {{nickname}}Result = await this.{{nickname}}WithHttpInfo({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}});
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -152,7 +152,7 @@ export class {{classname}} extends BaseApi {
     return {{nickname}}Result.data as {{{returnType}}};
 {{/returnType}}
 {{^returnType}}
-    await this.{{nickname}}WithHttpInfo({{#vendorExtensions.op.hasRequestWrapper}}requestParameters{{/vendorExtensions.op.hasRequestWrapper}});
+    await this.{{nickname}}WithHttpInfo({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}});
 {{/returnType}}
   }
 
@@ -160,10 +160,7 @@ export class {{classname}} extends BaseApi {
    * {{&summary}} (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async {{nickname}}WithHttpInfo({{#vendorExtensions.op.hasRequestWrapper}}requestParameters{{^vendorExtensions.op.requestWrapperRequired}}?{{/vendorExtensions.op.requestWrapperRequired}}: { {{#vendorExtensions.op.requestWrapperFields}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}{{^-last}}; {{/-last}}{{/vendorExtensions.op.requestWrapperFields}} }{{/vendorExtensions.op.hasRequestWrapper}}): Promise<ApiResult<{{{returnType}}}{{^returnType}}void{{/returnType}}>> {
-{{#vendorExtensions.op.hasRequestWrapper}}
-    const { {{#vendorExtensions.op.requestWrapperFields}}{{name}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}} } = requestParameters{{^vendorExtensions.op.requestWrapperRequired}} ?? {}{{/vendorExtensions.op.requestWrapperRequired}};
-{{/vendorExtensions.op.hasRequestWrapper}}
+  async {{nickname}}WithHttpInfo({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}}): Promise<ApiResult<{{{returnType}}}{{^returnType}}void{{/returnType}}>> {
 {{#pathParams}}
 {{#required}}
     if ({{paramName}} == null{{#isString}} || {{paramName}} === ''{{/isString}}) {

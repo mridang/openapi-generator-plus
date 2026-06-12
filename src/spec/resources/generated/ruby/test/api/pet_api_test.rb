@@ -185,7 +185,27 @@ describe PetstoreClient::Api::PetApi do
 
   describe '#get_external_pet_info' do
     it 'uses per-operation server URL' do
-      skip 'Per-operation server URL cannot be verified against mock server'
+      # The operation declares a per-operation server whose URL points at an
+      # external host. We cannot reach that host from the mock-server test
+      # environment, so instead of a live call we capture the request URL via
+      # a stub API client and assert the per-operation server URL was applied
+      # as the request origin (mirrors the Node CapturingApiClient approach).
+      captured_url = nil
+      api_client = Object.new
+      api_client.define_singleton_method(:send_request) do |_method, url, _headers, _body, **_kwargs|
+        captured_url = url
+        PetstoreClient::ApiHttpResponse.new(
+          status_code: 200,
+          body: '{"id":1,"name":"Rex","photoUrls":["http://example.com/p.jpg"]}',
+          headers: { 'content-type' => 'application/json' }
+        )
+      end
+
+      api = PetstoreClient::Api::PetApi.new(api_client)
+      server = PetstoreClient::Api::GetExternalPetInfoServerServer0.new
+      api.get_external_pet_info(1, server: server)
+
+      _(captured_url).must_match(%r{\Ahttps://external-api\.example\.com/v1/pet/1/external})
     end
   end
 

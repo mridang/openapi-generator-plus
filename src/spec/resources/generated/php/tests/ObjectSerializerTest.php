@@ -558,7 +558,11 @@ test('serialize zero DateInterval emits 0s', function (): void {
 });
 
 test('serialize DateInterval keeps nanosecond precision', function (): void {
-    $interval = new \DateInterval('PT1H');
+    /* PHP's native \DateInterval::$f truncates anything below 1e-6 to 0.0, so
+     * nanosecond durations must be carried by the SDK's PreciseDuration (a
+     * \DateInterval subclass whose ->f keeps full precision). */
+    $interval = new \PetstoreClient\PreciseDuration();
+    $interval->h = 1;
     $interval->f = 0.000000001;
     expect(ObjectSerializer::formatProtobufDuration($interval))->toBe('3600.000000001s');
 });
@@ -598,7 +602,10 @@ test('serialize model with DateInterval property emits protobuf seconds', functi
 });
 
 test('serialize model DateInterval property keeps fractional seconds', function (): void {
-    $interval = new \DateInterval('PT1H');
+    /* Nanosecond precision requires PreciseDuration; a stock \DateInterval
+     * would truncate ->f = 1e-9 to 0.0 before serialization ever runs. */
+    $interval = new \PetstoreClient\PreciseDuration();
+    $interval->h = 1;
     $interval->f = 0.000000001;
     $model = new EdgeCases(retryAfter: $interval);
 
@@ -631,7 +638,9 @@ test('DateInterval round trips through stringify as protobuf duration', function
 });
 
 test('DateInterval fractional value round trips', function (): void {
-    $interval = new \DateInterval('PT0S');
+    /* PreciseDuration carries the nanosecond fraction that a stock
+     * \DateInterval would truncate to 0.0 on assignment. */
+    $interval = new \PetstoreClient\PreciseDuration();
     $interval->f = 0.000000001;
     $stringified = ObjectSerializer::stringify($interval);
     expect($stringified)->toBe('0.000000001s');

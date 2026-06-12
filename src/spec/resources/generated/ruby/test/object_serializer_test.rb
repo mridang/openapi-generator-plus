@@ -677,7 +677,7 @@ describe PetstoreClient::ObjectSerializer do
       # intentionally absent from OPENAPI_FORMATS, so this exercises the
       # type-dispatch route through duration_to_protobuf_json rather than
       # apply_format_on_serialize.
-      model = TestFormatModel.new(ttl: ISO8601::Duration.new('PT1H'))
+      model = PetstoreClient::Models::TestFormatModel.new(ttl: ISO8601::Duration.new('PT1H'))
       json = PetstoreClient::ObjectSerializer.serialize(model)
       _(JSON.parse(json)['ttl']).must_equal('3600s')
     end

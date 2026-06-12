@@ -30,16 +30,15 @@ export class StoreApi extends BaseApi {
    * @param orderId ID of the order to delete (required)
    * @throws {ApiError} if fails to make API call
    */
-  async deleteOrder(requestParameters: { orderId: number }): Promise<void> {
-    await this.deleteOrderWithHttpInfo(requestParameters);
+  async deleteOrder(orderId: number): Promise<void> {
+    await this.deleteOrderWithHttpInfo(orderId);
   }
 
   /**
    * Delete purchase order by ID (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async deleteOrderWithHttpInfo(requestParameters: { orderId: number }): Promise<ApiResult<void>> {
-    const { orderId } = requestParameters;
+  async deleteOrderWithHttpInfo(orderId: number): Promise<ApiResult<void>> {
     if (orderId == null) {
       throw new Error('Missing required parameter "orderId" when calling deleteOrder');
     }
@@ -112,8 +111,8 @@ export class StoreApi extends BaseApi {
    * @return Order
    * @throws {ApiError} if fails to make API call
    */
-  async getOrderById(requestParameters: { orderId: number }): Promise<Order> {
-    const getOrderByIdResult = await this.getOrderByIdWithHttpInfo(requestParameters);
+  async getOrderById(orderId: number): Promise<Order> {
+    const getOrderByIdResult = await this.getOrderByIdWithHttpInfo(orderId);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -133,8 +132,7 @@ export class StoreApi extends BaseApi {
    * Find purchase order by ID (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async getOrderByIdWithHttpInfo(requestParameters: { orderId: number }): Promise<ApiResult<Order>> {
-    const { orderId } = requestParameters;
+  async getOrderByIdWithHttpInfo(orderId: number): Promise<ApiResult<Order>> {
     if (orderId == null) {
       throw new Error('Missing required parameter "orderId" when calling getOrderById');
     }
@@ -164,8 +162,8 @@ export class StoreApi extends BaseApi {
    * @return Order
    * @throws {ApiError} if fails to make API call
    */
-  async placeOrder(requestParameters?: { order?: DeepInput<Order> }): Promise<Order> {
-    const placeOrderResult = await this.placeOrderWithHttpInfo(requestParameters);
+  async placeOrder(order?: DeepInput<Order>): Promise<Order> {
+    const placeOrderResult = await this.placeOrderWithHttpInfo(order);
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -185,8 +183,7 @@ export class StoreApi extends BaseApi {
    * Place an order for a pet (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async placeOrderWithHttpInfo(requestParameters?: { order?: DeepInput<Order> }): Promise<ApiResult<Order>> {
-    const { order } = requestParameters ?? {};
+  async placeOrderWithHttpInfo(order?: DeepInput<Order>): Promise<ApiResult<Order>> {
     const path = `/store/order`;
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
