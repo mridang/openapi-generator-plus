@@ -313,7 +313,52 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                 new SupportingFile(
                         "client.mustache", invokerFolder, clientClassName + ".php"));
 
+        if (emitUnitTests()) {
+            // Spec-independent pure-unit tests. These reference only supporting
+            // classes (ValueSerializer, HeaderSelector, Configuration,
+            // TransportOptions, TraceContextUtil, DefaultApiClient) and no
+            // spec-derived models, Api classes, or scheme-gated authenticators,
+            // so they are safe to emit into any real client. They run under the
+            // client's own phpunit.xml and need no container bootstrap — the
+            // generator's bootstrap.php / phpunit.xml (Docker chasm/squid) stay
+            // golden-only.
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/ValueSerializerTest.mustache",
+                            "tests",
+                            "ValueSerializerTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/HeaderSelectorTest.mustache",
+                            "tests",
+                            "HeaderSelectorTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/ConfigurationTest.mustache",
+                            "tests",
+                            "ConfigurationTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/TransportOptionsTest.mustache",
+                            "tests",
+                            "TransportOptionsTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/TraceContextUtilTest.mustache",
+                            "tests",
+                            "TraceContextUtilTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/DefaultApiClientUnitTest.mustache",
+                            "tests",
+                            "DefaultApiClientUnitTest.php"));
+        }
+
         if (generateTests) {
+            // PHPUnit bootstrap + config wiring the Docker chasm/squid container
+            // harness — only the golden's container tests use these; real
+            // clients ship their own keep-listed phpunit.xml, so keep them
+            // golden-only.
             supportingFiles.add(new SupportingFile("tests/bootstrap.php", "tests", "bootstrap.php"));
             supportingFiles.add(new SupportingFile("tests/phpunit.xml", "", "phpunit.xml"));
             supportingFiles.add(
@@ -343,39 +388,14 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             "DefaultApiClientTest.php"));
             supportingFiles.add(
                     new SupportingFile(
-                            "tests/DefaultApiClientUnitTest.mustache",
-                            "tests",
-                            "DefaultApiClientUnitTest.php"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "tests/TransportOptionsTest.mustache",
-                            "tests",
-                            "TransportOptionsTest.php"));
-            supportingFiles.add(
-                    new SupportingFile(
                             "tests/CancellationTokenTest.mustache",
                             "tests",
                             "CancellationTokenTest.php"));
             supportingFiles.add(
                     new SupportingFile(
-                            "tests/HeaderSelectorTest.mustache",
-                            "tests",
-                            "HeaderSelectorTest.php"));
-            supportingFiles.add(
-                    new SupportingFile(
                             "tests/ObjectSerializerTest.mustache",
                             "tests",
                             "ObjectSerializerTest.php"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "tests/ValueSerializerTest.mustache",
-                            "tests",
-                            "ValueSerializerTest.php"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "tests/TraceContextUtilTest.mustache",
-                            "tests",
-                            "TraceContextUtilTest.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "tests/BaseApiTest.mustache",
@@ -391,11 +411,6 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             "tests/ComposedSchemaTest.mustache",
                             "tests",
                             "ComposedSchemaTest.php"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "tests/ConfigurationTest.mustache",
-                            "tests",
-                            "ConfigurationTest.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "tests/ClientTest.mustache",

@@ -335,28 +335,15 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         supportingFiles.add(
                 new SupportingFile("client.mustache", packagePath, clientClassFile + ".py"));
 
-        if (generateTests) {
+        // Spec-independent unit tests: they reference only runtime plumbing
+        // (serializer, transport, header-selector, configuration, client), never
+        // spec-derived models or APIs, so they compile against any generated SDK.
+        // Emitted for the full golden suite and for real clients that opt in via
+        // generateUnitTests.
+        if (emitUnitTests()) {
             supportingFiles.add(new SupportingFile("test/conftest.py", "", "conftest.py"));
             supportingFiles.add(
                     new SupportingFile("test/tests_init.py", "test", "__init__.py"));
-            final String testApiPath = Path.of("test", "api").toString();
-            supportingFiles.add(
-                    new SupportingFile("test/api_init.py", testApiPath, "__init__.py"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/api/test_pet_api.mustache",
-                            testApiPath,
-                            "test_pet_api.py"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/api/test_store_api.mustache",
-                            testApiPath,
-                            "test_store_api.py"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/test_default_api_client.mustache",
-                            "test",
-                            "test_default_api_client.py"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/test_default_api_client_unit.mustache",
@@ -374,11 +361,6 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                             "test_header_selector.py"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/test_object_serializer.mustache",
-                            "test",
-                            "test_object_serializer.py"));
-            supportingFiles.add(
-                    new SupportingFile(
                             "test/test_value_serializer.mustache",
                             "test",
                             "test_value_serializer.py"));
@@ -387,6 +369,51 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                             "test/test_trace_context_util.mustache",
                             "test",
                             "test_trace_context_util.py"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/test_configuration.mustache",
+                            "test",
+                            "test_configuration.py"));
+        }
+
+        // Petstore-coupled tests: they import spec-derived models/APIs
+        // (Category, OrderStatusEnum, EdgeCases, PetApi, …) that exist only in
+        // the petstore golden, so they are emitted only for the generator's own
+        // golden validation, never shipped into real clients.
+        if (generateTests) {
+            final String testApiPath = Path.of("test", "api").toString();
+            supportingFiles.add(
+                    new SupportingFile("test/api_init.py", testApiPath, "__init__.py"));
+            // Chasm/squid container transport integration test — needs the
+            // generator's fixture harness (openapi.yaml, certs, squid.conf)
+            // written by writeTestFixtures(), so it is golden-only.
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/test_default_api_client.mustache",
+                            "test",
+                            "test_default_api_client.py"));
+            // Exercises every generated authenticator (ApiKey/Bearer/OAuth2…)
+            // whose set varies by the spec's security schemes — golden-only.
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/test_client.mustache",
+                            "test",
+                            "test_client.py"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api/test_pet_api.mustache",
+                            testApiPath,
+                            "test_pet_api.py"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api/test_store_api.mustache",
+                            testApiPath,
+                            "test_store_api.py"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/test_object_serializer.mustache",
+                            "test",
+                            "test_object_serializer.py"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/test_base_api.mustache",
@@ -402,16 +429,6 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                             "test/test_composed_schema.mustache",
                             "test",
                             "test_composed_schema.py"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/test_configuration.mustache",
-                            "test",
-                            "test_configuration.py"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/test_client.mustache",
-                            "test",
-                            "test_client.py"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/test_api_error.mustache",

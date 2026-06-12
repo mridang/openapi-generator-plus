@@ -343,7 +343,55 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         supportingFiles.add(
                 new SupportingFile("client.mustache", "src", clientClassFile + ".ts"));
 
+        if (emitUnitTests()) {
+            // Spec-independent pure-unit tests. These import only supporting
+            // modules (ValueSerializer, HeaderSelector, Configuration,
+            // TransportOptions, trace-context util, DefaultApiClient) and no
+            // spec-derived models, Api classes, or scheme-gated authenticators,
+            // so they are safe to emit into any real client. They run under the
+            // client's own jest config and need no container harness — the
+            // generator's jest.config / global-setup / global-teardown / setup
+            // (which spin up the chasm/squid containers) stay golden-only.
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/value-serializer.test.mustache",
+                            "test",
+                            "value-serializer.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/header-selector.test.mustache",
+                            "test",
+                            "header-selector.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/configuration.test.mustache",
+                            "test",
+                            "configuration.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/transport-options.test.mustache",
+                            "test",
+                            "transport-options.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/trace-context-util.test.mustache",
+                            "test",
+                            "trace-context-util.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/default-api-client-unit.test.mustache",
+                            "test",
+                            "default-api-client-unit.test.ts"));
+        }
+
+        // Spec-coupled tests: they import spec-derived models/APIs, the
+        // container transport harness, or scheme-gated authenticators that
+        // exist only in the petstore golden, so they are emitted only for the
+        // generator's own golden validation, never shipped into real clients.
         if (generateTests) {
+            // Jest harness + chasm/squid container bootstrap — only the golden's
+            // container transport tests use these; real clients ship their own
+            // keep-listed jest config, so keep them golden-only.
             supportingFiles.add(new SupportingFile("test/jest.config.mjs", "", "jest.config.mjs"));
             supportingFiles.add(
                     new SupportingFile("test/global-setup.ts", "test", "global-setup.ts"));
@@ -367,29 +415,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                             "default-api-client.test.ts"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/default-api-client-unit.test.mustache",
-                            "test",
-                            "default-api-client-unit.test.ts"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/transport-options.test.mustache",
-                            "test",
-                            "transport-options.test.ts"));
-            supportingFiles.add(
-                    new SupportingFile(
                             "test/object-serializer.test.mustache",
                             "test",
                             "object-serializer.test.ts"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/value-serializer.test.mustache",
-                            "test",
-                            "value-serializer.test.ts"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/trace-context-util.test.mustache",
-                            "test",
-                            "trace-context-util.test.ts"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/base-api.test.mustache",
@@ -405,16 +433,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                             "test/composed-schema.test.mustache",
                             "test",
                             "composed-schema.test.ts"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/header-selector.test.mustache",
-                            "test",
-                            "header-selector.test.ts"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/configuration.test.mustache",
-                            "test",
-                            "configuration.test.ts"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/client.test.mustache",

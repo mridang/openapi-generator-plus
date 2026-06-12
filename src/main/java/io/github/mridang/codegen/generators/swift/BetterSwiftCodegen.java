@@ -315,8 +315,40 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile("client.mustache", srcDir, clientClassName + ".swift"));
 
+        final String testDir = Path.of("Tests", packageName + "Tests").toString();
+        if (emitUnitTests()) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/DefaultApiClientUnitTests.mustache",
+                            testDir,
+                            "DefaultApiClientUnitTests.swift"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/TransportOptionsTests.mustache",
+                            testDir,
+                            "TransportOptionsTests.swift"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/HeaderSelectorTests.mustache",
+                            testDir,
+                            "HeaderSelectorTests.swift"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ValueSerializerTests.mustache",
+                            testDir,
+                            "ValueSerializerTests.swift"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/TraceContextUtilTests.mustache",
+                            testDir,
+                            "TraceContextUtilTests.swift"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ConfigurationTests.mustache",
+                            testDir,
+                            "ConfigurationTests.swift"));
+        }
         if (generateTests) {
-            final String testDir = Path.of("Tests", packageName + "Tests").toString();
             supportingFiles.add(
                     new SupportingFile(
                             "test/TestContainersHelper.mustache",
@@ -335,42 +367,12 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                             "DefaultApiClientTests.swift"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/DefaultApiClientUnitTests.mustache",
-                            testDir,
-                            "DefaultApiClientUnitTests.swift"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/TransportOptionsTests.mustache",
-                            testDir,
-                            "TransportOptionsTests.swift"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/HeaderSelectorTests.mustache",
-                            testDir,
-                            "HeaderSelectorTests.swift"));
-            supportingFiles.add(
-                    new SupportingFile(
                             "test/ObjectSerializerTests.mustache",
                             testDir,
                             "ObjectSerializerTests.swift"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/ValueSerializerTests.mustache",
-                            testDir,
-                            "ValueSerializerTests.swift"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/TraceContextUtilTests.mustache",
-                            testDir,
-                            "TraceContextUtilTests.swift"));
-            supportingFiles.add(
-                    new SupportingFile(
                             "test/BaseApiTests.mustache", testDir, "BaseApiTests.swift"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/ConfigurationTests.mustache",
-                            testDir,
-                            "ConfigurationTests.swift"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/ClientTests.mustache",

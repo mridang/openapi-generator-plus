@@ -350,21 +350,10 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                 new SupportingFile(
                         "client.mustache", invokerFolder, clientClassName + ".java"));
 
-        if (generateTests) {
+        if (emitUnitTests()) {
             final String testFolder =
                     Path.of("src", "test", "java", invokerPackage.replace(".", "/")).toString();
             final String testApiFolder = Path.of(testFolder, "api").toString();
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/api/PetApiTest.mustache", testApiFolder, "PetApiTest.java"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/api/StoreApiTest.mustache", testApiFolder, "StoreApiTest.java"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/DefaultApiClientTest.mustache",
-                            testFolder,
-                            "DefaultApiClientTest.java"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/DefaultApiClientUnitTest.mustache",
@@ -382,11 +371,6 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                             "HeaderSelectorTest.java"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/ObjectSerializerTest.mustache",
-                            testFolder,
-                            "ObjectSerializerTest.java"));
-            supportingFiles.add(
-                    new SupportingFile(
                             "test/ValueSerializerTest.mustache",
                             testApiFolder,
                             "ValueSerializerTest.java"));
@@ -395,6 +379,33 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                             "test/TraceContextUtilTest.mustache",
                             testApiFolder,
                             "TraceContextUtilTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ConfigurationTest.mustache",
+                            testFolder,
+                            "ConfigurationTest.java"));
+        }
+
+        if (generateTests) {
+            final String testFolder =
+                    Path.of("src", "test", "java", invokerPackage.replace(".", "/")).toString();
+            final String testApiFolder = Path.of(testFolder, "api").toString();
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api/PetApiTest.mustache", testApiFolder, "PetApiTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api/StoreApiTest.mustache", testApiFolder, "StoreApiTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/DefaultApiClientTest.mustache",
+                            testFolder,
+                            "DefaultApiClientTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ObjectSerializerTest.mustache",
+                            testFolder,
+                            "ObjectSerializerTest.java"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/ChasmContainer.mustache", testFolder, "ChasmContainer.java"));
@@ -406,11 +417,6 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                             "test/BaseApiTest.mustache",
                             testFolder,
                             "BaseApiTest.java"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/ConfigurationTest.mustache",
-                            testFolder,
-                            "ConfigurationTest.java"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/ClientTest.mustache",

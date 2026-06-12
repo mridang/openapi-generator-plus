@@ -354,6 +354,38 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         supportingFiles.add(
                 new SupportingFile("client.mustache", srcDir, clientClassFile + ".dart"));
 
+        if (emitUnitTests()) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/default_api_client_unit_test.mustache",
+                            "test",
+                            "default_api_client_unit_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/transport_options_test.mustache",
+                            "test",
+                            "transport_options_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/header_selector_test.mustache",
+                            "test",
+                            "header_selector_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/value_serializer_test.mustache",
+                            "test",
+                            "value_serializer_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/trace_context_util_test.mustache",
+                            "test",
+                            "trace_context_util_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/configuration_test.mustache",
+                            "test",
+                            "configuration_test.dart"));
+        }
         if (generateTests) {
             supportingFiles.add(
                     new SupportingFile(
@@ -375,42 +407,12 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                             "default_api_client_test.dart"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/default_api_client_unit_test.mustache",
-                            "test",
-                            "default_api_client_unit_test.dart"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/transport_options_test.mustache",
-                            "test",
-                            "transport_options_test.dart"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/header_selector_test.mustache",
-                            "test",
-                            "header_selector_test.dart"));
-            supportingFiles.add(
-                    new SupportingFile(
                             "test/object_serializer_test.mustache",
                             "test",
                             "object_serializer_test.dart"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/value_serializer_test.mustache",
-                            "test",
-                            "value_serializer_test.dart"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/trace_context_util_test.mustache",
-                            "test",
-                            "trace_context_util_test.dart"));
-            supportingFiles.add(
-                    new SupportingFile(
                             "test/base_api_test.mustache", "test", "base_api_test.dart"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/configuration_test.mustache",
-                            "test",
-                            "configuration_test.dart"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/client_test.mustache",

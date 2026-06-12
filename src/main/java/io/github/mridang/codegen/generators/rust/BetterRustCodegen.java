@@ -306,6 +306,39 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         supportingFiles.add(
                 new SupportingFile("client.mustache", "src", clientClassFile + ".rs"));
 
+        if (emitUnitTests()) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/default_api_client_unit_test.mustache",
+                            "tests",
+                            "default_api_client_unit_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/transport_options_test.mustache",
+                            "tests",
+                            "transport_options_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/header_selector_test.mustache",
+                            "tests",
+                            "header_selector_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/value_serializer_test.mustache",
+                            "tests",
+                            "value_serializer_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/trace_context_util_test.mustache",
+                            "tests",
+                            "trace_context_util_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/configuration_test.mustache",
+                            "tests",
+                            "configuration_test.rs"));
+        }
+
         if (generateTests) {
             supportingFiles.add(
                     new SupportingFile(
@@ -325,34 +358,9 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                             "default_api_client_test.rs"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/default_api_client_unit_test.mustache",
-                            "tests",
-                            "default_api_client_unit_test.rs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/transport_options_test.mustache",
-                            "tests",
-                            "transport_options_test.rs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/header_selector_test.mustache",
-                            "tests",
-                            "header_selector_test.rs"));
-            supportingFiles.add(
-                    new SupportingFile(
                             "test/object_serializer_test.mustache",
                             "tests",
                             "object_serializer_test.rs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/value_serializer_test.mustache",
-                            "tests",
-                            "value_serializer_test.rs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/trace_context_util_test.mustache",
-                            "tests",
-                            "trace_context_util_test.rs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/base_api_test.mustache", "tests", "base_api_test.rs"));
@@ -364,11 +372,6 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                             "test/composed_schema_test.mustache",
                             "tests",
                             "composed_schema_test.rs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/configuration_test.mustache",
-                            "tests",
-                            "configuration_test.rs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/client_test.mustache",

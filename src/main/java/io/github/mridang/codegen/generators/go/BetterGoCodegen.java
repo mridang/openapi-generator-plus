@@ -367,21 +367,6 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                             "default_api_client_test.go"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/default_api_client_unit_test.mustache",
-                            "pkg",
-                            "default_api_client_unit_test.go"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/transport_options_test.mustache",
-                            "test",
-                            "transport_options_test.go"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/header_selector_test.mustache",
-                            "pkg",
-                            "header_selector_test.go"));
-            supportingFiles.add(
-                    new SupportingFile(
                             "test/object_serializer_test.mustache",
                             "pkg",
                             "object_serializer_test.go"));
@@ -390,16 +375,6 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                             "test/iso8601_test.mustache",
                             "test",
                             "iso8601_test.go"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/value_serializer_test.mustache",
-                            "pkg",
-                            "value_serializer_test.go"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/trace_context_util_test.mustache",
-                            "pkg",
-                            "trace_context_util_test.go"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/base_api_test.mustache",
@@ -415,11 +390,6 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                             "test/composed_schema_test.mustache",
                             "test",
                             "composed_schema_test.go"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/configuration_test.mustache",
-                            "test",
-                            "configuration_test.go"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/client_test.mustache",
@@ -467,6 +437,39 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                             "test/openid_connect_authenticator_test.mustache",
                             "test",
                             "openid_connect_authenticator_test.go"));
+        }
+
+        if (emitUnitTests()) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/value_serializer_test.mustache",
+                            "pkg",
+                            "value_serializer_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/header_selector_test.mustache",
+                            "pkg",
+                            "header_selector_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/configuration_test.mustache",
+                            "test",
+                            "configuration_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/transport_options_test.mustache",
+                            "test",
+                            "transport_options_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/trace_context_util_test.mustache",
+                            "pkg",
+                            "trace_context_util_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/default_api_client_unit_test.mustache",
+                            "pkg",
+                            "default_api_client_unit_test.go"));
         }
     }
 

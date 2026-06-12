@@ -302,13 +302,45 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                 new SupportingFile(
                         "client.mustache", invokerFolder, clientClassName + ".cs"));
 
-        if (generateTests) {
+        if (emitUnitTests()) {
             supportingFiles.add(
                     new SupportingFile(
                             "test/tests_csproj.mustache", "", packageName + ".Test.csproj"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/xunit.runner.mustache", "", "xunit.runner.json"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/DefaultApiClientUnitTest.mustache",
+                            "Test",
+                            "DefaultApiClientUnitTest.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/TransportOptionsTest.mustache",
+                            "Test",
+                            "TransportOptionsTest.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/HeaderSelectorTest.mustache",
+                            "Test",
+                            "HeaderSelectorTest.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ValueSerializerTest.mustache",
+                            "Test",
+                            "ValueSerializerTest.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/TraceContextUtilTest.mustache",
+                            "Test",
+                            "TraceContextUtilTest.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ConfigurationTest.mustache",
+                            "Test",
+                            "ConfigurationTest.cs"));
+        }
+        if (generateTests) {
             final String testApiFolder = Path.of("Test", "Api").toString();
             supportingFiles.add(
                     new SupportingFile(
@@ -327,29 +359,9 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                             "DefaultApiClientTest.cs"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/DefaultApiClientUnitTest.mustache",
-                            "Test",
-                            "DefaultApiClientUnitTest.cs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/TransportOptionsTest.mustache",
-                            "Test",
-                            "TransportOptionsTest.cs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/HeaderSelectorTest.mustache",
-                            "Test",
-                            "HeaderSelectorTest.cs"));
-            supportingFiles.add(
-                    new SupportingFile(
                             "test/ObjectSerializerTest.mustache",
                             "Test",
                             "ObjectSerializerTest.cs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/ValueSerializerTest.mustache",
-                            "Test",
-                            "ValueSerializerTest.cs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/ChasmFixture.mustache", "Test", "ChasmFixture.cs"));
@@ -368,16 +380,6 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                             "test/ComposedSchemaTest.mustache",
                             "Test",
                             "ComposedSchemaTest.cs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/TraceContextUtilTest.mustache",
-                            "Test",
-                            "TraceContextUtilTest.cs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/ConfigurationTest.mustache",
-                            "Test",
-                            "ConfigurationTest.cs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/ClientTest.mustache",

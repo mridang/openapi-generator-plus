@@ -325,6 +325,46 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile("client.mustache", libDir, clientClassFile + ".ex"));
 
+        // Spec-independent unit tests exercise infrastructure modules
+        // (value serializer, header selector, configuration, transport
+        // options, trace-context util, and the pure-unit default API
+        // client) that exist in every generated client regardless of the
+        // OpenAPI spec. These ship to real clients when unit tests are
+        // requested. Everything else below stays golden-only because it
+        // is petstore-coupled or depends on the container test harness.
+        if (emitUnitTests()) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/value_serializer_test.mustache",
+                            "test",
+                            "value_serializer_test.exs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/header_selector_test.mustache",
+                            "test",
+                            "header_selector_test.exs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/configuration_test.mustache",
+                            "test",
+                            "configuration_test.exs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/transport_options_test.mustache",
+                            "test",
+                            "transport_options_test.exs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/trace_context_util_test.mustache",
+                            "test",
+                            "trace_context_util_test.exs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/default_api_client_unit_test.mustache",
+                            "test",
+                            "default_api_client_unit_test.exs"));
+        }
+
         if (generateTests) {
             supportingFiles.add(
                     new SupportingFile(
@@ -344,42 +384,12 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                             "default_api_client_test.exs"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/default_api_client_unit_test.mustache",
-                            "test",
-                            "default_api_client_unit_test.exs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/transport_options_test.mustache",
-                            "test",
-                            "transport_options_test.exs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/header_selector_test.mustache",
-                            "test",
-                            "header_selector_test.exs"));
-            supportingFiles.add(
-                    new SupportingFile(
                             "test/object_serializer_test.mustache",
                             "test",
                             "object_serializer_test.exs"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/value_serializer_test.mustache",
-                            "test",
-                            "value_serializer_test.exs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/trace_context_util_test.mustache",
-                            "test",
-                            "trace_context_util_test.exs"));
-            supportingFiles.add(
-                    new SupportingFile(
                             "test/base_api_test.mustache", "test", "base_api_test.exs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/configuration_test.mustache",
-                            "test",
-                            "configuration_test.exs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/client_test.mustache",

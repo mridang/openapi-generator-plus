@@ -335,9 +335,43 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                 new SupportingFile(
                         "client.mustache", invokerFolder, clientClassName + ".kt"));
 
+        final String testFolder =
+                Path.of("src", "test", "kotlin", invokerPackage.replace(".", "/")).toString();
+
+        if (emitUnitTests()) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/DefaultApiClientUnitTest.mustache",
+                            testFolder,
+                            "DefaultApiClientUnitTest.kt"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/TransportOptionsTest.mustache",
+                            testFolder,
+                            "TransportOptionsTest.kt"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/HeaderSelectorTest.mustache",
+                            testFolder,
+                            "HeaderSelectorTest.kt"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ValueSerializerTest.mustache",
+                            testFolder,
+                            "ValueSerializerTest.kt"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/TraceContextUtilTest.mustache",
+                            testFolder,
+                            "TraceContextUtilTest.kt"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ConfigurationTest.mustache",
+                            testFolder,
+                            "ConfigurationTest.kt"));
+        }
+
         if (generateTests) {
-            final String testFolder =
-                    Path.of("src", "test", "kotlin", invokerPackage.replace(".", "/")).toString();
             final String testApiFolder = Path.of(testFolder, "api").toString();
             supportingFiles.add(
                     new SupportingFile(
@@ -358,42 +392,12 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                             "DefaultApiClientTest.kt"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/DefaultApiClientUnitTest.mustache",
-                            testFolder,
-                            "DefaultApiClientUnitTest.kt"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/TransportOptionsTest.mustache",
-                            testFolder,
-                            "TransportOptionsTest.kt"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/HeaderSelectorTest.mustache",
-                            testFolder,
-                            "HeaderSelectorTest.kt"));
-            supportingFiles.add(
-                    new SupportingFile(
                             "test/ObjectSerializerTest.mustache",
                             testFolder,
                             "ObjectSerializerTest.kt"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/ValueSerializerTest.mustache",
-                            testFolder,
-                            "ValueSerializerTest.kt"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/TraceContextUtilTest.mustache",
-                            testFolder,
-                            "TraceContextUtilTest.kt"));
-            supportingFiles.add(
-                    new SupportingFile(
                             "test/BaseApiTest.mustache", testFolder, "BaseApiTest.kt"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/ConfigurationTest.mustache",
-                            testFolder,
-                            "ConfigurationTest.kt"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/ClientTest.mustache",

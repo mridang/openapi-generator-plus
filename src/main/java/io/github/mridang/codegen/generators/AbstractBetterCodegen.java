@@ -102,6 +102,39 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     private final List<Map<String, String>> accumulatedOptionsFiles = new ArrayList<>();
 
     /**
+     * Output-relative POSIX paths of generator-produced files that the upstream
+     * {@code DefaultGenerator} file manifest ({@code .openapi-generator/FILES}) does not
+     * record correctly, populated during generation and reconciled into the manifest by
+     * {@link #postProcess()}. Two cases land here:
+     *
+     * <ul>
+     *   <li><b>Relocated type-signature files</b> (e.g. {@code .rbs}). Upstream records each
+     *       generated file at the path it was first written to (under the source root, e.g.
+     *       {@code lib/}); the relocation in {@link #moveToSignatureDir} runs afterwards and
+     *       never updates the in-memory list, so the manifest names the pre-move {@code lib/}
+     *       path while the file actually lives under {@code sig/}. The stale source-root entry
+     *       is tracked in {@link #staleManifestSourcePaths} so it can be dropped.</li>
+     *   <li><b>Side-channel writes</b> that bypass the manifest entirely — the per-scheme
+     *       authenticator source files and their signature companions are written through the
+     *       codegen's own {@code writeFile} rather than upstream's template-to-file path, so
+     *       they never reach the {@code files} list at all.</li>
+     * </ul>
+     *
+     * <p>A consumer's prune step that diffs tracked files against the manifest treats any such
+     * file as an orphan and deletes it. {@link #postProcess()} adds these paths to the manifest
+     * (and removes the stale source-root entries) so the files are correctly recognised as
+     * generated.
+     */
+    private final Set<String> extraManifestFiles = new LinkedHashSet<>();
+
+    /**
+     * Output-relative POSIX source-root paths (e.g. {@code lib/.../foo.rbs}) that the upstream
+     * manifest still lists for files {@link #moveToSignatureDir} has since relocated under the
+     * signature directory. {@link #postProcess()} removes these stale entries from the manifest.
+     */
+    private final Set<String> staleManifestSourcePaths = new LinkedHashSet<>();
+
+    /**
      * Set of schema names declared with {@code unevaluatedProperties: false} (OAS 3.1 /
      * JSON Schema 2020-12). Populated by {@link #fromModel(String, Schema)} and consumed
      * by {@link #postProcessModels(ModelsMap)} to set the
@@ -144,6 +177,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     protected boolean hasOpenIdConnect;
     protected boolean hasAnyOAuth2;
     protected boolean generateTests;
+    protected boolean generateUnitTests;
 
     /**
      * Initializes shared codegen defaults by clearing the
@@ -161,8 +195,18 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 "Name of the generated API client class (default: Client).")
                 .defaultValue("Client"));
         cliOptions.add(CliOption.newBoolean("generateTests",
-                "Whether to generate test files alongside source files (default: true).")
+                "Whether to generate the full test suite — spec-independent unit "
+                        + "tests plus the petstore-coupled API/model tests used to "
+                        + "validate the generator against the golden fixtures "
+                        + "(default: true).")
                 .defaultValue("true"));
+        cliOptions.add(CliOption.newBoolean("generateUnitTests",
+                "Whether to generate only the spec-independent unit tests "
+                        + "(serializer, transport, header-selector, configuration, "
+                        + "client) that compile against any generated SDK. Real "
+                        + "clients enable this to ship a harmonized unit-test suite "
+                        + "without the petstore-coupled tests (default: false).")
+                .defaultValue("false"));
 
         modifyFeatureSet(features -> features
 
@@ -451,6 +495,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         }
         additionalProperties.put("generateTests", generateTests);
 
+        if (additionalProperties.containsKey("generateUnitTests")) {
+            generateUnitTests =
+                    Boolean.parseBoolean(additionalProperties.get("generateUnitTests").toString());
+        }
+        additionalProperties.put("generateUnitTests", generateUnitTests);
+
         getPropertyOrDefault("clientClassName", "Client");
 
         for (SupportingFileSpec spec : getSupportingFileSpecs()) {
@@ -483,6 +533,20 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      */
     protected List<SupportingFileSpec> getSupportingFileSpecs() {
         return List.of();
+    }
+
+    /**
+     * Whether to emit the spec-independent unit tests (serializer,
+     * transport, header-selector, configuration, client). These
+     * compile against any generated SDK because they reference only
+     * runtime plumbing, never spec-derived models or APIs. They are
+     * emitted both for the full golden suite ({@code generateTests})
+     * and for real clients that opt in via {@code generateUnitTests}.
+     *
+     * @return {@code true} when the spec-independent unit tests should be emitted
+     */
+    protected boolean emitUnitTests() {
+        return generateTests || generateUnitTests;
     }
 
     /**
@@ -1131,6 +1195,11 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             final String filePath = Path.of(outputFolder, dir, filename).toString();
             writeFile(filePath, code);
             postProcessFile(Path.of(filePath).toFile(), "source");
+            // This per-scheme authenticator is written through the codegen's own writeFile
+            // and so never enters upstream's manifest list. Record it for postProcess() to add
+            // to FILES, otherwise a manifest-driven prune deletes it as an orphan.
+            final Path schemeRel = Path.of(getOutputDir()).relativize(Path.of(filePath));
+            extraManifestFiles.add(schemeRel.toString().replace('\\', '/'));
             postWriteSchemeAuthenticator(spec, filePath);
         }
     }
@@ -4568,7 +4637,57 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         if (!accumulatedOptionsFiles.isEmpty()) {
             writeOptionsBarrelFiles(accumulatedOptionsFiles);
         }
+        reconcileSignatureFilesManifest();
         runFormatterInDocker(getFormatterDockerImage(), getFormatterCommands());
+    }
+
+    /**
+     * Corrects the {@code .openapi-generator/FILES} manifest for generator-produced files that
+     * upstream recorded at the wrong path or never recorded at all. Upstream's
+     * {@code DefaultGenerator} runs {@code generateFilesMetadata} before {@link #postProcess()}
+     * and lists each file at the path it was first written to, so files relocated by
+     * {@link #moveToSignatureDir} (e.g. {@code .rbs} moved from {@code lib/} to {@code sig/}) are
+     * named under the stale source-root path, and files written through the codegen's own side
+     * channels (per-scheme authenticators and their signature companions) never reach the manifest
+     * at all. Both cases make a manifest-driven prune delete the real files as orphans.
+     *
+     * <p>This rewrites the manifest in place: every tracked extra path
+     * ({@link #extraManifestFiles}) is ensured present, and every stale source-root entry
+     * ({@link #staleManifestSourcePaths}) is dropped. The manifest is left sorted in natural
+     * (case-sensitive, code-unit) order, matching upstream's {@code IOCase.SENSITIVE} ordering
+     * for the ASCII paths it contains. No-op when nothing was tracked.
+     */
+    private void reconcileSignatureFilesManifest() {
+        if (extraManifestFiles.isEmpty() && staleManifestSourcePaths.isEmpty()) {
+            return;
+        }
+        final Path manifest =
+                Path.of(getOutputDir(), ".openapi-generator", "FILES");
+        if (!Files.exists(manifest)) {
+            return;
+        }
+
+        try {
+            final List<String> existing = Files.readAllLines(manifest, StandardCharsets.UTF_8);
+            final Set<String> entries = new TreeSet<>();
+            for (final String line : existing) {
+                final String trimmed = line.strip();
+                if (trimmed.isEmpty() || staleManifestSourcePaths.contains(trimmed)) {
+                    continue;
+                }
+                entries.add(trimmed);
+            }
+            entries.addAll(extraManifestFiles);
+
+            final StringBuilder sb = new StringBuilder();
+            for (final String entry : entries) {
+                sb.append(entry).append(System.lineSeparator());
+            }
+            Files.writeString(manifest, sb.toString(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            LOGGER.warn("Failed to reconcile generated files in manifest {}: {}",
+                    manifest, e.getMessage());
+        }
     }
 
     /**
@@ -4668,6 +4787,11 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         try {
             Files.createDirectories(sigParent);
             Files.move(filePath, sigPath, StandardCopyOption.REPLACE_EXISTING);
+            // Remember the relocation so postProcess() can correct the FILES manifest,
+            // which still records this file under the (now non-existent) source-root path.
+            final String sigRel = outputDir.relativize(sigPath).toString().replace('\\', '/');
+            extraManifestFiles.add(sigRel);
+            staleManifestSourcePaths.add(relStr.replace('\\', '/'));
         } catch (IOException e) {
             LOGGER.warn("Failed to move signature file {} to {}: {}",
                     filePath, sigPath, e.getMessage());

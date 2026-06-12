@@ -383,24 +383,9 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         supportingFiles.add(
                 new SupportingFile("client.mustache", libPath, clientClassFile + ".rb"));
 
-        if (generateTests) {
+        if (emitUnitTests()) {
             supportingFiles.add(
                     new SupportingFile("test/test_helper.mustache", "test", "test_helper.rb"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/api/pet_api_test.mustache",
-                            Path.of("test", "api").toString(),
-                            "pet_api_test.rb"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/api/store_api_test.mustache",
-                            Path.of("test", "api").toString(),
-                            "store_api_test.rb"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/default_api_client_test.mustache",
-                            "test",
-                            "default_api_client_test.rb"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/default_api_client_unit_test.mustache",
@@ -418,11 +403,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                             "header_selector_test.rb"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/object_serializer_test.mustache",
-                            "test",
-                            "object_serializer_test.rb"));
-            supportingFiles.add(
-                    new SupportingFile(
                             "test/value_serializer_test.mustache",
                             "test",
                             "value_serializer_test.rb"));
@@ -431,6 +411,33 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                             "test/trace_context_util_test.mustache",
                             "test",
                             "trace_context_util_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/configuration_test.mustache",
+                            "test",
+                            "configuration_test.rb"));
+        }
+        if (generateTests) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api/pet_api_test.mustache",
+                            Path.of("test", "api").toString(),
+                            "pet_api_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api/store_api_test.mustache",
+                            Path.of("test", "api").toString(),
+                            "store_api_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/default_api_client_test.mustache",
+                            "test",
+                            "default_api_client_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/object_serializer_test.mustache",
+                            "test",
+                            "object_serializer_test.rb"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/base_api_test.mustache",
@@ -446,11 +453,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                             "test/composed_schema_test.mustache",
                             "test",
                             "composed_schema_test.rb"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/configuration_test.mustache",
-                            "test",
-                            "configuration_test.rb"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/client_test.mustache",
