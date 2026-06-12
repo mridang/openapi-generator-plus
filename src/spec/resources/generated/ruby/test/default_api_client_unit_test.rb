@@ -664,12 +664,12 @@ describe PetstoreClient::DefaultApiClient do
     _(names).must_include 'x-internal-key'
   end
 
-  it 'strips configured api-key headers on cross-origin redirect (Bucket 3.1)' do
-    # 302 redirects from localhost to a different host. Sensitive
-    # headers (the static authorization/cookie/proxy-authorization plus
-    # any apiKey,in=header names harvested from the spec) MUST be
-    # dropped on the cross-origin follow-up so a malicious 302 cannot
-    # exfiltrate the API key.
+  it 'always strips Authorization/Cookie/Proxy-Authorization on cross-origin redirect (Bucket 3.1)' do
+    # The static credential trio (authorization, cookie,
+    # proxy-authorization) is ALWAYS stripped on a cross-origin hop,
+    # regardless of whether the spec declared any apiKey-in-header
+    # schemes. A non-sensitive header (X-Trace) must survive the hop so
+    # we know the strip is targeted, not a blanket wipe.
     captured_followup_headers = nil
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.get('/start') do
@@ -684,8 +684,9 @@ describe PetstoreClient::DefaultApiClient do
     client = PetstoreClient::DefaultApiClient.new(transport)
     headers = {
       'Authorization' => 'Bearer secret',
-      'X-Api-Key' => 'k1',
-      'X-Internal-Key' => 'k2'
+      'Cookie' => 'session=abc',
+      'Proxy-Authorization' => 'Basic Zm9v',
+      'X-Trace' => 'keep'
     }
     client.stub(:build_connection, stub_connection(stubs)) do
       client.send_request(:GET, 'http://localhost/start', headers, nil)
@@ -693,6 +694,38 @@ describe PetstoreClient::DefaultApiClient do
     _(captured_followup_headers).wont_be_nil
     lc = captured_followup_headers.transform_keys(&:downcase)
     _(lc.key?('authorization')).must_equal false
+    _(lc.key?('cookie')).must_equal false
+    _(lc.key?('proxy-authorization')).must_equal false
+    # Non-sensitive headers must survive the cross-origin hop.
+    _(lc.key?('x-trace')).must_equal true
+  end
+
+  it 'strips spec-declared apiKey headers on cross-origin redirect (Bucket 3.1)' do
+    # 302 redirects from localhost to a different host. The
+    # apiKey,in=header names harvested from the spec at codegen time MUST
+    # be dropped on the cross-origin follow-up so a malicious 302 cannot
+    # exfiltrate the API key to an attacker-controlled host.
+    captured_followup_headers = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/start') do
+        [302, { 'location' => 'http://otherhost.example.com/landing' }, '']
+      end
+      stub.get('http://otherhost.example.com/landing') do |env|
+        captured_followup_headers = env.request_headers
+        [200, { 'content-type' => 'text/plain' }, 'ok']
+      end
+    end
+    transport = PetstoreClient::TransportOptions.builder.follow_redirects(true).build
+    client = PetstoreClient::DefaultApiClient.new(transport)
+    headers = {
+      'X-API-Key' => 'secret-api-key-value',
+      'X-Internal-Key' => 'secret-api-key-value',
+    }
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request(:GET, 'http://localhost/start', headers, nil)
+    end
+    _(captured_followup_headers).wont_be_nil
+    lc = captured_followup_headers.transform_keys(&:downcase)
     _(lc.key?('x-api-key')).must_equal false
     _(lc.key?('x-internal-key')).must_equal false
   end

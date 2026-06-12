@@ -668,6 +668,45 @@ public class DefaultApiClientUnitTest
         Assert.True(second.Headers.Contains("Authorization"));
     }
 
+    // ---- 3.1: spec-declared apiKey-in-header names are sensitive too ----
+    // When the spec declares apiKey-in-header schemes their header names are
+    // folded into SensitiveHeaderNames at codegen time, so a redirect to a
+    // different origin cannot replay a custom credential header like
+    // X-Api-Key. When the spec declares no such schemes only the canonical
+    // trio is present (see SensitiveHeaderNamesIncludesUniversalCredentialHeaders).
+
+    [Fact]
+    public void SpecDeclaredApiKeyHeaderNamesAreSensitive()
+    {
+        Assert.Contains("X-API-Key", DefaultApiClient.SensitiveHeaderNames);
+        Assert.Contains("X-Internal-Key", DefaultApiClient.SensitiveHeaderNames);
+    }
+
+    [Fact]
+    public async Task ApiKeyHeaderStrippedOnCrossOriginRedirect()
+    {
+        // Use the first spec-declared API-key header for the assertion.
+        string[] apiKeyHeaderNames = ["X-API-Key", "X-Internal-Key"];
+        string apiKeyHeader = apiKeyHeaderNames[0];
+
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.Redirect,
+            location: new Uri("http://other.example.com/dest")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string> { { apiKeyHeader, "secret-api-key-value" } },
+            null
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        HttpRequestMessage second = handler.Requests[1];
+        // The API-key header must be gone on the cross-origin follow-up.
+        Assert.False(second.Headers.Contains(apiKeyHeader));
+    }
+
     // ---- 3.2: noRedirect=true skips the redirect loop ----
 
     [Fact]

@@ -393,10 +393,150 @@ fn start_307_redirect_server(target_url: String) -> (String, Arc<Mutex<Vec<Strin
     (base_url, captured)
 }
 
-// The Gap 3.1 sensitive-header allowlist test was moved in-crate (see
-// `src/default_api_client.rs`'s `#[cfg(test)] mod tests`) because
+// The Gap 3.1 sensitive-header allowlist MEMBERSHIP test was moved in-crate
+// (see `src/default_api_client.rs`'s `#[cfg(test)] mod tests`) because
 // `SENSITIVE_HEADER_NAMES` lives in the crate-private `default_api_client`
-// module.
+// module. The Gap 3.1 BEHAVIOURAL strip tests below drive a real cross-origin
+// redirect end-to-end through the public `DefaultApiClient` surface and assert
+// the sensitive header never reaches the cross-origin follow-up request.
+
+/// Gap 3.1 (behavioural): starts TWO distinct-origin servers and wires the
+/// first to 302-redirect at the second. Because both bind 127.0.0.1 on
+/// EPHEMERAL but DIFFERENT ports, the redirect target is a different origin
+/// (same scheme+host, different port), so the manual redirect loop must strip
+/// the configured sensitive headers before issuing the follow-up. Returns the
+/// origin base URL and a handle to the raw request text captured by the
+/// cross-origin DESTINATION server.
+fn start_cross_origin_redirect_servers() -> (String, Arc<Mutex<Vec<String>>>) {
+    // Destination server: a different origin (different port). Captures the
+    // single follow-up request so the test can assert which headers survived.
+    let dest_captured = Arc::new(Mutex::new(Vec::new()));
+    let dest_captured_clone = dest_captured.clone();
+    let dest_listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind dest");
+    let dest_addr = dest_listener.local_addr().unwrap();
+    let dest_url = format!("http://{}/dest", dest_addr);
+
+    thread::spawn(move || {
+        if let Some(stream) = dest_listener.incoming().next() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 8192];
+            let n = stream.read(&mut buf).unwrap_or(0);
+            let text = String::from_utf8_lossy(&buf[..n]).to_string();
+            dest_captured_clone.lock().unwrap().push(text);
+            let response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        }
+    });
+
+    // Origin server: answers the initial request with a 302 pointing at the
+    // cross-origin destination above.
+    let origin_listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind origin");
+    let origin_addr = origin_listener.local_addr().unwrap();
+    let origin_url = format!("http://{}", origin_addr);
+
+    thread::spawn(move || {
+        if let Some(stream) = origin_listener.incoming().next() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 8192];
+            let _ = stream.read(&mut buf);
+            let response = format!(
+                "HTTP/1.1 302 Found\r\nLocation: {}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                dest_url
+            );
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        }
+    });
+
+    thread::sleep(std::time::Duration::from_millis(50));
+    (origin_url, dest_captured)
+}
+
+/// Gap 3.1 (behavioural, always-sensitive): the static credential trio
+/// (Authorization / Cookie / Proxy-Authorization) is stripped on EVERY
+/// cross-origin redirect hop, regardless of whether the spec declared any
+/// apiKey-in-header schemes. A non-sensitive header (X-Trace) must survive the
+/// hop so the strip is proven to be selective, not a blanket drop. Mirrors the
+/// Python `test_authorization_stripped_on_cross_origin_redirect`.
+#[tokio::test]
+async fn test_authorization_stripped_on_cross_origin_redirect() {
+    let (origin_url, dest_captured) = start_cross_origin_redirect_servers();
+
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build();
+    let client = DefaultApiClient::new(Some(transport));
+
+    let mut headers = HashMap::new();
+    headers.insert("Authorization".to_string(), "Bearer secret".to_string());
+    headers.insert("X-Trace".to_string(), "keep".to_string());
+
+    let _ = client
+        .send_request("GET", &format!("{}/start", origin_url), &headers, None)
+        .await;
+
+    let calls = dest_captured.lock().unwrap();
+    assert_eq!(
+        1,
+        calls.len(),
+        "the cross-origin destination must have received exactly the follow-up request"
+    );
+    let followup = calls[0].to_lowercase();
+    assert!(
+        !followup.contains("authorization:"),
+        "Authorization must be stripped on a cross-origin redirect, got: {}",
+        calls[0]
+    );
+    // Non-sensitive headers must survive the hop.
+    assert!(
+        followup.contains("x-trace:"),
+        "non-sensitive X-Trace must survive the cross-origin redirect, got: {}",
+        calls[0]
+    );
+}
+
+/// Gap 3.1 (behavioural, spec-driven): a spec-declared apiKey-in-header name is
+/// joined into `SENSITIVE_HEADER_NAMES` at codegen time and therefore must ALSO
+/// be stripped on a cross-origin redirect, so a caller-injected API key cannot
+/// leak to an attacker-controlled host via a malicious 302. Mirrors the Python
+/// `test_api_key_header_stripped_on_cross_origin_redirect`.
+#[tokio::test]
+async fn test_api_key_header_stripped_on_cross_origin_redirect() {
+    // Use the first spec-declared API-key header for the assertion.
+    let api_key_header_names: Vec<&str> = vec!["X-API-Key", "X-Internal-Key"];
+    let api_key_header = api_key_header_names[0];
+
+    let (origin_url, dest_captured) = start_cross_origin_redirect_servers();
+
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build();
+    let client = DefaultApiClient::new(Some(transport));
+
+    let mut headers = HashMap::new();
+    headers.insert(
+        api_key_header.to_string(),
+        "secret-api-key-value".to_string(),
+    );
+
+    let _ = client
+        .send_request("GET", &format!("{}/start", origin_url), &headers, None)
+        .await;
+
+    let calls = dest_captured.lock().unwrap();
+    assert_eq!(
+        1,
+        calls.len(),
+        "the cross-origin destination must have received exactly the follow-up request"
+    );
+    let followup = calls[0].to_lowercase();
+    let needle = format!("{}:", api_key_header.to_lowercase());
+    assert!(
+        !followup.contains(&needle),
+        "spec-declared API-key header '{}' leaked on cross-origin redirect, got: {}",
+        api_key_header,
+        calls[0]
+    );
+}
 
 /// Gap 3.2: `send_request_with_options(no_redirect=true)` must NOT follow a
 /// 307 redirect; the 3xx response is returned to the caller verbatim rather

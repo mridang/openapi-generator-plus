@@ -334,7 +334,11 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     {"http://127.0.0.1:#{port}", port}
   end
 
-  test "3.1: strips custom api-key headers on cross-origin redirect" do
+  # 3.1: the static credential trio (Authorization / Cookie /
+  # Proxy-Authorization) is ALWAYS stripped on a cross-origin hop,
+  # regardless of whether the spec declared any apiKey-in-header schemes.
+  # Non-sensitive headers must survive the hop.
+  test "3.1: strips Authorization / Cookie / Proxy-Authorization on cross-origin redirect" do
     # Target server records every header that arrived.
     {target_url, _} = start_header_capture_server()
     # Source server replies with a 302 pointing at the target (different port
@@ -343,12 +347,14 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
 
     client = {{moduleName}}.DefaultApiClient.new()
 
-    # Send Authorization (always sensitive) and X-Api-Key (an OpenAPI-declared
-    # api-key header name in the petstore spec). Both should be stripped on
-    # the cross-origin hop.
     {{moduleName}}.DefaultApiClient.send_request(
       client, :get, source_url,
-      %{"Authorization" => "Bearer secret", "X-Api-Key" => "key-123"},
+      %{
+        "Authorization" => "Bearer secret",
+        "Cookie" => "session=abc",
+        "Proxy-Authorization" => "Basic Zm9v",
+        "X-Trace" => "keep"
+      },
       nil
     )
 
@@ -356,13 +362,40 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     assert_receive {:captured_headers, target_headers}, 5000
     refute Map.has_key?(target_headers, "authorization"),
            "Authorization must be stripped on cross-origin redirect"
-    # The X-Api-Key key is only stripped when the spec declares it as an
-    # api-key header. Generated SDKs (petstore) include it; unit tests run
-    # against the generator output so this assertion only holds when the
-    # spec carries an apiKey-in-header named "X-Api-Key". We assert that at
-    # least one of the sensitive-header strips fired.
-    _ = target_headers
+    refute Map.has_key?(target_headers, "cookie"),
+           "Cookie must be stripped on cross-origin redirect"
+    refute Map.has_key?(target_headers, "proxy-authorization"),
+           "Proxy-Authorization must be stripped on cross-origin redirect"
+    # Non-sensitive headers must survive the hop.
+    assert target_headers["x-trace"] == "keep"
   end
+
+  {{#hasApiKeyHeaderNames}}
+  # 3.1: spec-declared apiKey-in-header names are merged into the
+  # cross-origin sensitive-header allowlist at codegen time, so an API key
+  # sent in a custom header (e.g. X-API-Key) is stripped on the hop too.
+  test "3.1: strips spec-declared apiKey header on cross-origin redirect" do
+    api_key_header_names = [{{#apiKeyHeaderNames}}"{{name}}"{{^-last}}, {{/-last}}{{/apiKeyHeaderNames}}]
+    api_key_header = List.first(api_key_header_names)
+
+    {target_url, _} = start_header_capture_server()
+    {source_url, _} = start_redirect_server(302, "#{target_url}/echo")
+
+    client = {{moduleName}}.DefaultApiClient.new()
+
+    {{moduleName}}.DefaultApiClient.send_request(
+      client, :get, source_url,
+      %{api_key_header => "secret-api-key-value"},
+      nil
+    )
+
+    assert_receive {:source_headers, _src_headers}, 5000
+    assert_receive {:captured_headers, target_headers}, 5000
+    # The API-key header must be gone on the cross-origin follow-up.
+    refute Map.has_key?(target_headers, String.downcase(api_key_header)),
+           "API-key header #{api_key_header} leaked on cross-origin redirect"
+  end
+  {{/hasApiKeyHeaderNames}}
 
   test "3.3: downgrade? predicate flags HTTPS->HTTP only" do
     # Direct unit test against the predicate. TLS endpoints aren't practical

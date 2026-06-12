@@ -653,6 +653,55 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void apiKeyHeaderStrippedOnCrossOriginRedirect() throws Exception {
+    // A spec-declared apiKey-in-header credential must be dropped when the
+    // manual redirect loop follows a cross-origin 307. Use the first harvested
+    // apiKey header name for the assertion.
+    String apiKeyHeader = List.of("X-API-Key", "X-Internal-Key").get(0);
+
+    final java.util.concurrent.atomic.AtomicReference<String> seenApiKey =
+        new java.util.concurrent.atomic.AtomicReference<>("__unset__");
+    HttpServer target = HttpServer.create(new InetSocketAddress(0), 0);
+    target.createContext(
+        "/landed",
+        exchange -> {
+          seenApiKey.set(exchange.getRequestHeaders().getFirst(apiKeyHeader));
+          exchange.sendResponseHeaders(200, -1);
+          exchange.close();
+        });
+    target.start();
+    String targetUrl = "http://localhost:" + target.getAddress().getPort() + "/landed";
+
+    HttpServer origin = HttpServer.create(new InetSocketAddress(0), 0);
+    origin.createContext(
+        "/start",
+        exchange -> {
+          exchange.getResponseHeaders().add("Location", targetUrl);
+          exchange.sendResponseHeaders(307, -1);
+          exchange.close();
+        });
+    origin.start();
+    String originUrl = "http://localhost:" + origin.getAddress().getPort() + "/start";
+
+    try {
+      TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
+      DefaultApiClient client = new DefaultApiClient(transport);
+      Map<String, String> headers = new HashMap<>();
+      headers.put(apiKeyHeader, "secret-api-key-value");
+      ApiHttpResponse response = client.sendRequest("GET", originUrl, headers, null);
+      assertEquals(200, response.statusCode());
+      assertNull(
+          seenApiKey.get(),
+          "spec-declared apiKey header '"
+              + apiKeyHeader
+              + "' must be stripped on cross-origin redirect");
+    } finally {
+      origin.stop(0);
+      target.stop(0);
+    }
+  }
+
+  @Test
   void noRedirectReturns308Response() throws Exception {
     TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
     DefaultApiClient client = new DefaultApiClient(transport);

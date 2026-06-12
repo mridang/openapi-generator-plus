@@ -793,6 +793,67 @@ func TestDefaultApiClient_StripsAuthorizationAcrossCrossOriginRedirect(t *testin
 	}
 }
 
+// Gap 3.1: the spec-declared API-key header names harvested from the OpenAPI
+// securitySchemes (apiKey, in: header) must be present in the cross-origin
+// sensitive-header allowlist alongside the static trio.
+func TestDefaultApiClient_SpecDeclaredApiKeyHeaderNamesAreSensitive(t *testing.T) {
+	t.Parallel()
+	contains := func(name string) bool {
+		for _, h := range sensitiveHeaderAllowlist {
+			if strings.EqualFold(h, name) {
+				return true
+			}
+		}
+		return false
+	}
+	if !contains("X-API-Key") {
+		t.Errorf("expected spec-declared API-key header %q to be in sensitiveHeaderAllowlist, got %v",
+			"X-API-Key", sensitiveHeaderAllowlist)
+	}
+	if !contains("X-Internal-Key") {
+		t.Errorf("expected spec-declared API-key header %q to be in sensitiveHeaderAllowlist, got %v",
+			"X-Internal-Key", sensitiveHeaderAllowlist)
+	}
+}
+
+// Gap 3.1: a caller-provided, spec-declared API-key header must be stripped
+// from a cross-origin 3xx redirect, exactly like the static credential trio,
+// so the key is never leaked to a different origin.
+func TestDefaultApiClient_StripsApiKeyHeaderAcrossCrossOriginRedirect(t *testing.T) {
+	t.Parallel()
+	// Use the first spec-declared API-key header for the assertion.
+	apiKeyHeader := []string{
+		"X-API-Key", "X-Internal-Key",
+	}[0]
+
+	var receivedKey string
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedKey = r.Header.Get(apiKeyHeader)
+		w.WriteHeader(200)
+	}))
+	defer target.Close()
+
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", target.URL+"/followed")
+		w.WriteHeader(302)
+	}))
+	defer origin.Close()
+
+	transport := NewTransportOptionsBuilder().
+		FollowRedirects(true).
+		Build()
+	client := NewDefaultApiClient(transport)
+	_, err := client.SendRequest("GET", origin.URL+"/start",
+		map[string]string{apiKeyHeader: "secret-api-key-value"}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if receivedKey != "" {
+		t.Errorf("expected API-key header %q to be stripped across cross-origin redirect, got %q",
+			apiKeyHeader, receivedKey)
+	}
+}
+
 // close-lifecycle-three-way: sending a request after Close() must fail with the
 // uniform SDK error type, not silently succeed or leak a foreign library error.
 func TestDefaultApiClient_UseAfterCloseReturnsApiError(t *testing.T) {

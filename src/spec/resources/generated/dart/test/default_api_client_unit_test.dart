@@ -517,19 +517,25 @@ void main() {
       },
     );
 
-    /* Gap 3.1: API-key header names declared in the spec must be added
-     * to the sensitive-header strip set, so a cross-origin redirect does
-     * not leak `X-API-Key` (or any other spec-declared key) to the
-     * redirect target. */
+    /* Gap 3.1 (always-sensitive trio): the canonical credential headers
+     * `Authorization`, `Cookie`, and `Proxy-Authorization` are stripped on
+     * EVERY cross-origin redirect hop, unconditionally — regardless of
+     * whether the spec declared any apiKey-in-header schemes. A
+     * non-sensitive header (`X-Trace`) must survive the hop so we know the
+     * strip is targeted, not a blanket header wipe. */
     test(
-      'strips spec-declared API-key header on cross-origin redirect',
+      'strips always-sensitive headers on cross-origin redirect, keeps others',
       () async {
-        String? targetApiKey;
         String? targetAuthorization;
+        String? targetCookie;
+        String? targetProxyAuth;
+        String? targetTrace;
         final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
         target.listen((request) {
-          targetApiKey = request.headers.value('x-api-key');
           targetAuthorization = request.headers.value('authorization');
+          targetCookie = request.headers.value('cookie');
+          targetProxyAuth = request.headers.value('proxy-authorization');
+          targetTrace = request.headers.value('x-trace');
           request.response
             ..statusCode = 200
             ..write('ok')
@@ -549,18 +555,85 @@ void main() {
           await client.sendRequest(
             'GET',
             'http://localhost:${source.port}/start',
-            {'X-API-Key': 'secret-key', 'Authorization': 'Bearer t'},
+            {
+              'Authorization': 'Bearer secret',
+              'Cookie': 'session=abc',
+              'Proxy-Authorization': 'Basic zzz',
+              'X-Trace': 'keep',
+            },
             null,
-          );
-          expect(
-            targetApiKey,
-            isNull,
-            reason: 'spec-declared X-API-Key must not survive cross-origin hop',
           );
           expect(
             targetAuthorization,
             isNull,
             reason: 'Authorization must not survive cross-origin hop',
+          );
+          expect(
+            targetCookie,
+            isNull,
+            reason: 'Cookie must not survive cross-origin hop',
+          );
+          expect(
+            targetProxyAuth,
+            isNull,
+            reason: 'Proxy-Authorization must not survive cross-origin hop',
+          );
+          expect(
+            targetTrace,
+            equals('keep'),
+            reason: 'non-sensitive headers must survive the hop',
+          );
+        } finally {
+          await source.close();
+          await target.close();
+        }
+      },
+    );
+
+    /* Gap 3.1 (spec-driven apiKey headers): every apiKey-in-header scheme
+     * the spec declares is folded into the cross-origin strip set at
+     * codegen time, so a custom credential header (e.g. `X-API-Key`) does
+     * not leak to the redirect target. The first spec-declared name is
+     * used for the assertion. */
+    test(
+      'strips spec-declared API-key header on cross-origin redirect',
+      () async {
+        final apiKeyHeader = <String>[
+          'X-API-Key',
+          'X-Internal-Key',
+        ].first;
+
+        String? targetApiKey;
+        final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        target.listen((request) {
+          targetApiKey = request.headers.value(apiKeyHeader.toLowerCase());
+          request.response
+            ..statusCode = 200
+            ..write('ok')
+            ..close();
+        });
+
+        final source = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        source.listen((request) {
+          request.response
+            ..statusCode = 302
+            ..headers.set('Location', 'http://127.0.0.1:${target.port}/landed')
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          await client.sendRequest(
+            'GET',
+            'http://localhost:${source.port}/start',
+            {apiKeyHeader: 'secret-api-key-value'},
+            null,
+          );
+          expect(
+            targetApiKey,
+            isNull,
+            reason:
+                'spec-declared $apiKeyHeader must not survive cross-origin hop',
           );
         } finally {
           await source.close();
