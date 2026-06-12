@@ -160,9 +160,15 @@ final class ValueSerializer
                 : ObjectSerializer::stringify($v)
             : [ObjectSerializer::class, 'stringify'];
 
-        $items = is_array($value)
-            ? array_map($stringifier, $value)
-            : [$stringifier($value)];
+        /* Whether the incoming value is a multi-valued collection drives the
+         * branching below: only arrays/objects explode into repeated params or
+         * lists, whereas scalars always serialize to a single bare string. This
+         * mirrors the reference (Python) implementation, where the per-style
+         * logic branches on `isinstance(value, list)` rather than collapsing
+         * scalars into one-element arrays. Collapsing them would make a scalar
+         * `'blue'` indistinguishable from the array `['blue']`, which must
+         * serialize differently (e.g. form+explode: 'blue' vs ['blue']). */
+        $isList = is_array($value);
 
         /* Per RFC 6570 / OAS 3.0: in `path` parameters each item must be
          * percent-encoded BEFORE being joined with the structural separator
@@ -171,17 +177,31 @@ final class ValueSerializer
          * leak through and produce a malformed URL. The separators themselves
          * (`,`, `;`, `=`) are sub-delimiters and must remain literal, so we
          * encode the items before joining, never after. */
-        if ($location === 'path') {
-            $items = array_map(self::encodePathSegment(...), $items);
+        if ($isList) {
+            $items = array_map($stringifier, $value);
+            if ($location === 'path') {
+                $items = array_map(self::encodePathSegment(...), $items);
+            }
+        } else {
+            $scalar = $stringifier($value);
+            if ($location === 'path') {
+                $scalar = self::encodePathSegment($scalar);
+            }
         }
 
         return match ($style) {
-            'matrix' => self::serializeMatrix($paramName, $items, $explode),
-            'label' => self::serializeLabel($items, $explode),
-            'form' => self::serializeForm($items, $explode),
-            'spaceDelimited' => implode(' ', $items),
-            'pipeDelimited' => implode('|', $items),
-            'simple' => implode(',', $items),
+            'matrix' => $isList
+                ? self::serializeMatrix($paramName, $items, $explode)
+                : ';' . $paramName . '=' . $scalar,
+            'label' => $isList
+                ? self::serializeLabel($items, $explode)
+                : '.' . $scalar,
+            'form' => $isList
+                ? self::serializeForm($items, $explode)
+                : $scalar,
+            'spaceDelimited' => $isList ? implode(' ', $items) : $scalar,
+            'pipeDelimited' => $isList ? implode('|', $items) : $scalar,
+            'simple' => $isList ? implode(',', $items) : $scalar,
             default => self::serialize($value, $location, $schemaType, $collectionFormat),
         };
     }

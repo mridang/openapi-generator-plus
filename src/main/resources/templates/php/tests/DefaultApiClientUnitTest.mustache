@@ -618,11 +618,14 @@ test('sensitive header allowlist includes api key header names lowercased', func
     }
 });
 
+{{#hasApiKeyHeaderNames}}
 test('cross origin redirect strips api key header', function (): void {
-    /* End-to-end check: caller passes X-API-Key, server replies 302 to
-     * a different origin. The X-API-Key header must NOT be present on
-     * the follow-up request (cross-origin sensitive-header strip
-     * extended to API-key names per 3.1). */
+    /* End-to-end check: caller passes the spec-declared apiKey-in-header
+     * names, server replies 302 to a different origin. Those headers must
+     * NOT be present on the follow-up request (cross-origin sensitive-header
+     * strip extended to API-key names per 3.1). The header names are derived
+     * from the spec's apiKey-in-header security schemes at codegen time, so a
+     * spec without such schemes (e.g. Zitadel) omits this test entirely. */
     $hop1 = new MockResponse('', [
         'http_code' => 302,
         'response_headers' => ['Location' => 'https://other.example.com/final'],
@@ -653,9 +656,57 @@ test('cross origin redirect strips api key header', function (): void {
     });
     $client = new StubbedDefaultApiClient($mock, $transport);
 
-    $client->sendRequest('GET', 'https://api.example.com/start', ['X-API-Key' => 'secret-key'], null);
+    $client->sendRequest('GET', 'https://api.example.com/start', [
+{{#apiKeyHeaderNames}}
+        '{{name}}' => 'secret-key',
+{{/apiKeyHeaderNames}}
+    ], null);
 
-    expect($capturedHeaders)->not->toHaveKey('x-api-key');
+{{#apiKeyHeaderNames}}
+    expect($capturedHeaders)->not->toHaveKey('{{nameLower}}');
+{{/apiKeyHeaderNames}}
+});
+{{/hasApiKeyHeaderNames}}
+
+test('cross origin redirect strips authorization and cookie', function (): void {
+    /* The classic credential carriers (Authorization, Cookie,
+     * Proxy-Authorization) are ALWAYS stripped on a cross-origin hop,
+     * regardless of whether the spec declared any apiKey-in-header schemes.
+     * Non-credential headers must survive the hop. */
+    $hop1 = new MockResponse('', [
+        'http_code' => 302,
+        'response_headers' => ['Location' => 'https://other.example.com/final'],
+    ]);
+    $capturedHeaders = [];
+    $hop2 = new MockResponse('ok', ['http_code' => 200]);
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $mock = new MockHttpClient(function ($method, $url, $options) use (&$capturedHeaders, $hop1, $hop2) {
+        static $hop = 0;
+        $hop++;
+        if ($hop === 1) {
+            return $hop1;
+        }
+        /** @var array<int, string> $hdrs */
+        $hdrs = $options['headers'] ?? [];
+        foreach ($hdrs as $line) {
+            $parts = explode(':', $line, 2);
+            if (count($parts) === 2) {
+                $capturedHeaders[strtolower(trim($parts[0]))] = trim($parts[1]);
+            }
+        }
+        return $hop2;
+    });
+    $client = new StubbedDefaultApiClient($mock, $transport);
+
+    $client->sendRequest('GET', 'https://api.example.com/start', [
+        'Authorization' => 'Bearer secret',
+        'Cookie' => 'session=xyz',
+        'X-Trace' => 'keep',
+    ], null);
+
+    expect($capturedHeaders)->not->toHaveKey('authorization');
+    expect($capturedHeaders)->not->toHaveKey('cookie');
+    expect($capturedHeaders)->toHaveKey('x-trace');
 });
 
 // -- 3.2: noRedirect arg suppresses redirect following --

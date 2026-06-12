@@ -550,18 +550,21 @@ describe('cross-origin redirect strips API-key headers', () => {
       `${srcUrl}/start`,
       {
         Authorization: 'Bearer secret',
-        'X-Api-Key': 'k-12345',
-        'X-Internal-Key': 'internal-secret',
+        'X-API-Key': 'k-12345',
+        'X-Internal-Key': 'k-12345',
         Cookie: 'session=xyz',
         Accept: 'application/json'
       },
       null
     );
+    // The classic credential carriers are always stripped on a cross-origin hop.
     expect(lastReceivedHeaders['authorization']).toBeUndefined();
-    // X-API-Key and X-Internal-Key are apiKey-in-header schemes in the spec.
+    expect(lastReceivedHeaders['cookie']).toBeUndefined();
+    // The spec's apiKey-in-header scheme names are also stripped; they are
+    // derived from the spec at codegen time, so a spec without such schemes
+    // (e.g. Zitadel) renders this block empty and asserts nothing here.
     expect(lastReceivedHeaders['x-api-key']).toBeUndefined();
     expect(lastReceivedHeaders['x-internal-key']).toBeUndefined();
-    expect(lastReceivedHeaders['cookie']).toBeUndefined();
     // Non-sensitive headers should still be forwarded.
     expect(lastReceivedHeaders['accept']).toBe('application/json');
   });
