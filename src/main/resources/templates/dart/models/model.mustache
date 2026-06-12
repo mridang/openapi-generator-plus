@@ -395,7 +395,12 @@ class {{classname}} {
 {{/isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
+{{#isEnumRef}}
+      {{name}}: {{{dataType}}}.fromJson(json['{{baseName}}'] as {{#isInteger}}int{{/isInteger}}{{#isLong}}int{{/isLong}}{{^isInteger}}{{^isLong}}String{{/isLong}}{{/isInteger}}),
+{{/isEnumRef}}
+{{^isEnumRef}}
       {{name}}: {{{dataType}}}.fromJson(json['{{baseName}}'] as Map<String, dynamic>),
+{{/isEnumRef}}
 {{/isPrimitiveType}}
 {{/isByteArray}}
 {{/isMap}}
@@ -461,12 +466,22 @@ class {{classname}} {
 {{/isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
+{{#isEnumRef}}
+{{#defaultValue}}
+      {{name}}: json['{{baseName}}'] != null ? {{{dataType}}}.fromJson(json['{{baseName}}'] as {{#isInteger}}int{{/isInteger}}{{#isLong}}int{{/isLong}}{{^isInteger}}{{^isLong}}String{{/isLong}}{{/isInteger}}) : {{{defaultValue}}},
+{{/defaultValue}}
+{{^defaultValue}}
+      {{name}}: json['{{baseName}}'] != null ? {{{dataType}}}.fromJson(json['{{baseName}}'] as {{#isInteger}}int{{/isInteger}}{{#isLong}}int{{/isLong}}{{^isInteger}}{{^isLong}}String{{/isLong}}{{/isInteger}}) : null,
+{{/defaultValue}}
+{{/isEnumRef}}
+{{^isEnumRef}}
 {{#defaultValue}}
       {{name}}: json['{{baseName}}'] != null ? {{{dataType}}}.fromJson(json['{{baseName}}'] as Map<String, dynamic>) : {{{defaultValue}}},
 {{/defaultValue}}
 {{^defaultValue}}
       {{name}}: json['{{baseName}}'] != null ? {{{dataType}}}.fromJson(json['{{baseName}}'] as Map<String, dynamic>) : null,
 {{/defaultValue}}
+{{/isEnumRef}}
 {{/isPrimitiveType}}
 {{/isByteArray}}
 {{/isMap}}

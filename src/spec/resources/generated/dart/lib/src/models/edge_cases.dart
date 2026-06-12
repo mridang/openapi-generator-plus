@@ -66,7 +66,7 @@ class EdgeCases {
       freeFormAny: json['freeFormAny'] as Object?,
 
       favoriteColor: json['favoriteColor'] != null
-          ? Color.fromJson(json['favoriteColor'] as Map<String, dynamic>)
+          ? Color.fromJson(json['favoriteColor'] as String)
           : null,
 
       permissionsNote: json['permissionsNote'] as String?,
