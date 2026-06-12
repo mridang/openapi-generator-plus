@@ -240,14 +240,16 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/description}}
   @Expose({ name: '{{baseName}}' })
 {{#vendorExtensions.isTimeFormat}}
-  // 4.8 — `format: time` round-trips via Temporal.PlainTime.
+  /* 4.8 — `format: time` round-trips via Temporal.PlainTime. */
   @Transform(({ value }) => (typeof value === 'string' ? Temporal.PlainTime.from(value) : value), { toClassOnly: true })
   @Transform(({ value }) => (value != null && typeof (value as { toString?: unknown }).toString === 'function' ? (value as Temporal.PlainTime).toString() : value), { toPlainOnly: true })
 {{/vendorExtensions.isTimeFormat}}
 {{#vendorExtensions.isDurationFormat}}
-  // 4.8 — `format: duration` is a google.protobuf.Duration. The native
-  // type stays Temporal.Duration, but the wire form is protobuf-JSON
-  // ("3600s"), not ISO-8601 ("PT1H") — Zitadel rejects the ISO form.
+  /*
+   * 4.8 — `format: duration` is a google.protobuf.Duration. The native
+   * type stays Temporal.Duration, but the wire form is protobuf-JSON
+   * ("3600s"), not ISO-8601 ("PT1H") — Zitadel rejects the ISO form.
+   */
   @Transform(({ value }) => (typeof value === 'string' ? durationFromProtoJson(value) : value), { toClassOnly: true })
   @Transform(({ value }) => (value instanceof Temporal.Duration ? durationToProtoJson(value) : value), { toPlainOnly: true })
 {{/vendorExtensions.isDurationFormat}}

@@ -148,6 +148,22 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         return "Generates a minimal PHP client with Symfony HTTP Client and Symfony Serializer.";
     }
 
+    /**
+     * Escapes a reserved word with a <em>trailing</em> underscore
+     * ({@code $and_}, {@code $class_}), overriding the base generator's
+     * leading-underscore scheme. A leading underscore on a public property
+     * name trips phpcs's {@code Squiz.NamingConventions.ValidVariableName}
+     * sniff, which reads {@code _} as a (mis-applied) visibility marker. The
+     * wire name is preserved separately via the property's
+     * {@code #[SerializedName(...)]} attribute, so only the PHP identifier
+     * changes; a trailing underscore is a legal PHP identifier and satisfies
+     * the sniff.
+     */
+    @Override
+    public String escapeReservedWord(String name) {
+        return name + "_";
+    }
+
     /** {@inheritDoc} */
     @Override
     public GeneratorLanguage generatorLanguage() {

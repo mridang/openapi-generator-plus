@@ -32,7 +32,7 @@ module {{moduleName}}
 {{#isEnum}}
     # Enumeration of allowed values for {{classname}}.
     class {{classname}}{{#allowableValues}}{{#enumVars}}
-      {{{name}}} = {{{value}}}.freeze{{/enumVars}}
+      {{{name}}} = {{{value}}}{{/enumVars}}
 
       # Frozen set of all allowed values, used for validation.
       VALUES = [{{#enumVars}}{{{name}}}{{^-last}}, {{/-last}}{{/enumVars}}].freeze

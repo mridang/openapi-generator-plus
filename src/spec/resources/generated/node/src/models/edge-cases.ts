@@ -46,9 +46,11 @@ export class EdgeCases {
    * @example null
    */
   @Expose({ name: 'retryAfter' })
-  // 4.8 — `format: duration` is a google.protobuf.Duration. The native
-  // type stays Temporal.Duration, but the wire form is protobuf-JSON
-  // ("3600s"), not ISO-8601 ("PT1H") — Zitadel rejects the ISO form.
+  /*
+   * 4.8 — `format: duration` is a google.protobuf.Duration. The native
+   * type stays Temporal.Duration, but the wire form is protobuf-JSON
+   * ("3600s"), not ISO-8601 ("PT1H") — Zitadel rejects the ISO form.
+   */
   @Transform(({ value }) => (typeof value === 'string' ? durationFromProtoJson(value) : value), { toClassOnly: true })
   @Transform(({ value }) => (value instanceof Temporal.Duration ? durationToProtoJson(value) : value), {
     toPlainOnly: true

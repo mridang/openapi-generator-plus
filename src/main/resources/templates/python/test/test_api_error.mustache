@@ -52,7 +52,7 @@ class TestApiErrorShape:
 class TestExceptionHierarchy:
     def test_typed_error_inherits_through_to_branded_root(self) -> None:
         # BadRequest -> ClientException -> ApiException -> ZitadelException
-        err = BadRequestException(status_code=400, message='bad request')
+        err = BadRequestException(message='bad request')
 
         assert isinstance(err, ClientException)
         assert isinstance(err, ApiException)

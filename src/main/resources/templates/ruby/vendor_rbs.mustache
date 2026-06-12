@@ -62,16 +62,40 @@ module ISO8601
   class Duration
     def self.new: (String) -> Duration
     def to_s: () -> String
-    def to_seconds: () -> Numeric
+    # to_seconds yields a concrete Float so arithmetic (`*`, `-`, `floor`) in
+    # ObjectSerializer.duration_to_protobuf_json type-checks; abstract Numeric
+    # declares none of those operators in RBS.
+    def to_seconds: () -> Float
   end
 end
-
-# Faraday signatures come from the gem_rbs_collection (.gem_rbs_collection/faraday).
-# Do NOT redeclare its classes (e.g. TimeoutError) — that triggers conflicting
-# superclass errors. Only reopen to ADD the few accessors the collection omits
-# but the generated client uses.
 module Faraday
+  def self.new: () ?{ (Connection) -> void } -> Connection
+
+  class Error < StandardError
+  end
+
+  class ConnectionFailed < Error
+  end
+
+  class TimeoutError < Error
+  end
+
+  class SSLError < Error
+  end
+
   class Connection
     def proxy=: (String?) -> void
+    def ssl: () -> SSLOptions
+    def options: () -> RequestOptions
+  end
+
+  class SSLOptions
+    def verify=: (bool) -> void
+    def ca_file=: (String?) -> void
+  end
+
+  class RequestOptions
+    def timeout=: (Numeric?) -> void
+    def open_timeout=: (Numeric?) -> void
   end
 end

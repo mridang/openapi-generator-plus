@@ -925,7 +925,7 @@ class ObjectSerializer
         $seconds = (int) $m[2];
         $interval = new \DateInterval('PT' . $seconds . 'S');
 
-        if (isset($m[3]) && $m[3] !== '') {
+        if (isset($m[3])) {
             $interval->f = (int) str_pad($m[3], 9, '0', STR_PAD_RIGHT) / 1_000_000_000;
         }
 

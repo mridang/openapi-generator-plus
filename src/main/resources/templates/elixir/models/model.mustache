@@ -12,7 +12,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
   """
 {{#allowableValues}}
 {{#enumVars}}
-  @doc "Enum value `{{{value}}}`"
+  @doc "Enum value `{{nameLowercase}}`"
   def {{nameLowercase}}, do: :"{{nameLowercase}}"
 
 {{/enumVars}}

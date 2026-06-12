@@ -344,7 +344,7 @@ module PetstoreClient
       end
 
       class OAuth2ServerError < PetstoreClient::ApiError
-        attr_reader status_code: Integer
+        attr_reader status_code: Integer?
         attr_reader code: String?
         attr_reader description: String?
         attr_reader uri: String?

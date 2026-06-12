@@ -12,14 +12,20 @@ defmodule PetstoreClient.Models.Color do
   Values are exposed as atoms (e.g. `:available`) and as the canonical
   string form via `value/1` when wire interop is needed.
   """
-  @doc "Enum value `"red"`"
-  def red, do: :"red"
+  @doc "Enum value `red`"
+  def red do
+    :red
+  end
 
-  @doc "Enum value `"green"`"
-  def green, do: :"green"
+  @doc "Enum value `green`"
+  def green do
+    :green
+  end
 
-  @doc "Enum value `"blue"`"
-  def blue, do: :"blue"
+  @doc "Enum value `blue`"
+  def blue do
+    :blue
+  end
 
   @doc "All allowed values as atoms."
   @spec all_values() :: [atom()]
@@ -29,7 +35,15 @@ defmodule PetstoreClient.Models.Color do
 
   @doc "Map an atom to its wire string value."
   @spec value(atom()) :: term()
-  def value(:"red"), do: "red"
-  def value(:"green"), do: "green"
-  def value(:"blue"), do: "blue"
+  def value(:red) do
+    "red"
+  end
+
+  def value(:green) do
+    "green"
+  end
+
+  def value(:blue) do
+    "blue"
+  end
 end

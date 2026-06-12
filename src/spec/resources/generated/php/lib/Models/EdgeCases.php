@@ -37,11 +37,11 @@ class EdgeCases
 
     /** @example null */
     #[SerializedName('and')]
-    public ?bool $_and = null;
+    public ?bool $and_ = null;
 
     /** @example null */
     #[SerializedName('or')]
-    public ?bool $_or = null;
+    public ?bool $or_ = null;
 
     /** @example null */
     #[SerializedName('not')]
@@ -49,11 +49,11 @@ class EdgeCases
 
     /** @example null */
     #[SerializedName('class')]
-    public ?string $_class = null;
+    public ?string $class_ = null;
 
     /** @example null */
     #[SerializedName('return')]
-    public ?string $_return = null;
+    public ?string $return_ = null;
 
     /**
      * Back-off interval before retrying (protobuf-JSON duration, e.g. \"3600s\")
@@ -75,22 +75,22 @@ class EdgeCases
         mixed $freeFormAny = null,
         ?Color $favoriteColor = null,
         ?string $permissionsNote = null,
-        ?bool $_and = null,
-        ?bool $_or = null,
+        ?bool $and_ = null,
+        ?bool $or_ = null,
         ?bool $not = null,
-        ?string $_class = null,
-        ?string $_return = null,
+        ?string $class_ = null,
+        ?string $return_ = null,
         ?\DateInterval $retryAfter = null,
         ?\DateTime $expiresAt = null,
     ) {
         $this->freeFormAny = $freeFormAny;
         $this->favoriteColor = $favoriteColor;
         $this->permissionsNote = $permissionsNote;
-        $this->_and = $_and;
-        $this->_or = $_or;
+        $this->and_ = $and_;
+        $this->or_ = $or_;
         $this->not = $not;
-        $this->_class = $_class;
-        $this->_return = $_return;
+        $this->class_ = $class_;
+        $this->return_ = $return_;
         $this->retryAfter = $retryAfter;
         $this->expiresAt = $expiresAt;
     }

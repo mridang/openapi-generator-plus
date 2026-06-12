@@ -23,7 +23,7 @@ public class EdgeCases : IEquatable<EdgeCases>
     public Color? FavoriteColor { get; set; }
 
     /// <summary>
-    /// Required permission is \"user.grant.write\" for &lt;admin&gt; &amp; owner roles (don't skip it)
+    /// <![CDATA[Required permission is \"user.grant.write\" for <admin> & owner roles (don't skip it)]]>
     /// </summary>
     /// <example>null</example>
     [JsonPropertyName("permissionsNote")]
@@ -43,11 +43,11 @@ public class EdgeCases : IEquatable<EdgeCases>
 
     /// <example>null</example>
     [JsonPropertyName("class")]
-    public string? _Class { get; set; }
+    public string? Class { get; set; }
 
     /// <example>null</example>
     [JsonPropertyName("return")]
-    public string? _Return { get; set; }
+    public string? Return { get; set; }
 
     /// <summary>
     /// Back-off interval before retrying (protobuf-JSON duration, e.g. \"3600s\")
@@ -81,8 +81,8 @@ public class EdgeCases : IEquatable<EdgeCases>
                     && EqualityComparer<bool?>.Default.Equals(this.And, other.And)
                     && EqualityComparer<bool?>.Default.Equals(this.Or, other.Or)
                     && EqualityComparer<bool?>.Default.Equals(this.Not, other.Not)
-                    && EqualityComparer<string?>.Default.Equals(this._Class, other._Class)
-                    && EqualityComparer<string?>.Default.Equals(this._Return, other._Return)
+                    && EqualityComparer<string?>.Default.Equals(this.Class, other.Class)
+                    && EqualityComparer<string?>.Default.Equals(this.Return, other.Return)
                     && EqualityComparer<TimeSpan?>.Default.Equals(this.RetryAfter, other.RetryAfter)
                     && EqualityComparer<DateTimeOffset?>.Default.Equals(
                         this.ExpiresAt,
@@ -105,8 +105,8 @@ public class EdgeCases : IEquatable<EdgeCases>
         hash.Add(this.And);
         hash.Add(this.Or);
         hash.Add(this.Not);
-        hash.Add(this._Class);
-        hash.Add(this._Return);
+        hash.Add(this.Class);
+        hash.Add(this.Return);
         hash.Add(this.RetryAfter);
         hash.Add(this.ExpiresAt);
         return hash.ToHashCode();

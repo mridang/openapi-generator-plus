@@ -34,9 +34,9 @@ module PetstoreClient
   module Models
     # Enumeration of allowed values for Color.
     class Color
-      RED = 'red'.freeze
-      GREEN = 'green'.freeze
-      BLUE = 'blue'.freeze
+      RED = 'red'
+      GREEN = 'green'
+      BLUE = 'blue'
 
       # Frozen set of all allowed values, used for validation.
       VALUES = [RED, GREEN, BLUE].freeze

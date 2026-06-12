@@ -39,6 +39,7 @@
     "temporal-polyfill": "^0.3"
   },
   "devDependencies": {
+    "@opentelemetry/api": "^1.0.0",
     "typescript": "^5.7",
     "jest": "^30.0",
     "jest-junit": "^16.0",

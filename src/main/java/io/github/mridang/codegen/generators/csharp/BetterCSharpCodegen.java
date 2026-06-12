@@ -148,6 +148,24 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         return NamingConvention.PASCAL_CASE;
     }
 
+    /**
+     * Member names are PascalCased, and the PascalCase form of a C#
+     * keyword (e.g. {@code Class}, {@code Return}) is itself a valid
+     * identifier — C# keywords are lowercase. The inherited
+     * {@code isReservedWord} check lowercases the candidate before
+     * matching, so it would flag {@code Class}/{@code Return} and
+     * {@link #escapeReservedWord} would prepend an underscore, producing
+     * {@code _Class}/{@code _Return}, which CA1707 rejects. Returning
+     * {@code false} (as Go and Node do) keeps the clean PascalCase name;
+     * the original wire name is still preserved via the
+     * {@code [JsonPropertyName("...")]} attribute emitted from
+     * {@code baseName}.
+     */
+    @Override
+    protected boolean shouldEscapeReservedVarName(String name) {
+        return false;
+    }
+
     /** {@inheritDoc} */
     @Override
     protected NamingConvention getOperationIdCasing() {
@@ -201,12 +219,24 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
 
     /**
      * Overrides the base class to add an {@code escapeXml} lambda that
-     * escapes the XML metacharacters {@code &}, {@code <}, and {@code >}
-     * in C# {@code ///} doc-comment prose. Schema descriptions, summaries,
-     * and examples are copied verbatim into XML doc comments; an
-     * unescaped {@code <} or {@code &} produces a CS1570 "XML comment has
-     * badly formed XML" warning (an error under {@code -warnaserror}).
-     * The lambda is applied only at prose sites in the model, api, and
+     * makes C# {@code ///} doc-comment prose well-formed XML without
+     * HTML-entity-encoding it. Schema descriptions, summaries, and
+     * examples are copied verbatim into XML doc comments; an unescaped
+     * {@code <} or {@code &} produces a CS1570 "XML comment has badly
+     * formed XML" warning (an error under {@code -warnaserror}).
+     *
+     * <p>Rather than rewriting {@code <}/{@code >}/{@code &} into their
+     * HTML-entity forms — which the house
+     * {@code generatedCodeShouldNotContainHtmlEntities} formatting spec
+     * forbids — prose that contains any XML metacharacter is wrapped in a
+     * {@code <![CDATA[ ... ]]>} section. CDATA is well-formed XML the C#
+     * compiler and docfx both accept, and it preserves the literal
+     * characters in the output. Prose with no metacharacters is emitted
+     * unchanged. A literal {@code ]]>} in the text is split across two
+     * CDATA sections (the standard XML technique) so it cannot terminate
+     * the section early.
+     *
+     * <p>The lambda is applied only at prose sites in the model, api, and
      * options templates, never to code-emitting triple-mustache (type
      * names, defaults, paths).
      */
@@ -215,13 +245,20 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         return super.addMustacheLambdas()
                 .put(
                         "escapeXml",
-                        (fragment, writer) ->
-                                writer.write(
-                                        fragment
-                                                .execute()
-                                                .replace("&", "&amp;")
-                                                .replace("<", "&lt;")
-                                                .replace(">", "&gt;")));
+                        (fragment, writer) -> writer.write(wrapDocCommentXml(fragment.execute())));
+    }
+
+    /**
+     * Wraps {@code ///} doc-comment prose in a CDATA section when it
+     * contains an XML metacharacter, leaving plain prose untouched. See
+     * {@link #addMustacheLambdas()} for the rationale.
+     */
+    private static String wrapDocCommentXml(String text) {
+        if (text == null
+                || (text.indexOf('<') < 0 && text.indexOf('>') < 0 && text.indexOf('&') < 0)) {
+            return text;
+        }
+        return "<![CDATA[" + text.replace("]]>", "]]]]><![CDATA[>") + "]]>";
     }
 
     /**
