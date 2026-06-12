@@ -40,7 +40,13 @@ interface PhpSpec extends LanguageSpec, DockerImageSpec {
          * fails the spec on a non-zero setup exit, but the prior `> /dev/null
          * 2>&1` hid the diagnostics that would explain why). pcov is the
          * coverage driver for the cobertura report configured in phpunit.xml. */
-        "apk add --no-cache $PHPIZE_DEPS && pecl install pcov && docker-php-ext-enable pcov",
+        /* pecl/apk fetch over the network, which is flaky on CI runners; retry
+         * a few times before giving up so a single transient download failure
+         * doesn't fail every php spec sharing this container. */
+        "for i in 1 2 3 4 5; do apk add --no-cache $PHPIZE_DEPS"
+            + " && pecl install pcov && docker-php-ext-enable pcov && break;"
+            + " echo \"pcov setup attempt $i failed; retrying\" >&2; sleep 3; done;"
+            + " php -m | grep -qi pcov || { echo 'pcov missing after retries' >&2; exit 1; }",
         "COMPOSER_PROCESS_TIMEOUT=600 composer install --no-interaction --prefer-dist");
   }
 
