@@ -23,15 +23,29 @@ namespace {{invokerPackage}};
  */
 final class PreciseDuration extends \DateInterval
 {
-    public int $y = 0;
-    public int $m = 0;
-    public int $d = 0;
-    public int $h = 0;
-    public int $i = 0;
-    public int $s = 0;
-    public float $f = 0.0;
-    public int $invert = 0;
-    public int|false $days = false;
+    /*
+     * \DateInterval's properties are declared without native types, so these
+     * overrides must stay untyped too (PHPStan property.extraNativeType is
+     * non-ignorable); the docblocks carry the types for static analysis.
+     */
+    /** @var int */
+    public $y = 0;
+    /** @var int */
+    public $m = 0;
+    /** @var int */
+    public $d = 0;
+    /** @var int */
+    public $h = 0;
+    /** @var int */
+    public $i = 0;
+    /** @var int */
+    public $s = 0;
+    /** @var float */
+    public $f = 0.0;
+    /** @var int */
+    public $invert = 0;
+    /** @var int|false */
+    public $days = false;
 
     /**
      * Deliberately bypasses \DateInterval::__construct(): the native
