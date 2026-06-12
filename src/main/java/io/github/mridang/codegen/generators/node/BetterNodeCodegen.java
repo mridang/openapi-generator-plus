@@ -673,28 +673,21 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
     }
 
     /**
-     * Computes the single request-parameters wrapper object for an operation
-     * and stamps it onto {@code op.vendorExtensions["op"]} for the api template.
+     * Computes the ordered list of an operation's parameters and stamps it onto
+     * {@code op.vendorExtensions["op"]} for the api template.
      *
-     * <p>The public SDK contract (and the upstream {@code useSingleRequestParameter}
-     * convention) is that every operation method takes one object argument whose
-     * keys are the operation's parameters, e.g.
-     * {@code addHumanUser({ userServiceAddHumanUserRequest })} rather than
-     * positional {@code addHumanUser(userServiceAddHumanUserRequest)}. This mirrors
-     * the structural ordering of {@code signatureArgs} (path params, then body,
-     * then the synthetic {@code options} object, then {@code server}) but renders
-     * it as the fields of one wrapper interface.
+     * <p>Each operation method takes flat positional parameters in the structural
+     * order of {@code signatureArgs} (path params, then body, then the synthetic
+     * {@code options} object, then {@code server}), e.g.
+     * {@code getExternalPetInfo(petId, server?)}. The api template renders that
+     * parameter list — and the delegating call — from the field list below.
      *
-     * <p>Populated keys (all under the {@code op} decorator namespace):
+     * <p>Populated key (under the {@code op} decorator namespace):
      * <ul>
      *   <li>{@code requestWrapperFields} — ordered list of maps, each with
-     *       {@code name}, {@code type}, {@code optional} (boolean) and
-     *       {@code -last} handled by Mustache, for rendering both the inline
-     *       object type and the destructure</li>
-     *   <li>{@code hasRequestWrapper} — true iff the operation has at least one
-     *       parameter (i.e. the wrapper has any field)</li>
-     *   <li>{@code requestWrapperRequired} — true iff at least one field is
-     *       required (the wrapper argument itself is then non-optional)</li>
+     *       {@code name}, {@code type}, {@code optional} (boolean), and the
+     *       Mustache-handled {@code -last}, used to render both the parameter
+     *       list and the delegating call</li>
      * </ul>
      */
     @SuppressWarnings("unchecked")
@@ -747,17 +740,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             fields.add(wrapperField("server", serverClassName, true));
         }
 
-        boolean anyRequired = false;
-        for (final Map<String, Object> f : fields) {
-            if (!Boolean.TRUE.equals(f.get("optional"))) {
-                anyRequired = true;
-                break;
-            }
-        }
-
         d.put("requestWrapperFields", fields);
-        d.put("hasRequestWrapper", !fields.isEmpty());
-        d.put("requestWrapperRequired", anyRequired);
     }
 
     private static String nullableType(String dataType, boolean isNullable) {
