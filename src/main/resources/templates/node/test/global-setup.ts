@@ -8,6 +8,29 @@ declare global {
   var __PROXY_NETWORK__: StartedNetwork | undefined;
 }
 
+// Under CI load Docker can be slow to publish a container's ports to the host,
+// and testcontainers' port-binding wait then times out (e.g. "Timed out after
+// 10000ms while waiting for container ports to be bound to the host"). Retry the
+// whole start a few times — a fresh attempt usually wins once the host quiesces.
+async function startWithRetry<T extends StartedTestContainer>(
+  label: string,
+  start: () => Promise<T>,
+  attempts = 4,
+): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await start();
+    } catch (err) {
+      lastErr = err;
+      // eslint-disable-next-line no-console
+      console.warn(`${label} container start attempt ${attempt}/${attempts} failed: ${String(err)}`);
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    }
+  }
+  throw lastErr;
+}
+
 export default async function globalSetup() {
   const hostAppPath = process.env.HOST_APP_PATH || process.cwd();
   const specPath = path.join(hostAppPath, 'test', 'fixtures', 'openapi.yaml');
@@ -18,36 +41,38 @@ export default async function globalSetup() {
   // via container alias, avoiding host.docker.internal DNS issues.
   const proxyNetwork = await new Network().start();
 
-  const chasm = await new GenericContainer('mridang/chasm:1.3.0')
-    .withExposedPorts(4010, 8443)
-    .withBindMounts([
-      { source: specPath, target: '/tmp/openapi.yaml', mode: 'ro' },
-      { source: chasmCertPath, target: '/certs/cert.pem', mode: 'ro' },
-      { source: chasmKeyPath, target: '/certs/key.pem', mode: 'ro' },
-    ])
-    .withCommand([
-      'mock', '/tmp/openapi.yaml',
-      '--host', '0.0.0.0',
-      '--tls-cert', '/certs/cert.pem',
-      '--tls-key', '/certs/key.pem',
-      '--tls-port', '8443',
-    ])
-    .withNetwork(proxyNetwork)
-    .withNetworkAliases('chasm')
-    .withWaitStrategy(Wait.forLogMessage('Listening on'))
-    .withStartupTimeout(120000)
-    .start();
+  const chasm = await startWithRetry('chasm', () =>
+    new GenericContainer('mridang/chasm:1.3.0')
+      .withExposedPorts(4010, 8443)
+      .withBindMounts([
+        { source: specPath, target: '/tmp/openapi.yaml', mode: 'ro' },
+        { source: chasmCertPath, target: '/certs/cert.pem', mode: 'ro' },
+        { source: chasmKeyPath, target: '/certs/key.pem', mode: 'ro' },
+      ])
+      .withCommand([
+        'mock', '/tmp/openapi.yaml',
+        '--host', '0.0.0.0',
+        '--tls-cert', '/certs/cert.pem',
+        '--tls-key', '/certs/key.pem',
+        '--tls-port', '8443',
+      ])
+      .withNetwork(proxyNetwork)
+      .withNetworkAliases('chasm')
+      .withWaitStrategy(Wait.forLogMessage('Listening on'))
+      .withStartupTimeout(120000)
+      .start());
 
   const squidConfPath = path.join(hostAppPath, 'test', 'fixtures', 'proxy', 'squid.conf');
 
-  const squid = await new GenericContainer('ubuntu/squid:5.2-22.04_beta')
-    .withExposedPorts(3128)
-    .withBindMounts([
-      { source: squidConfPath, target: '/etc/squid/squid.conf', mode: 'ro' },
-    ])
-    .withNetwork(proxyNetwork)
-    .withStartupTimeout(120000)
-    .start();
+  const squid = await startWithRetry('squid', () =>
+    new GenericContainer('ubuntu/squid:5.2-22.04_beta')
+      .withExposedPorts(3128)
+      .withBindMounts([
+        { source: squidConfPath, target: '/etc/squid/squid.conf', mode: 'ro' },
+      ])
+      .withNetwork(proxyNetwork)
+      .withStartupTimeout(120000)
+      .start());
 
   // Give Squid a moment to initialize
   await new Promise(resolve => setTimeout(resolve, 3000));

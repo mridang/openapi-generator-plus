@@ -36,7 +36,8 @@
   "dependencies": {
     "class-transformer": "^0.5",
     "reflect-metadata": "^0.2",
-    "temporal-polyfill": "^0.3"
+    "temporal-polyfill": "^0.3",
+    "undici": "^6"
   },
   "devDependencies": {
     "@opentelemetry/api": "^1.0.0",
