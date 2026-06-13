@@ -9,7 +9,22 @@ package com.example.petstore.models;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
-/** A treatment that can match a medication, a surgery, or both */
+/** A treatment that can match a medication, a surgery, or both. */
+@SuppressWarnings({
+  "checkstyle:SummaryJavadoc",
+  "checkstyle:JavadocParagraph",
+  "checkstyle:SingleLineJavadoc",
+  "checkstyle:RequireEmptyLineBeforeBlockTagGroup",
+  "checkstyle:NonEmptyAtclauseDescription",
+  "checkstyle:JavadocTagContinuationIndentation",
+  "checkstyle:AtclauseOrder",
+  "checkstyle:InvalidJavadocPosition",
+  "checkstyle:AbbreviationAsWordInName",
+  "checkstyle:MemberName",
+  "checkstyle:OverloadMethodsDeclarationOrder",
+  "checkstyle:VariableDeclarationUsageDistance",
+  "checkstyle:ConstructorsDeclarationGrouping"
+})
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
     using = PetTreatment.PetTreatmentDeserializer.class)
 public class PetTreatment {

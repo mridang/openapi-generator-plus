@@ -7,16 +7,12 @@ import {{invokerPackage}}.ApiException;
 import {{invokerPackage}}.ApiResult;
 import {{invokerPackage}}.Configuration;
 import {{invokerPackage}}.auth.Authenticator;
-{{#models.0}}
-import {{modelPackage}}.*;
-{{/models.0}}
 {{#imports}}import {{import}};
 {{/imports}}
 {{#optionsImports}}
 import {{package}}.options.{{optionsClassName}};
 {{/optionsImports}}
 import com.fasterxml.jackson.core.type.TypeReference;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +28,7 @@ import javax.annotation.Nullable;
  * @see <a href="{{url}}">{{{description}}}</a>
 {{/tagExternalDocs}}
  */
+{{>models/checkstyle_suppressions}}
 public class {{classname}} extends BaseApi {
 {{#operation}}
 {{#returnType}}

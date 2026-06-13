@@ -7,7 +7,10 @@
 
 package com.example.petstore.api;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +24,21 @@ import org.junit.jupiter.api.Test;
  * <p>These tests verify that the Accept header is built by joining the acceptable media types in
  * their original declaration order, with no quality weights and no reordering.
  */
+@SuppressWarnings({
+  "checkstyle:SummaryJavadoc",
+  "checkstyle:JavadocParagraph",
+  "checkstyle:SingleLineJavadoc",
+  "checkstyle:RequireEmptyLineBeforeBlockTagGroup",
+  "checkstyle:NonEmptyAtclauseDescription",
+  "checkstyle:JavadocTagContinuationIndentation",
+  "checkstyle:AtclauseOrder",
+  "checkstyle:InvalidJavadocPosition",
+  "checkstyle:AbbreviationAsWordInName",
+  "checkstyle:MemberName",
+  "checkstyle:OverloadMethodsDeclarationOrder",
+  "checkstyle:VariableDeclarationUsageDistance",
+  "checkstyle:ConstructorsDeclarationGrouping"
+})
 class HeaderSelectorTest {
 
   private HeaderSelector headerSelector;

@@ -23,6 +23,21 @@ import javax.annotation.Nullable;
  * {@link ApiClient} with the same transport configuration (proxy, TLS, timeouts) as regular API
  * calls.
  */
+@SuppressWarnings({
+  "checkstyle:SummaryJavadoc",
+  "checkstyle:JavadocParagraph",
+  "checkstyle:SingleLineJavadoc",
+  "checkstyle:RequireEmptyLineBeforeBlockTagGroup",
+  "checkstyle:NonEmptyAtclauseDescription",
+  "checkstyle:JavadocTagContinuationIndentation",
+  "checkstyle:AtclauseOrder",
+  "checkstyle:InvalidJavadocPosition",
+  "checkstyle:AbbreviationAsWordInName",
+  "checkstyle:MemberName",
+  "checkstyle:OverloadMethodsDeclarationOrder",
+  "checkstyle:VariableDeclarationUsageDistance",
+  "checkstyle:ConstructorsDeclarationGrouping"
+})
 public class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
 
   private final String host;

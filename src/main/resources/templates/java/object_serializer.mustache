@@ -2,7 +2,6 @@
 
 package {{invokerPackage}};
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
@@ -43,7 +42,6 @@ import javax.annotation.Nullable;
  * The parameter encoding methods provide consistent value conversion for
  * URL path, query string, header, and form parameters.</p>
  */
-@SuppressFBWarnings("EI_EXPOSE_REP2")
 public final class ObjectSerializer {
 
     private final ObjectMapper objectMapper;

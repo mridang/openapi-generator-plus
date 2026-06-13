@@ -96,9 +96,6 @@ public final class Configuration {
      *
      * @return an unmodifiable map of header names to values
      */
-    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
-        value = "EI_EXPOSE_REP",
-        justification = "defaultHeaders is already an unmodifiable map")
     public Map<String, String> getDefaultHeaders() {
         return defaultHeaders;
     }

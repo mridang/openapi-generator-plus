@@ -7,7 +7,6 @@
 
 package com.example.petstore.api;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Map;
 
 /**
@@ -28,7 +27,6 @@ final class TraceContextUtil {
    *
    * @param headers mutable map of request headers
    */
-  @SuppressFBWarnings("DE_MIGHT_IGNORE")
   public static void injectTraceContext(Map<String, String> headers) {
     try {
       io.opentelemetry.api.GlobalOpenTelemetry.getPropagators()

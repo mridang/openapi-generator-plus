@@ -26,7 +26,6 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.util.StdDateFormat;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -44,7 +43,6 @@ import javax.annotation.Nullable;
  * methods provide consistent value conversion for URL path, query string, header, and form
  * parameters.
  */
-@SuppressFBWarnings("EI_EXPOSE_REP2")
 public final class ObjectSerializer {
 
   private final ObjectMapper objectMapper;

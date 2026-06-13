@@ -185,10 +185,15 @@
                 <artifactId>maven-checkstyle-plugin</artifactId>
                 <version>${checkstyle-plugin-version}</version>
                 <configuration>
-                    <configLocation>${project.basedir}/checkstyle.xml</configLocation>
+                    <!-- Industry-default ruleset bundled with checkstyle; no
+                         custom/relaxed config. Findings inherent to generated
+                         code are silenced per-file via class-level
+                         @SuppressWarnings("checkstyle:...") honoured by
+                         google_checks' SuppressWarningsFilter. -->
+                    <configLocation>/google_checks.xml</configLocation>
                     <consoleOutput>true</consoleOutput>
                     <includeTestSourceDirectory>true</includeTestSourceDirectory>
-                    <failsOnError>false</failsOnError>
+                    <failsOnError>true</failsOnError>
                     <violationSeverity>warning</violationSeverity>
                 </configuration>
                 <dependencies>
@@ -204,9 +209,13 @@
                 <artifactId>spotbugs-maven-plugin</artifactId>
                 <version>${spotbugs-plugin-version}</version>
                 <configuration>
+                    <!-- Default SpotBugs: no custom exclude filter; the whole
+                         SDK is analyzed. Findings inherent to generated code
+                         are silenced per-file via class-level
+                         @SuppressFBWarnings(... justification = "generated
+                         code"). -->
                     <effort>Default</effort>
                     <threshold>Low</threshold>
-                    <excludeFilterFile>${project.basedir}/spotbugs.xml</excludeFilterFile>
                 </configuration>
             </plugin>
             <plugin>

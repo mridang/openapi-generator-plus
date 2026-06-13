@@ -1,11 +1,9 @@
 package com.example.petstore.api.options;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.InputStream;
 import javax.annotation.Nullable;
 
 /** Options for the uploadPetDocument operation. */
-@SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
 public final class UploadPetDocumentOptions {
   private final InputStream file;
   @Nullable private String documentType;

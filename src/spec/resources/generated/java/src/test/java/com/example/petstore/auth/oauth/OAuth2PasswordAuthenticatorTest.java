@@ -7,7 +7,9 @@
 
 package com.example.petstore.auth.oauth;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.ApiClient;
 import com.example.petstore.ApiHttpResponse;
@@ -16,6 +18,21 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings({
+  "checkstyle:SummaryJavadoc",
+  "checkstyle:JavadocParagraph",
+  "checkstyle:SingleLineJavadoc",
+  "checkstyle:RequireEmptyLineBeforeBlockTagGroup",
+  "checkstyle:NonEmptyAtclauseDescription",
+  "checkstyle:JavadocTagContinuationIndentation",
+  "checkstyle:AtclauseOrder",
+  "checkstyle:InvalidJavadocPosition",
+  "checkstyle:AbbreviationAsWordInName",
+  "checkstyle:MemberName",
+  "checkstyle:OverloadMethodsDeclarationOrder",
+  "checkstyle:VariableDeclarationUsageDistance",
+  "checkstyle:ConstructorsDeclarationGrouping"
+})
 class OAuth2PasswordAuthenticatorTest {
 
   private static OAuth2PasswordAuthenticator createAuthenticator() {

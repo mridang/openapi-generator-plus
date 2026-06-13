@@ -2,15 +2,35 @@
 
 package {{invokerPackage}};
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import {{invokerPackage}}.auth.Authenticator;
-import {{invokerPackage}}.errors.*;
+import {{invokerPackage}}.errors.BadRequestException;
+import {{invokerPackage}}.errors.ClientException;
+import {{invokerPackage}}.errors.ConflictException;
+import {{invokerPackage}}.errors.ForbiddenException;
+import {{invokerPackage}}.errors.InternalServerErrorException;
+import {{invokerPackage}}.errors.NotFoundException;
+import {{invokerPackage}}.errors.ServerException;
+import {{invokerPackage}}.errors.UnauthorizedException;
+import {{invokerPackage}}.errors.UnprocessableEntityException;
 import {{apiPackage}}.PetApi;
 import {{apiPackage}}.options.FindPetsByStatusOptions;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
-import java.util.*;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.junit.jupiter.api.DisplayName;
@@ -23,6 +43,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+{{>models/checkstyle_suppressions}}
 class BaseApiTest {
 
     private static final java.lang.reflect.Type JSON_NODE_TYPE =

@@ -1,11 +1,9 @@
 package com.example.petstore.api.options;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.List;
 import javax.annotation.Nullable;
 
 /** Options for the setPetPreferences operation. */
-@SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
 public final class SetPetPreferencesOptions {
   private final String nickname;
   @Nullable private List<String> tags;
@@ -36,7 +34,7 @@ public final class SetPetPreferencesOptions {
    * @return this options instance for chaining
    */
   public SetPetPreferencesOptions tags(List<String> tags) {
-    this.tags = tags;
+    this.tags = tags == null ? null : java.util.List.copyOf(tags);
     return this;
   }
 

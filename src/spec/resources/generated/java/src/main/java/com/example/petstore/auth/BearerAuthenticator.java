@@ -50,12 +50,6 @@ public final class BearerAuthenticator extends BaseAuthenticator {
   }
 
   @Override
-  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
-      value = "IMPROPER_UNICODE",
-      justification =
-          "Case-insensitive comparison of the ASCII \"Bearer \" auth-scheme"
-              + " prefix, not a user identity string; Unicode case-folding"
-              + " does not apply.")
   public Map<String, String> getAuthHeaders() {
     /* Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
      * from env files are commonly stored already-prefixed; emitting

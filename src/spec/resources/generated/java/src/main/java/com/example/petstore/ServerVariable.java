@@ -7,7 +7,6 @@
 
 package com.example.petstore;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nullable;
@@ -22,7 +21,6 @@ import javax.annotation.Nullable;
  *
  * @see ServerConfiguration
  */
-@SuppressFBWarnings("EI_EXPOSE_REP")
 public final class ServerVariable {
 
   private final String defaultValue;

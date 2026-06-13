@@ -237,12 +237,6 @@ public final class TransportOptions {
      * @return this builder
      * @throws IllegalArgumentException if the proxy URL is not a valid URI
      */
-    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
-        value = "IMPROPER_UNICODE",
-        justification =
-            "Case-insensitive comparison of ASCII URI scheme tokens"
-                + " (http/https), not user identity strings; Unicode"
-                + " case-folding does not apply.")
     public Builder proxy(@Nullable String proxy) {
       if (proxy != null) {
         java.net.URI uri;

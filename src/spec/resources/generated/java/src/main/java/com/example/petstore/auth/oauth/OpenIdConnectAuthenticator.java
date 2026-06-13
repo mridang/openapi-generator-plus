@@ -32,6 +32,24 @@ import javax.annotation.Nullable;
  * token exchange requests use the shared {@link ApiClient} with the same transport configuration
  * (proxy, TLS, timeouts) as regular API calls.
  */
+@SuppressWarnings({
+  "checkstyle:SummaryJavadoc",
+  "checkstyle:JavadocParagraph",
+  "checkstyle:SingleLineJavadoc",
+  "checkstyle:RequireEmptyLineBeforeBlockTagGroup",
+  "checkstyle:NonEmptyAtclauseDescription",
+  "checkstyle:JavadocTagContinuationIndentation",
+  "checkstyle:AtclauseOrder",
+  "checkstyle:InvalidJavadocPosition",
+  "checkstyle:AbbreviationAsWordInName",
+  "checkstyle:MemberName",
+  "checkstyle:OverloadMethodsDeclarationOrder",
+  "checkstyle:VariableDeclarationUsageDistance",
+  "checkstyle:ConstructorsDeclarationGrouping"
+})
+@edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+    value = {"THROWS_METHOD_THROWS_RUNTIMEEXCEPTION"},
+    justification = "generated code")
 public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
 
   private static final Pattern MAX_AGE_PATTERN =

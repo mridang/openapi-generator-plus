@@ -9,7 +9,10 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Unit tests for HeaderSelector.
@@ -17,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * These tests verify that the Accept header is built by joining the acceptable media types in
  * their original declaration order, with no quality weights and no reordering.
  */
+{{>models/checkstyle_suppressions}}
 class HeaderSelectorTest {
 
     private HeaderSelector headerSelector;

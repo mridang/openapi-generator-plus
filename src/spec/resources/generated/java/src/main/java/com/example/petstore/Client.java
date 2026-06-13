@@ -36,7 +36,9 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * Client client = new Client(authenticator, transport);
  * }</pre>
  */
-@SuppressFBWarnings("URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
+@SuppressFBWarnings(
+    value = {"URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"},
+    justification = "generated code")
 public final class Client {
 
   /** API operations for the PetApi group. */

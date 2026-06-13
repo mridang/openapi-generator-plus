@@ -114,13 +114,6 @@ public abstract class BaseApi {
    * @return ApiResult containing deserialized data, status code, raw body, and headers
    * @throws ApiException if the API call fails
    */
-  @SuppressWarnings("unchecked")
-  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
-      value = "IMPROPER_UNICODE",
-      justification =
-          "Case-insensitive comparison of ASCII HTTP header/media-type tokens,"
-              + " not user identity strings; Unicode case-folding does not"
-              + " apply.")
   protected <T> ApiResult<T> invokeApiForResult(
       String method,
       String path,
@@ -432,11 +425,6 @@ public abstract class BaseApi {
    * @param contentType the response Content-Type header value (possibly empty)
    * @return true when the body was kept as decoded text by the transport
    */
-  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
-      value = "IMPROPER_UNICODE",
-      justification =
-          "Case folding of ASCII media-type tokens for content sniffing, not"
-              + " user identity strings; Unicode case-folding does not apply.")
   private static boolean isTextResponseContentType(String contentType) {
     if (contentType == null || contentType.isEmpty()) {
       return true;

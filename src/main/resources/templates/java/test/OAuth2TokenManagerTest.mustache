@@ -2,7 +2,9 @@
 
 package {{invokerPackage}}.auth.oauth;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import {{invokerPackage}}.ApiClient;
 import {{invokerPackage}}.ApiHttpResponse;
@@ -13,6 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 import org.junit.jupiter.api.Test;
 
+{{>models/checkstyle_suppressions}}
 class OAuth2TokenManagerTest {
 
     private ApiClient fakeClient(String responseBody) {
@@ -273,7 +276,8 @@ class OAuth2TokenManagerTest {
             if (responses.call == 1) {
                 // Seed with refresh_token "old_refresh" and a short-lived access token.
                 return new ApiHttpResponse(200,
-                        "{\"access_token\":\"old_access\",\"refresh_token\":\"old_refresh\",\"expires_in\":1}",
+                        "{\"access_token\":\"old_access\","
+                                + "\"refresh_token\":\"old_refresh\",\"expires_in\":1}",
                         Map.of());
             }
             // Refresh response: empty refresh_token MUST NOT clobber the cached one.

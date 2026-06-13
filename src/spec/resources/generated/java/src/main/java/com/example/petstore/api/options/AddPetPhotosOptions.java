@@ -1,12 +1,10 @@
 package com.example.petstore.api.options;
 
 import com.example.petstore.models.PhotoMetadata;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.InputStream;
 import java.util.List;
 
 /** Options for the addPetPhotos operation. */
-@SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
 public final class AddPetPhotosOptions {
   private final List<InputStream> files;
   private final PhotoMetadata metadata;
@@ -18,7 +16,7 @@ public final class AddPetPhotosOptions {
    * @param metadata the {@code metadata} parameter
    */
   public AddPetPhotosOptions(List<InputStream> files, PhotoMetadata metadata) {
-    this.files = files;
+    this.files = java.util.List.copyOf(files);
     this.metadata = metadata;
   }
 

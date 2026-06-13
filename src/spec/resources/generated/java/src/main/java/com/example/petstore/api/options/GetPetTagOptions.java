@@ -1,11 +1,9 @@
 package com.example.petstore.api.options;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.List;
 import javax.annotation.Nullable;
 
 /** Options for the getPetTag operation. */
-@SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
 public final class GetPetTagOptions {
   @Nullable private List<String> colors;
   @Nullable private List<String> sizes;
@@ -21,7 +19,7 @@ public final class GetPetTagOptions {
    * @return this options instance for chaining
    */
   public GetPetTagOptions colors(List<String> colors) {
-    this.colors = colors;
+    this.colors = colors == null ? null : java.util.List.copyOf(colors);
     return this;
   }
 
@@ -42,7 +40,7 @@ public final class GetPetTagOptions {
    * @return this options instance for chaining
    */
   public GetPetTagOptions sizes(List<String> sizes) {
-    this.sizes = sizes;
+    this.sizes = sizes == null ? null : java.util.List.copyOf(sizes);
     return this;
   }
 

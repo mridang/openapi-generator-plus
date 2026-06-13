@@ -1,9 +1,7 @@
 package com.example.petstore.api.options;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /** Options for the getPetByName operation. */
-@SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
 public final class GetPetByNameOptions {
   private final String category;
 

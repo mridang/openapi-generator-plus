@@ -5,7 +5,6 @@ package {{modelPackage}};
 {{#imports}}
 import {{import}};
 {{/imports}}
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nullable;
 
 {{#models}}
@@ -17,6 +16,7 @@ import javax.annotation.Nullable;
 {{^description}}
 /** {{classname}}. */
 {{/description}}
+{{>models/checkstyle_suppressions}}
 public enum {{classname}} {
   {{#allowableValues}}
   {{#enumVars}}
@@ -102,6 +102,7 @@ public enum {{classname}} {
 {{/description}}
 {{/isDeprecated}}
 {{#discriminator}}
+{{>models/checkstyle_suppressions}}
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
     include = JsonTypeInfo.As.EXISTING_PROPERTY,
@@ -119,6 +120,7 @@ public abstract class {{classname}} {
 }
 {{/discriminator}}
 {{^discriminator}}
+{{>models/checkstyle_suppressions}}
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
     using = {{classname}}.{{classname}}Deserializer.class)
 public class {{classname}} {
@@ -229,6 +231,7 @@ public class {{classname}} {
 {{/externalDocumentation}}
 {{/description}}
 {{/isDeprecated}}
+{{>models/checkstyle_suppressions}}
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
     using = {{classname}}.{{classname}}Deserializer.class)
 public class {{classname}} {
@@ -337,7 +340,7 @@ public class {{classname}} {
 {{/externalDocumentation}}
 {{/description}}
 {{/isDeprecated}}
-@SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2", "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"})
+{{>models/checkstyle_suppressions}}
 public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{#vars}}
 {{#isEnum}}
@@ -482,7 +485,9 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
    */
   @com.fasterxml.jackson.annotation.JsonAnyGetter
   public java.util.Map<String, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}}> getAdditionalProperties() {
-    return this.additionalProperties;
+    /* Unmodifiable view so callers cannot mutate internal state through the
+     * accessor (SpotBugs EI_EXPOSE_REP-clean without a suppression). */
+    return java.util.Collections.unmodifiableMap(this.additionalProperties);
   }
 {{/isAdditionalPropertiesTrue}}
 {{#isUnevaluatedPropertiesFalse}}

@@ -2,13 +2,18 @@
 
 package {{invokerPackage}};
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import {{invokerPackage}}.auth.ApiKeyAuthenticator;
 import {{invokerPackage}}.auth.ApiKeyLocation;
 import {{invokerPackage}}.auth.BearerAuthenticator;
 import org.junit.jupiter.api.Test;
 
+{{>models/checkstyle_suppressions}}
 class ClientTest {
 
     private final BearerAuthenticator authenticator =

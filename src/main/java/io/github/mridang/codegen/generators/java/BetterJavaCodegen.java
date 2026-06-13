@@ -280,8 +280,6 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("makefile.mustache", "", "Makefile"),
             new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
             new SupportingFileSpec("gitignore.mustache", "", ".gitignore"),
-            new SupportingFileSpec("checkstyle_xml.mustache", "", "checkstyle.xml"),
-            new SupportingFileSpec("spotbugs_xml.mustache", "", "spotbugs.xml"),
             new SupportingFileSpec(
                 "junit_platform_properties.mustache",
                 "src/test/resources",
@@ -635,7 +633,35 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                 }
             }
         }
+        // The model description is rendered as the type's header Javadoc, whose
+        // summary sentence must end with a period under google_checks
+        // (SummaryJavadoc). That Javadoc sits above the class-level
+        // @SuppressWarnings, so the suppression cannot cover it; normalize the
+        // spec-supplied text to be compliant instead.
+        model.description = endWithPeriod(model.description);
         return model;
+    }
+
+    /**
+     * Appends a trailing period to a Javadoc summary string when it does not
+     * already end with sentence-ending punctuation, so generated header Javadoc
+     * satisfies google_checks {@code SummaryJavadoc}. Returns the input
+     * unchanged when it is {@code null} or blank.
+     */
+    @Nullable
+    private static String endWithPeriod(@Nullable String text) {
+        if (text == null) {
+            return null;
+        }
+        final String trimmed = text.stripTrailing();
+        if (trimmed.isEmpty()) {
+            return text;
+        }
+        final char last = trimmed.charAt(trimmed.length() - 1);
+        if (last == '.' || last == '!' || last == '?') {
+            return text;
+        }
+        return trimmed + ".";
     }
 
     /**
@@ -817,6 +843,18 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             param.put("baseName", p.baseName);
             param.put("dataType", p.dataType);
             param.put("required", p.required);
+            // Array/map params are stored and returned by reference, so SpotBugs
+            // flags EI_EXPOSE_REP/EI_EXPOSE_REP2 on the generated accessor and
+            // constructor. Rather than suppress (a class-level @SuppressFBWarnings
+            // for a member-level bug is itself reported as US_USELESS_SUPPRESSION
+            // under default SpotBugs), the template defensively copies the
+            // collection into an immutable view, which SpotBugs recognizes as
+            // exposure-safe — no suppression and no config relaxation needed.
+            final String copyFactory = collectionCopyFactory(p);
+            param.put("isMutableCollection", copyFactory != null);
+            if (copyFactory != null) {
+                param.put("copyFactory", copyFactory);
+            }
             params.add(param);
             if (p.required) {
                 requiredParams.add(param);
@@ -856,6 +894,28 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         injectAuthFieldContext(op, context);
         context.put("authImport", invokerPackage + ".auth." + getAuthenticatorTypeName());
         return renderOptionsTemplate("api/options.mustache", context);
+    }
+
+    /**
+     * Returns the immutable-copy factory ({@code List.copyOf}, {@code Set.copyOf},
+     * or {@code Map.copyOf}) for a collection-typed options parameter, or
+     * {@code null} when the parameter is not a stored-by-reference collection.
+     *
+     * <p>Used by {@code api/options.mustache} to emit defensive copies so the
+     * generated Options classes do not trip SpotBugs EI_EXPOSE_REP/EI_EXPOSE_REP2
+     * under the default (no custom exclude filter) analysis.
+     */
+    @Nullable
+    private static String collectionCopyFactory(CodegenParameter p) {
+        if (p.isMap) {
+            return "java.util.Map";
+        }
+        if (p.isArray) {
+            return (p.dataType != null && p.dataType.startsWith("Set"))
+                    ? "java.util.Set"
+                    : "java.util.List";
+        }
+        return null;
     }
 
     /** {@inheritDoc} */

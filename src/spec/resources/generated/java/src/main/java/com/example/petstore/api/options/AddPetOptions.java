@@ -1,11 +1,9 @@
 package com.example.petstore.api.options;
 
 import com.example.petstore.auth.Authenticator;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nullable;
 
 /** Options for the addPet operation. */
-@SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
 public final class AddPetOptions {
   @Nullable private Authenticator auth;
 

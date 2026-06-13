@@ -7,7 +7,9 @@
 
 package com.example.petstore.auth.oauth;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.ApiClient;
 import com.example.petstore.ApiHttpResponse;
@@ -18,6 +20,21 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings({
+  "checkstyle:SummaryJavadoc",
+  "checkstyle:JavadocParagraph",
+  "checkstyle:SingleLineJavadoc",
+  "checkstyle:RequireEmptyLineBeforeBlockTagGroup",
+  "checkstyle:NonEmptyAtclauseDescription",
+  "checkstyle:JavadocTagContinuationIndentation",
+  "checkstyle:AtclauseOrder",
+  "checkstyle:InvalidJavadocPosition",
+  "checkstyle:AbbreviationAsWordInName",
+  "checkstyle:MemberName",
+  "checkstyle:OverloadMethodsDeclarationOrder",
+  "checkstyle:VariableDeclarationUsageDistance",
+  "checkstyle:ConstructorsDeclarationGrouping"
+})
 class OAuth2TokenManagerTest {
 
   private ApiClient fakeClient(String responseBody) {
@@ -295,7 +312,8 @@ class OAuth2TokenManagerTest {
             // Seed with refresh_token "old_refresh" and a short-lived access token.
             return new ApiHttpResponse(
                 200,
-                "{\"access_token\":\"old_access\",\"refresh_token\":\"old_refresh\",\"expires_in\":1}",
+                "{\"access_token\":\"old_access\","
+                    + "\"refresh_token\":\"old_refresh\",\"expires_in\":1}",
                 Map.of());
           }
           // Refresh response: empty refresh_token MUST NOT clobber the cached one.

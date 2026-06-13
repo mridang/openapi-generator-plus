@@ -28,6 +28,10 @@ import javax.annotation.Nullable;
  * {@link ApiClient} with the same transport configuration (proxy, TLS,
  * timeouts) as regular API calls.
  */
+{{>models/checkstyle_suppressions}}
+@edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+        value = {"THROWS_METHOD_THROWS_RUNTIMEEXCEPTION"},
+        justification = "generated code")
 public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
 
     private static final Pattern MAX_AGE_PATTERN =

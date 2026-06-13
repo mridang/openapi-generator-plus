@@ -7,7 +7,13 @@
 
 package com.example.petstore;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -19,8 +25,25 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
+@SuppressWarnings({
+  "checkstyle:SummaryJavadoc",
+  "checkstyle:JavadocParagraph",
+  "checkstyle:SingleLineJavadoc",
+  "checkstyle:RequireEmptyLineBeforeBlockTagGroup",
+  "checkstyle:NonEmptyAtclauseDescription",
+  "checkstyle:JavadocTagContinuationIndentation",
+  "checkstyle:AtclauseOrder",
+  "checkstyle:InvalidJavadocPosition",
+  "checkstyle:AbbreviationAsWordInName",
+  "checkstyle:MemberName",
+  "checkstyle:OverloadMethodsDeclarationOrder",
+  "checkstyle:VariableDeclarationUsageDistance",
+  "checkstyle:ConstructorsDeclarationGrouping"
+})
 class DefaultApiClientUnitTest {
 
   private static HttpServer server;
@@ -71,7 +94,9 @@ class DefaultApiClientUnitTest {
           StringBuilder json = new StringBuilder("{");
           boolean first = true;
           for (Map.Entry<String, List<String>> entry : exchange.getRequestHeaders().entrySet()) {
-            if (!first) json.append(",");
+            if (!first) {
+              json.append(",");
+            }
             first = false;
             String key = entry.getKey().toLowerCase(java.util.Locale.ROOT);
             String value = String.join(", ", entry.getValue()).replace("\"", "\\\"");

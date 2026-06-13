@@ -7,12 +7,10 @@
 
 package com.example.petstore;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Map;
 import javax.annotation.Nullable;
 
 /** Exception thrown when an API call fails. */
-@SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
 public class ApiException extends ZitadelException {
   private static final long serialVersionUID = 1L;
 
@@ -90,7 +88,9 @@ public class ApiException extends ZitadelException {
       @Nullable Object errorBody) {
     super(message);
     this.statusCode = statusCode;
-    this.responseHeaders = responseHeaders;
+    /* Defensive immutable copy so the stored headers cannot be mutated by
+     * the caller after construction (SpotBugs EI_EXPOSE_REP2-clean). */
+    this.responseHeaders = responseHeaders == null ? null : Map.copyOf(responseHeaders);
     this.responseBody = responseBody;
     this.errorBody = errorBody;
   }

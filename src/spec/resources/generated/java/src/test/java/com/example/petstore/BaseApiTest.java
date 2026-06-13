@@ -7,16 +7,33 @@
 
 package com.example.petstore;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.api.PetApi;
 import com.example.petstore.api.options.FindPetsByStatusOptions;
 import com.example.petstore.auth.Authenticator;
-import com.example.petstore.errors.*;
+import com.example.petstore.errors.BadRequestException;
+import com.example.petstore.errors.ClientException;
+import com.example.petstore.errors.ConflictException;
+import com.example.petstore.errors.ForbiddenException;
+import com.example.petstore.errors.InternalServerErrorException;
+import com.example.petstore.errors.NotFoundException;
+import com.example.petstore.errors.ServerException;
+import com.example.petstore.errors.UnauthorizedException;
+import com.example.petstore.errors.UnprocessableEntityException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.junit.jupiter.api.Disabled;
@@ -27,6 +44,21 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+@SuppressWarnings({
+  "checkstyle:SummaryJavadoc",
+  "checkstyle:JavadocParagraph",
+  "checkstyle:SingleLineJavadoc",
+  "checkstyle:RequireEmptyLineBeforeBlockTagGroup",
+  "checkstyle:NonEmptyAtclauseDescription",
+  "checkstyle:JavadocTagContinuationIndentation",
+  "checkstyle:AtclauseOrder",
+  "checkstyle:InvalidJavadocPosition",
+  "checkstyle:AbbreviationAsWordInName",
+  "checkstyle:MemberName",
+  "checkstyle:OverloadMethodsDeclarationOrder",
+  "checkstyle:VariableDeclarationUsageDistance",
+  "checkstyle:ConstructorsDeclarationGrouping"
+})
 class BaseApiTest {
 
   private static final java.lang.reflect.Type JSON_NODE_TYPE =

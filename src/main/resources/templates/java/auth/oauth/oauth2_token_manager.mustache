@@ -25,6 +25,10 @@ import javax.annotation.Nullable;
  * honour the same transport configuration (proxy, TLS, timeouts) as regular
  * API calls.
  */
+{{>models/checkstyle_suppressions}}
+@edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+        value = {"THROWS_METHOD_THROWS_RUNTIMEEXCEPTION"},
+        justification = "generated code")
 public class OAuth2TokenManager {
 
     /**

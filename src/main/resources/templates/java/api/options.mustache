@@ -13,13 +13,11 @@ import {{modelPackage}}.{{{.}}};
 {{#hasAuthField}}
 import {{authImport}};
 {{/hasAuthField}}
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nullable;
 
 /**
  * Options for the {{operationId}} operation.
  */
-@SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
 public final class {{className}} {
 {{#params}}
 {{#required}}
@@ -42,7 +40,12 @@ public final class {{className}} {
      */
     public {{className}}({{#requiredParams}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/requiredParams}}) {
 {{#requiredParams}}
+{{#isMutableCollection}}
+        this.{{paramName}} = {{copyFactory}}.copyOf({{paramName}});
+{{/isMutableCollection}}
+{{^isMutableCollection}}
         this.{{paramName}} = {{paramName}};
+{{/isMutableCollection}}
 {{/requiredParams}}
     }
 {{#params}}
@@ -55,7 +58,12 @@ public final class {{className}} {
      * @return this options instance for chaining
      */
     public {{className}} {{paramName}}({{{dataType}}} {{paramName}}) {
+{{#isMutableCollection}}
+        this.{{paramName}} = {{paramName}} == null ? null : {{copyFactory}}.copyOf({{paramName}});
+{{/isMutableCollection}}
+{{^isMutableCollection}}
         this.{{paramName}} = {{paramName}};
+{{/isMutableCollection}}
         return this;
     }
 

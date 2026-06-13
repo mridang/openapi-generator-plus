@@ -1,11 +1,9 @@
 package com.example.petstore.api.options;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Map;
 import javax.annotation.Nullable;
 
 /** Options for the findPetsByStatus operation. */
-@SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
 public final class FindPetsByStatusOptions {
   @Nullable private String status;
   @Nullable private Map<String, String> filter;
@@ -41,7 +39,7 @@ public final class FindPetsByStatusOptions {
    * @return this options instance for chaining
    */
   public FindPetsByStatusOptions filter(Map<String, String> filter) {
-    this.filter = filter;
+    this.filter = filter == null ? null : java.util.Map.copyOf(filter);
     return this;
   }
 

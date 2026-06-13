@@ -11,6 +11,21 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.List;
 
 /** SetPetAvatarThumbnailRequest. */
+@SuppressWarnings({
+  "checkstyle:SummaryJavadoc",
+  "checkstyle:JavadocParagraph",
+  "checkstyle:SingleLineJavadoc",
+  "checkstyle:RequireEmptyLineBeforeBlockTagGroup",
+  "checkstyle:NonEmptyAtclauseDescription",
+  "checkstyle:JavadocTagContinuationIndentation",
+  "checkstyle:AtclauseOrder",
+  "checkstyle:InvalidJavadocPosition",
+  "checkstyle:AbbreviationAsWordInName",
+  "checkstyle:MemberName",
+  "checkstyle:OverloadMethodsDeclarationOrder",
+  "checkstyle:VariableDeclarationUsageDistance",
+  "checkstyle:ConstructorsDeclarationGrouping"
+})
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
     using = SetPetAvatarThumbnailRequest.SetPetAvatarThumbnailRequestDeserializer.class)
 public class SetPetAvatarThumbnailRequest {

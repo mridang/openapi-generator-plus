@@ -36,7 +36,9 @@ import {{invokerPackage}}.auth.HttpAwareAuthenticator;
  * {{clientClassName}} client = new {{clientClassName}}(authenticator, transport);
  * }</pre>
  */
-@SuppressFBWarnings("URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
+@SuppressFBWarnings(
+    value = {"URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"},
+    justification = "generated code")
 public final class {{clientClassName}} {
 
 {{#apiInfo}}
