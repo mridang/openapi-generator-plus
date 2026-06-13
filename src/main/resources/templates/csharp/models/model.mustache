@@ -2,6 +2,9 @@
 
 {{#models}}
 {{#model}}
+{{#referencesDeprecated}}
+#pragma warning disable CS0618 // generated code must reference [Obsolete] spec members
+{{/referencesDeprecated}}
 {{#isEnum}}
 using System.Text.Json.Serialization;
 

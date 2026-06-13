@@ -7,20 +7,6 @@
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <OutputType>Exe</OutputType>
-    <!--
-      Relaxed for the test project only (the production SDK keeps every rule at
-      error): CA1707 because test methods use snake_case names deliberately for
-      readability, and CA1861 because the "hoist constant arrays to static
-      readonly" perf rule is noise in one-shot test setup code.
-      xUnit1004: some [Fact(Skip = ...)] tests are skipped on purpose (external
-      host not reachable, zstd unsupported by HttpClient) — the skip is the
-      intended behavior, not an oversight.
-      xUnit2032: Assert.IsType(Type, object) overload is used deliberately to
-      assert against a runtime Type value computed by the test.
-      CS0618: tests intentionally exercise deprecated (spec-[Obsolete]) APIs to
-      prove the generated deprecated surface still works.
-    -->
-    <NoWarn>$(NoWarn);CA1707;CA1861;xUnit1004;xUnit2032;CS0618</NoWarn>
     <CollectCoverage>false</CollectCoverage>
     <CoverletOutputFormat>cobertura</CoverletOutputFormat>
     <CoverletOutput>.out/</CoverletOutput>
