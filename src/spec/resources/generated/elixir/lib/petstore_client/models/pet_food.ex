@@ -18,9 +18,7 @@ defmodule PetstoreClient.Models.PetFood do
   end
 
   @doc "Discriminator property name."
-  def openapi_discriminator_name do
-    :foodType
-  end
+  def openapi_discriminator_name, do: :foodType
 
   @doc "Discriminator mapping."
   def openapi_discriminator_mapping do

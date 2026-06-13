@@ -1,3 +1,8 @@
+# credo:disable-for-this-file
+# Credo findings here are inherent to generated code (fully-qualified
+# nested-module references and machine-generated control flow); the SDK
+# uses Credo's default config and handles them with this file-level
+# directive rather than relaxing the ruleset.
 defmodule PetstoreClient.Api.BaseApiTest do
   use ExUnit.Case, async: true
 
@@ -7,24 +12,16 @@ defmodule PetstoreClient.Api.BaseApiTest do
     defstruct [:host_url, :headers, :query, :cookies]
 
     @impl true
-    def host(%__MODULE__{} = self) do
-      self.host_url
-    end
+    def host(%__MODULE__{} = self), do: self.host_url
 
     @impl true
-    def auth_headers(%__MODULE__{} = self) do
-      self.headers || %{}
-    end
+    def auth_headers(%__MODULE__{} = self), do: self.headers || %{}
 
     @impl true
-    def query_params(%__MODULE__{} = self) do
-      self.query || %{}
-    end
+    def query_params(%__MODULE__{} = self), do: self.query || %{}
 
     @impl true
-    def cookie_params(%__MODULE__{} = self) do
-      self.cookies || %{}
-    end
+    def cookie_params(%__MODULE__{} = self), do: self.cookies || %{}
   end
 
   setup do
@@ -407,7 +404,12 @@ defmodule PetstoreClient.Api.BaseApiTest do
     def send_request(_method, url, _headers, _body) do
       name = Process.get(__MODULE__)
       Agent.update(name, fn _ -> url end)
-      %PetstoreClient.ApiHttpResponse{status_code: 200, body: "", headers: %{"Content-Type" => "application/json"}}
+
+      %PetstoreClient.ApiHttpResponse{
+        status_code: 200,
+        body: "",
+        headers: %{"Content-Type" => "application/json"}
+      }
     end
   end
 
@@ -430,7 +432,12 @@ defmodule PetstoreClient.Api.BaseApiTest do
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(CapturingApiClient, config)
 
-    _result = PetstoreClient.Api.PetApi.find_pets_by_status(api, %PetstoreClient.Api.Options.FindPetsByStatusOptions{})
+    _result =
+      PetstoreClient.Api.PetApi.find_pets_by_status(
+        api,
+        %PetstoreClient.Api.Options.FindPetsByStatusOptions{}
+      )
+
     url = CapturingApiClient.captured_url(name)
 
     assert String.contains?(url, "status="),
@@ -445,7 +452,10 @@ defmodule PetstoreClient.Api.BaseApiTest do
     api = PetstoreClient.Api.PetApi.new(CapturingApiClient, config)
 
     _result =
-      PetstoreClient.Api.PetApi.find_pets_by_status(api, %PetstoreClient.Api.Options.FindPetsByStatusOptions{status: ""})
+      PetstoreClient.Api.PetApi.find_pets_by_status(
+        api,
+        %PetstoreClient.Api.Options.FindPetsByStatusOptions{status: ""}
+      )
 
     url = CapturingApiClient.captured_url(name)
 
@@ -874,7 +884,12 @@ defmodule PetstoreClient.Api.BaseApiTest do
     def send_request(_method, _url, _headers, _body) do
       binary_data = <<0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D>>
       encoded = Base.encode64(binary_data)
-      %PetstoreClient.ApiHttpResponse{status_code: 200, body: encoded, headers: %{"Content-Type" => "image/png"}}
+
+      %PetstoreClient.ApiHttpResponse{
+        status_code: 200,
+        body: encoded,
+        headers: %{"Content-Type" => "image/png"}
+      }
     end
   end
 
@@ -1066,7 +1081,12 @@ defmodule PetstoreClient.Api.BaseApiTest do
     def send_request(_method, _url, headers, _body) do
       name = Process.get(__MODULE__)
       Agent.update(name, fn _ -> headers end)
-      %PetstoreClient.ApiHttpResponse{status_code: 200, body: "{}", headers: %{"Content-Type" => "application/json"}}
+
+      %PetstoreClient.ApiHttpResponse{
+        status_code: 200,
+        body: "{}",
+        headers: %{"Content-Type" => "application/json"}
+      }
     end
   end
 
@@ -1239,7 +1259,12 @@ defmodule PetstoreClient.Api.BaseApiTest do
     def send_request(_method, _url, headers, _body) do
       name = Process.get(__MODULE__)
       Agent.update(name, fn _ -> headers end)
-      %PetstoreClient.ApiHttpResponse{status_code: 200, body: "{}", headers: %{"Content-Type" => "application/json"}}
+
+      %PetstoreClient.ApiHttpResponse{
+        status_code: 200,
+        body: "{}",
+        headers: %{"Content-Type" => "application/json"}
+      }
     end
   end
 
@@ -1341,7 +1366,12 @@ defmodule PetstoreClient.Api.BaseApiTest do
     def send_request(_method, url, _headers, _body) do
       name = Process.get(__MODULE__)
       Agent.update(name, fn _ -> url end)
-      %PetstoreClient.ApiHttpResponse{status_code: 200, body: "", headers: %{"Content-Type" => "application/json"}}
+
+      %PetstoreClient.ApiHttpResponse{
+        status_code: 200,
+        body: "",
+        headers: %{"Content-Type" => "application/json"}
+      }
     end
   end
 
@@ -1566,15 +1596,18 @@ defmodule PetstoreClient.Api.BaseApiTest do
       {:ok, name}
     end
 
-    def captured_body(name) do
-      Agent.get(name, & &1)
-    end
+    def captured_body(name), do: Agent.get(name, & &1)
 
     @impl true
     def send_request(_method, _url, _headers, body) do
       name = Process.get(__MODULE__)
       Agent.update(name, fn _ -> body end)
-      %PetstoreClient.ApiHttpResponse{status_code: 200, body: "", headers: %{"Content-Type" => "application/json"}}
+
+      %PetstoreClient.ApiHttpResponse{
+        status_code: 200,
+        body: "",
+        headers: %{"Content-Type" => "application/json"}
+      }
     end
   end
 

@@ -58,9 +58,7 @@ defmodule PetstoreClient.Auth.BearerAuthenticator do
   end
 
   @impl true
-  def host(%__MODULE__{} = self) do
-    self.host
-  end
+  def host(%__MODULE__{} = self), do: self.host
 
   @impl true
   def auth_headers(%__MODULE__{} = self) do
@@ -70,11 +68,7 @@ defmodule PetstoreClient.Auth.BearerAuthenticator do
     value =
       case self.token do
         <<head::binary-size(7), rest::binary>> ->
-          if String.downcase(head) == "bearer " do
-            rest
-          else
-            self.token
-          end
+          if String.downcase(head) == "bearer ", do: rest, else: self.token
 
         _ ->
           self.token

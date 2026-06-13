@@ -16,14 +16,10 @@ defmodule PetstoreClient.Auth.BaseAuthenticator do
       @behaviour PetstoreClient.Auth.Authenticator
 
       @impl true
-      def query_params(_self) do
-        %{}
-      end
+      def query_params(_self), do: %{}
 
       @impl true
-      def cookie_params(_self) do
-        %{}
-      end
+      def cookie_params(_self), do: %{}
 
       defoverridable query_params: 1, cookie_params: 1
     end

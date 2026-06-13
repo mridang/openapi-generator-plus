@@ -11,17 +11,11 @@ defmodule PetstoreClient.Auth.ApiKeyLocation do
   """
 
   @doc "API key in a request header."
-  def header do
-    :header
-  end
+  def header, do: :header
 
   @doc "API key as a query parameter."
-  def query do
-    :query
-  end
+  def query, do: :query
 
   @doc "API key in a cookie."
-  def cookie do
-    :cookie
-  end
+  def cookie, do: :cookie
 end

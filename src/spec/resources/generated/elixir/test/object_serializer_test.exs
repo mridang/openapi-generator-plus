@@ -1,3 +1,8 @@
+# credo:disable-for-this-file
+# Credo findings here are inherent to generated code (fully-qualified
+# nested-module references and machine-generated control flow); the SDK
+# uses Credo's default config and handles them with this file-level
+# directive rather than relaxing the ruleset.
 # enum-unknown-value-silent-vs-throw test helper. Defined at the top level
 # (NOT inside the test module) so it lives at its real
 # PetstoreClient.Models.TestEnumStatus address that ObjectSerializer.
@@ -5,21 +10,10 @@
 # register a PetstoreClient.Models namespace local to the test and shadow
 # real PetstoreClient.Models.* struct references elsewhere in the file.
 defmodule PetstoreClient.Models.TestEnumStatus do
-  def available do
-    :available
-  end
-
-  def pending do
-    :pending
-  end
-
-  def sold do
-    :sold
-  end
-
-  def all_values do
-    [available(), pending(), sold()]
-  end
+  def available, do: :available
+  def pending, do: :pending
+  def sold, do: :sold
+  def all_values, do: [available(), pending(), sold()]
 end
 
 defmodule PetstoreClient.ObjectSerializerTest do
@@ -93,7 +87,11 @@ defmodule PetstoreClient.ObjectSerializerTest do
     test "serialized datetime string contains an offset marker" do
       dt = ~U[2024-01-01 12:30:45Z]
       result = PetstoreClient.ObjectSerializer.stringify(dt)
-      has_offset = String.contains?(result, "+") or String.contains?(result, "-") or String.ends_with?(result, "Z")
+
+      has_offset =
+        String.contains?(result, "+") or String.contains?(result, "-") or
+          String.ends_with?(result, "Z")
+
       assert has_offset, "should contain timezone indicator: #{result}"
     end
 
@@ -262,7 +260,11 @@ defmodule PetstoreClient.ObjectSerializerTest do
     end
 
     test "returns array as-is for multi" do
-      assert PetstoreClient.ObjectSerializer.to_query_value(["a", "b", "c"], :multi) == ["a", "b", "c"]
+      assert PetstoreClient.ObjectSerializer.to_query_value(["a", "b", "c"], :multi) == [
+               "a",
+               "b",
+               "c"
+             ]
     end
   end
 
@@ -390,7 +392,10 @@ defmodule PetstoreClient.ObjectSerializerTest do
 
     test "rejects UUID with wrong segment lengths" do
       assert_raise PetstoreClient.SerializationError, fn ->
-        PetstoreClient.ObjectSerializer.convert_to_type("550e8400-e29b-41d4-a716-44665544", "UUID")
+        PetstoreClient.ObjectSerializer.convert_to_type(
+          "550e8400-e29b-41d4-a716-44665544",
+          "UUID"
+        )
       end
     end
 

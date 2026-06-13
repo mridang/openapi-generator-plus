@@ -98,36 +98,22 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator do
     }
 
     params =
-      if self.scopes != [] do
-        Map.put(params, "scope", Enum.join(self.scopes, " "))
-      else
-        params
-      end
+      if self.scopes != [],
+        do: Map.put(params, "scope", Enum.join(self.scopes, " ")),
+        else: params
 
-    params =
-      if state do
-        Map.put(params, "state", state)
-      else
-        params
-      end
+    params = if state, do: Map.put(params, "state", state), else: params
 
     # RFC 6749 §3.1: the authorization endpoint URI MAY already include
     # a query component. Use '&' as the separator when one is already
     # present so existing params are preserved, '?' otherwise.
-    separator =
-      if String.contains?(self.authorization_url, "?") do
-        "&"
-      else
-        "?"
-      end
+    separator = if String.contains?(self.authorization_url, "?"), do: "&", else: "?"
 
     "#{self.authorization_url}#{separator}#{URI.encode_query(params)}"
   end
 
   @impl PetstoreClient.Auth.Authenticator
-  def host(%__MODULE__{} = self) do
-    self.host
-  end
+  def host(%__MODULE__{} = self), do: self.host
 
   @impl PetstoreClient.Auth.Authenticator
   def auth_headers(%__MODULE__{access_token: nil}) do

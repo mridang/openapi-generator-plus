@@ -89,20 +89,13 @@ defmodule PetstoreClient.Error do
   to catch any Zitadel SDK error.
   """
   @spec exceptions() :: [module()]
-  def exceptions do
-    @exceptions
-  end
+  def exceptions, do: @exceptions
 
   @doc """
   Returns `true` if `term` is an instance of any Zitadel SDK
   exception, `false` otherwise.
   """
   @spec zitadel_error?(term()) :: boolean()
-  def zitadel_error?(%module{}) do
-    module in @exceptions
-  end
-
-  def zitadel_error?(_term) do
-    false
-  end
+  def zitadel_error?(%module{}), do: module in @exceptions
+  def zitadel_error?(_term), do: false
 end

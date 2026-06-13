@@ -14,7 +14,8 @@ defmodule PetstoreClient.ConfigurationTest do
   end
 
   test "new sets default headers" do
-    config = PetstoreClient.Configuration.new(default_headers: %{"Authorization" => "Bearer token123"})
+    config =
+      PetstoreClient.Configuration.new(default_headers: %{"Authorization" => "Bearer token123"})
 
     assert config.default_headers == %{"Authorization" => "Bearer token123"}
   end
@@ -105,7 +106,9 @@ defmodule PetstoreClient.ConfigurationTest do
       }
     }
 
-    config = PetstoreClient.Configuration.from_server(server, %{"env" => "staging", "version" => "v2"})
+    config =
+      PetstoreClient.Configuration.from_server(server, %{"env" => "staging", "version" => "v2"})
+
     assert config.base_url == "https://staging.example.com/api/v2"
   end
 

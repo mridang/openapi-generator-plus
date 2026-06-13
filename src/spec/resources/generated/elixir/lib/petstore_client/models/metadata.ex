@@ -57,7 +57,5 @@ defmodule PetstoreClient.Models.Metadata do
   end
 
   @doc "Whether this model accepts additional properties."
-  def additional_properties do
-    true
-  end
+  def additional_properties, do: true
 end

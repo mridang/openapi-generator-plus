@@ -1,3 +1,8 @@
+# credo:disable-for-this-file
+# Credo findings here are inherent to generated code (fully-qualified
+# nested-module references and machine-generated control flow); the SDK
+# uses Credo's default config and handles them with this file-level
+# directive rather than relaxing the ruleset.
 defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
   use ExUnit.Case, async: true
 
@@ -33,20 +38,30 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
 
       url = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(auth)
 
-      assert String.contains?(url, "scope=read+write") or String.contains?(url, "scope=read%20write")
+      assert String.contains?(url, "scope=read+write") or
+               String.contains?(url, "scope=read%20write")
     end
 
     test "builds authorization URL with state" do
       auth = create_authenticator()
 
-      url = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(auth, "my-state")
+      url =
+        PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(
+          auth,
+          "my-state"
+        )
 
       assert String.contains?(url, "state=my-state")
     end
 
     test "get_auth_headers returns Bearer after set_access_token" do
       auth = create_authenticator()
-      auth = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.set_access_token(auth, "implicit-tok")
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.set_access_token(
+          auth,
+          "implicit-tok"
+        )
 
       headers = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.auth_headers(auth)
 
@@ -64,7 +79,8 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
     test "get_host returns configured host" do
       auth = create_authenticator()
 
-      assert PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.host(auth) == "https://api.example.com"
+      assert PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.host(auth) ==
+               "https://api.example.com"
     end
   end
 end

@@ -1,3 +1,8 @@
+# credo:disable-for-this-file
+# Credo findings here are inherent to generated code (fully-qualified
+# nested-module references and machine-generated control flow); the SDK
+# uses Credo's default config and handles them with this file-level
+# directive rather than relaxing the ruleset.
 defmodule PetstoreClient.Api.PetApiTest do
   use ExUnit.Case, async: true
 
@@ -66,7 +71,9 @@ defmodule PetstoreClient.Api.PetApiTest do
 
   test "set_pet_avatar uploads binary image data", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
-    assert {:ok, _result} = PetstoreClient.Api.PetApi.set_pet_avatar(api, pet_id, <<0xFF, 0xD8, 0xFF>>)
+
+    assert {:ok, _result} =
+             PetstoreClient.Api.PetApi.set_pet_avatar(api, pet_id, <<0xFF, 0xD8, 0xFF>>)
   end
 
   test "get_pet_avatar downloads the pet avatar as decoded binary", %{api: api} do
@@ -88,7 +95,9 @@ defmodule PetstoreClient.Api.PetApiTest do
   test "set_pet_avatar_thumbnail uploads a base64 thumbnail via JSON", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
     request = "iVBORw0KGgoAAAANSUhEUg=="
-    assert {:ok, _result} = PetstoreClient.Api.PetApi.set_pet_avatar_thumbnail(api, pet_id, request)
+
+    assert {:ok, _result} =
+             PetstoreClient.Api.PetApi.set_pet_avatar_thumbnail(api, pet_id, request)
   end
 
   test "upload_pet_certificate uploads a certificate via multipart", %{api: api} do
@@ -151,7 +160,10 @@ defmodule PetstoreClient.Api.PetApiTest do
   end
 
   test "get_pet_tag sends styled path and query parameters", %{api: api} do
-    options = %PetstoreClient.Api.Options.GetPetTagOptions{colors: ["blue", "black"], sizes: ["S", "M"]}
+    options = %PetstoreClient.Api.Options.GetPetTagOptions{
+      colors: ["blue", "black"],
+      sizes: ["S", "M"]
+    }
 
     assert {:ok, result} = PetstoreClient.Api.PetApi.get_pet_tag(api, 5, "cute", options)
     assert result != nil
@@ -177,15 +189,18 @@ defmodule PetstoreClient.Api.PetApiTest do
       {:ok, name}
     end
 
-    def captured_url(name) do
-      Agent.get(name, & &1)
-    end
+    def captured_url(name), do: Agent.get(name, & &1)
 
     @impl true
     def send_request(_method, url, _headers, _body) do
       name = Process.get(__MODULE__)
       Agent.update(name, fn _ -> url end)
-      %PetstoreClient.ApiHttpResponse{status_code: 200, body: "", headers: %{"Content-Type" => "application/json"}}
+
+      %PetstoreClient.ApiHttpResponse{
+        status_code: 200,
+        body: "",
+        headers: %{"Content-Type" => "application/json"}
+      }
     end
   end
 
@@ -248,23 +263,39 @@ defmodule PetstoreClient.Api.PetApiTest do
 
   test "error handling 500 server error" do
     api = new_pet_api_for_mock(500, "application/json", ~s({"message":"Internal server error"}))
-    assert {:error, _reason} = PetstoreClient.Api.PetApi.get_pet_by_id(api, :rand.uniform(1_000_000_000))
+
+    assert {:error, _reason} =
+             PetstoreClient.Api.PetApi.get_pet_by_id(api, :rand.uniform(1_000_000_000))
   end
 
   test "download binary from mock" do
     api = new_pet_api_for_mock(200, "application/octet-stream", "FAKE_BINARY_DATA")
-    assert {:ok, result} = PetstoreClient.Api.PetApi.get_pet_avatar(api, :rand.uniform(1_000_000_000))
+
+    assert {:ok, result} =
+             PetstoreClient.Api.PetApi.get_pet_avatar(api, :rand.uniform(1_000_000_000))
+
     assert result != nil
   end
 
   test "upload multipart from mock" do
-    api = new_pet_api_for_mock(200, "application/json", ~s({"code":200,"type":"","message":"success"}))
+    api =
+      new_pet_api_for_mock(
+        200,
+        "application/json",
+        ~s({"code":200,"type":"","message":"success"})
+      )
 
     options = %PetstoreClient.Api.Options.UploadPetCertificateOptions{
       file: "fake-cert-data"
     }
 
-    assert {:ok, result} = PetstoreClient.Api.PetApi.upload_pet_certificate(api, :rand.uniform(1_000_000_000), options)
+    assert {:ok, result} =
+             PetstoreClient.Api.PetApi.upload_pet_certificate(
+               api,
+               :rand.uniform(1_000_000_000),
+               options
+             )
+
     assert result != nil
   end
 
@@ -289,7 +320,12 @@ defmodule PetstoreClient.Api.PetApiTest do
   end
 
   test "get_pet_by_id_with_http_info returns http metadata", %{api: api} do
-    assert {:ok, result} = PetstoreClient.Api.PetApi.get_pet_by_id_with_http_info(api, :rand.uniform(1_000_000_000))
+    assert {:ok, result} =
+             PetstoreClient.Api.PetApi.get_pet_by_id_with_http_info(
+               api,
+               :rand.uniform(1_000_000_000)
+             )
+
     assert result.status_code == 200
     assert result.data != nil
     assert result.raw_body != nil
@@ -343,7 +379,10 @@ defmodule PetstoreClient.Api.PetApiTest do
 
   test "find_pets_by_status_with_http_info returns http metadata", %{api: api} do
     options = %PetstoreClient.Api.Options.FindPetsByStatusOptions{status: "available"}
-    assert {:ok, result} = PetstoreClient.Api.PetApi.find_pets_by_status_with_http_info(api, options)
+
+    assert {:ok, result} =
+             PetstoreClient.Api.PetApi.find_pets_by_status_with_http_info(api, options)
+
     assert result.status_code == 200
   end
 
@@ -388,15 +427,18 @@ defmodule PetstoreClient.Api.PetApiTest do
       {:ok, name}
     end
 
-    def captured_headers(name) do
-      Agent.get(name, & &1)
-    end
+    def captured_headers(name), do: Agent.get(name, & &1)
 
     @impl true
     def send_request(_method, _url, headers, _body) do
       name = Process.get(__MODULE__)
       Agent.update(name, fn _ -> headers end)
-      %PetstoreClient.ApiHttpResponse{status_code: 200, body: "", headers: %{"Content-Type" => "application/json"}}
+
+      %PetstoreClient.ApiHttpResponse{
+        status_code: 200,
+        body: "",
+        headers: %{"Content-Type" => "application/json"}
+      }
     end
   end
 

@@ -31,12 +31,9 @@ defmodule PetstoreClient.Errors.ClientError do
     }
   end
 
-  def exception(msg) when is_binary(msg) do
-    %__MODULE__{message: msg}
-  end
+  def exception(msg) when is_binary(msg), do: %__MODULE__{message: msg}
 
   @impl true
-  def message(%__MODULE__{} = error) do
-    PetstoreClient.ApiError.message(struct(PetstoreClient.ApiError, Map.from_struct(error)))
-  end
+  def message(%__MODULE__{} = error),
+    do: PetstoreClient.ApiError.message(struct(PetstoreClient.ApiError, Map.from_struct(error)))
 end

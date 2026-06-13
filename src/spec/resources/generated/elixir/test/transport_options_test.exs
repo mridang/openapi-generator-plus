@@ -98,7 +98,10 @@ defmodule PetstoreClient.TransportOptionsTest do
   end
 
   test "accumulates headers from default_header calls" do
-    opts = PetstoreClient.TransportOptions.new(default_headers: %{"X-First" => "one", "X-Second" => "two"})
+    opts =
+      PetstoreClient.TransportOptions.new(
+        default_headers: %{"X-First" => "one", "X-Second" => "two"}
+      )
 
     assert map_size(opts.default_headers) == 2
     assert opts.default_headers["X-First"] == "one"

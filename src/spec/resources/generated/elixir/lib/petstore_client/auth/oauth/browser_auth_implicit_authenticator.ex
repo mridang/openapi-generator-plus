@@ -1,3 +1,8 @@
+# credo:disable-for-this-file
+# Credo findings here are inherent to generated code (fully-qualified
+# nested-module references and machine-generated control flow); the SDK
+# uses Credo's default config and handles them with this file-level
+# directive rather than relaxing the ruleset.
 defmodule PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator do
   @moduledoc """
   Scheme-specific authenticator generated from the OpenAPI security scheme.
@@ -8,6 +13,11 @@ defmodule PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator do
   Creates a new `BrowserAuthImplicitAuthenticator` authenticator.
   """
   def new(host, client_id) do
-    PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.new(host, client_id, "https://auth.example.com/authorize", [])
+    PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.new(
+      host,
+      client_id,
+      "https://auth.example.com/authorize",
+      []
+    )
   end
 end

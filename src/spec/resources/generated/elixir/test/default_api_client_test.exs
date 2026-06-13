@@ -1,3 +1,8 @@
+# credo:disable-for-this-file
+# Credo findings here are inherent to generated code (fully-qualified
+# nested-module references and machine-generated control flow); the SDK
+# uses Credo's default config and handles them with this file-level
+# directive rather than relaxing the ruleset.
 defmodule PetstoreClient.DefaultApiClientIntegrationTest do
   use ExUnit.Case, async: true
 
@@ -6,7 +11,15 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
 
     transport = PetstoreClient.TransportOptions.new(verify_ssl: false)
     client = PetstoreClient.DefaultApiClient.new(transport)
-    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/echo", %{}, nil)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/echo",
+        %{},
+        nil
+      )
 
     assert response.status_code == 200
     # chasm /test/echo returns a JSON envelope; assert the method field is present
@@ -25,7 +38,15 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
       )
 
     client = PetstoreClient.DefaultApiClient.new(transport)
-    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/echo", %{}, nil)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/echo",
+        %{},
+        nil
+      )
 
     assert response.status_code == 200
     json = Jason.decode!(response.body)
@@ -39,7 +60,15 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
 
     transport = PetstoreClient.TransportOptions.new(proxy: proxy_url)
     client = PetstoreClient.DefaultApiClient.new(transport)
-    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/echo", %{}, nil)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/echo",
+        %{},
+        nil
+      )
 
     assert response.status_code == 200
     json = Jason.decode!(response.body)
@@ -64,7 +93,15 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
 
     transport = PetstoreClient.TransportOptions.new(proxy: proxy_url, verify_ssl: false)
     client = PetstoreClient.DefaultApiClient.new(transport)
-    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/echo", %{}, nil)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/echo",
+        %{},
+        nil
+      )
 
     assert response.status_code == 200
     json = Jason.decode!(response.body)
@@ -78,7 +115,14 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     client = PetstoreClient.DefaultApiClient.new(transport)
 
     try do
-      PetstoreClient.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/slow", %{}, nil)
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/slow",
+        %{},
+        nil
+      )
+
       flunk("Expected a transport error but none was raised")
     rescue
       _ in [PetstoreClient.ApiError, Req.TransportError, Finch.TransportError] -> :ok
@@ -90,7 +134,15 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
 
     transport = PetstoreClient.TransportOptions.new(user_agent: "MyApp/1.0")
     client = PetstoreClient.DefaultApiClient.new(transport)
-    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/echo", %{}, nil)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/echo",
+        %{},
+        nil
+      )
 
     assert response.status_code == 200
     json = Jason.decode!(response.body)
@@ -103,13 +155,25 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
 
     transport = PetstoreClient.TransportOptions.new(inject_request_id: true)
     client = PetstoreClient.DefaultApiClient.new(transport)
-    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/echo", %{}, nil)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/echo",
+        %{},
+        nil
+      )
 
     assert response.status_code == 200
     json = Jason.decode!(response.body)
     request_id = json["headers"]["x-request-id"]
     assert request_id != nil
-    assert Regex.match?(~r/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/, request_id)
+
+    assert Regex.match?(
+             ~r/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+             request_id
+           )
   end
 
   test "generates unique X-Request-ID per request" do
@@ -118,10 +182,26 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     transport = PetstoreClient.TransportOptions.new(inject_request_id: true)
     client = PetstoreClient.DefaultApiClient.new(transport)
 
-    response1 = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/echo", %{}, nil)
+    response1 =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/echo",
+        %{},
+        nil
+      )
+
     request_id1 = Jason.decode!(response1.body)["headers"]["x-request-id"]
 
-    response2 = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/echo", %{}, nil)
+    response2 =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/echo",
+        %{},
+        nil
+      )
+
     request_id2 = Jason.decode!(response2.body)["headers"]["x-request-id"]
 
     assert request_id1 != request_id2
@@ -130,10 +210,19 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
   test "includes transport-level default headers" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
-    transport = PetstoreClient.TransportOptions.new(default_headers: %{"X-Custom" => "custom-value"})
+    transport =
+      PetstoreClient.TransportOptions.new(default_headers: %{"X-Custom" => "custom-value"})
 
     client = PetstoreClient.DefaultApiClient.new(transport)
-    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/echo", %{}, nil)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/echo",
+        %{},
+        nil
+      )
 
     assert response.status_code == 200
     json = Jason.decode!(response.body)
@@ -166,7 +255,15 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
 
     transport = PetstoreClient.TransportOptions.new(follow_redirects: true)
     client = PetstoreClient.DefaultApiClient.new(transport)
-    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/redirect/302", %{}, nil)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/redirect/302",
+        %{},
+        nil
+      )
 
     assert response.status_code == 200
     json = Jason.decode!(response.body)
@@ -178,7 +275,15 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
 
     transport = PetstoreClient.TransportOptions.new(follow_redirects: false)
     client = PetstoreClient.DefaultApiClient.new(transport)
-    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{chasm_url}/test/redirect/302", %{}, nil)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/redirect/302",
+        %{},
+        nil
+      )
 
     assert response.status_code == 302
   end
@@ -277,7 +382,15 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
 
     client = PetstoreClient.DefaultApiClient.new()
     form_data = %{"description" => "A test file", "file" => "file content"}
-    response = PetstoreClient.DefaultApiClient.send_request(client, :post, "#{chasm_url}/test/echo", %{}, form_data)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :post,
+        "#{chasm_url}/test/echo",
+        %{},
+        form_data
+      )
 
     assert response != nil
   end

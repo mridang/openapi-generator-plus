@@ -60,7 +60,8 @@ defmodule PetstoreClient.Configuration do
   @doc """
   Creates a new Configuration from a server configuration with optional variable overrides.
   """
-  @spec from_server(PetstoreClient.ServerConfiguration.t(), %{optional(String.t()) => String.t()}) :: t()
+  @spec from_server(PetstoreClient.ServerConfiguration.t(), %{optional(String.t()) => String.t()}) ::
+          t()
   def from_server(server_config, variables \\ %{}) do
     new(base_url: PetstoreClient.ServerConfiguration.url(server_config, variables))
   end

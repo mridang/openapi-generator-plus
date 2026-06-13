@@ -78,11 +78,6 @@ defmodule PetstoreClient.Models.StrictTag do
       end
     end)
 
-    struct(
-      __MODULE__,
-      for({k, v} <- data) do
-        {String.to_existing_atom(to_string(k)), v}
-      end
-    )
+    struct(__MODULE__, for({k, v} <- data, do: {String.to_existing_atom(to_string(k)), v}))
   end
 end

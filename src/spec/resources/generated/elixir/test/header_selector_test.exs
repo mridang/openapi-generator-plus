@@ -47,7 +47,13 @@ defmodule PetstoreClient.HeaderSelectorTest do
 
   describe "select_headers/3" do
     test "sets Accept header when accepts provided" do
-      headers = PetstoreClient.HeaderSelector.select_headers(["application/json"], "application/json", false)
+      headers =
+        PetstoreClient.HeaderSelector.select_headers(
+          ["application/json"],
+          "application/json",
+          false
+        )
+
       assert headers["Accept"] == "application/json"
     end
 
@@ -57,12 +63,24 @@ defmodule PetstoreClient.HeaderSelectorTest do
     end
 
     test "sets Content-Type header when not multipart" do
-      headers = PetstoreClient.HeaderSelector.select_headers(["application/json"], "application/json", false)
+      headers =
+        PetstoreClient.HeaderSelector.select_headers(
+          ["application/json"],
+          "application/json",
+          false
+        )
+
       assert headers["Content-Type"] == "application/json"
     end
 
     test "does not set Content-Type header when multipart" do
-      headers = PetstoreClient.HeaderSelector.select_headers(["application/json"], "application/json", true)
+      headers =
+        PetstoreClient.HeaderSelector.select_headers(
+          ["application/json"],
+          "application/json",
+          true
+        )
+
       assert headers["Content-Type"] == nil
     end
 
@@ -77,12 +95,20 @@ defmodule PetstoreClient.HeaderSelectorTest do
     end
 
     test "returns single accept as-is" do
-      headers = PetstoreClient.HeaderSelector.select_headers(["application/json"], "application/json", false)
+      headers =
+        PetstoreClient.HeaderSelector.select_headers(
+          ["application/json"],
+          "application/json",
+          false
+        )
+
       assert headers["Accept"] == "application/json"
     end
 
     test "returns single non-JSON accept as-is" do
-      headers = PetstoreClient.HeaderSelector.select_headers(["text/html"], "application/json", false)
+      headers =
+        PetstoreClient.HeaderSelector.select_headers(["text/html"], "application/json", false)
+
       assert headers["Accept"] == "text/html"
     end
 
@@ -109,7 +135,13 @@ defmodule PetstoreClient.HeaderSelectorTest do
     end
 
     test "joins media types when no JSON types present" do
-      headers = PetstoreClient.HeaderSelector.select_headers(["text/html", "text/plain"], "application/json", false)
+      headers =
+        PetstoreClient.HeaderSelector.select_headers(
+          ["text/html", "text/plain"],
+          "application/json",
+          false
+        )
+
       assert headers["Accept"] == "text/html, text/plain"
     end
 
@@ -125,7 +157,13 @@ defmodule PetstoreClient.HeaderSelectorTest do
     end
 
     test "returns single entry without separator" do
-      headers = PetstoreClient.HeaderSelector.select_headers(["application/json"], "application/json", false)
+      headers =
+        PetstoreClient.HeaderSelector.select_headers(
+          ["application/json"],
+          "application/json",
+          false
+        )
+
       assert headers["Accept"] == "application/json"
     end
   end

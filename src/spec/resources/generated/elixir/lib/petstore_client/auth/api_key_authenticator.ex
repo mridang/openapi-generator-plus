@@ -64,34 +64,26 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticator do
   end
 
   @impl true
-  def host(%__MODULE__{} = self) do
-    self.host
-  end
+  def host(%__MODULE__{} = self), do: self.host
 
   @impl true
   def auth_headers(%__MODULE__{location: :header} = self) do
     %{self.key_param_name => self.api_key}
   end
 
-  def auth_headers(_self) do
-    %{}
-  end
+  def auth_headers(_self), do: %{}
 
   @impl true
   def query_params(%__MODULE__{location: :query} = self) do
     %{self.key_param_name => self.api_key}
   end
 
-  def query_params(_self) do
-    %{}
-  end
+  def query_params(_self), do: %{}
 
   @impl true
   def cookie_params(%__MODULE__{location: :cookie} = self) do
     %{self.key_param_name => self.api_key}
   end
 
-  def cookie_params(_self) do
-    %{}
-  end
+  def cookie_params(_self), do: %{}
 end

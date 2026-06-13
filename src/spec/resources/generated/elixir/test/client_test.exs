@@ -1,3 +1,8 @@
+# credo:disable-for-this-file
+# Credo findings here are inherent to generated code (fully-qualified
+# nested-module references and machine-generated control flow); the SDK
+# uses Credo's default config and handles them with this file-level
+# directive rather than relaxing the ruleset.
 defmodule PetstoreClient.ClientTest do
   use ExUnit.Case, async: true
 
@@ -54,7 +59,12 @@ defmodule PetstoreClient.ClientTest do
     # to prevent header injection (\r\n) and silent UTF-8 mangling that
     # varies per HTTP lib.
     assert_raise ArgumentError, fn ->
-      PetstoreClient.Auth.ApiKeyAuthenticator.new("/api/v3", "X-Api-Key", "abc\r\nInjected: yes", :header)
+      PetstoreClient.Auth.ApiKeyAuthenticator.new(
+        "/api/v3",
+        "X-Api-Key",
+        "abc\r\nInjected: yes",
+        :header
+      )
     end
 
     assert_raise ArgumentError, fn ->
@@ -63,7 +73,10 @@ defmodule PetstoreClient.ClientTest do
 
     # Non-header locations accept arbitrary chars.
     query_auth = PetstoreClient.Auth.ApiKeyAuthenticator.new("/api/v3", "api_key", "kéy", :query)
-    assert PetstoreClient.Auth.ApiKeyAuthenticator.query_params(query_auth) == %{"api_key" => "kéy"}
+
+    assert PetstoreClient.Auth.ApiKeyAuthenticator.query_params(query_auth) == %{
+             "api_key" => "kéy"
+           }
   end
 
   test "API groups are accessible" do

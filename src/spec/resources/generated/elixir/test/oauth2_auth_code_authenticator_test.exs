@@ -1,3 +1,8 @@
+# credo:disable-for-this-file
+# Credo findings here are inherent to generated code (fully-qualified
+# nested-module references and machine-generated control flow); the SDK
+# uses Credo's default config and handles them with this file-level
+# directive rather than relaxing the ruleset.
 defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
   use ExUnit.Case, async: true
 
@@ -5,7 +10,9 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
     defstruct [:agent]
 
     def new(responses) do
-      {:ok, agent} = Agent.start_link(fn -> %{responses: responses, last_url: nil, last_body: nil} end)
+      {:ok, agent} =
+        Agent.start_link(fn -> %{responses: responses, last_url: nil, last_body: nil} end)
+
       %__MODULE__{agent: agent}
     end
 
@@ -17,13 +24,8 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       end)
     end
 
-    def last_url(%__MODULE__{agent: agent}) do
-      Agent.get(agent, & &1.last_url)
-    end
-
-    def last_body(%__MODULE__{agent: agent}) do
-      Agent.get(agent, & &1.last_body)
-    end
+    def last_url(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_url)
+    def last_body(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_body)
   end
 
   defp create_authenticator do
@@ -42,20 +44,28 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
     test "builds authorization URL with required params" do
       auth = create_authenticator()
 
-      url = PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(auth)
+      url =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(
+          auth
+        )
 
       assert String.starts_with?(url, "https://auth.example.com/authorize?")
       assert String.contains?(url, "response_type=code")
       assert String.contains?(url, "client_id=my-client-id")
       assert String.contains?(url, "redirect_uri=")
-      assert String.contains?(url, "scope=read+write") or String.contains?(url, "scope=read%20write")
+
+      assert String.contains?(url, "scope=read+write") or
+               String.contains?(url, "scope=read%20write")
     end
 
     test "builds authorization URL with state" do
       auth = create_authenticator()
 
       url =
-        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(auth, "csrf-state-123")
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(
+          auth,
+          "csrf-state-123"
+        )
 
       assert String.contains?(url, "state=csrf-state-123")
     end
@@ -65,14 +75,27 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
             status_code: 200,
-            body: Jason.encode!(%{"access_token" => "tok1", "refresh_token" => "ref1", "expires_in" => 3600})
+            body:
+              Jason.encode!(%{
+                "access_token" => "tok1",
+                "refresh_token" => "ref1",
+                "expires_in" => 3600
+              })
           }
         ])
 
       auth = create_authenticator()
-      auth = PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(auth, fake_client)
 
-      PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(auth, "auth-code-xyz")
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(
+          auth,
+          fake_client
+        )
+
+      PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(
+        auth,
+        "auth-code-xyz"
+      )
 
       last_body = FakeApiClient.last_body(fake_client)
       assert String.contains?(last_body, "grant_type=authorization_code")
@@ -86,7 +109,12 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
             status_code: 200,
-            body: Jason.encode!(%{"access_token" => "tok1", "refresh_token" => "ref1", "expires_in" => 1})
+            body:
+              Jason.encode!(%{
+                "access_token" => "tok1",
+                "refresh_token" => "ref1",
+                "expires_in" => 1
+              })
           },
           %PetstoreClient.ApiHttpResponse{
             status_code: 200,
@@ -95,9 +123,19 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
         ])
 
       auth = create_authenticator()
-      auth = PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(auth, fake_client)
 
-      auth = PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(auth, "auth-code-xyz")
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(
+          auth,
+          fake_client
+        )
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(
+          auth,
+          "auth-code-xyz"
+        )
+
       headers = PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.auth_headers(auth)
 
       last_body = FakeApiClient.last_body(fake_client)
@@ -133,7 +171,8 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
     test "get_host returns configured host" do
       auth = create_authenticator()
 
-      assert PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.host(auth) == "https://api.example.com"
+      assert PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.host(auth) ==
+               "https://api.example.com"
     end
 
     test "auth_headers_before_exchange_returns_recoverable_error" do
@@ -169,7 +208,10 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
           ["read"]
         )
 
-      url = PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(auth)
+      url =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(
+          auth
+        )
 
       assert String.contains?(url, "audience=api")
       assert String.contains?(url, "response_type=code")

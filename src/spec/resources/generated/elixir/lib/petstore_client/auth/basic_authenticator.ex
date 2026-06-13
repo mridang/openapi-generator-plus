@@ -64,9 +64,7 @@ defmodule PetstoreClient.Auth.BasicAuthenticator do
   end
 
   @impl true
-  def host(%__MODULE__{} = self) do
-    self.host
-  end
+  def host(%__MODULE__{} = self), do: self.host
 
   @impl true
   def auth_headers(%__MODULE__{} = self) do

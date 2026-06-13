@@ -1,3 +1,8 @@
+# credo:disable-for-this-file
+# Credo findings here are inherent to generated code (fully-qualified
+# nested-module references and machine-generated control flow); the SDK
+# uses Credo's default config and handles them with this file-level
+# directive rather than relaxing the ruleset.
 defmodule PetstoreClient.Api.StoreApiTest do
   use ExUnit.Case, async: true
 
@@ -57,19 +62,27 @@ defmodule PetstoreClient.Api.StoreApiTest do
   end
 
   test "get_order_by_id returns an order by id", %{api: api} do
-    assert {:ok, result} = PetstoreClient.Api.StoreApi.get_order_by_id(api, :rand.uniform(1_000_000_000))
+    assert {:ok, result} =
+             PetstoreClient.Api.StoreApi.get_order_by_id(api, :rand.uniform(1_000_000_000))
+
     assert result != nil
     assert result.id != nil
   end
 
   test "get_order_by_id_with_http_info returns status and data", %{api: api} do
-    assert {:ok, result} = PetstoreClient.Api.StoreApi.get_order_by_id_with_http_info(api, :rand.uniform(1_000_000_000))
+    assert {:ok, result} =
+             PetstoreClient.Api.StoreApi.get_order_by_id_with_http_info(
+               api,
+               :rand.uniform(1_000_000_000)
+             )
+
     assert result.status_code >= 200 and result.status_code < 300
     assert result.data != nil
   end
 
   test "delete_order deletes an order", %{api: api} do
-    assert {:ok, _result} = PetstoreClient.Api.StoreApi.delete_order(api, :rand.uniform(1_000_000_000))
+    assert {:ok, _result} =
+             PetstoreClient.Api.StoreApi.delete_order(api, :rand.uniform(1_000_000_000))
   end
 
   defp new_store_api_for_mock(status, content_type, body) do

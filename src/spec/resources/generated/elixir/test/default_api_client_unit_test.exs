@@ -1,3 +1,8 @@
+# credo:disable-for-this-file
+# Credo findings here are inherent to generated code (fully-qualified
+# nested-module references and machine-generated control flow); the SDK
+# uses Credo's default config and handles them with this file-level
+# directive rather than relaxing the ruleset.
 defmodule PetstoreClient.DefaultApiClientUnitTest do
   use ExUnit.Case, async: true
 
@@ -19,13 +24,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
           # Drain the incoming request
           :gen_tcp.recv(socket, 0, 2000)
 
-          status_text =
-            if status == 200 do
-              "OK"
-            else
-              to_string(status)
-            end
-
+          status_text = if status == 200, do: "OK", else: to_string(status)
           extra = Enum.map_join(extra_headers, "", fn {k, v} -> "#{k}: #{v}\r\n" end)
 
           response =
@@ -112,7 +111,10 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
   test "sends GET request and returns response" do
     base_url = start_server(200, "application/json", ~s({"method":"GET"}))
     client = PetstoreClient.DefaultApiClient.new()
-    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/echo", %{}, nil)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/echo", %{}, nil)
+
     assert response.status_code == 200
     assert String.contains?(response.body, "GET")
   end
@@ -138,7 +140,10 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
   test "returns response headers" do
     base_url = start_server(200, "application/json", "ok", [{"X-Test-Header", "test-value"}])
     client = PetstoreClient.DefaultApiClient.new()
-    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/echo", %{}, nil)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/echo", %{}, nil)
+
     assert response.status_code == 200
 
     header_value =
@@ -155,7 +160,16 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
   test "returns non-2xx status code" do
     base_url = start_server(404, "text/plain", "not found")
     client = PetstoreClient.DefaultApiClient.new()
-    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/not-found", %{}, nil)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{base_url}/not-found",
+        %{},
+        nil
+      )
+
     assert response.status_code == 404
     assert response.body == "not found"
   end
@@ -163,7 +177,16 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
   test "sends PUT request" do
     base_url = start_server(200, "application/json", ~s({"method":"PUT"}))
     client = PetstoreClient.DefaultApiClient.new()
-    response = PetstoreClient.DefaultApiClient.send_request(client, :put, "#{base_url}/echo", %{}, "update")
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :put,
+        "#{base_url}/echo",
+        %{},
+        "update"
+      )
+
     assert response.status_code == 200
     assert String.contains?(response.body, "PUT")
   end
@@ -171,7 +194,10 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
   test "sends DELETE request" do
     base_url = start_server(200, "application/json", ~s({"method":"DELETE"}))
     client = PetstoreClient.DefaultApiClient.new()
-    response = PetstoreClient.DefaultApiClient.send_request(client, :delete, "#{base_url}/echo", %{}, nil)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(client, :delete, "#{base_url}/echo", %{}, nil)
+
     assert response.status_code == 200
     assert String.contains?(response.body, "DELETE")
   end
@@ -179,7 +205,16 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
   test "returns JSON body for vendor JSON content type" do
     base_url = start_server(200, "application/vnd.api+json", ~s({"format":"vendor"}))
     client = PetstoreClient.DefaultApiClient.new()
-    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/vendor-json", %{}, nil)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{base_url}/vendor-json",
+        %{},
+        nil
+      )
+
     assert response.status_code == 200
     assert String.contains?(response.body, "vendor")
   end
@@ -307,7 +342,10 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
 
   test "includes transport-level default headers" do
     {base_url, _port} = start_header_capture_server()
-    transport = PetstoreClient.TransportOptions.new(default_headers: %{"X-Custom" => "custom-value"})
+
+    transport =
+      PetstoreClient.TransportOptions.new(default_headers: %{"X-Custom" => "custom-value"})
+
     client = PetstoreClient.DefaultApiClient.new(transport)
     PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/test", %{}, nil)
     assert_receive {:captured_headers, headers}, 5000

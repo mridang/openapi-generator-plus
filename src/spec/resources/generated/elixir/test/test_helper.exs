@@ -37,7 +37,9 @@ chasm_config =
     "--tls-port",
     "8443"
   ])
-  |> Testcontainers.Container.with_waiting_strategy(Testcontainers.LogWaitStrategy.new(~r/Listening on/, 120_000))
+  |> Testcontainers.Container.with_waiting_strategy(
+    Testcontainers.LogWaitStrategy.new(~r/Listening on/, 120_000)
+  )
 
 {:ok, chasm} = Testcontainers.start_container(chasm_config)
 
