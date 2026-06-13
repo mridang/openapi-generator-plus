@@ -418,6 +418,12 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                             "configuration_test.rb"));
         }
         if (generateTests) {
+            // The petstore golden has no gem_rbs_collection, so steep cannot see
+            // Faraday's types from a vendored gem signature the way real SDKs do.
+            // Emit a stub mirroring the gem's surface (and class hierarchy) for
+            // the fixture only; sig/vendor.rbs still adds the Connection#proxy=
+            // reopen the gem omits, in both this fixture and real clients.
+            supportingFiles.add(new SupportingFile("faraday_rbs.mustache", "sig", "faraday.rbs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/api/pet_api_test.mustache",
