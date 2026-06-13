@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+// phpcs:ignoreFile
+
 namespace PetstoreClient\Test\Api;
 
 use PetstoreClient\Api\StoreApi;

@@ -19,7 +19,7 @@ class PetPassport
 {
     /** @example null */
     #[SerializedName('pet')]
-    public ?Pet $pet = null;
+    public ?\PetstoreClient\Models\Pet $pet = null;
 
     /**
      * Base64-encoded primary thumbnail
@@ -51,7 +51,7 @@ class PetPassport
      * @param \Ds\Vector<string>|null $scans
      */
     public function __construct(
-        ?Pet $pet = null,
+        ?\PetstoreClient\Models\Pet $pet = null,
         ?string $thumbnail = null,
         ?\Ds\Vector $scans = null,
         ?\DateTime $issuedAt = null,

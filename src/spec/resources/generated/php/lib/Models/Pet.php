@@ -10,6 +10,7 @@
  */
 
 declare(strict_types=1);
+/* phpcs:ignoreFile */
 
 namespace PetstoreClient\Models;
 
@@ -37,13 +38,13 @@ class Pet
 
     /** @example null */
     #[SerializedName('category')]
-    public ?Category $category = null;
+    public ?\PetstoreClient\Models\Category $category = null;
 
     /** @var \Ds\Set<string> */
     #[SerializedName('photoUrls')]
     public \Ds\Set $photoUrls;
 
-    /** @var \Ds\Vector<Tag>|null */
+    /** @var \Ds\Vector<\PetstoreClient\Models\Tag>|null */
     #[SerializedName('tags')]
     public ?\Ds\Vector $tags = null;
 
@@ -96,14 +97,14 @@ class Pet
 
     /**
      * @param \Ds\Set<string> $photoUrls
-     * @param \Ds\Vector<Tag>|null $tags
+     * @param \Ds\Vector<\PetstoreClient\Models\Tag>|null $tags
      * @param \Ds\Vector<mixed>|null $location
      */
     public function __construct(
         string $name,
         \Ds\Set $photoUrls,
         ?int $id = null,
-        ?Category $category = null,
+        ?\PetstoreClient\Models\Category $category = null,
         ?\Ds\Vector $tags = null,
         ?PetStatusEnum $status = null,
         ?\Ds\Vector $location = null,

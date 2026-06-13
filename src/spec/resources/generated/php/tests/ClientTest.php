@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
+use PetstoreClient\Client;
 use PetstoreClient\Auth\ApiKeyAuthenticator;
 use PetstoreClient\Auth\ApiKeyLocation;
 use PetstoreClient\Auth\BearerAuthenticator;
-use PetstoreClient\Client;
 use PetstoreClient\TransportOptions;
 
 beforeEach(function (): void {

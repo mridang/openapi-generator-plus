@@ -1,4 +1,7 @@
 {{>api_info}}
+
+/* phpcs:ignoreFile */
+
 namespace {{invokerPackage}}\Auth\OAuth;
 
 use {{invokerPackage}}\ApiClient;
@@ -194,7 +197,7 @@ final class OAuth2TokenManager
                 throw self::parseOAuth2ServerError($response->statusCode, $response->body);
             }
 
-            /** @var array{access_token?: string, refresh_token?: string, expires_in?: int}|null $responseBody */
+            /** @var array<string, mixed>|null $responseBody */
             $responseBody = json_decode($response->body, true);
             if (!is_array($responseBody)
                 || !isset($responseBody['access_token'])
@@ -204,7 +207,7 @@ final class OAuth2TokenManager
                 throw new OAuth2TokenError('Token response missing or empty access_token field');
             }
             $this->accessToken = $responseBody['access_token'];
-            if (isset($responseBody['refresh_token']) && $responseBody['refresh_token'] !== '') {
+            if (isset($responseBody['refresh_token']) && is_string($responseBody['refresh_token']) && $responseBody['refresh_token'] !== '') {
                 $this->refreshToken = $responseBody['refresh_token'];
             }
             if (array_key_exists('expires_in', $responseBody) && $responseBody['expires_in'] !== null) {

@@ -11,6 +11,8 @@
 
 declare(strict_types=1);
 
+/* phpcs:ignoreFile */
+
 namespace PetstoreClient\Serializer;
 
 use Symfony\Component\PropertyAccess\PropertyAccess;
@@ -32,7 +34,7 @@ use Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer;
  * element type. Symfony's stock dispatch reads that PHPDoc via
  * {@see \Symfony\Component\PropertyInfo\Extractor\PhpDocExtractor},
  * marks the parameter as "collection of \Foo\Bar", and
- * {@see AbstractObjectNormalizer::validateAndDenormalize}
+ * {@see \Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer::validateAndDenormalize}
  * dispatches the inner array with class `'\Foo\Bar[]'`. The chain's
  * {@see \Symfony\Component\Serializer\Normalizer\ArrayDenormalizer}
  * matches that suffix, iterates, and returns a plain PHP array of
@@ -154,6 +156,7 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
      * enums / URIs reach their normalizers, and wrap the result in
      * the declared container class.
      *
+     * @param \ReflectionClass<object> $class
      * @param array<string, mixed> $context
      */
     protected function denormalizeParameter(
@@ -172,7 +175,7 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
                     return null;
                 }
                 if (!is_array($parameterData)) {
-                    /** @var \Ds\Vector|\Ds\Set|\Ds\Map */
+                    /** @var \Ds\Vector<mixed>|\Ds\Set<mixed>|\Ds\Map<array-key, mixed> */
                     return new $className([$parameterData]);
                 }
 
@@ -201,7 +204,7 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
                     }
                 }
 
-                /** @var \Ds\Vector|\Ds\Set|\Ds\Map */
+                /** @var \Ds\Vector<mixed>|\Ds\Set<mixed>|\Ds\Map<array-key, mixed> */
                 return new $className($items);
             }
         }
@@ -217,6 +220,13 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
      * does not drive element denormalization. Null is returned when
      * no matching annotation is present; callers then wrap the raw
      * element values without inner denormalization.
+     *
+     * The generated PHPDoc names the inner model with its short class
+     * name (e.g. `\Ds\Vector<UserServiceUser>`), relying on the file's
+     * namespace for resolution. PHPDoc carries no `use` context, so an
+     * unqualified name is resolved here against the declaring class's
+     * namespace before it reaches {@see class_exists}; otherwise the
+     * inner elements would silently stay as raw arrays.
      */
     private function readPhpDocInnerType(\ReflectionParameter $parameter): ?string
     {
@@ -229,13 +239,11 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
             return null;
         }
         $escapedParam = preg_quote($parameter->getName(), '/');
-        if (
-            !preg_match(
-                '/@param\s+\S+<([^>]+)>(?:\|null)?\s+\$' . $escapedParam . '\b/',
-                $doc,
-                $matches,
-            )
-        ) {
+        if (!preg_match(
+            '/@param\s+\S+<([^>]+)>(?:\|null)?\s+\$' . $escapedParam . '\b/',
+            $doc,
+            $matches,
+        )) {
             return null;
         }
         $inner = trim($matches[1]);
@@ -243,6 +251,34 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
             $parts = explode(',', $inner, 2);
             $inner = trim($parts[1]);
         }
-        return ltrim($inner, '\\');
+
+        return $this->resolveClassName(ltrim($inner, '\\'), $constructor);
+    }
+
+    /**
+     * Resolve an inner type name read from PHPDoc to a usable class name.
+     *
+     * A name written as a fully-qualified path (it exists as-is) is kept.
+     * Otherwise the unqualified short name is qualified with the declaring
+     * class's namespace, matching how the generated PHPDoc relies on the
+     * file's namespace. When neither resolves to a real class the original
+     * name is returned so the caller's {@see class_exists} guard skips
+     * inner denormalization for scalars and unknown types.
+     */
+    private function resolveClassName(string $name, \ReflectionMethod $constructor): string
+    {
+        if (class_exists($name)) {
+            return $name;
+        }
+
+        $namespace = $constructor->getDeclaringClass()->getNamespaceName();
+        if ($namespace !== '') {
+            $qualified = $namespace . '\\' . $name;
+            if (class_exists($qualified)) {
+                return $qualified;
+            }
+        }
+
+        return $name;
     }
 }

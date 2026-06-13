@@ -25,7 +25,7 @@ class AddPetPhotosOptions
      */
     public function __construct(
         public readonly array $files,
-        public readonly PhotoMetadata $metadata,
+        public readonly \PetstoreClient\Models\PhotoMetadata $metadata,
     ) {
     }
 }

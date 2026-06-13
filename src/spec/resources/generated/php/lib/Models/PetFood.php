@@ -10,6 +10,7 @@
  */
 
 declare(strict_types=1);
+/* phpcs:ignoreFile */
 
 namespace PetstoreClient\Models;
 
@@ -23,7 +24,7 @@ class PetFood
     /** @var array<string, class-string> */
     private const array DISCRIMINATOR_MAPPING = [
         'dry' => DryFood::class,
-        'wet' => WetFood::class,
+        'wet' => WetFood::class
     ];
 
     private mixed $actualInstance;

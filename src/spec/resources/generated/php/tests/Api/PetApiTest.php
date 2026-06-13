@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+// phpcs:ignoreFile
+
 namespace PetstoreClient\Test\Api;
 
 use PetstoreClient\Api\Options\AddPetOptions;
@@ -27,8 +29,8 @@ use PetstoreClient\Errors\NotFoundException;
 use PetstoreClient\Errors\ServerException;
 use PetstoreClient\Models\ApiResponse as ApiResponseModel;
 use PetstoreClient\Models\Pet;
-use PetstoreClient\Models\PetPassport;
 use PetstoreClient\Models\PetStatusEnum;
+use PetstoreClient\Models\PetPassport;
 use PetstoreClient\Models\Photo;
 use PetstoreClient\Models\PhotoMetadata;
 use PetstoreClient\Models\SetPetAvatarThumbnailRequest;
@@ -289,7 +291,7 @@ function newBodyCapturingPetApi(): array
     $captured = new \stdClass();
     $captured->body = '';
 
-    $client = new class ($captured) implements \PetstoreClient\ApiClient {
+    $client = new class($captured) implements \PetstoreClient\ApiClient {
         public function __construct(private readonly \stdClass $captured)
         {
         }
@@ -421,7 +423,7 @@ function newHeaderCapturingPetApi(): array
     $hdrs = [];
     $captured->headers = $hdrs;
 
-    $client = new class ($captured) implements \PetstoreClient\ApiClient {
+    $client = new class($captured) implements \PetstoreClient\ApiClient {
         public function __construct(private readonly \stdClass $captured)
         {
         }

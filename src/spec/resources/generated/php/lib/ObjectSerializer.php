@@ -13,9 +13,9 @@ declare(strict_types=1);
 
 namespace PetstoreClient;
 
-use PetstoreClient\Serializer\DsAwareObjectNormalizer;
 use PetstoreClient\Serializer\DsMapNormalizer;
 use PetstoreClient\Serializer\DsSetNormalizer;
+use PetstoreClient\Serializer\DsAwareObjectNormalizer;
 use PetstoreClient\Serializer\DsVectorNormalizer;
 use PetstoreClient\Serializer\DurationNormalizer;
 use PetstoreClient\Serializer\UriNormalizer;

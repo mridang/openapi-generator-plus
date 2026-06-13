@@ -10,6 +10,7 @@
  */
 
 declare(strict_types=1);
+/* phpcs:ignoreFile */
 
 namespace PetstoreClient\Models;
 
@@ -37,13 +38,13 @@ class PetWithOwner
 
     /** @example null */
     #[SerializedName('category')]
-    public ?Category $category = null;
+    public ?\PetstoreClient\Models\Category $category = null;
 
     /** @var \Ds\Set<string> */
     #[SerializedName('photoUrls')]
     public \Ds\Set $photoUrls;
 
-    /** @var \Ds\Vector<Tag>|null */
+    /** @var \Ds\Vector<\PetstoreClient\Models\Tag>|null */
     #[SerializedName('tags')]
     public ?\Ds\Vector $tags = null;
 
@@ -97,7 +98,7 @@ class PetWithOwner
 
     /**
      * @param \Ds\Set<string> $photoUrls
-     * @param \Ds\Vector<Tag>|null $tags
+     * @param \Ds\Vector<\PetstoreClient\Models\Tag>|null $tags
      * @param \Ds\Vector<mixed>|null $location
      */
     public function __construct(
@@ -105,7 +106,7 @@ class PetWithOwner
         \Ds\Set $photoUrls,
         string $ownerName,
         ?int $id = null,
-        ?Category $category = null,
+        ?\PetstoreClient\Models\Category $category = null,
         ?\Ds\Vector $tags = null,
         ?PetWithOwnerStatusEnum $status = null,
         ?\Ds\Vector $location = null,

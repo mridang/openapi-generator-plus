@@ -17,9 +17,12 @@ use PetstoreClient\ApiClient;
 use PetstoreClient\ApiException;
 use PetstoreClient\ApiHttpResponse;
 use PetstoreClient\ApiResult;
-use PetstoreClient\Auth\Authenticator;
 use PetstoreClient\Configuration;
 use PetstoreClient\DefaultApiClient;
+use PetstoreClient\HeaderSelector;
+use PetstoreClient\ObjectSerializer;
+use PetstoreClient\TraceContextUtil;
+use PetstoreClient\Auth\Authenticator;
 use PetstoreClient\Errors\BadRequestException;
 use PetstoreClient\Errors\ClientException;
 use PetstoreClient\Errors\ConflictException;
@@ -29,9 +32,6 @@ use PetstoreClient\Errors\NotFoundException;
 use PetstoreClient\Errors\ServerException;
 use PetstoreClient\Errors\UnauthorizedException;
 use PetstoreClient\Errors\UnprocessableEntityException;
-use PetstoreClient\HeaderSelector;
-use PetstoreClient\ObjectSerializer;
-use PetstoreClient\TraceContextUtil;
 
 /**
  * Base class for all API classes. Provides the invokeApi method that

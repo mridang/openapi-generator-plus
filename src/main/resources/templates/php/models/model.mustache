@@ -1,6 +1,25 @@
 {{#models}}
 {{#model}}
 {{>api_info}}
+{{! Generated co-located inline enums (PSR1.MultipleClasses) and oneOf/anyOf
+    deserializer factories with fully-qualified call expressions (line length)
+    are inherent to the generated model; suppress at the file level. }}
+{{#hasEnums}}
+/* phpcs:ignoreFile */
+
+{{/hasEnums}}
+{{#oneOf}}
+{{#-first}}
+/* phpcs:ignoreFile */
+
+{{/-first}}
+{{/oneOf}}
+{{#anyOf}}
+{{#-first}}
+/* phpcs:ignoreFile */
+
+{{/-first}}
+{{/anyOf}}
 namespace {{modelPackage}};
 
 {{#isEnum}}

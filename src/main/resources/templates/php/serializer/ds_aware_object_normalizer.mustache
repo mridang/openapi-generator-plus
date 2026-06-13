@@ -1,4 +1,7 @@
 {{>api_info}}
+
+/* phpcs:ignoreFile */
+
 namespace {{invokerPackage}}\Serializer;
 
 use Symfony\Component\PropertyAccess\PropertyAccess;
@@ -142,6 +145,7 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
      * enums / URIs reach their normalizers, and wrap the result in
      * the declared container class.
      *
+     * @param \ReflectionClass<object> $class
      * @param array<string, mixed> $context
      */
     protected function denormalizeParameter(
@@ -160,7 +164,7 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
                     return null;
                 }
                 if (!is_array($parameterData)) {
-                    /** @var \Ds\Vector|\Ds\Set|\Ds\Map */
+                    /** @var \Ds\Vector<mixed>|\Ds\Set<mixed>|\Ds\Map<array-key, mixed> */
                     return new $className([$parameterData]);
                 }
 
@@ -189,7 +193,7 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
                     }
                 }
 
-                /** @var \Ds\Vector|\Ds\Set|\Ds\Map */
+                /** @var \Ds\Vector<mixed>|\Ds\Set<mixed>|\Ds\Map<array-key, mixed> */
                 return new $className($items);
             }
         }

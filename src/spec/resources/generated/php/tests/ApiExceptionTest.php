@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 use PetstoreClient\ApiException;
 use PetstoreClient\CancellationException;
-use PetstoreClient\Models\Category;
 use PetstoreClient\SerializationException;
 use PetstoreClient\ZitadelException;
+use PetstoreClient\Models\Category;
 
 test('exposes status code, message, body, headers and error body', function (): void {
     $ex = new ApiException(

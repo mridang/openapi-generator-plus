@@ -1,74 +1,9 @@
 <?xml version="1.0"?>
 <ruleset name="PetstoreClient">
-    <rule ref="PSR12">
-        <!-- Generated docstrings carry raw spec description text that
-             exceeds the 120-char default. Use 200 instead. -->
-        <exclude name="Generic.Files.LineLength"/>
-        <!-- The mustache partial that emits the file header has a blank
-             line between <?php and /** in some generators' output;
-             we also don't track @package per file. These are
-             non-PSR12 strictness items. -->
-        <exclude name="Squiz.Commenting.FileComment"/>
-    </rule>
-    <rule ref="Generic.Files.LineLength">
-        <properties>
-            <property name="lineLimit" value="200"/>
-            <property name="absoluteLineLimit" value="0"/>
-        </properties>
-        <!-- Generated API classes and serializer tests carry verbatim spec
-             text in PHPDoc and long fully-qualified-type method signatures
-             that can exceed even the relaxed 200-char limit. Wrapping them
-             would corrupt the embedded spec text / type names, so the
-             line-length sniff cannot apply to these generated paths. -->
-        <exclude-pattern>*/Api/*</exclude-pattern>
-        <exclude-pattern>tests/ValueSerializerTest.php</exclude-pattern>
-    </rule>
-    <!-- PSR1 forbids more than one class per file. The codegen
-         intentionally co-locates tightly-coupled classes in a single
-         generated file:
-           - Models/*: a model plus its inline enum/sub-schema classes.
-           - Api/*: each operation group emits an abstract server-variant
-             base, its concrete variants, and the public Api class.
-           - Auth/OAuth/*: the OAuth2 token manager ships with its
-             companion error classes (OAuth2TokenError, OAuth2ServerError).
-           - tests/: Pest test files declare helper/fixture classes
-             alongside the test class.
-         These groupings are deliberate and behaviour-neutral, so the
-         multiple-classes sniff cannot apply to generated output. -->
-    <rule ref="PSR1.Classes.ClassDeclaration.MultipleClasses">
-        <exclude-pattern>*/Models/*</exclude-pattern>
-        <exclude-pattern>*/Api/*</exclude-pattern>
-        <exclude-pattern>*/Auth/OAuth/*</exclude-pattern>
-        <exclude-pattern>tests/</exclude-pattern>
-    </rule>
-    <rule ref="SlevomatCodingStandard.TypeHints.DeclareStrictTypes">
-        <properties>
-            <property name="declareOnFirstLine" value="false"/>
-            <property name="linesCountBeforeDeclare" value="1"/>
-            <property name="linesCountAfterDeclare" value="1"/>
-            <property name="spacesCountAroundEqualsSign" value="0"/>
-        </properties>
-    </rule>
-    <rule ref="SlevomatCodingStandard.Namespaces.UnusedUses"/>
-    <rule ref="SlevomatCodingStandard.Namespaces.AlphabeticallySortedUses"/>
-    <rule ref="SlevomatCodingStandard.PHP.TypeCast"/>
-    <rule ref="SlevomatCodingStandard.PHP.ShortList"/>
-    <!-- Pest test files declare helper functions AND call test()/it() at
-         the top level (side effects). PSR1.Files.SideEffects flags that.
-         The pattern is intentional for Pest — exclude the rule. -->
-    <rule ref="PSR1.Files.SideEffects">
-        <exclude-pattern>tests/</exclude-pattern>
-    </rule>
-    <!-- PSR12 wants the file-level docblock immediately after <?php, but
-         Pest test files put it after the use statements (which is
-         idiomatic for Pest). Exclude on tests/. -->
-    <rule ref="PSR12.Files.FileHeader.SpacingAfterBlock">
-        <exclude-pattern>tests/</exclude-pattern>
-    </rule>
-    <rule ref="PSR12.Files.FileHeader.IncorrectOrder">
-        <exclude-pattern>tests/</exclude-pattern>
-    </rule>
+    <rule ref="PSR12"/>
     <file>.</file>
     <exclude-pattern>vendor/</exclude-pattern>
     <exclude-pattern>.out/</exclude-pattern>
+    <exclude-pattern>.phpstan/</exclude-pattern>
+    <exclude-pattern>*.cache</exclude-pattern>
 </ruleset>

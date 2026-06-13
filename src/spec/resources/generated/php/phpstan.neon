@@ -1,15 +1,6 @@
 parameters:
   level: 9
-  treatPhpDocTypesAsCertain: false
   tmpDir: .phpstan
-  # The codegen emits \Ds\Vector / \Ds\Set / \Ds\Map return types
-  # without inline generic <T> PHPDoc — the generic inner type lives in
-  # CodegenOperation.returnBaseType which the api template would need to
-  # compose into a `\Ds\Vector<\Foo\Bar>` PHPDoc tag for every operation.
-  # Until that template work lands, ignore every missingType.generics
-  # report whose class is in the Ds container family.
-  ignoreErrors:
-    - identifier: missingType.generics
   paths:
     - .
   excludePaths:

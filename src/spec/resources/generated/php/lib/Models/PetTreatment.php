@@ -10,6 +10,7 @@
  */
 
 declare(strict_types=1);
+/* phpcs:ignoreFile */
 
 namespace PetstoreClient\Models;
 
@@ -22,8 +23,8 @@ class PetTreatment
     private static function anyOfCandidates(): array
     {
         return [
-            fn(mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize($d, \PetstoreClient\ObjectSerializer::qualifySchemaName('Medication')),
-            fn(mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize($d, \PetstoreClient\ObjectSerializer::qualifySchemaName('Surgery')),
+            fn (mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize($d, \PetstoreClient\ObjectSerializer::qualifySchemaName('Medication')),
+            fn (mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize($d, \PetstoreClient\ObjectSerializer::qualifySchemaName('Surgery')),
         ];
     }
 

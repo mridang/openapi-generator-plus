@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
+use PetstoreClient\ObjectSerializer;
 use PetstoreClient\Models\DryFood;
+use PetstoreClient\Models\WetFood;
 use PetstoreClient\Models\Medication;
+use PetstoreClient\Models\Surgery;
 use PetstoreClient\Models\PetFood;
 use PetstoreClient\Models\PetTreatment;
 use PetstoreClient\Models\PetWithOwner;
-use PetstoreClient\Models\Surgery;
-use PetstoreClient\Models\WetFood;
-use PetstoreClient\ObjectSerializer;
 
 // -- oneOf with discriminator: PetFood --
 

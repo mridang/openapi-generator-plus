@@ -853,13 +853,35 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
      */
     private static String resolvePhpDocType(CodegenParameter p) {
         if (p.isArray && p.items != null) {
-            return p.items.dataType + "[]";
+            return withDsGenerics(p.items.dataType) + "[]";
         }
         if (p.isMap) {
-            String valueType = (p.items != null) ? p.items.dataType : "mixed";
+            String valueType = (p.items != null) ? withDsGenerics(p.items.dataType) : "mixed";
             return "array<string, " + valueType + ">";
         }
-        return p.dataType;
+        return withDsGenerics(p.dataType);
+    }
+
+    /**
+     * Appends the default generic type arguments to a bare {@code \Ds\*}
+     * container type so the PHPDoc satisfies PHPStan's {@code
+     * missingType.generics} rule at the default strict level. A bare
+     * {@code \Ds\Vector} / {@code \Ds\Set} becomes {@code <mixed>} and a
+     * bare {@code \Ds\Map} becomes {@code <array-key, mixed>}; any type
+     * that already carries a {@code <...>} argument list, and every
+     * non-Ds type, is returned unchanged.
+     */
+    private static String withDsGenerics(String type) {
+        if (type == null || type.contains("<")) {
+            return type;
+        }
+        if ("\\Ds\\Vector".equals(type) || "\\Ds\\Set".equals(type)) {
+            return type + "<mixed>";
+        }
+        if ("\\Ds\\Map".equals(type)) {
+            return type + "<array-key, mixed>";
+        }
+        return type;
     }
 
     /**
@@ -972,6 +994,18 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                 }
             }
         }
-        return super.postProcessOperationsWithModels(objs, allModels);
+        final OperationsMap processed = super.postProcessOperationsWithModels(objs, allModels);
+        // Lift hasServerTypeDefs to the template root so the api template can
+        // emit a file-level phpcs:ignoreFile directive before the namespace
+        // declaration. Per-operation server overrides emit co-located
+        // server-variant classes (PSR1.MultipleClasses) that are inherent to
+        // the generated API group. enrichOperationServers runs inside the
+        // super call above, so the flag must be read afterwards.
+        final Map<String, Object> processedOps =
+                (Map<String, Object>) processed.get("operations");
+        if (processedOps != null) {
+            processed.put("hasServerTypeDefs", processedOps.get("hasServerTypeDefs"));
+        }
+        return processed;
     }
 }

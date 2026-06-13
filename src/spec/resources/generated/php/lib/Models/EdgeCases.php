@@ -10,6 +10,7 @@
  */
 
 declare(strict_types=1);
+/* phpcs:ignoreFile */
 
 namespace PetstoreClient\Models;
 
@@ -26,7 +27,7 @@ class EdgeCases
 
     /** @example null */
     #[SerializedName('favoriteColor')]
-    public ?Color $favoriteColor = null;
+    public ?\PetstoreClient\Models\Color $favoriteColor = null;
 
     /**
      * Required permission is \"user.grant.write\" for <admin> & owner roles (don't skip it)
@@ -73,7 +74,7 @@ class EdgeCases
      */
     public function __construct(
         mixed $freeFormAny = null,
-        ?Color $favoriteColor = null,
+        ?\PetstoreClient\Models\Color $favoriteColor = null,
         ?string $permissionsNote = null,
         ?bool $and_ = null,
         ?bool $or_ = null,

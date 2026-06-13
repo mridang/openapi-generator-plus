@@ -11,8 +11,16 @@
 
 declare(strict_types=1);
 
+/* phpcs:ignoreFile */
+
 namespace PetstoreClient\Api;
 
+use PetstoreClient\ApiClient;
+use PetstoreClient\ApiException;
+use PetstoreClient\ApiResult;
+use PetstoreClient\Configuration;
+use PetstoreClient\DefaultApiClient;
+use PetstoreClient\ValueSerializer;
 use PetstoreClient\Api\Options\AddPetOptions;
 use PetstoreClient\Api\Options\AddPetPhotosOptions;
 use PetstoreClient\Api\Options\AddPetTreatmentOptions;
@@ -23,9 +31,6 @@ use PetstoreClient\Api\Options\GetPetTagOptions;
 use PetstoreClient\Api\Options\SetPetPreferencesOptions;
 use PetstoreClient\Api\Options\UploadPetCertificateOptions;
 use PetstoreClient\Api\Options\UploadPetDocumentOptions;
-use PetstoreClient\ApiException;
-use PetstoreClient\ApiResult;
-use PetstoreClient\ValueSerializer;
 
 /**
  * PetApi provides methods for the Pet API group.
@@ -162,7 +167,7 @@ class PetApi extends BaseApi
      * @param \PetstoreClient\Models\Pet $pet Create a new pet in the store
 
      * @return \PetstoreClient\Models\Pet
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function addPet(\PetstoreClient\Models\Pet $pet, ?AddPetOptions $options = null)
     {
@@ -173,7 +178,7 @@ class PetApi extends BaseApi
              * as the SDK's typed ApiException (with the status, body and
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
-            throw new ApiException(
+            throw new \PetstoreClient\ApiException(
                 'Expected a response body for addPet but received none',
                 $apiResult->statusCode,
                 $apiResult->headers,
@@ -189,7 +194,7 @@ class PetApi extends BaseApi
      * @param \PetstoreClient\Models\Pet $pet Create a new pet in the store
 
      * @return ApiResult<\PetstoreClient\Models\Pet>
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function addPetWithHttpInfo(\PetstoreClient\Models\Pet $pet, ?AddPetOptions $options = null): ApiResult
     {
@@ -223,8 +228,8 @@ class PetApi extends BaseApi
 
      * @param AddPetPhotosOptions $options Options for query, header, form, and cookie parameters
 
-     * @return \Ds\Vector
-     * @throws ApiException
+     * @return \Ds\Vector<\PetstoreClient\Models\Photo>
+     * @throws \PetstoreClient\ApiException
      */
     public function addPetPhotos(int $petId, AddPetPhotosOptions $options)
     {
@@ -235,14 +240,14 @@ class PetApi extends BaseApi
              * as the SDK's typed ApiException (with the status, body and
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
-            throw new ApiException(
+            throw new \PetstoreClient\ApiException(
                 'Expected a response body for addPetPhotos but received none',
                 $apiResult->statusCode,
                 $apiResult->headers,
                 $apiResult->rawBody
             );
         }
-        /** @var \Ds\Vector $result */
+        /** @var \Ds\Vector<\PetstoreClient\Models\Photo> $result */
         $result = $apiResult->data;
         return $result;
     }
@@ -251,8 +256,8 @@ class PetApi extends BaseApi
 
      * @param AddPetPhotosOptions $options Options for query, header, form, and cookie parameters
 
-     * @return ApiResult<\Ds\Vector>
-     * @throws ApiException
+     * @return ApiResult<\Ds\Vector<\PetstoreClient\Models\Photo>>
+     * @throws \PetstoreClient\ApiException
      */
     public function addPetPhotosWithHttpInfo(int $petId, AddPetPhotosOptions $options): ApiResult
     {
@@ -274,7 +279,7 @@ class PetApi extends BaseApi
         $requestBody['files'] = $options->files;
         $requestBody['metadata'] = $options->metadata;
 
-        /** @var ApiResult<\Ds\Vector> $result */
+        /** @var ApiResult<\Ds\Vector<\PetstoreClient\Models\Photo>> $result */
         $result = $this->invokeApiForResult(
             'POST',
             $path,
@@ -292,7 +297,7 @@ class PetApi extends BaseApi
      * Record a treatment for a pet
 
      * @return \PetstoreClient\Models\PetTreatment
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function addPetTreatment(int $petId, \PetstoreClient\Models\PetTreatment $petTreatment, ?AddPetTreatmentOptions $options = null)
     {
@@ -303,7 +308,7 @@ class PetApi extends BaseApi
              * as the SDK's typed ApiException (with the status, body and
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
-            throw new ApiException(
+            throw new \PetstoreClient\ApiException(
                 'Expected a response body for addPetTreatment but received none',
                 $apiResult->statusCode,
                 $apiResult->headers,
@@ -318,7 +323,7 @@ class PetApi extends BaseApi
     /**
 
      * @return ApiResult<\PetstoreClient\Models\PetTreatment>
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function addPetTreatmentWithHttpInfo(int $petId, \PetstoreClient\Models\PetTreatment $petTreatment, ?AddPetTreatmentOptions $options = null): ApiResult
     {
@@ -363,7 +368,7 @@ class PetApi extends BaseApi
 
      * @param DeletePetOptions|null $options Options for query, header, form, and cookie parameters
 
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function deletePet(int $petId, ?DeletePetOptions $options = null): void
     {
@@ -376,7 +381,7 @@ class PetApi extends BaseApi
      * @param DeletePetOptions|null $options Options for query, header, form, and cookie parameters
 
      * @return ApiResult<null>
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function deletePetWithHttpInfo(int $petId, ?DeletePetOptions $options = null): ApiResult
     {
@@ -429,7 +434,7 @@ class PetApi extends BaseApi
      * Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
 
      * @return string
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function downloadPetDocument(int $petId, int $documentId)
     {
@@ -440,7 +445,7 @@ class PetApi extends BaseApi
              * as the SDK's typed ApiException (with the status, body and
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
-            throw new ApiException(
+            throw new \PetstoreClient\ApiException(
                 'Expected a response body for downloadPetDocument but received none',
                 $apiResult->statusCode,
                 $apiResult->headers,
@@ -455,7 +460,7 @@ class PetApi extends BaseApi
     /**
 
      * @return ApiResult<string>
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function downloadPetDocumentWithHttpInfo(int $petId, int $documentId): ApiResult
     {
@@ -505,8 +510,8 @@ class PetApi extends BaseApi
 
      * @param FindPetsByStatusOptions $options Options for query, header, form, and cookie parameters
 
-     * @return \Ds\Vector
-     * @throws ApiException
+     * @return \Ds\Vector<\PetstoreClient\Models\Pet>
+     * @throws \PetstoreClient\ApiException
      * @deprecated This operation is deprecated.
      * @see https://example.com/docs/filtering Find out more about filtering
      */
@@ -519,14 +524,14 @@ class PetApi extends BaseApi
              * as the SDK's typed ApiException (with the status, body and
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
-            throw new ApiException(
+            throw new \PetstoreClient\ApiException(
                 'Expected a response body for findPetsByStatus but received none',
                 $apiResult->statusCode,
                 $apiResult->headers,
                 $apiResult->rawBody
             );
         }
-        /** @var \Ds\Vector $result */
+        /** @var \Ds\Vector<\PetstoreClient\Models\Pet> $result */
         $result = $apiResult->data;
         return $result;
     }
@@ -535,8 +540,8 @@ class PetApi extends BaseApi
 
      * @param FindPetsByStatusOptions $options Options for query, header, form, and cookie parameters
 
-     * @return ApiResult<\Ds\Vector>
-     * @throws ApiException
+     * @return ApiResult<\Ds\Vector<\PetstoreClient\Models\Pet>>
+     * @throws \PetstoreClient\ApiException
      */
     public function findPetsByStatusWithHttpInfo(?FindPetsByStatusOptions $options = null): ApiResult
     {
@@ -555,7 +560,7 @@ class PetApi extends BaseApi
         $headerParams = [];
         $requestBody = null;
 
-        /** @var ApiResult<\Ds\Vector> $result */
+        /** @var ApiResult<\Ds\Vector<\PetstoreClient\Models\Pet>> $result */
         $result = $this->invokeApiForResult(
             'GET',
             $path,
@@ -573,7 +578,7 @@ class PetApi extends BaseApi
      * Get external pet info
 
      * @return \PetstoreClient\Models\Pet
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function getExternalPetInfo(int $petId, ?GetExternalPetInfoServer $server = null)
     {
@@ -584,7 +589,7 @@ class PetApi extends BaseApi
              * as the SDK's typed ApiException (with the status, body and
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
-            throw new ApiException(
+            throw new \PetstoreClient\ApiException(
                 'Expected a response body for getExternalPetInfo but received none',
                 $apiResult->statusCode,
                 $apiResult->headers,
@@ -599,7 +604,7 @@ class PetApi extends BaseApi
     /**
 
      * @return ApiResult<\PetstoreClient\Models\Pet>
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function getExternalPetInfoWithHttpInfo(int $petId, ?GetExternalPetInfoServer $server = null): ApiResult
     {
@@ -615,7 +620,7 @@ class PetApi extends BaseApi
             '%2B' => '+',
         ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
-        if ($server instanceof GetExternalPetInfoServer) {
+        if ($server instanceof \PetstoreClient\Api\GetExternalPetInfoServer) {
             $serverUrl = $server->getUrl();
             if (str_starts_with($serverUrl, 'http://') || str_starts_with($serverUrl, 'https://')) {
                 $path = $serverUrl . $path;
@@ -643,7 +648,7 @@ class PetApi extends BaseApi
      * Get multi-server pet info
 
      * @return \PetstoreClient\Models\Pet
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function getMultiServerPetInfo(int $petId, ?GetMultiServerPetInfoServer $server = null)
     {
@@ -654,7 +659,7 @@ class PetApi extends BaseApi
              * as the SDK's typed ApiException (with the status, body and
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
-            throw new ApiException(
+            throw new \PetstoreClient\ApiException(
                 'Expected a response body for getMultiServerPetInfo but received none',
                 $apiResult->statusCode,
                 $apiResult->headers,
@@ -669,7 +674,7 @@ class PetApi extends BaseApi
     /**
 
      * @return ApiResult<\PetstoreClient\Models\Pet>
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function getMultiServerPetInfoWithHttpInfo(int $petId, ?GetMultiServerPetInfoServer $server = null): ApiResult
     {
@@ -685,7 +690,7 @@ class PetApi extends BaseApi
             '%2B' => '+',
         ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
-        if ($server instanceof GetMultiServerPetInfoServer) {
+        if ($server instanceof \PetstoreClient\Api\GetMultiServerPetInfoServer) {
             $serverUrl = $server->getUrl();
             if (str_starts_with($serverUrl, 'http://') || str_starts_with($serverUrl, 'https://')) {
                 $path = $serverUrl . $path;
@@ -714,7 +719,7 @@ class PetApi extends BaseApi
      * Returns the raw image bytes of the pet's current avatar.
 
      * @return string
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function getPetAvatar(int $petId)
     {
@@ -725,7 +730,7 @@ class PetApi extends BaseApi
              * as the SDK's typed ApiException (with the status, body and
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
-            throw new ApiException(
+            throw new \PetstoreClient\ApiException(
                 'Expected a response body for getPetAvatar but received none',
                 $apiResult->statusCode,
                 $apiResult->headers,
@@ -740,7 +745,7 @@ class PetApi extends BaseApi
     /**
 
      * @return ApiResult<string>
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function getPetAvatarWithHttpInfo(int $petId): ApiResult
     {
@@ -779,7 +784,7 @@ class PetApi extends BaseApi
      * Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
 
      * @return string
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function getPetAvatarThumbnail(int $petId)
     {
@@ -790,7 +795,7 @@ class PetApi extends BaseApi
              * as the SDK's typed ApiException (with the status, body and
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
-            throw new ApiException(
+            throw new \PetstoreClient\ApiException(
                 'Expected a response body for getPetAvatarThumbnail but received none',
                 $apiResult->statusCode,
                 $apiResult->headers,
@@ -805,7 +810,7 @@ class PetApi extends BaseApi
     /**
 
      * @return ApiResult<string>
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function getPetAvatarThumbnailWithHttpInfo(int $petId): ApiResult
     {
@@ -847,7 +852,7 @@ class PetApi extends BaseApi
      * @example 42 Large breed ID
 
      * @return \PetstoreClient\Models\Pet
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      * @deprecated This operation is deprecated.
      */
     public function getPetById(int $petId, ?GetPetByIdServer $server = null)
@@ -859,7 +864,7 @@ class PetApi extends BaseApi
              * as the SDK's typed ApiException (with the status, body and
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
-            throw new ApiException(
+            throw new \PetstoreClient\ApiException(
                 'Expected a response body for getPetById but received none',
                 $apiResult->statusCode,
                 $apiResult->headers,
@@ -875,7 +880,7 @@ class PetApi extends BaseApi
      * @param int $petId ID of pet to return
 
      * @return ApiResult<\PetstoreClient\Models\Pet>
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function getPetByIdWithHttpInfo(int $petId, ?GetPetByIdServer $server = null): ApiResult
     {
@@ -891,7 +896,7 @@ class PetApi extends BaseApi
             '%2B' => '+',
         ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
-        if ($server instanceof GetPetByIdServer) {
+        if ($server instanceof \PetstoreClient\Api\GetPetByIdServer) {
             $serverUrl = $server->getUrl();
             if (str_starts_with($serverUrl, 'http://') || str_starts_with($serverUrl, 'https://')) {
                 $path = $serverUrl . $path;
@@ -921,7 +926,7 @@ class PetApi extends BaseApi
      * @param GetPetByNameOptions $options Options for query, header, form, and cookie parameters
 
      * @return \PetstoreClient\Models\Pet
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function getPetByName(string $name, GetPetByNameOptions $options)
     {
@@ -932,7 +937,7 @@ class PetApi extends BaseApi
              * as the SDK's typed ApiException (with the status, body and
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
-            throw new ApiException(
+            throw new \PetstoreClient\ApiException(
                 'Expected a response body for getPetByName but received none',
                 $apiResult->statusCode,
                 $apiResult->headers,
@@ -949,7 +954,7 @@ class PetApi extends BaseApi
      * @param GetPetByNameOptions $options Options for query, header, form, and cookie parameters
 
      * @return ApiResult<\PetstoreClient\Models\Pet>
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function getPetByNameWithHttpInfo(string $name, GetPetByNameOptions $options): ApiResult
     {
@@ -997,7 +1002,7 @@ class PetApi extends BaseApi
      * Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
 
      * @return \PetstoreClient\Models\PetPassport
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function getPetPassport(int $petId)
     {
@@ -1008,7 +1013,7 @@ class PetApi extends BaseApi
              * as the SDK's typed ApiException (with the status, body and
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
-            throw new ApiException(
+            throw new \PetstoreClient\ApiException(
                 'Expected a response body for getPetPassport but received none',
                 $apiResult->statusCode,
                 $apiResult->headers,
@@ -1023,7 +1028,7 @@ class PetApi extends BaseApi
     /**
 
      * @return ApiResult<\PetstoreClient\Models\PetPassport>
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function getPetPassportWithHttpInfo(int $petId): ApiResult
     {
@@ -1062,7 +1067,7 @@ class PetApi extends BaseApi
      * Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
 
      * @return string
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function getPetPhoto(int $petId, int $photoId)
     {
@@ -1073,7 +1078,7 @@ class PetApi extends BaseApi
              * as the SDK's typed ApiException (with the status, body and
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
-            throw new ApiException(
+            throw new \PetstoreClient\ApiException(
                 'Expected a response body for getPetPhoto but received none',
                 $apiResult->statusCode,
                 $apiResult->headers,
@@ -1088,7 +1093,7 @@ class PetApi extends BaseApi
     /**
 
      * @return ApiResult<string>
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function getPetPhotoWithHttpInfo(int $petId, int $photoId): ApiResult
     {
@@ -1139,7 +1144,7 @@ class PetApi extends BaseApi
      * @param GetPetTagOptions $options Options for query, header, form, and cookie parameters
 
      * @return \PetstoreClient\Models\Pet
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function getPetTag(int $petId, string $tagName, ?GetPetTagOptions $options = null)
     {
@@ -1150,7 +1155,7 @@ class PetApi extends BaseApi
              * as the SDK's typed ApiException (with the status, body and
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
-            throw new ApiException(
+            throw new \PetstoreClient\ApiException(
                 'Expected a response body for getPetTag but received none',
                 $apiResult->statusCode,
                 $apiResult->headers,
@@ -1167,7 +1172,7 @@ class PetApi extends BaseApi
      * @param GetPetTagOptions $options Options for query, header, form, and cookie parameters
 
      * @return ApiResult<\PetstoreClient\Models\Pet>
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function getPetTagWithHttpInfo(int $petId, string $tagName, ?GetPetTagOptions $options = null): ApiResult
     {
@@ -1232,7 +1237,7 @@ class PetApi extends BaseApi
      * Get staging pet info
 
      * @return \PetstoreClient\Models\Pet
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function getStagingPetInfo(int $petId, ?GetStagingPetInfoServer $server = null)
     {
@@ -1243,7 +1248,7 @@ class PetApi extends BaseApi
              * as the SDK's typed ApiException (with the status, body and
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
-            throw new ApiException(
+            throw new \PetstoreClient\ApiException(
                 'Expected a response body for getStagingPetInfo but received none',
                 $apiResult->statusCode,
                 $apiResult->headers,
@@ -1258,7 +1263,7 @@ class PetApi extends BaseApi
     /**
 
      * @return ApiResult<\PetstoreClient\Models\Pet>
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function getStagingPetInfoWithHttpInfo(int $petId, ?GetStagingPetInfoServer $server = null): ApiResult
     {
@@ -1274,7 +1279,7 @@ class PetApi extends BaseApi
             '%2B' => '+',
         ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
-        if ($server instanceof GetStagingPetInfoServer) {
+        if ($server instanceof \PetstoreClient\Api\GetStagingPetInfoServer) {
             $serverUrl = $server->getUrl();
             if (str_starts_with($serverUrl, 'http://') || str_starts_with($serverUrl, 'https://')) {
                 $path = $serverUrl . $path;
@@ -1302,7 +1307,7 @@ class PetApi extends BaseApi
      * Set the pet's profile photo
      * Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
 
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function setPetAvatar(int $petId, \SplFileObject $body): void
     {
@@ -1312,7 +1317,7 @@ class PetApi extends BaseApi
     /**
 
      * @return ApiResult<null>
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function setPetAvatarWithHttpInfo(int $petId, \SplFileObject $body): ApiResult
     {
@@ -1350,7 +1355,7 @@ class PetApi extends BaseApi
      * Set the pet's avatar thumbnail as base64
      * Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
 
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function setPetAvatarThumbnail(int $petId, \PetstoreClient\Models\SetPetAvatarThumbnailRequest $setPetAvatarThumbnailRequest): void
     {
@@ -1360,7 +1365,7 @@ class PetApi extends BaseApi
     /**
 
      * @return ApiResult<null>
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function setPetAvatarThumbnailWithHttpInfo(int $petId, \PetstoreClient\Models\SetPetAvatarThumbnailRequest $setPetAvatarThumbnailRequest): ApiResult
     {
@@ -1401,7 +1406,7 @@ class PetApi extends BaseApi
      * @param SetPetPreferencesOptions $options Options for query, header, form, and cookie parameters
 
      * @return \PetstoreClient\Models\ApiResponse
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function setPetPreferences(int $petId, SetPetPreferencesOptions $options)
     {
@@ -1412,7 +1417,7 @@ class PetApi extends BaseApi
              * as the SDK's typed ApiException (with the status, body and
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
-            throw new ApiException(
+            throw new \PetstoreClient\ApiException(
                 'Expected a response body for setPetPreferences but received none',
                 $apiResult->statusCode,
                 $apiResult->headers,
@@ -1429,7 +1434,7 @@ class PetApi extends BaseApi
      * @param SetPetPreferencesOptions $options Options for query, header, form, and cookie parameters
 
      * @return ApiResult<\PetstoreClient\Models\ApiResponse>
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function setPetPreferencesWithHttpInfo(int $petId, SetPetPreferencesOptions $options): ApiResult
     {
@@ -1479,7 +1484,7 @@ class PetApi extends BaseApi
      * @param \PetstoreClient\Models\Pet $pet Pet object that needs to be updated
 
      * @return \PetstoreClient\Models\Pet
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function updatePet(int $petId, \PetstoreClient\Models\Pet $pet)
     {
@@ -1490,7 +1495,7 @@ class PetApi extends BaseApi
              * as the SDK's typed ApiException (with the status, body and
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
-            throw new ApiException(
+            throw new \PetstoreClient\ApiException(
                 'Expected a response body for updatePet but received none',
                 $apiResult->statusCode,
                 $apiResult->headers,
@@ -1507,7 +1512,7 @@ class PetApi extends BaseApi
      * @param \PetstoreClient\Models\Pet $pet Pet object that needs to be updated
 
      * @return ApiResult<\PetstoreClient\Models\Pet>
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function updatePetWithHttpInfo(int $petId, \PetstoreClient\Models\Pet $pet): ApiResult
     {
@@ -1548,7 +1553,7 @@ class PetApi extends BaseApi
      * @param UploadPetCertificateOptions $options Options for query, header, form, and cookie parameters
 
      * @return \PetstoreClient\Models\ApiResponse
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function uploadPetCertificate(int $petId, UploadPetCertificateOptions $options)
     {
@@ -1559,7 +1564,7 @@ class PetApi extends BaseApi
              * as the SDK's typed ApiException (with the status, body and
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
-            throw new ApiException(
+            throw new \PetstoreClient\ApiException(
                 'Expected a response body for uploadPetCertificate but received none',
                 $apiResult->statusCode,
                 $apiResult->headers,
@@ -1576,7 +1581,7 @@ class PetApi extends BaseApi
      * @param UploadPetCertificateOptions $options Options for query, header, form, and cookie parameters
 
      * @return ApiResult<\PetstoreClient\Models\ApiResponse>
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function uploadPetCertificateWithHttpInfo(int $petId, UploadPetCertificateOptions $options): ApiResult
     {
@@ -1618,7 +1623,7 @@ class PetApi extends BaseApi
      * @param UploadPetDocumentOptions $options Options for query, header, form, and cookie parameters
 
      * @return \PetstoreClient\Models\ApiResponse
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function uploadPetDocument(int $petId, UploadPetDocumentOptions $options)
     {
@@ -1629,7 +1634,7 @@ class PetApi extends BaseApi
              * as the SDK's typed ApiException (with the status, body and
              * headers) instead of returning a silent null, matching the
              * throwing SDKs. */
-            throw new ApiException(
+            throw new \PetstoreClient\ApiException(
                 'Expected a response body for uploadPetDocument but received none',
                 $apiResult->statusCode,
                 $apiResult->headers,
@@ -1646,7 +1651,7 @@ class PetApi extends BaseApi
      * @param UploadPetDocumentOptions $options Options for query, header, form, and cookie parameters
 
      * @return ApiResult<\PetstoreClient\Models\ApiResponse>
-     * @throws ApiException
+     * @throws \PetstoreClient\ApiException
      */
     public function uploadPetDocumentWithHttpInfo(int $petId, UploadPetDocumentOptions $options): ApiResult
     {

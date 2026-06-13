@@ -19,7 +19,7 @@ namespace PetstoreClient\Api\Options;
 class FindPetsByStatusOptions
 {
     /**
-     * @param array<string, \Ds\Map>|null $filter Filter criteria as key-value pairs
+     * @param array<string, \Ds\Map<array-key, mixed>>|null $filter Filter criteria as key-value pairs
      */
     public function __construct(
         public readonly ?string $status = null,

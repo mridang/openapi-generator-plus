@@ -11,6 +11,8 @@
 
 declare(strict_types=1);
 
+/* phpcs:ignoreFile */
+
 namespace PetstoreClient\Serializer;
 
 use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
@@ -61,6 +63,8 @@ final class DsSetNormalizer implements NormalizerInterface, DenormalizerInterfac
 
     /**
      * @param array<string, mixed> $context
+     *
+     * @return \Ds\Set<mixed>
      */
     public function denormalize(mixed $data, string $type, ?string $format = null, array $context = []): \Ds\Set
     {

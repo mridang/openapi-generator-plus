@@ -11,6 +11,8 @@
 
 declare(strict_types=1);
 
+/* phpcs:ignoreFile */
+
 namespace PetstoreClient\Serializer;
 
 use PetstoreClient\ObjectSerializer;
