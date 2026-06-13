@@ -205,6 +205,13 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
      * does not drive element denormalization. Null is returned when
      * no matching annotation is present; callers then wrap the raw
      * element values without inner denormalization.
+     *
+     * The generated PHPDoc names the inner model with its short class
+     * name (e.g. `\Ds\Vector<UserServiceUser>`), relying on the file's
+     * namespace for resolution. PHPDoc carries no `use` context, so an
+     * unqualified name is resolved here against the declaring class's
+     * namespace before it reaches {@see class_exists}; otherwise the
+     * inner elements would silently stay as raw arrays.
      */
     private function readPhpDocInnerType(\ReflectionParameter $parameter): ?string
     {
@@ -229,6 +236,34 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
             $parts = explode(',', $inner, 2);
             $inner = trim($parts[1]);
         }
-        return ltrim($inner, '\\');
+
+        return $this->resolveClassName(ltrim($inner, '\\'), $constructor);
+    }
+
+    /**
+     * Resolve an inner type name read from PHPDoc to a usable class name.
+     *
+     * A name written as a fully-qualified path (it exists as-is) is kept.
+     * Otherwise the unqualified short name is qualified with the declaring
+     * class's namespace, matching how the generated PHPDoc relies on the
+     * file's namespace. When neither resolves to a real class the original
+     * name is returned so the caller's {@see class_exists} guard skips
+     * inner denormalization for scalars and unknown types.
+     */
+    private function resolveClassName(string $name, \ReflectionMethod $constructor): string
+    {
+        if (class_exists($name)) {
+            return $name;
+        }
+
+        $namespace = $constructor->getDeclaringClass()->getNamespaceName();
+        if ($namespace !== '') {
+            $qualified = $namespace . '\\' . $name;
+            if (class_exists($qualified)) {
+                return $qualified;
+            }
+        }
+
+        return $name;
     }
 }

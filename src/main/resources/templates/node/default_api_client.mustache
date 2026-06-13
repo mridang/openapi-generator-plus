@@ -73,17 +73,36 @@ export class DefaultApiClient implements ApiClient {
 
   constructor(transportOptions?: TransportOptions) {
     this.transportOptions = transportOptions ?? TransportOptions.builder().build();
+    this.dispatcher = DefaultApiClient.buildDispatcher(this.transportOptions);
+  }
 
+  /**
+   * Build an undici dispatcher from the given transport options, applying
+   * proxy routing, custom CA certificate, TLS verification, and redirect
+   * settings. Returns `undefined` when no special dispatcher is required
+   * (i.e. plain TLS verification against the system trust store with no
+   * proxy and no redirect cap).
+   *
+   * Exposed so that out-of-band HTTP calls made outside the request path
+   * (e.g. OpenID discovery during authenticator construction) honour the
+   * same TLS and proxy configuration as regular API requests.
+   *
+   * @param transportOptions transport configuration to apply
+   * @returns a configured dispatcher, or `undefined` for the defaults
+   */
+  public static buildDispatcher(
+    transportOptions: TransportOptions,
+  ): ProxyAgent | Agent | undefined {
     const needsTls =
-      this.transportOptions.caCertPath != null || !this.transportOptions.verifySsl;
+      transportOptions.caCertPath != null || !transportOptions.verifySsl;
     /* Gap T4: fail fast on a user-supplied CA cert that cannot be read or
      * parsed rather than silently falling back to the system trust store.
      * If the caller explicitly asked for SSL pinning we must not pretend it
      * succeeded -- read and parse the PEM eagerly at construction, surfacing
      * any failure as the SDK's own ApiError. */
     let caCert: Buffer | undefined;
-    if (this.transportOptions.caCertPath != null) {
-      const caCertPath = this.transportOptions.caCertPath;
+    if (transportOptions.caCertPath != null) {
+      const caCertPath = transportOptions.caCertPath;
       try {
         caCert = fs.readFileSync(caCertPath);
       } catch (e) {
@@ -104,44 +123,50 @@ export class DefaultApiClient implements ApiClient {
         );
       }
     }
-    const tlsOptions = needsTls
-      ? {
-          ca: caCert,
-          rejectUnauthorized: this.transportOptions.verifySsl,
-          /* Gap AM: verifySsl=false must disable BOTH cert-chain AND
-           * hostname verification (curl -k semantics). undici's
-           * `rejectUnauthorized=false` skips the chain but TLS still
-           * matches the hostname against the cert's CN/SAN by default.
-           * Setting `checkServerIdentity` to a no-op makes the two
-           * checks symmetric. */
-          checkServerIdentity: this.transportOptions.verifySsl ? undefined : () => undefined,
-        }
-      : undefined;
+    let tlsOptions: Record<string, unknown> | undefined;
+    if (needsTls) {
+      tlsOptions = {
+        ca: caCert,
+        rejectUnauthorized: transportOptions.verifySsl,
+      };
+      /* Gap AM: verifySsl=false must disable BOTH cert-chain AND
+       * hostname verification (curl -k semantics). undici's
+       * `rejectUnauthorized=false` skips the chain but TLS still
+       * matches the hostname against the cert's CN/SAN by default.
+       * Setting `checkServerIdentity` to a no-op makes the two
+       * checks symmetric. The key is only added when verification is
+       * disabled -- Node's TLS layer rejects an explicit `undefined`
+       * value for `checkServerIdentity`. */
+      if (!transportOptions.verifySsl) {
+        tlsOptions.checkServerIdentity = () => undefined;
+      }
+    }
 
-    if (this.transportOptions.proxy) {
+    if (transportOptions.proxy) {
       const proxyOpts: Record<string, unknown> = {
-        uri: this.transportOptions.proxy,
+        uri: transportOptions.proxy,
       };
       if (tlsOptions) {
         proxyOpts.requestTls = tlsOptions;
       }
-      if (this.transportOptions.maxRedirects != null) {
-        proxyOpts.maxRedirections = this.transportOptions.maxRedirects;
+      if (transportOptions.maxRedirects != null) {
+        proxyOpts.maxRedirections = transportOptions.maxRedirects;
       }
-      this.dispatcher = new ProxyAgent(proxyOpts as unknown as ConstructorParameters<typeof ProxyAgent>[0]);
+      return new ProxyAgent(proxyOpts as unknown as ConstructorParameters<typeof ProxyAgent>[0]);
     } else if (needsTls) {
       const agentOpts: Record<string, unknown> = {
         connect: tlsOptions,
       };
-      if (this.transportOptions.maxRedirects != null) {
-        agentOpts.maxRedirections = this.transportOptions.maxRedirects;
+      if (transportOptions.maxRedirects != null) {
+        agentOpts.maxRedirections = transportOptions.maxRedirects;
       }
-      this.dispatcher = new Agent(agentOpts as ConstructorParameters<typeof Agent>[0]);
-    } else if (this.transportOptions.maxRedirects != null) {
-      this.dispatcher = new Agent({
-        maxRedirections: this.transportOptions.maxRedirects,
+      return new Agent(agentOpts as ConstructorParameters<typeof Agent>[0]);
+    } else if (transportOptions.maxRedirects != null) {
+      return new Agent({
+        maxRedirections: transportOptions.maxRedirects,
       } as ConstructorParameters<typeof Agent>[0]);
     }
+    return undefined;
   }
 
   /**

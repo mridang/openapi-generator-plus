@@ -3,9 +3,9 @@
 import { injectTraceContext } from '../src/trace-context-util{{importFileExtension}}';
 
 describe('TraceContextUtil', () => {
-  test('is a no-op without tracer', () => {
+  test('is a no-op without tracer', async () => {
     const headers: Record<string, string> = {};
-    injectTraceContext(headers);
+    await injectTraceContext(headers);
     expect(Object.keys(headers).length).toBe(0);
   });
 
@@ -15,43 +15,43 @@ describe('TraceContextUtil', () => {
     expect(Object.keys(headers).length).toBe(0);
   });
 
-  test('does not inject traceparent without OTel', () => {
+  test('does not inject traceparent without OTel', async () => {
     const headers: Record<string, string> = {};
-    injectTraceContext(headers);
+    await injectTraceContext(headers);
     expect(headers['traceparent']).toBeUndefined();
   });
 
-  test('does not inject tracestate without OTel', () => {
+  test('does not inject tracestate without OTel', async () => {
     const headers: Record<string, string> = {};
-    injectTraceContext(headers);
+    await injectTraceContext(headers);
     expect(headers['tracestate']).toBeUndefined();
   });
 
-  test('preserves Authorization header', () => {
+  test('preserves Authorization header', async () => {
     const headers: Record<string, string> = { Authorization: 'Bearer token123' };
-    injectTraceContext(headers);
+    await injectTraceContext(headers);
     expect(headers['Authorization']).toBe('Bearer token123');
   });
 
-  test('preserves Content-Type header', () => {
+  test('preserves Content-Type header', async () => {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    injectTraceContext(headers);
+    await injectTraceContext(headers);
     expect(headers['Content-Type']).toBe('application/json');
   });
 
-  test('preserves X-Request-ID header', () => {
+  test('preserves X-Request-ID header', async () => {
     const headers: Record<string, string> = { 'X-Request-ID': 'req-12345' };
-    injectTraceContext(headers);
+    await injectTraceContext(headers);
     expect(headers['X-Request-ID']).toBe('req-12345');
   });
 
-  test('preserves all existing headers', () => {
+  test('preserves all existing headers', async () => {
     const headers: Record<string, string> = {
       Authorization: 'Bearer token',
       'Content-Type': 'application/json',
       'X-Request-ID': 'abc-123',
     };
-    injectTraceContext(headers);
+    await injectTraceContext(headers);
     expect(Object.keys(headers).length).toBe(3);
     expect(headers['Authorization']).toBe('Bearer token');
     expect(headers['Content-Type']).toBe('application/json');

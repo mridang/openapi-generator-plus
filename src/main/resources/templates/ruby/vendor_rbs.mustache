@@ -68,34 +68,14 @@ module ISO8601
     def to_seconds: () -> Float
   end
 end
+# Faraday signatures come from the gem_rbs_collection (.gem_rbs_collection/faraday).
+# Do NOT redeclare its classes (e.g. Error, TimeoutError, SSLOptions,
+# RequestOptions) — the collection already defines them (with
+# `TimeoutError < ServerError`), so redeclaring here triggers conflicting
+# superclass errors. Only reopen Connection to ADD the one writer the
+# collection omits but the generated client uses.
 module Faraday
-  def self.new: () ?{ (Connection) -> void } -> Connection
-
-  class Error < StandardError
-  end
-
-  class ConnectionFailed < Error
-  end
-
-  class TimeoutError < Error
-  end
-
-  class SSLError < Error
-  end
-
   class Connection
     def proxy=: (String?) -> void
-    def ssl: () -> SSLOptions
-    def options: () -> RequestOptions
-  end
-
-  class SSLOptions
-    def verify=: (bool) -> void
-    def ca_file=: (String?) -> void
-  end
-
-  class RequestOptions
-    def timeout=: (Numeric?) -> void
-    def open_timeout=: (Numeric?) -> void
   end
 end
